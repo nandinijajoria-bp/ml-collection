@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<springProfile name="dev">
+		<property name="LOG.APPENDER" value="Console" />
+		<property name="LOG.FILE" value="logs/recon.log" />
+	</springProfile>
+	
+	<springProfile name="!dev">
+		<property name="LOG.APPENDER" value="RollingFile" />
+		<property name="LOG.FILE" value="/home/ubuntu/logs/recon.log" />
+	</springProfile>
+	
+    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%d{dd-MM-yyyy HH:mm:ss.SSS} %magenta([%thread]) %highlight(%-5level) %logger{36}.%M\(%line\) - %msg%n</pattern>
+        </layout>
+    </appender>
+ 
+    <appender name="RollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG.FILE}</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{dd-MM-yyyy HH:mm:ss.SSS} %magenta([%thread]) %highlight(%-5level) %logger{36}.%M\(%line\) - %msg%n</pattern>
+        </encoder>
+ 
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">        
+        <fileNamePattern>${LOG.FILE}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+        <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    </appender>
+     
+    <logger name="com.bharatpe" level="INFO"></logger>
+    
+    <root level="ERROR">
+        <appender-ref ref="${LOG.APPENDER}"/>
+    </root>
+</configuration>
