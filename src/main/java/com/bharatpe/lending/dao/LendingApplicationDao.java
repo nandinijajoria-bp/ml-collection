@@ -15,4 +15,5 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value="update lending_application SET status = :newStatus WHERE id = :applicationId AND merchant_id = :merchantId AND status = :oldStatus",nativeQuery = true)
 	int updateApplicationStatus(String newStatus, Long applicationId, Long merchantId, String oldStatus);
 	LendingApplication fetchApplicationByIdAndStatus(Long applicationId, Long merchantId);
+	LendingApplication findTop1ByMerchantIdOrderByApplicationIdDesc(Long merchantId);
 }
