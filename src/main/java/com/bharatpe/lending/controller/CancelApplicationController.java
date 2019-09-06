@@ -24,12 +24,12 @@ public class CancelApplicationController {
 	CancelApplicationService cancelApplicationService;
 	
 	@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Map<String, Boolean> lendingUpload(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("lendingUpload request : {}",request);
+	public Map<String, Boolean> cancelApplication(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		logger.info("cancelApplication request : {}",request);
 		
 		Map<String, Boolean> resp = cancelApplicationService.runService(request, response, commonAPIRequest);
 		
-		logger.info("lendingUpload response : {}", resp);
+		logger.info("cancelApplication response : {}", resp);
 		return resp;
 	}
 }
