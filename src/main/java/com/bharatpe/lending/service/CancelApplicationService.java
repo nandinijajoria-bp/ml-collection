@@ -51,6 +51,7 @@ public class CancelApplicationService {
 			int updatedColumn = lendingApplicationDao.updateApplicationStatus(newStatus, applicationId, merchantId, currentStatus);
 			
 			if(updatedColumn != 0) {
+				logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchantId);
 				LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 				lendingAuditTrial.setApplicationId(applicationId);
 				lendingAuditTrial.setMerchantId(merchantId);
@@ -61,7 +62,10 @@ public class CancelApplicationService {
 				lendingAuditTrial.setType("APP_STATUS");
 				lendingAuditTrialDao.save(lendingAuditTrial);
 				resp.put("success",true);
+				logger.info("CancelApplicationService lending_audit_trail success insert for applicationId : {} and merchantId : {}", applicationId, merchantId);
 			}else {
+				response.setStatus(Integer.parseInt(ResponseCode.SOMETHING_WENT_WRONG));
+				logger.info("CancelApplicationService status update failed for applicationId : {} and merchantId : {}", applicationId, merchantId);
 				resp.put("success",false);
 			}
 		}else {
