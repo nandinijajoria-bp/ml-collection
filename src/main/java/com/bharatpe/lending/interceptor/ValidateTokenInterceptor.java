@@ -50,14 +50,14 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         //fetch token from header
         String token = request.getHeader("token");
         
-        //Make token alphanumeric
-        String normalized = Normalizer.normalize(token, Form.NFD);
-        token = normalized.replaceAll("[^A-Za-z0-9]", "");
-        
         try {
         	if(StringUtils.isEmpty(token)) {
 	            logger.error("Token Value is Blank or Empty for request {}", request);
         	}else {
+        		//Make token alphanumeric
+                String normalized = Normalizer.normalize(token, Form.NFD);
+                token = normalized.replaceAll("[^A-Za-z0-9]", "");
+                
         		//fetch token details from verify
         		List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
         		
