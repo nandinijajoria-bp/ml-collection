@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
