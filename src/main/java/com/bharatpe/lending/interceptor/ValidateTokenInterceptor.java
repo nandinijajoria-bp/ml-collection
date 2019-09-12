@@ -86,6 +86,7 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         	logger.error("Exception occurred in Pre handle Interceptor ValidateTokenInterceptor {}", th);
         }
         if(status == true) {
+        	logger.info("ValidateToken Interceptor Success:  mobile : {} and merchantId : {}", mobile, merchantId);
         	request.setAttribute("mobile", mobile);
 			request.setAttribute("merchantId", merchantId);
         }else {
