@@ -22,4 +22,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	LendingApplication findByApplicationId(Long applicationId);
 	@Query(value="select * from lending_application where merchant_id = ?  and status not in ('closed','deleted') AND id not in (select application_id from loan_details) order by id desc LIMIT 1",nativeQuery = true)
 	LendingApplication fetchLatestOpenApplication(Long applicationId);
+	
+	@Modifying
+	@Query(value="UPDATE lending_application SET manual_kyc=:status where id=:applicationId",nativeQuery = true)
+	void updateApplicationManualKyc(String status, Long applicationId);
 }
