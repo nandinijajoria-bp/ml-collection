@@ -25,7 +25,7 @@ public class CancelApplicationController {
 	
 	@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Boolean> cancelApplication(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("cancelApplication request : {}",request);
+		logger.info("cancelApplication request : {}",commonAPIRequest);
 		
 		Map<String, Boolean> resp = cancelApplicationService.runService(request, response, commonAPIRequest);
 		

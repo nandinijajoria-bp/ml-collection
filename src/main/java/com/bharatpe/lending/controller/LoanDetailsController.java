@@ -26,7 +26,7 @@ public class LoanDetailsController {
 	
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Object> loanDetails(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("loanDetails request : {}",request);
+		logger.info("loanDetails request : {}",commonAPIRequest);
 		
 		Map<String, Object> resp = loanDetailsService.runService(request, response, commonAPIRequest);
 		

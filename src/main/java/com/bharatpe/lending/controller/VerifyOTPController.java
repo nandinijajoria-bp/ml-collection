@@ -26,7 +26,7 @@ public class VerifyOTPController {
 	
 	@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Boolean> verifyOTP(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("verifyOTP request : {}",request);
+		logger.info("verifyOTP request : {}",commonAPIRequest);
 		
 		Map<String, Boolean> resp = verifyOTPService.runService(request, response, commonAPIRequest);
 		

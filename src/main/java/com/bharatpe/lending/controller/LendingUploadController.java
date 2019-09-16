@@ -25,7 +25,7 @@ public class LendingUploadController {
 	
 	@RequestMapping(value="/lendingUpload", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Object> lendingUpload(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("lendingUpload request : {}",request);
+		logger.info("lendingUpload request : {}",commonAPIRequest);
 		
 		Map<String, Object> resp = lendingUplaodService.runService(request, response, commonAPIRequest);
 		

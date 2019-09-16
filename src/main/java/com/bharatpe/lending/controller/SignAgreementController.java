@@ -27,7 +27,7 @@ public class SignAgreementController {
 	
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Boolean> signAgreement(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("singAgreement request : {}",request);
+		logger.info("singAgreement request : {}",commonAPIRequest);
 		
 		Map<String, Boolean> resp = signAgreementService.runService(request, response, commonAPIRequest);
 		
