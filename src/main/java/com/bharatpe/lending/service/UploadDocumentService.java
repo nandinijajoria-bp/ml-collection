@@ -430,9 +430,11 @@ public class UploadDocumentService {
 			}
 			Date initDate;
 			try {
-				initDate = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
 				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-				docKycDetails.setDob(formatter.format(initDate));
+				if(!dob.isEmpty()) {
+					initDate = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
+					docKycDetails.setDob(formatter.format(initDate));
+				}
 				
 				if(!doi.isEmpty()) {
 					initDate = new SimpleDateFormat("dd/MM/yyyy").parse(doi);
