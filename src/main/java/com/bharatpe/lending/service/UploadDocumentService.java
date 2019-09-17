@@ -240,6 +240,7 @@ public class UploadDocumentService {
 					  .withRegion(Regions.AP_SOUTH_1)
 					  .build();
 		}catch(Exception e) {
+			e.printStackTrace();
 			logger.info("UploadDocumentService exception while creating connection to S3 bucket message : {}",e.getMessage());
 		}
 		return s3client;
@@ -271,6 +272,7 @@ public class UploadDocumentService {
 						);
 			}
 		}catch(Exception e) {
+			e.printStackTrace();
 			logger.info("UploadDocumentService exception while Uploading doc to S3 bucket message : {}",e.getMessage());
 		}
 		return fileName;
@@ -317,6 +319,7 @@ public class UploadDocumentService {
 			response = curlResponse.body().string();
 			logger.info("UploadDocumentService karza kyc api response : {}", response);
 		} catch (IOException e) {
+			e.printStackTrace();
 			logger.info("UploadDocumentService exception while karza kyc api, signedURL : {}",signedURL);
 		}
 		return response;
@@ -438,6 +441,7 @@ public class UploadDocumentService {
 				}
 				
 			} catch (ParseException e) {
+				e.printStackTrace();
 				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
 			}
 			docKycDetailsDao.save(docKycDetails);
@@ -490,6 +494,7 @@ public class UploadDocumentService {
 			response = curlResponse.body().string();
 			logger.info("UploadDocumentService karza pan authentication api response : {}", response);
 		} catch (IOException e) {
+			e.printStackTrace();
 			logger.info("UploadDocumentService exception while karza pan authentication api, panNumber : {}, name : {}, documentId : {}",panNumber, name, dob);
 		}
 		return response;

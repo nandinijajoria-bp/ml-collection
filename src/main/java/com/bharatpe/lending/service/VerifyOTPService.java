@@ -103,6 +103,7 @@ public class VerifyOTPService {
 					}
 				}
 			} catch (IOException e) {
+				e.printStackTrace();
 				logger.info("VerifyOTPService otp api exception : {} ",e.getMessage());
 			}
 		}
@@ -158,6 +159,7 @@ public class VerifyOTPService {
 			String responseBody = response.body().string();
 			logger.info("VerifyOTP SendSuccessSMS api response : {}", responseBody);
 		} catch (IOException e) {
+			e.printStackTrace();
 			logger.info("VerifyOTP SendSuccessSMS api exception : {} ",e.getMessage());
 		}
 	}
@@ -189,6 +191,7 @@ public class VerifyOTPService {
 				String responseBody = response.body().string();
 				logger.info("VerifyOTP SendSuccessNotification api response : {}", responseBody);
 			} catch (IOException e) {
+				e.printStackTrace();
 				logger.info("VerifyOTP SendSuccessNotification api exception : {} ",e.getMessage());
 			}
 		}

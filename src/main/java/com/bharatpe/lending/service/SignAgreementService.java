@@ -327,7 +327,7 @@ public class SignAgreementService {
 					}
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
+				e.printStackTrace();
 				logger.info("SignAgreementService otp api exception : {} ",e.getMessage());
 			}
 		}

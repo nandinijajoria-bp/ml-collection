@@ -55,9 +55,11 @@ public class ImageURLService {
 						String frontURL = getTemporaryPublicURL(documentsIdProof.getProofFrontSide());
 						imageURL.add(frontURL);
 					} catch (FileNotFoundException e) {
+						e.printStackTrace();
 						imageURL.add(null);
 						logger.info("ImageURLService file not found in S3 bucket for key : {}", documentsIdProof.getProofFrontSide());
 					} catch (Exception e) {
+						e.printStackTrace();
 						logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", documentsIdProof.getProofFrontSide(), e.getMessage());
 					}
 				}
@@ -66,8 +68,10 @@ public class ImageURLService {
 						String backURL = getTemporaryPublicURL(documentsIdProof.getProofBackSide());
 						imageURL.add(backURL);
 					} catch (FileNotFoundException e) {
+						e.printStackTrace();
 						logger.info("ImageURLService file not found in S3 bucket for key : {}", documentsIdProof.getProofBackSide());
 					} catch (Exception e) {
+						e.printStackTrace();
 						logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", documentsIdProof.getProofBackSide(), e.getMessage());
 					}
 				}
@@ -99,6 +103,7 @@ public class ImageURLService {
 					  .withRegion(Regions.AP_SOUTH_1)
 					  .build();
 		}catch(Exception e) {
+			e.printStackTrace();
 			logger.info("UploadDocumentService exception while creating connection to S3 bucket message : {}",e.getMessage());
 		}
 		return s3client;
