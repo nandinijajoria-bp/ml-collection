@@ -1,5 +1,7 @@
 package com.bharatpe.lending.controller;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -26,11 +28,14 @@ public class UploadDocumentController {
 	
 	@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Object> uploadDocument(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		Instant start = Instant.now();
 		logger.info("UploadDocument request : {}",commonAPIRequest);
 		
 		Map<String, Object> resp = uploadDocumentService.runService(request, response, commonAPIRequest);
 		
 		logger.info("UploadDocument response : {}", resp);
+		Instant end = Instant.now();
+		logger.info("Time Taken by uploadDocument API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 }

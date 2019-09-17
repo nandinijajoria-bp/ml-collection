@@ -3,6 +3,8 @@ package com.bharatpe.lending.service;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -75,7 +77,10 @@ public class VerifyOTPService {
 			}else {
 				this.loanAmount = Double.parseDouble(selectedLoan.get("loan_amount"));
 			}
+			Instant start = Instant.now();
 			verifyOTP();
+			Instant end = Instant.now();
+			logger.info("Time Taken by GUPSHUP verify OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 		}
 		return this.finalResponse;
 	}
@@ -130,8 +135,15 @@ public class VerifyOTPService {
 			Validate validate = validateDao.findByMerchantId(this.merchantId);
 			
 			if(validate != null) {
+				Instant start = Instant.now();
 				sendSuccessSMS(validate);
+				Instant end = Instant.now();
+				logger.info("Time Taken by GUPSHUP sendMessage API : {} miliseconds", Duration.between(start, end).toMillis());
+				
+				start = Instant.now();
 				sendNotification(validate);
+				end = Instant.now();
+				logger.info("Time Taken by GUPSHUP fcm google API : {} miliseconds", Duration.between(start, end).toMillis());
 			}
 			
 			this.finalResponse.put("success",true);

@@ -1,6 +1,8 @@
 package com.bharatpe.lending.service;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,7 +203,10 @@ public class SignAgreementService {
 						
 						replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId());
 						
+						Instant start = Instant.now();
 						sendOTP();
+						Instant end = Instant.now();
+						logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 					}
 				}
 			}

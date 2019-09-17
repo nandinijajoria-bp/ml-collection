@@ -46,6 +46,8 @@ import org.json.simple.JSONValue;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -170,10 +172,16 @@ public class UploadDocumentService {
 				base64Encoded = processBase64String(base64Encoded);
 				
 				if(docSide == 1) {//front side
+					Instant start = Instant.now();
 					String frontSide = uploadToS3Bucket(base64Encoded);
+					Instant end = Instant.now();
+					logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
 					proofSides.put("frontSide", frontSide);
 				}else {//back side
+					Instant start = Instant.now();
 					String backSide = uploadToS3Bucket(base64Encoded);
+					Instant end = Instant.now();
+					logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
 					proofSides.put("backSide", backSide);
 				}
 				docSide++;
@@ -332,9 +340,15 @@ public class UploadDocumentService {
 	
 	private void kycUsingKarzaAPI(String proofType, String fileName, Long documentId ) {
 		try {
+			Instant start = Instant.now();
 			String tempPublicURL = getTemporaryPublicURL(fileName);
+			Instant end = Instant.now();
+			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
 			if(!tempPublicURL.isBlank()) {
+				start = Instant.now();
 				String response = curlKarzaKycAPI(tempPublicURL);
+				end = Instant.now();
+				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
 				if(!response.isBlank()) {
 					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
 					Long status = (Long) jsonResponseObject.get("statusCode");
@@ -342,7 +356,10 @@ public class UploadDocumentService {
 					if(status == 101) {
 						Long insertId = processAndSaveKycResponse(response, proofType, documentId);
 						if(proofType.equals("pancard")) {
+							start = Instant.now();
 							pancardAuthenticationUsingKarzaAPI(jsonResponseObject, insertId, documentId);
+							end = Instant.now();
+							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
 						}
 					}else {
 						String requestId = (String) jsonResponseObject.get("requestId");

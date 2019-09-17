@@ -1,5 +1,7 @@
 package com.bharatpe.lending.controller;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -26,11 +28,14 @@ public class LoanDetailsController {
 	
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Object> loanDetails(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		Instant start = Instant.now();
 		logger.info("loanDetails request : {}",commonAPIRequest);
 		
 		Map<String, Object> resp = loanDetailsService.runService(request, response, commonAPIRequest);
 		
 		logger.info("loanDetails response : {}", resp);
+		Instant end = Instant.now();
+		logger.info("Time Taken by loanDetails API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 

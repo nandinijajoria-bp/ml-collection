@@ -1,6 +1,8 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,7 +67,10 @@ public class ImageURLService {
 				}
 				if(documentsIdProof.getProofBackSide() != null) {
 					try {
+						Instant start = Instant.now();
 						String backURL = getTemporaryPublicURL(documentsIdProof.getProofBackSide());
+						Instant end = Instant.now();
+						logger.info("Time Taken by AWS S3 tempPublicURL API : {} miliseconds", Duration.between(start, end).toMillis());
 						imageURL.add(backURL);
 					} catch (FileNotFoundException e) {
 						e.printStackTrace();

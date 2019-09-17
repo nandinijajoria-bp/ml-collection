@@ -1,5 +1,7 @@
 package com.bharatpe.lending.controller;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -27,11 +29,14 @@ public class SignAgreementController {
 	
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Boolean> signAgreement(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		Instant start = Instant.now();
 		logger.info("singAgreement request : {}",commonAPIRequest);
 		
 		Map<String, Boolean> resp = signAgreementService.runService(request, response, commonAPIRequest);
 		
 		logger.info("signAgreement response : {}", resp);
+		Instant end = Instant.now();
+		logger.info("Time Taken by signAgreement API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 }
