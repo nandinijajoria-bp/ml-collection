@@ -97,7 +97,8 @@ public class LoanDetailsService {
 		initialize();
 		
 		Merchant merchant = merchantDao.findValidMerchant(this.merchantId);
-		if(merchant != null) {
+		Merchant merchantDIY = merchantDao.findValidMerchantForDIY(this.merchantId);
+		if(merchant != null || merchantDIY != null) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(this.merchantId,"ACTIVE");
 			
 			if(merchantBankDetail != null) {
@@ -186,17 +187,17 @@ public class LoanDetailsService {
 					this.eligibility.add(elegibleLoan);
 				}else {
 					elegibleLoan.put("option_enable", true);
-					if(this.isSubsequentLoan == true) {
-						if((this.prevTenure.equals("2 Weeks") || this.prevTenure.equals("1 Months")) && lendingCategoriesList.get(0).getPayableConverter().equals("3 Months")) {
-							this.eligibility.add(elegibleLoan);
-						}else if(this.prevTenure.equals("3 Months") && lendingCategoriesList.get(0).getPayableConverter().equals("6 Months")) {
-							this.eligibility.add(elegibleLoan);
-						}else if(this.prevTenure.equals("6 Months") && lendingCategoriesList.get(0).getPayableConverter().equals("12 Months")) {
-							this.eligibility.add(elegibleLoan);
-						}
-					}else {
+//					if(this.isSubsequentLoan == true) {
+//						if((this.prevTenure.equals("2 Weeks") || this.prevTenure.equals("1 Months")) && lendingCategoriesList.get(0).getPayableConverter().equals("3 Months")) {
+//							this.eligibility.add(elegibleLoan);
+//						}else if(this.prevTenure.equals("3 Months") && lendingCategoriesList.get(0).getPayableConverter().equals("6 Months")) {
+//							this.eligibility.add(elegibleLoan);
+//						}else if(this.prevTenure.equals("6 Months") && lendingCategoriesList.get(0).getPayableConverter().equals("12 Months")) {
+//							this.eligibility.add(elegibleLoan);
+//						}
+//					}else {
 						this.eligibility.add(elegibleLoan);
-					}
+//					}
 				}
 			}
 		}
@@ -212,7 +213,8 @@ public class LoanDetailsService {
 			this.applicationStatus = lendingApplicationStatus;
 			if(lendingApplicationStatus.equals("pending_verification") || lendingApplicationStatus.equals("approved")) {
 				this.statusTitle = "Application submitted successfully!";
-	            this.statusMessage = "Your loan application will be processed within 24 hours after document verification.Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
+	            this.statusMessage = "Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.";
+				//this.statusMessage = "Your loan application will be processed within 24 hours after document verification.Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
 			}else if(lendingApplicationStatus.equals("rejected")) {
 				this.showReapply = true;
 				this.statusTitle = "Verification Failed!";
