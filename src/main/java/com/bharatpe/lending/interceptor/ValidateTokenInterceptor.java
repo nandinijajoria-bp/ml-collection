@@ -21,8 +21,6 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.TokenVerification;
-import com.bharatpe.common.enums.Status;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
 public class ValidateTokenInterceptor implements HandlerInterceptor {
