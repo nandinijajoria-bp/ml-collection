@@ -106,8 +106,8 @@ public class UploadDocumentService {
 		
 		if(this.documentList.size() > 0) {
 			this.finalResponse.put("success", true);
-			this.finalResponse.put("document", this.documentList);
 		}
+		this.finalResponse.put("document", this.documentList);
 		
 		return this.finalResponse;
 	}
