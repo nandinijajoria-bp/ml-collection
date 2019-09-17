@@ -85,6 +85,11 @@ public class UploadDocumentService {
 		
 		List<Map<String, Object>> documents = (List<Map<String, Object>>) commonAPIRequest.getPayload().get("documents");
 		
+		Object selectedLoan = commonAPIRequest.getPayload().get("selected_loan");
+		if(selectedLoan != null) {
+			this.finalResponse.put("selected_loan", selectedLoan);
+		}
+		
 		if(this.applicationId != null) {
 			String dbOperation = "";
 			List<DocumentsIdProof> documentsIdProofList = documentsIdProofdao.findByMerchantIdAndApplicationId(this.merchantId, this.applicationId);
