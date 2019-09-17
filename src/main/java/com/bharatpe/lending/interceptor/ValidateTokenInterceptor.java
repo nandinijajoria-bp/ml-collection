@@ -24,8 +24,6 @@ import com.bharatpe.common.entities.TokenVerification;
 import com.bharatpe.common.enums.Status;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.bharatpe.lending.objects.Response;
-
 @Component
 public class ValidateTokenInterceptor implements HandlerInterceptor {
 
@@ -96,10 +94,6 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
     }
 	
 	private void sendFailureResponse(HttpServletResponse response, String responseCode) throws Exception{
-        Response apiResponse = new Response();
-        
-        ObjectMapper mapper = new ObjectMapper();
         response.setStatus(Integer.parseInt(responseCode));
-        response.getWriter().write(mapper.writeValueAsString(apiResponse));
     }
 }
