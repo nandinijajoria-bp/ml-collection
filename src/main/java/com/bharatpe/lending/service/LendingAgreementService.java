@@ -41,7 +41,7 @@ public class LendingAgreementService {
 		if(optionalObj.isPresent() == true) {
 			LendingNbfscs lendingNbfscs = optionalObj.orElse(null);
 			Map<String, String> lenderInfo = new LinkedHashMap<> ();
-			String lenderText = "BharatPe is the processing partner for this loan. <br /> Loan is in books of $lender_name <img src='"+ lendingNbfscs.getImageURL() +"'/> and will be disbursed from their account.";
+			String lenderText = "BharatPe is the processing partner for this loan. <br /> Loan is in books of "+lendingNbfscs.getDisplayName()+" <img src='"+ lendingNbfscs.getImageURL() +"'/> and will be disbursed from their account.";
 			
 			resp.put("success",true);
 			
