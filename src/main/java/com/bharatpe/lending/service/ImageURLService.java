@@ -28,6 +28,7 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.constants.LendingConstants;
 
 @Service
 public class ImageURLService {
@@ -38,7 +39,6 @@ public class ImageURLService {
 	
 	private Long merchantId;
 	private Long applicationId;
-	final String S3_BUCKET_NAME = "bharatpe-staging/lending-document";
 	
 	public List<Map<String, Object>> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
@@ -99,8 +99,8 @@ public class ImageURLService {
 		try {
 			//create connection
 			AWSCredentials credentials = new BasicAWSCredentials(
-					  "AKIAJ7OQDZMK2M2BTWMA", 
-					  "WPtGiG3l/HuLf5WwLFj1pOaFBR5wNBj+NvzGUvoE"
+						LendingConstants.AWS_S3_ACCESS_KEY, 
+						LendingConstants.AWS_S3_SECRET_KEY
 					);
 			s3client = AmazonS3ClientBuilder
 					  .standard()
@@ -117,7 +117,7 @@ public class ImageURLService {
 	private String getTemporaryPublicURL(String key) throws FileNotFoundException {
 	    try {
 	    	AmazonS3 s3client = createS3BucketConnection();
-	        return s3client.generatePresignedUrl(S3_BUCKET_NAME, key, new DateTime().plusMinutes(15).toDate()).toString();
+	        return s3client.generatePresignedUrl(LendingConstants.AWS_S3_BUCKET_NAME, key, new DateTime().plusMinutes(15).toDate()).toString();
 	    }
 	    catch (AmazonS3Exception exception){
 	        if(exception.getStatusCode() == 404){

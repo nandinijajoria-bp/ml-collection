@@ -24,6 +24,7 @@ import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.entities.Validate;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.ValidateDao;
@@ -90,7 +91,7 @@ public class VerifyOTPService {
 			OkHttpClient client = new OkHttpClient();
 
 			Request request = new Request.Builder()
-			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid=2000182191&password=uelCIwOHu&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+this.mobile+"&otp_code="+this.otp)
+			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid="+LendingConstants.GUPSHUP_OTP_API_USERID+"&password="+LendingConstants.GUPSHUP_OTP_API_PASSWORD+"&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+this.mobile+"&otp_code="+this.otp)
 			  .get()
 			  .addHeader("cache-control", "no-cache")
 			  .build();
@@ -155,7 +156,7 @@ public class VerifyOTPService {
 		OkHttpClient client = new OkHttpClient();
 
 		Request request = new Request.Builder()
-				  .url("http://enterprise.smsgupshup.com/GatewayAPI/rest?method=sendMessage&send_to="+this.mobile+"&msg=Dear%20"+validate.getBeneficiaryName()+",%20Your%20loan%20application%20for%20Rs.%20"+this.loanAmount+"%20has%20been%20received%20successfully.%20&msg_type=TEXT&userid=2000182193&password=GuqyK1xzG&auth_scheme=PLAIN&format=JSON")
+				  .url("http://enterprise.smsgupshup.com/GatewayAPI/rest?method=sendMessage&send_to="+this.mobile+"&msg=Dear%20"+validate.getBeneficiaryName()+",%20Your%20loan%20application%20for%20Rs.%20"+this.loanAmount+"%20has%20been%20received%20successfully.%20&msg_type=TEXT&userid="+LendingConstants.GUPSHUP_SENDMESSAGE_API_USERID+"&password="+LendingConstants.GUPSHUP_SENDMESSAGE_API_PASSWORD+"&auth_scheme=PLAIN&format=JSON")
 				  .get()
 				  .addHeader("Content-Type", "application/json")
 				  .addHeader("Accept", "*/*")
@@ -188,7 +189,7 @@ public class VerifyOTPService {
 			  .url("https://fcm.googleapis.com/fcm/send")
 			  .post(body)
 			  .addHeader("Content-Type", "application/json")
-			  .addHeader("Authorization", "key=AAAAoLytUlg:APA91bEtdXQK6Iyawl9wZWvMXlyQJNOznVIEErS-ZSQS3n4JE0RQRfS7amO3VQXfGnHgMC2nsbkgZqKqbZCCwT5c9FpHY-OO_k-iWTNlWRKRIjMEMNb_HtruEsG7ZXGhl7Y7zPI0zM0D")
+			  .addHeader("Authorization", "key="+LendingConstants.FCM_GOOGLE_API_KEY)
 			  .addHeader("Accept", "*/*")
 			  .addHeader("Cache-Control", "no-cache")
 			  .addHeader("Host", "fcm.googleapis.com")

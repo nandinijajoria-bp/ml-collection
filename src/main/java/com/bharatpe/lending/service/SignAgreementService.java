@@ -32,6 +32,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.entities.TmpLoanGenerate;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -308,7 +309,7 @@ public class SignAgreementService {
 			OkHttpClient client = new OkHttpClient();
 
 			Request request = new Request.Builder()
-			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid=2000182191&password=uelCIwOHu&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+mobileString+"&msg=BharatPe%3A%20%25code%25%20is%20your%20OTP%20to%20register%20yourself%20on%20BharatPe%20Merchant%20App.%20BharatPe.com&format=text&otpCodeLength=4&otpCodeType=NUMERIC")
+			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid="+LendingConstants.GUPSHUP_OTP_API_USERID+"&password="+LendingConstants.GUPSHUP_OTP_API_PASSWORD+"&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+mobileString+"&msg=BharatPe%3A%20%25code%25%20is%20your%20OTP%20to%20register%20yourself%20on%20BharatPe%20Merchant%20App.%20BharatPe.com&format=text&otpCodeLength=4&otpCodeType=NUMERIC")
 			  .get()
 			  .addHeader("Accept", "*/*")
 			  .addHeader("Cache-Control", "no-cache")

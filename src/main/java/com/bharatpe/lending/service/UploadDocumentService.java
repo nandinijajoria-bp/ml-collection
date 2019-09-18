@@ -33,6 +33,7 @@ import com.bharatpe.common.entities.DocAuthentication;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 
 import okhttp3.MediaType;
@@ -244,8 +245,8 @@ public class UploadDocumentService {
 		try {
 			//create connection
 			AWSCredentials credentials = new BasicAWSCredentials(
-					  "AKIAJ7OQDZMK2M2BTWMA", 
-					  "WPtGiG3l/HuLf5WwLFj1pOaFBR5wNBj+NvzGUvoE"
+						LendingConstants.AWS_S3_ACCESS_KEY, 
+						LendingConstants.AWS_S3_SECRET_KEY
 					);
 			s3client = AmazonS3ClientBuilder
 					  .standard()
@@ -278,10 +279,10 @@ public class UploadDocumentService {
 				
 				//put object to s3 bucket
 				s3client.putObject(
-						  "bharatpe-staging/lending-document", 
-						  fileName,
-						  fis,
-						  metadata
+							LendingConstants.AWS_S3_BUCKET_NAME, 
+							fileName,
+							fis,
+							metadata
 						);
 			}
 		}catch(Exception e) {
@@ -294,7 +295,7 @@ public class UploadDocumentService {
 	private String getTemporaryPublicURL(String key) throws FileNotFoundException {
 	    try {
 	    	AmazonS3 s3client = createS3BucketConnection();
-	        return s3client.generatePresignedUrl("bharatpe-staging/lending-document", key, new DateTime().plusMinutes(15).toDate()).toString();
+	        return s3client.generatePresignedUrl(LendingConstants.AWS_S3_BUCKET_NAME, key, new DateTime().plusMinutes(15).toDate()).toString();
 	    }
 	    catch (AmazonS3Exception exception){
 	        if(exception.getStatusCode() == 404){
@@ -316,7 +317,7 @@ public class UploadDocumentService {
 		  .url("https://api.karza.in/v3/ocr/kyc")
 		  .post(body)
 		  .addHeader("content-type", "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW")
-		  .addHeader("x-karza-key", "IEPHvT1bUPTf4Ow")
+		  .addHeader("x-karza-key", LendingConstants.X_KARZA_KEY)
 		  .addHeader("Accept", "*/*")
 		  .addHeader("Cache-Control", "no-cache")
 		  .addHeader("Host", "api.karza.in")
@@ -479,7 +480,7 @@ public class UploadDocumentService {
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		
 		if(result != null && result.size() > 0) {
-			Map<String, Map<String, String>> details	= (Map<String, Map<String, String>>) result.get(0).get("details");
+			Map<String, Map<String, String>> details = (Map<String, Map<String, String>>) result.get(0).get("details");
 			String panNumber = details.get("panNo").get("value");
 			String dob = details.get("date").get("value");
 			String name = details.get("name").get("value");
@@ -503,7 +504,7 @@ public class UploadDocumentService {
 		  .url("https://api.karza.in/v2/pan-authentication")
 		  .post(body)
 		  .addHeader("Content-Type", "application/json")
-		  .addHeader("x-karza-key", "IEPHvT1bUPTf4Ow")
+		  .addHeader("x-karza-key", LendingConstants.X_KARZA_KEY)
 		  .addHeader("Accept", "*/*")
 		  .addHeader("Cache-Control", "no-cache")
 		  .addHeader("Host", "api.karza.in")
