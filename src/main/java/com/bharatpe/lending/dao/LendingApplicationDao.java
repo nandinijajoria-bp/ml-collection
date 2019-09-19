@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dao;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -26,4 +28,10 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Modifying
 	@Query(value="UPDATE lending_application SET manual_kyc=:status where id=:applicationId",nativeQuery = true)
 	void updateApplicationManualKyc(String status, Long applicationId);
+	
+	List<LendingApplication> findByApplicationIdAndMerchantId(Long applicationId, Long merchantId);
+	
+	@Modifying
+	@Query(value="UPDATE lending_application SET shop_number=:shopNumber, street_address=:streetAddress, area=:area, pincode=:pincode, city=:city, state=:state where id=:applicationId AND merchant_id=:merchantId",nativeQuery = true)
+	int updateApplicationAddress(String shopNumber, String streetAddress, String area, Long pincode, String city, String state, Long applicationId, Long merchantId);
 }
