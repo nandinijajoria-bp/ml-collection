@@ -1,0 +1,89 @@
+package com.bharatpe.lending.service;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.bharatpe.common.dao.DocKycDetailsDao;
+import com.bharatpe.common.dao.DocumentsIdProofDao;
+import com.bharatpe.common.entities.DocKycDetails;
+import com.bharatpe.common.objects.CommonAPIRequest;
+
+@Service
+public class SaveAddressProofDetailsService {
+	private Logger logger = LoggerFactory.getLogger(SaveAddressProofDetailsService.class);
+	
+	@Autowired
+	DocKycDetailsDao docKycDetailsDao;
+	
+	@Autowired
+	DocumentsIdProofDao documentsIdProofDao;
+	
+	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+		Map<String, String> finalResponse = new LinkedHashMap<>();
+		
+		Long applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());
+		Long merchantId =  Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString());
+		Map<String, String> addressProofDetails = (Map<String, String>)commonAPIRequest.getPayload().get("address_proof_details");
+		
+		DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestAddressDetails(merchantId, applicationId);
+		
+		saveAddressProofDetails(docKycDetails, addressProofDetails, applicationId, merchantId);
+		
+		finalResponse.put("response", "success");
+		finalResponse.put("message", "Address Proof Details Updated Successfully!");
+		
+		return finalResponse;
+	}
+	
+	private void saveAddressProofDetails(DocKycDetails docKycDetails, Map<String, String> addressProofDetails, Long applicationId, Long merchantId) {
+		DocKycDetails toSave = new DocKycDetails();
+		if(docKycDetails != null) {
+			toSave.setId(docKycDetails.getId());
+			toSave.setDocId(docKycDetails.getDocId());
+			toSave.setQr(docKycDetails.getQr());
+			toSave.setGender(docKycDetails.getGender());
+			toSave.setMotherName(docKycDetails.getMotherName());
+			toSave.setCountryCode(docKycDetails.getCountryCode());
+			toSave.setResponse(docKycDetails.getResponse());
+			toSave.setStatus(docKycDetails.getStatus());
+		}else {
+			Long docId = documentsIdProofDao.fetchLatestAddressProofDocId(merchantId, applicationId, "LENDING");
+			toSave.setDocId(docId);
+		}
+		toSave.setMerchantId(merchantId);
+		toSave.setDocNo(addressProofDetails.get("doc_no"));
+		toSave.setFatherName(addressProofDetails.get("father_name"));
+		toSave.setPersonName(addressProofDetails.get("person_name"));
+		toSave.setDob(addressProofDetails.get("dob"));
+		toSave.setMode("MANUAL");
+		toSave.setModule("LENDING");
+		if(addressProofDetails.get("doc_type") != null && !addressProofDetails.get("doc_type").isBlank()) {
+			toSave.setDocType(addressProofDetails.get("doc_type"));
+		}
+		if(addressProofDetails.get("address") != null && !addressProofDetails.get("address").isBlank()) {
+			toSave.setAddress(addressProofDetails.get("address"));
+		}
+		if(addressProofDetails.get("city") != null && !addressProofDetails.get("city").isBlank()) {
+			toSave.setCity(addressProofDetails.get("city"));
+		}
+		if(addressProofDetails.get("state") != null && !addressProofDetails.get("state").isBlank()) {
+			toSave.setState(addressProofDetails.get("state"));
+		}
+		if(addressProofDetails.get("pin_code") != null && !addressProofDetails.get("pin_code").isBlank()) {
+			toSave.setPincode(Integer.parseInt(addressProofDetails.get("pin_code")));
+		}
+		if(addressProofDetails.get("date_of_issue") != null && !addressProofDetails.get("date_of_issue").isBlank()) {
+			toSave.setDoi(addressProofDetails.get("date_of_issue"));
+		}
+		logger.info("ToSave : {}",toSave);
+		docKycDetailsDao.save(toSave);
+	}
+}
