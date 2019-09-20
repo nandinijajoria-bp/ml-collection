@@ -31,69 +31,43 @@ public class SaveApplicationAddressService {
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 	
-	Long applicationId;
+	private Long applicationId;
+	private Long merchantId;
 	
 	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
-		this.applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-		Map<String, String> shopDetails =  commonAPIRequest.getPayload().get("shop_details") != null ? (Map<String, String>)commonAPIRequest.getPayload().get("shop_details") : null;
-
-		Map<String, String> validationResponse = validateInput(shopDetails);
+		this.applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());
+		this.merchantId = Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString());
+		Map<String, String> shopDetails = (Map<String, String>)commonAPIRequest.getPayload().get("shop_details");
 		
-		if(validationResponse.get("response").equals("success")) {
-			int updateId = updateApplicationAddress(shopDetails);
-			if(updateId > 0) {
-				finalResponse.put("response", "success");
-				finalResponse.put("message", "Application Address Details Updated Successfully!");
+		Boolean validMerchantFlag = isValidMerchant(this.merchantId);
+		
+		if(validMerchantFlag) {
+			Boolean validApplicationFlag = isValidApplication(this.merchantId);
+			if(validApplicationFlag) {
+				int updateId = updateApplicationAddress(shopDetails);
+				if(updateId > 0) {
+					finalResponse.put("response", "success");
+					finalResponse.put("message", "Application Address Details Updated Successfully!");
+				}else {
+					finalResponse.put("response", "failed");
+					finalResponse.put("message", "Something Went Wrong!");
+				}
 			}else {
-				finalResponse.put("response", "failed");
-				finalResponse.put("message", "Something Went Wrong!");
+				logger.info("SaveApplicationAddressService invalid Application Id", this.applicationId);
+				response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+				finalResponse.put("response","failed");
+				finalResponse.put("message","Invalid Application Id");
 			}
 		}else {
-			logger.info("SaveApplicationAddressService invalid request");
+			logger.info("SaveApplicationAddressService invalid Merchant Id", this.merchantId);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			finalResponse.put("response", validationResponse.get("response"));
-			finalResponse.put("message", validationResponse.get("message"));
+			finalResponse.put("response","failed");
+			finalResponse.put("message","Invalid Merchant Id");
 		}
 		
 		return finalResponse;
-	}
-	
-	private Map<String, String> validateInput(Map<String, String> shopDetails) {
-		Map<String, String> response = new LinkedHashMap<>();
-		response.put("response", "success");
-		response.put("message", "");
-		if(shopDetails != null) {
-			Long merchantId = (shopDetails.get("merchant_id") != null) ? Long.parseLong(shopDetails.get("merchant_id")) : null;
-			if(merchantId != null) {
-				Boolean validMerchantFlag = isValidMerchant(merchantId);
-				if(validMerchantFlag) {
-					Boolean validApplicationFlag = isValidApplication(merchantId);
-					if(validApplicationFlag) {
-						Map<String, Object> shopDetailsValidationResponse = isValidShopDetailsInput(shopDetails);
-						if(!(Boolean)shopDetailsValidationResponse.get("status")) {
-							response.put("response", "failed");
-							response.put("message", shopDetailsValidationResponse.get("error").toString());
-						}
-					}else {
-						response.put("response", "failed");
-						response.put("message", "Invalid Application Id");
-					}
-				}else {
-					response.put("response", "failed");
-					response.put("message", "Invalid Merchant Id");
-				}
-			}else {
-				response.put("response", "failed");
-				response.put("message", "Empty Merchant Id");
-			}
-		}else {
-			response.put("response", "failed");
-			response.put("message", "Empty Shop Details");
-		}
-		
-		return response;
 	}
 	
 	private Boolean isValidMerchant(Long merchantId) {
@@ -118,47 +92,9 @@ public class SaveApplicationAddressService {
 		return response;
 	}
 	
-	private Map<String, Object> isValidShopDetailsInput(Map<String, String> shopDetails) {
-		Map<String, Object> response = new LinkedHashMap<>();
-		response.put("status",true);
-		String missingFields = "";
-		
-		if(shopDetails.get("shop_number") == null || shopDetails.get("shop_number").isBlank()) {
-			response.put("status",false);
-			missingFields = "Shop Number,";
-		}
-		if(shopDetails.get("street_address") == null || shopDetails.get("street_address").isBlank()) {
-			response.put("status",false);
-			missingFields = "Street Address,";
-		}
-		if(shopDetails.get("area") == null || shopDetails.get("area").isBlank()) {
-			response.put("status",false);
-			missingFields = "Area,";
-		}
-		if(shopDetails.get("pincode") == null || shopDetails.get("pincode").isBlank()) {
-			response.put("status",false);
-			missingFields = "pincode,";
-		}
-		if(shopDetails.get("city") == null || shopDetails.get("city").isBlank()) {
-			response.put("status",false);
-			missingFields = "City";
-		}
-		if(shopDetails.get("state") == null || shopDetails.get("state").isBlank()) {
-			response.put("status",false);
-			missingFields = "State";
-		}
-		
-		if((Boolean)response.get("status") == false) {
-			response.put("error","Missing or Empty Mendatory Fields : " + missingFields.replaceAll(",$",""));
-		}
-		
-		return response;
-	}
-	
 	int updateApplicationAddress(Map<String, String> shopDetails) {
-		Long merchantId = Long.parseLong(shopDetails.get("merchant_id"));
 		
-		int updateId = lendingApplicationDao.updateApplicationAddress(shopDetails.get("shop_number"), shopDetails.get("street_address"), shopDetails.get("area"), Long.parseLong(shopDetails.get("pincode")), shopDetails.get("city"), shopDetails.get("state"), this.applicationId, merchantId);
+		int updateId = lendingApplicationDao.updateApplicationAddress(shopDetails.get("shop_number"), shopDetails.get("street_address"), shopDetails.get("area"), Long.parseLong(shopDetails.get("pincode")), shopDetails.get("city"), shopDetails.get("state"), this.applicationId, this.merchantId);
 		
 		return updateId;
 	}
