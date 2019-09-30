@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.MerchantDao;
@@ -31,22 +30,19 @@ public class SaveApplicationAddressService {
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 	
-	private Long applicationId;
-	private Long merchantId;
-	
-	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
-		this.applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());
-		this.merchantId = Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString());
+		Long applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());
+		Long merchantId = Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString());
 		Map<String, String> shopDetails = (Map<String, String>)commonAPIRequest.getPayload().get("shop_details");
 		
-		Boolean validMerchantFlag = isValidMerchant(this.merchantId);
+		Boolean validMerchantFlag = isValidMerchant(merchantId);
 		
 		if(validMerchantFlag) {
-			Boolean validApplicationFlag = isValidApplication(this.merchantId);
+			Boolean validApplicationFlag = isValidApplication(merchantId, applicationId);
 			if(validApplicationFlag) {
-				int updateId = updateApplicationAddress(shopDetails);
+				int updateId = updateApplicationAddress(shopDetails, applicationId, merchantId);
 				if(updateId > 0) {
 					finalResponse.put("response", "success");
 					finalResponse.put("message", "Application Address Details Updated Successfully!");
@@ -55,13 +51,13 @@ public class SaveApplicationAddressService {
 					finalResponse.put("message", "Something Went Wrong!");
 				}
 			}else {
-				logger.info("SaveApplicationAddressService invalid Application Id", this.applicationId);
+				logger.info("SaveApplicationAddressService invalid Application Id", applicationId);
 				response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
 				finalResponse.put("response","failed");
 				finalResponse.put("message","Invalid Application Id");
 			}
 		}else {
-			logger.info("SaveApplicationAddressService invalid Merchant Id", this.merchantId);
+			logger.info("SaveApplicationAddressService invalid Merchant Id", merchantId);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
 			finalResponse.put("response","failed");
 			finalResponse.put("message","Invalid Merchant Id");
@@ -81,10 +77,10 @@ public class SaveApplicationAddressService {
 		return response;
 	}
 	
-	private Boolean isValidApplication(Long merchantId) {
+	private Boolean isValidApplication(Long merchantId, Long applicationId) {
 		Boolean response = false;
 		
-		List<LendingApplication> applications = lendingApplicationDao.findByApplicationIdAndMerchantId(this.applicationId, merchantId);
+		List<LendingApplication> applications = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
 		if(applications.size() > 0) {
 			response = true;
 		}
@@ -92,9 +88,9 @@ public class SaveApplicationAddressService {
 		return response;
 	}
 	
-	int updateApplicationAddress(Map<String, String> shopDetails) {
+	int updateApplicationAddress(Map<String, String> shopDetails, Long applicationId, Long merchantId) {
 		
-		int updateId = lendingApplicationDao.updateApplicationAddress(shopDetails.get("shop_number"), shopDetails.get("street_address"), shopDetails.get("area"), Long.parseLong(shopDetails.get("pincode")), shopDetails.get("city"), shopDetails.get("state"), this.applicationId, this.merchantId);
+		int updateId = lendingApplicationDao.updateApplicationAddress(shopDetails.get("shop_number"), shopDetails.get("street_address"), shopDetails.get("area"), Long.parseLong(shopDetails.get("pincode")), shopDetails.get("city"), shopDetails.get("state"), applicationId, merchantId);
 		
 		return updateId;
 	}

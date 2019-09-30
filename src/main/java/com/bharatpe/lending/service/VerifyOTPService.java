@@ -49,49 +49,47 @@ public class VerifyOTPService {
 	
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
-	
-	private Long merchantId;
-	private String mobile;
-	private Double loanAmount;
-	private Long applicationId;
-	private String otp;
-	
-	private Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 
 	public Map<String, Boolean> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		this.finalResponse.put("success",false);
-		this.finalResponse.put("agreement_verified",false);
+		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		finalResponse.put("success",false);
+		finalResponse.put("agreement_verified",false);
 		
-		this.merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
-		this.mobile = request.getAttribute("mobile").toString();
+		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		String mobile = request.getAttribute("mobile").toString();
 		
-		this.applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-		this.otp =  commonAPIRequest.getPayload().get("otp") != null ? commonAPIRequest.getPayload().get("otp").toString() : null;
+		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+		String otp =  commonAPIRequest.getPayload().get("otp") != null ? commonAPIRequest.getPayload().get("otp").toString() : null;
+		Double loanAmount;
 		
 		Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
 		
-		if(otp != null || !otp.isBlank()) {
+		if(otp != null && !otp.isBlank()) {
 			if(applicationId == null) {
 				LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
-				this.loanAmount = lendingApplication.getLoanAmount();
-				this.applicationId = lendingApplication.getApplicationId();
+				loanAmount = lendingApplication.getLoanAmount();
+				applicationId = lendingApplication.getApplicationId();
 			}else {
-				this.loanAmount = Double.parseDouble(selectedLoan.get("loan_amount"));
+				loanAmount = Double.parseDouble(selectedLoan.get("loan_amount"));
 			}
 			Instant start = Instant.now();
-			verifyOTP();
+			finalResponse = verifyOTP(mobile, otp, merchantId, applicationId, loanAmount);
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP verify OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 		}
-		return this.finalResponse;
+		return finalResponse;
 	}
 	
-	private void verifyOTP() {
-		if(this.mobile.length() == 12) {
+	private Map<String, Boolean> verifyOTP(String mobile, String otp, Long merchantId, Long applicationId, Double loanAmount) {
+		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		finalResponse.put("success",false);
+		finalResponse.put("agreement_verified",false);
+		
+		if(mobile.length() == 12) {
 			OkHttpClient client = new OkHttpClient();
 
 			Request request = new Request.Builder()
-			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid="+LendingConstants.GUPSHUP_OTP_API_USERID+"&password="+LendingConstants.GUPSHUP_OTP_API_PASSWORD+"&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+this.mobile+"&otp_code="+this.otp)
+			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid="+LendingConstants.GUPSHUP_OTP_API_USERID+"&password="+LendingConstants.GUPSHUP_OTP_API_PASSWORD+"&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+mobile+"&otp_code="+otp)
 			  .get()
 			  .addHeader("cache-control", "no-cache")
 			  .build();
@@ -105,7 +103,7 @@ public class VerifyOTPService {
 					String[] responseSplit = responseBody.split("\\|");
 					
 					if(responseSplit[0].equals("success") == true) {
-						updateApplicationStatusAndSuccessSms();
+						finalResponse = updateApplicationStatusAndSuccessSms(merchantId, applicationId, mobile, loanAmount);
 					}
 				}
 			} catch (IOException e) {
@@ -113,18 +111,23 @@ public class VerifyOTPService {
 				logger.info("VerifyOTPService otp api exception : {} ",e.getMessage());
 			}
 		}
+		return finalResponse;
 	}
 	
-	private void updateApplicationStatusAndSuccessSms() {
-		int updatedId = lendingApplicationDao.updateApplicationStatusAndAgreement("pending_verification", this.applicationId, this.merchantId, "draft", "pending_verification");
+	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Long merchantId, Long applicationId, String mobile, Double loanAmount) {
+		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		finalResponse.put("success",false);
+		finalResponse.put("agreement_verified",false);
+		
+		int updatedId = lendingApplicationDao.updateApplicationStatusAndAgreement("pending_verification", applicationId, merchantId, "draft", "pending_verification");
 		if(updatedId != 0) {
 			DateFormat df = new SimpleDateFormat("dMMY");
 		    Date dateobj = new Date();
 			
-			String loanId = "BPL" + df.format(dateobj) + this.applicationId;
+			String loanId = "BPL" + df.format(dateobj) + applicationId;
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-			lendingAuditTrial.setApplicationId(this.applicationId);
-			lendingAuditTrial.setMerchantId(this.merchantId);
+			lendingAuditTrial.setApplicationId(applicationId);
+			lendingAuditTrial.setMerchantId(merchantId);
 			lendingAuditTrial.setLoanId(loanId);
 			lendingAuditTrial.setUserId(0);
 			lendingAuditTrial.setOldStatus("draft");
@@ -133,30 +136,31 @@ public class VerifyOTPService {
 			
 			lendingAuditTrialDao.save(lendingAuditTrial);
 			
-			Validate validate = validateDao.findByMerchantId(this.merchantId);
+			Validate validate = validateDao.findByMerchantId(merchantId);
 			
 			if(validate != null) {
 				Instant start = Instant.now();
-				sendSuccessSMS(validate);
+				sendSuccessSMS(validate, mobile, loanAmount);
 				Instant end = Instant.now();
 				logger.info("Time Taken by GUPSHUP sendMessage API : {} miliseconds", Duration.between(start, end).toMillis());
 				
 				start = Instant.now();
-				sendNotification(validate);
+				sendNotification(validate, merchantId, loanAmount);
 				end = Instant.now();
 				logger.info("Time Taken by GUPSHUP fcm google API : {} miliseconds", Duration.between(start, end).toMillis());
 			}
 			
-			this.finalResponse.put("success",true);
-			this.finalResponse.put("agreement_verified",true);
+			finalResponse.put("success",true);
+			finalResponse.put("agreement_verified",true);
 		}
+		return finalResponse;
 	}
 	
-	private void sendSuccessSMS(Validate validate) {
+	private void sendSuccessSMS(Validate validate, String mobile, Double loanAmount) {
 		OkHttpClient client = new OkHttpClient();
 
 		Request request = new Request.Builder()
-				  .url("http://enterprise.smsgupshup.com/GatewayAPI/rest?method=sendMessage&send_to="+this.mobile+"&msg=Dear%20"+validate.getBeneficiaryName()+",%20Your%20loan%20application%20for%20Rs.%20"+this.loanAmount+"%20has%20been%20received%20successfully.%20&msg_type=TEXT&userid="+LendingConstants.GUPSHUP_SENDMESSAGE_API_USERID+"&password="+LendingConstants.GUPSHUP_SENDMESSAGE_API_PASSWORD+"&auth_scheme=PLAIN&format=JSON")
+				  .url("http://enterprise.smsgupshup.com/GatewayAPI/rest?method=sendMessage&send_to="+mobile+"&msg=Dear%20"+validate.getBeneficiaryName()+",%20Your%20loan%20application%20for%20Rs.%20"+loanAmount+"%20has%20been%20received%20successfully.%20&msg_type=TEXT&userid="+LendingConstants.GUPSHUP_SENDMESSAGE_API_USERID+"&password="+LendingConstants.GUPSHUP_SENDMESSAGE_API_PASSWORD+"&auth_scheme=PLAIN&format=JSON")
 				  .get()
 				  .addHeader("Content-Type", "application/json")
 				  .addHeader("Accept", "*/*")
@@ -177,14 +181,14 @@ public class VerifyOTPService {
 		}
 	}
 	
-	private void sendNotification(Validate validate) {
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(this.merchantId);
+	private void sendNotification(Validate validate, Long merchantId, Double loanAmount) {
+		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchantId);
 		
 		if(merchantFcmToken != null) {
 			OkHttpClient client = new OkHttpClient();
 
 			MediaType mediaType = MediaType.parse("application/json");
-			okhttp3.RequestBody body = okhttp3.RequestBody.create(mediaType, "{\n\t\"to\":\""+merchantFcmToken.getFcmToken()+"\",\n\t\"data\" : {\n\t\t\"title\":\"BharatPe\",\n\t\t\"body\":\"Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+this.loanAmount+" has been received successfully.\",\n\t\t\"soundname\":\"bharatpenotification\",\n\t\t\"image\":\"icon\",\n\t\t\"image-type\":\"circular\",\n\t\t\"url\":\"loan.html\"\n\t}\n}");
+			okhttp3.RequestBody body = okhttp3.RequestBody.create(mediaType, "{\n\t\"to\":\""+merchantFcmToken.getFcmToken()+"\",\n\t\"data\" : {\n\t\t\"title\":\"BharatPe\",\n\t\t\"body\":\"Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.\",\n\t\t\"soundname\":\"bharatpenotification\",\n\t\t\"image\":\"icon\",\n\t\t\"image-type\":\"circular\",\n\t\t\"url\":\"loan.html\"\n\t}\n}");
 			Request request = new Request.Builder()
 			  .url("https://fcm.googleapis.com/fcm/send")
 			  .post(body)

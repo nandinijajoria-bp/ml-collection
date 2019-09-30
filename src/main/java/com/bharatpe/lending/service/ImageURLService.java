@@ -37,17 +37,14 @@ public class ImageURLService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
-	private Long merchantId;
-	private Long applicationId;
-	
 	public List<Map<String, Object>> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		
-		this.merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
-		this.applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		
-		if(this.applicationId != null) {
-			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(this.merchantId, this.applicationId);
+		if(applicationId != null) {
+			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
 			
 			for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 				Map<String, Object> proof = new LinkedHashMap<>();

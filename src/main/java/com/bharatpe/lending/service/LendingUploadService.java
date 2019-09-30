@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
@@ -24,7 +23,7 @@ public class LendingUploadService {
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 	
-	public Map<String, Object> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> resp = new LinkedHashMap<> ();
 		LendingApplication lendingApplicationToSave;
 		

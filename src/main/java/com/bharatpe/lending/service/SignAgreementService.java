@@ -76,63 +76,64 @@ public class SignAgreementService {
 	
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
-	
-	private Long merchantId;
-	private Long mobile;
-	private Long applicationId;
-	private String latitude;
-	private String longitude;
-	private String ip;
-	private Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 
 	public Map<String,Boolean> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		this.finalResponse.put("success",false);
-		this.finalResponse.put("otp_flow",false);
+		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		finalResponse.put("success",false);
+		finalResponse.put("otp_flow",false);
 		
-		this.merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
-		this.mobile = Long.parseLong(request.getAttribute("mobile").toString());
+		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long mobile = Long.parseLong(request.getAttribute("mobile").toString());
 		
-		this.latitude = commonAPIRequest.getMeta().getLatitude();
-		this.longitude = commonAPIRequest.getMeta().getLongitude();
-		this.ip = commonAPIRequest.getMeta().getIp();
+		String latitude = commonAPIRequest.getMeta().getLatitude();
+		String longitude = commonAPIRequest.getMeta().getLongitude();
+		String ip = commonAPIRequest.getMeta().getIp();
 		
-		this.applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		Boolean agreement =  commonAPIRequest.getPayload().get("agreement") != null ? (boolean) commonAPIRequest.getPayload().get("agreement") : false;
 		
 		if(agreement == true) {
 			if(applicationId != null) {
-				verifyApplicationAndSendOTP();
+				finalResponse = verifyApplicationAndSendOTP(merchantId, applicationId, mobile);
 			}else {
-				createNewApplicationAndSendOTP();
+				createNewApplicationAndSendOTP(merchantId, mobile, latitude, longitude, ip);
 			}
 		}
 		
-		return this.finalResponse;
+		return finalResponse;
 	}
 	
-	private void verifyApplicationAndSendOTP() {
-		LendingApplication lendingApplication = lendingApplicationDao.findByApplicationId(this.applicationId);
+	private Map<String, Boolean> verifyApplicationAndSendOTP(Long merchantId, Long applicationId, Long mobile) {
+		Map<String, Boolean> response = new LinkedHashMap<>();
+		response.put("success",false);
+		response.put("otp_flow",false);
+		
+		LendingApplication lendingApplication = lendingApplicationDao.findByApplicationId(applicationId);
 		if(lendingApplication != null) {
-			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(this.merchantId, this.applicationId);
+			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
 			if(documentsIdProofList.size() > 0) {
-				sendOTP();
+				response = sendOTP(mobile);
 			}
 		}
+		return response;
 	}
 	
-	private void createNewApplicationAndSendOTP() {
+	private Map<String, Boolean> createNewApplicationAndSendOTP(Long merchantId, Long mobile, String latitude, String longitude, String ip) {
+		Map<String, Boolean> response = new LinkedHashMap<>();
+		response.put("success",false);
+		response.put("otp_flow",false);
 		String prevTenure = "";
 		Double loanAmount = null;
 		String selectedCategory = "";
 		
-		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(this.merchantId);
+		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
 		if(merchantSummary != null) {
-			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(this.merchantId);
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
 			if(lendingPaymentSchedule != null && lendingPaymentSchedule.getStatus().equals("CLOSED")) {
 				LendingApplication lendingApplication = lendingApplicationDao.findByApplicationId(lendingPaymentSchedule.getApplicationId());
 				prevTenure = lendingApplication.getTenure();
 			}
-			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(this.merchantId, merchantSummary.getLoanType());
+			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchantId, merchantSummary.getLoanType());
 			for(AvailableLoan availableLoan : availableLoanList) {
 				List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(availableLoan.getCategory());
 				if(lendingCategoriesList.size() == 1) {
@@ -161,10 +162,10 @@ public class SignAgreementService {
 				int repayment = Math.round(selectedCategoriesList.get(0).getPayableDays() * edi);
 				Double interestRate = (((edi * selectedCategoriesList.get(0).getPayableDays() - loanAmount) / loanAmount) / tenureMonths) * 100;
 				
-				LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(this.merchantId);
+				LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
 				if(prevApplication != null) {
 					LendingApplication newApplication = new LendingApplication();
-					newApplication.setMerchantId(this.merchantId);
+					newApplication.setMerchantId(merchantId);
 					newApplication.setShopNumber(prevApplication.getShopNumber());
 					newApplication.setStreetAddress(prevApplication.getStreetAddress());
 					newApplication.setArea(prevApplication.getArea());
@@ -182,14 +183,14 @@ public class SignAgreementService {
 					newApplication.setTenure(tenureMonths.toString());
 					newApplication.setPayableDays((long) selectedCategoriesList.get(0).getPayableDays());
 					newApplication.setLoanAmount(loanAmount);
-					newApplication.setLatitude(this.latitude);
-					newApplication.setLongitude(this.longitude);
-					newApplication.setIp(this.ip);
+					newApplication.setLatitude(latitude);
+					newApplication.setLongitude(longitude);
+					newApplication.setIp(ip);
 					lendingApplicationDao.save(newApplication);
 					
 					if(newApplication.getApplicationId() != null) {
 						LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-						lendingAuditTrial.setMerchantId(this.merchantId);
+						lendingAuditTrial.setMerchantId(merchantId);
 						lendingAuditTrial.setApplicationId(newApplication.getApplicationId());
 						lendingAuditTrial.setLoanId("");
 						lendingAuditTrial.setUserId(0);
@@ -198,37 +199,38 @@ public class SignAgreementService {
 						lendingAuditTrialDao.save(lendingAuditTrial);
 						
 						TmpLoanGenerate tmpLoanGenerate = new TmpLoanGenerate();
-						tmpLoanGenerate.setMerchantId(this.merchantId);
+						tmpLoanGenerate.setMerchantId(merchantId);
 						tmpLoanGenerate.setMaxLoanAmount(loanAmount);
 						tmpLoanGenerate.setApplicationId(newApplication.getApplicationId());
 						
-						replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId());
+						replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId(), merchantId, latitude, longitude, ip);
 						
 						Instant start = Instant.now();
-						sendOTP();
+						response = sendOTP(mobile);
 						Instant end = Instant.now();
 						logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 					}
 				}
 			}
 		}
+		return response;
 	}
 	
-	private void replicateDocumentsForNewApplication(Long prevApplicationId, Long newApplicationId) {
+	private void replicateDocumentsForNewApplication(Long prevApplicationId, Long newApplicationId, Long merchantId, String latitude, String longitude, String ip) {
 		Long newKycInsertId = null;
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(this.merchantId, prevApplicationId);
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, prevApplicationId);
 		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
 			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
-			toSaveDocuments.setMerchantId(this.merchantId);
+			toSaveDocuments.setMerchantId(merchantId);
 			toSaveDocuments.setProofType(documentsIdProof.getProofType());
 			toSaveDocuments.setProofFrontSide(documentsIdProof.getProofFrontSide());
 			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
 			toSaveDocuments.setApplicationId(newApplicationId);
 			toSaveDocuments.setStatus("pending_verification");
 			toSaveDocuments.setSinglePage(documentsIdProof.getSinglePage());
-			toSaveDocuments.setLatitude(this.latitude);
-			toSaveDocuments.setLongitude(this.longitude);
-			toSaveDocuments.setIp(this.ip);
+			toSaveDocuments.setLatitude(latitude);
+			toSaveDocuments.setLongitude(longitude);
+			toSaveDocuments.setIp(ip);
 			documentsIdProofDao.save(toSaveDocuments);
 			
 			DocAuthentication docAuthentication = docAuthenticationDao.findByDocId(documentsIdProof.getId());
@@ -303,7 +305,11 @@ public class SignAgreementService {
 		docAuthenticationDao.save(docAuthentication);
 	}
 	
-	private void sendOTP() {
+	private Map<String, Boolean> sendOTP(Long mobile) {
+		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		finalResponse.put("success",false);
+		finalResponse.put("otp_flow",false);
+		
 		String mobileString = mobile.toString();
 		if(mobileString.length() == 12) {
 			OkHttpClient client = new OkHttpClient();
@@ -328,8 +334,8 @@ public class SignAgreementService {
 					String[] responseSplit = responseBody.split("\\|");
 					
 					if(responseSplit[0].equals("success") == true) {
-						this.finalResponse.put("success",true);
-						this.finalResponse.put("otp_flow",true);
+						finalResponse.put("success",true);
+						finalResponse.put("otp_flow",true);
 					}
 				}
 			} catch (IOException e) {
@@ -337,5 +343,6 @@ public class SignAgreementService {
 				logger.info("SignAgreementService otp api exception : {} ",e.getMessage());
 			}
 		}
+		return finalResponse;
 	}
 }

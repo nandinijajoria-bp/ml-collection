@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingAuditTrial;
@@ -28,7 +27,7 @@ public class CancelApplicationService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public Map<String, Boolean> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Map<String, Boolean> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		
 		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
@@ -48,7 +47,6 @@ public class CancelApplicationService {
 				newStatus = "closed";
 			}
 			int updatedColumn = lendingApplicationDao.updateApplicationStatus(newStatus, applicationId, merchantId, currentStatus);
-			
 			if(updatedColumn != 0) {
 				logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchantId);
 				LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
