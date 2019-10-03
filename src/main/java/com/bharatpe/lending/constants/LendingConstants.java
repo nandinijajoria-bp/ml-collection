@@ -9,8 +9,8 @@ public interface LendingConstants {
 	
 	String FCM_GOOGLE_API_KEY = "AAAAoLytUlg:APA91bEtdXQK6Iyawl9wZWvMXlyQJNOznVIEErS-ZSQS3n4JE0RQRfS7amO3VQXfGnHgMC2nsbkgZqKqbZCCwT5c9FpHY-OO_k-iWTNlWRKRIjMEMNb_HtruEsG7ZXGhl7Y7zPI0zM0D";
 	
-	String AWS_S3_ACCESS_KEY = "AKIAJ7OQDZMK2M2BTWMA";
-	String AWS_S3_SECRET_KEY = "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";
+	String AWS_S3_ACCESS_KEY = "AKIA2INV2XVSLUEBQ4DH";
+	String AWS_S3_SECRET_KEY = "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";
 	String AWS_S3_BUCKET_NAME = "bharatpe-staging/lending-document";
 	
 	String X_KARZA_KEY = "IEPHvT1bUPTf4Ow";
