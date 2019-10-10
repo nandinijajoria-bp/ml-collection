@@ -129,7 +129,7 @@ public class VerifyOTPService {
 			lendingAuditTrial.setApplicationId(applicationId);
 			lendingAuditTrial.setMerchantId(merchantId);
 			lendingAuditTrial.setLoanId(loanId);
-			lendingAuditTrial.setUserId(0);
+			lendingAuditTrial.setUserId(Long.parseLong("0"));
 			lendingAuditTrial.setOldStatus("draft");
 			lendingAuditTrial.setNewStatus("pending_verification");
 			lendingAuditTrial.setType("APP_STATUS");

@@ -193,7 +193,7 @@ public class SignAgreementService {
 						lendingAuditTrial.setMerchantId(merchantId);
 						lendingAuditTrial.setApplicationId(newApplication.getApplicationId());
 						lendingAuditTrial.setLoanId("");
-						lendingAuditTrial.setUserId(0);
+						lendingAuditTrial.setUserId(Long.parseLong("0"));
 						lendingAuditTrial.setNewStatus("draft");
 						lendingAuditTrial.setType("APP_STATUS");
 						lendingAuditTrialDao.save(lendingAuditTrial);

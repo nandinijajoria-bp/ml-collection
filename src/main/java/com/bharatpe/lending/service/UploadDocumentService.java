@@ -465,7 +465,6 @@ public class UploadDocumentService {
 				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
 			}
 			docKycDetailsDao.save(docKycDetails);
-			logger.info("testing docKycDetails : {}",docKycDetails);
 			docKycDetailsInsertId = docKycDetails.getId();
 		}
 		return docKycDetailsInsertId;

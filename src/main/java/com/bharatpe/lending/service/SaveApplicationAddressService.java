@@ -80,8 +80,8 @@ public class SaveApplicationAddressService {
 	private Boolean isValidApplication(Long merchantId, Long applicationId) {
 		Boolean response = false;
 		
-		List<LendingApplication> applications = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
-		if(applications.size() > 0) {
+		LendingApplication application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+		if(application != null) {
 			response = true;
 		}
 		

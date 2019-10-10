@@ -53,7 +53,7 @@ public class CancelApplicationService {
 				lendingAuditTrial.setApplicationId(applicationId);
 				lendingAuditTrial.setMerchantId(merchantId);
 				lendingAuditTrial.setLoanId("");
-				lendingAuditTrial.setUserId(0);
+				lendingAuditTrial.setUserId(Long.parseLong("0"));
 				lendingAuditTrial.setOldStatus("draft");
 				lendingAuditTrial.setNewStatus(newStatus);
 				lendingAuditTrial.setType("APP_STATUS");
