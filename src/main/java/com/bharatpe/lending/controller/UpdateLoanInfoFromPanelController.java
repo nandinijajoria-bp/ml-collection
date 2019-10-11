@@ -71,6 +71,7 @@ public class UpdateLoanInfoFromPanelController {
 	private Map<String, String> validateInput(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> response = new LinkedHashMap<>();
 		response.put("response","success");
+		LendingApplication application = null;
 		String missingFields = "";
 		String invalidFields = "";
 		
@@ -78,41 +79,42 @@ public class UpdateLoanInfoFromPanelController {
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		Long userId =  commonAPIRequest.getPayload().get("user_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("user_id").toString()) : null;
 		Map<String, Object> loanDetails = (Map<String, Object>) commonAPIRequest.getPayload().get("loan_details");
+		
+		if(merchantId == null) {
+			missingFields += "Merchant Id,";
+		}else {
+			Boolean validMerchantFlag = isValidMerchant(merchantId);
+			if(validMerchantFlag == false) {
+				invalidFields += "Merchant Id,";
+			}
+		}
+		if(userId == null) {
+			missingFields += "User Id,";
+		}
+		if(applicationId == null) {
+			missingFields += "Application Id,";
+		}else {
+			application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+			if(application == null) {
+				invalidFields += "Application Id,";
+			}
+		}
+		
 		if(loanDetails != null) {
 			String lender = (loanDetails.get("lender") != null && !loanDetails.get("lender").toString().isBlank()) ? loanDetails.get("lender").toString() : null;
 			String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isBlank()) ? loanDetails.get("physical_verification_status").toString() : null;
 			String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isBlank()) ? loanDetails.get("loan_disbursal_status").toString() : null;
 			
-			if(merchantId == null) {
-				missingFields += "Merchant Id,";
-			}else {
-				Boolean validMerchantFlag = isValidMerchant(merchantId);
-				if(validMerchantFlag == false) {
-					invalidFields += "Merchant Id,";
+			if(applicationId != null) {
+				if(application.getLoanAmount() > 25000 && physicalVerificationStatus == null) {
+					missingFields += "Physical Verification Status,";
+				}else if(application.getStatus() != null && application.getStatus().equalsIgnoreCase("approved") && lender == null) {
+					missingFields += "Lender,";
 				}
-			}
-			if(applicationId == null) {
-				missingFields += "Application Id,";
-			}else {
-				LendingApplication application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
-				if(application == null) {
-					invalidFields += "Application Id,";
-				}else {
-					if(application.getLoanAmount() > 25000 && physicalVerificationStatus == null) {
-						missingFields += "Physical Verification Status,";
-					}else if(application.getStatus() != null && application.getStatus().equalsIgnoreCase("approved") && lender == null) {
-						missingFields += "Lender,";
-					}
-				}
-			}
-			if(userId == null) {
-				missingFields += "User Id,";
 			}
 			if(loanDisbursalStatus != null && lender == null || !lenderList.contains(lender)) {
 				invalidFields += "Lender,";
 			}
-		}else {
-			missingFields += " Loan Details";
 		}
 		
 		if(missingFields.isBlank() && invalidFields.isBlank()) {
@@ -130,7 +132,7 @@ public class UpdateLoanInfoFromPanelController {
 				message += "Invalid or Blank Mendatory fields : ( " + invalidFields.replaceAll(",$","") + " )";
 			}
 			response.put("response","failed");
-			response.put("message", message);
+			response.put("message", message.replaceAll(",$",""));
 		}
 		
 		return response;

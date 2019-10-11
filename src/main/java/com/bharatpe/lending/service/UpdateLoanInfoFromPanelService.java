@@ -132,29 +132,30 @@ public class UpdateLoanInfoFromPanelService {
 				if(document.get("front_side") != null && !document.get("front_side").toString().isBlank()) {
 					frontSide = processAndUploadDocToS3(document.get("front_side").toString(), merchantId);
 				}
-				if(singlePageDocFlag && document.get("back_side") != null && !document.get("back_side").toString().isBlank()) {
+				if(!singlePageDocFlag && document.get("back_side") != null && !document.get("back_side").toString().isBlank()) {
 					backSide = processAndUploadDocToS3(document.get("back_side").toString(), merchantId);
 				}
-				
-				if(docId == 0 || docId == null){
-		            docId = addNewDocument(docType, merchantId, applicationId, frontSide, backSide);
-		        }
-				
-				if(!docType.equalsIgnoreCase("selfie")) {
-					karzaVerification(docType, frontSide, backSide, singlePageDoc, docId, merchantId, applicationId);
-				}
-				
-				Optional<DocumentsIdProof> documentsIdProofOptional = documentsIdProofDao.findById(docId);
-				if(documentsIdProofOptional.isPresent()) {
-					DocumentsIdProof documentsIdProofToSave = documentsIdProofOptional.get();
-					documentsIdProofToSave.setStatus("pending_verification");
-					if(!frontSide.isBlank()) {
-						documentsIdProofToSave.setProofFrontSide(frontSide);
+
+				if(!frontSide.isBlank() || !backSide.isBlank()) {
+					if(docId == 0 || docId == null){
+			            docId = addNewDocument(docType, merchantId, applicationId, frontSide, backSide);
+			        }
+					if(!docType.equalsIgnoreCase("selfie")) {
+						karzaVerification(docType, frontSide, backSide, singlePageDoc, docId, merchantId, applicationId);
 					}
-					if(!backSide.isBlank()) {
-						documentsIdProofToSave.setProofBackSide(backSide);
+					
+					Optional<DocumentsIdProof> documentsIdProofOptional = documentsIdProofDao.findById(docId);
+					if(documentsIdProofOptional.isPresent()) {
+						DocumentsIdProof documentsIdProofToSave = documentsIdProofOptional.get();
+						documentsIdProofToSave.setStatus("pending_verification");
+						if(!frontSide.isBlank()) {
+							documentsIdProofToSave.setProofFrontSide(frontSide);
+						}
+						if(!backSide.isBlank()) {
+							documentsIdProofToSave.setProofBackSide(backSide);
+						}
+						documentsIdProofDao.save(documentsIdProofToSave);
 					}
-					documentsIdProofDao.save(documentsIdProofToSave);
 				}
 			}
 		}
@@ -277,8 +278,10 @@ public class UpdateLoanInfoFromPanelService {
 	}
 	
 	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, Long documentId, Long merchantId, Long applicationId) {
-		kycUsingKarzaAPI(proofType, frontSide, documentId, merchantId, applicationId);
-		if(singlePageDocument == 0) {
+		if(!frontSide.isBlank()) {
+			kycUsingKarzaAPI(proofType, frontSide, documentId, merchantId, applicationId);
+		}
+		if(singlePageDocument == 0 && !backSide.isBlank()) {
 			kycUsingKarzaAPI(proofType, backSide, documentId, merchantId, applicationId);
 		}
 	}
@@ -719,7 +722,7 @@ public class UpdateLoanInfoFromPanelService {
 	private void saveActiveLoanDetails(Long applicationId, Long merchantId, LendingApplication lendingApplication) {
 		LoanDetails loanDetails = new LoanDetails();
 		loanDetails.setApplicationId(applicationId);
-		loanDetails.setStartDate((new Date()).toString());
+		loanDetails.setStartDate(new Date());
 		loanDetails.setMerchantId(merchantId);
 		loanDetails.setLoanAmount(lendingApplication.getLoanAmount());
 		loanDetails.setEdiCount(lendingApplication.getPayableDays());
@@ -792,7 +795,7 @@ public class UpdateLoanInfoFromPanelService {
 		start = Instant.now();
 		sendNotification(merchantId, message);
 		end = Instant.now();
-		logger.info("Time Taken by GUPSHUP fcm google API : {} miliseconds", Duration.between(start, end).toMillis());
+		logger.info("Time Taken by fcm google API : {} miliseconds", Duration.between(start, end).toMillis());
 	}
 	
 	private void sendSuccessSMS(String mobile, String message) {
@@ -809,14 +812,14 @@ public class UpdateLoanInfoFromPanelService {
 				  .addHeader("Connection", "keep-alive")
 				  .addHeader("cache-control", "no-cache")
 				  .build();
-		logger.info("VerifyOTP SendSuccessSMS api request : {}", request);
+		logger.info("SendSuccessSMS api request : {}", request);
 		try {
 			Response response = client.newCall(request).execute();
 			String responseBody = response.body().string();
-			logger.info("VerifyOTP SendSuccessSMS api response : {}", responseBody);
+			logger.info("SendSuccessSMS api response : {}", responseBody);
 		} catch (IOException e) {
 			e.printStackTrace();
-			logger.info("VerifyOTP SendSuccessSMS api exception : {} ",e.getMessage());
+			logger.info("SendSuccessSMS api exception : {} ",e.getMessage());
 		}
 	}
 	
