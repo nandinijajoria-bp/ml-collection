@@ -188,7 +188,7 @@ public class VerifyOTPService {
 			OkHttpClient client = new OkHttpClient();
 
 			MediaType mediaType = MediaType.parse("application/json");
-			okhttp3.RequestBody body = okhttp3.RequestBody.create(mediaType, "{\n\t\"to\":\""+merchantFcmToken.getFcmToken()+"\",\n\t\"data\" : {\n\t\t\"title\":\"BharatPe\",\n\t\t\"body\":\"Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.\",\n\t\t\"soundname\":\"bharatpenotification\",\n\t\t\"image\":\"icon\",\n\t\t\"image-type\":\"circular\",\n\t\t\"url\":\"loan.html\"\n\t}\n}");
+			okhttp3.RequestBody body = okhttp3.RequestBody.create(mediaType, "{\"to\":\""+merchantFcmToken.getFcmToken()+"\",\"data\" : {\"title\":\"BharatPe\",\"body\":\"Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.\",\"soundname\":\"bharatpenotification\",\"image\":\"icon\",\"image-type\":\"circular\",\"url\":\"loan.html\"}}");
 			Request request = new Request.Builder()
 			  .url("https://fcm.googleapis.com/fcm/send")
 			  .post(body)
