@@ -68,27 +68,27 @@ public class SaveApplicationAddressController {
 				missingFields += "Merchant Id,";
 			}
 			if(shopDetails != null) {
-				if(shopDetails.get("shop_number") == null || shopDetails.get("shop_number").isBlank()) {
+				if(shopDetails.get("shop_number") == null || shopDetails.get("shop_number").isEmpty()) {
 					response.put("response","failed");
 					missingFields += "Shop Number,";
 				}
-				if(shopDetails.get("street_address") == null || shopDetails.get("street_address").isBlank()) {
+				if(shopDetails.get("street_address") == null || shopDetails.get("street_address").isEmpty()) {
 					response.put("response","failed");
 					missingFields += "Street Address,";
 				}
-				if(shopDetails.get("area") == null || shopDetails.get("area").isBlank()) {
+				if(shopDetails.get("area") == null || shopDetails.get("area").isEmpty()) {
 					response.put("response","failed");
 					missingFields += "Area,";
 				}
-				if(shopDetails.get("pincode") == null || shopDetails.get("pincode").isBlank()) {
+				if(shopDetails.get("pincode") == null || shopDetails.get("pincode").isEmpty()) {
 					response.put("response","failed");
 					missingFields += "pincode,";
 				}
-				if(shopDetails.get("city") == null || shopDetails.get("city").isBlank()) {
+				if(shopDetails.get("city") == null || shopDetails.get("city").isEmpty()) {
 					response.put("response","failed");
 					missingFields += "City";
 				}
-				if(shopDetails.get("state") == null || shopDetails.get("state").isBlank()) {
+				if(shopDetails.get("state") == null || shopDetails.get("state").isEmpty()) {
 					response.put("response","failed");
 					missingFields += "State";
 				}

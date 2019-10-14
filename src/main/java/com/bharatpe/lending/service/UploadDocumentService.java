@@ -135,7 +135,7 @@ public class UploadDocumentService {
 				String frontSide = proofSides.get("frontSide");
 				String backSide = proofSides.get("backSide");
 				
-				if((!frontSide.isBlank() && !backSide.isBlank()) || !frontSide.isBlank()) {
+				if((!frontSide.isEmpty() && !backSide.isEmpty()) || !frontSide.isEmpty()) {
 					if(dbOperation.equals("insert")) {
 						documentIdProofId = insertDocumentIdProof(proofType, frontSide, backSide, "pending_verification", singlePageDocument, merchantId, applicationId, latitude, longitude, ip);
 					}else {
@@ -163,7 +163,7 @@ public class UploadDocumentService {
 		proofSides.put("backSide", "");
 		
 		for(String base64Encoded : proof) {
-			if(!base64Encoded.isBlank()) {
+			if(!base64Encoded.isEmpty()) {
 				
 				base64Encoded = processBase64String(base64Encoded);
 				
@@ -215,7 +215,7 @@ public class UploadDocumentService {
 	private Long updateDocumentIdProof(String proofType, String frontSide, String backSide, String status, int singlePageDocument, Long merchantId, Long applicationId, String latitude, String longitude, String ip) {
 		Long id = null;
 		
-		if(backSide.isBlank()) {
+		if(backSide.isEmpty()) {
 			backSide = null;
 		}
 		int updateId = documentsIdProofdao.updateDocSides(frontSide, backSide, singlePageDocument, latitude, longitude, ip, merchantId, applicationId, proofType);
@@ -340,12 +340,12 @@ public class UploadDocumentService {
 			String tempPublicURL = getTemporaryPublicURL(fileName);
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
-			if(!tempPublicURL.isBlank()) {
+			if(!tempPublicURL.isEmpty()) {
 				start = Instant.now();
 				String response = curlKarzaKycAPI(tempPublicURL);
 				end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
-				if(!response.isBlank()) {
+				if(!response.isEmpty()) {
 					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
 					Long status = (Long) jsonResponseObject.get("statusCode");
 					
@@ -480,7 +480,7 @@ public class UploadDocumentService {
 			String name = details.get("name").get("value");
 			
 			String curlResponse = curlKarzaPanAuthenticationAPI(panNumber, name, dob);
-			if(!curlResponse.isBlank()) {
+			if(!curlResponse.isEmpty()) {
 				processAndSavePanAuthenticationResponse(curlResponse, insertId, documentId, merchantId, applicationId);
 			}else {
 				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);

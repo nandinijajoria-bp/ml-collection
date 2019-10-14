@@ -59,8 +59,8 @@ public class SavePanCardDetailsController {
 		response.put("response", "success");
 		String missingMendatoryFields = "";
 		
-		Long applicationId =  (commonAPIRequest.getPayload().get("application_id") != null && !commonAPIRequest.getPayload().get("application_id").toString().isBlank()) ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-		Long merchantId =  (commonAPIRequest.getPayload().get("merchant_id") != null && !commonAPIRequest.getPayload().get("merchant_id").toString().isBlank()) ? Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString()) : null;
+		Long applicationId =  (commonAPIRequest.getPayload().get("application_id") != null && !commonAPIRequest.getPayload().get("application_id").toString().isEmpty()) ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+		Long merchantId =  (commonAPIRequest.getPayload().get("merchant_id") != null && !commonAPIRequest.getPayload().get("merchant_id").toString().isEmpty()) ? Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString()) : null;
 		Map<String, String> panCardDetails = commonAPIRequest.getPayload().get("pancard_details") != null ? (Map<String, String>)commonAPIRequest.getPayload().get("pancard_details") : null;
 		
 		String docNumber = null;
@@ -69,10 +69,10 @@ public class SavePanCardDetailsController {
 		String dob = null;
 		
 		if(panCardDetails != null) {
-			docNumber =  (panCardDetails.get("doc_no") != null && !panCardDetails.get("doc_no").isBlank()) ? panCardDetails.get("doc_no") : null;
-			fatherName =  (panCardDetails.get("father_name") != null && !panCardDetails.get("father_name").isBlank()) ? panCardDetails.get("father_name") : null;
-			personName =  (panCardDetails.get("person_name") != null && !panCardDetails.get("person_name").isBlank()) ? panCardDetails.get("person_name") : null;
-			dob =  (panCardDetails.get("dob") != null && !panCardDetails.get("dob").isBlank()) ? panCardDetails.get("dob").toString() : null;
+			docNumber =  (panCardDetails.get("doc_no") != null && !panCardDetails.get("doc_no").isEmpty()) ? panCardDetails.get("doc_no") : null;
+			fatherName =  (panCardDetails.get("father_name") != null && !panCardDetails.get("father_name").isEmpty()) ? panCardDetails.get("father_name") : null;
+			personName =  (panCardDetails.get("person_name") != null && !panCardDetails.get("person_name").isEmpty()) ? panCardDetails.get("person_name") : null;
+			dob =  (panCardDetails.get("dob") != null && !panCardDetails.get("dob").isEmpty()) ? panCardDetails.get("dob").toString() : null;
 		}
 		
 		if(applicationId == null) {
@@ -83,19 +83,19 @@ public class SavePanCardDetailsController {
 			response.put("response", "failed");
 			missingMendatoryFields += "Merchant Id,";
 		}
-		if(docNumber == null || docNumber.isBlank()) {
+		if(docNumber == null || docNumber.isEmpty()) {
 			response.put("response", "failed");
 			missingMendatoryFields += "Doc Number,";
 		}
-		if(fatherName == null || fatherName.isBlank()) {
+		if(fatherName == null || fatherName.isEmpty()) {
 			response.put("response", "failed");
 			missingMendatoryFields += "Father Name,";
 		}
-		if(personName == null || personName.isBlank()) {
+		if(personName == null || personName.isEmpty()) {
 			response.put("response", "failed");
 			missingMendatoryFields += "Person Name,";
 		}
-		if(dob == null || dob.isBlank() || !isValidDateFormat(dob)) {
+		if(dob == null || dob.isEmpty() || !isValidDateFormat(dob)) {
 			response.put("response", "failed");
 			missingMendatoryFields += "DOB,";
 		}

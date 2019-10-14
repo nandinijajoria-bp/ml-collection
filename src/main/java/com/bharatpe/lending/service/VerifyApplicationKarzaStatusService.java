@@ -149,7 +149,7 @@ public class VerifyApplicationKarzaStatusService {
 		
 		String panAuthResponse = curlKarzaPanAuthenticationAPI(docNumber, personName, dob);
 		
-		if(!panAuthResponse.isBlank()) {
+		if(!panAuthResponse.isEmpty()) {
 			response = processAndSavePanAuthenticationResponse(panAuthResponse, docAuthId, applicationId);
 		}else {
 			logger.info("VerifyApplicationKarzaStatusService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",docNumber, personName, dob);
@@ -259,7 +259,7 @@ public class VerifyApplicationKarzaStatusService {
 				String response = curlKarzaKycAPI(tempPublicURL);
 				Instant end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
-				if(!response.isBlank()) {
+				if(!response.isEmpty()) {
 					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
 					Long status = (Long) jsonResponseObject.get("statusCode");
 					
@@ -447,7 +447,7 @@ public class VerifyApplicationKarzaStatusService {
 			}
 			
 			String panAuthResponse = curlKarzaPanAuthenticationAPI(docKycDetailsOptional.get().getDocNo(), docKycDetailsOptional.get().getPersonName(), dob);
-			if(!panAuthResponse.isBlank()) {
+			if(!panAuthResponse.isEmpty()) {
 				docStatus = processAndSavePanAuthenticationResponse(panAuthResponse, docKycId, docId, merchantId, applicationId);
 			}else {
 				docStatus = "FAILED";
