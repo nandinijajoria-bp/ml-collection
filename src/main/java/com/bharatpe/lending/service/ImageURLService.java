@@ -49,7 +49,7 @@ public class ImageURLService {
 			for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 				Map<String, Object> proof = new LinkedHashMap<>();
 				List<String> imageURL = new ArrayList<>();
-				if(documentsIdProof.getProofFrontSide() != null) {
+				if(documentsIdProof.getProofFrontSide() != null && !documentsIdProof.getProofFrontSide().isEmpty()) {
 					try {
 						String frontURL = getTemporaryPublicURL(documentsIdProof.getProofFrontSide());
 						imageURL.add(frontURL);
@@ -62,7 +62,7 @@ public class ImageURLService {
 						logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", documentsIdProof.getProofFrontSide(), e.getMessage());
 					}
 				}
-				if(documentsIdProof.getProofBackSide() != null) {
+				if(documentsIdProof.getProofBackSide() != null && !documentsIdProof.getProofBackSide().isEmpty()) {
 					try {
 						Instant start = Instant.now();
 						String backURL = getTemporaryPublicURL(documentsIdProof.getProofBackSide());

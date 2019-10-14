@@ -106,7 +106,7 @@ public class UpdateLoanInfoFromPanelController {
 			String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isEmpty()) ? loanDetails.get("loan_disbursal_status").toString() : null;
 			
 			if(applicationId != null) {
-				if(application.getLoanAmount() > 25000 && physicalVerificationStatus == null) {
+				if(application.getLoanAmount() != null && application.getLoanAmount() > 25000 && physicalVerificationStatus == null) {
 					missingFields += "Physical Verification Status,";
 				}else if(application.getStatus() != null && application.getStatus().equalsIgnoreCase("approved") && lender == null) {
 					missingFields += "Lender,";
