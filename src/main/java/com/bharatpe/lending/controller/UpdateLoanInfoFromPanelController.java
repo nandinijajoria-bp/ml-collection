@@ -2,7 +2,7 @@ package com.bharatpe.lending.controller;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +33,7 @@ import com.bharatpe.lending.service.UpdateLoanInfoFromPanelService;
 @RequestMapping("lending/csPanel")
 public class UpdateLoanInfoFromPanelController {
 	Logger logger = LoggerFactory.getLogger(UpdateLoanInfoFromPanelController.class);
-	private List<String> lenderList = new ArrayList<>(List.of("APOLLO","LIQUILOANS","MINTIFY","FLEXILOAN","NIYOGIN","HINDON"));
+	private List<String> lenderList = Arrays.asList("APOLLO","LIQUILOANS","MINTIFY","FLEXILOAN","NIYOGIN","HINDON");
 	
 	@Autowired
 	UpdateLoanInfoFromPanelService updateLoanInfoFromPanelService;
