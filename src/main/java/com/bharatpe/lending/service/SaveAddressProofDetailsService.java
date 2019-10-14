@@ -65,22 +65,22 @@ public class SaveAddressProofDetailsService {
 		toSave.setDob(addressProofDetails.get("dob"));
 		toSave.setMode("MANUAL");
 		toSave.setModule("LENDING");
-		if(addressProofDetails.get("doc_type") != null && !addressProofDetails.get("doc_type").isBlank()) {
+		if(addressProofDetails.get("doc_type") != null && !addressProofDetails.get("doc_type").isEmpty()) {
 			toSave.setDocType(addressProofDetails.get("doc_type"));
 		}
-		if(addressProofDetails.get("address") != null && !addressProofDetails.get("address").isBlank()) {
+		if(addressProofDetails.get("address") != null && !addressProofDetails.get("address").isEmpty()) {
 			toSave.setAddress(addressProofDetails.get("address"));
 		}
-		if(addressProofDetails.get("city") != null && !addressProofDetails.get("city").isBlank()) {
+		if(addressProofDetails.get("city") != null && !addressProofDetails.get("city").isEmpty()) {
 			toSave.setCity(addressProofDetails.get("city"));
 		}
-		if(addressProofDetails.get("state") != null && !addressProofDetails.get("state").isBlank()) {
+		if(addressProofDetails.get("state") != null && !addressProofDetails.get("state").isEmpty()) {
 			toSave.setState(addressProofDetails.get("state"));
 		}
-		if(addressProofDetails.get("pin_code") != null && !addressProofDetails.get("pin_code").isBlank()) {
+		if(addressProofDetails.get("pin_code") != null && !addressProofDetails.get("pin_code").isEmpty()) {
 			toSave.setPincode(Integer.parseInt(addressProofDetails.get("pin_code")));
 		}
-		if(addressProofDetails.get("date_of_issue") != null && !addressProofDetails.get("date_of_issue").isBlank()) {
+		if(addressProofDetails.get("date_of_issue") != null && !addressProofDetails.get("date_of_issue").isEmpty()) {
 			toSave.setDoi(addressProofDetails.get("date_of_issue"));
 		}
 		logger.info("ToSave : {}",toSave);

@@ -64,7 +64,7 @@ public class VerifyOTPService {
 		
 		Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
 		
-		if(otp != null && !otp.isBlank()) {
+		if(otp != null && !otp.isEmpty()) {
 			if(applicationId == null) {
 				LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
 				loanAmount = lendingApplication.getLoanAmount();

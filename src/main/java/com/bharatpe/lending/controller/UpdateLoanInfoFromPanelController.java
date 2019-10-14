@@ -101,9 +101,9 @@ public class UpdateLoanInfoFromPanelController {
 		}
 		
 		if(loanDetails != null) {
-			String lender = (loanDetails.get("lender") != null && !loanDetails.get("lender").toString().isBlank()) ? loanDetails.get("lender").toString() : null;
-			String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isBlank()) ? loanDetails.get("physical_verification_status").toString() : null;
-			String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isBlank()) ? loanDetails.get("loan_disbursal_status").toString() : null;
+			String lender = (loanDetails.get("lender") != null && !loanDetails.get("lender").toString().isEmpty()) ? loanDetails.get("lender").toString() : null;
+			String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isEmpty()) ? loanDetails.get("physical_verification_status").toString() : null;
+			String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isEmpty()) ? loanDetails.get("loan_disbursal_status").toString() : null;
 			
 			if(applicationId != null) {
 				if(application.getLoanAmount() > 25000 && physicalVerificationStatus == null) {
@@ -117,7 +117,7 @@ public class UpdateLoanInfoFromPanelController {
 			}
 		}
 		
-		if(missingFields.isBlank() && invalidFields.isBlank()) {
+		if(missingFields.isEmpty() && invalidFields.isEmpty()) {
 			Boolean flag = checkActiveLoan(merchantId);
 			if(flag) {
 				response.put("response","failed");
@@ -125,10 +125,10 @@ public class UpdateLoanInfoFromPanelController {
 			}
 		}else {
 			String message = "";
-			if(!missingFields.isBlank()) {
+			if(!missingFields.isEmpty()) {
 				message += "Missing Mendatory fields : ( " + missingFields.replaceAll(",$","") + " ) ,";
 			}
-			if(!invalidFields.isBlank()) {
+			if(!invalidFields.isEmpty()) {
 				message += "Invalid or Blank Mendatory fields : ( " + invalidFields.replaceAll(",$","") + " )";
 			}
 			response.put("response","failed");

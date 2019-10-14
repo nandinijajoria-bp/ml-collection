@@ -44,7 +44,7 @@ public class SavePanCardDetailsService {
 		DocKycDetails toSave = new DocKycDetails();
 		if(docKycDetails != null) {
 			String doi = null;
-			if(pancardDetails.get("date_of_issue") != null && !pancardDetails.get("date_of_issue").isBlank()) {
+			if(pancardDetails.get("date_of_issue") != null && !pancardDetails.get("date_of_issue").isEmpty()) {
 				doi = pancardDetails.get("date_of_issue");
 			}
 			String mode = "MANUAL";
@@ -60,7 +60,7 @@ public class SavePanCardDetailsService {
 			toSave.setDocType("pancard");
 			toSave.setMode("MANUAL");
 			toSave.setModule("LENDING");
-			if(pancardDetails.get("date_of_issue") != null && !pancardDetails.get("date_of_issue").isBlank()) {
+			if(pancardDetails.get("date_of_issue") != null && !pancardDetails.get("date_of_issue").isEmpty()) {
 				toSave.setDoi(pancardDetails.get("date_of_issue"));
 			}
 			docKycDetailsDao.save(toSave);

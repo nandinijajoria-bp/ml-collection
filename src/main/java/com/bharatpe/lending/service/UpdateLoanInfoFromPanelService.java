@@ -129,14 +129,14 @@ public class UpdateLoanInfoFromPanelService {
 				Long docId = (document.get("doc_id") != null) ? Long.parseLong(document.get("doc_id").toString()) : null;
 				String docType = document.get("proof_type").toString();
 				
-				if(document.get("front_side") != null && !document.get("front_side").toString().isBlank()) {
+				if(document.get("front_side") != null && !document.get("front_side").toString().isEmpty()) {
 					frontSide = processAndUploadDocToS3(document.get("front_side").toString(), merchantId);
 				}
-				if(!singlePageDocFlag && document.get("back_side") != null && !document.get("back_side").toString().isBlank()) {
+				if(!singlePageDocFlag && document.get("back_side") != null && !document.get("back_side").toString().isEmpty()) {
 					backSide = processAndUploadDocToS3(document.get("back_side").toString(), merchantId);
 				}
 
-				if(!frontSide.isBlank() || !backSide.isBlank()) {
+				if(!frontSide.isEmpty() || !backSide.isEmpty()) {
 					if(docId == 0 || docId == null){
 			            docId = addNewDocument(docType, merchantId, applicationId, frontSide, backSide);
 			        }
@@ -148,10 +148,10 @@ public class UpdateLoanInfoFromPanelService {
 					if(documentsIdProofOptional.isPresent()) {
 						DocumentsIdProof documentsIdProofToSave = documentsIdProofOptional.get();
 						documentsIdProofToSave.setStatus("pending_verification");
-						if(!frontSide.isBlank()) {
+						if(!frontSide.isEmpty()) {
 							documentsIdProofToSave.setProofFrontSide(frontSide);
 						}
-						if(!backSide.isBlank()) {
+						if(!backSide.isEmpty()) {
 							documentsIdProofToSave.setProofBackSide(backSide);
 						}
 						documentsIdProofDao.save(documentsIdProofToSave);
@@ -261,10 +261,10 @@ public class UpdateLoanInfoFromPanelService {
 			documentToSave.setProofType(docType);
 			documentToSave.setStatus("pending_verification");
 			documentToSave.setSinglePage(1);
-			if(!frontSide.isBlank()) {
+			if(!frontSide.isEmpty()) {
 				documentToSave.setProofFrontSide(frontSide);
 			}
-			if(!backSide.isBlank()) {
+			if(!backSide.isEmpty()) {
 				documentToSave.setSinglePage(0);
 				documentToSave.setProofFrontSide(backSide);
 			}
@@ -278,10 +278,10 @@ public class UpdateLoanInfoFromPanelService {
 	}
 	
 	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, Long documentId, Long merchantId, Long applicationId) {
-		if(!frontSide.isBlank()) {
+		if(!frontSide.isEmpty()) {
 			kycUsingKarzaAPI(proofType, frontSide, documentId, merchantId, applicationId);
 		}
-		if(singlePageDocument == 0 && !backSide.isBlank()) {
+		if(singlePageDocument == 0 && !backSide.isEmpty()) {
 			kycUsingKarzaAPI(proofType, backSide, documentId, merchantId, applicationId);
 		}
 	}
@@ -292,12 +292,12 @@ public class UpdateLoanInfoFromPanelService {
 			String tempPublicURL = getTemporaryPublicURL(fileName);
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
-			if(!tempPublicURL.isBlank()) {
+			if(!tempPublicURL.isEmpty()) {
 				start = Instant.now();
 				String response = curlKarzaKycAPI(tempPublicURL);
 				end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
-				if(!response.isBlank()) {
+				if(!response.isEmpty()) {
 					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
 					Long status = (Long) jsonResponseObject.get("statusCode");
 					
@@ -496,7 +496,7 @@ public class UpdateLoanInfoFromPanelService {
 			String name = details.get("name").get("value");
 			
 			String curlResponse = curlKarzaPanAuthenticationAPI(panNumber, name, dob);
-			if(!curlResponse.isBlank()) {
+			if(!curlResponse.isEmpty()) {
 				processAndSavePanAuthenticationResponse(curlResponse, insertId, documentId, merchantId, applicationId);
 			}else {
 				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
@@ -590,11 +590,11 @@ public class UpdateLoanInfoFromPanelService {
 			
 			//query for details
 			
-			String manualKyc = (loanDetails.get("manual_kyc") != null && !loanDetails.get("manual_kyc").toString().isBlank()) ? loanDetails.get("manual_kyc").toString() : null;
-			String manualCibil = (loanDetails.get("manual_cibil") != null && !loanDetails.get("manual_cibil").toString().isBlank()) ? loanDetails.get("manual_cibil").toString() : null;
-			String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isBlank()) ? loanDetails.get("physical_verification_status").toString() : null;
-			String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isBlank()) ? loanDetails.get("loan_disbursal_status").toString() : null;
-			String nbfcStatus = (loanDetails.get("nbfc_status") != null && !loanDetails.get("nbfc_status").toString().isBlank()) ? loanDetails.get("nbfc_status").toString() : null;
+			String manualKyc = (loanDetails.get("manual_kyc") != null && !loanDetails.get("manual_kyc").toString().isEmpty()) ? loanDetails.get("manual_kyc").toString() : null;
+			String manualCibil = (loanDetails.get("manual_cibil") != null && !loanDetails.get("manual_cibil").toString().isEmpty()) ? loanDetails.get("manual_cibil").toString() : null;
+			String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isEmpty()) ? loanDetails.get("physical_verification_status").toString() : null;
+			String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isEmpty()) ? loanDetails.get("loan_disbursal_status").toString() : null;
+			String nbfcStatus = (loanDetails.get("nbfc_status") != null && !loanDetails.get("nbfc_status").toString().isEmpty()) ? loanDetails.get("nbfc_status").toString() : null;
 			
 			if((manualKyc != null && manualKyc.equals("REJECTED")) || (manualCibil != null && manualCibil.equals("REJECTED")) || (physicalVerificationStatus != null && physicalVerificationStatus.equals("REJECTED"))){
 	            status = "rejected";
@@ -647,51 +647,51 @@ public class UpdateLoanInfoFromPanelService {
 		DateFormat df = new SimpleDateFormat("dMMY");
 		String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getApplicationId();
 		
-		if(manualKyc != null && !manualKyc.isBlank() && (lendingApplication.getManualKyc() == null || !lendingApplication.getManualKyc().equalsIgnoreCase(manualKyc))) {
+		if(manualKyc != null && !manualKyc.isEmpty() && (lendingApplication.getManualKyc() == null || !lendingApplication.getManualKyc().equalsIgnoreCase(manualKyc))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getManualKyc(), manualKyc, "KYC", loanId, userId);
 		}
-		if(manualCibil != null && !manualCibil.isBlank() && (lendingApplication.getManualCibil() == null || !lendingApplication.getManualCibil().equalsIgnoreCase(manualCibil))) {
+		if(manualCibil != null && !manualCibil.isEmpty() && (lendingApplication.getManualCibil() == null || !lendingApplication.getManualCibil().equalsIgnoreCase(manualCibil))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getManualCibil(), manualCibil, "CIBIL", loanId, userId);
 		}
-		if(physicalVerificationStatus != null && !physicalVerificationStatus.isBlank() && (lendingApplication.getPhysicalVerificationStatus() == null || !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase(physicalVerificationStatus))) {
+		if(physicalVerificationStatus != null && !physicalVerificationStatus.isEmpty() && (lendingApplication.getPhysicalVerificationStatus() == null || !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase(physicalVerificationStatus))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getPhysicalVerificationStatus(), physicalVerificationStatus, "PHYSICAL", loanId, userId);
 		}
-		if(toUpdateStatus != null && !toUpdateStatus.isBlank() && toUpdateStatus.equalsIgnoreCase("approved") && (lendingApplication.getStatus() == null || !lendingApplication.getStatus().equalsIgnoreCase(toUpdateStatus))) {
+		if(toUpdateStatus != null && !toUpdateStatus.isEmpty() && toUpdateStatus.equalsIgnoreCase("approved") && (lendingApplication.getStatus() == null || !lendingApplication.getStatus().equalsIgnoreCase(toUpdateStatus))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getStatus(), toUpdateStatus, "APP_STATUS", loanId, userId);
 		}
-		if(loanDisbursalStatus != null && !loanDisbursalStatus.isBlank() && (lendingApplication.getLoanDisbursalStatus() == null || !lendingApplication.getLoanDisbursalStatus().equalsIgnoreCase(loanDisbursalStatus))) {
+		if(loanDisbursalStatus != null && !loanDisbursalStatus.isEmpty() && (lendingApplication.getLoanDisbursalStatus() == null || !lendingApplication.getLoanDisbursalStatus().equalsIgnoreCase(loanDisbursalStatus))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getStatus(), loanDisbursalStatus, "DISBURSAL", loanId, userId);
 		}
-		if(nbfcStatus != null && !nbfcStatus.isBlank() && (lendingApplication.getSendToNbfc() == null || !lendingApplication.getSendToNbfc().equalsIgnoreCase(nbfcStatus))) {
+		if(nbfcStatus != null && !nbfcStatus.isEmpty() && (lendingApplication.getSendToNbfc() == null || !lendingApplication.getSendToNbfc().equalsIgnoreCase(nbfcStatus))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getLoanDisbursalStatus(), nbfcStatus, "NBFC", loanId, userId);
 		}
 	}
 	
 	private void updateLoanApplication(Map<String, Object> loanDetails, Long applicationId, Long merchantId, String status, Date agreementAt) {
-		String manualKyc = (loanDetails.get("manual_kyc") != null && !loanDetails.get("manual_kyc").toString().isBlank()) ? loanDetails.get("manual_kyc").toString() : null;
-		String manualKycNotes = (loanDetails.get("manual_kyc_notes") != null && !loanDetails.get("manual_kyc_notes").toString().isBlank()) ? loanDetails.get("manual_kyc_notes").toString() : null;
-		String manualKycAdditionalInfo = (loanDetails.get("manual_kyc_additional_info") != null && !loanDetails.get("manual_kyc_additional_info").toString().isBlank()) ? loanDetails.get("manual_kyc_additional_info").toString() : null;
-		String manualCibil = (loanDetails.get("manual_cibil") != null && !loanDetails.get("manual_cibil").toString().isBlank()) ? loanDetails.get("manual_cibil").toString() : null;
-		String manualCibilDeviation = (loanDetails.get("manual_cibil_deviation") != null && !loanDetails.get("manual_cibil_deviation").toString().isBlank()) ? loanDetails.get("manual_cibil_deviation").toString() : null;
-		String manualCibilDeviationOtherReason = (loanDetails.get("manual_cibil_deviation_other_reason") != null && !loanDetails.get("manual_cibil_deviation_other_reason").toString().isBlank()) ? loanDetails.get("manual_cibil_deviation_other_reason").toString() : null;
-		String manualCibilNotes = (loanDetails.get("manual_cibil_notes") != null && !loanDetails.get("manual_cibil_notes").toString().isBlank()) ? loanDetails.get("manual_cibil_notes").toString() : null;
-		String manualCibilAdditionalInfo = (loanDetails.get("manual_cibil_additional_info") != null && !loanDetails.get("manual_cibil_additional_info").toString().isBlank()) ? loanDetails.get("manual_cibil_additional_info").toString() : null;
-		String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isBlank()) ? loanDetails.get("physical_verification_status").toString() : null;
-		String physicalVerificationAdditionalInfo = (loanDetails.get("physical_verification_additional_info") != null && !loanDetails.get("physical_verification_additional_info").toString().isBlank()) ? loanDetails.get("physical_verification_additional_info").toString() : null;
-		String physicalVerificationNotes = (loanDetails.get("physical_verification_notes") != null && !loanDetails.get("physical_verification_notes").toString().isBlank()) ? loanDetails.get("physical_verification_notes").toString() : null;
-		String sendToNbfc = (loanDetails.get("send_to_nbfc") != null && !loanDetails.get("send_to_nbfc").toString().isBlank()) ? loanDetails.get("send_to_nbfc").toString() : null;
-		String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isBlank()) ? loanDetails.get("loan_disbursal_status").toString() : null;
+		String manualKyc = (loanDetails.get("manual_kyc") != null && !loanDetails.get("manual_kyc").toString().isEmpty()) ? loanDetails.get("manual_kyc").toString() : null;
+		String manualKycNotes = (loanDetails.get("manual_kyc_notes") != null && !loanDetails.get("manual_kyc_notes").toString().isEmpty()) ? loanDetails.get("manual_kyc_notes").toString() : null;
+		String manualKycAdditionalInfo = (loanDetails.get("manual_kyc_additional_info") != null && !loanDetails.get("manual_kyc_additional_info").toString().isEmpty()) ? loanDetails.get("manual_kyc_additional_info").toString() : null;
+		String manualCibil = (loanDetails.get("manual_cibil") != null && !loanDetails.get("manual_cibil").toString().isEmpty()) ? loanDetails.get("manual_cibil").toString() : null;
+		String manualCibilDeviation = (loanDetails.get("manual_cibil_deviation") != null && !loanDetails.get("manual_cibil_deviation").toString().isEmpty()) ? loanDetails.get("manual_cibil_deviation").toString() : null;
+		String manualCibilDeviationOtherReason = (loanDetails.get("manual_cibil_deviation_other_reason") != null && !loanDetails.get("manual_cibil_deviation_other_reason").toString().isEmpty()) ? loanDetails.get("manual_cibil_deviation_other_reason").toString() : null;
+		String manualCibilNotes = (loanDetails.get("manual_cibil_notes") != null && !loanDetails.get("manual_cibil_notes").toString().isEmpty()) ? loanDetails.get("manual_cibil_notes").toString() : null;
+		String manualCibilAdditionalInfo = (loanDetails.get("manual_cibil_additional_info") != null && !loanDetails.get("manual_cibil_additional_info").toString().isEmpty()) ? loanDetails.get("manual_cibil_additional_info").toString() : null;
+		String physicalVerificationStatus = (loanDetails.get("physical_verification_status") != null && !loanDetails.get("physical_verification_status").toString().isEmpty()) ? loanDetails.get("physical_verification_status").toString() : null;
+		String physicalVerificationAdditionalInfo = (loanDetails.get("physical_verification_additional_info") != null && !loanDetails.get("physical_verification_additional_info").toString().isEmpty()) ? loanDetails.get("physical_verification_additional_info").toString() : null;
+		String physicalVerificationNotes = (loanDetails.get("physical_verification_notes") != null && !loanDetails.get("physical_verification_notes").toString().isEmpty()) ? loanDetails.get("physical_verification_notes").toString() : null;
+		String sendToNbfc = (loanDetails.get("send_to_nbfc") != null && !loanDetails.get("send_to_nbfc").toString().isEmpty()) ? loanDetails.get("send_to_nbfc").toString() : null;
+		String loanDisbursalStatus = (loanDetails.get("loan_disbursal_status") != null && !loanDetails.get("loan_disbursal_status").toString().isEmpty()) ? loanDetails.get("loan_disbursal_status").toString() : null;
 		if(loanDisbursalStatus != null) {
 			loanDisbursalStatus = loanDisbursalStatus.equalsIgnoreCase("APPROVED") ? "DISBURSED" : loanDisbursalStatus;
 		}
 		Long approvedBy = (loanDetails.get("user_id") != null) ? Long.parseLong(loanDetails.get("user_id").toString()) : null;
-		String lender = (loanDetails.get("lender") != null && !loanDetails.get("lender").toString().isBlank()) ? loanDetails.get("lender").toString().toUpperCase() : null;
+		String lender = (loanDetails.get("lender") != null && !loanDetails.get("lender").toString().isEmpty()) ? loanDetails.get("lender").toString().toUpperCase() : null;
 		SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
 		String externalLoanId = (loanDetails.get("external_loan_id") != null) ? "BPL"+sdf.format(agreementAt)+loanDetails.get("external_loan_id").toString() : null;
-		String addressProofCity = (loanDetails.get("proof_city") != null && !loanDetails.get("proof_city").toString().isBlank()) ? loanDetails.get("proof_city").toString() : null;
-		String addressProofState = (loanDetails.get("proof_state") != null && !loanDetails.get("proof_state").toString().isBlank()) ? loanDetails.get("proof_state").toString() : null;
-		String addressProofZipCode = (loanDetails.get("proof_zip_code") != null && !loanDetails.get("proof_zip_code").toString().isBlank()) ? loanDetails.get("proof_zip_code").toString() : null;
-		String addressProofAddress = (loanDetails.get("proof_address") != null && !loanDetails.get("proof_address").toString().isBlank()) ? loanDetails.get("proof_address").toString() : null;
+		String addressProofCity = (loanDetails.get("proof_city") != null && !loanDetails.get("proof_city").toString().isEmpty()) ? loanDetails.get("proof_city").toString() : null;
+		String addressProofState = (loanDetails.get("proof_state") != null && !loanDetails.get("proof_state").toString().isEmpty()) ? loanDetails.get("proof_state").toString() : null;
+		String addressProofZipCode = (loanDetails.get("proof_zip_code") != null && !loanDetails.get("proof_zip_code").toString().isEmpty()) ? loanDetails.get("proof_zip_code").toString() : null;
+		String addressProofAddress = (loanDetails.get("proof_address") != null && !loanDetails.get("proof_address").toString().isEmpty()) ? loanDetails.get("proof_address").toString() : null;
 		
 		LendingApplication applicationToUpdate = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
 		applicationToUpdate.setManualKyc(manualKyc);
