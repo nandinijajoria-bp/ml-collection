@@ -2,8 +2,6 @@ package com.bharatpe.lending.controller;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +32,6 @@ public class SavePanCardDetailsController {
 	
 	@RequestMapping(value="/savePanCardDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, String> savePanCardDetails(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Instant start = Instant.now();
 		Map<String, String> finalResponse = new HashMap<>();
 		logger.info("savePanCardDetails request : {}",commonAPIRequest);
 		
@@ -49,8 +46,6 @@ public class SavePanCardDetailsController {
 		}
 		
 		logger.info("savePanCardDetails response : {}", finalResponse);
-		Instant end = Instant.now();
-		logger.info("Time Taken by savePanCardDetails API : {} miliseconds", Duration.between(start, end).toMillis());
 		return finalResponse;
 	}
 	

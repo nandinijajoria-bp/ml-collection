@@ -1,7 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -26,14 +24,11 @@ public class NotifyEligibleController {
 	
 	@RequestMapping(value="/notifyEligible", method = RequestMethod.GET, produces="application/json")
 	public Map<String, Boolean> notifyEligible(HttpServletRequest request, HttpServletResponse response) {
-		Instant start = Instant.now();
 		logger.info("notifyEligible request : {}",request);
 		
 		Map<String, Boolean> resp = notifyEligibleService.runService(request, response);
 		
 		logger.info("notifyEligible response : {}", response);
-		Instant end = Instant.now();
-		logger.info("Time Taken by notifyEligible API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 

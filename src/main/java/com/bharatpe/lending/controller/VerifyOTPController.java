@@ -1,7 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,14 +26,11 @@ public class VerifyOTPController {
 	
 	@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, Boolean> verifyOTP(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Instant start = Instant.now();
 		logger.info("verifyOTP request : {}",commonAPIRequest);
 		
 		Map<String, Boolean> resp = verifyOTPService.runService(request, response, commonAPIRequest);
 		
 		logger.info("verifyOTP response : {}", resp);
-		Instant end = Instant.now();
-		logger.info("Time Taken by verifyOTP API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 

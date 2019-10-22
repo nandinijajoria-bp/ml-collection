@@ -1,7 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -29,14 +27,11 @@ public class ImageURLController {
 	
 	@RequestMapping(value="/imageURL", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public List<Map<String, Object>> imageURL(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Instant start = Instant.now();
 		logger.info("ImageURLController request : {}",commonAPIRequest);
 		
 		List<Map<String, Object>> resp = imageURLService.runService(request, response, commonAPIRequest);
 		
 		logger.info("ImageURLController response : {}", resp);
-		Instant end = Instant.now();
-		logger.info("Time Taken by imageURL API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 }

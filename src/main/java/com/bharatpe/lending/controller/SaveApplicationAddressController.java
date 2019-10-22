@@ -1,7 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -30,7 +28,6 @@ public class SaveApplicationAddressController {
 		
 		@RequestMapping(value="/saveApplicationAddress", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 		public Map<String, String> saveApplicationAddress(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-			Instant start = Instant.now();
 			Map<String, String> finalResponse = new LinkedHashMap<>();
 			logger.info("saveApplicationAddress request : {}",commonAPIRequest);
 			
@@ -45,8 +42,6 @@ public class SaveApplicationAddressController {
 			}
 			
 			logger.info("saveApplicationAddress response : {}", finalResponse);
-			Instant end = Instant.now();
-			logger.info("Time Taken by saveApplicationAddress API : {} miliseconds", Duration.between(start, end).toMillis());
 			return finalResponse;
 		}
 		

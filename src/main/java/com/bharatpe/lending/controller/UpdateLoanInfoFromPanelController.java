@@ -1,7 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,7 +47,6 @@ public class UpdateLoanInfoFromPanelController {
 	
 	@RequestMapping(value="/updateLoanInfoFromPanel", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, String> updateLoanInfoFromPanel(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Instant start = Instant.now();
 		Map<String, String> resp = new LinkedHashMap<>();
 		logger.info("updateLoanInfoFromPanel request : {}",commonAPIRequest);
 		
@@ -63,8 +60,6 @@ public class UpdateLoanInfoFromPanelController {
 		}
 		
 		logger.info("updateLoanInfoFromPanel response : {}", resp);
-		Instant end = Instant.now();
-		logger.info("Time Taken by updateLoanInfoFromPanel API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 	

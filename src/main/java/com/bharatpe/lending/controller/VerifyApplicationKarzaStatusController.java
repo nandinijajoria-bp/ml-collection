@@ -1,7 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -30,7 +28,6 @@ public class VerifyApplicationKarzaStatusController {
 	
 	@RequestMapping(value="/verifyApplicationKarzaStatus", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Map<String, String> verifyApplicationKarzaStatus(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Instant start = Instant.now();
 		Map<String, String> resp = new LinkedHashMap<>();
 		logger.info("verifyApplicationKarzaStatus request : {}",commonAPIRequest);
 		
@@ -44,8 +41,6 @@ public class VerifyApplicationKarzaStatusController {
 		}
 		
 		logger.info("verifyApplicationKarzaStatus response : {}", resp);
-		Instant end = Instant.now();
-		logger.info("Time Taken by verifyApplicationKarzaStatus API : {} miliseconds", Duration.between(start, end).toMillis());
 		return resp;
 	}
 	

@@ -2,8 +2,6 @@ package com.bharatpe.lending.controller;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +31,6 @@ public class SaveAddressProofDetailsController {
 		
 		@RequestMapping(value="/saveAddressProofDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 		public Map<String, String> saveAddressProofDetails(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-			Instant start = Instant.now();
 			Map<String, String> finalResponse = new HashMap<>();
 			logger.info("saveAddressProofDetails request : {}",commonAPIRequest);
 			
@@ -48,8 +45,6 @@ public class SaveAddressProofDetailsController {
 			}
 			
 			logger.info("saveAddressProofDetails response : {}", finalResponse);
-			Instant end = Instant.now();
-			logger.info("Time Taken by saveAddressProofDetails API : {} miliseconds", Duration.between(start, end).toMillis());
 			return finalResponse;
 		}
 		
