@@ -1,9 +1,7 @@
 package com.bharatpe.lending.service;
 
-import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -17,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.joda.time.DateTime;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
@@ -25,14 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
@@ -56,6 +45,7 @@ import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.SettlementScheduleDao;
 import com.bharatpe.lending.dao.ValidateDao;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -99,6 +89,9 @@ public class UpdateLoanInfoFromPanelService {
 	
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
+	
+	@Autowired
+	S3BucketHandler s3BucketHandler;
 
 	public Map<String, String> updateLoanInfoFromPanel(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -163,7 +156,7 @@ public class UpdateLoanInfoFromPanelService {
 		base64Encoded = processBase64String(base64Encoded);
 		
 		Instant start = Instant.now();
-		fileName = uploadToS3Bucket(base64Encoded, merchantId);
+		fileName = s3BucketHandler.uploadToS3Bucket(base64Encoded, merchantId);
 		Instant end = Instant.now();
 		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
 		
@@ -177,73 +170,6 @@ public class UpdateLoanInfoFromPanelService {
 			base64EncodedString = base64EncodedSplit[1];
 		}
 		return base64EncodedString;
-	}
-	
-	private AmazonS3 createS3BucketConnection() {
-		AmazonS3 s3client = null;
-		try {
-			//create connection
-			AWSCredentials credentials = new BasicAWSCredentials(
-						LendingConstants.AWS_S3_ACCESS_KEY, 
-						LendingConstants.AWS_S3_SECRET_KEY
-					);
-			s3client = AmazonS3ClientBuilder
-					  .standard()
-					  .withCredentials(new AWSStaticCredentialsProvider(credentials))
-					  .withRegion(Regions.AP_SOUTH_1)
-					  .build();
-		}catch(Exception e) {
-			e.printStackTrace();
-			logger.info("UpdateLoanInfoFromPanelService exception while creating connection to S3 bucket message : {}",e.getMessage());
-		}
-		return s3client;
-	}
-	
-	private String getTemporaryPublicURL(String key) throws FileNotFoundException {
-	    try {
-	    	AmazonS3 s3client = createS3BucketConnection();
-	        return s3client.generatePresignedUrl(LendingConstants.AWS_S3_BUCKET_NAME, key, new DateTime().plusMinutes(15).toDate()).toString();
-	    }
-	    catch (AmazonS3Exception exception){
-	        if(exception.getStatusCode() == 404){
-	            throw new FileNotFoundException(key);
-	        }
-	        else{
-	            throw exception;
-	        }
-	    }
-	}
-	
-	private String uploadToS3Bucket(String base64Encoded, Long merchantId) {
-		String fileName = "";
-		//decode and convert into byte stream
-		byte[] bI = org.apache.commons.codec.binary.Base64.decodeBase64(base64Encoded.getBytes());
-		InputStream fis = new ByteArrayInputStream(bI);
-		
-		AmazonS3 s3client = createS3BucketConnection();
-		try {
-			if(s3client != null) {
-				//set meta data
-				ObjectMetadata metadata = new ObjectMetadata();
-				metadata.setContentLength(bI.length);
-				metadata.setContentType("image/png");
-				metadata.setCacheControl("public, max-age=31536000");
-				
-				fileName = merchantId + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
-				
-				//put object to s3 bucket
-				s3client.putObject(
-							LendingConstants.AWS_S3_BUCKET_NAME, 
-							fileName,
-							fis,
-							metadata
-						);
-			}
-		}catch(Exception e) {
-			e.printStackTrace();
-			logger.info("UpdateLoanInfoFromPanelService exception while Uploading doc to S3 bucket message : {}",e.getMessage());
-		}
-		return fileName;
 	}
 	
 	private Long addNewDocument(String docType, Long merchantId, Long applicationId, String frontSide, String backSide) {
@@ -286,7 +212,7 @@ public class UpdateLoanInfoFromPanelService {
 	private void kycUsingKarzaAPI(String proofType, String fileName, Long documentId, Long merchantId, Long applicationId) {
 		try {
 			Instant start = Instant.now();
-			String tempPublicURL = getTemporaryPublicURL(fileName);
+			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
 			if(!tempPublicURL.isEmpty()) {

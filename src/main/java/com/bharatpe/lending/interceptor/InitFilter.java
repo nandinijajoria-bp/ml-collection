@@ -27,7 +27,7 @@ public class InitFilter implements Filter{
         InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper((HttpServletRequest) request);
         chain.doFilter(interceptorRequestWrapper, response);
         long endTime = System.currentTimeMillis();
-        logger.info("Time taken by API: " + interceptorRequestWrapper.getRequestURI() + " = " + (endTime - startTime) );
+        logger.info("Time taken by API: " + interceptorRequestWrapper.getRequestURI() + " = " + (endTime - startTime) + " miliseconds");
     }
 
     public void destroy() {
