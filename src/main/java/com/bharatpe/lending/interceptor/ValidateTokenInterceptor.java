@@ -18,7 +18,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.TokenVerification;
 
@@ -29,9 +28,6 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
 	
 	@Autowired
 	private TokenVerificationDao tokenVerificationDao;
-	
-	@Autowired
-    private MerchantDao merchantDao;
 	
 	@Autowired
 	Environment env;
