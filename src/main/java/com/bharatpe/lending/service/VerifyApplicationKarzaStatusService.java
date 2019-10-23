@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.joda.time.DateTime;
@@ -69,7 +68,7 @@ public class VerifyApplicationKarzaStatusService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
-	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, String> verifyApplicationStatusUsingKarza(HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
 		Long applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());

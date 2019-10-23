@@ -39,8 +39,7 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		logger.info("Pre handle Interceptor of ValidateTokenInterceptor for {}",request);
 		
-        String mobile = null;
-        String merchantId = null;
+        Merchant merchant = null;
         Boolean status = false;
 
         //fetch token from header
@@ -60,21 +59,11 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         		if(tokenDetails != null && !tokenDetails.isEmpty()) {
         			
         			for(TokenVerification tv : tokenDetails) {
-        				mobile = tv.getMobile();
-        				merchantId = tv.getMerchantId();
+        				merchant = tv.getMerchant();
         			}
 
-                	if(!StringUtils.isEmpty(mobile) && !StringUtils.isEmpty(merchantId)) {
+                	if(merchant != null) {
             			status = true;
-            		}else if(!StringUtils.isEmpty(mobile) && StringUtils.isEmpty(merchantId)) {
-            			//fetch merchantId if not found in verify
-            			Merchant merchant = merchantDao.findByMobile(mobile);
-            			if(merchant != null) {
-            				merchantId = Long.toString(merchant.getId());
-            				if(merchantId != null) {
-            					status = true;
-            				}
-            			}
             		}
             	}
         	}
@@ -82,9 +71,8 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         	logger.error("Exception occurred in Pre handle Interceptor ValidateTokenInterceptor {}", th);
         }
         if(status == true) {
-        	logger.info("ValidateToken Interceptor Success:  mobile : {} and merchantId : {}", mobile, merchantId);
-        	request.setAttribute("mobile", mobile);
-			request.setAttribute("merchantId", merchantId);
+        	logger.info("ValidateToken Interceptor Success: merchant : {}", merchant);
+			request.setAttribute("merchant", merchant);
         }else {
         	sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
         }

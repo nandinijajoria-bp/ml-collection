@@ -8,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.joda.time.DateTime;
@@ -27,6 +26,7 @@ import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.entities.DocumentsIdProof;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.constants.LendingConstants;
 
@@ -37,10 +37,10 @@ public class ImageURLService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
-	public List<Map<String, Object>> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long merchantId = merchant.getId();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		
 		if(applicationId != null) {

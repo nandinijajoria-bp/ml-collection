@@ -3,9 +3,6 @@ package com.bharatpe.lending.service;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +20,7 @@ public class SavePanCardDetailsService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
-	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, String> savePanCardDetails(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
 		Long applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());

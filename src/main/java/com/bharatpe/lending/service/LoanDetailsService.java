@@ -69,35 +69,23 @@ public class LoanDetailsService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 
-	public Map<String, Object> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> fetchLoanDetails(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> resp;
 		List<Map<String, Object>> eligibility = new ArrayList<>();
 		Map<String, Object> details = new LinkedHashMap<>();
 		Boolean eligibleFlag = false;
+		Boolean validBankFlag = true;
 		
-		Long merchantId = (request.getAttribute("merchantId") != null) ? Long.parseLong(request.getAttribute("merchantId").toString()) : null;
-		Boolean validBankDetailsFlag = true;
+		Long merchantId = merchant.getId();
 		
-		Merchant merchant = merchantDao.findValidMerchant(merchantId);
+		Merchant merchantAgentCheck = merchantDao.findValidMerchant(merchantId);
 		Merchant merchantDIY = merchantDao.findValidMerchantForDIY(merchantId);
-		if(merchant != null || merchantDIY != null) {
+		if(merchantAgentCheck != null || merchantDIY != null) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
 			
-			if(merchantBankDetail != null) {
-				String ifsc = merchantBankDetail.getIfscCode();
-				if(ifsc != null || ifsc != "") {
-					ifsc = ifsc.substring(0,4);
-					
-					List<BankList> bankList = bankListDao.fetchByIfsc(ifsc);
-					
-					if(bankList == null || bankList.isEmpty() ) {
-						logger.info("LoanDetails bankList not found for merchant {} and ifsc : {}",merchantId, ifsc);
-						validBankDetailsFlag = false;
-					}
-				}
-			}
+			validBankFlag = isValidBank(merchantBankDetail, merchantId);
 			
-			if(validBankDetailsFlag) {
+			if(validBankFlag) {
 				List<MerchantSummary> merchantSummaryList = merchantSummaryDao.fetchActiveMerchantLoan(merchantId);
 				
 				if(merchantSummaryList.size() == 1) {
@@ -124,6 +112,25 @@ public class LoanDetailsService {
 		resp = prepareResponse(eligibility, details, eligibleFlag);
 		
 		return resp;
+	}
+	
+	private Boolean isValidBank(MerchantBankDetail merchantBankDetail, Long merchantId) {
+		Boolean flag = true;
+		
+		if(merchantBankDetail != null) {
+			String ifsc = merchantBankDetail.getIfscCode();
+			if(ifsc != null || ifsc != "") {
+				ifsc = ifsc.substring(0,4);
+				
+				List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(ifsc);
+				
+				if(nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
+					logger.info("LoanDetails bankList not found for merchant {} and ifsc : {}",merchantId, ifsc);
+					flag = false;
+				}
+			}
+		}
+		return flag;
 	}
 	
 	

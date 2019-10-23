@@ -1,11 +1,9 @@
 package com.bharatpe.lending.service;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -30,7 +28,7 @@ public class SaveApplicationAddressService {
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 	
-	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, String> saveApplicationAddress(HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
 		Long applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());

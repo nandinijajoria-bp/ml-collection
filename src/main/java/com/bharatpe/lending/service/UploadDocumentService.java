@@ -8,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.joda.time.DateTime;
@@ -32,6 +31,7 @@ import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.entities.DocAuthentication;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.DocumentsIdProof;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -71,11 +71,11 @@ public class UploadDocumentService {
 	private Map<String, Object> finalResponse = new LinkedHashMap<>();
 	private List<Map<String, Object>> documentList = new ArrayList<Map<String, Object>>();
 
-	public Map<String, Object> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> runService(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		this.finalResponse.put("success", false);
 		this.documentList = new ArrayList<Map<String, Object>>();
 		
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long merchantId = merchant.getId();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		String latitude = commonAPIRequest.getMeta().getLatitude();
 		String longitude = commonAPIRequest.getMeta().getLongitude();

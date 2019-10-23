@@ -3,7 +3,6 @@ package com.bharatpe.lending.service;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -13,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
@@ -27,9 +27,9 @@ public class CancelApplicationService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public Map<String, Boolean> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Boolean> cancleApplication(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long merchantId = merchant.getId();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		Boolean reapply =  commonAPIRequest.getPayload().get("reapply") != null ? (boolean) commonAPIRequest.getPayload().get("reapply") : false;
 		

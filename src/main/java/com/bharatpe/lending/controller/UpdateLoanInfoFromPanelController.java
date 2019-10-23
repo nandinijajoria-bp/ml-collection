@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -46,13 +45,13 @@ public class UpdateLoanInfoFromPanelController {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 	
 	@RequestMapping(value="/updateLoanInfoFromPanel", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Map<String, String> updateLoanInfoFromPanel(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Map<String, String> resp = new LinkedHashMap<>();
+	public Object updateLoanInfoFromPanel(HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		Object resp = new LinkedHashMap<>();
 		logger.info("updateLoanInfoFromPanel request : {}",commonAPIRequest);
 		
 		Map<String, String> validationResponse = validateInput(commonAPIRequest);
 		if(validationResponse.get("response").equals("success")) {
-			resp = updateLoanInfoFromPanelService.runService(request, response, commonAPIRequest);
+			resp = updateLoanInfoFromPanelService.updateLoanInfoFromPanel(commonAPIRequest);
 		}else {
 			logger.info("updateLoanInfoFromPanel invalid request");
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));

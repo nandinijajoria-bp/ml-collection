@@ -3,7 +3,6 @@ package com.bharatpe.lending.service;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.NotifyEligible;
 import com.bharatpe.lending.dao.NotifyEligibleDao;
 
@@ -22,9 +22,9 @@ public class NotifyEligibleService {
 	@Autowired
 	NotifyEligibleDao notifyEligibleDao;
 	
-	public Map<String, Boolean> runService(HttpServletRequest request, HttpServletResponse response) {
+	public Map<String, Boolean> notifyEligible(Merchant merchant, HttpServletResponse response) {
 		Map<String, Boolean> resp = new LinkedHashMap<> ();
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long merchantId = merchant.getId();
 		
 		NotifyEligible notifyEligible = new NotifyEligible();
 

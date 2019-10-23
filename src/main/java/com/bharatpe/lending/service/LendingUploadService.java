@@ -3,7 +3,6 @@ package com.bharatpe.lending.service;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -13,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 
@@ -23,11 +23,11 @@ public class LendingUploadService {
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 	
-	public Map<String, Object> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> uploadLoanDetails(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> resp = new LinkedHashMap<> ();
 		LendingApplication lendingApplicationToSave;
 		
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
+		Long merchantId = merchant.getId();
 		
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		int loanStep = commonAPIRequest.getPayload().get("loan_step") != null ? Integer.parseInt(commonAPIRequest.getPayload().get("loan_step").toString()) : 0;

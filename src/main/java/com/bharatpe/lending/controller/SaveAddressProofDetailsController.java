@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -30,14 +29,14 @@ public class SaveAddressProofDetailsController {
 		SaveAddressProofDetailsService saveAddressProofDetailsService;
 		
 		@RequestMapping(value="/saveAddressProofDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-		public Map<String, String> saveAddressProofDetails(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-			Map<String, String> finalResponse = new HashMap<>();
+		public Object saveAddressProofDetails(HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+			Object finalResponse = new HashMap<>();
 			logger.info("saveAddressProofDetails request : {}",commonAPIRequest);
 			
 			Map<String, String> validationResponse = validateInput(commonAPIRequest);
 			
 			if(validationResponse.get("response").equals("success")) {
-				finalResponse = saveAddressProofDetailsService.runService(request, response, commonAPIRequest);
+				finalResponse = saveAddressProofDetailsService.saveAddressProofDetails(commonAPIRequest);
 			}else {
 				logger.info("SaveAddressProofDetailsService invalid request");
 				response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));

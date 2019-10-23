@@ -1,17 +1,16 @@
 package com.bharatpe.lending.controller;
 
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.service.LendingAgreementService;
 
 @RestController
@@ -23,10 +22,9 @@ public class LendingAgreementController {
 	LendingAgreementService lendingAgreementService;
 	
 	@RequestMapping(value="/lendingAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Map<String, Object> lendingAgreement(HttpServletRequest request, HttpServletResponse response) {
-		logger.info("LendingAgreement request : {}",request);
+	public Object lendingAgreement(@RequestAttribute Merchant merchant, HttpServletResponse response) {
 		
-		Map<String, Object> resp = lendingAgreementService.runService(request, response);
+		Object resp = lendingAgreementService.fetchLendingAgreement(merchant, response);
 		
 		logger.info("LendingAgreement response : {}", resp);
 		return resp;

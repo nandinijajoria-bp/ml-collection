@@ -7,9 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +26,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.entities.TmpLoanGenerate;
 import com.bharatpe.common.objects.CommonAPIRequest;
@@ -77,13 +75,13 @@ public class SignAgreementService {
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
 
-	public Map<String,Boolean> runService(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Map<String,Boolean> signAgreement(Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 		
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
-		Long mobile = Long.parseLong(request.getAttribute("mobile").toString());
+		Long merchantId = merchant.getId();
+		Long mobile = Long.parseLong(merchant.getMobile());
 		
 		String latitude = commonAPIRequest.getMeta().getLatitude();
 		String longitude = commonAPIRequest.getMeta().getLongitude();

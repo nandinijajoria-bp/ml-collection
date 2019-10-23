@@ -4,7 +4,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -16,6 +15,7 @@ import com.bharatpe.common.constants.ResponseCode;
 //import com.bharatpe.common.entities.LendingApplication;
 //import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.common.entities.LendingNbfscs;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dao.LendingNbfscsDao;
 
 @Service
@@ -28,11 +28,10 @@ public class LendingAgreementService {
 	@Autowired
 	LendingNbfscsDao lendingNbfscsDao;
 	
-	public Map<String, Object> runService(HttpServletRequest request, HttpServletResponse response) {
+	public Map<String, Object> fetchLendingAgreement(Merchant merchant, HttpServletResponse response) {
 		Map<String, Object> resp = new LinkedHashMap<> ();
 		
-		Long merchantId = Long.parseLong(request.getAttribute("merchantId").toString());
-		
+//		Long merchantId = merchant.getId();
 //		LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
 		
 		Long id = (long) 1;

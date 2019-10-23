@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -31,14 +30,14 @@ public class SavePanCardDetailsController {
 	SavePanCardDetailsService savePanCardDetailsService;
 	
 	@RequestMapping(value="/savePanCardDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Map<String, String> savePanCardDetails(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Map<String, String> finalResponse = new HashMap<>();
+	public Object savePanCardDetails(HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		Object finalResponse = new HashMap<>();
 		logger.info("savePanCardDetails request : {}",commonAPIRequest);
 		
 		Map<String, String> validationResponse = validateInput(commonAPIRequest);
 		
 		if(validationResponse.get("response").equals("success")) {
-			finalResponse = savePanCardDetailsService.runService(request, response, commonAPIRequest);
+			finalResponse = savePanCardDetailsService.savePanCardDetails(commonAPIRequest);
 		}else {
 			logger.info("savePanCardDetails invalid request");
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));

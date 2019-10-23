@@ -3,9 +3,6 @@ package com.bharatpe.lending.service;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +23,7 @@ public class SaveAddressProofDetailsService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
-	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, String> saveAddressProofDetails(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
 		Long applicationId =  Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString());
@@ -83,7 +80,6 @@ public class SaveAddressProofDetailsService {
 		if(addressProofDetails.get("date_of_issue") != null && !addressProofDetails.get("date_of_issue").isEmpty()) {
 			toSave.setDoi(addressProofDetails.get("date_of_issue"));
 		}
-		logger.info("ToSave : {}",toSave);
 		docKycDetailsDao.save(toSave);
 	}
 }

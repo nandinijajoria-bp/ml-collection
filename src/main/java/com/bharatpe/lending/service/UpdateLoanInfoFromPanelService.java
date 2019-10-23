@@ -17,9 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.joda.time.DateTime;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -103,7 +100,7 @@ public class UpdateLoanInfoFromPanelService {
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
 
-	public Map<String, String> runService(HttpServletRequest request, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, String> updateLoanInfoFromPanel(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("response", "success");
 		finalResponse.put("message", "loan Application updated");

@@ -3,7 +3,6 @@ package com.bharatpe.lending.controller;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -27,13 +26,13 @@ public class VerifyApplicationKarzaStatusController {
 	VerifyApplicationKarzaStatusService verifyApplicationKarzaStatusService;
 	
 	@RequestMapping(value="/verifyApplicationKarzaStatus", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Map<String, String> verifyApplicationKarzaStatus(HttpServletRequest request, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		Map<String, String> resp = new LinkedHashMap<>();
+	public Object verifyApplicationKarzaStatus(HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		Object resp = new LinkedHashMap<>();
 		logger.info("verifyApplicationKarzaStatus request : {}",commonAPIRequest);
 		
 		Map<String, String> validationResponse = validateInput(commonAPIRequest);
 		if(validationResponse.get("response").equals("success")) {
-			resp = verifyApplicationKarzaStatusService.runService(request, response, commonAPIRequest);
+			resp = verifyApplicationKarzaStatusService.verifyApplicationStatusUsingKarza(response, commonAPIRequest);
 		}else {
 			logger.info("verifyApplicationKarzaStatus invalid request");
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
