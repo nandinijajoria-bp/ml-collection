@@ -45,12 +45,12 @@ import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.SettlementScheduleDao;
 import com.bharatpe.lending.dao.ValidateDao;
+import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 
 @Service
@@ -92,6 +92,9 @@ public class UpdateLoanInfoFromPanelService {
 	
 	@Autowired
 	S3BucketHandler s3BucketHandler;
+	
+	@Autowired
+	KarzaHandler karzaHandler;
 
 	public Map<String, String> updateLoanInfoFromPanel(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -217,7 +220,7 @@ public class UpdateLoanInfoFromPanelService {
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
 			if(!tempPublicURL.isEmpty()) {
 				start = Instant.now();
-				String response = curlKarzaKycAPI(tempPublicURL);
+				String response = karzaHandler.curlKarzaKycAPI(tempPublicURL);
 				end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
 				if(!response.isEmpty()) {
@@ -251,38 +254,6 @@ public class UpdateLoanInfoFromPanelService {
 			e.printStackTrace();
 			logger.info("exception while fetching tempURL from S3 bucket, message : {}",e.getMessage());
 		}
-	}
-	
-	private String curlKarzaKycAPI(String signedURL) {
-		String response = null;
-		OkHttpClient client = new OkHttpClient();
-
-		MediaType mediaType = MediaType.parse("multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
-		RequestBody body = RequestBody.create(mediaType, "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name=\"url\"\r\n\r\n"+signedURL+"\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--");
-		Request request = new Request.Builder()
-		  .url("https://api.karza.in/v3/ocr/kyc")
-		  .post(body)
-		  .addHeader("content-type", "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW")
-		  .addHeader("x-karza-key", LendingConstants.X_KARZA_KEY)
-		  .addHeader("Accept", "*/*")
-		  .addHeader("Cache-Control", "no-cache")
-		  .addHeader("Host", "api.karza.in")
-		  .addHeader("Content-Type", "multipart/form-data; boundary=--------------------------240133356117902270274178")
-		  .addHeader("Accept-Encoding", "gzip, deflate")
-		  .addHeader("Content-Length", "510")
-		  .addHeader("Connection", "keep-alive")
-		  .addHeader("cache-control", "no-cache")
-		  .build();
-		logger.info("UploadDocumentService karza kyc api request : {}", request);
-		try {
-			Response curlResponse = client.newCall(request).execute();
-			response = curlResponse.body().string();
-			logger.info("karza kyc api response : {}", response);
-		} catch (IOException e) {
-			e.printStackTrace();
-			logger.info("exception while karza kyc api, signedURL : {}",signedURL);
-		}
-		return response;
 	}
 	
 	private void saveKarzaKycFailedResponse (String proofType, Long docId, String response, Long merchantId) {
@@ -418,44 +389,13 @@ public class UpdateLoanInfoFromPanelService {
 			String dob = details.get("date").get("value");
 			String name = details.get("name").get("value");
 			
-			String curlResponse = curlKarzaPanAuthenticationAPI(panNumber, name, dob);
+			String curlResponse = karzaHandler.curlKarzaPanAuthenticationAPI(panNumber, name, dob);
 			if(!curlResponse.isEmpty()) {
 				processAndSavePanAuthenticationResponse(curlResponse, insertId, documentId, merchantId, applicationId);
 			}else {
 				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
 			}
 		}
-	}
-	
-	private String curlKarzaPanAuthenticationAPI(String panNumber, String name, String dob) {
-		String response = null;
-		OkHttpClient client = new OkHttpClient();
-		
-		MediaType mediaType = MediaType.parse("application/json");
-		RequestBody body = RequestBody.create(mediaType, "{\n    \"pan\": \""+ panNumber +"\",\n    \"name\": \""+ name +"\",\n    \"dob\": \"" + dob + "\",\n    \"consent\": \"Y\"\n}");
-		Request request = new Request.Builder()
-		  .url("https://api.karza.in/v2/pan-authentication")
-		  .post(body)
-		  .addHeader("Content-Type", "application/json")
-		  .addHeader("x-karza-key", LendingConstants.X_KARZA_KEY)
-		  .addHeader("Accept", "*/*")
-		  .addHeader("Cache-Control", "no-cache")
-		  .addHeader("Host", "api.karza.in")
-		  .addHeader("Accept-Encoding", "gzip, deflate")
-		  .addHeader("Content-Length", "99")
-		  .addHeader("Connection", "keep-alive")
-		  .addHeader("cache-control", "no-cache")
-		  .build();
-		logger.info("UploadDocumentService karza pan authentication api request : {}", request);
-		try {
-			Response curlResponse = client.newCall(request).execute();
-			response = curlResponse.body().string();
-			logger.info("UploadDocumentService karza pan authentication api response : {}", response);
-		} catch (IOException e) {
-			e.printStackTrace();
-			logger.info("UploadDocumentService exception while karza pan authentication api, panNumber : {}, name : {}, documentId : {}",panNumber, name, dob);
-		}
-		return response;
 	}
 	
 	private void processAndSavePanAuthenticationResponse(String response, Long insertId, Long documentId, Long merchantId, Long applicationId) {

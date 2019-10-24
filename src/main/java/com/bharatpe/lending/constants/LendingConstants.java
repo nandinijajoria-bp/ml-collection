@@ -14,4 +14,7 @@ public interface LendingConstants {
 	String AWS_S3_BUCKET_NAME = "bharatpe-staging/lending-document";
 	
 	String X_KARZA_KEY = "IEPHvT1bUPTf4Ow";
+	
+	String KARZA_PAN_AUTHENTICATION_URL = "https://api.karza.in/v2/pan-authentication";
+	String KARZA_KYC_URL = "https://api.karza.in/v3/ocr/kyc";
 }
