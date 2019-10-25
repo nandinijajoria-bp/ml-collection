@@ -1,7 +1,6 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -9,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,8 +38,10 @@ import com.bharatpe.common.entities.LoanDetails;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.entities.SettlementSchedule;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.PushNotificationHandler;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -47,11 +49,6 @@ import com.bharatpe.lending.dao.SettlementScheduleDao;
 import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 
 @Service
 public class UpdateLoanInfoFromPanelService {
@@ -95,6 +92,12 @@ public class UpdateLoanInfoFromPanelService {
 	
 	@Autowired
 	KarzaHandler karzaHandler;
+	
+	@Autowired
+	PushNotificationHandler pushNotificationHandler;
+	
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
 
 	public Map<String, String> updateLoanInfoFromPanel(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -651,7 +654,9 @@ public class UpdateLoanInfoFromPanelService {
 	
 	private void sendSmsAndNotification(String mobile, Long merchantId, String message) {
 		Instant start = Instant.now();
-		sendSuccessSMS(mobile, message);
+		List<String> mobiles = new ArrayList<> ();
+		mobiles.add(mobile);
+		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 		Instant end = Instant.now();
 		logger.info("Time Taken by GUPSHUP sendMessage API : {} miliseconds", Duration.between(start, end).toMillis());
 		
@@ -661,61 +666,11 @@ public class UpdateLoanInfoFromPanelService {
 		logger.info("Time Taken by fcm google API : {} miliseconds", Duration.between(start, end).toMillis());
 	}
 	
-	private void sendSuccessSMS(String mobile, String message) {
-		OkHttpClient client = new OkHttpClient();
-
-		Request request = new Request.Builder()
-				  .url("http://enterprise.smsgupshup.com/GatewayAPI/rest?method=sendMessage&send_to="+mobile+"&msg="+message+"&msg_type=TEXT&userid="+LendingConstants.GUPSHUP_SENDMESSAGE_API_USERID+"&password="+LendingConstants.GUPSHUP_SENDMESSAGE_API_PASSWORD+"&auth_scheme=PLAIN&format=JSON")
-				  .get()
-				  .addHeader("Content-Type", "application/json")
-				  .addHeader("Accept", "*/*")
-				  .addHeader("Cache-Control", "no-cache")
-				  .addHeader("Host", "enterprise.smsgupshup.com")
-				  .addHeader("Accept-Encoding", "gzip, deflate")
-				  .addHeader("Connection", "keep-alive")
-				  .addHeader("cache-control", "no-cache")
-				  .build();
-		logger.info("SendSuccessSMS api request : {}", request);
-		try {
-			Response response = client.newCall(request).execute();
-			String responseBody = response.body().string();
-			logger.info("SendSuccessSMS api response : {}", responseBody);
-		} catch (IOException e) {
-			e.printStackTrace();
-			logger.info("SendSuccessSMS api exception : {} ",e.getMessage());
-		}
-	}
-	
 	private void sendNotification(Long merchantId, String message) {
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchantId);
 		
 		if(merchantFcmToken != null) {
-			OkHttpClient client = new OkHttpClient();
-
-			MediaType mediaType = MediaType.parse("application/json");
-			okhttp3.RequestBody body = okhttp3.RequestBody.create(mediaType, "{\"to\":\""+merchantFcmToken.getFcmToken()+"\",\"data\" : {\"title\":\"BharatPe\",\"body\":\""+message+"\",\"soundname\":\"bharatpenotification\",\"image\":\"icon\",\"image-type\":\"circular\",\"url\":\"loan.html\"}}");
-			Request request = new Request.Builder()
-			  .url("https://fcm.googleapis.com/fcm/send")
-			  .post(body)
-			  .addHeader("Content-Type", "application/json")
-			  .addHeader("Authorization", "key="+LendingConstants.FCM_GOOGLE_API_KEY)
-			  .addHeader("Accept", "*/*")
-			  .addHeader("Cache-Control", "no-cache")
-			  .addHeader("Host", "fcm.googleapis.com")
-			  .addHeader("Accept-Encoding", "gzip, deflate")
-			  .addHeader("Content-Length", "254")
-			  .addHeader("Connection", "keep-alive")
-			  .addHeader("cache-control", "no-cache")
-			  .build();
-			logger.info("VerifyOTP SendSuccessNotification api request : {}", request);
-			try {
-				Response response = client.newCall(request).execute();
-				String responseBody = response.body().string();
-				logger.info("SendSuccessNotification api response : {}", responseBody);
-			} catch (IOException e) {
-				e.printStackTrace();
-				logger.info("SendSuccessNotification api exception : {} ",e.getMessage());
-			}
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "homepage.html");
 		}
 		
 	}

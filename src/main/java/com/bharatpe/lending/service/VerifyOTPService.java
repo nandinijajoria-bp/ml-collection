@@ -5,8 +5,10 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -21,13 +23,15 @@ import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.entities.Validate;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.PushNotificationHandler;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.ValidateDao;
 
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -47,6 +51,12 @@ public class VerifyOTPService {
 	
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
+	
+	@Autowired
+	PushNotificationHandler pushNotificationHandler;
+	
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -138,7 +148,10 @@ public class VerifyOTPService {
 			
 			if(validate != null) {
 				Instant start = Instant.now();
-				sendSuccessSMS(validate, mobile, loanAmount);
+				List<String> mobiles = new ArrayList<> ();
+				mobiles.add(mobile);
+				String message = "Dear "+validate.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount+" has been received successfully.";
+				smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 				Instant end = Instant.now();
 				logger.info("Time Taken by GUPSHUP sendMessage API : {} miliseconds", Duration.between(start, end).toMillis());
 				
@@ -153,63 +166,13 @@ public class VerifyOTPService {
 		}
 		return finalResponse;
 	}
-	
-	private void sendSuccessSMS(Validate validate, String mobile, Double loanAmount) {
-		OkHttpClient client = new OkHttpClient();
-
-		Request request = new Request.Builder()
-				  .url("http://enterprise.smsgupshup.com/GatewayAPI/rest?method=sendMessage&send_to="+mobile+"&msg=Dear%20"+validate.getBeneficiaryName()+",%20Your%20loan%20application%20for%20Rs.%20"+loanAmount+"%20has%20been%20received%20successfully.%20&msg_type=TEXT&userid="+LendingConstants.GUPSHUP_SENDMESSAGE_API_USERID+"&password="+LendingConstants.GUPSHUP_SENDMESSAGE_API_PASSWORD+"&auth_scheme=PLAIN&format=JSON")
-				  .get()
-				  .addHeader("Content-Type", "application/json")
-				  .addHeader("Accept", "*/*")
-				  .addHeader("Cache-Control", "no-cache")
-				  .addHeader("Host", "enterprise.smsgupshup.com")
-				  .addHeader("Accept-Encoding", "gzip, deflate")
-				  .addHeader("Connection", "keep-alive")
-				  .addHeader("cache-control", "no-cache")
-				  .build();
-		logger.info("VerifyOTP SendSuccessSMS api request : {}", request);
-		try {
-			Response response = client.newCall(request).execute();
-			String responseBody = response.body().string();
-			logger.info("VerifyOTP SendSuccessSMS api response : {}", responseBody);
-		} catch (IOException e) {
-			e.printStackTrace();
-			logger.info("VerifyOTP SendSuccessSMS api exception : {} ",e.getMessage());
-		}
-	}
-	
+		
 	private void sendNotification(Validate validate, Long merchantId, Double loanAmount) {
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchantId);
 		
 		if(merchantFcmToken != null) {
-			OkHttpClient client = new OkHttpClient();
-
-			MediaType mediaType = MediaType.parse("application/json");
-			okhttp3.RequestBody body = okhttp3.RequestBody.create(mediaType, "{\"to\":\""+merchantFcmToken.getFcmToken()+"\",\"data\" : {\"title\":\"BharatPe\",\"body\":\"Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.\",\"soundname\":\"bharatpenotification\",\"image\":\"icon\",\"image-type\":\"circular\",\"url\":\"loan.html\"}}");
-			Request request = new Request.Builder()
-			  .url("https://fcm.googleapis.com/fcm/send")
-			  .post(body)
-			  .addHeader("Content-Type", "application/json")
-			  .addHeader("Authorization", "key="+LendingConstants.FCM_GOOGLE_API_KEY)
-			  .addHeader("Accept", "*/*")
-			  .addHeader("Cache-Control", "no-cache")
-			  .addHeader("Host", "fcm.googleapis.com")
-			  .addHeader("Accept-Encoding", "gzip, deflate")
-			  .addHeader("Content-Length", "254")
-			  .addHeader("Connection", "keep-alive")
-			  .addHeader("cache-control", "no-cache")
-			  .build();
-			logger.info("VerifyOTP SendSuccessNotification api request : {}", request);
-			try {
-				Response response = client.newCall(request).execute();
-				String responseBody = response.body().string();
-				logger.info("VerifyOTP SendSuccessNotification api response : {}", responseBody);
-			} catch (IOException e) {
-				e.printStackTrace();
-				logger.info("VerifyOTP SendSuccessNotification api exception : {} ",e.getMessage());
-			}
+			String message = "Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.";
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "homepage.html");
 		}
-		
 	}
 }
