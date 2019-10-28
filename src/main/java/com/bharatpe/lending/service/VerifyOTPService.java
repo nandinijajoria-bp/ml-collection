@@ -1,6 +1,5 @@
 package com.bharatpe.lending.service;
 
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -27,14 +26,11 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.ValidateDao;
+import com.bharatpe.lending.handlers.GupShupOTPHandler;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 
 @Service
 public class VerifyOTPService {
@@ -57,6 +53,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
+	
+	@Autowired
+	GupShupOTPHandler gupShupOTPHandler;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -94,29 +93,10 @@ public class VerifyOTPService {
 		finalResponse.put("agreement_verified",false);
 		
 		if(mobile.length() == 12) {
-			OkHttpClient client = new OkHttpClient();
-
-			Request request = new Request.Builder()
-			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid="+LendingConstants.GUPSHUP_OTP_API_USERID+"&password="+LendingConstants.GUPSHUP_OTP_API_PASSWORD+"&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+mobile+"&otp_code="+otp)
-			  .get()
-			  .addHeader("cache-control", "no-cache")
-			  .build();
-			logger.info("VerifyOTPService otp api request : {}", request);
-			try {
-				Response response = client.newCall(request).execute();
-				String responseBody = response.body().string();
-				logger.info("VerifyOTPService otp api response : {}", responseBody);
-				if(response.isSuccessful()) {
-					responseBody = responseBody.replaceAll("\\s","");
-					String[] responseSplit = responseBody.split("\\|");
-					
-					if(responseSplit[0].equals("success") == true) {
-						finalResponse = updateApplicationStatusAndSuccessSms(merchantId, applicationId, mobile, loanAmount);
-					}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				logger.info("VerifyOTPService otp api exception : {} ",e.getMessage());
+			
+			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(mobile, otp);
+			if(isOTPVerified) {
+				finalResponse = updateApplicationStatusAndSuccessSms(merchantId, applicationId, mobile, loanAmount);
 			}
 		}
 		return finalResponse;

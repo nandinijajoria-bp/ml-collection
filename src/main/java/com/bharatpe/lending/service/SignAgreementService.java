@@ -1,6 +1,5 @@
 package com.bharatpe.lending.service;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -30,16 +29,12 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.entities.TmpLoanGenerate;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.constants.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.TmpLoanGenerateDao;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import com.bharatpe.lending.handlers.GupShupOTPHandler;
 
 @Service
 public class SignAgreementService {
@@ -74,6 +69,9 @@ public class SignAgreementService {
 	
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
+	
+	@Autowired
+	GupShupOTPHandler gupShupOTPHandler;
 
 	public Map<String,Boolean> signAgreement(Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -310,35 +308,10 @@ public class SignAgreementService {
 		
 		String mobileString = mobile.toString();
 		if(mobileString.length() == 12) {
-			OkHttpClient client = new OkHttpClient();
-
-			Request request = new Request.Builder()
-			  .url("https://enterprise.smsgupshup.com/GatewayAPI/rest?userid="+LendingConstants.GUPSHUP_OTP_API_USERID+"&password="+LendingConstants.GUPSHUP_OTP_API_PASSWORD+"&method=TWO_FACTOR_AUTH&v=1.1&phone_no="+mobileString+"&msg=BharatPe%3A%20%25code%25%20is%20your%20OTP%20to%20register%20yourself%20on%20BharatPe%20Merchant%20App.%20BharatPe.com&format=text&otpCodeLength=4&otpCodeType=NUMERIC")
-			  .get()
-			  .addHeader("Accept", "*/*")
-			  .addHeader("Cache-Control", "no-cache")
-			  .addHeader("Host", "enterprise.smsgupshup.com")
-			  .addHeader("Accept-Encoding", "gzip, deflate")
-			  .addHeader("Connection", "keep-alive")
-			  .addHeader("cache-control", "no-cache")
-			  .build();
-			logger.info("SignAgreement otp api request : {}", request);
-			try {
-				Response response = client.newCall(request).execute();
-				String responseBody = response.body().string();
-				logger.info("SignAgreement otp api response : {}", responseBody);
-				if(response.isSuccessful()) {
-					responseBody = responseBody.replaceAll("\\s","");
-					String[] responseSplit = responseBody.split("\\|");
-					
-					if(responseSplit[0].equals("success") == true) {
-						finalResponse.put("success",true);
-						finalResponse.put("otp_flow",true);
-					}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				logger.info("SignAgreementService otp api exception : {} ",e.getMessage());
+			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobileString);
+			if(isOTPSent) {
+				finalResponse.put("success",true);
+				finalResponse.put("otp_flow",true);
 			}
 		}
 		return finalResponse;
