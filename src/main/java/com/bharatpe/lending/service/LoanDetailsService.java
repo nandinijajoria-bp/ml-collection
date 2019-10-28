@@ -80,9 +80,7 @@ public class LoanDetailsService {
 		if(merchantAgentCheck != null || merchantDIY != null) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
 			
-			validBankFlag = isValidBank(merchantBankDetail, merchantId);
-			
-			if(validBankFlag) {
+			if(isValidBank(merchantBankDetail, merchantId)) {
 				List<MerchantSummary> merchantSummaryList = merchantSummaryDao.fetchActiveMerchantLoan(merchantId);
 				
 				if(merchantSummaryList.size() == 1) {
@@ -157,14 +155,16 @@ public class LoanDetailsService {
 			if(lendingCategoriesList.size() == 1) {
 				Map<String, Object> elegibleLoan = new LinkedHashMap<>();
 				
-				if(availableLoan.getAmount() != 5000 || lendingCategoriesList.get(0).getTenureMonths() == 1.00 ) {
-					lendingCategoriesList.get(0).setProcessingFee("0");
+				if(availableLoan.getAmount() == 5000 && lendingCategoriesList.get(0).getTenureMonths() == 1.00 ) {
+//					lendingCategoriesList.get(0).setProcessingFee("0");
+					elegibleLoan.put("processing_fee", lendingCategoriesList.get(0).getProcessingFee());
 				}else {
-					lendingCategoriesList.get(0).setInterestRate(Double.valueOf(0));
+//					lendingCategoriesList.get(0).setInterestRate(Double.valueOf(0));
+					elegibleLoan.put("interest_rate", lendingCategoriesList.get(0).getInterestRate());
 				}
 				elegibleLoan.put("loan_amount", availableLoan.getAmount());
 				elegibleLoan.put("category", lendingCategoriesList.get(0).getCategory());
-				elegibleLoan.put("processing_fee", lendingCategoriesList.get(0).getProcessingFee());
+
 				elegibleLoan.put("duration", lendingCategoriesList.get(0).getPayableDays());
 				elegibleLoan.put("tenure", lendingCategoriesList.get(0).getPayableConverter());
 				
@@ -176,15 +176,14 @@ public class LoanDetailsService {
 					Double interestRate = (((edi * lendingCategoriesList.get(0).getPayableDays() - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategoriesList.get(0).getTenureMonths()) * 100;
 					lendingCategoriesList.get(0).setInterestRate(interestRate);
 				}
-				elegibleLoan.put("interest_rate", lendingCategoriesList.get(0).getInterestRate());
+
 				elegibleLoan.put("repayment", Math.round(lendingCategoriesList.get(0).getPayableDays() * edi));
 				if(loanType.equals("FIRST_TO_BE_ELIGIBLE") || loanType.equals("SUBSEQUENT_TO_BE_ELIGIBLE")) {
 					elegibleLoan.put("option_enable", false);
-					eligibility.add(elegibleLoan);
-				}else {
+				} else {
 					elegibleLoan.put("option_enable", true);
-					eligibility.add(elegibleLoan);
 				}
+				eligibility.add(elegibleLoan);
 			}
 		}
 		return eligibility;
