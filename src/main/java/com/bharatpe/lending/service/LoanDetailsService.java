@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,20 +14,23 @@ import org.springframework.stereotype.Service;
 import com.bharatpe.common.dao.AvailableLoanDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.LoanDetailsDao;
+import com.bharatpe.common.dao.MerchantAddressDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.MerchantSummaryDao;
+import com.bharatpe.common.entities.Agent;
 import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.BankList;
 import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.LoanDetails;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantAddress;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.dao.AgentDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -35,6 +39,8 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 @Service
 public class LoanDetailsService {
 	private Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
+	List<String> validAgentCities = Arrays.asList("Bangalore","Hyderabad","Pune","Delhi","Noida","Gurgaon","Mumbai");
+	List<String> validDIYCities = Arrays.asList("Bengaluru","Pune","Delhi","Noida","Gurgaon","Faridabad","Ghaziabad","Thane","Mumbai","Hyderabad");
 	
 	@Autowired
 	MerchantDao merchantDao;
@@ -65,31 +71,34 @@ public class LoanDetailsService {
 	
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
+	
+	@Autowired
+	AgentDao agentDao;
+	
+	@Autowired
+	MerchantAddressDao merchantAddressDao;
 
 	public Map<String, Object> fetchLoanDetails(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> resp;
 		List<Map<String, Object>> eligibility = new ArrayList<>();
 		Map<String, Object> details = new LinkedHashMap<>();
 		Boolean eligibleFlag = false;
-		Boolean validBankFlag = true;
 		
 		Long merchantId = merchant.getId();
 		
-		Merchant merchantAgentCheck = merchantDao.findValidMerchant(merchantId);
-		Merchant merchantDIY = merchantDao.findValidMerchantForDIY(merchantId);
-		if(merchantAgentCheck != null || merchantDIY != null) {
+		if(isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
 			
 			if(isValidBank(merchantBankDetail, merchantId)) {
-				List<MerchantSummary> merchantSummaryList = merchantSummaryDao.fetchActiveMerchantLoan(merchantId);
+				MerchantSummary merchantSummary = merchantSummaryDao.fetchActiveMerchantLoan(merchantId);
 				
-				if(merchantSummaryList.size() == 1) {
+				if(merchantSummary != null) {
 					
 					//checkLastPaymentSchedule(merchantId);
-					eligibility = fetchEligibleLoans(merchantSummaryList.get(0).getLoanType(), merchantId, eligibility);
+					eligibility = fetchEligibleLoans(merchantSummary.getLoanType(), merchantId, eligibility);
 					
 					String toBeEligibleLoanType = "FIRST_TO_BE_ELIGIBLE";
-					if(merchantSummaryList.get(0).getLoanType().equals("SUBSEQUENT")) {
+					if(merchantSummary.getLoanType().equals("SUBSEQUENT")) {
 						toBeEligibleLoanType = "SUBSEQUENT_TO_BE_ELIGIBLE";
 					}
 					eligibility = fetchEligibleLoans(toBeEligibleLoanType, merchantId, eligibility);
@@ -107,6 +116,45 @@ public class LoanDetailsService {
 		resp = prepareResponse(eligibility, details, eligibleFlag);
 		
 		return resp;
+	}
+	
+	private Boolean isValidFOSMerchant(String referalCode) {
+		Boolean responseFlag = false;
+		
+		if(!referalCode.isEmpty()) {
+			Agent agent = agentDao.fetchByReferalCode(referalCode);
+			logger.info("Agent for FOS : {}", agent);
+			if(agent != null && validAgentCities.contains(agent.getCity())) {
+				responseFlag = true;
+			}
+			logger.info("valid fos cities : {}", validAgentCities);
+		}
+		
+		return responseFlag;
+	}
+	
+	private Boolean isValidDIYMerchant(Merchant merchant) {
+		Boolean responseFlag = false;
+		
+		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
+		logger.info("merchantAddress : {}",merchantAddress);
+		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity()) && isInvalidAgentReferalCode(merchant.getReferalCode())) {
+			responseFlag = true;
+		}
+		
+		return responseFlag;
+	}
+	
+	private Boolean isInvalidAgentReferalCode(String agentReferalCode) {
+		Boolean flag = false;
+		
+		Agent agent = agentDao.fetchByReferalCode(agentReferalCode);
+		logger.info("agent for DIY : {}", agent);
+		if(agent != null) {
+			flag = true;
+		}
+		
+		return flag;
 	}
 	
 	private Boolean isValidBank(MerchantBankDetail merchantBankDetail, Long merchantId) {
@@ -225,8 +273,10 @@ public class LoanDetailsService {
 					loanHistoryList.add(loanHistory);
 				}
 				
-				List<LoanDetails> loanDetailsList = loanDetailsDao.findByMerchantId(merchantId);
-				for(LoanDetails loanDetails : loanDetailsList) {
+				//List<LoanDetails> loanDetailsList = loanDetailsDao.findByMerchantId(merchantId);
+				List<LendingPaymentSchedule> loanDetailsList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchantId);
+				
+				for(LendingPaymentSchedule loanDetails : loanDetailsList) {
 					String title = "";
 					String message = "";
 					if(loanDetails.getStatus().equals("INTRANSFER")) {
@@ -243,7 +293,11 @@ public class LoanDetailsService {
 					loanHistory.put("id",loanDetails.getId());
 					loanHistory.put("amount",loanDetails.getLoanAmount());
 					loanHistory.put("start_date",loanDetails.getStartDate());
-					loanHistory.put("end_date",loanDetails.getEndDate());
+					if(loanDetails.getStatus().equals("closed")) {
+						loanHistory.put("end_date",loanDetails.getUpdatedAt());
+					}else {
+						loanHistory.put("end_date",null);
+					}
 					loanHistory.put("status",loanDetails.getStatus());
 					loanHistory.put("loan_status_title",title);
 					loanHistory.put("loan_status_message",message);
