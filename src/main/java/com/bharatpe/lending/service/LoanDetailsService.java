@@ -123,11 +123,9 @@ public class LoanDetailsService {
 		
 		if(!referalCode.isEmpty()) {
 			Agent agent = agentDao.fetchByReferalCode(referalCode);
-			logger.info("Agent for FOS : {}", agent);
 			if(agent != null && validAgentCities.contains(agent.getCity())) {
 				responseFlag = true;
 			}
-			logger.info("valid fos cities : {}", validAgentCities);
 		}
 		
 		return responseFlag;
@@ -137,7 +135,6 @@ public class LoanDetailsService {
 		Boolean responseFlag = false;
 		
 		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
-		logger.info("merchantAddress : {}",merchantAddress);
 		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity()) && isInvalidAgentReferalCode(merchant.getReferalCode())) {
 			responseFlag = true;
 		}
@@ -149,7 +146,6 @@ public class LoanDetailsService {
 		Boolean flag = false;
 		
 		Agent agent = agentDao.fetchByReferalCode(agentReferalCode);
-		logger.info("agent for DIY : {}", agent);
 		if(agent != null) {
 			flag = true;
 		}
