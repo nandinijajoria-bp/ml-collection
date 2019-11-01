@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -15,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +48,10 @@ import com.bharatpe.lending.dao.SettlementScheduleDao;
 import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class UpdateLoanInfoFromPanelService {
@@ -227,22 +230,23 @@ public class UpdateLoanInfoFromPanelService {
 				end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
 				if(!response.isEmpty()) {
-					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-					Long status = (Long) jsonResponseObject.get("statusCode");
+					ObjectMapper mapper = new ObjectMapper();
+	    	        Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+					Integer status = (Integer)responseMap.get("statusCode");
 					
 					if(status == 101) {
 						Long insertId = processAndSaveKycResponse(response, proofType, documentId, merchantId);
 						if(proofType.equals("pancard")) {
 							start = Instant.now();
-							pancardAuthenticationUsingKarzaAPI(jsonResponseObject, insertId, documentId, merchantId, applicationId);
+							pancardAuthenticationUsingKarzaAPI(responseMap, insertId, documentId, merchantId, applicationId);
 							end = Instant.now();
 							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
 						}
 					}else {
 						saveKarzaKycFailedResponse(proofType, documentId, response, merchantId);
 						
-						String requestId = (String) jsonResponseObject.get("requestId");
-						String failureResponse = (String) jsonResponseObject.get("error"); 
+						String requestId = (String) responseMap.get("requestId");
+						String failureResponse = (String) responseMap.get("error"); 
 						logger.info("karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",documentId, failureResponse, requestId);
 					}
 				}else {
@@ -291,8 +295,18 @@ public class UpdateLoanInfoFromPanelService {
 	
 	private Long processAndSaveKycResponse(String responseString, String proofType, Long documentId, Long merchantId) {
 		Long docKycDetailsInsertId = null;
-		JSONObject response = (JSONObject) JSONValue.parse(responseString);
-		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+		ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> responseMap = null;
+		try {
+			responseMap = mapper.readValue(responseString, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e1) {
+			e1.printStackTrace();
+		} catch (JsonMappingException e1) {
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		List<Map<String, Object>> result = (List<Map<String, Object>>) responseMap.get("result");
 		
 		if(result != null && result.size() > 0) {
 			String dob = "";
@@ -383,7 +397,7 @@ public class UpdateLoanInfoFromPanelService {
 		return docKycDetailsInsertId;
 	}
 	
-	private void pancardAuthenticationUsingKarzaAPI(JSONObject response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
+	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		
 		if(result != null && result.size() > 0) {
@@ -402,8 +416,18 @@ public class UpdateLoanInfoFromPanelService {
 	}
 	
 	private void processAndSavePanAuthenticationResponse(String response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
-		JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-		String status = (String) jsonResponseObject.get("status-code");
+		ObjectMapper mapper = new ObjectMapper();
+		Map<String, Object> responseMap = null;
+		try {
+			responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
 		docAuthentication.setDocKycDetailsId(insertId);
@@ -415,7 +439,7 @@ public class UpdateLoanInfoFromPanelService {
 		docAuthentication.setUpdatedAt(new Date());
 		
 		if(status.equals("101")) {
-			Map<String, String> result = (Map<String, String>) jsonResponseObject.get("result");
+			Map<String, String> result = (Map<String, String>) responseMap.get("result");
 			docAuthentication.setDocStatus(result.get("status"));
 			docAuthentication.setDuplicate(String.valueOf(result.get("duplicate")));
 			docAuthentication.setNameMatch(String.valueOf(result.get("nameMatch")));

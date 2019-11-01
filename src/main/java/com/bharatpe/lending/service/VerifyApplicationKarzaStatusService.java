@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -13,8 +14,6 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
 
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +33,10 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class VerifyApplicationKarzaStatusService {
@@ -154,8 +157,20 @@ public class VerifyApplicationKarzaStatusService {
 	
 	private Map<String, String> processAndSavePanAuthenticationResponse(String response, Long docAuthId, Long applicationId) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
-		JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-		String status = (String) jsonResponseObject.get("status-code");
+		
+		ObjectMapper mapper = new ObjectMapper();
+		Map<String, Object> responseMap = null;
+		try {
+			responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		String docStatus = "FAILED";
 		String duplicate = "";
@@ -164,7 +179,7 @@ public class VerifyApplicationKarzaStatusService {
 		String authStatus = "";
 		
 		if(status.equals("101")) {
-			Map<String, String> result = (Map<String, String>) jsonResponseObject.get("result");
+			Map<String, String> result = (Map<String, String>) responseMap.get("result");
 			
 			docStatus = result.get("status");
 			duplicate = String.valueOf(result.get("duplicate"));
@@ -220,16 +235,26 @@ public class VerifyApplicationKarzaStatusService {
 				Instant end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
 				if(!response.isEmpty()) {
-					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-					Long status = (Long) jsonResponseObject.get("statusCode");
+					ObjectMapper mapper = new ObjectMapper();
+	    	        Map<String, Object> responseMap = null;
+					try {
+						responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+					} catch (JsonParseException e) {
+						e.printStackTrace();
+					} catch (JsonMappingException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					Integer status = (responseMap != null) ? (Integer) responseMap.get("statusCode") : null;
 					
 					if(status == 101) {
 						docStatus = savePanCardSuccessAuthData(response, docType, docId, merchantId, applicationId);
 					}else {
 						savePanCardFailedAuthData(response, docType, docId, merchantId);
 						
-						String requestId = (String) jsonResponseObject.get("requestId");
-						String failureResponse = (String) jsonResponseObject.get("error"); 
+						String requestId = (String) responseMap.get("requestId");
+						String failureResponse = (String) responseMap.get("error"); 
 						logger.info("UploadDocumentService karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",docId, failureResponse, requestId);
 					}
 				}else {
@@ -285,7 +310,19 @@ public class VerifyApplicationKarzaStatusService {
 	private String savePanCardSuccessAuthData(String responseString, String docType, Long docId, Long merchantId, Long applicationId) {
 		String dob = "";
 		String doi = "";
-		JSONObject response = (JSONObject) JSONValue.parse(responseString);
+		
+		ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> response = null;
+		try {
+			response = mapper.readValue(responseString, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		Map<String, Map<String, String>> details = (Map<String, Map<String, String>>) result.get(0).get("details");
 		
@@ -362,8 +399,20 @@ public class VerifyApplicationKarzaStatusService {
 	
 	private String processAndSavePanAuthenticationResponse(String response, Long docKycId, Long docId, Long merchantId, Long applicationId) {
 		String docStatus = null;
-		JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-		String status = (String) jsonResponseObject.get("status-code");
+		
+		ObjectMapper mapper = new ObjectMapper();
+		Map<String, Object> responseMap = null;
+		try {
+			responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
 		docAuthentication.setDocKycDetailsId(docKycId);
@@ -375,7 +424,7 @@ public class VerifyApplicationKarzaStatusService {
 		docAuthentication.setUpdatedAt(new Date());
 		
 		if(status.equals("101")) {
-			Map<String, String> result = (Map<String, String>) jsonResponseObject.get("result");
+			Map<String, String> result = (Map<String, String>) responseMap.get("result");
 			docAuthentication.setDocStatus(result.get("status"));
 			docAuthentication.setDuplicate(String.valueOf(result.get("duplicate")));
 			docAuthentication.setNameMatch(String.valueOf(result.get("nameMatch")));

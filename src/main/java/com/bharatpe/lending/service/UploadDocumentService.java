@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +25,10 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
-
-import org.json.simple.JSONObject;  
-import org.json.simple.JSONValue;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -56,13 +58,11 @@ public class UploadDocumentService {
 	
 	@Autowired
 	KarzaHandler karzaHandler;
-	
-	private Map<String, Object> finalResponse = new LinkedHashMap<>();
-	private List<Map<String, Object>> documentList = new ArrayList<Map<String, Object>>();
 
 	public Map<String, Object> runService(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
-		this.finalResponse.put("success", false);
-		this.documentList = new ArrayList<Map<String, Object>>();
+		Map<String, Object> finalResponse = new LinkedHashMap<>();
+		List<Map<String, Object>> documentList = new ArrayList<Map<String, Object>>();
+		finalResponse.put("success", false);
 		
 		Long merchantId = merchant.getId();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
@@ -74,7 +74,7 @@ public class UploadDocumentService {
 		
 		Object selectedLoan = commonAPIRequest.getPayload().get("selected_loan");
 		if(selectedLoan != null) {
-			this.finalResponse.put("selected_loan", selectedLoan);
+			finalResponse.put("selected_loan", selectedLoan);
 		}
 		
 		if(applicationId != null) {
@@ -85,21 +85,22 @@ public class UploadDocumentService {
 			}else {
 				dbOperation = "insert";
 			}
-			processAndUploadDocuments(documents, dbOperation, merchantId, applicationId, latitude, longitude, ip);
+			documentList = processAndUploadDocuments(documents, dbOperation, merchantId, applicationId, latitude, longitude, ip);
 		}else {
 			logger.info("UploadDocumentService No application Id for merchant : {}", merchantId);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
 		}
 		
-		if(this.documentList.size() > 0) {
-			this.finalResponse.put("success", true);
+		if(documentList.size() > 0) {
+			finalResponse.put("success", true);
 		}
-		this.finalResponse.put("document", this.documentList);
+		finalResponse.put("document", documentList);
 		
-		return this.finalResponse;
+		return finalResponse;
 	}
 	
-	private void processAndUploadDocuments(List<Map<String, Object>> documents, String dbOperation, Long merchantId, Long applicationId, String latitude, String longitude, String ip) {
+	private List<Map<String, Object>> processAndUploadDocuments(List<Map<String, Object>> documents, String dbOperation, Long merchantId, Long applicationId, String latitude, String longitude, String ip) {
+		List<Map<String, Object>> documentList = new ArrayList<Map<String, Object>>();
 		if(documents.size() > 0) {
 			for(Map<String, Object> document : documents) {
 				Map<String, Object> documentResponse = new LinkedHashMap<>();
@@ -139,10 +140,11 @@ public class UploadDocumentService {
 					documentResponse.put("proof_id", documentIdProofId);
 					documentResponse.put("proof_type", proofType);
 					documentResponse.put("single_page_document", singlePageDocument);
-					this.documentList.add(documentResponse);
+					documentList.add(documentResponse);
 				}
 			}
 		}
+		return documentList;
 	}
 	
 	private Map<String, String> processAndUploadProof(List<String> proof, Long merchantId) {
@@ -236,20 +238,21 @@ public class UploadDocumentService {
 				end = Instant.now();
 				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
 				if(!response.isEmpty()) {
-					JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-					Long status = (Long) jsonResponseObject.get("statusCode");
+					ObjectMapper mapper = new ObjectMapper();
+	    	        Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+	    	        Integer status = (Integer) responseMap.get("statusCode");
 					
 					if(status == 101) {
 						Long insertId = processAndSaveKycResponse(response, proofType, documentId, merchantId);
 						if(proofType.equals("pancard")) {
 							start = Instant.now();
-							pancardAuthenticationUsingKarzaAPI(jsonResponseObject, insertId, documentId, merchantId, applicationId);
+							pancardAuthenticationUsingKarzaAPI(responseMap, insertId, documentId, merchantId, applicationId);
 							end = Instant.now();
 							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
 						}
 					}else {
-						String requestId = (String) jsonResponseObject.get("requestId");
-						String failureResponse = (String) jsonResponseObject.get("error"); 
+						String requestId = (String) responseMap.get("requestId");
+						String failureResponse = (String) responseMap.get("error"); 
 						logger.info("UploadDocumentService karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",documentId, failureResponse, requestId);
 					}
 				}else {
@@ -268,8 +271,18 @@ public class UploadDocumentService {
 	
 	private Long processAndSaveKycResponse(String responseString, String proofType, Long documentId, Long merchantId) {
 		Long docKycDetailsInsertId = null;
-		JSONObject response = (JSONObject) JSONValue.parse(responseString);
-		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+		ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> response = null;
+		try {
+			response = mapper.readValue(responseString, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e1) {
+			e1.printStackTrace();
+		} catch (JsonMappingException e1) {
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		List<Map<String, Object>> result = (response != null) ? (List<Map<String, Object>>) response.get("result") : null;
 		
 		if(result != null && result.size() > 0) {
 			String dob = "";
@@ -360,7 +373,7 @@ public class UploadDocumentService {
 		return docKycDetailsInsertId;
 	}
 	
-	private void pancardAuthenticationUsingKarzaAPI(JSONObject response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
+	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		
 		if(result != null && result.size() > 0) {
@@ -379,8 +392,18 @@ public class UploadDocumentService {
 	}
 	
 	private void processAndSavePanAuthenticationResponse(String response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
-		JSONObject jsonResponseObject = (JSONObject) JSONValue.parse(response);
-		String status = (String) jsonResponseObject.get("status-code");
+		ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> responseMap = null;
+		try {
+			responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
 		docAuthentication.setDocKycDetailsId(insertId);
@@ -392,7 +415,7 @@ public class UploadDocumentService {
 		docAuthentication.setUpdatedAt(new Date());
 		
 		if(status.equals("101")) {
-			Map<String, String> result = (Map<String, String>) jsonResponseObject.get("result");
+			Map<String, String> result = (Map<String, String>) responseMap.get("result");
 			docAuthentication.setDocStatus(result.get("status"));
 			docAuthentication.setDuplicate(String.valueOf(result.get("duplicate")));
 			docAuthentication.setNameMatch(String.valueOf(result.get("nameMatch")));
