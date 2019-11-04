@@ -89,19 +89,20 @@ public class LoanDetailsService {
 		if(isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
 			
-			if(isValidBank(merchantBankDetail, merchantId)) {
+			if(merchantBankDetail != null) {
+				Boolean isPaymentBankFlag = isPaymentBank(merchantBankDetail);
 				MerchantSummary merchantSummary = merchantSummaryDao.fetchActiveMerchantLoan(merchantId);
 				
 				if(merchantSummary != null) {
 					
 					//checkLastPaymentSchedule(merchantId);
-					eligibility = fetchEligibleLoans(merchantSummary.getLoanType(), merchantId, eligibility);
+					eligibility = fetchEligibleLoans(merchantSummary.getLoanType(), merchantId, eligibility, isPaymentBankFlag);
 					
 					String toBeEligibleLoanType = "FIRST_TO_BE_ELIGIBLE";
 					if(merchantSummary.getLoanType().equals("SUBSEQUENT")) {
 						toBeEligibleLoanType = "SUBSEQUENT_TO_BE_ELIGIBLE";
 					}
-					eligibility = fetchEligibleLoans(toBeEligibleLoanType, merchantId, eligibility);
+					eligibility = fetchEligibleLoans(toBeEligibleLoanType, merchantId, eligibility, isPaymentBankFlag);
 					
 					if(eligibility.size() > 0) {
 						eligibleFlag = true;
@@ -153,22 +154,20 @@ public class LoanDetailsService {
 		return flag;
 	}
 	
-	private Boolean isValidBank(MerchantBankDetail merchantBankDetail, Long merchantId) {
+	private Boolean isPaymentBank(MerchantBankDetail merchantBankDetail) {
 		Boolean flag = true;
 		
-		if(merchantBankDetail != null) {
-			String ifsc = merchantBankDetail.getIfscCode();
-			if(ifsc != null || ifsc != "") {
-				ifsc = ifsc.substring(0,4);
-				
-				List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(ifsc);
-				
-				if(nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
-					logger.info("LoanDetails bankList not found for merchant {} and ifsc : {}",merchantId, ifsc);
-					flag = false;
-				}
+		String ifsc = merchantBankDetail.getIfscCode();
+		if(ifsc != null || ifsc != "") {
+			ifsc = ifsc.substring(0,4);
+			
+			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(ifsc);
+			
+			if(nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
+				flag = false;
 			}
 		}
+		
 		return flag;
 	}
 	
@@ -192,36 +191,40 @@ public class LoanDetailsService {
 //		return previousLoanDetails;
 //	}
 	
-	private List<Map<String, Object>> fetchEligibleLoans(String loanType, Long merchantId, List<Map<String, Object>> eligibility) {
+	private List<Map<String, Object>> fetchEligibleLoans(String loanType, Long merchantId, List<Map<String, Object>> eligibility, Boolean isPaymentBank) {
 		List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchantId, loanType);
+		List<LendingCategories> lendingCategoriesList = (List<LendingCategories>) lendingCategoryDao.findAll();
 		for(AvailableLoan availableLoan : availableLoanList) {
-			List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(availableLoan.getCategory());
-			if(lendingCategoriesList.size() == 1) {
+			if(isPaymentBank && availableLoan.getAmount() != 5000) {
+				continue;
+			}
+			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
+			if(lendingCategoryDetail != null) {
 				Map<String, Object> elegibleLoan = new LinkedHashMap<>();
 				
-				if(availableLoan.getAmount() == 5000 && lendingCategoriesList.get(0).getTenureMonths() == 1.00 ) {
+				if(availableLoan.getAmount() == 5000 && lendingCategoryDetail.getTenureMonths() == 1.00 ) {
 //					lendingCategoriesList.get(0).setProcessingFee("0");
-					elegibleLoan.put("processing_fee", lendingCategoriesList.get(0).getProcessingFee());
+					elegibleLoan.put("processing_fee", lendingCategoryDetail.getProcessingFee());
 				}else {
 //					lendingCategoriesList.get(0).setInterestRate(Double.valueOf(0));
-					elegibleLoan.put("interest_rate", lendingCategoriesList.get(0).getInterestRate());
+					elegibleLoan.put("interest_rate", lendingCategoryDetail.getInterestRate());
 				}
 				elegibleLoan.put("loan_amount", availableLoan.getAmount());
-				elegibleLoan.put("category", lendingCategoriesList.get(0).getCategory());
+				elegibleLoan.put("category", lendingCategoryDetail.getCategory());
 
-				elegibleLoan.put("duration", lendingCategoriesList.get(0).getPayableDays());
-				elegibleLoan.put("tenure", lendingCategoriesList.get(0).getPayableConverter());
+				elegibleLoan.put("duration", lendingCategoryDetail.getPayableDays());
+				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter());
 				
-				int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoriesList.get(0).getInterestRate() / 100) * lendingCategoriesList.get(0).getTenureMonths()) + Integer.parseInt(lendingCategoriesList.get(0).getProcessingFee())) / lendingCategoriesList.get(0).getPayableDays());
+				int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
 				
 				elegibleLoan.put("edi", edi);
 				
-				if(lendingCategoriesList.get(0).getInterestRate() != 0) {
-					Double interestRate = (((edi * lendingCategoriesList.get(0).getPayableDays() - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategoriesList.get(0).getTenureMonths()) * 100;
-					lendingCategoriesList.get(0).setInterestRate(interestRate);
+				if(lendingCategoryDetail.getInterestRate() != 0) {
+					Double interestRate = (((edi * lendingCategoryDetail.getPayableDays() - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategoryDetail.getTenureMonths()) * 100;
+					lendingCategoryDetail.setInterestRate(interestRate);
 				}
 
-				elegibleLoan.put("repayment", Math.round(lendingCategoriesList.get(0).getPayableDays() * edi));
+				elegibleLoan.put("repayment", Math.round(lendingCategoryDetail.getPayableDays() * edi));
 				if(loanType.equals("FIRST_TO_BE_ELIGIBLE") || loanType.equals("SUBSEQUENT_TO_BE_ELIGIBLE")) {
 					elegibleLoan.put("option_enable", false);
 				} else {
@@ -231,6 +234,21 @@ public class LoanDetailsService {
 			}
 		}
 		return eligibility;
+	}
+	
+	private LendingCategories fetchCategoryDetails(List<LendingCategories> lendingCategoriesList, String loanCategory) {
+		LendingCategories lendingCategoryDetails = null;
+		
+		if(lendingCategoriesList.size() > 0) {
+			for(LendingCategories categoryDetails : lendingCategoriesList) {
+				if(categoryDetails.getCategory().equalsIgnoreCase(loanCategory)) {
+					lendingCategoryDetails = categoryDetails;
+					break;
+				}
+			}
+		}
+		
+		return lendingCategoryDetails;
 	}
 	
 	private Map<String, Object> fetchLoanHistory(Long merchantId) {
