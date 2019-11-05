@@ -92,7 +92,7 @@ public class SignAgreementService {
 			if(applicationId != null) {
 				finalResponse = verifyApplicationAndSendOTP(merchantId, applicationId, mobile);
 			}else {
-				createNewApplicationAndSendOTP(merchantId, mobile, latitude, longitude, ip);
+				finalResponse = createNewApplicationAndSendOTP(merchantId, mobile, latitude, longitude, ip);
 			}
 		}
 		
