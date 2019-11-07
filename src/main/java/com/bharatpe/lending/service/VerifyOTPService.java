@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
 import com.bharatpe.common.entities.LendingApplication;
@@ -57,7 +56,7 @@ public class VerifyOTPService {
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
 
-	public Map<String, Boolean> verifyOTP(Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
