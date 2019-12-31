@@ -30,11 +30,14 @@ import com.bharatpe.common.entities.MerchantAddress;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.bean.Label;
 import com.bharatpe.lending.dao.AgentDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.common.enums.MerchantCategory;
+import com.bharatpe.common.enums.Status.GeneralStatus;
 
 @Service
 public class LoanDetailsService {
@@ -192,8 +195,24 @@ public class LoanDetailsService {
 //	}
 	
 	private List<Map<String, Object>> fetchEligibleLoans(String loanType, Long merchantId, List<Map<String, Object>> eligibility, Boolean isPaymentBank) {
-		List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchantId, loanType);
-		List<LendingCategories> lendingCategoriesList = (List<LendingCategories>) lendingCategoryDao.findAll();
+		
+		List<AvailableLoan> availableLoanList = null;
+		
+		if(merchantId % 2 == 0) {
+			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchantId, loanType, "CONSTRUCT_2");
+		} else {
+			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchantId, loanType, "CONSTRUCT_3");
+		}
+		
+		if(availableLoanList == null || availableLoanList.isEmpty()) {
+			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchantId, loanType, "CONSTRUCT_1");
+			
+			if(availableLoanList != null && !availableLoanList.isEmpty()) {
+				availableLoanList = sort(availableLoanList);
+			}
+		}
+		
+		List<LendingCategories> lendingCategoriesList = (List<LendingCategories>) lendingCategoryDao.findByStatus(GeneralStatus.ACTIVE.toString());
 		for(AvailableLoan availableLoan : availableLoanList) {
 			if(isPaymentBank && availableLoan.getAmount() != 5000) {
 				continue;
@@ -205,26 +224,16 @@ public class LoanDetailsService {
 				if(availableLoan.getAmount() == 5000 && lendingCategoryDetail.getTenureMonths() == 1.00 ) {
 //					lendingCategoriesList.get(0).setProcessingFee("0");
 					elegibleLoan.put("processing_fee", lendingCategoryDetail.getProcessingFee());
-				}else {
+				} else {
 //					lendingCategoriesList.get(0).setInterestRate(Double.valueOf(0));
 					elegibleLoan.put("interest_rate", lendingCategoryDetail.getInterestRate());
 				}
-				elegibleLoan.put("loan_amount", availableLoan.getAmount());
+				elegibleLoan.put("amount", availableLoan.getAmount());
 				elegibleLoan.put("category", lendingCategoryDetail.getCategory());
-
-				elegibleLoan.put("duration", lendingCategoryDetail.getPayableDays());
-				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter());
-				
-				int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
-				
-				elegibleLoan.put("edi", edi);
-				
-				if(lendingCategoryDetail.getInterestRate() != 0) {
-					Double interestRate = (((edi * lendingCategoryDetail.getPayableDays() - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategoryDetail.getTenureMonths()) * 100;
-					lendingCategoryDetail.setInterestRate(interestRate);
-				}
-
-				elegibleLoan.put("repayment", Math.round(lendingCategoryDetail.getPayableDays() * edi));
+				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter().replace("Month", "").replace("Months", "").trim());
+				elegibleLoan.put("construct", availableLoan.getLoanConstruct());
+				elegibleLoan.put("list", prepareUIContent(availableLoan, lendingCategoryDetail));
+				elegibleLoan.put("type", getType(availableLoan));
 				if(loanType.equals("FIRST_TO_BE_ELIGIBLE") || loanType.equals("SUBSEQUENT_TO_BE_ELIGIBLE")) {
 					elegibleLoan.put("option_enable", false);
 				} else {
@@ -236,6 +245,78 @@ public class LoanDetailsService {
 		return eligibility;
 	}
 	
+	private String getType(AvailableLoan availableLoan) {
+		if("CONSTRUCT_1".equals(availableLoan.getLoanConstruct())) {
+			return null;
+		} else if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
+			return "1st Month Free";
+		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
+			return "Only Interest";
+		}
+		return null;
+	}
+
+	private List<Label> prepareUIContent(AvailableLoan availableLoan, LendingCategories lendingCategoryDetail) {
+		List<Label> list = new ArrayList<>();
+		
+		if("CONSTRUCT_1".equals(availableLoan.getLoanConstruct())) {
+			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
+			list.add(new Label("Daily Installment", "₹" + edi + "/ day"));
+			list.add(new Label("No Installment on", "Sundays"));
+			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
+		} else if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
+			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
+			list.add(new Label("EDI for 1st Month", "ZERO"));
+			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths() - 1) + " Month", "₹" + edi + "/ day"));
+			list.add(new Label("No EDI on", "Sundays"));
+			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
+		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
+			int ioEdi = (int) Math.ceil((availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getIoTenureMonths()) / lendingCategoryDetail.getIoPayableDays());
+			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths())) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
+			list.add(new Label("EDI for 1st Month", "₹" + ioEdi + "/ day"));
+			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths()) + " Month", "₹" + edi + "/ day"));
+			list.add(new Label("No EDI on", "Sundays"));
+			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi) + Math.round(lendingCategoryDetail.getIoPayableDays() * ioEdi))));
+		} else {
+			logger.error("Construct {} not defined, throwing Exception", availableLoan.getLoanConstruct());
+			throw new RuntimeException("Construct not defined.");
+		}
+		
+		return list;
+	}
+
+	private List<AvailableLoan> sort(List<AvailableLoan> availableLoanList) {
+		List<AvailableLoan> sortedAvailableLoans = new ArrayList<>();
+		try {
+			String maxCategory = null;
+			
+//			1st loan in the list is with the maximum amount
+			for(AvailableLoan current : sortedAvailableLoans) {
+				if(maxCategory == null) {
+					if(MerchantCategory.AA3.toString().equals(current.getCategory()) || MerchantCategory.AA1.toString().equals(current.getCategory())) {
+						maxCategory = MerchantCategory.AA.toString();
+					} else if (MerchantCategory.BB6.toString().equals(current.getCategory()) || MerchantCategory.BB3.toString().equals(current.getCategory())) {
+						maxCategory = MerchantCategory.BB.toString();
+					} else if (MerchantCategory.CC12.toString().equals(current.getCategory()) || MerchantCategory.CC6.toString().equals(current.getCategory()) || MerchantCategory.CC3.toString().equals(current.getCategory())) {
+						maxCategory = MerchantCategory.CC.toString();
+					} else {
+						logger.debug("Loan category not as expected, returning all available loans");
+						return availableLoanList;
+					}
+				}
+				
+				if(current.getCategory().startsWith(maxCategory)) {
+					sortedAvailableLoans.add(current);
+				}
+			}
+			return sortedAvailableLoans;
+		} catch(Exception ex) {
+			logger.error("Exception while soring available loans returning all, Exception is {}", ex);
+			return availableLoanList;
+		}
+		
+	}
+
 	private LendingCategories fetchCategoryDetails(List<LendingCategories> lendingCategoriesList, String loanCategory) {
 		LendingCategories lendingCategoryDetails = null;
 		
@@ -433,5 +514,9 @@ public class LoanDetailsService {
 		
 		loanApplication.put("agreement","");
 		return loanApplication;
+	}
+	
+	public static void main(String[] args) {
+		
 	}
 }

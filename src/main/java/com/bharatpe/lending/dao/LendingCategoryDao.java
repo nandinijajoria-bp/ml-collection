@@ -10,4 +10,5 @@ import com.bharatpe.common.entities.LendingCategories;
 @Repository
 public interface LendingCategoryDao extends CrudRepository<LendingCategories, Long>{
 	List<LendingCategories> findByCategory(String category);
+	List<LendingCategories> findByStatus(String status);
 }
