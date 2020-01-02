@@ -133,6 +133,7 @@ public class LendingUploadService {
 		data.setTenureInMonths(lendingCategory.getTenureMonths().intValue());
 		data.setPayableDays(Long.valueOf(lendingCategory.getPayableDays()));
 		data.setEdiFreeDays(lendingCategory.getEdiFreeDays());
+		data.setIoPayableDays(lendingCategory.getIoPayableDays());
 		data.setLoanConstruct(availableLoan.getLoanConstruct());
 
 		data.setBusinessName(shopDetails.get("business_name"));
