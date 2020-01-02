@@ -228,11 +228,11 @@ public class LoanDetailsService {
 //					lendingCategoriesList.get(0).setInterestRate(Double.valueOf(0));
 					elegibleLoan.put("interest_rate", lendingCategoryDetail.getInterestRate());
 				}
-				elegibleLoan.put("amount", availableLoan.getAmount());
+				elegibleLoan.put("amount", String.valueOf(availableLoan.getAmount().intValue()));
 				elegibleLoan.put("category", lendingCategoryDetail.getCategory());
-				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter().replace("Month", "").replace("Months", "").trim());
+				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter().replace("Months", "").replace("Month", "").trim());
 				elegibleLoan.put("construct", availableLoan.getLoanConstruct());
-				elegibleLoan.put("list", prepareUIContent(availableLoan, lendingCategoryDetail));
+				elegibleLoan.put("list", prepareLabels(availableLoan, lendingCategoryDetail));
 				elegibleLoan.put("type", getType(availableLoan));
 				if(loanType.equals("FIRST_TO_BE_ELIGIBLE") || loanType.equals("SUBSEQUENT_TO_BE_ELIGIBLE")) {
 					elegibleLoan.put("option_enable", false);
@@ -256,25 +256,25 @@ public class LoanDetailsService {
 		return null;
 	}
 
-	private List<Label> prepareUIContent(AvailableLoan availableLoan, LendingCategories lendingCategoryDetail) {
+	private List<Label> prepareLabels(AvailableLoan availableLoan, LendingCategories lendingCategoryDetail) {
 		List<Label> list = new ArrayList<>();
 		
 		if("CONSTRUCT_1".equals(availableLoan.getLoanConstruct())) {
 			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
-			list.add(new Label("Daily Installment", "₹" + edi + "/ day"));
+			list.add(new Label("Daily Installment", "₹" + edi + "/day"));
 			list.add(new Label("No Installment on", "Sundays"));
 			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
 		} else if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
 			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
 			list.add(new Label("EDI for 1st Month", "ZERO"));
-			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths() - 1) + " Month", "₹" + edi + "/ day"));
+			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths().intValue() - 1) + " Month", "₹" + edi + "/day"));
 			list.add(new Label("No EDI on", "Sundays"));
 			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
 		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
 			int ioEdi = (int) Math.ceil((availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getIoTenureMonths()) / lendingCategoryDetail.getIoPayableDays());
 			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths())) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
-			list.add(new Label("EDI for 1st Month", "₹" + ioEdi + "/ day"));
-			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths()) + " Month", "₹" + edi + "/ day"));
+			list.add(new Label("EDI for 1st Month", "₹" + ioEdi + "/day"));
+			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths().intValue() - lendingCategoryDetail.getIoTenureMonths().intValue()) + " Month", "₹" + edi + "/day"));
 			list.add(new Label("No EDI on", "Sundays"));
 			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi) + Math.round(lendingCategoryDetail.getIoPayableDays() * ioEdi))));
 		} else {
@@ -370,6 +370,7 @@ public class LoanDetailsService {
 				
 				//List<LoanDetails> loanDetailsList = loanDetailsDao.findByMerchantId(merchantId);
 				List<LendingPaymentSchedule> loanDetailsList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchantId);
+				LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
 				
 				for(LendingPaymentSchedule loanDetails : loanDetailsList) {
 					String title = "";
@@ -379,10 +380,9 @@ public class LoanDetailsService {
 						message = "The amount will reflect in your  bank account within 48 hours.";
 					}
 					
-					LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-					if(lendingPaymentSchedule != null) {
-						loanHistory.put("repaid", lendingPaymentSchedule.getPaidAmount());
-					}else {
+					if(activeLoan != null) {
+						loanHistory.put("repaid", activeLoan.getPaidAmount());
+					} else {
 						loanHistory.put("repaid",0);
 					}
 					loanHistory.put("id",loanDetails.getId());
@@ -396,7 +396,8 @@ public class LoanDetailsService {
 					loanHistory.put("status",loanDetails.getStatus());
 					loanHistory.put("loan_status_title",title);
 					loanHistory.put("loan_status_message",message);
-					loanHistory.put("due",lendingPaymentSchedule.getTotalPayableAmount());
+//					TODO: NPE Here
+					loanHistory.put("due",activeLoan.getTotalPayableAmount());
 					loanHistoryList.add(loanHistory);
 				}
 			}
@@ -444,7 +445,7 @@ public class LoanDetailsService {
 			Map<String, Object> document = new LinkedHashMap<>();
 			document.put("proof_type", documentsIdProof.getProofType());
 			document.put("id", documentsIdProof.getId());
-			document.put("single_page_document", documentsIdProof.getSinglePage());
+			document.put("single_page_document", documentsIdProof.getSinglePage() == 0 ? false : true );
 			documents.add(document);
 		}
 		return documents;
