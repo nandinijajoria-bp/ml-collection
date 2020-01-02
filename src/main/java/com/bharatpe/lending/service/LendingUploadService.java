@@ -129,7 +129,8 @@ public class LendingUploadService {
 		data.setMerchantId(availableLoan.getMerchantId());
 		data.setLoanAmount(availableLoan.getAmount());
 		data.setCategory(availableLoan.getCategory());
-		data.setTenure(availableLoan.getTenure());
+		data.setTenure(lendingCategory.getPayableConverter());
+		data.setTenureInMonths(lendingCategory.getTenureMonths().intValue());
 		data.setPayableDays(Long.valueOf(lendingCategory.getPayableDays()));
 		data.setEdiFreeDays(lendingCategory.getEdiFreeDays());
 		data.setLoanConstruct(availableLoan.getLoanConstruct());
