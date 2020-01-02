@@ -382,8 +382,10 @@ public class LoanDetailsService {
 					
 					if(activeLoan != null) {
 						loanHistory.put("repaid", activeLoan.getPaidAmount());
+						loanHistory.put("due",activeLoan.getTotalPayableAmount());
 					} else {
 						loanHistory.put("repaid",0);
+						loanHistory.put("due", loanDetails.getTotalPayableAmount());
 					}
 					loanHistory.put("id",loanDetails.getId());
 					loanHistory.put("amount",loanDetails.getLoanAmount());
@@ -396,8 +398,6 @@ public class LoanDetailsService {
 					loanHistory.put("status",loanDetails.getStatus());
 					loanHistory.put("loan_status_title",title);
 					loanHistory.put("loan_status_message",message);
-//					TODO: NPE Here
-					loanHistory.put("due",activeLoan.getTotalPayableAmount());
 					loanHistoryList.add(loanHistory);
 				}
 			}

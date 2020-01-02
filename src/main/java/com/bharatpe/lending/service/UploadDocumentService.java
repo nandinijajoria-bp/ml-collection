@@ -25,6 +25,7 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -72,10 +73,6 @@ public class UploadDocumentService {
 		
 		List<Map<String, Object>> documents = (List<Map<String, Object>>) commonAPIRequest.getPayload().get("documents");
 		
-		Object selectedLoan = commonAPIRequest.getPayload().get("selected_loan");
-		if(selectedLoan != null) {
-			finalResponse.put("selected_loan", selectedLoan);
-		}
 		
 		if(applicationId != null) {
 			String dbOperation = "";
@@ -86,6 +83,7 @@ public class UploadDocumentService {
 				dbOperation = "insert";
 			}
 			documentList = processAndUploadDocuments(documents, dbOperation, merchantId, applicationId, latitude, longitude, ip);
+			finalResponse.put("selected_loan", LoanUtil.prepareSelectedLoanForClient(lendingApplicationDao.findByApplicationId(applicationId)));
 		}else {
 			logger.info("UploadDocumentService No application Id for merchant : {}", merchantId);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
