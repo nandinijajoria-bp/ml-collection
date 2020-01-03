@@ -231,6 +231,12 @@ public class LoanDetailsService {
 				}
 				elegibleLoan.put("amount", String.valueOf(availableLoan.getAmount().intValue()));
 				elegibleLoan.put("category", lendingCategoryDetail.getCategory());
+				
+				// TODO: Remove hardcoding
+				elegibleLoan.put("interest_amount", 2000D);
+				elegibleLoan.put("repayment", 2000D + availableLoan.getAmount());
+				elegibleLoan.put("disbursement_amount", 2000D + availableLoan.getAmount() - 200D);
+				
 				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter().replace("Months", "").replace("Month", "").trim());
 				elegibleLoan.put("construct", availableLoan.getLoanConstruct());
 				elegibleLoan.put("list", prepareLabels(availableLoan, lendingCategoryDetail));
