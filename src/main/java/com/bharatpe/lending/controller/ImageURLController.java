@@ -27,7 +27,7 @@ public class ImageURLController {
 	public Object imageURL(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("ImageURLController request : {}",commonAPIRequest);
 		
-		Object resp = imageURLService.fetchImageUrl(merchant, response, commonAPIRequest);
+		Object resp = imageURLService.fetchAndWrapResult(merchant, response, commonAPIRequest);
 		
 		logger.info("ImageURLController response : {}", resp);
 		return resp;

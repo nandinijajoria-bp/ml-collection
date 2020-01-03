@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,14 @@ public class ImageURLService {
 	
 	@Autowired
 	S3BucketHandler s3BucketHandler;
+	
+	public Map<String, Object> fetchAndWrapResult(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+		Map<String, Object> result = new HashMap<String, Object>();
+		List<Map<String, Object>> data = fetchImageUrl(merchant, response, commonAPIRequest);
+		result.put("proofs", data);
+		result.put("success", data.size() > 0 ? true : false);
+		return result;
+	}
 	
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
@@ -78,7 +87,7 @@ public class ImageURLService {
 				proof.put("single_page_document",singlePageFlag);
 				finalResponse.add(proof);
 			}
-		}else {
+		} else {
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
 			logger.info("ImageURLService No applicationId was passed!");
 		}
