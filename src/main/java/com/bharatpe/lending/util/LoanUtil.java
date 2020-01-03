@@ -29,6 +29,11 @@ public class LoanUtil {
 		selectedLoan.put("repayment", application.getRepayment());
 		selectedLoan.put("installment_details", prepareLabels(application));
 		
+		// TODO: Remove hardcoding
+		selectedLoan.put("interest_amount", 2000D);
+		selectedLoan.put("repayment", 2000D + application.getLoanAmount());
+		selectedLoan.put("disbursement_amount", 2000D + application.getLoanAmount() - 200D);
+		
 		return selectedLoan;
 	}
 	
