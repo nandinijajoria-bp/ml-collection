@@ -115,9 +115,7 @@ public class LendingUploadService {
 			
 			ioEdi = Math.ceil(ioInterest / lendingCategory.getIoPayableDays());
 			edi = Math.ceil((availableLoan.getAmount() + normalInterest + processingFee) / lendingCategory.getPayableDays());
-			
 			repayment = Double.valueOf(Math.round( (edi * lendingCategory.getPayableDays()) + (ioEdi * lendingCategory.getIoPayableDays())));
-			
 			interestRate = (repayment - availableLoan.getAmount()) / ((availableLoan.getAmount() * lendingCategory.getTenureMonths()));
 		} else {
 			processingFee = Double.valueOf(lendingCategory.getProcessingFee());

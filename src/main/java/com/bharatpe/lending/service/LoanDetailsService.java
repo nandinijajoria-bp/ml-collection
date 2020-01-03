@@ -265,14 +265,20 @@ public class LoanDetailsService {
 			list.add(new Label("No Installment on", "Sundays"));
 			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
 		} else if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
-			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
+			Double processingFeeMultiplier = Double.valueOf(lendingCategoryDetail.getProcessingFee());
+			Double processingFee = availableLoan.getAmount() * processingFeeMultiplier;
+			
+			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + processingFee) / lendingCategoryDetail.getPayableDays());
 			list.add(new Label("EDI for 1st Month", "ZERO"));
 			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths().intValue() - 1) + " Month", "₹" + edi + "/day"));
 			list.add(new Label("No EDI on", "Sundays"));
 			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
 		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
+			Double processingFeeMultiplier = Double.valueOf(lendingCategoryDetail.getProcessingFee());
+			Double processingFee = availableLoan.getAmount() * processingFeeMultiplier;
+			
 			int ioEdi = (int) Math.ceil((availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getIoTenureMonths()) / lendingCategoryDetail.getIoPayableDays());
-			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths())) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
+			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths())) + processingFee) / lendingCategoryDetail.getPayableDays());
 			list.add(new Label("EDI for 1st Month", "₹" + ioEdi + "/day"));
 			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths().intValue() - lendingCategoryDetail.getIoTenureMonths().intValue()) + " Month", "₹" + edi + "/day"));
 			list.add(new Label("No EDI on", "Sundays"));
