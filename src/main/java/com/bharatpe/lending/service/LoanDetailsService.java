@@ -36,6 +36,7 @@ import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 
@@ -417,30 +418,8 @@ public class LoanDetailsService {
 	
 	private Map<String, Object> fetchShopAndSelectedLoanDetails(LendingApplication lendingApplication) {
 		Map<String, Object> shopAndSelectedLoanDetails = new LinkedHashMap<>();
-		Map<String, Object> shopDetails = new LinkedHashMap<>();
-		Map<String, Object> selectedLoan = new LinkedHashMap<>();
-		
-		shopDetails.put("business_name", lendingApplication.getBusinessName());
-		shopDetails.put("shop_number", lendingApplication.getShopNumber());
-		shopDetails.put("street_address", lendingApplication.getStreetAddress());
-		shopDetails.put("area", lendingApplication.getArea());
-		shopDetails.put("landmark", lendingApplication.getLandmark());
-		shopDetails.put("pincode", lendingApplication.getPincode());
-		shopDetails.put("city", lendingApplication.getCity());
-		shopDetails.put("state", lendingApplication.getState());
-		shopAndSelectedLoanDetails.put("shopDetails", shopDetails);
-		
-		selectedLoan.put("category",lendingApplication.getCategory());
-		selectedLoan.put("processing_fee",lendingApplication.getProcessingFee());
-		selectedLoan.put("duration",lendingApplication.getPayableDays());
-		selectedLoan.put("loan_amount",lendingApplication.getLoanAmount());
-		selectedLoan.put("option_enable",1);
-		selectedLoan.put("edi",lendingApplication.getEdi());
-		selectedLoan.put("interest_rate",lendingApplication.getInterestRate());
-		selectedLoan.put("repayment",lendingApplication.getRepayment());
-		selectedLoan.put("tenure",lendingApplication.getTenure());
-		shopAndSelectedLoanDetails.put("selectedLoan", selectedLoan);
-		
+		shopAndSelectedLoanDetails.put("shopDetails", LoanUtil.prepareShopDetailsForClient(lendingApplication));
+		shopAndSelectedLoanDetails.put("selectedLoan", LoanUtil.prepareSelectedLoanForClient(lendingApplication));
 		return shopAndSelectedLoanDetails;
 	}
 	
