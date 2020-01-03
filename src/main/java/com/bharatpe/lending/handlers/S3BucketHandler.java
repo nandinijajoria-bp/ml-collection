@@ -7,12 +7,12 @@ import java.io.InputStream;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -23,18 +23,30 @@ import com.bharatpe.lending.constants.LendingConstants;
 public class S3BucketHandler {
 	private Logger logger = LoggerFactory.getLogger(S3BucketHandler.class);
 	
+	@Value("${aws.s3.bucket}")
+	private String bucket;
+	
+	@Value("${aws.s3.credentials.accessKey}")
+    private String accessKey;
+
+    @Value("${aws.s3.credentials.secretKey}")
+    private String secretKey;
+
+    @Value("${aws.s3.region}")
+    private String region;
+	
 	private AmazonS3 createS3BucketConnection() {
 		AmazonS3 s3client = null;
 		try {
 			//create connection
 			AWSCredentials credentials = new BasicAWSCredentials(
-						LendingConstants.AWS_S3_ACCESS_KEY, 
-						LendingConstants.AWS_S3_SECRET_KEY
+						accessKey, 
+						secretKey
 					);
 			s3client = AmazonS3ClientBuilder
 					  .standard()
 					  .withCredentials(new AWSStaticCredentialsProvider(credentials))
-					  .withRegion(Regions.AP_SOUTH_1)
+					  .withRegion(region)
 					  .build();
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -62,7 +74,7 @@ public class S3BucketHandler {
 				
 				//put object to s3 bucket
 				s3client.putObject(
-							LendingConstants.AWS_S3_BUCKET_NAME, 
+							bucket, 
 							fileName,
 							fis,
 							metadata
@@ -78,7 +90,7 @@ public class S3BucketHandler {
 	public String getTemporaryPublicURL(String key) throws FileNotFoundException {
 	    try {
 	    	AmazonS3 s3client = createS3BucketConnection();
-	        return s3client.generatePresignedUrl(LendingConstants.AWS_S3_BUCKET_NAME, key, new DateTime().plusMinutes(15).toDate()).toString();
+	        return s3client.generatePresignedUrl(bucket, key, new DateTime().plusMinutes(15).toDate()).toString();
 	    }
 	    catch (AmazonS3Exception exception){
 	        if(exception.getStatusCode() == 404){
