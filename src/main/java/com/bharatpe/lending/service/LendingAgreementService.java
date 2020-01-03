@@ -34,14 +34,22 @@ public class LendingAgreementService {
 		String lenderText = "";
 		Map<String, Object> resp = new LinkedHashMap<> ();
 		
-		Map<String, Object> selectedLoan = (Map<String, Object>) commonAPIRequest.getPayload().get("selected_loan");
+		Integer applicationId = (Integer) commonAPIRequest.getPayload().get("application_id");
+		if(applicationId == null || applicationId == 0) {
+			logger.error("Application ID not preset/zero, returning failure.");
+			resp.put("success",false);
+			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+			return resp;
+		}
 		
-		Double loanAmount = Double.valueOf(selectedLoan.get("loan_amount").toString());
-		String tenure = selectedLoan.get("tenure").toString();
+		LendingApplication application = lendingApplicationDao.findByApplicationId(applicationId.longValue());
+		
+		Double loanAmount = application.getLoanAmount();
+		String tenure = application.getTenure();
 		
 		if(loanAmount == 5000 && tenure.equals("1 Month")) {
 			id = (long) 4;
-		}else {
+		} else {
 			id = (long) 3;
 			lenderText = "BharatPe is the processing partner for this loan. <br /> Loan is in books of BharatPe Partner NBFCs and will be disbursed from their account.";
 		}
@@ -59,7 +67,7 @@ public class LendingAgreementService {
 			
 			resp.put("success",true);
 			resp.put("data", lenderInfo);
-		}else {
+		} else {
 			logger.info("LendingAgreementService no lender info present");
 			response.setStatus(Integer.parseInt(ResponseCode.SOMETHING_WENT_WRONG));
 			resp.put("success",false);
