@@ -82,7 +82,7 @@ public class LendingUploadService {
 		lendingApplication.setStreetAddress(String.valueOf(shopDetails.get("street_address")));
 		lendingApplication.setArea(String.valueOf(shopDetails.get("area")));
 		lendingApplication.setLandmark(String.valueOf(shopDetails.get("landmark")));
-		lendingApplication.setPincode((Long) shopDetails.get("pincode"));
+		lendingApplication.setPincode(((Integer) shopDetails.get("pincode")).longValue());
 		lendingApplication.setCity(String.valueOf(shopDetails.get("city")));
 		lendingApplication.setState(String.valueOf(shopDetails.get("state")));
 		
