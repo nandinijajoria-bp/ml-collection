@@ -70,7 +70,7 @@ public class LendingUploadService {
 		}else {
 			logger.info("LendingUploadSerivce invalid request parameters : {}",commonAPIRequest);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			resp.put("success","false");
+			resp.put("success", false);
 		}
 		return resp;
 	}
@@ -163,6 +163,7 @@ public class LendingUploadService {
 		loanApplication.put("shop_details",LoanUtil.prepareShopDetailsForClient(lendingApplicationToSave));
 		
 		response.put("loan_application", loanApplication);
+		response.put("success", true);
 		
 		return response;
 	}
