@@ -6,7 +6,7 @@ import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantLoanRequest;
 import com.bharatpe.common.entities.MerchantSummary;
-import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.dtos.IneligibleResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,27 +31,24 @@ public class IneligibleDetailsService {
     @Autowired
     private MerchantDao merchantDao;
 
-    public Map<String, Object> fetchIneligibleLoanDetails(Merchant merchant, CommonAPIRequest commonAPIRequest) {
-        Map<String, Object> finalResponse = new HashMap<>();
-        Integer requestedLoanAmount = null;
+    public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, Integer requestedLoanAmount) {
+        logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
         MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+        int previousLoanCount = (merchantSummary != null && merchantSummary.getTotalLoansCount() != null) ? merchantSummary.getTotalLoansCount() : 0;
+        IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
         MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
-        if (commonAPIRequest.getPayload().get("requested_loan_amt") != null) {
-            requestedLoanAmount = (Integer) commonAPIRequest.getPayload().get("requested_loan_amt");
+        if (requestedLoanAmount != null) {
             logger.info("New Ineligible Loan request for amount : {} and merchantId : {}", requestedLoanAmount, merchant.getId());
             merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
             merchantLoanRequest = calculateTarget(merchantSummary, requestedLoanAmount, merchant.getId());
         }
         if (merchantLoanRequest != null) {
-            requestedLoanAmount = merchantLoanRequest.getRequestedLoanAmount();
-            calculateIneligibleLoanDetails(merchantSummary, merchantLoanRequest, finalResponse);
+            calculateIneligibleLoanDetails(merchantSummary, merchantLoanRequest, ineligibleResponseDTO);
         }
-        int previousLoanCount = (merchantSummary != null && merchantSummary.getTotalLoansCount() != null) ? merchantSummary.getTotalLoansCount() : 0;
-        createResponse(finalResponse, requestedLoanAmount, previousLoanCount);
-        return finalResponse;
+        return ineligibleResponseDTO;
     }
 
-    private void calculateIneligibleLoanDetails(MerchantSummary merchantSummary, MerchantLoanRequest merchantLoanRequest, Map<String, Object> finalResponse){
+    private void calculateIneligibleLoanDetails(MerchantSummary merchantSummary, MerchantLoanRequest merchantLoanRequest, IneligibleResponseDTO ineligibleResponseDTO){
         Map<String, Object> transactionCountDetails = new HashMap<>();
         Map<String, Object> transactionAmountDetails = new HashMap<>();
         Map<String, Object> loanDetails = new HashMap<>();
@@ -74,14 +71,15 @@ public class IneligibleDetailsService {
         transactionAmountDetails.put("txn_total", merchantLoanRequest.getTargetTransactionAmount());
         loanDetails.put("average_txn", avgTxnValue);
         loanDetails.put("unlock_date", unlockDate);
-        finalResponse.put("transaction_count_details", transactionCountDetails);
-        finalResponse.put("transaction_amt_details", transactionAmountDetails);
-        finalResponse.put("loan_details", loanDetails);
+        ineligibleResponseDTO.setTransactionCountDetails(transactionCountDetails);
+        ineligibleResponseDTO.setTransactionAmtDetails(transactionAmountDetails);
+        ineligibleResponseDTO.setLoanDetails(loanDetails);
         if (transactionCountLeft == 0 && transactionAmountLeft == 0) {
-            finalResponse.put("eligible", true);
+            ineligibleResponseDTO.setEligible(true);
         } else {
-            finalResponse.put("eligible", false);
+            ineligibleResponseDTO.setEligible(false);
         }
+        ineligibleResponseDTO.setRequestedLoanAmt(merchantLoanRequest.getRequestedLoanAmount());
     }
 
     private MerchantLoanRequest calculateTarget(MerchantSummary merchantSummary, Integer requestedLoanAmount, Long merchantId){
@@ -96,19 +94,5 @@ public class IneligibleDetailsService {
         logger.info("Calculating target for ineligible loan---");
         logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", totalTxnCount, totalTxnValue, totalAmountRequired, totalTxnRequired);
         return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, requestedLoanAmount, totalTxnCount, totalTxnValue, totalTxnRequired, totalAmountRequired));
-    }
-
-    private void createResponse(Map<String, Object> finalResponse, Integer requestedLoanAmount, Integer totalLoansCount){
-        finalResponse.put("min_loan_amt", 10000);
-        if (totalLoansCount == null || totalLoansCount.equals(0)) {
-            finalResponse.put("isLoanRequested", false);
-            finalResponse.put("max_loan_amt", 250000);
-        } else {
-            finalResponse.put("isLoanRequested", true);
-            finalResponse.put("max_loan_amt", 500000);
-        }
-        if (requestedLoanAmount != null) {
-            finalResponse.put("requested_loan_amt", requestedLoanAmount);
-        }
     }
 }
