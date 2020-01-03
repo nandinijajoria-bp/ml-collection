@@ -44,7 +44,7 @@ public class LendingUploadService {
 		int loanStep = commonAPIRequest.getPayload().get("loan_step") != null ? Integer.parseInt(commonAPIRequest.getPayload().get("loan_step").toString()) : 0;
 		
 		Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
-		Map<String, String> shopDetails = (Map<String, String>) commonAPIRequest.getPayload().get("shop_details");
+		Map<String, Object> shopDetails = (Map<String, Object>) commonAPIRequest.getPayload().get("shop_details");
 		
 		if(loanStep == 1 && shopDetails != null) {
 			LendingApplication lendingApplication = lendingApplicationDao.fetchApplicationByIdAndStatus(applicationId, merchantId);
@@ -75,21 +75,21 @@ public class LendingUploadService {
 		return resp;
 	}
 	
-	private LendingApplication prepareInputToSave(LendingApplication lendingApplication, Map<String, String> shopDetails) {
+	private LendingApplication prepareInputToSave(LendingApplication lendingApplication, Map<String, Object> shopDetails) {
 		lendingApplication.setStatus("draft");
-		lendingApplication.setBusinessName(shopDetails.get("business_name"));
-		lendingApplication.setShopNumber(shopDetails.get("shop_number"));
-		lendingApplication.setStreetAddress(shopDetails.get("street_address"));
-		lendingApplication.setArea(shopDetails.get("area"));
-		lendingApplication.setLandmark(shopDetails.get("landmark"));
-		lendingApplication.setPincode(Long.parseLong(shopDetails.get("pincode")));
-		lendingApplication.setCity(shopDetails.get("city"));
-		lendingApplication.setState(shopDetails.get("state"));
+		lendingApplication.setBusinessName(String.valueOf(shopDetails.get("business_name")));
+		lendingApplication.setShopNumber(String.valueOf(shopDetails.get("shop_number")));
+		lendingApplication.setStreetAddress(String.valueOf(shopDetails.get("street_address")));
+		lendingApplication.setArea(String.valueOf(shopDetails.get("area")));
+		lendingApplication.setLandmark(String.valueOf(shopDetails.get("landmark")));
+		lendingApplication.setPincode((Long) shopDetails.get("pincode"));
+		lendingApplication.setCity(String.valueOf(shopDetails.get("city")));
+		lendingApplication.setState(String.valueOf(shopDetails.get("state")));
 		
 		return lendingApplication;
 	}
 	
-	private LendingApplication prepareInputToSave(AvailableLoan availableLoan, Map<String, String> shopDetails) {
+	private LendingApplication prepareInputToSave(AvailableLoan availableLoan, Map<String, Object> shopDetails) {
 		LendingApplication data = new LendingApplication();
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 		Double edi = 0D;
@@ -99,25 +99,31 @@ public class LendingUploadService {
 		Double processingFee = 0D;
 		
 		if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
-			edi = Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()) + Integer.parseInt(lendingCategory.getProcessingFee())) / lendingCategory.getPayableDays());
-			repayment = Double.valueOf(Math.round(lendingCategory.getPayableDays() * edi));
-			interestRate = (((repayment - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategory.getTenureMonths()) * 100;
-		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
-			edi = Math.ceil((availableLoan.getAmount() * (lendingCategory.getInterestRate() / 100) * lendingCategory.getIoTenureMonths()) / lendingCategory.getIoPayableDays());
-			ioEdi = Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategory.getInterestRate() / 100) * (lendingCategory.getTenureMonths() - lendingCategory.getIoTenureMonths())) + Integer.parseInt(lendingCategory.getProcessingFee())) / lendingCategory.getPayableDays());
-			repayment = Double.valueOf(Math.round(lendingCategory.getPayableDays() * edi) + Math.round(lendingCategory.getIoPayableDays() * ioEdi));
-			interestRate = (((repayment - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategory.getTenureMonths()) * 100;
-		} else {
-			edi = Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()) + Integer.parseInt(lendingCategory.getProcessingFee())) / lendingCategory.getPayableDays());
-			repayment = Double.valueOf(Math.round(lendingCategory.getPayableDays() * edi));
-			interestRate = (((repayment - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategory.getTenureMonths()) * 100;
-		}
-		
-		if(lendingCategory.getProcessingFeeType() == null || lendingCategory.getProcessingFeeType().equals("FLAT")) {
-			processingFee = Double.valueOf(lendingCategory.getProcessingFee());
-		} else {
 			Double processingFeeMultiplier = Double.valueOf(lendingCategory.getProcessingFee());
 			processingFee = availableLoan.getAmount() * processingFeeMultiplier;
+			
+			Double totalInterest = Math.ceil(availableLoan.getAmount() * lendingCategory.getTenureMonths() * (lendingCategory.getInterestRate() / 100));
+			edi = Math.ceil((availableLoan.getAmount() + totalInterest + processingFee) / lendingCategory.getPayableDays());
+			repayment = Double.valueOf(Math.round(edi * lendingCategory.getPayableDays()));
+			interestRate = (repayment - availableLoan.getAmount()) / (availableLoan.getAmount() * lendingCategory.getTenureMonths());
+		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
+			Double processingFeeMultiplier = Double.valueOf(lendingCategory.getProcessingFee());
+			processingFee = availableLoan.getAmount() * processingFeeMultiplier;
+			
+			Double normalInterest = Math.ceil(availableLoan.getAmount() * lendingCategory.getTenureMonths() * (lendingCategory.getInterestRate() / 100));
+			Double ioInterest = Math.ceil(availableLoan.getAmount() * lendingCategory.getIoTenureMonths() * (lendingCategory.getInterestRate() / 100));
+			
+			ioEdi = Math.ceil(ioInterest / lendingCategory.getIoPayableDays());
+			edi = Math.ceil((availableLoan.getAmount() + normalInterest + processingFee) / lendingCategory.getPayableDays());
+			
+			repayment = Double.valueOf(Math.round( (edi * lendingCategory.getPayableDays()) + (ioEdi * lendingCategory.getIoPayableDays())));
+			
+			interestRate = (repayment - availableLoan.getAmount()) / ((availableLoan.getAmount() * lendingCategory.getTenureMonths()));
+		} else {
+			processingFee = Double.valueOf(lendingCategory.getProcessingFee());
+			edi = Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()) + Integer.parseInt(lendingCategory.getProcessingFee())) / lendingCategory.getPayableDays());
+			repayment = Double.valueOf(Math.round(lendingCategory.getPayableDays() * edi));
+			interestRate = (((repayment - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategory.getTenureMonths()) * 100;
 		}
 		
 		data.setEdi(ioEdi);
@@ -136,14 +142,14 @@ public class LendingUploadService {
 		data.setIoPayableDays(lendingCategory.getIoPayableDays());
 		data.setLoanConstruct(availableLoan.getLoanConstruct());
 
-		data.setBusinessName(shopDetails.get("business_name"));
-		data.setShopNumber(shopDetails.get("shop_number"));
-		data.setStreetAddress(shopDetails.get("street_address"));
-		data.setArea(shopDetails.get("area"));
-		data.setLandmark(shopDetails.get("landmark"));
-		data.setPincode(Long.parseLong(shopDetails.get("pincode")));
-		data.setCity(shopDetails.get("city"));
-		data.setState(shopDetails.get("state"));
+		data.setBusinessName(String.valueOf(shopDetails.get("business_name")));
+		data.setShopNumber(String.valueOf(shopDetails.get("shop_number")));
+		data.setStreetAddress(String.valueOf(shopDetails.get("street_address")));
+		data.setArea(String.valueOf(shopDetails.get("area")));
+		data.setLandmark(String.valueOf(shopDetails.get("landmark")));
+		data.setPincode((Long)(shopDetails.get("pincode")));
+		data.setCity(String.valueOf(shopDetails.get("city")));
+		data.setState(String.valueOf(shopDetails.get("state")));
 		
 		return data;
 	}
