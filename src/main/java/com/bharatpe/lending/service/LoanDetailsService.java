@@ -297,20 +297,28 @@ public class LoanDetailsService {
 				if(maxCategory == null) {
 					if(MerchantCategory.AA3.toString().equals(current.getCategory()) || MerchantCategory.AA1.toString().equals(current.getCategory())) {
 						maxCategory = MerchantCategory.AA.toString();
+						break;
 					} else if (MerchantCategory.BB6.toString().equals(current.getCategory()) || MerchantCategory.BB3.toString().equals(current.getCategory())) {
 						maxCategory = MerchantCategory.BB.toString();
+						break;
 					} else if (MerchantCategory.CC12.toString().equals(current.getCategory()) || MerchantCategory.CC6.toString().equals(current.getCategory()) || MerchantCategory.CC3.toString().equals(current.getCategory())) {
 						maxCategory = MerchantCategory.CC.toString();
-					} else {
-						logger.debug("Loan category not as expected, returning all available loans");
-						return availableLoanList;
+						break;
 					}
 				}
-				
+			}
+			
+			if(maxCategory == null) {
+				logger.info("Max category is null, returning all loans.");
+				return availableLoanList;
+			}
+			
+			for(AvailableLoan current : sortedAvailableLoans) {
 				if(current.getCategory().startsWith(maxCategory)) {
 					sortedAvailableLoans.add(current);
 				}
 			}
+			
 			return sortedAvailableLoans;
 		} catch(Exception ex) {
 			logger.error("Exception while soring available loans returning all, Exception is {}", ex);
