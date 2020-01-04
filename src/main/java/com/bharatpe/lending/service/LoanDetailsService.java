@@ -30,13 +30,15 @@ import com.bharatpe.common.entities.MerchantAddress;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.bean.Label;
 import com.bharatpe.lending.dao.AgentDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.LabelDTO;
+import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 
@@ -221,26 +223,20 @@ public class LoanDetailsService {
 			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
 			if(lendingCategoryDetail != null) {
 				Map<String, Object> elegibleLoan = new LinkedHashMap<>();
+				LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategoryDetail);
 				
-				if(availableLoan.getAmount() == 5000 && lendingCategoryDetail.getTenureMonths() == 1.00 ) {
-//					lendingCategoriesList.get(0).setProcessingFee("0");
-					elegibleLoan.put("processing_fee", lendingCategoryDetail.getProcessingFee());
-				} else {
-//					lendingCategoriesList.get(0).setInterestRate(Double.valueOf(0));
-					elegibleLoan.put("interest_rate", lendingCategoryDetail.getInterestRate());
-				}
+				elegibleLoan.put("processing_fee", breakup.getProcessingFee());
+				elegibleLoan.put("interest_rate", breakup.getEffectiveInterestRate());
 				elegibleLoan.put("amount", String.valueOf(availableLoan.getAmount().intValue()));
 				elegibleLoan.put("category", lendingCategoryDetail.getCategory());
-				
-				// TODO: Remove hardcoding
-				elegibleLoan.put("interest_amount", 2000D);
-				elegibleLoan.put("repayment", 2000D + availableLoan.getAmount());
-				elegibleLoan.put("disbursement_amount", 2000D + availableLoan.getAmount() - 200D);
-				
+				elegibleLoan.put("interest_amount", breakup.getTotalInterestAmount());
+				elegibleLoan.put("repayment", breakup.getRepayment());
+				elegibleLoan.put("disbursement_amount", breakup.getDisbursementAmount());
 				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter().replace("Months", "").replace("Month", "").trim());
 				elegibleLoan.put("construct", availableLoan.getLoanConstruct());
-				elegibleLoan.put("list", prepareLabels(availableLoan, lendingCategoryDetail));
-				elegibleLoan.put("type", getType(availableLoan));
+				elegibleLoan.put("list", prepareLabels(breakup));
+				elegibleLoan.put("type", breakup.getType());
+				
 				if(loanType.equals("FIRST_TO_BE_ELIGIBLE") || loanType.equals("SUBSEQUENT_TO_BE_ELIGIBLE")) {
 					elegibleLoan.put("option_enable", false);
 				} else {
@@ -252,49 +248,27 @@ public class LoanDetailsService {
 		return eligibility;
 	}
 	
-	private String getType(AvailableLoan availableLoan) {
-		if("CONSTRUCT_1".equals(availableLoan.getLoanConstruct())) {
-			return null;
-		} else if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
-			return "1st Month Free";
-		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
-			return "Only Interest";
-		}
-		return null;
-	}
-
-	private List<Label> prepareLabels(AvailableLoan availableLoan, LendingCategories lendingCategoryDetail) {
-		List<Label> list = new ArrayList<>();
+	private List<LabelDTO> prepareLabels(LoanBreakupDetail breakup) {
+		List<LabelDTO> list = new ArrayList<>();
 		
-		if("CONSTRUCT_1".equals(availableLoan.getLoanConstruct())) {
-			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + Integer.parseInt(lendingCategoryDetail.getProcessingFee())) / lendingCategoryDetail.getPayableDays());
-			list.add(new Label("Daily Installment", "₹" + edi + "/day"));
-			list.add(new Label("No Installment on", "Sundays"));
-			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
-		} else if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
-			Double processingFeeMultiplier = Double.valueOf(lendingCategoryDetail.getProcessingFee());
-			Double processingFee = availableLoan.getAmount() * processingFeeMultiplier;
-			
-			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getTenureMonths()) + processingFee) / lendingCategoryDetail.getPayableDays());
-			list.add(new Label("EDI for 1st Month", "ZERO"));
-			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths().intValue() - 1) + " Month", "₹" + edi + "/day"));
-			list.add(new Label("No EDI on", "Sundays"));
-			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi))));
-		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
-			Double processingFeeMultiplier = Double.valueOf(lendingCategoryDetail.getProcessingFee());
-			Double processingFee = availableLoan.getAmount() * processingFeeMultiplier;
-			
-			int ioEdi = (int) Math.ceil((availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * lendingCategoryDetail.getIoTenureMonths()) / lendingCategoryDetail.getIoPayableDays());
-			int edi = (int) Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategoryDetail.getInterestRate() / 100) * (lendingCategoryDetail.getTenureMonths() - lendingCategoryDetail.getIoTenureMonths())) + processingFee) / lendingCategoryDetail.getPayableDays());
-			list.add(new Label("EDI for 1st Month", "₹" + ioEdi + "/day"));
-			list.add(new Label("EDI for Next " + (lendingCategoryDetail.getTenureMonths().intValue() - lendingCategoryDetail.getIoTenureMonths().intValue()) + " Month", "₹" + edi + "/day"));
-			list.add(new Label("No EDI on", "Sundays"));
-			list.add(new Label("Repayment Amount", String.valueOf(Math.round(lendingCategoryDetail.getPayableDays() * edi) + Math.round(lendingCategoryDetail.getIoPayableDays() * ioEdi))));
+		if("CONSTRUCT_1".equals(breakup.getConstruct())) {
+			list.add(new LabelDTO("Daily Installment", "₹" + breakup.getEdi() + "/day"));
+			list.add(new LabelDTO("No Installment on", "Sundays"));
+			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
+		} else if("CONSTRUCT_2".equals(breakup.getConstruct())) {
+			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
+			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Month", "₹" + breakup.getEdi() + "/day"));
+			list.add(new LabelDTO("No EDI on", "Sundays"));
+			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
+		} else if("CONSTRUCT_3".equals(breakup.getConstruct())) {
+			list.add(new LabelDTO("EDI for 1st Month", "₹" + breakup.getIoEdi() + "/day"));
+			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Month", "₹" + breakup.getEdi() + "/day"));
+			list.add(new LabelDTO("No EDI on", "Sundays"));
+			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
 		} else {
-			logger.error("Construct {} not defined, throwing Exception", availableLoan.getLoanConstruct());
+			logger.error("Construct {} not defined, throwing Exception", breakup.getConstruct());
 			throw new RuntimeException("Construct not defined.");
 		}
-		
 		return list;
 	}
 

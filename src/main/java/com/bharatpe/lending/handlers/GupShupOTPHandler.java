@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.bharatpe.lending.constants.LendingConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 
 @Component
 public class GupShupOTPHandler {

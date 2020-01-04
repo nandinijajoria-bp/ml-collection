@@ -2,7 +2,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.dtos.IneligibleResponseDTO;
+import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import com.bharatpe.lending.service.IneligibleDetailsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

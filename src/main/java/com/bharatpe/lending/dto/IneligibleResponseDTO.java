@@ -1,4 +1,4 @@
-package com.bharatpe.lending.dtos;
+package com.bharatpe.lending.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;

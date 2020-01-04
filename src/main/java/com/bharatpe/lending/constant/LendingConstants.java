@@ -1,4 +1,4 @@
-package com.bharatpe.lending.constants;
+package com.bharatpe.lending.constant;
 
 public interface LendingConstants {
 	String GUPSHUP_OTP_API_USERID = "2000182191";

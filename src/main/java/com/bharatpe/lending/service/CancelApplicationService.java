@@ -33,7 +33,6 @@ public class CancelApplicationService {
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		Boolean reapply =  commonAPIRequest.getPayload().get("reapply") != null ? (boolean) commonAPIRequest.getPayload().get("reapply") : false;
 		
-		
 		Map<String, Boolean> resp = new HashMap<> ();
 		
 		if(applicationId != null) {
@@ -42,7 +41,7 @@ public class CancelApplicationService {
 			if(reapply == true) {
 				currentStatus = "rejected";
 				newStatus = "deleted";
-			}else {
+			} else {
 				currentStatus = "draft";
 				newStatus = "closed";
 			}

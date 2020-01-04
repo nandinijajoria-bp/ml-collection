@@ -6,7 +6,8 @@ import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantLoanRequest;
 import com.bharatpe.common.entities.MerchantSummary;
-import com.bharatpe.lending.dtos.IneligibleResponseDTO;
+import com.bharatpe.lending.dto.IneligibleResponseDTO;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

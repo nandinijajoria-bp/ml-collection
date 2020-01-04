@@ -16,7 +16,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import com.bharatpe.lending.constants.LendingConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 
 @Component
 public class KarzaHandler {

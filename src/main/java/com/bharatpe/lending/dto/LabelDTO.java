@@ -1,11 +1,11 @@
-package com.bharatpe.lending.bean;
+package com.bharatpe.lending.dto;
 
-public class Label {
+public class LabelDTO {
 
 	private String label;
 	private String value;
 
-	public Label(String label, String value) {
+	public LabelDTO(String label, String value) {
 		this.label = label;
 		this.value = value;
 	}

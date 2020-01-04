@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.bean.Label;
+import com.bharatpe.lending.dto.LabelDTO;
 
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
@@ -27,12 +27,9 @@ public class LoanUtil {
 		selectedLoan.put("edi_duration", application.getPayableDays());
 		selectedLoan.put("interest_rate", application.getInterestRate());
 		selectedLoan.put("repayment", application.getRepayment());
+		selectedLoan.put("disbursement_amount", application.getLoanAmount() - application.getProcessingFee());
+		selectedLoan.put("interest_amount", application.getRepayment() - application.getLoanAmount());
 		selectedLoan.put("installment_details", prepareLabels(application));
-		
-		// TODO: Remove hardcoding
-		selectedLoan.put("interest_amount", 2000D);
-		selectedLoan.put("repayment", 2000D + application.getLoanAmount());
-		selectedLoan.put("disbursement_amount", 2000D + application.getLoanAmount() - 200D);
 		
 		return selectedLoan;
 	}
@@ -51,17 +48,17 @@ public class LoanUtil {
 		
 		return shopDetails;
 	}
-	private static List<Label> prepareLabels(LendingApplication application) {
-		List<Label> list = new ArrayList<>();
+	private static List<LabelDTO> prepareLabels(LendingApplication application) {
+		List<LabelDTO> list = new ArrayList<>();
 		
 		if("CONSTRUCT_1".equals(application.getLoanConstruct())) {
 			
 		} else if("CONSTRUCT_2".equals(application.getLoanConstruct())) {
-			list.add(new Label("EDI for 1st Month", "ZERO"));
-			list.add(new Label("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Month", "₹" + application.getEdi() + "/day"));
+			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
+			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Month", "₹" + application.getEdi() + "/day"));
 		} else if("CONSTRUCT_3".equals(application.getLoanConstruct())) {
-			list.add(new Label("EDI for 1st Month", "₹" + application.getIoEdi() + "/day"));
-			list.add(new Label("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Month", "₹" + application.getEdi() + "/day"));
+			list.add(new LabelDTO("EDI for 1st Month", "₹" + application.getIoEdi() + "/day"));
+			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Month", "₹" + application.getEdi() + "/day"));
 		} else {
 			logger.error("Construct {} not defined, throwing Exception", application.getLoanConstruct());
 			throw new RuntimeException("Construct not defined.");

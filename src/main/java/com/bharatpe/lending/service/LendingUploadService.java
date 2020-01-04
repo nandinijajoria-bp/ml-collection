@@ -19,6 +19,8 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
+import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
+import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 
 @Service
@@ -85,50 +87,21 @@ public class LendingUploadService {
 		lendingApplication.setPincode(((Integer) shopDetails.get("pincode")).longValue());
 		lendingApplication.setCity(String.valueOf(shopDetails.get("city")));
 		lendingApplication.setState(String.valueOf(shopDetails.get("state")));
-		
+		lendingApplication.setLoanConstruct(lendingApplication.getLoanConstruct());
 		return lendingApplication;
 	}
 	
 	private LendingApplication prepareInputToSave(AvailableLoan availableLoan, Map<String, Object> shopDetails) {
 		LendingApplication data = new LendingApplication();
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
-		Double edi = 0D;
-		Double repayment = 0D;
-		Double interestRate = 0D;
-		Double ioEdi = 0D;
-		Double processingFee = 0D;
 		
-		if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
-			Double processingFeeMultiplier = Double.valueOf(lendingCategory.getProcessingFee());
-			processingFee = availableLoan.getAmount() * processingFeeMultiplier;
-			
-			Double totalInterest = Math.ceil(availableLoan.getAmount() * lendingCategory.getTenureMonths() * (lendingCategory.getInterestRate() / 100));
-			edi = Math.ceil((availableLoan.getAmount() + totalInterest + processingFee) / lendingCategory.getPayableDays());
-			repayment = Double.valueOf(Math.round(edi * lendingCategory.getPayableDays()));
-			interestRate = (repayment - availableLoan.getAmount()) / (availableLoan.getAmount() * lendingCategory.getTenureMonths());
-		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
-			Double processingFeeMultiplier = Double.valueOf(lendingCategory.getProcessingFee());
-			processingFee = availableLoan.getAmount() * processingFeeMultiplier;
-			
-			Double normalInterest = Math.ceil(availableLoan.getAmount() * lendingCategory.getTenureMonths() * (lendingCategory.getInterestRate() / 100));
-			Double ioInterest = Math.ceil(availableLoan.getAmount() * lendingCategory.getIoTenureMonths() * (lendingCategory.getInterestRate() / 100));
-			
-			ioEdi = Math.ceil(ioInterest / lendingCategory.getIoPayableDays());
-			edi = Math.ceil((availableLoan.getAmount() + normalInterest + processingFee) / lendingCategory.getPayableDays());
-			repayment = Double.valueOf(Math.round( (edi * lendingCategory.getPayableDays()) + (ioEdi * lendingCategory.getIoPayableDays())));
-			interestRate = (repayment - availableLoan.getAmount()) / ((availableLoan.getAmount() * lendingCategory.getTenureMonths()));
-		} else {
-			processingFee = Double.valueOf(lendingCategory.getProcessingFee());
-			edi = Math.ceil((availableLoan.getAmount() + (availableLoan.getAmount() * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()) + Integer.parseInt(lendingCategory.getProcessingFee())) / lendingCategory.getPayableDays());
-			repayment = Double.valueOf(Math.round(lendingCategory.getPayableDays() * edi));
-			interestRate = (((repayment - availableLoan.getAmount()) / availableLoan.getAmount()) / lendingCategory.getTenureMonths()) * 100;
-		}
+		LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
 		
-		data.setEdi(ioEdi);
-		data.setRepayment(repayment);
-		data.setInterestRate(interestRate);
-		data.setIoEdi(ioEdi);
-		data.setProcessingFee(processingFee);
+		data.setEdi(Double.valueOf(breakupDetail.getEdi()));
+		data.setIoEdi(Double.valueOf(breakupDetail.getIoEdi()));
+		data.setRepayment(Double.valueOf(breakupDetail.getRepayment()));
+		data.setInterestRate(breakupDetail.getEffectiveInterestRate());
+		data.setProcessingFee(Double.valueOf(breakupDetail.getProcessingFee()));
 		data.setStatus("draft");
 		data.setMerchantId(availableLoan.getMerchantId());
 		data.setLoanAmount(availableLoan.getAmount());
