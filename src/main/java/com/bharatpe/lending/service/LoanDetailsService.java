@@ -115,7 +115,11 @@ public class LoanDetailsService {
 					}
 					
 					details = fetchLoanHistory(merchantId);
+				} else {
+					logger.error("Merchant summary not found for Merchant ID {}", merchant.getId());
 				}
+			} else {
+				logger.error("No bank detail found for Merchant ID {}", merchant.getId());
 			}
 		}else {
 			logger.info("LoanDetails No valid merchant for merchantId : {}", merchantId);
@@ -132,6 +136,8 @@ public class LoanDetailsService {
 			Agent agent = agentDao.fetchByReferalCode(referalCode);
 			if(agent != null && validAgentCities.contains(agent.getCity())) {
 				responseFlag = true;
+			} else {
+				logger.error("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
 			}
 		}
 		
@@ -144,6 +150,8 @@ public class LoanDetailsService {
 		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
 		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity()) && isInvalidAgentReferalCode(merchant.getReferalCode())) {
 			responseFlag = true;
+		} else {
+			logger.error("Not valid DIY Merchant with merchant id {}, returning false.", merchant.getId());
 		}
 		
 		return responseFlag;
@@ -215,9 +223,14 @@ public class LoanDetailsService {
 			}
 		}
 		
+		if(availableLoanList == null || availableLoanList.isEmpty()) {
+			logger.error("No available loan found for merchant id {}", merchantId);
+		}
+		
 		List<LendingCategories> lendingCategoriesList = (List<LendingCategories>) lendingCategoryDao.findByStatus(GeneralStatus.ACTIVE.toString());
 		for(AvailableLoan availableLoan : availableLoanList) {
 			if(isPaymentBank && availableLoan.getAmount() != 5000) {
+				logger.info("Skipping current loan as loan amount > 5000 and is Paymant Bank.");
 				continue;
 			}
 			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
@@ -243,6 +256,8 @@ public class LoanDetailsService {
 					elegibleLoan.put("option_enable", true);
 				}
 				eligibility.add(elegibleLoan);
+			} else {
+				logger.error("No lending category found for merchant {} and category {}", merchantId, availableLoan.getCategory());
 			}
 		}
 		return eligibility;
@@ -392,6 +407,8 @@ public class LoanDetailsService {
 			loanHistoryDetails.put("applicationId", lendingApplication.getApplicationId());
 			loanHistoryDetails.put("loanHistory", loanHistoryList);
 			loanHistoryDetails.put("documents", documents);
+		} else {
+			logger.info("No open lending application found for merchant id {}", merchantId);
 		}
 		return loanHistoryDetails;
 	}
