@@ -37,8 +37,8 @@ public class LendingApplicationService {
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
 	
-	public Map<String, Object> createApplication(Merchant merchant, HttpServletResponse response, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
-		Map<String, Object> resp = new LinkedHashMap<> ();
+	public LendingApplicationResponse createApplication(Merchant merchant, HttpServletResponse response, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+		LendingApplicationResponse resp;
 		LendingApplication lendingApplication;
 		
 		Long merchantId = merchant.getId();
@@ -54,7 +54,8 @@ public class LendingApplicationService {
 				if(availableLoan == null) {
 					logger.info("No loan available for Merchant {} and category", merchantId, lendingApplicationRequestDTO.getCategory());
 					response.setStatus(Integer.parseInt(ResponseCode.NOT_FOUND));
-					resp.put("success","false");
+					resp = new LendingApplicationResponse();
+					resp.setSuccess(false);
 					return resp;
 				}
 				lendingApplication = updateShopDetail(availableLoan, lendingApplicationRequestDTO);
@@ -68,7 +69,8 @@ public class LendingApplicationService {
 		}else {
 			logger.info("LendingUploadSerivce invalid request parameters : {}", requestDTO);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			resp.put("success", false);
+			resp = new LendingApplicationResponse();
+			resp.setSuccess(false);
 		}
 		return resp;
 	}
@@ -112,7 +114,7 @@ public class LendingApplicationService {
 		return lendingApplication;
 	}
 	
-	private Map<String, Object> prepareAPIResponse(LendingApplication lendingApplication) {
+	private LendingApplicationResponse prepareAPIResponse(LendingApplication lendingApplication) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		Map<String, Object> loanApplication1 = new LinkedHashMap<>();
 		LendingApplicationResponse lendingApplicationResponse = new LendingApplicationResponse();
@@ -133,7 +135,7 @@ public class LendingApplicationService {
 		lendingApplicationResponse.setSuccess(true);
 		response.put("success", true);
 		
-		return response;
+		return lendingApplicationResponse;
 	}
 	
 }

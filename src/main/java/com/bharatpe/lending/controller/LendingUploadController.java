@@ -3,6 +3,7 @@ package com.bharatpe.lending.controller;
 import javax.servlet.http.HttpServletResponse;
 
 import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
+import com.bharatpe.lending.dto.LendingApplicationResponse;
 import com.bharatpe.lending.dto.RequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +26,9 @@ public class LendingUploadController {
 	LendingApplicationService lendingApplicationService;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object lendingUpload(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+	public LendingApplicationResponse lendingUpload(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		logger.info("Create Application request : {}",requestDTO);
-		Object resp = lendingApplicationService.createApplication(merchant, response, requestDTO);
+		LendingApplicationResponse resp = lendingApplicationService.createApplication(merchant, response, requestDTO);
 		logger.info("Create Application response : {}", resp);
 		return resp;
 	}

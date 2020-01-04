@@ -72,5 +72,23 @@ public class LendingApplicationResponse {
         public void setShopDetails(Map<String, Object> shopDetails) {
             this.shopDetails = shopDetails;
         }
+
+        @Override
+        public String toString() {
+            return "LoanApplication{" +
+                    "applicationId=" + applicationId +
+                    ", applicationStatus='" + applicationStatus + '\'' +
+                    ", selectedLoan=" + selectedLoan +
+                    ", shopDetails=" + shopDetails +
+                    '}';
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "LendingApplicationResponse{" +
+                "loanApplication=" + loanApplication +
+                ", success=" + success +
+                '}';
     }
 }
