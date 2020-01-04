@@ -59,7 +59,8 @@ public class LoanCalculationUtil {
 		breakup.setRepayment(repayment);
 		breakup.setEffectiveInterestRate(Double.valueOf(df.format(effectiveInterestRate)));
 		breakup.setDisbursementAmount(disbursementAmount);
-		breakup.setLoanType(getType(availableLoan.getLoanConstruct()));
+		breakup.setType(getType(availableLoan.getLoanConstruct()));
+		breakup.setLoanAmount(availableLoan.getAmount().intValue());
 		return breakup;
 		
 	
@@ -88,8 +89,9 @@ public class LoanCalculationUtil {
 		private Integer principleEdiTenure;
 		private Integer repayment;
 		private Integer disbursementAmount;;
-		private Double effectiveInterestRate;
 		private String type;
+		private Integer loanAmount;
+		private Double effectiveInterestRate;
 		
 		public String getConstruct() {
 			return construct;
@@ -166,7 +168,13 @@ public class LoanCalculationUtil {
 		public String getType() {
 			return type;
 		}
-		public void setLoanType(String type) {
+		public Integer getLoanAmount() {
+			return loanAmount;
+		}
+		public void setLoanAmount(Integer loanAmount) {
+			this.loanAmount = loanAmount;
+		}
+		public void setType(String type) {
 			this.type = type;
 		}
 		@Override

@@ -111,6 +111,7 @@ public class SignAgreementService {
 		
 		if(lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
 			logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
+			return response;
 		}
 		
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
@@ -124,7 +125,6 @@ public class SignAgreementService {
 		Map<String, Boolean> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
-		Double loanAmount = null;
 		String selectedCategory = selectedLoan.get("category");
 		
 		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
@@ -181,7 +181,7 @@ public class SignAgreementService {
 			newApplication.setPayableDays(Long.valueOf(selectedCategoriesData.getPayableDays()));
 			newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
 			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
-			newApplication.setLoanAmount(loanAmount);
+			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
 			newApplication.setLatitude(latitude);
 			newApplication.setLongitude(longitude);
 			newApplication.setIp(ip);
@@ -199,7 +199,7 @@ public class SignAgreementService {
 				
 				TmpLoanGenerate tmpLoanGenerate = new TmpLoanGenerate();
 				tmpLoanGenerate.setMerchantId(merchantId);
-				tmpLoanGenerate.setMaxLoanAmount(loanAmount);
+				tmpLoanGenerate.setMaxLoanAmount(Double.valueOf(breakup.getLoanAmount()));
 				tmpLoanGenerate.setApplicationId(newApplication.getApplicationId());
 				
 				if("AUTO".equals(prevApplication.getMode())) {
