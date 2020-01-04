@@ -10,10 +10,12 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 	@Autowired
     private ValidateTokenInterceptor validateTokenInterceptor;
-
+	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
         .excludePathPatterns("/lending/csPanel/**");
+        
+        registry.addInterceptor(new AccessControlInterceptor());
     }
 }
