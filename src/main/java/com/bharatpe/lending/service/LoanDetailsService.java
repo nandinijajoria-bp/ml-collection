@@ -293,7 +293,7 @@ public class LoanDetailsService {
 			String maxCategory = null;
 			
 //			1st loan in the list is with the maximum amount
-			for(AvailableLoan current : sortedAvailableLoans) {
+			for(AvailableLoan current : availableLoanList) {
 				if(maxCategory == null) {
 					if(MerchantCategory.AA3.toString().equals(current.getCategory()) || MerchantCategory.AA1.toString().equals(current.getCategory())) {
 						maxCategory = MerchantCategory.AA.toString();
@@ -313,7 +313,7 @@ public class LoanDetailsService {
 				return availableLoanList;
 			}
 			
-			for(AvailableLoan current : sortedAvailableLoans) {
+			for(AvailableLoan current : availableLoanList) {
 				if(current.getCategory().startsWith(maxCategory)) {
 					sortedAvailableLoans.add(current);
 				}
