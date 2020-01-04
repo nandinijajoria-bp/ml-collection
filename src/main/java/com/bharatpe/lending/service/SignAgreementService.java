@@ -35,6 +35,8 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.TmpLoanGenerateDao;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
+import com.bharatpe.lending.util.LoanCalculationUtil;
+import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 
 @Service
 public class SignAgreementService {
@@ -87,12 +89,13 @@ public class SignAgreementService {
 		
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		Boolean agreement =  commonAPIRequest.getPayload().get("agreement") != null ? (boolean) commonAPIRequest.getPayload().get("agreement") : false;
+		Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
 		
 		if(agreement == true) {
 			if(applicationId != null) {
 				finalResponse = verifyApplicationAndSendOTP(merchantId, applicationId, mobile);
-			}else {
-				finalResponse = createNewApplicationAndSendOTP(merchantId, mobile, latitude, longitude, ip);
+			} else {
+				finalResponse = createNewApplicationAndSendOTP(selectedLoan, merchantId, mobile, latitude, longitude, ip);
 			}
 		}
 		
@@ -105,108 +108,110 @@ public class SignAgreementService {
 		response.put("otp_flow",false);
 		
 		LendingApplication lendingApplication = lendingApplicationDao.findByApplicationId(applicationId);
-		if(lendingApplication != null) {
-			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
-			if(documentsIdProofList.size() > 0) {
-				response = sendOTP(mobile);
-			}
+		
+		if(lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
+			logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
+		}
+		
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+		if(documentsIdProofList.size() > 0) {
+			response = sendOTP(mobile);
 		}
 		return response;
 	}
 	
-	private Map<String, Boolean> createNewApplicationAndSendOTP(Long merchantId, Long mobile, String latitude, String longitude, String ip) {
+	private Map<String, Boolean> createNewApplicationAndSendOTP(Map<String, String> selectedLoan, Long merchantId, Long mobile, String latitude, String longitude, String ip) {
 		Map<String, Boolean> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
-		String prevTenure = "";
 		Double loanAmount = null;
-		String selectedCategory = "";
+		String selectedCategory = selectedLoan.get("category");
 		
 		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
 		if(merchantSummary != null) {
-			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
-			if(lendingPaymentSchedule != null && lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-				LendingApplication lendingApplication = lendingApplicationDao.findByApplicationId(lendingPaymentSchedule.getApplicationId());
-				prevTenure = lendingApplication.getTenure();
+			
+			LendingPaymentSchedule prevLendingScheule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+			LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
+			
+			if(prevLendingScheule == null || prevApplication == null || !prevLendingScheule.getStatus().equals("CLOSED") || !"DISBURSED".equals(prevApplication.getLoanDisbursalStatus())) {
+				logger.error("User not eligible, last loan not closed/found or last application is not disbursed/found");
+				return response;
 			}
+			
 			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchantId, merchantSummary.getLoanType());
-			for(AvailableLoan availableLoan : availableLoanList) {
-				List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(availableLoan.getCategory());
-				if(lendingCategoriesList.size() == 1) {
-					String payableConverter = lendingCategoriesList.get(0).getPayableConverter();
-					if((prevTenure.equals("2 Weeks") || prevTenure.equals("1 Months")) && payableConverter == "3 Months") {
-						selectedCategory = lendingCategoriesList.get(0).getCategory();
-						loanAmount = availableLoan.getAmount();
-					}else if(prevTenure.equals("3 Months") && payableConverter.equals("6 Months")) {
-						selectedCategory = lendingCategoriesList.get(0).getCategory();
-						loanAmount = availableLoan.getAmount();
-					}else if(prevTenure.equals("6 Months") && payableConverter.equals("12 Months")) {
-						selectedCategory = lendingCategoriesList.get(0).getCategory();
-						loanAmount = availableLoan.getAmount();
-					}
+			
+			AvailableLoan selectedAvailableLoan = null;
+			
+			for(AvailableLoan current : availableLoanList) {
+				if(current.getCategory().equals(selectedCategory)) {
+					selectedAvailableLoan = current;
+					break;
 				}
 			}
-			List<LendingCategories> selectedCategoriesList = lendingCategoryDao.findByCategory(selectedCategory);
-			if(selectedCategoriesList.size() > 0) {
-				Float tenureMonths = selectedCategoriesList.get(0).getTenureMonths();
-				if(loanAmount != 5000 || tenureMonths == 1.00) {
-					selectedCategoriesList.get(0).setProcessingFee("0");
-				}else {
-					selectedCategoriesList.get(0).setInterestRate(Double.valueOf(0));
-				}
-				int edi = (int) Math.ceil((loanAmount + (loanAmount * (selectedCategoriesList.get(0).getInterestRate() / 100) * tenureMonths) + Double.parseDouble(selectedCategoriesList.get(0).getProcessingFee())) / selectedCategoriesList.get(0).getPayableDays());
-				int repayment = Math.round(selectedCategoriesList.get(0).getPayableDays() * edi);
-				Double interestRate = (((edi * selectedCategoriesList.get(0).getPayableDays() - loanAmount) / loanAmount) / tenureMonths) * 100;
+			
+			if(selectedAvailableLoan == null) {
+				logger.error("No availabel loan found with merchant id {} and loan category {}", merchantId, selectedCategory);
+				return response;
+			}
+			
+			LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+			
+			LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData);
+			
+			LendingApplication newApplication = new LendingApplication();
+			
+			newApplication.setEdi(Double.valueOf(breakup.getEdi()));
+			newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
+			newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
+			newApplication.setInterestRate(breakup.getEffectiveInterestRate());
+			newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
+			newApplication.setMerchantId(merchantId);
+			newApplication.setShopNumber(prevApplication.getShopNumber());
+			newApplication.setStreetAddress(prevApplication.getStreetAddress());
+			newApplication.setArea(prevApplication.getArea());
+			newApplication.setLandmark(prevApplication.getLandmark());
+			newApplication.setPincode(prevApplication.getPincode());
+			newApplication.setCity(prevApplication.getCity());
+			newApplication.setState(prevApplication.getState());
+			newApplication.setBusinessName(prevApplication.getBusinessName());
+			newApplication.setStatus("draft");
+			newApplication.setCategory(selectedCategory);
+			newApplication.setTenure(selectedCategoriesData.getPayableConverter());
+			newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
+			newApplication.setPayableDays(Long.valueOf(selectedCategoriesData.getPayableDays()));
+			newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
+			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
+			newApplication.setLoanAmount(loanAmount);
+			newApplication.setLatitude(latitude);
+			newApplication.setLongitude(longitude);
+			newApplication.setIp(ip);
+			lendingApplicationDao.save(newApplication);
+			
+			if(newApplication.getApplicationId() != null) {
+				LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+				lendingAuditTrial.setMerchantId(merchantId);
+				lendingAuditTrial.setApplicationId(newApplication.getApplicationId());
+				lendingAuditTrial.setLoanId("");
+				lendingAuditTrial.setUserId(Long.parseLong("0"));
+				lendingAuditTrial.setNewStatus("draft");
+				lendingAuditTrial.setType("APP_STATUS");
+				lendingAuditTrialDao.save(lendingAuditTrial);
 				
-				LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
-				if(prevApplication != null) {
-					LendingApplication newApplication = new LendingApplication();
-					newApplication.setMerchantId(merchantId);
-					newApplication.setShopNumber(prevApplication.getShopNumber());
-					newApplication.setStreetAddress(prevApplication.getStreetAddress());
-					newApplication.setArea(prevApplication.getArea());
-					newApplication.setLandmark(prevApplication.getLandmark());
-					newApplication.setPincode(prevApplication.getPincode());
-					newApplication.setCity(prevApplication.getCity());
-					newApplication.setState(prevApplication.getState());
-					newApplication.setBusinessName(prevApplication.getBusinessName());
-					newApplication.setStatus("draft");
-					newApplication.setCategory(selectedCategory);
-					newApplication.setProcessingFee(Double.parseDouble(selectedCategoriesList.get(0).getProcessingFee()));
-					newApplication.setEdi(Double.valueOf(edi));
-					newApplication.setInterestRate(interestRate);
-					newApplication.setRepayment(Double.valueOf(repayment));
-					newApplication.setTenure(tenureMonths.toString());
-					newApplication.setPayableDays((long) selectedCategoriesList.get(0).getPayableDays());
-					newApplication.setLoanAmount(loanAmount);
-					newApplication.setLatitude(latitude);
-					newApplication.setLongitude(longitude);
-					newApplication.setIp(ip);
-					lendingApplicationDao.save(newApplication);
-					
-					if(newApplication.getApplicationId() != null) {
-						LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-						lendingAuditTrial.setMerchantId(merchantId);
-						lendingAuditTrial.setApplicationId(newApplication.getApplicationId());
-						lendingAuditTrial.setLoanId("");
-						lendingAuditTrial.setUserId(Long.parseLong("0"));
-						lendingAuditTrial.setNewStatus("draft");
-						lendingAuditTrial.setType("APP_STATUS");
-						lendingAuditTrialDao.save(lendingAuditTrial);
-						
-						TmpLoanGenerate tmpLoanGenerate = new TmpLoanGenerate();
-						tmpLoanGenerate.setMerchantId(merchantId);
-						tmpLoanGenerate.setMaxLoanAmount(loanAmount);
-						tmpLoanGenerate.setApplicationId(newApplication.getApplicationId());
-						
-						replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId(), merchantId, latitude, longitude, ip);
-						
-						Instant start = Instant.now();
-						response = sendOTP(mobile);
-						Instant end = Instant.now();
-						logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
-					}
+				TmpLoanGenerate tmpLoanGenerate = new TmpLoanGenerate();
+				tmpLoanGenerate.setMerchantId(merchantId);
+				tmpLoanGenerate.setMaxLoanAmount(loanAmount);
+				tmpLoanGenerate.setApplicationId(newApplication.getApplicationId());
+				
+				if("AUTO".equals(prevApplication.getMode())) {
+					replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId(), merchantId, latitude, longitude, ip);
+				} else {
+					logger.info("Application mode is {}, not replicating documents for new application id {} and merchant id {}", newApplication.getApplicationId(), merchantId);
 				}
+				
+				Instant start = Instant.now();
+				response = sendOTP(mobile);
+				Instant end = Instant.now();
+				logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			}
 		}
 		return response;

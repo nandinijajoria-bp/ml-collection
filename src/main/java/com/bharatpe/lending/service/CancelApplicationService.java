@@ -31,20 +31,11 @@ public class CancelApplicationService {
 		
 		Long merchantId = merchant.getId();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-		Boolean reapply =  commonAPIRequest.getPayload().get("reapply") != null ? (boolean) commonAPIRequest.getPayload().get("reapply") : false;
 		
 		Map<String, Boolean> resp = new HashMap<> ();
-		
 		if(applicationId != null) {
-			String currentStatus = null;
-			String newStatus = null;
-			if(reapply == true) {
-				currentStatus = "rejected";
-				newStatus = "deleted";
-			} else {
-				currentStatus = "draft";
-				newStatus = "closed";
-			}
+			String currentStatus = "draft";
+			String newStatus = "deleted";
 			int updatedColumn = lendingApplicationDao.updateApplicationStatus(newStatus, applicationId, merchantId, currentStatus);
 			if(updatedColumn != 0) {
 				logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchantId);
@@ -59,12 +50,12 @@ public class CancelApplicationService {
 				lendingAuditTrialDao.save(lendingAuditTrial);
 				resp.put("success",true);
 				logger.info("CancelApplicationService lending_audit_trail success insert for applicationId : {} and merchantId : {}", applicationId, merchantId);
-			}else {
+			} else {
 				response.setStatus(Integer.parseInt(ResponseCode.SOMETHING_WENT_WRONG));
 				logger.info("CancelApplicationService status update failed for applicationId : {} and merchantId : {}", applicationId, merchantId);
 				resp.put("success",false);
 			}
-		}else {
+		} else {
 			logger.info("CancelApplicationService invalid applicationId");
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
 			resp.put("success",false);
