@@ -78,18 +78,18 @@ public class SaveApplicationAddressService {
 	private Boolean isValidApplication(Long merchantId, Long applicationId) {
 		Boolean response = false;
 		
-		LendingApplication application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
-		if(application != null) {
-			response = true;
-		}
+//		LendingApplication application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+//		if(application != null) {
+//			response = true;
+//		}
 		
 		return response;
 	}
 	
 	int updateApplicationAddress(Map<String, String> shopDetails, Long applicationId, Long merchantId) {
 		
-		int updateId = lendingApplicationDao.updateApplicationAddress(shopDetails.get("shop_number"), shopDetails.get("street_address"), shopDetails.get("area"), Long.parseLong(shopDetails.get("pincode")), shopDetails.get("city"), shopDetails.get("state"), applicationId, merchantId);
+//		int updateId = lendingApplicationDao.updateApplicationAddress(shopDetails.get("shop_number"), shopDetails.get("street_address"), shopDetails.get("area"), Long.parseLong(shopDetails.get("pincode")), shopDetails.get("city"), shopDetails.get("state"), applicationId, merchantId);
 		
-		return updateId;
+		return 0;
 	}
 }

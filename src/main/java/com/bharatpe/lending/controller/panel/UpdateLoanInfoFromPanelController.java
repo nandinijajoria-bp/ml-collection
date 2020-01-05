@@ -88,7 +88,7 @@ public class UpdateLoanInfoFromPanelController {
 		if(applicationId == null) {
 			missingFields += "Application Id,";
 		}else {
-			application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+//			application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
 			if(application == null) {
 				invalidFields += "Application Id,";
 			}

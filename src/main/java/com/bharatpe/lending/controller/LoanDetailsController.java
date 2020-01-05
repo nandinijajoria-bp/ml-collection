@@ -54,7 +54,7 @@ public class LoanDetailsController {
 	public Object imageURL(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("ImageURLController request : {}",commonAPIRequest);
 
-		Object resp = imageURLService.fetchAndWrapResult(merchant, response, commonAPIRequest);
+		Object resp = imageURLService.fetchAndWrapResult(merchant, commonAPIRequest);
 
 		logger.info("ImageURLController response : {}", resp);
 		return resp;

@@ -42,8 +42,9 @@ public class LendingAgreementService {
 			return resp;
 		}
 		
-		LendingApplication application = lendingApplicationDao.findByApplicationId(applicationId.longValue());
-		
+
+		LendingApplication application = lendingApplicationDao.findByIdAndMerchant(applicationId.longValue(), merchant);
+
 		Double loanAmount = application.getLoanAmount();
 		String tenure = application.getTenure();
 		

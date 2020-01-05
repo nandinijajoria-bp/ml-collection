@@ -39,7 +39,7 @@ public class LendingApplicationService {
 		LendingApplicationRequest lendingApplicationRequest = requestDTO.getPayload();
 
 		if(lendingApplicationRequest.getApplicationId() != null && lendingApplicationRequest.getApplicationId() > 0) {
-			lendingApplication = lendingApplicationDao.fetchApplicationByIdAndStatus(lendingApplicationRequest.getApplicationId(), merchantId);
+			lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(lendingApplicationRequest.getApplicationId(), merchant, "draft");
 			if(lendingApplication == null) {
 				logger.info("No application found in draft status for given application id {}", lendingApplicationRequest.getApplicationId());
 				lendingApplicationResponse = new LendingApplicationResponse();
@@ -56,7 +56,7 @@ public class LendingApplicationService {
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
-			lendingApplication = createApplication(availableLoan, lendingApplicationRequest);
+			lendingApplication = createApplication(merchant, availableLoan, lendingApplicationRequest);
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
@@ -80,7 +80,7 @@ public class LendingApplicationService {
 		return lendingApplication;
 	}
 	
-	private LendingApplication createApplication(AvailableLoan availableLoan, LendingApplicationRequest lendingApplicationRequest) {
+	private LendingApplication createApplication(Merchant merchant, AvailableLoan availableLoan, LendingApplicationRequest lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 		
@@ -92,7 +92,7 @@ public class LendingApplicationService {
 		lendingApplication.setInterestRate(breakupDetail.getEffectiveInterestRate());
 		lendingApplication.setProcessingFee(Double.valueOf(breakupDetail.getProcessingFee()));
 		lendingApplication.setStatus("draft");
-		lendingApplication.setMerchantId(availableLoan.getMerchantId());
+		lendingApplication.setMerchant(merchant);
 		lendingApplication.setLoanAmount(availableLoan.getAmount());
 		lendingApplication.setCategory(availableLoan.getCategory());
 		lendingApplication.setTenure(lendingCategory.getPayableConverter());
@@ -109,8 +109,8 @@ public class LendingApplicationService {
 
 	private void createStatusAuditTrail(LendingApplication lendingApplication) {
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-		lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-		lendingAuditTrial.setApplicationId(lendingApplication.getApplicationId());
+		lendingAuditTrial.setMerchantId(lendingApplication.getMerchant().getId());
+		lendingAuditTrial.setApplicationId(lendingApplication.getId());
 		lendingAuditTrial.setLoanId("");
 		lendingAuditTrial.setUserId(Long.parseLong("0"));
 		lendingAuditTrial.setNewStatus("draft");
@@ -121,7 +121,7 @@ public class LendingApplicationService {
 		LendingApplicationResponse lendingApplicationResponse = new LendingApplicationResponse();
 		LendingApplicationResponse.LoanApplication loanApplication = lendingApplicationResponse.new LoanApplication();
 
-		loanApplication.setApplicationId(lendingApplication.getApplicationId());
+		loanApplication.setApplicationId(lendingApplication.getId());
 		loanApplication.setApplicationStatus(lendingApplication.getStatus());
 
 		loanApplication.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication));
