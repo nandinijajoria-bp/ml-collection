@@ -22,8 +22,6 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	LendingApplication findTop1ByMerchantOrderByIdDesc(Merchant merchant);
 
-	LendingApplication findByApplicationId(Long applicationId);
-	
 	List<LendingApplication> fetchLatestOpenApplication(Merchant merchant);
 	
 	@Modifying
