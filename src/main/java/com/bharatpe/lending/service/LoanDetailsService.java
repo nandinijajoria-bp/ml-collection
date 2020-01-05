@@ -184,7 +184,7 @@ public class LoanDetailsService {
 				}
 			}
 			
-			if("rejected".equals(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+			if(lendingApplication != null && "rejected".equals(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
 				loanApplicationDTO.setShowReapply(true);
 //				loanHistoryDTOs = null;
 				loanApplicationDTO = null;
@@ -413,7 +413,7 @@ public class LoanDetailsService {
 	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
-		if(activeLoan == null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
+		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
 			LoanHistoryDTO history = new LoanHistoryDTO();
 
 			history.setId(application.getId());
