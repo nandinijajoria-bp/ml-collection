@@ -193,7 +193,7 @@ public class LoanDetailsService {
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 			loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 			loanDetailsDTO.setHistory(loanHistoryDTOs);
-			loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+			loanDetailsDTO.setLoanApplication(null);
 			loanDetailsDTO.setEligible(loanEligibilityDTOs.size() > 0 ? true : false);
 			
 			response.setDetails(loanDetailsDTO);
