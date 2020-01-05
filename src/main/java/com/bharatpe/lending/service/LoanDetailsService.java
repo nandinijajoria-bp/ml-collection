@@ -1,11 +1,11 @@
 package com.bharatpe.lending.service;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,10 +52,6 @@ import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
-
-import javassist.expr.NewArray;
-
-import com.bharatpe.common.enums.Loan.Status;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
@@ -138,14 +134,20 @@ public class LoanDetailsService {
 
 			if(lendingApplication != null) {
 				if("rejected".equals(lendingApplication.getStatus())) {
-					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(lendingApplication, 7)) {
+					LendingAuditTrial auditTrial = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchant().getId(), lendingApplication.getId(), "REJECTED");
+					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(auditTrial, 7)) {
 						eligibleFlag = false;
 						loanHistoryDTOs = null;
 						loanApplicationDTO.setStatusTitle("'Verification Failed!'");
 						if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
 							loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment. Please write to us on  support@bharatpe.com to apply again.");
 						} else {
-							loanApplicationDTO.setStatusMessage("Please revisit the page after ' . date('Y-m-d', strtotime($aplication_rejection_time . ' + 7 days')) . ' to check your eligibility and apply again.");
+							Date rejecetdAt = auditTrial.getCreatedAt();
+							Calendar calender = Calendar.getInstance();
+							calender.setTime(rejecetdAt);
+							calender.add(Calendar.DATE, 7);
+							loanApplicationDTO.setStatusMessage("Please revisit the page after " + new SimpleDateFormat("dd-MM-yyyy").format(calender.getTime()) + " to check your eligibility and apply again.");
+							
 						}
 					}
 
@@ -174,10 +176,7 @@ public class LoanDetailsService {
 					return response;
 				}
 
-				if("rejected".equals(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
-					loanApplicationDTO.setShowReapply(true);
-					loanHistoryDTOs = null;
-				}
+				
 			}
 
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant)) {
@@ -193,11 +192,18 @@ public class LoanDetailsService {
 				}
 			}
 			
+			if("rejected".equals(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+				loanApplicationDTO.setShowReapply(true);
+//				loanHistoryDTOs = null;
+				loanApplicationDTO = null;
+			}
+			
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 			loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 			loanDetailsDTO.setHistory(loanHistoryDTOs);
 			loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 			loanDetailsDTO.setEligible(loanEligibilityDTOs.size() > 0 ? true : false);
+			
 			
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
@@ -222,12 +228,9 @@ public class LoanDetailsService {
 		return response;
 	}
 
-	private boolean rejectedInLastNDays(LendingApplication lendingApplication, int nDays) {
+	private boolean rejectedInLastNDays(LendingAuditTrial auditTrial, int nDays) {
 		try {
-			LendingAuditTrial auditTrial = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchant().getId(), lendingApplication.getId(), "REJECTED");
-			
 			if(auditTrial == null) {
-				logger.info("Audot trial if null for merchant id {}, application id {} and new status {}", lendingApplication.getMerchant(), lendingApplication.getId(), "REJECTED");
 				return false;
 			}
 			
@@ -235,11 +238,12 @@ public class LoanDetailsService {
 			Date nDaysBeforeTimestamp = new Date(System.currentTimeMillis() - Long.valueOf(nDays) * 24 * 3600 * 1000);
 			
 			if(rejectedTimestamp.compareTo(nDaysBeforeTimestamp) > 0) {
-				logger.info("Application with id {} has been rejected in last {} days", lendingApplication.getId(), nDays);
+				logger.info("Application with id {} has been rejected in last {} days", auditTrial.getApplicationId(), nDays);
 				return true;
 			}
+			
 		} catch(Exception ex) {
-			logger.error("Exception while checking if rejected in n days for application id {}, Exception is {}", lendingApplication.getId(), ex);
+			logger.error("Exception while checking if rejected in n days for application id {}, Exception is {}", auditTrial.getApplicationId(), ex);
 		}
 		
 		return false;
@@ -438,7 +442,7 @@ public class LoanDetailsService {
 	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
-		if(activeLoan != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
+		if(activeLoan == null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
 			LoanHistoryDTO history = new LoanHistoryDTO();
 
 			history.setId(application.getId());
