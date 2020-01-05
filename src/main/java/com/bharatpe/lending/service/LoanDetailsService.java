@@ -115,7 +115,12 @@ public class LoanDetailsService {
 
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 
-			LendingApplication lendingApplication = lendingApplicationDao.fetchLatestOpenApplication(merchant);
+			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
+			
+			LendingApplication lendingApplication = null;
+			if(lendingApplicationList != null && !lendingApplicationList.isEmpty()) {
+				lendingApplication = lendingApplicationList.get(0);
+			}
 
 			List<LoanHistoryDTO> loanHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan);
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);

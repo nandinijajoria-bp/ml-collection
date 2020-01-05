@@ -24,7 +24,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	LendingApplication findByApplicationId(Long applicationId);
 	
-	LendingApplication fetchLatestOpenApplication(Merchant merchant);
+	List<LendingApplication> fetchLatestOpenApplication(Merchant merchant);
 	
 	@Modifying
 	@Query(value="UPDATE lending_application SET manual_kyc=:status where id=:applicationId",nativeQuery = true)
