@@ -168,7 +168,7 @@ public class LoanDetailsService {
 					loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 					loanDetailsDTO.setHistory(loanHistoryDTOs);
 					loanDetailsDTO.setLoanApplication(loanApplicationDTO);
-					loanDetailsDTO.setEligible(false);
+					loanDetailsDTO.setEligible(true);
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
 					return response;
@@ -482,6 +482,7 @@ public class LoanDetailsService {
 	        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application);
 	        List<DocumentDTO> documents = fetchDocuments(application, merchant);
 	        
+	        loanApplicationDTO.setApplicationId(String.valueOf(application.getId()));
 	        loanApplicationDTO.setShopDetails(shopDetails);
 	        loanApplicationDTO.setSelectedLoan(selectedLoan);
 	        loanApplicationDTO.setDocuments(documents);

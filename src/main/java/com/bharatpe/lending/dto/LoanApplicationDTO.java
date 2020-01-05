@@ -18,7 +18,7 @@ public class LoanApplicationDTO {
 	private String applicationStatus = "";
 	
 	@JsonProperty(value = "application_id")
-	private Long applicationId;
+	private String applicationId;
 	
 	@JsonProperty(value = "status_title")
 	private String statusTitle = "";
@@ -64,11 +64,11 @@ public class LoanApplicationDTO {
 		this.applicationStatus = applicationStatus;
 	}
 
-	public Long getApplicationId() {
+	public String getApplicationId() {
 		return applicationId;
 	}
 
-	public void setApplicationId(Long applicationId) {
+	public void setApplicationId(String applicationId) {
 		this.applicationId = applicationId;
 	}
 
