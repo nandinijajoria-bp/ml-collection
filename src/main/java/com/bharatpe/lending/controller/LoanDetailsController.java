@@ -1,5 +1,8 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.dto.LendingApplicationRequest;
+import com.bharatpe.lending.dto.LoanDetailsRequestDTO;
+import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
 import org.slf4j.Logger;
@@ -32,10 +35,10 @@ public class LoanDetailsController {
 	ImageURLService imageURLService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object loanDetails(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("loanDetails request : {}",commonAPIRequest);
+	public Object loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LoanDetailsRequestDTO> requestDTO) {
+		logger.info("loanDetails request : {}", requestDTO);
 		
-		Object resp = loanDetailsService.fetchLoanDetails(merchant, commonAPIRequest);
+		Object resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO);
 		
 		logger.info("loanDetails response : {}", resp);
 		return resp;

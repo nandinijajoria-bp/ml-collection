@@ -1,6 +1,10 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class RequestDTO<T> {
+	
+	@JsonProperty(value = "meta", required = false)
 	private Meta meta;
 	private T payload;
 

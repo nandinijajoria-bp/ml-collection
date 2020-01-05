@@ -95,7 +95,7 @@ public class UploadDocumentService {
 		List<UploadDocumentResponse.Document> documentList = new ArrayList<>();
 
 		for(UploadDocumentRequest.Document document : documents) {
-			if(isUpdate && document.getChangeFlag() != 1) {
+			if(isUpdate && !document.getChangeFlag()) {
 				continue;
 			}
 

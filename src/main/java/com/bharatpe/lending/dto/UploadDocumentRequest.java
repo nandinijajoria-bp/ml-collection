@@ -35,10 +35,10 @@ public class UploadDocumentRequest {
                 '}';
     }
 
-    public class Document {
+    public static class Document {
 
         @JsonProperty("change_flag")
-        private int changeFlag;
+        private Boolean changeFlag;
 
 
         @JsonProperty("proof_type")
@@ -50,11 +50,11 @@ public class UploadDocumentRequest {
 
         List<String> proof;
 
-        public int getChangeFlag() {
+        public Boolean getChangeFlag() {
             return changeFlag;
         }
 
-        public void setChangeFlag(int changeFlag) {
+        public void setChangeFlag(Boolean changeFlag) {
             this.changeFlag = changeFlag;
         }
 

@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dto.LabelDTO;
+import com.bharatpe.lending.dto.SelectedLoanDTO;
+import com.bharatpe.lending.dto.ShopDetailsDTO;
 
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
@@ -34,6 +36,26 @@ public class LoanUtil {
 		return selectedLoan;
 	}
 	
+	public static SelectedLoanDTO prepareSelectedLoanDTO(LendingApplication application) {
+		SelectedLoanDTO selectedLoan = new SelectedLoanDTO();
+		
+		selectedLoan.setId(application.getApplicationId());
+		selectedLoan.setAmount(application.getLoanAmount());
+		selectedLoan.setCategory(application.getCategory());
+		selectedLoan.setConstruct(application.getLoanConstruct());
+		selectedLoan.setTenure(application.getTenure());
+		selectedLoan.setFincanceCharge(application.getProcessingFee());
+		selectedLoan.setEdi(application.getEdi());
+		selectedLoan.setEdiDuration(application.getPayableDays());
+		selectedLoan.setInterestRate(application.getInterestRate());
+		selectedLoan.setRepayment(application.getRepayment());
+		selectedLoan.setDisbursementAmount(application.getLoanAmount() - application.getProcessingFee());
+		selectedLoan.setInterestAmount(application.getRepayment() - application.getLoanAmount());
+		selectedLoan.setInstallmentDetails(prepareLabels(application));
+		
+		return selectedLoan;
+	}
+	
 	public static Map<String, Object> prepareShopDetailsForClient(LendingApplication application) {
 		Map<String, Object> shopDetails = new LinkedHashMap<>();
 		
@@ -48,6 +70,22 @@ public class LoanUtil {
 		
 		return shopDetails;
 	}
+	
+	public static ShopDetailsDTO prepareShopDetailsDTO(LendingApplication application) {
+		ShopDetailsDTO shopDetails = new ShopDetailsDTO();
+		
+		shopDetails.setBusinessName(application.getBusinessName());
+		shopDetails.setShopNumber(application.getShopNumber());
+		shopDetails.setStreetAddress(application.getStreetAddress());
+		shopDetails.setArea(application.getArea());
+		shopDetails.setLandmark(application.getLandmark());
+		shopDetails.setPincode(application.getPincode());
+		shopDetails.setCity(application.getCity());
+		shopDetails.setState(application.getState());
+		
+		return shopDetails;
+	}
+	
 	private static List<LabelDTO> prepareLabels(LendingApplication application) {
 		List<LabelDTO> list = new ArrayList<>();
 		

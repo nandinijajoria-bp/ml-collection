@@ -32,20 +32,33 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantAddress;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantSummary;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.AgentDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.DocumentDTO;
 import com.bharatpe.lending.dto.LabelDTO;
+import com.bharatpe.lending.dto.LoanApplicationDTO;
+import com.bharatpe.lending.dto.LoanDetailsRequestDTO;
+import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
+import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
+import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.dto.LoanHistoryDTO;
+import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.SelectedLoanDTO;
+import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
+
+import javassist.expr.NewArray;
+
 import com.bharatpe.common.enums.Loan.Status;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
+import com.bharatpe.common.enums.Status.LendingStatus;
 
 @Service
 public class LoanDetailsService {
@@ -93,62 +106,76 @@ public class LoanDetailsService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public Map<String, Object> fetchLoanDetails(Merchant merchant, CommonAPIRequest commonAPIRequest) {
-		Map<String, Object> resp;
-		List<Map<String, Object>> eligibility = new ArrayList<>();
-		Map<String, Object> details = new LinkedHashMap<>();
-		boolean eligibleFlag = true;
-		
-		List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingApplicationDao.findByMerchant(merchant);
-		
-		for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
-			if(Status.ACTIVE.toString().equals(lendingPaymentSchedule.getStatus())) {
+	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<LoanDetailsRequestDTO> requestDTO) {
+		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
+		try {
+			boolean eligibleFlag = true;
+			
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingApplicationDao.findByMerchant(merchant);
+			
+			if(getActiveLoan(lendingPaymentScheduleList) != null) {
 				eligibleFlag = false;
 			}
-		}
-		
-		LendingApplication lendingApplication = lendingApplicationDao.fetchLatestOpenApplication(merchant.getId());
-		if(lendingApplication != null) {
-			if("rejected".equals(lendingApplication.getStatus())) {
-				if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(lendingApplication, 7) ) {
+			
+			LendingApplication lendingApplication = lendingApplicationDao.fetchLatestOpenApplication(merchant.getId());
+			if(lendingApplication != null) {
+				if("rejected".equals(lendingApplication.getStatus())) {
+					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(lendingApplication, 7) ) {
+						eligibleFlag = false;
+					}
+				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 				}
-			} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
-				eligibleFlag = false;
 			}
-		}
-		
-		
-		if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant)) {
-
-			MerchantSummary merchantSummary = merchantSummaryDao.fetchActiveMerchantLoan(merchant.getId());
-
-			if (merchantSummary != null) {
-
-				eligibility = fetchEligibleLoans(merchantSummary.getLoanType(), merchant.getId(), eligibility);
-
-				String toBeEligibleLoanType = "FIRST_TO_BE_ELIGIBLE";
-				if (merchantSummary.getLoanType().equals("SUBSEQUENT")) {
-					toBeEligibleLoanType = "SUBSEQUENT_TO_BE_ELIGIBLE";
+			
+			LendingApplication application = lendingApplicationDao.fetchLatestOpenApplication(merchant.getId());
+			
+			List<LoanHistoryDTO> loanHistoryDTOs = fetchLoanHistory(merchant, application, lendingPaymentScheduleList);
+			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, application);
+			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
+			
+			if(eligibleFlag && (isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant)) {
+				MerchantSummary merchantSummary = merchantSummaryDao.fetchActiveMerchantLoan(merchant.getId());
+				if(merchantSummary != null) {
+					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
+					
+					String toBeEligibleLoanType = merchantSummary.getLoanType().equals("SUBSEQUENT") ? "SUBSEQUENT_TO_BE_ELIGIBLE" : "FIRST_TO_BE_ELIGIBLE";
+					
+					loanEligibilityDTOs.addAll(fetchEligibleLoans(toBeEligibleLoanType, merchant));
+				} else {
+					logger.error("Merchant summary is empty for merchant ID  {}", merchant.getId());
 				}
-				eligibility = fetchEligibleLoans(toBeEligibleLoanType, merchant.getId(), eligibility);
-
-				if (eligibility.size() > 0) {
-					eligibleFlag = true;
-				}
-
-				
-			} else {
-				logger.error("Merchant summary not found for Merchant ID {}", merchant.getId());
 			}
-		} else {
-			logger.error("No bank detail found for Merchant ID {}", merchant.getId());
+			
+			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+			loanDetailsDTO.setEligibility(loanEligibilityDTOs);
+			loanDetailsDTO.setHistory(loanHistoryDTOs);
+			loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+			loanDetailsDTO.setEligible(loanEligibilityDTOs.size() > 0 ? true : false);
+			
+			response.setDetails(loanDetailsDTO);
+			response.setSuccess(true);
+			
+		} catch(Exception ex) {
+			logger.error("Exception while checking loan details for merchant id {}, Exception is {}", merchant.getId(), ex);
+			return createFailureResponse();
 		}
-		resp = prepareResponse(eligibility, details, eligibleFlag);
-		
-		return resp;
+		return response;
 	}
 	
+	private LoanDetailsResponseDTO createFailureResponse() {
+		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
+		LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+		List<LoanHistoryDTO> loanHistoryDTOs = new ArrayList<>();
+		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
+		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
+		loanDetailsDTO.setEligibility(loanEligibilityDTOs);
+		loanDetailsDTO.setHistory(loanHistoryDTOs);
+		loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+		loanDetailsDTO.setEligible( false);
+		return response;
+	}
+
 	private boolean rejectedInLastNDays(LendingApplication lendingApplication, int nDays) {
 		try {
 			LendingAuditTrial auditTrial = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchantId(), lendingApplication.getApplicationId(), "REJECTED");
@@ -211,14 +238,6 @@ public class LoanDetailsService {
 		return flag;
 	}
 	
-	private Boolean isPaymentBank(MerchantBankDetail merchantBankDetail) {
-		Boolean flag = true;
-		
-		
-		
-		return flag;
-	}
-	
 	
 //	private Map<String, Object> checkLastPaymentSchedule(Long merchantId) {
 //		Map<String, Object> previousLoanDetails = new LinkedHashMap<>();
@@ -239,18 +258,19 @@ public class LoanDetailsService {
 //		return previousLoanDetails;
 //	}
 	
-	private List<Map<String, Object>> fetchEligibleLoans(String loanType, Long merchantId, List<Map<String, Object>> eligibility) {
+	private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant merchant) {
+		
+		List<LoanEligibilityDTO> availableLoanDTOList = new ArrayList<>();
 		
 		List<AvailableLoan> availableLoanList = null;
-		
-		if(merchantId % 2 == 0) {
-			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchantId, loanType, "CONSTRUCT_2");
+		if(merchant.getId() % 2 == 0) {
+			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_2");
 		} else {
-			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchantId, loanType, "CONSTRUCT_3");
+			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");
 		}
 		
 		if(availableLoanList == null || availableLoanList.isEmpty()) {
-			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchantId, loanType, "CONSTRUCT_1");
+			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_1");
 			
 			if(availableLoanList != null && !availableLoanList.isEmpty()) {
 				availableLoanList = sort(availableLoanList);
@@ -258,39 +278,41 @@ public class LoanDetailsService {
 		}
 		
 		if(availableLoanList == null || availableLoanList.isEmpty()) {
-			logger.error("No available loan found for merchant id {}", merchantId);
+			logger.error("No available loan found for merchant id {}", merchant.getId());
+			return availableLoanDTOList;
 		}
 		
 		List<LendingCategories> lendingCategoriesList = (List<LendingCategories>) lendingCategoryDao.findByStatus(GeneralStatus.ACTIVE.toString());
 		for(AvailableLoan availableLoan : availableLoanList) {
 			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
 			if(lendingCategoryDetail != null) {
-				Map<String, Object> elegibleLoan = new LinkedHashMap<>();
+				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
 				LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategoryDetail);
 				
-				elegibleLoan.put("processing_fee", breakup.getProcessingFee());
-				elegibleLoan.put("interest_rate", breakup.getEffectiveInterestRate());
-				elegibleLoan.put("amount", String.valueOf(availableLoan.getAmount().intValue()));
-				elegibleLoan.put("category", lendingCategoryDetail.getCategory());
-				elegibleLoan.put("interest_amount", breakup.getTotalInterestAmount());
-				elegibleLoan.put("repayment", breakup.getRepayment());
-				elegibleLoan.put("disbursement_amount", breakup.getDisbursementAmount());
-				elegibleLoan.put("tenure", lendingCategoryDetail.getPayableConverter().replace("Months", "").replace("Month", "").trim());
-				elegibleLoan.put("construct", availableLoan.getLoanConstruct());
-				elegibleLoan.put("list", prepareLabels(breakup));
-				elegibleLoan.put("type", breakup.getType());
+				loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
+				loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
+				loanEligibilityDTO.setAmount(availableLoan.getAmount().intValue());
+				loanEligibilityDTO.setCategory(lendingCategoryDetail.getCategory());
+				loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
+				loanEligibilityDTO.setRepayment(breakup.getRepayment());
+				loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
+				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter().replace("Months", "").replace("Month", "").trim());
+				loanEligibilityDTO.setConstruct(availableLoan.getLoanConstruct());
+				loanEligibilityDTO.setList(prepareLabels(breakup));
+				loanEligibilityDTO.setType(breakup.getType());
 				
-				if(loanType.equals("FIRST_TO_BE_ELIGIBLE") || loanType.equals("SUBSEQUENT_TO_BE_ELIGIBLE")) {
-					elegibleLoan.put("option_enable", false);
+				if("FIRST_TO_BE_ELIGIBLE".equals(loanType) || "SUBSEQUENT_TO_BE_ELIGIBLE".equals(loanType)) {
+					loanEligibilityDTO.setOptionEnable(false);
 				} else {
-					elegibleLoan.put("option_enable", true);
+					loanEligibilityDTO.setOptionEnable(true);
 				}
-				eligibility.add(elegibleLoan);
+				
+				availableLoanDTOList.add(loanEligibilityDTO);
 			} else {
-				logger.error("No lending category found for merchant {} and category {}", merchantId, availableLoan.getCategory());
+				logger.error("No lending category found for merchant {} and category {}", merchant.getId(), availableLoan.getCategory());
 			}
 		}
-		return eligibility;
+		return availableLoanDTOList;
 	}
 	
 	private List<LabelDTO> prepareLabels(LoanBreakupDetail breakup) {
@@ -372,85 +394,98 @@ public class LoanDetailsService {
 		return lendingCategoryDetails;
 	}
 	
-	private Map<String, Object> fetchLoanHistory(Long merchantId) {
-		Map<String, Object> loanHistoryDetails = new LinkedHashMap<>();
-		Map<String, Object> loanHistory = new LinkedHashMap<>();
-		List<Map<String, Object>> loanHistoryList = new ArrayList<>();
-		LendingApplication lendingApplication = lendingApplicationDao.fetchLatestOpenApplication(merchantId);
-		if(lendingApplication != null) {
-			Map<String, Object> shopAndSelectedLoanDetails = fetchShopAndSelectedLoanDetails(lendingApplication);
-			loanHistoryDetails.put("shopDetails", shopAndSelectedLoanDetails.get("shopDetails"));
-			loanHistoryDetails.put("selectedLoan", shopAndSelectedLoanDetails.get("selectedLoan"));
-			
-			String lendingApplicationStatus = lendingApplication.getStatus();
-			loanHistoryDetails.put("applicationStatus", lendingApplicationStatus);
-			if(lendingApplicationStatus.equals("pending_verification") || lendingApplicationStatus.equals("approved")) {
-				loanHistoryDetails.put("statusTitle", "Application submitted successfully!");
-				loanHistoryDetails.put("statusMessage", "Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
-			}else if(lendingApplicationStatus.equals("rejected")) {
-				loanHistoryDetails.put("showReapply", true);
-				loanHistoryDetails.put("statusTitle", "Verification Failed!");
-				loanHistoryDetails.put("statusMessage", "We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment.");
-			}
-			
-			if(!lendingApplicationStatus.equals("pending_verification")) {
-				if(lendingApplicationStatus.equals("approved")) {
-					loanHistory.put("id",lendingApplication.getApplicationId());
-					loanHistory.put("amount",lendingApplication.getLoanAmount());
-					loanHistory.put("start_date","");
-					loanHistory.put("end_date","");
-					loanHistory.put("status","INTRANSFER");
-					loanHistory.put("loan_status_title","Loan Approved");
-					loanHistory.put("loan_status_message","The amount will reflect in your bank account within 48 hours.");
-					loanHistory.put("repaid",0);
-					loanHistory.put("due",lendingApplication.getRepayment());
+	private List<LoanHistoryDTO> fetchLoanHistory(Merchant merchant, LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList) {
+		
+		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
+
+		if(application != null) {
+			if(!"pending_verification".equals(application.getStatus())) {
+				if("approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
+					LoanHistoryDTO history = new LoanHistoryDTO();
 					
-					loanHistoryList.add(loanHistory);
+					history.setId(application.getApplicationId());
+					history.setAmount(application.getLoanAmount());
+					history.setStartDate(null);
+					history.setEndDate(null);
+					history.setStatus("INTRANSFER");
+					history.setLoanStatusTitle("Loan Approved");
+					history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
+					history.setRepaid(0D);
+					history.setDue(application.getRepayment());
+					
+					loanHistoryList.add(history);
 				}
 				
-				//List<LoanDetails> loanDetailsList = loanDetailsDao.findByMerchantId(merchantId);
-				List<LendingPaymentSchedule> loanDetailsList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchantId);
-				LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-				
-				for(LendingPaymentSchedule loanDetails : loanDetailsList) {
-					String title = "";
-					String message = "";
-					if(loanDetails.getStatus().equals("INTRANSFER")) {
-		                title = "Loan Approved";
-						message = "The amount will reflect in your  bank account within 48 hours.";
-					}
-					
-					if(activeLoan != null) {
-						loanHistory.put("repaid", activeLoan.getPaidAmount());
-						loanHistory.put("due",activeLoan.getTotalPayableAmount());
+				LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
+				for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
+					LoanHistoryDTO history = new LoanHistoryDTO();
+					history.setId(lendingPaymentSchedule.getId());
+					history.setAmount(lendingPaymentSchedule.getLoanAmount());
+					history.setStartDate(lendingPaymentSchedule.getStartDate());
+					history.setStatus(lendingPaymentSchedule.getStatus());
+					history.setLoanStatusTitle("");
+					history.setLoanStatusMessage("");
+					if(LendingStatus.CLOSED.toString().equals(lendingPaymentSchedule.getStatus())) {
+						history.setEndDate(lendingPaymentSchedule.getUpdatedAt());
 					} else {
-						loanHistory.put("repaid",0);
-						loanHistory.put("due", loanDetails.getTotalPayableAmount());
+						history.setEndDate(null);
 					}
-					loanHistory.put("id",loanDetails.getId());
-					loanHistory.put("amount",loanDetails.getLoanAmount());
-					loanHistory.put("start_date",loanDetails.getStartDate());
-					if(loanDetails.getStatus().equals("closed")) {
-						loanHistory.put("end_date",loanDetails.getUpdatedAt());
-					}else {
-						loanHistory.put("end_date",null);
+					if(activeLoan != null) {
+						history.setRepaid(activeLoan.getPaidAmount());
+						history.setDue(activeLoan.getTotalPayableAmount());
+					} else {
+						history.setRepaid(0D);
+						history.setDue(lendingPaymentSchedule.getTotalPayableAmount());
 					}
-					loanHistory.put("status",loanDetails.getStatus());
-					loanHistory.put("loan_status_title",title);
-					loanHistory.put("loan_status_message",message);
-					loanHistoryList.add(loanHistory);
+					loanHistoryList.add(history);
 				}
 			}
-			List<Map<String, Object>> documents = fetchAndSetDocumentsDetail(lendingApplication.getApplicationId(), merchantId);
-			loanHistoryDetails.put("applicationId", lendingApplication.getApplicationId());
-			loanHistoryDetails.put("loanHistory", loanHistoryList);
-			loanHistoryDetails.put("documents", documents);
 		} else {
-			logger.info("No open lending application found for merchant id {}", merchantId);
+			logger.info("No open lending application found for merchant id {}", merchant.getId());
 		}
-		return loanHistoryDetails;
+		return loanHistoryList;
+	}
+
+	private LoanApplicationDTO fetchLoanApplication(Merchant merchant, LendingApplication application) {
+		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
+	    if(application != null) {
+	        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application);
+	        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application);
+	        List<DocumentDTO> documents = fetchDocuments(application.getApplicationId(), merchant.getId());
+	        
+	        loanApplicationDTO.setShopDetails(shopDetails);
+	        loanApplicationDTO.setSelectedLoan(selectedLoan);
+	        loanApplicationDTO.setDocuments(documents);
+	        loanApplicationDTO.setApplicationStatus(application.getStatus());
+	        
+	        if("pending_verification".equals(application.getStatus()) || "approved".equals(application.getStatus())) {
+	        	loanApplicationDTO.setStatusTitle("Application submitted successfully!");
+	        	loanApplicationDTO.setStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+	        } else if("rejected".equals(application.getStatus())) {
+	        	loanApplicationDTO.setShowReapply(true);
+	        	loanApplicationDTO.setStatusTitle("Verification Failed!");
+	        	loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment.");
+	        }
+	    } else {
+	        logger.info("No open lending application found for merchant id {}", merchant.getId());
+	    }
+	    return loanApplicationDTO;
 	}
 	
+	private LendingPaymentSchedule getActiveLoan(List<LendingPaymentSchedule> lendingPaymentScheduleList) {
+		if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.size() == 0) {
+			return null;
+		}
+		
+		for(LendingPaymentSchedule schedule : lendingPaymentScheduleList) {
+			if(LendingStatus.ACTIVE.toString().equals(schedule.getStatus())) {
+				return schedule;
+			}
+		}
+		
+		return null;
+	}
+
 	private Map<String, Object> fetchShopAndSelectedLoanDetails(LendingApplication lendingApplication) {
 		Map<String, Object> shopAndSelectedLoanDetails = new LinkedHashMap<>();
 		shopAndSelectedLoanDetails.put("shopDetails", LoanUtil.prepareShopDetailsForClient(lendingApplication));
@@ -458,15 +493,14 @@ public class LoanDetailsService {
 		return shopAndSelectedLoanDetails;
 	}
 	
-	private List<Map<String, Object>> fetchAndSetDocumentsDetail(Long applicationId, Long merchantId) {
-		List<Map<String, Object>> documents = new ArrayList<>();
+	private List<DocumentDTO> fetchDocuments(Long applicationId, Long merchantId) {
+		List<DocumentDTO> documents = new ArrayList<>();
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
-			Map<String, Object> document = new LinkedHashMap<>();
-			document.put("proof_type", documentsIdProof.getProofType());
-			document.put("id", documentsIdProof.getId());
-			document.put("single_page_document", documentsIdProof.getSinglePage() == 0 ? false : true );
-			documents.add(document);
+			DocumentDTO document = new DocumentDTO();
+			document.setId(documentsIdProof.getId());
+			document.setProofType(documentsIdProof.getProofType());
+			document.setSinglePageDocument(documentsIdProof.getSinglePage() == 0 ? false : true);
 		}
 		return documents;
 	}
