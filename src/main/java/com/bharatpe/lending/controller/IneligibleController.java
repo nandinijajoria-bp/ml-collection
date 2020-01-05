@@ -4,12 +4,15 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import com.bharatpe.lending.service.IneligibleDetailsService;
+import com.bharatpe.lending.service.NotifyEligibleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("lending")
@@ -19,6 +22,9 @@ public class IneligibleController {
 
     @Autowired
     private IneligibleDetailsService ineligibleDetailsService;
+
+    @Autowired
+    NotifyEligibleService notifyEligibleService;
 
     @RequestMapping(value="/ineligibleDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
     public ResponseEntity<IneligibleResponseDTO> ineligibleDetails(@RequestAttribute Merchant merchant, @RequestBody(required = false) CommonAPIRequest commonAPIRequest, @RequestParam(required = false) Integer requestedLoanAmount) {
@@ -30,5 +36,14 @@ public class IneligibleController {
             logger.error("Exception while fetching Ineligible Loan Details", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @RequestMapping(value="/notifyEligible", method = RequestMethod.GET, produces="application/json")
+    public Object notifyEligible(@RequestAttribute Merchant merchant, HttpServletResponse response) {
+
+        Object resp = notifyEligibleService.notifyEligible(merchant, response);
+
+        logger.info("notifyEligible response : {}", response);
+        return resp;
     }
 }

@@ -8,6 +8,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 
+import com.bharatpe.common.entities.Merchant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,9 +53,20 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         			sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
         			return false;
         		}
-        		
-				for (TokenVerification tv : tokenDetails) {
-					request.setAttribute("merchant", tv.getMerchant());
+
+				Merchant merchant = tokenDetails.get(0).getMerchant();
+        		if(merchant != null) {
+        			String ip = request.getHeader("True-Client-IP");
+        			if(StringUtils.isEmpty(ip)) {
+						ip = request.getHeader("X-FORWARDED-FOR");
+						if(StringUtils.isEmpty(ip)) {
+							ip = request.getRemoteAddr();
+						}
+					}
+					logger.info("Merchant found id:{}, ip:{}", merchant.getId(), ip);
+
+					request.setAttribute("merchant", merchant);
+					request.setAttribute("clientIp", ip);
 					return true;
 				}
         	}

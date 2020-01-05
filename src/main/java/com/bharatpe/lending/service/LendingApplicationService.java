@@ -1,15 +1,11 @@
 package com.bharatpe.lending.service;
 
-import com.amazonaws.services.dynamodbv2.xspec.L;
-import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.AvailableLoanDao;
-import com.bharatpe.common.entities.AvailableLoan;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingCategories;
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
+import com.bharatpe.lending.dto.LendingApplicationRequest;
 import com.bharatpe.lending.dto.LendingApplicationResponse;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -19,10 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import javax.servlet.http.HttpServletResponse;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Service
 public class LendingApplicationService {
@@ -36,58 +28,59 @@ public class LendingApplicationService {
 	
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
-	
-	public LendingApplicationResponse createApplication(Merchant merchant, HttpServletResponse response, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
-		LendingApplicationResponse resp;
+
+	@Autowired
+	LendingAuditTrialDao lendingAuditTrialDao;
+
+	public LendingApplicationResponse createApplication(Merchant merchant, RequestDTO<LendingApplicationRequest> requestDTO) {
+		LendingApplicationResponse lendingApplicationResponse;
 		LendingApplication lendingApplication;
-		
 		Long merchantId = merchant.getId();
-		LendingApplicationRequestDTO lendingApplicationRequestDTO = requestDTO.getPayload();
+		LendingApplicationRequest lendingApplicationRequest = requestDTO.getPayload();
 
-
-		if(lendingApplicationRequestDTO != null) {
-			if(lendingApplicationRequestDTO.getApplicationId() != null && lendingApplicationRequestDTO.getApplicationId() > 0) {
-				lendingApplication = lendingApplicationDao.fetchApplicationByIdAndStatus(lendingApplicationRequestDTO.getApplicationId(), merchantId);
-				lendingApplication = updateShopDetail(lendingApplication, lendingApplicationRequestDTO);
-			}else {
-				AvailableLoan availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequestDTO.getCategory());
-				if(availableLoan == null) {
-					logger.info("No loan available for Merchant {} and category", merchantId, lendingApplicationRequestDTO.getCategory());
-					response.setStatus(Integer.parseInt(ResponseCode.NOT_FOUND));
-					resp = new LendingApplicationResponse();
-					resp.setSuccess(false);
-					return resp;
-				}
-				lendingApplication = updateShopDetail(availableLoan, lendingApplicationRequestDTO);
+		if(lendingApplicationRequest.getApplicationId() != null && lendingApplicationRequest.getApplicationId() > 0) {
+			lendingApplication = lendingApplicationDao.fetchApplicationByIdAndStatus(lendingApplicationRequest.getApplicationId(), merchantId);
+			if(lendingApplication == null) {
+				logger.info("No application found in draft status for given application id {}", lendingApplicationRequest.getApplicationId());
+				lendingApplicationResponse = new LendingApplicationResponse();
+				lendingApplicationResponse.setSuccess(false);
+				return lendingApplicationResponse;
 			}
+			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
+			lendingApplicationDao.save(lendingApplication);
+		}else {
+			AvailableLoan availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+			if(availableLoan == null) {
+				logger.info("No loan available for Merchant {} and category", merchantId, lendingApplicationRequest.getCategory());
+				lendingApplicationResponse = new LendingApplicationResponse();
+				lendingApplicationResponse.setSuccess(false);
+				return lendingApplicationResponse;
+			}
+			lendingApplication = createApplication(availableLoan, lendingApplicationRequest);
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
 			lendingApplicationDao.save(lendingApplication);
-			resp = prepareAPIResponse(lendingApplication);
-			logger.info("LendingUploadSerivce saved to lending_application : {}",lendingApplication);
-		}else {
-			logger.info("LendingUploadSerivce invalid request parameters : {}", requestDTO);
-			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			resp = new LendingApplicationResponse();
-			resp.setSuccess(false);
+			createStatusAuditTrail(lendingApplication);
 		}
-		return resp;
+
+		logger.info("Loan Application saved : {}",lendingApplication);
+		return prepareAPIResponse(lendingApplication);
 	}
 	
-	private LendingApplication updateShopDetail(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequestDTO) {
-		lendingApplication.setBusinessName(lendingApplicationRequestDTO.getBusinessName());
-		lendingApplication.setShopNumber(lendingApplicationRequestDTO.getShopNumber());
-		lendingApplication.setStreetAddress(lendingApplicationRequestDTO.getStreetAddress());
-		lendingApplication.setArea(lendingApplicationRequestDTO.getArea());
-		lendingApplication.setLandmark(lendingApplicationRequestDTO.getLandmark());
-		lendingApplication.setPincode(lendingApplicationRequestDTO.getPincode());
-		lendingApplication.setCity(lendingApplicationRequestDTO.getCity());
-		lendingApplication.setState(lendingApplicationRequestDTO.getState());
+	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequest lendingApplicationRequest) {
+		lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
+		lendingApplication.setShopNumber(lendingApplicationRequest.getShopNumber());
+		lendingApplication.setStreetAddress(lendingApplicationRequest.getStreetAddress());
+		lendingApplication.setArea(lendingApplicationRequest.getArea());
+		lendingApplication.setLandmark(lendingApplicationRequest.getLandmark());
+		lendingApplication.setPincode(lendingApplicationRequest.getPincode());
+		lendingApplication.setCity(lendingApplicationRequest.getCity());
+		lendingApplication.setState(lendingApplicationRequest.getState());
 		return lendingApplication;
 	}
 	
-	private LendingApplication updateShopDetail(AvailableLoan availableLoan, LendingApplicationRequestDTO lendingApplicationRequestDTO) {
+	private LendingApplication createApplication(AvailableLoan availableLoan, LendingApplicationRequest lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 		
@@ -109,14 +102,22 @@ public class LendingApplicationService {
 		lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
 		lendingApplication.setLoanConstruct(availableLoan.getLoanConstruct());
 
-		lendingApplication = updateShopDetail(lendingApplication, lendingApplicationRequestDTO);
+		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 
 		return lendingApplication;
 	}
-	
+
+	private void createStatusAuditTrail(LendingApplication lendingApplication) {
+		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+		lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+		lendingAuditTrial.setApplicationId(lendingApplication.getApplicationId());
+		lendingAuditTrial.setLoanId("");
+		lendingAuditTrial.setUserId(Long.parseLong("0"));
+		lendingAuditTrial.setNewStatus("draft");
+		lendingAuditTrial.setType("APP_STATUS");
+		lendingAuditTrialDao.save(lendingAuditTrial);
+	}
 	private LendingApplicationResponse prepareAPIResponse(LendingApplication lendingApplication) {
-		Map<String, Object> response = new LinkedHashMap<>();
-		Map<String, Object> loanApplication1 = new LinkedHashMap<>();
 		LendingApplicationResponse lendingApplicationResponse = new LendingApplicationResponse();
 		LendingApplicationResponse.LoanApplication loanApplication = lendingApplicationResponse.new LoanApplication();
 
@@ -124,18 +125,14 @@ public class LendingApplicationService {
 		loanApplication.setApplicationStatus(lendingApplication.getStatus());
 
 		loanApplication.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication));
-		loanApplication1.put("selected_loan", LoanUtil.prepareSelectedLoanForClient(lendingApplication));
 
 		loanApplication.setShopDetails(LoanUtil.prepareShopDetailsForClient(lendingApplication));
-		loanApplication1.put("shop_details",LoanUtil.prepareShopDetailsForClient(lendingApplication));
 
 		lendingApplicationResponse.setLoanApplication(loanApplication);
-		response.put("loan_application", loanApplication1);
 
 		lendingApplicationResponse.setSuccess(true);
-		response.put("success", true);
-		
+
 		return lendingApplicationResponse;
 	}
-	
+
 }

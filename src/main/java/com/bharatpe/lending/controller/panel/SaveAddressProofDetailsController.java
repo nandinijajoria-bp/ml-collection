@@ -1,4 +1,4 @@
-package com.bharatpe.lending.controller;
+package com.bharatpe.lending.controller.panel;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
