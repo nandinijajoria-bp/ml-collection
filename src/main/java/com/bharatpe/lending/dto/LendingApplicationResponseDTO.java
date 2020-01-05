@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
-public class LendingApplicationResponse {
+public class LendingApplicationResponseDTO {
 
     @JsonProperty("loan_application")
     private LoanApplication loanApplication;

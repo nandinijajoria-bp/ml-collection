@@ -5,14 +5,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class RequestDTO<T> {
 	
 	@JsonProperty(value = "meta", required = false)
-	private Meta meta;
+	private MetaDTO meta;
 	private T payload;
 
-	public Meta getMeta() {
+	public MetaDTO getMeta() {
 		return meta;
 	}
 
-	public void setMeta(Meta meta) {
+	public void setMeta(MetaDTO meta) {
 		this.meta = meta;
 	}
 

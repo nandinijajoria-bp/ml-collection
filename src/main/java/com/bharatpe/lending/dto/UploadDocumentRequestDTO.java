@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-public class UploadDocumentRequest {
+public class UploadDocumentRequestDTO {
 
     @JsonProperty("application_id")
     private Long applicationId;

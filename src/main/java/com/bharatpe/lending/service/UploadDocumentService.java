@@ -61,14 +61,14 @@ public class UploadDocumentService {
 	@Autowired
 	KarzaHandler karzaHandler;
 
-	public UploadDocumentResponse uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequest> requestDTO) {
+	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
-		UploadDocumentResponse uploadDocumentResponse = new UploadDocumentResponse();
+		UploadDocumentResponseDTO uploadDocumentResponse = new UploadDocumentResponseDTO();
 		uploadDocumentResponse.setSuccess(false);
 
-		UploadDocumentRequest uploadDocumentRequest = requestDTO.getPayload();
+		UploadDocumentRequestDTO uploadDocumentRequest = requestDTO.getPayload();
 		Long applicationId =  uploadDocumentRequest.getApplicationId();
-		List<UploadDocumentRequest.Document> documents = uploadDocumentRequest.getDocuments();
+		List<UploadDocumentRequestDTO.Document> documents = uploadDocumentRequest.getDocuments();
 
 		if(applicationId == null || applicationId <= 0 || documents == null || documents.isEmpty()) {
 			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
@@ -86,7 +86,7 @@ public class UploadDocumentService {
 		if(documentsIdProofList.size() > 0) {
 			isUpdate = true;
 		}
-		List<UploadDocumentResponse.Document> documentList = processAndUploadDocuments(documents, isUpdate, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse);
+		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdate, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse);
 
 		if(documentList.size() > 0) {
 			finalResponse.put("success", true);
@@ -97,10 +97,10 @@ public class UploadDocumentService {
 		return uploadDocumentResponse;
 	}
 	
-	private List<UploadDocumentResponse.Document> processAndUploadDocuments(List<UploadDocumentRequest.Document> documents, Boolean isUpdate, Merchant merchant, LendingApplication lendingApplication, Meta meta, UploadDocumentResponse uploadDocumentResponse) {
-		List<UploadDocumentResponse.Document> documentList = new ArrayList<>();
+	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse) {
+		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
-		for(UploadDocumentRequest.Document document : documents) {
+		for(UploadDocumentRequestDTO.Document document : documents) {
 			if(document.getProof().isEmpty()) {
 				logger.error("Empty Documents");
 			}
@@ -125,7 +125,7 @@ public class UploadDocumentService {
 			}
 
 			if(documentsIdProof != null) {
-				UploadDocumentResponse.Document documentResponse = uploadDocumentResponse.new Document();
+				UploadDocumentResponseDTO.Document documentResponse = uploadDocumentResponse.new Document();
 				documentResponse.setProofId(documentsIdProof.getId());
 				documentResponse.setProofType(proofType);
 				documentResponse.setSinglePageDocument(singlePageDocument);
@@ -162,7 +162,7 @@ public class UploadDocumentService {
 		return base64EncodedString;
 	}
 	
-	private DocumentsIdProof insertDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+	private DocumentsIdProof insertDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
 		DocumentsIdProof documentsIdProof = new DocumentsIdProof();
 		documentsIdProof.setMerchant(merchant);
 		documentsIdProof.setLendingApplication(lendingApplication);
@@ -178,7 +178,7 @@ public class UploadDocumentService {
 		return documentsIdProof;
 	}
 	
-	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
 		DocumentsIdProof documentsIdProof = documentsIdProofdao.findByMerchantAndLendingApplicationAndProofType(merchant, lendingApplication, proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);

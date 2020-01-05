@@ -2,7 +2,7 @@ package com.bharatpe.lending.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class DeviceInfo {
+public class DeviceInfoDTO {
 
 	private String os;
 

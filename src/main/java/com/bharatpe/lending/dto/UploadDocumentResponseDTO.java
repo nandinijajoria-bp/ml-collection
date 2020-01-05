@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
-public class UploadDocumentResponse {
+public class UploadDocumentResponseDTO {
     private Boolean success;
 
     private List<Document> document;

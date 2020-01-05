@@ -41,7 +41,7 @@ public class LendingApplicationController {
 	CancelApplicationService cancelApplicationService;
 
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public LendingApplicationResponse createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequest> requestDTO) {
+	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		logger.info("Create Application request : {}",requestDTO);
 		if(requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
@@ -49,13 +49,13 @@ public class LendingApplicationController {
 			return null;
 		}
 		requestDTO.getMeta().setIp(clientIp);
-		LendingApplicationResponse lendingApplicationResponse = lendingApplicationService.createApplication(merchant, requestDTO);
+		LendingApplicationResponseDTO lendingApplicationResponse = lendingApplicationService.createApplication(merchant, requestDTO);
 		logger.info("Create Application response : {}", lendingApplicationResponse);
 		return lendingApplicationResponse;
 	}
 
 	@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public UploadDocumentResponse uploadDocument(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequest> requestDTO) {
+	public UploadDocumentResponseDTO uploadDocument(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		logger.info("UploadDocument request : {}",requestDTO);
 		if(requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
@@ -63,7 +63,7 @@ public class LendingApplicationController {
 			return null;
 		}
 		requestDTO.getMeta().setIp(clientIp);
-		UploadDocumentResponse uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO);
+		UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO);
 
 		logger.info("UploadDocument response : {}", uploadDocumentResponse);
 		return uploadDocumentResponse;

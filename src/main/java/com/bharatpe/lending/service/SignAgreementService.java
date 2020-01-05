@@ -171,6 +171,7 @@ public class SignAgreementService {
 		newApplication.setState(prevApplication.getState());
 		newApplication.setBusinessName(prevApplication.getBusinessName());
 		newApplication.setStatus("draft");
+		newApplication.setMode("AUTO");
 		newApplication.setCategory(selectedCategory);
 		newApplication.setTenure(selectedCategoriesData.getPayableConverter());
 		newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());

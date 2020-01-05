@@ -2,7 +2,7 @@ package com.bharatpe.lending.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class Meta {
+public class MetaDTO {
 
 	@JsonProperty("app_version")
 	private String appVersion;
@@ -21,7 +21,7 @@ public class Meta {
 	private String deviceId;
 
 	@JsonProperty("device_info")
-	private DeviceInfo deviceInfo;
+	private DeviceInfoDTO deviceInfo;
 	
 	public String getAppVersion() {
 		return appVersion;
@@ -63,11 +63,11 @@ public class Meta {
 		this.deviceId = deviceId;
 	}
 
-	public DeviceInfo getDeviceInfo() {
+	public DeviceInfoDTO getDeviceInfo() {
 		return deviceInfo;
 	}
 
-	public void setDeviceInfo(DeviceInfo deviceInfo) {
+	public void setDeviceInfo(DeviceInfoDTO deviceInfo) {
 		this.deviceInfo = deviceInfo;
 	}
 

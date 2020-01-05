@@ -5,8 +5,8 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dto.LendingApplicationRequest;
-import com.bharatpe.lending.dto.LendingApplicationResponse;
+import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
+import com.bharatpe.lending.dto.LendingApplicationResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
@@ -32,17 +32,17 @@ public class LendingApplicationService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public LendingApplicationResponse createApplication(Merchant merchant, RequestDTO<LendingApplicationRequest> requestDTO) {
-		LendingApplicationResponse lendingApplicationResponse;
+	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
 		Long merchantId = merchant.getId();
-		LendingApplicationRequest lendingApplicationRequest = requestDTO.getPayload();
+		LendingApplicationRequestDTO lendingApplicationRequest = requestDTO.getPayload();
 
 		if(lendingApplicationRequest.getApplicationId() != null && lendingApplicationRequest.getApplicationId() > 0) {
 			lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(lendingApplicationRequest.getApplicationId(), merchant, "draft");
 			if(lendingApplication == null) {
 				logger.info("No application found in draft status for given application id {}", lendingApplicationRequest.getApplicationId());
-				lendingApplicationResponse = new LendingApplicationResponse();
+				lendingApplicationResponse = new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
@@ -52,7 +52,7 @@ public class LendingApplicationService {
 			AvailableLoan availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
 			if(availableLoan == null) {
 				logger.info("No loan available for Merchant {} and category", merchantId, lendingApplicationRequest.getCategory());
-				lendingApplicationResponse = new LendingApplicationResponse();
+				lendingApplicationResponse = new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
@@ -68,7 +68,7 @@ public class LendingApplicationService {
 		return prepareAPIResponse(lendingApplication);
 	}
 	
-	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequest lendingApplicationRequest) {
+	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequest) {
 		lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
 		lendingApplication.setShopNumber(lendingApplicationRequest.getShopNumber());
 		lendingApplication.setStreetAddress(lendingApplicationRequest.getStreetAddress());
@@ -80,7 +80,7 @@ public class LendingApplicationService {
 		return lendingApplication;
 	}
 	
-	private LendingApplication createApplication(Merchant merchant, AvailableLoan availableLoan, LendingApplicationRequest lendingApplicationRequest) {
+	private LendingApplication createApplication(Merchant merchant, AvailableLoan availableLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 		
@@ -92,6 +92,7 @@ public class LendingApplicationService {
 		lendingApplication.setInterestRate(breakupDetail.getEffectiveInterestRate());
 		lendingApplication.setProcessingFee(Double.valueOf(breakupDetail.getProcessingFee()));
 		lendingApplication.setStatus("draft");
+		lendingApplication.setMode("AUTO");
 		lendingApplication.setMerchant(merchant);
 		lendingApplication.setLoanAmount(availableLoan.getAmount());
 		lendingApplication.setCategory(availableLoan.getCategory());
@@ -117,9 +118,9 @@ public class LendingApplicationService {
 		lendingAuditTrial.setType("APP_STATUS");
 		lendingAuditTrialDao.save(lendingAuditTrial);
 	}
-	private LendingApplicationResponse prepareAPIResponse(LendingApplication lendingApplication) {
-		LendingApplicationResponse lendingApplicationResponse = new LendingApplicationResponse();
-		LendingApplicationResponse.LoanApplication loanApplication = lendingApplicationResponse.new LoanApplication();
+	private LendingApplicationResponseDTO prepareAPIResponse(LendingApplication lendingApplication) {
+		LendingApplicationResponseDTO lendingApplicationResponse = new LendingApplicationResponseDTO();
+		LendingApplicationResponseDTO.LoanApplication loanApplication = lendingApplicationResponse.new LoanApplication();
 
 		loanApplication.setApplicationId(lendingApplication.getId());
 		loanApplication.setApplicationStatus(lendingApplication.getStatus());
