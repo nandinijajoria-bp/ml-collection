@@ -45,11 +45,11 @@ public class SavePanCardDetailsService {
 				doi = pancardDetails.get("date_of_issue");
 			}
 			String mode = "MANUAL";
-			docKycDetailsDao.updateKycPanCardDetails(pancardDetails.get("doc_no"),pancardDetails.get("father_name"),pancardDetails.get("person_name"),pancardDetails.get("dob"),doi,mode,merchantId,docKycDetails.getDocId(),"LENDING");
+//			docKycDetailsDao.updateKycPanCardDetails(pancardDetails.get("doc_no"),pancardDetails.get("father_name"),pancardDetails.get("person_name"),pancardDetails.get("dob"),doi,mode,merchantId,docKycDetails.getDocId(),"LENDING");
 		}else {
 			Long docId = documentsIdProofDao.fetchLatestPanCardDocId(merchantId, applicationId, "LENDING");
-			toSave.setDocId(docId);
-			toSave.setMerchantId(merchantId);
+//			toSave.setDocId(docId);
+//			toSave.setMerchantId(merchantId);
 			toSave.setDocNo(pancardDetails.get("doc_no"));
 			toSave.setFatherName(pancardDetails.get("father_name"));
 			toSave.setPersonName(pancardDetails.get("person_name"));

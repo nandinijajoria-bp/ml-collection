@@ -41,7 +41,7 @@ public class SaveAddressProofDetailsService {
 		DocKycDetails toSave = new DocKycDetails();
 		if(docKycDetails != null) {
 			toSave.setId(docKycDetails.getId());
-			toSave.setDocId(docKycDetails.getDocId());
+//			toSave.setDocId(docKycDetails.getDocId());
 			toSave.setQr(docKycDetails.getQr());
 			toSave.setGender(docKycDetails.getGender());
 			toSave.setMotherName(docKycDetails.getMotherName());
@@ -50,9 +50,9 @@ public class SaveAddressProofDetailsService {
 			toSave.setStatus(docKycDetails.getStatus());
 		}else {
 			Long docId = documentsIdProofDao.fetchLatestAddressProofDocId(merchantId, applicationId, "LENDING");
-			toSave.setDocId(docId);
+//			toSave.setDocId(docId);
 		}
-		toSave.setMerchantId(merchantId);
+//		toSave.setMerchantId(merchantId);
 		toSave.setDocNo(addressProofDetails.get("doc_no"));
 		toSave.setFatherName(addressProofDetails.get("father_name"));
 		toSave.setPersonName(addressProofDetails.get("person_name"));

@@ -274,9 +274,9 @@ public class VerifyApplicationKarzaStatusService {
 		docAuthenticationDao.updateDeletedAt(new Date(), docId, merchantId);
 		
 		DocAuthentication docAuthToInsert = new DocAuthentication();
-		docAuthToInsert.setDocId(docId);
-		docAuthToInsert.setDocKycDetailsId(docKycId);
-		docAuthToInsert.setMerchantId(merchantId);
+//		docAuthToInsert.setDocId(docId);
+//		docAuthToInsert.setDocKycDetailsId(docKycId);
+//		docAuthToInsert.setMerchantId(merchantId);
 		docAuthToInsert.setDocType("pancard");
 		docAuthToInsert.setStatus("FAILED");
 		docAuthToInsert.setFullResponse(response);
@@ -292,8 +292,8 @@ public class VerifyApplicationKarzaStatusService {
 		
 		if(docKycDetails == null) {
 			DocKycDetails kycDetailsToSave = new DocKycDetails();
-			kycDetailsToSave.setMerchantId(merchantId);
-			kycDetailsToSave.setDocId(docId);
+//			kycDetailsToSave.setMerchantId(merchantId);
+//			kycDetailsToSave.setDocId(docId);
 			kycDetailsToSave.setDocType(docType);
 			kycDetailsToSave.setResponse(response);
 			docKycDetailsDao.save(kycDetailsToSave);
@@ -333,8 +333,8 @@ public class VerifyApplicationKarzaStatusService {
 		doi = details.get("dateOfIssue").get("value");
 		docKycDetails.setFatherName(details.get("father").get("value"));
 		docKycDetails.setDocType("pancard");
-		docKycDetails.setDocId(docId);
-		docKycDetails.setMerchantId(merchantId);
+//		docKycDetails.setDocId(docId);
+//		docKycDetails.setMerchantId(merchantId);
 		
 		Date initDate;
 		try {
@@ -383,9 +383,9 @@ public class VerifyApplicationKarzaStatusService {
 				docAuthenticationDao.updateDeletedAt(new Date(), docId, merchantId);
 				
 				DocAuthentication docAuthToSave = new DocAuthentication();
-				docAuthToSave.setDocId(docId);
-				docAuthToSave.setDocKycDetailsId(docKycId);
-				docAuthToSave.setMerchantId(merchantId);
+//				docAuthToSave.setDocId(docId);
+//				docAuthToSave.setDocKycDetailsId(docKycId);
+//				docAuthToSave.setMerchantId(merchantId);
 				docAuthToSave.setDocType("pancard");
 				docAuthToSave.setStatus(docStatus);
 				docAuthToSave.setFullResponse(panAuthResponse);
@@ -415,11 +415,11 @@ public class VerifyApplicationKarzaStatusService {
 		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetailsId(docKycId);
-		docAuthentication.setMerchantId(merchantId);
-		docAuthentication.setDocType("pancard");
-		docAuthentication.setFullResponse(response);
-		docAuthentication.setDocId(docId);
+//		docAuthentication.setDocKycDetailsId(docKycId);
+//		docAuthentication.setMerchantId(merchantId);
+//		docAuthentication.setDocType("pancard");
+//		docAuthentication.setFullResponse(response);
+//		docAuthentication.setDocId(docId);
 		docAuthentication.setCreatedAt(new Date());
 		docAuthentication.setUpdatedAt(new Date());
 		
