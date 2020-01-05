@@ -2,6 +2,9 @@ package com.bharatpe.lending.controller;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
+import com.bharatpe.lending.dto.LendingApplicationResponse;
+import com.bharatpe.lending.dto.RequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.service.LendingUploadService;
+import com.bharatpe.lending.service.LendingApplicationService;
 
 @RestController
 @RequestMapping("lending")
@@ -21,15 +23,13 @@ public class LendingUploadController {
 	Logger logger = LoggerFactory.getLogger(LendingUploadController.class);
 	
 	@Autowired
-	LendingUploadService lendingUplaodService;
+	LendingApplicationService lendingApplicationService;
 	
-	@RequestMapping(value="/lendingUpload", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object lendingUpload(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("lendingUpload request : {}",commonAPIRequest);
-		
-		Object resp = lendingUplaodService.uploadLoanDetails(merchant, response, commonAPIRequest);
-		
-		logger.info("lendingUpload response : {}", resp);
+	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public LendingApplicationResponse lendingUpload(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+		logger.info("Create Application request : {}",requestDTO);
+		LendingApplicationResponse resp = lendingApplicationService.createApplication(merchant, response, requestDTO);
+		logger.info("Create Application response : {}", resp);
 		return resp;
 	}
 }
