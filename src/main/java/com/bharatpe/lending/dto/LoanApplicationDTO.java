@@ -28,7 +28,8 @@ public class LoanApplicationDTO {
 	
 	@JsonProperty(value = "agreement")
 	private String agreement = "";
-	
+
+	@JsonProperty(value = "reapply")
 	private boolean showReapply;
 
 	public ShopDetailsDTO getShopDetails() {
