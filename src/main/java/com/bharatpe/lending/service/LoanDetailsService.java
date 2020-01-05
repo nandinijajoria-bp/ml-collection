@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.bharatpe.common.dao.AvailableLoanDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
@@ -23,6 +25,7 @@ import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.BankList;
 import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
@@ -33,18 +36,21 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.AgentDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
+import com.bharatpe.common.enums.Loan.Status;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 
 @Service
 public class LoanDetailsService {
 	private Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
+	
 	List<String> validAgentCities = Arrays.asList("Bangalore","Hyderabad","Pune","Delhi","Noida","Gurgaon","Mumbai");
 	List<String> validDIYCities = Arrays.asList("Bengaluru","Pune","Delhi","Noida","Gurgaon","Faridabad","Ghaziabad","Thane","Mumbai","Hyderabad");
 	
@@ -83,52 +89,89 @@ public class LoanDetailsService {
 	
 	@Autowired
 	MerchantAddressDao merchantAddressDao;
+	
+	@Autowired
+	LendingAuditTrialDao lendingAuditTrialDao;
 
 	public Map<String, Object> fetchLoanDetails(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> resp;
 		List<Map<String, Object>> eligibility = new ArrayList<>();
 		Map<String, Object> details = new LinkedHashMap<>();
-		Boolean eligibleFlag = false;
+		boolean eligibleFlag = true;
 		
-		Long merchantId = merchant.getId();
+		List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingApplicationDao.findByMerchant(merchant);
 		
-		if(isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) {
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
-			
-			if(merchantBankDetail != null) {
-				Boolean isPaymentBankFlag = isPaymentBank(merchantBankDetail);
-				MerchantSummary merchantSummary = merchantSummaryDao.fetchActiveMerchantLoan(merchantId);
-				
-				if(merchantSummary != null) {
-					
-					//checkLastPaymentSchedule(merchantId);
-					eligibility = fetchEligibleLoans(merchantSummary.getLoanType(), merchantId, eligibility, isPaymentBankFlag);
-					
-					String toBeEligibleLoanType = "FIRST_TO_BE_ELIGIBLE";
-					if(merchantSummary.getLoanType().equals("SUBSEQUENT")) {
-						toBeEligibleLoanType = "SUBSEQUENT_TO_BE_ELIGIBLE";
-					}
-					eligibility = fetchEligibleLoans(toBeEligibleLoanType, merchantId, eligibility, isPaymentBankFlag);
-					
-					if(eligibility.size() > 0) {
-						eligibleFlag = true;
-					}
-					
-					details = fetchLoanHistory(merchantId);
-				} else {
-					logger.error("Merchant summary not found for Merchant ID {}", merchant.getId());
-				}
-			} else {
-				logger.error("No bank detail found for Merchant ID {}", merchant.getId());
+		for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
+			if(Status.ACTIVE.toString().equals(lendingPaymentSchedule.getStatus())) {
+				eligibleFlag = false;
 			}
-		}else {
-			logger.info("LoanDetails No valid merchant for merchantId : {}", merchantId);
-		}	
+		}
+		
+		LendingApplication lendingApplication = lendingApplicationDao.fetchLatestOpenApplication(merchant.getId());
+		if(lendingApplication != null) {
+			if("rejected".equals(lendingApplication.getStatus())) {
+				if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(lendingApplication, 7) ) {
+					eligibleFlag = false;
+				}
+			} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+				eligibleFlag = false;
+			}
+		}
+		
+		
+		if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant)) {
+
+			MerchantSummary merchantSummary = merchantSummaryDao.fetchActiveMerchantLoan(merchant.getId());
+
+			if (merchantSummary != null) {
+
+				eligibility = fetchEligibleLoans(merchantSummary.getLoanType(), merchant.getId(), eligibility);
+
+				String toBeEligibleLoanType = "FIRST_TO_BE_ELIGIBLE";
+				if (merchantSummary.getLoanType().equals("SUBSEQUENT")) {
+					toBeEligibleLoanType = "SUBSEQUENT_TO_BE_ELIGIBLE";
+				}
+				eligibility = fetchEligibleLoans(toBeEligibleLoanType, merchant.getId(), eligibility);
+
+				if (eligibility.size() > 0) {
+					eligibleFlag = true;
+				}
+
+				
+			} else {
+				logger.error("Merchant summary not found for Merchant ID {}", merchant.getId());
+			}
+		} else {
+			logger.error("No bank detail found for Merchant ID {}", merchant.getId());
+		}
 		resp = prepareResponse(eligibility, details, eligibleFlag);
 		
 		return resp;
 	}
 	
+	private boolean rejectedInLastNDays(LendingApplication lendingApplication, int nDays) {
+		try {
+			LendingAuditTrial auditTrial = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchantId(), lendingApplication.getApplicationId(), "REJECTED");
+			
+			if(auditTrial == null) {
+				logger.info("Audot trial if null for merchant id {}, application id {} and new status {}", lendingApplication.getMerchantId(), lendingApplication.getApplicationId(), "REJECTED");
+				return false;
+			}
+			
+			Date rejectedTimestamp = auditTrial.getCreatedAt();
+			Date nDaysBeforeTimestamp = new Date(System.currentTimeMillis() - Long.valueOf(nDays) * 24 * 3600 * 1000);
+			
+			if(rejectedTimestamp.compareTo(nDaysBeforeTimestamp) > 0) {
+				logger.info("Application with id {} has been rejected in last {} days", lendingApplication.getApplicationId(), nDays);
+				return true;
+			}
+		} catch(Exception ex) {
+			logger.error("Exception while checking if rejected in n days for application id {}, Exception is {}", lendingApplication.getApplicationId(), ex);
+		}
+		
+		return false;
+	}
+
 	private Boolean isValidFOSMerchant(String referalCode) {
 		Boolean responseFlag = false;
 		
@@ -171,16 +214,7 @@ public class LoanDetailsService {
 	private Boolean isPaymentBank(MerchantBankDetail merchantBankDetail) {
 		Boolean flag = true;
 		
-		String ifsc = merchantBankDetail.getIfscCode();
-		if(ifsc != null || ifsc != "") {
-			ifsc = ifsc.substring(0,4);
-			
-			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(ifsc);
-			
-			if(nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
-				flag = false;
-			}
-		}
+		
 		
 		return flag;
 	}
@@ -205,7 +239,7 @@ public class LoanDetailsService {
 //		return previousLoanDetails;
 //	}
 	
-	private List<Map<String, Object>> fetchEligibleLoans(String loanType, Long merchantId, List<Map<String, Object>> eligibility, Boolean isPaymentBank) {
+	private List<Map<String, Object>> fetchEligibleLoans(String loanType, Long merchantId, List<Map<String, Object>> eligibility) {
 		
 		List<AvailableLoan> availableLoanList = null;
 		
@@ -229,10 +263,6 @@ public class LoanDetailsService {
 		
 		List<LendingCategories> lendingCategoriesList = (List<LendingCategories>) lendingCategoryDao.findByStatus(GeneralStatus.ACTIVE.toString());
 		for(AvailableLoan availableLoan : availableLoanList) {
-			if(isPaymentBank && availableLoan.getAmount() != 5000) {
-				logger.info("Skipping current loan as loan amount > 5000 and is Paymant Bank.");
-				continue;
-			}
 			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
 			if(lendingCategoryDetail != null) {
 				Map<String, Object> elegibleLoan = new LinkedHashMap<>();
@@ -507,7 +537,31 @@ public class LoanDetailsService {
 		return loanApplication;
 	}
 	
-	public static void main(String[] args) {
-		
+	private boolean isPaymentBank(Merchant merchant) {
+		try {
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			
+			if(merchantBankDetail == null) {
+				logger.error("No merchnat bank detail found for merchant id {}", merchant.getId());
+				return true;
+			}
+			
+			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
+				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
+				return true;
+			}
+			
+			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(merchantBankDetail.getIfscCode().substring(0,4));
+				
+			if (nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
+				return false;
+			} else {
+				logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfscCode());
+				return true;
+			}
+		} catch(Exception ex) {
+			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
+		}
+		return true;
 	}
 }
