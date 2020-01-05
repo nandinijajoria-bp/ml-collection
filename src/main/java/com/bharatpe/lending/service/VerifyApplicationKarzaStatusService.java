@@ -288,8 +288,8 @@ public class VerifyApplicationKarzaStatusService {
 	private Long saveAddressProofLogData(String response, String docType, Long docId, Long merchantId) {
 		Long docKycId = null;
 		
-		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, docType, docId);
-		
+//		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, docType, docId);
+		DocKycDetails docKycDetails = null;
 		if(docKycDetails == null) {
 			DocKycDetails kycDetailsToSave = new DocKycDetails();
 //			kycDetailsToSave.setMerchantId(merchantId);
@@ -325,8 +325,8 @@ public class VerifyApplicationKarzaStatusService {
 		
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		Map<String, Map<String, String>> details = (Map<String, Map<String, String>>) result.get(0).get("details");
-		
-		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, "pancard", docId);
+		DocKycDetails docKycDetails = null;
+//		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, "pancard", docId);
 		docKycDetails.setDocNo(details.get("panNo").get("value"));
 		dob = details.get("date").get("value");
 		docKycDetails.setPersonName(details.get("name").get("value"));

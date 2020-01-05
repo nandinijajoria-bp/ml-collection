@@ -241,8 +241,8 @@ public class UpdateLoanInfoFromPanelService {
 	
 	private void saveKarzaKycFailedResponse (String proofType, Long docId, String response, Long merchantId) {
 		Long docKycId = null;
-		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, proofType, docId);
-		
+//		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, proofType, docId);
+		DocKycDetails docKycDetails =null;
 		if(docKycDetails != null) {
 			docKycDetails.setResponse(response);
 			docKycDetailsDao.save(docKycDetails);
@@ -452,7 +452,8 @@ public class UpdateLoanInfoFromPanelService {
 			DateFormat df = new SimpleDateFormat("dMMY");
 			String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getId();
 			
-			DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndModule(merchantId, "LENDING");
+			DocKycDetails docKycDetails = null;
+//			DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndModule(merchantId, "LENDING");
 			String status = null;
 			
 			//query for details
