@@ -197,11 +197,6 @@ public class SignAgreementService {
 				lendingAuditTrial.setType("APP_STATUS");
 				lendingAuditTrialDao.save(lendingAuditTrial);
 				
-				TmpLoanGenerate tmpLoanGenerate = new TmpLoanGenerate();
-				tmpLoanGenerate.setMerchantId(merchantId);
-				tmpLoanGenerate.setMaxLoanAmount(Double.valueOf(breakup.getLoanAmount()));
-				tmpLoanGenerate.setApplicationId(newApplication.getApplicationId());
-				
 				if("AUTO".equals(prevApplication.getMode())) {
 					replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId(), merchantId, latitude, longitude, ip);
 				} else {

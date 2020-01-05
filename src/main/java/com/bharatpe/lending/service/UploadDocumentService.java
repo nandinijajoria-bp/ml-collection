@@ -8,6 +8,8 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.amazonaws.services.dynamodbv2.xspec.M;
+import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,119 +62,97 @@ public class UploadDocumentService {
 	@Autowired
 	KarzaHandler karzaHandler;
 
-	public Map<String, Object> runService(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public UploadDocumentResponse uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequest> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
-		List<Map<String, Object>> documentList = new ArrayList<Map<String, Object>>();
-		finalResponse.put("success", false);
-		
-		Long merchantId = merchant.getId();
-		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-		String latitude = commonAPIRequest.getMeta().getLatitude();
-		String longitude = commonAPIRequest.getMeta().getLongitude();
-		String ip = commonAPIRequest.getMeta().getIp();
-		
-		List<Map<String, Object>> documents = (List<Map<String, Object>>) commonAPIRequest.getPayload().get("documents");
-		
-		
-		if(applicationId != null) {
-			String dbOperation = "";
-			List<DocumentsIdProof> documentsIdProofList = documentsIdProofdao.findByMerchantIdAndApplicationId(merchantId, applicationId);
-			if(documentsIdProofList.size() > 0) {
-				dbOperation = "update";
-			}else {
-				dbOperation = "insert";
-			}
-			documentList = processAndUploadDocuments(documents, dbOperation, merchantId, applicationId, latitude, longitude, ip);
-			finalResponse.put("selected_loan", LoanUtil.prepareSelectedLoanForClient(lendingApplicationDao.findByApplicationId(applicationId)));
-		}else {
-			logger.info("UploadDocumentService No application Id for merchant : {}", merchantId);
-			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+		UploadDocumentResponse uploadDocumentResponse = new UploadDocumentResponse();
+		uploadDocumentResponse.setSuccess(false);
+		UploadDocumentRequest uploadDocumentRequest = requestDTO.getPayload();
+		Long applicationId =  uploadDocumentRequest.getApplicationId();
+		if(applicationId == null || applicationId <= 0) {
+			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
+			return uploadDocumentResponse;
 		}
-		
+
+		List<UploadDocumentRequest.Document> documents = uploadDocumentRequest.getDocuments();
+
+		Boolean isUpdate = false;
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofdao.findByMerchantIdAndApplicationId(merchant.getId(), applicationId);
+		if(documentsIdProofList.size() > 0) {
+			isUpdate = true;
+		}
+		List<UploadDocumentResponse.Document> documentList = processAndUploadDocuments(documents, isUpdate, merchant, applicationId, requestDTO.getMeta(), uploadDocumentResponse);
+
 		if(documentList.size() > 0) {
 			finalResponse.put("success", true);
+			uploadDocumentResponse.setSuccess(true);
 		}
-		finalResponse.put("document", documentList);
-		
-		return finalResponse;
+		uploadDocumentResponse.setDocument(documentList);
+		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplicationDao.findByApplicationId(applicationId)));
+		return uploadDocumentResponse;
 	}
 	
-	private List<Map<String, Object>> processAndUploadDocuments(List<Map<String, Object>> documents, String dbOperation, Long merchantId, Long applicationId, String latitude, String longitude, String ip) {
-		List<Map<String, Object>> documentList = new ArrayList<Map<String, Object>>();
-		if(documents.size() > 0) {
-			for(Map<String, Object> document : documents) {
-				Map<String, Object> documentResponse = new LinkedHashMap<>();
-				Long documentIdProofId = null;
-				int changeFlag = (int) document.get("change_flag");
-				String proofType = (String) document.get("proof_type");
-				int singlePageDocument = ((Boolean) document.get("single_page_document") == true) ? 1 : 0;
-				List<String> proof = (List<String>) document.get("proof");
-				Map<String, String> proofSides = new LinkedHashMap<>();
-				
-				if(dbOperation.equals("update")) {
-					if(changeFlag == 1) {
-						proofSides = processAndUploadProof(proof, merchantId);
-					}else {
-						proofSides.put("frontSide", "");
-						proofSides.put("backSide", "");
-					}
-				}else {
-					proofSides = processAndUploadProof(proof, merchantId);
-				}
-				
-				String frontSide = proofSides.get("frontSide");
-				String backSide = proofSides.get("backSide");
-				
-				if((!frontSide.isEmpty() && !backSide.isEmpty()) || !frontSide.isEmpty()) {
-					if(dbOperation.equals("insert")) {
-						documentIdProofId = insertDocumentIdProof(proofType, frontSide, backSide, "pending_verification", singlePageDocument, merchantId, applicationId, latitude, longitude, ip);
-					}else {
-						documentIdProofId = updateDocumentIdProof(proofType, frontSide, backSide, "pending_verification", singlePageDocument, merchantId, applicationId, latitude, longitude, ip);
-					}
-					
-					if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("votercard") || proofType.equals("passport")) {
-						karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentIdProofId, merchantId, applicationId);
-					}
-				}
-				if(documentIdProofId != null) {
-					documentResponse.put("proof_id", documentIdProofId);
-					documentResponse.put("proof_type", proofType);
-					documentResponse.put("single_page_document", singlePageDocument);
-					documentList.add(documentResponse);
-				}
+	private List<UploadDocumentResponse.Document> processAndUploadDocuments(List<UploadDocumentRequest.Document> documents, Boolean isUpdate, Merchant merchant, Long applicationId, Meta meta, UploadDocumentResponse uploadDocumentResponse) {
+		List<UploadDocumentResponse.Document> documentList = new ArrayList<>();
+
+		for(UploadDocumentRequest.Document document : documents) {
+			if(isUpdate && document.getChangeFlag() != 1) {
+				continue;
 			}
+
+			String proofType = document.getProofType();
+			int singlePageDocument = document.getSinglePageDocument() ? 1 : 0;
+
+			Map<String, String>	proofSides = processAndUploadProof(document.getProof(), merchant);
+
+			String frontSide = proofSides.get("frontSide");
+			String backSide = proofSides.get("backSide");
+
+			DocumentsIdProof documentsIdProof = null;
+			if(isUpdate) {
+				documentsIdProof = updateDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, applicationId, meta);
+			} else {
+				documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, applicationId, meta);
+			}
+
+			if(documentsIdProof != null) {
+				UploadDocumentResponse.Document documentResponse = uploadDocumentResponse.new Document();
+				documentResponse.setProofId(documentsIdProof.getId());
+				documentResponse.setProofType(proofType);
+				documentResponse.setSinglePageDocument(singlePageDocument);
+				documentList.add(documentResponse);
+			}
+			karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof.getId(), merchant, applicationId);
 		}
 		return documentList;
 	}
 	
-	private Map<String, String> processAndUploadProof(List<String> proof, Long merchantId) {
-		int docSide = 1;
+	private Map<String, String> processAndUploadProof(List<String> proof, Merchant merchant) {
+		boolean frontSide = true;
 		Map<String, String> proofSides = new LinkedHashMap<>();
 		proofSides.put("frontSide", "");
 		proofSides.put("backSide", "");
 		
 		for(String base64Encoded : proof) {
 			if(!base64Encoded.isEmpty()) {
-				
 				base64Encoded = processBase64String(base64Encoded);
 				
-				if(docSide == 1) {//front side
+				if(frontSide) {
 					Instant start = Instant.now();
-					String frontSide = s3BucketHandler.uploadToS3Bucket(base64Encoded, merchantId);
+					String frontUrl = s3BucketHandler.uploadToS3Bucket(base64Encoded, merchant.getId());
 					Instant end = Instant.now();
 					logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
-					proofSides.put("frontSide", frontSide);
-				}else {//back side
+					proofSides.put("frontSide", frontUrl);
+					frontSide = false;
+				}else {
 					Instant start = Instant.now();
-					String backSide = s3BucketHandler.uploadToS3Bucket(base64Encoded, merchantId);
+					String backUrl = s3BucketHandler.uploadToS3Bucket(base64Encoded, merchant.getId());
 					Instant end = Instant.now();
 					logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
-					proofSides.put("backSide", backSide);
+					proofSides.put("backSide", backUrl);
 				}
-				docSide++;
+
 			}
 		}
-		
 		return proofSides;
 	}
 	
@@ -185,46 +165,43 @@ public class UploadDocumentService {
 		return base64EncodedString;
 	}
 	
-	private Long insertDocumentIdProof(String proofType, String frontSide, String backSide, String status, int singlePageDocument, Long merchantId, Long applicationId, String latitude, String longitude, String ip) {
+	private DocumentsIdProof insertDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, Long applicationId, Meta meta) {
 		DocumentsIdProof documentsIdProof = new DocumentsIdProof();
-		documentsIdProof.setMerchantId(merchantId);
+		documentsIdProof.setMerchantId(merchant.getId());
 		documentsIdProof.setApplicationId(applicationId);
 		documentsIdProof.setProofType(proofType);
 		documentsIdProof.setProofFrontSide(frontSide);
 		documentsIdProof.setProofBackSide(backSide);
-		documentsIdProof.setStatus(status);
+		documentsIdProof.setStatus("pending_verification");
 		documentsIdProof.setSinglePage(singlePageDocument);
-		documentsIdProof.setLatitude(latitude);
-		documentsIdProof.setLongitude(longitude);
-		documentsIdProof.setIp(ip);
+		documentsIdProof.setLatitude(meta.getLatitude());
+		documentsIdProof.setLongitude(meta.getLongitude());
+		documentsIdProof.setIp(meta.getIp());
 		documentsIdProofdao.save(documentsIdProof);
-		return documentsIdProof.getId();
+		return documentsIdProof;
 	}
 	
-	private Long updateDocumentIdProof(String proofType, String frontSide, String backSide, String status, int singlePageDocument, Long merchantId, Long applicationId, String latitude, String longitude, String ip) {
-		Long id = null;
-		
-		if(backSide.isEmpty()) {
-			backSide = null;
-		}
-		int updateId = documentsIdProofdao.updateDocSides(frontSide, backSide, singlePageDocument, latitude, longitude, ip, merchantId, applicationId, proofType);
+	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, Long applicationId, Meta meta) {
+		int updateId = documentsIdProofdao.updateDocSides(frontSide, backSide, singlePageDocument, meta.getLatitude(), meta.getLongitude(), meta.getIp(), merchant.getId(), applicationId, proofType);
 
 		if(updateId > 0) {
-			DocumentsIdProof documentsIdProof = documentsIdProofdao.findByMerchantIdAndApplicationIdAndProofType(merchantId, applicationId, proofType);
-			id = documentsIdProof.getId();
+			return documentsIdProofdao.findByMerchantIdAndApplicationIdAndProofType(merchant.getId(), applicationId, proofType);
 		}
-
-		return id;
+		return null;
 	}
 	
-	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, Long documentId, Long merchantId, Long applicationId) {
-		kycUsingKarzaAPI(proofType, frontSide, documentId, merchantId, applicationId);
-		if(singlePageDocument == 0) {
-			kycUsingKarzaAPI(proofType, backSide, documentId, merchantId, applicationId);
+	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, Long documentId, Merchant merchant, Long applicationId) {
+		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("votercard") || proofType.equals("passport")) {
+			Runnable runnable = () -> {
+				kycUsingKarzaAPI(proofType, frontSide, documentId, merchant, applicationId);
+				if (singlePageDocument == 0) {
+					kycUsingKarzaAPI(proofType, backSide, documentId, merchant, applicationId);
+				}
+			};
 		}
 	}
 	
-	private void kycUsingKarzaAPI(String proofType, String fileName, Long documentId, Long merchantId, Long applicationId) {
+	private void kycUsingKarzaAPI(String proofType, String fileName, Long documentId, Merchant merchant, Long applicationId) {
 		try {
 			Instant start = Instant.now();
 			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
@@ -241,10 +218,10 @@ public class UploadDocumentService {
 	    	        Integer status = (Integer) responseMap.get("statusCode");
 					
 					if(status == 101) {
-						Long insertId = processAndSaveKycResponse(response, proofType, documentId, merchantId);
+						Long insertId = processAndSaveKycResponse(response, proofType, documentId, merchant);
 						if(proofType.equals("pancard")) {
 							start = Instant.now();
-							pancardAuthenticationUsingKarzaAPI(responseMap, insertId, documentId, merchantId, applicationId);
+							pancardAuthenticationUsingKarzaAPI(responseMap, insertId, documentId, merchant, applicationId);
 							end = Instant.now();
 							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
 						}
@@ -267,7 +244,7 @@ public class UploadDocumentService {
 		}
 	}
 	
-	private Long processAndSaveKycResponse(String responseString, String proofType, Long documentId, Long merchantId) {
+	private Long processAndSaveKycResponse(String responseString, String proofType, Long documentId, Merchant merchant) {
 		Long docKycDetailsInsertId = null;
 		ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> response = null;
@@ -287,7 +264,7 @@ public class UploadDocumentService {
 			String doi = "";
 			DocKycDetails docKycDetails = new DocKycDetails();
 			docKycDetails.setDocId(documentId);
-			docKycDetails.setMerchantId(merchantId);
+			docKycDetails.setMerchantId(merchant.getId());
 			docKycDetails.setCreatedAt(new Date());
 			docKycDetails.setUpdatedAt(new Date());
 			docKycDetails.setModule("LENDING");
@@ -371,7 +348,7 @@ public class UploadDocumentService {
 		return docKycDetailsInsertId;
 	}
 	
-	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
+	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, Long insertId, Long documentId, Merchant merchant, Long applicationId) {
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		
 		if(result != null && result.size() > 0) {
@@ -382,14 +359,14 @@ public class UploadDocumentService {
 			
 			String curlResponse = karzaHandler.curlKarzaPanAuthenticationAPI(panNumber, name, dob);
 			if(!curlResponse.isEmpty()) {
-				processAndSavePanAuthenticationResponse(curlResponse, insertId, documentId, merchantId, applicationId);
+				processAndSavePanAuthenticationResponse(curlResponse, insertId, documentId, merchant, applicationId);
 			}else {
 				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
 			}
 		}
 	}
 	
-	private void processAndSavePanAuthenticationResponse(String response, Long insertId, Long documentId, Long merchantId, Long applicationId) {
+	private void processAndSavePanAuthenticationResponse(String response, Long insertId, Long documentId, Merchant merchant, Long applicationId) {
 		ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> responseMap = null;
 		try {
@@ -405,7 +382,7 @@ public class UploadDocumentService {
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
 		docAuthentication.setDocKycDetailsId(insertId);
-		docAuthentication.setMerchantId(merchantId);
+		docAuthentication.setMerchantId(merchant.getId());
 		docAuthentication.setDocType("pancard");
 		docAuthentication.setFullResponse(response);
 		docAuthentication.setDocId(documentId);

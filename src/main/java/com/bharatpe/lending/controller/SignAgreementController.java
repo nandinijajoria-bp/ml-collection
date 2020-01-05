@@ -1,5 +1,8 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.common.constants.ResponseCode;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.service.SignAgreementService;
+
+import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("lending")
@@ -20,8 +24,49 @@ public class SignAgreementController {
 	Logger logger = LoggerFactory.getLogger(SignAgreementController.class);
 
 	@Autowired
+	LendingApplicationService lendingApplicationService;
+
+	@Autowired
+	UploadDocumentService uploadDocumentService;
+
+	@Autowired
 	SignAgreementService signAgreementService;
-	
+
+	@Autowired
+	VerifyOTPService verifyOTPService;
+
+	@Autowired
+	CancelApplicationService cancelApplicationService;
+
+	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public LendingApplicationResponse lendingUpload(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequest> requestDTO) {
+		logger.info("Create Application request : {}",requestDTO);
+		if(requestDTO.getPayload() == null) {
+			logger.info("Invalid request parameters : {}", requestDTO);
+			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+			return null;
+		}
+		requestDTO.getMeta().setIp(clientIp);
+		LendingApplicationResponse lendingApplicationResponse = lendingApplicationService.createApplication(merchant, requestDTO);
+		logger.info("Create Application response : {}", lendingApplicationResponse);
+		return lendingApplicationResponse;
+	}
+
+	@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public UploadDocumentResponse uploadDocument(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequest> requestDTO) {
+		logger.info("UploadDocument request : {}",requestDTO);
+		if(requestDTO.getPayload() == null) {
+			logger.info("Invalid request parameters : {}", requestDTO);
+			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+			return null;
+		}
+		requestDTO.getMeta().setIp(clientIp);
+		UploadDocumentResponse uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO);
+
+		logger.info("UploadDocument response : {}", uploadDocumentResponse);
+		return uploadDocumentResponse;
+	}
+
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("singAgreement request : {}",commonAPIRequest);
@@ -29,6 +74,26 @@ public class SignAgreementController {
 		Object resp = signAgreementService.signAgreement(merchant, commonAPIRequest);
 		
 		logger.info("signAgreement response : {}", resp);
+		return resp;
+	}
+
+	@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public Object verifyOTP(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
+		logger.info("verifyOTP request : {}",commonAPIRequest);
+
+		Object resp = verifyOTPService.verifyOTP(merchant, commonAPIRequest);
+
+		logger.info("verifyOTP response : {}", resp);
+		return resp;
+	}
+
+	@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		logger.info("cancelApplication request : {}",commonAPIRequest);
+
+		Object resp = cancelApplicationService.cancleApplication(merchant, response, commonAPIRequest);
+
+		logger.info("cancelApplication response : {}", resp);
 		return resp;
 	}
 }

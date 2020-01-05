@@ -2,7 +2,7 @@ package com.bharatpe.lending.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class LendingApplicationRequestDTO {
+public class LendingApplicationRequest {
 
     @JsonProperty("application_id")
     private Long applicationId;
@@ -121,7 +121,7 @@ public class LendingApplicationRequestDTO {
 
     @Override
     public String toString() {
-        return "LendingApplicationRequestDTO{" +
+        return "LendingApplicationRequest{" +
                 "applicationId=" + applicationId +
                 ", category='" + category + '\'' +
                 ", mobile='" + mobile + '\'' +
