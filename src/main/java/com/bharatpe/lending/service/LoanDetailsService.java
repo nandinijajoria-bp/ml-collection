@@ -413,7 +413,7 @@ public class LoanDetailsService {
 	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
-		if(activeLoan == null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
+		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
 			LoanHistoryDTO history = new LoanHistoryDTO();
 
 			history.setId(application.getId());
