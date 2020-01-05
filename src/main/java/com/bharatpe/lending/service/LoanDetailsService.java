@@ -187,14 +187,17 @@ public class LoanDetailsService {
 			if(lendingApplication != null && "rejected".equals(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
 				loanApplicationDTO.setShowReapply(true);
 //				loanHistoryDTOs = null;
-				loanApplicationDTO = null;
+				loanApplicationDTO.setApplicationId(null);;
+			}
+			if((loanHistoryDTOs == null || loanHistoryDTOs.isEmpty()) && loanEligibilityDTOs.isEmpty()) {
+				eligibleFlag = false;	
 			}
 			
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 			loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 			loanDetailsDTO.setHistory(loanHistoryDTOs);
-			loanDetailsDTO.setLoanApplication(null);
-			loanDetailsDTO.setEligible(loanEligibilityDTOs.size() > 0 ? true : false);
+			loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+			loanDetailsDTO.setEligible(eligibleFlag);
 			
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
@@ -452,6 +455,7 @@ public class LoanDetailsService {
 
 	private LoanApplicationDTO fetchLoanApplication(Merchant merchant, LendingApplication application) {
 		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
+		
 	    if(application != null) {
 	        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application);
 	        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application);
@@ -464,6 +468,8 @@ public class LoanDetailsService {
 	        loanApplicationDTO.setApplicationStatus(application.getStatus());
 
 	    } else {
+	    	 loanApplicationDTO.setShopDetails(new ShopDetailsDTO());
+	        loanApplicationDTO.setSelectedLoan(new SelectedLoanDTO());
 	        logger.info("No open lending application found for merchant id {}", merchant.getId());
 	    }
 	    return loanApplicationDTO;
