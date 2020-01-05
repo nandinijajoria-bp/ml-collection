@@ -79,7 +79,9 @@ public class LoanUtil {
 		shopDetails.setStreetAddress(application.getStreetAddress());
 		shopDetails.setArea(application.getArea());
 		shopDetails.setLandmark(application.getLandmark());
-		shopDetails.setPincode(application.getPincode());
+		if(application.getPincode() != null) {
+			shopDetails.setPincode(application.getPincode().toString());
+		}
 		shopDetails.setCity(application.getCity());
 		shopDetails.setState(application.getState());
 		

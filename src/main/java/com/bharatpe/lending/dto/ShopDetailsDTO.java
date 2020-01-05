@@ -5,28 +5,28 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class ShopDetailsDTO {
 
 	@JsonProperty("business_name")
-	private String businessName;
+	private String businessName = "";
 	
 	@JsonProperty("shop_number")
-	private String shopNumber;
+	private String shopNumber = "";
 	
 	@JsonProperty("street_address")
-	private String streetAddress;
+	private String streetAddress = "";
 	
 	@JsonProperty("area")
-	private String area;
+	private String area = "";
 	
 	@JsonProperty("landmark")
-	private String landmark;
+	private String landmark = "";
 	
 	@JsonProperty("pincode")
-	private Long pincode;
+	private String pincode;
 	
 	@JsonProperty("city")
-	private String city;
+	private String city = "";
 	
 	@JsonProperty("state")
-	private String state;
+	private String state = "";
 
 	public String getBusinessName() {
 		return businessName;
@@ -68,11 +68,11 @@ public class ShopDetailsDTO {
 		this.landmark = landmark;
 	}
 
-	public Long getPincode() {
+	public String getPincode() {
 		return pincode;
 	}
 
-	public void setPincode(Long pincode) {
+	public void setPincode(String pincode) {
 		this.pincode = pincode;
 	}
 
