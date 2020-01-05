@@ -111,7 +111,7 @@ public class LoanDetailsService {
 		try {
 			boolean eligibleFlag = true;
 			
-			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingApplicationDao.findByMerchant(merchant);
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 
