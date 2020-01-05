@@ -132,7 +132,7 @@ public class UploadDocumentService {
 				documentResponse.setSinglePageDocument(singlePageDocument);
 				documentList.add(documentResponse);
 			}
-			karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof.getId(), merchant, lendingApplication);
+			karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
 		return documentList;
 	}
@@ -195,18 +195,18 @@ public class UploadDocumentService {
 		return documentsIdProof;
 	}
 
-	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, Long documentId, Merchant merchant, LendingApplication lendingApplication) {
+	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("votercard") || proofType.equals("passport")) {
 			new Thread(() -> {
-				kycUsingKarzaAPI(proofType, frontSide, documentId, merchant, lendingApplication);
+				kycUsingKarzaAPI(proofType, frontSide, documentsIdProof, merchant, lendingApplication);
 				if (singlePageDocument == 0) {
-					kycUsingKarzaAPI(proofType, backSide, documentId, merchant, lendingApplication);
+					kycUsingKarzaAPI(proofType, backSide, documentsIdProof, merchant, lendingApplication);
 				}
 			}).start();
 		}
 	}
 	
-	private void kycUsingKarzaAPI(String proofType, String fileName, Long documentId, Merchant merchant, LendingApplication lendingApplication) {
+	private void kycUsingKarzaAPI(String proofType, String fileName, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 		try {
 			Instant start = Instant.now();
 			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
@@ -223,20 +223,20 @@ public class UploadDocumentService {
 	    	        Integer status = (Integer) responseMap.get("statusCode");
 					
 					if(status == 101) {
-						Long insertId = processAndSaveKycResponse(response, proofType, documentId, merchant);
+						DocKycDetails docKycDetails = processAndSaveKycResponse(response, proofType, documentsIdProof, merchant);
 						if(proofType.equals("pancard")) {
 							start = Instant.now();
-							pancardAuthenticationUsingKarzaAPI(responseMap, insertId, documentId, merchant, lendingApplication);
+							pancardAuthenticationUsingKarzaAPI(responseMap, docKycDetails, documentsIdProof, merchant, lendingApplication);
 							end = Instant.now();
 							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
 						}
 					}else {
 						String requestId = (String) responseMap.get("requestId");
 						String failureResponse = (String) responseMap.get("error"); 
-						logger.info("UploadDocumentService karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",documentId, failureResponse, requestId);
+						logger.info("UploadDocumentService karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",documentsIdProof.getId(), failureResponse, requestId);
 					}
 				}else {
-					logger.info("UploadDocumentService karza kyc api failure with blank response for documentId : {}",documentId);
+					logger.info("UploadDocumentService karza kyc api failure with blank response for documentId : {}",documentsIdProof.getId());
 				}
 			}else {
 				logger.info("UploadDocumentService blank tempURL from S3 bucket for key : {}",fileName);
@@ -249,8 +249,7 @@ public class UploadDocumentService {
 		}
 	}
 	
-	private Long processAndSaveKycResponse(String responseString, String proofType, Long documentId, Merchant merchant) {
-		Long docKycDetailsInsertId = null;
+	private DocKycDetails processAndSaveKycResponse(String responseString, String proofType, DocumentsIdProof documentsIdProof, Merchant merchant) {
 		ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> response = null;
 		try {
@@ -268,8 +267,8 @@ public class UploadDocumentService {
 			String dob = "";
 			String doi = "";
 			DocKycDetails docKycDetails = new DocKycDetails();
-			docKycDetails.setDocId(documentId);
-			docKycDetails.setMerchantId(merchant.getId());
+			docKycDetails.setDocumentsIdProof(documentsIdProof);
+			docKycDetails.setMerchant(merchant);
 			docKycDetails.setCreatedAt(new Date());
 			docKycDetails.setUpdatedAt(new Date());
 			docKycDetails.setModule("LENDING");
@@ -348,12 +347,12 @@ public class UploadDocumentService {
 				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
 			}
 			docKycDetailsDao.save(docKycDetails);
-			docKycDetailsInsertId = docKycDetails.getId();
+			return docKycDetails;
 		}
-		return docKycDetailsInsertId;
+		return null;
 	}
 	
-	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, Long insertId, Long documentId, Merchant merchant, LendingApplication lendingApplication) {
+	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		
 		if(result != null && result.size() > 0) {
@@ -364,14 +363,14 @@ public class UploadDocumentService {
 			
 			String curlResponse = karzaHandler.curlKarzaPanAuthenticationAPI(panNumber, name, dob);
 			if(!curlResponse.isEmpty()) {
-				processAndSavePanAuthenticationResponse(curlResponse, insertId, documentId, merchant, lendingApplication);
+				processAndSavePanAuthenticationResponse(curlResponse, docKycDetails, documentsIdProof, merchant, lendingApplication);
 			}else {
 				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
 			}
 		}
 	}
 	
-	private void processAndSavePanAuthenticationResponse(String response, Long insertId, Long documentId, Merchant merchant, LendingApplication lendingApplication) {
+	private void processAndSavePanAuthenticationResponse(String response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 		ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> responseMap = null;
 		try {
@@ -386,11 +385,11 @@ public class UploadDocumentService {
 		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetailsId(insertId);
-		docAuthentication.setMerchantId(merchant.getId());
+		docAuthentication.setDocKycDetails(docKycDetails);
+		docAuthentication.setMerchant(merchant);
 		docAuthentication.setDocType("pancard");
 		docAuthentication.setFullResponse(response);
-		docAuthentication.setDocId(documentId);
+		docAuthentication.setDocumentsIdProof(documentsIdProof);
 		docAuthentication.setCreatedAt(new Date());
 		docAuthentication.setUpdatedAt(new Date());
 		
