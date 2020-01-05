@@ -1,5 +1,26 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.PushNotificationHandler;
+import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.SettlementScheduleDao;
+import com.bharatpe.lending.handlers.KarzaHandler;
+import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.DateFormat;
@@ -9,49 +30,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import com.bharatpe.common.dao.DocAuthenticationDao;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.LoanDetailsDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.dao.MerchantFcmTokenDao;
-import com.bharatpe.common.entities.DocAuthentication;
-import com.bharatpe.common.entities.DocKycDetails;
-import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.LoanDetails;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantFcmToken;
-import com.bharatpe.common.entities.SettlementSchedule;
-import com.bharatpe.common.enums.NotificationProvider;
-import com.bharatpe.common.handlers.PushNotificationHandler;
-import com.bharatpe.common.handlers.SmsServiceHandler;
-import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.SettlementScheduleDao;
-import com.bharatpe.lending.dao.ValidateDao;
-import com.bharatpe.lending.handlers.KarzaHandler;
-import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.*;
 
 @Service
 public class UpdateLoanInfoFromPanelService {
@@ -80,9 +59,6 @@ public class UpdateLoanInfoFromPanelService {
 	
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
-	
-	@Autowired
-	ValidateDao validateDao;
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
@@ -184,12 +160,12 @@ public class UpdateLoanInfoFromPanelService {
 	private Long addNewDocument(String docType, Long merchantId, Long applicationId, String frontSide, String backSide) {
 		Long docId = null;
 		
-		DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdAndApplicationIdAndProofType(merchantId, applicationId, docType);
-		
+//		DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdAndApplicationIdAndProofType(merchantId, applicationId, docType);
+		DocumentsIdProof documentsIdProof = null;
 		if(documentsIdProof == null || documentsIdProof.getId() == null) {
 			DocumentsIdProof documentToSave = new DocumentsIdProof();
-			documentToSave.setMerchantId(merchantId);
-			documentToSave.setApplicationId(applicationId);
+//			documentToSave.setMerchantId(merchantId);
+//			documentToSave.setApplicationId(applicationId);
 			documentToSave.setProofType(docType);
 			documentToSave.setStatus("pending_verification");
 			documentToSave.setSinglePage(1);
@@ -273,8 +249,8 @@ public class UpdateLoanInfoFromPanelService {
 			docKycId = docKycDetails.getId();
 		}else {
 			DocKycDetails docKycToSave = new DocKycDetails();
-			docKycToSave.setMerchantId(merchantId);
-			docKycToSave.setDocId(docId);
+//			docKycToSave.setMerchantId(merchantId);
+//			docKycToSave.setDocId(docId);
 			docKycToSave.setDocType(proofType);
 			docKycToSave.setResponse(response);
 			docKycDetailsDao.save(docKycToSave);
@@ -283,9 +259,9 @@ public class UpdateLoanInfoFromPanelService {
 		if(proofType.equalsIgnoreCase("pancard")) {
 			docAuthenticationDao.updateDeletedAt(new Date(), docId, merchantId);
 			DocAuthentication docAuthentication = new DocAuthentication();
-			docAuthentication.setDocId(docId);
-			docAuthentication.setDocKycDetailsId(docKycId);
-			docAuthentication.setMerchantId(merchantId);
+//			docAuthentication.setDocId(docId);
+//			docAuthentication.setDocKycDetailsId(docKycId);
+//			docAuthentication.setMerchantId(merchantId);
 			docAuthentication.setDocType(proofType);
 			docAuthentication.setStatus("FAILED");
 			docAuthentication.setFullResponse(response);
@@ -312,8 +288,8 @@ public class UpdateLoanInfoFromPanelService {
 			String dob = "";
 			String doi = "";
 			DocKycDetails docKycDetails = new DocKycDetails();
-			docKycDetails.setDocId(documentId);
-			docKycDetails.setMerchantId(merchantId);
+//			docKycDetails.setDocId(documentId);
+//			docKycDetails.setMerchantId(merchantId);
 			docKycDetails.setCreatedAt(new Date());
 			docKycDetails.setUpdatedAt(new Date());
 			docKycDetails.setModule("LENDING");
@@ -430,11 +406,11 @@ public class UpdateLoanInfoFromPanelService {
 		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetailsId(insertId);
-		docAuthentication.setMerchantId(merchantId);
+//		docAuthentication.setDocKycDetailsId(insertId);
+//		docAuthentication.setMerchantId(merchantId);
 		docAuthentication.setDocType("pancard");
 		docAuthentication.setFullResponse(response);
-		docAuthentication.setDocId(documentId);
+//		docAuthentication.setDocId(documentId);
 		docAuthentication.setCreatedAt(new Date());
 		docAuthentication.setUpdatedAt(new Date());
 		
@@ -470,10 +446,11 @@ public class UpdateLoanInfoFromPanelService {
 		
 		
 		if(loanDetails != null) {
-			LendingApplication lendingApplication = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+//			LendingApplication lendingApplication = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+			LendingApplication lendingApplication = null;
 			Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
 			DateFormat df = new SimpleDateFormat("dMMY");
-			String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getApplicationId();
+			String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getId();
 			
 			DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndModule(merchantId, "LENDING");
 			String status = null;
@@ -510,13 +487,13 @@ public class UpdateLoanInfoFromPanelService {
 			
 			documentsIdProofDao.updateStatus(merchantId, applicationId, status);
 			
-			lendingApplication = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+//			lendingApplication = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
 			
 			if(lendingApplication.getStatus() != null && lendingApplication.getStatus().equalsIgnoreCase("approved") && lendingApplication.getLoanDisbursalStatus() != null && lendingApplication.getLoanDisbursalStatus().equalsIgnoreCase("DISBURSED")) {
 				saveActiveLoanDetails(applicationId, merchantId, lendingApplication);
 				insertNewLendingPaymentSchedule(applicationId, merchantId, lendingApplication, merchantOptional.get());
 				merchantDao.updateSettlementType(merchantId, "DAILY");
-				validateDao.updateSettlement(merchantOptional.get().getMobile(), "daily");
+//				validateDao.updateSettlement(merchantOptional.get().getMobile(), "daily");
 				settlementScheduleDao.updateSettlementDateAndMoveDaily(new Date(), "YES", "PENDING", merchantId);
 				
 				if(loanDisbursalStatus.equalsIgnoreCase("DISBURSED")) {
@@ -535,7 +512,7 @@ public class UpdateLoanInfoFromPanelService {
 	
 	private void insertAuditTrial(LendingApplication lendingApplication, String toUpdateStatus, Long merchantId, Long applicationId, String manualKyc, String manualCibil, String physicalVerificationStatus, String loanDisbursalStatus, String nbfcStatus, Long userId) {
 		DateFormat df = new SimpleDateFormat("dMMY");
-		String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getApplicationId();
+		String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getId();
 		
 		if(manualKyc != null && !manualKyc.isEmpty() && (lendingApplication.getManualKyc() == null || !lendingApplication.getManualKyc().equalsIgnoreCase(manualKyc))) {
 			saveLendingAuditTrialDetails(applicationId, merchantId, lendingApplication.getManualKyc(), manualKyc, "KYC", loanId, userId);
@@ -583,7 +560,8 @@ public class UpdateLoanInfoFromPanelService {
 		String addressProofZipCode = (loanDetails.get("proof_zip_code") != null && !loanDetails.get("proof_zip_code").toString().isEmpty()) ? loanDetails.get("proof_zip_code").toString() : null;
 		String addressProofAddress = (loanDetails.get("proof_address") != null && !loanDetails.get("proof_address").toString().isEmpty()) ? loanDetails.get("proof_address").toString() : null;
 		
-		LendingApplication applicationToUpdate = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+//		LendingApplication applicationToUpdate = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+		LendingApplication applicationToUpdate = null;
 		applicationToUpdate.setManualKyc(manualKyc);
 		applicationToUpdate.setManualKycNotes(manualKycNotes);
 		applicationToUpdate.setManualKycAdditionalInfo(manualKycAdditionalInfo);

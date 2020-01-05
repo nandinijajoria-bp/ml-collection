@@ -107,10 +107,10 @@ public class VerifyApplicationKarzaStatusService {
 	private Boolean isValidApplication(Long merchantId, Long applicationId) {
 		Boolean response = false;
 		
-		LendingApplication application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
-		if(application != null) {
-			response = true;
-		}
+//		LendingApplication application = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+//		if(application != null) {
+//			response = true;
+//		}
 		
 		return response;
 	}

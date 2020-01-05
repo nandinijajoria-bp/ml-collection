@@ -1,34 +1,25 @@
 package com.bharatpe.lending.service;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
+import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantFcmToken;
-import com.bharatpe.common.entities.Validate;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.common.objects.Meta;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 
 @Service
@@ -40,9 +31,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
-	
+
 	@Autowired
-	ValidateDao validateDao;
+	MerchantBankDetailDao merchantBankDetailDao;
 	
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
@@ -61,96 +52,85 @@ public class VerifyOTPService {
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		
-		Long merchantId = merchant.getId();
-		String mobile = merchant.getMobile();
-		
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		String otp =  commonAPIRequest.getPayload().get("otp") != null ? commonAPIRequest.getPayload().get("otp").toString() : null;
-		Double loanAmount;
-		
-		Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
-		
-		if(otp != null && !otp.isEmpty()) {
-			if(applicationId == null) {
-				LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
-				loanAmount = lendingApplication.getLoanAmount();
-				applicationId = lendingApplication.getApplicationId();
-			}else {
-				loanAmount = Double.parseDouble(selectedLoan.get("loan_amount"));
-			}
-			Instant start = Instant.now();
-			finalResponse = verifyOTP(mobile, otp, merchantId, applicationId, loanAmount);
-			Instant end = Instant.now();
-			logger.info("Time Taken by GUPSHUP verify OTP API : {} miliseconds", Duration.between(start, end).toMillis());
+
+		if(applicationId == null || applicationId <= 0 || StringUtils.isEmpty(otp)) {
+			logger.info("No application found in draft status for given application id {}", applicationId);
+			return finalResponse;
 		}
-		return finalResponse;
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+		if(lendingApplication == null) {
+			logger.info("No application found in draft status for given application id {}", applicationId);
+			return finalResponse;
+		}
+
+		return verifyOTP(otp, merchant, lendingApplication, commonAPIRequest.getMeta());
 	}
 	
-	private Map<String, Boolean> verifyOTP(String mobile, String otp, Long merchantId, Long applicationId, Double loanAmount) {
+	private Map<String, Boolean> verifyOTP(String otp, Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		
-		if(mobile.length() == 12) {
-			
-			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(mobile, otp);
+		if(merchant.getMobile().length() == 12) {
+			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
 			if(isOTPVerified) {
-				finalResponse = updateApplicationStatusAndSuccessSms(merchantId, applicationId, mobile, loanAmount);
+				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
 			}
 		}
 		return finalResponse;
 	}
 	
-	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Long merchantId, Long applicationId, String mobile, Double loanAmount) {
+	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
-		
-		int updatedId = lendingApplicationDao.updateApplicationStatusAndAgreement("pending_verification", applicationId, merchantId, "draft", "pending_verification");
-		if(updatedId != 0) {
-			DateFormat df = new SimpleDateFormat("dMMY");
-		    Date dateobj = new Date();
-			
-			String loanId = "BPL" + df.format(dateobj) + applicationId;
-			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-			lendingAuditTrial.setApplicationId(applicationId);
-			lendingAuditTrial.setMerchantId(merchantId);
-			lendingAuditTrial.setLoanId(loanId);
-			lendingAuditTrial.setUserId(Long.parseLong("0"));
-			lendingAuditTrial.setOldStatus("draft");
-			lendingAuditTrial.setNewStatus("pending_verification");
-			lendingAuditTrial.setType("APP_STATUS");
-			
-			lendingAuditTrialDao.save(lendingAuditTrial);
-			
-			Validate validate = validateDao.findByMerchantId(merchantId);
-			
-			if(validate != null) {
-				Instant start = Instant.now();
-				List<String> mobiles = new ArrayList<> ();
-				mobiles.add(mobile);
-				String message = "Dear "+validate.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount+" has been received successfully.";
-				smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-				Instant end = Instant.now();
-				logger.info("Time Taken by GUPSHUP sendMessage API : {} miliseconds", Duration.between(start, end).toMillis());
-				
-				start = Instant.now();
-				sendNotification(validate, merchantId, loanAmount);
-				end = Instant.now();
-				logger.info("Time Taken by GUPSHUP fcm google API : {} miliseconds", Duration.between(start, end).toMillis());
-			}
-			
-			finalResponse.put("success",true);
-			finalResponse.put("agreement_verified",true);
-		}
+
+		lendingApplication.setStatus("pending_verification");
+		lendingApplication.setAgreementAt(new Date());
+		lendingApplication.setAgreement(1);
+		lendingApplication.setLatitude(meta.getLatitude());
+		lendingApplication.setLongitude(meta.getLongitude());
+		lendingApplication.setIp(meta.getIp());
+		lendingApplicationDao.save(lendingApplication);
+
+		DateFormat df = new SimpleDateFormat("dMMY");
+		Date dateobj = new Date();
+
+		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
+		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+		lendingAuditTrial.setApplicationId(lendingApplication.getId());
+		lendingAuditTrial.setMerchantId(merchant.getId());
+		lendingAuditTrial.setLoanId(loanId);
+		lendingAuditTrial.setUserId(Long.parseLong("0"));
+		lendingAuditTrial.setOldStatus("draft");
+		lendingAuditTrial.setNewStatus("pending_verification");
+		lendingAuditTrial.setType("APP_STATUS");
+
+		lendingAuditTrialDao.save(lendingAuditTrial);
+
+		sendNotification(merchant, lendingApplication.getLoanAmount());
+		finalResponse.put("success",true);
+		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
 		
-	private void sendNotification(Validate validate, Long merchantId, Double loanAmount) {
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchantId);
+	private void sendNotification(Merchant merchant, Double loanAmount) {
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		if(merchantBankDetail == null) {
+			return;
+		}
+
+		List<String> mobiles = new ArrayList<> ();
+		mobiles.add(merchant.getMobile());
+		String message = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount+" has been received successfully.";
+		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+
+		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
 		if(merchantFcmToken != null) {
-			String message = "Dear "+validate.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.";
+			message = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.";
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "homepage.html");
 		}
 	}

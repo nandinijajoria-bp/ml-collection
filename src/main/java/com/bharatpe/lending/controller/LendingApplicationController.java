@@ -16,12 +16,14 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("lending")
-public class SignAgreementController {
+public class LendingApplicationController {
 
-	Logger logger = LoggerFactory.getLogger(SignAgreementController.class);
+	Logger logger = LoggerFactory.getLogger(LendingApplicationController.class);
 
 	@Autowired
 	LendingApplicationService lendingApplicationService;
@@ -39,7 +41,7 @@ public class SignAgreementController {
 	CancelApplicationService cancelApplicationService;
 
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public LendingApplicationResponse lendingUpload(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequest> requestDTO) {
+	public LendingApplicationResponse createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequest> requestDTO) {
 		logger.info("Create Application request : {}",requestDTO);
 		if(requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
@@ -68,21 +70,19 @@ public class SignAgreementController {
 	}
 
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("singAgreement request : {}",commonAPIRequest);
-		
+		commonAPIRequest.getMeta().setIp(clientIp);
 		Object resp = signAgreementService.signAgreement(merchant, commonAPIRequest);
-		
 		logger.info("signAgreement response : {}", resp);
 		return resp;
 	}
 
 	@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object verifyOTP(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Object verifyOTP(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("verifyOTP request : {}",commonAPIRequest);
-
+		commonAPIRequest.getMeta().setIp(clientIp);
 		Object resp = verifyOTPService.verifyOTP(merchant, commonAPIRequest);
-
 		logger.info("verifyOTP response : {}", resp);
 		return resp;
 	}
@@ -90,8 +90,17 @@ public class SignAgreementController {
 	@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("cancelApplication request : {}",commonAPIRequest);
+		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 
-		Object resp = cancelApplicationService.cancleApplication(merchant, response, commonAPIRequest);
+		if(applicationId == null || applicationId <=0) {
+			logger.info("CancelApplicationService invalid applicationId");
+			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+			Map<String, Boolean> resp = new HashMap<>();
+			resp.put("success",false);
+			return resp;
+		}
+
+		Object resp = cancelApplicationService.cancelApplication(merchant, applicationId);
 
 		logger.info("cancelApplication response : {}", resp);
 		return resp;

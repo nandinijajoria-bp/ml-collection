@@ -3,6 +3,8 @@ package com.bharatpe.lending.handlers;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
 
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -37,59 +39,51 @@ public class S3BucketHandler {
 	private AmazonS3 createS3BucketConnection() {
 		AmazonS3 s3client = null;
 		try {
-			//create connection
-			AWSCredentials credentials = new BasicAWSCredentials(
-						accessKey, 
-						secretKey
-					);
-			s3client = AmazonS3ClientBuilder
-					  .standard()
+			AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+			s3client = AmazonS3ClientBuilder.standard()
 					  .withCredentials(new AWSStaticCredentialsProvider(credentials))
 					  .withRegion(region)
 					  .build();
 		}catch(Exception e) {
-			e.printStackTrace();
 			logger.info("Exception while creating connection to S3 bucket message : {}",e.getMessage());
 		}
 		return s3client;
 	}
 	
 	public String uploadToS3Bucket(String base64Encoded, Long merchantId) {
-		String fileName = "";
-		//decode and convert into byte stream
+		Instant start = Instant.now();
+		String fileName = merchantId + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
 		byte[] bI = org.apache.commons.codec.binary.Base64.decodeBase64(base64Encoded.getBytes());
 		InputStream fis = new ByteArrayInputStream(bI);
 		
 		AmazonS3 s3client = createS3BucketConnection();
 		try {
 			if(s3client != null) {
-				//set meta data
 				ObjectMetadata metadata = new ObjectMetadata();
 				metadata.setContentLength(bI.length);
 				metadata.setContentType("image/png");
 				metadata.setCacheControl("public, max-age=31536000");
 				
-				fileName = merchantId + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
-				
-				//put object to s3 bucket
-				s3client.putObject(
-							bucket, 
-							fileName,
-							fis,
-							metadata
-						);
+				s3client.putObject(bucket, fileName, fis, metadata);
 			}
 		}catch(Exception e) {
-			e.printStackTrace();
 			logger.info("Exception while Uploading doc to S3 bucket message : {}",e.getMessage());
 		}
+		Instant end = Instant.now();
+		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
 		return fileName;
 	}
 	
 	public String getTemporaryPublicURL(String key) throws FileNotFoundException {
 	    try {
+	    	logger.info("Getting temp URL for keu: {}", key);
+			Instant start = Instant.now();
 	    	AmazonS3 s3client = createS3BucketConnection();
-	        return s3client.generatePresignedUrl(bucket, key, new DateTime().plusMinutes(15).toDate()).toString();
+			String tempUrl = s3client.generatePresignedUrl(bucket, key, new DateTime().plusMinutes(15).toDate()).toString();
+			logger.info("Temp Url: {}", tempUrl);
+			Instant end = Instant.now();
+			logger.info("Time Taken by AWS S3 tempPublicURL API : {} miliseconds", Duration.between(start, end).toMillis());
+			return tempUrl;
 	    }
 	    catch (AmazonS3Exception exception){
 	        if(exception.getStatusCode() == 404){

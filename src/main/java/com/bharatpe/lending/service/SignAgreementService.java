@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.bharatpe.common.objects.Meta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,188 +80,173 @@ public class SignAgreementService {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
-		
-		Long merchantId = merchant.getId();
-		Long mobile = Long.parseLong(merchant.getMobile());
-		
-		String latitude = commonAPIRequest.getMeta().getLatitude();
-		String longitude = commonAPIRequest.getMeta().getLongitude();
-		String ip = commonAPIRequest.getMeta().getIp();
-		
-		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+
 		Boolean agreement =  commonAPIRequest.getPayload().get("agreement") != null ? (boolean) commonAPIRequest.getPayload().get("agreement") : false;
-		Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
-		
-		if(agreement == true) {
-			if(applicationId != null) {
-				finalResponse = verifyApplicationAndSendOTP(merchantId, applicationId, mobile);
-			} else {
-				finalResponse = createNewApplicationAndSendOTP(selectedLoan, merchantId, mobile, latitude, longitude, ip);
-			}
+		if(!agreement) {
+			return finalResponse;
 		}
-		
+
+		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+
+		if(applicationId != null) {
+			finalResponse = verifyApplicationAndSendOTP(merchant, applicationId);
+		} else {
+			Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
+			finalResponse = createNewApplicationAndSendOTP(selectedLoan, merchant, commonAPIRequest.getMeta());
+		}
+
 		return finalResponse;
 	}
 	
-	private Map<String, Boolean> verifyApplicationAndSendOTP(Long merchantId, Long applicationId, Long mobile) {
+	private Map<String, Boolean> verifyApplicationAndSendOTP(Merchant merchant, Long applicationId) {
 		Map<String, Boolean> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
 		
-		LendingApplication lendingApplication = lendingApplicationDao.findByApplicationId(applicationId);
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
 		
 		if(lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
 			logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
 			return response;
 		}
 		
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
-		if(documentsIdProofList.size() > 0) {
-			response = sendOTP(mobile);
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+		if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
+			return response;
 		}
-		return response;
+		return sendOTP(merchant.getMobile());
 	}
 	
-	private Map<String, Boolean> createNewApplicationAndSendOTP(Map<String, String> selectedLoan, Long merchantId, Long mobile, String latitude, String longitude, String ip) {
+	private Map<String, Boolean> createNewApplicationAndSendOTP(Map<String, String> selectedLoan, Merchant merchant, Meta meta) {
 		Map<String, Boolean> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
 		String selectedCategory = selectedLoan.get("category");
 		
-		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
-		if(merchantSummary != null) {
-			
-			LendingPaymentSchedule prevLendingScheule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
-			LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByApplicationIdDesc(merchantId);
-			
-			if(prevLendingScheule == null || prevApplication == null || !prevLendingScheule.getStatus().equals("CLOSED") || !"DISBURSED".equals(prevApplication.getLoanDisbursalStatus())) {
-				logger.error("User not eligible, last loan not closed/found or last application is not disbursed/found");
-				return response;
+		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
+		if(merchantSummary == null || !"ACTIVE".equalsIgnoreCase(merchant.getStatus())) {
+			return response;
+		}
+
+
+		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+
+		if(prevLendingSchedule == null || prevApplication == null || !prevLendingSchedule.getStatus().equals("CLOSED") || !"DISBURSED".equals(prevApplication.getLoanDisbursalStatus())) {
+			logger.error("User not eligible, last loan not closed/found or last application is not disbursed/found");
+			return response;
+		}
+
+		List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantSummary.getLoanType());
+		AvailableLoan selectedAvailableLoan = null;
+
+		for(AvailableLoan current : availableLoanList) {
+			if(current.getCategory().equals(selectedCategory)) {
+				selectedAvailableLoan = current;
+				break;
 			}
-			
-			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchantId, merchantSummary.getLoanType());
-			
-			AvailableLoan selectedAvailableLoan = null;
-			
-			for(AvailableLoan current : availableLoanList) {
-				if(current.getCategory().equals(selectedCategory)) {
-					selectedAvailableLoan = current;
-					break;
-				}
+		}
+
+		if(selectedAvailableLoan == null) {
+			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
+			return response;
+		}
+
+		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+		LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData);
+
+		LendingApplication newApplication = new LendingApplication();
+		newApplication.setEdi(Double.valueOf(breakup.getEdi()));
+		newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
+		newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
+		newApplication.setInterestRate(breakup.getEffectiveInterestRate());
+		newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
+		newApplication.setMerchant(merchant);
+		newApplication.setShopNumber(prevApplication.getShopNumber());
+		newApplication.setStreetAddress(prevApplication.getStreetAddress());
+		newApplication.setArea(prevApplication.getArea());
+		newApplication.setLandmark(prevApplication.getLandmark());
+		newApplication.setPincode(prevApplication.getPincode());
+		newApplication.setCity(prevApplication.getCity());
+		newApplication.setState(prevApplication.getState());
+		newApplication.setBusinessName(prevApplication.getBusinessName());
+		newApplication.setStatus("draft");
+		newApplication.setCategory(selectedCategory);
+		newApplication.setTenure(selectedCategoriesData.getPayableConverter());
+		newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
+		newApplication.setPayableDays(Long.valueOf(selectedCategoriesData.getPayableDays()));
+		newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
+		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
+		newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
+		newApplication.setLatitude(meta.getLatitude());
+		newApplication.setLongitude(meta.getLongitude());
+		newApplication.setIp(meta.getIp());
+		lendingApplicationDao.save(newApplication);
+
+		if(newApplication.getId() != null) {
+			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+			lendingAuditTrial.setMerchantId(merchant.getId());
+			lendingAuditTrial.setApplicationId(newApplication.getId());
+			lendingAuditTrial.setLoanId("");
+			lendingAuditTrial.setUserId(Long.parseLong("0"));
+			lendingAuditTrial.setNewStatus("draft");
+			lendingAuditTrial.setType("APP_STATUS");
+			lendingAuditTrialDao.save(lendingAuditTrial);
+
+			if("AUTO".equalsIgnoreCase(prevApplication.getMode())) {
+				replicateDocumentsForNewApplication(prevApplication, newApplication, merchant, meta);
+			} else {
+				logger.info("Application mode is {}, not replicating documents for new application id {} and merchant id {}", newApplication.getId(), merchant.getId());
 			}
-			
-			if(selectedAvailableLoan == null) {
-				logger.error("No availabel loan found with merchant id {} and loan category {}", merchantId, selectedCategory);
-				return response;
-			}
-			
-			LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
-			
-			LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData);
-			
-			LendingApplication newApplication = new LendingApplication();
-			
-			newApplication.setEdi(Double.valueOf(breakup.getEdi()));
-			newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
-			newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
-			newApplication.setInterestRate(breakup.getEffectiveInterestRate());
-			newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
-			newApplication.setMerchantId(merchantId);
-			newApplication.setShopNumber(prevApplication.getShopNumber());
-			newApplication.setStreetAddress(prevApplication.getStreetAddress());
-			newApplication.setArea(prevApplication.getArea());
-			newApplication.setLandmark(prevApplication.getLandmark());
-			newApplication.setPincode(prevApplication.getPincode());
-			newApplication.setCity(prevApplication.getCity());
-			newApplication.setState(prevApplication.getState());
-			newApplication.setBusinessName(prevApplication.getBusinessName());
-			newApplication.setStatus("draft");
-			newApplication.setCategory(selectedCategory);
-			newApplication.setTenure(selectedCategoriesData.getPayableConverter());
-			newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-			newApplication.setPayableDays(Long.valueOf(selectedCategoriesData.getPayableDays()));
-			newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
-			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
-			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
-			newApplication.setLatitude(latitude);
-			newApplication.setLongitude(longitude);
-			newApplication.setIp(ip);
-			lendingApplicationDao.save(newApplication);
-			
-			if(newApplication.getApplicationId() != null) {
-				LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-				lendingAuditTrial.setMerchantId(merchantId);
-				lendingAuditTrial.setApplicationId(newApplication.getApplicationId());
-				lendingAuditTrial.setLoanId("");
-				lendingAuditTrial.setUserId(Long.parseLong("0"));
-				lendingAuditTrial.setNewStatus("draft");
-				lendingAuditTrial.setType("APP_STATUS");
-				lendingAuditTrialDao.save(lendingAuditTrial);
-				
-				if("AUTO".equals(prevApplication.getMode())) {
-					replicateDocumentsForNewApplication(prevApplication.getApplicationId(), newApplication.getApplicationId(), merchantId, latitude, longitude, ip);
-				} else {
-					logger.info("Application mode is {}, not replicating documents for new application id {} and merchant id {}", newApplication.getApplicationId(), merchantId);
-				}
-				
-				Instant start = Instant.now();
-				response = sendOTP(mobile);
-				Instant end = Instant.now();
-				logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
-			}
+
+			Instant start = Instant.now();
+			response = sendOTP(merchant.getMobile());
+			Instant end = Instant.now();
+			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 		}
 		return response;
 	}
 	
-	private void replicateDocumentsForNewApplication(Long prevApplicationId, Long newApplicationId, Long merchantId, String latitude, String longitude, String ip) {
-		Long newKycInsertId = null;
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndApplicationId(merchantId, prevApplicationId);
+	private void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, Meta meta) {
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
 		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
 			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
-			toSaveDocuments.setMerchantId(merchantId);
+			toSaveDocuments.setMerchant(merchant);
 			toSaveDocuments.setProofType(documentsIdProof.getProofType());
 			toSaveDocuments.setProofFrontSide(documentsIdProof.getProofFrontSide());
 			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
-			toSaveDocuments.setApplicationId(newApplicationId);
+			toSaveDocuments.setLendingApplication(newApplication);
 			toSaveDocuments.setStatus("pending_verification");
 			toSaveDocuments.setSinglePage(documentsIdProof.getSinglePage());
-			toSaveDocuments.setLatitude(latitude);
-			toSaveDocuments.setLongitude(longitude);
-			toSaveDocuments.setIp(ip);
+			toSaveDocuments.setLatitude(meta.getLatitude());
+			toSaveDocuments.setLongitude(meta.getLongitude());
+			toSaveDocuments.setIp(meta.getIp());
 			documentsIdProofDao.save(toSaveDocuments);
-			
-			DocAuthentication docAuthentication = docAuthenticationDao.findByDocId(documentsIdProof.getId());
-			DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByDocIdOrderByIdDesc(documentsIdProof.getId());
-			
-			if(docAuthentication != null && docKycDetails != null) {
-				String docType = docAuthentication.getDocType();
-				
-				if(documentsIdProof.getProofFrontSide() != null) {
-					if(!documentsIdProof.getProofType().equals("selfie")) {
-						newKycInsertId = insertIntoDocKycDetails(docKycDetails, toSaveDocuments ,"FRONT");
-					}
-					if(docType.equals("pancard")) {
-						insertIntoDocAuthentication(docAuthentication, newKycInsertId, toSaveDocuments);
-					}
-				}
-				if(documentsIdProof.getProofBackSide() != null) {
-					if(!documentsIdProof.getProofType().equals("selfie")) {
-						newKycInsertId = insertIntoDocKycDetails(docKycDetails, toSaveDocuments ,"BACK");
-					}
-					if(docType.equals("pancard")) {
-						insertIntoDocAuthentication(docAuthentication, newKycInsertId, toSaveDocuments);
+
+			if(documentsIdProof.getProofType().equals("selfie")) {
+				continue;
+			}
+
+			List<DocKycDetails> docKycDetailsList = docKycDetailsDao.findByDocumentsIdProof(documentsIdProof);
+
+			for(DocKycDetails docKycDetails : docKycDetailsList) {
+				DocKycDetails newDocKycDetails = insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
+				if("FRONT".equalsIgnoreCase(docKycDetails.getDocSide()) && "pancard".equalsIgnoreCase(toSaveDocuments.getProofType())) {
+					List<DocAuthentication> docAuthenticationList = docAuthenticationDao.findByDocumentsIdProof(documentsIdProof);
+					if(docAuthenticationList != null && docAuthenticationList.size() > 0) {
+						insertIntoDocAuthentication(docAuthenticationList.get(0), newDocKycDetails, toSaveDocuments);
 					}
 				}
 			}
 		}
 	}
 	
-	private Long insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof, String docSide) {
+	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {
 		DocKycDetails docKycDetails = new DocKycDetails();
 		
-		docKycDetails.setMerchantId(oldDocKycDetails.getMerchantId());
-		docKycDetails.setDocSide(docSide);
-		docKycDetails.setDocId(documentsIdProof.getId());
+		docKycDetails.setMerchant(oldDocKycDetails.getMerchant());
+		docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
+		docKycDetails.setDocumentsIdProof(documentsIdProof);
 		docKycDetails.setDocType(documentsIdProof.getProofType());
 		docKycDetails.setQr(oldDocKycDetails.getQr());
 		docKycDetails.setPersonName(oldDocKycDetails.getPersonName());
@@ -281,15 +267,14 @@ public class SignAgreementService {
 		docKycDetails.setMode(oldDocKycDetails.getMode());
 		
 		docKycDetailsDao.save(docKycDetails);
-		return docKycDetails.getId();
+		return docKycDetails;
 	}
 	
-	private void insertIntoDocAuthentication(DocAuthentication oldDocAuthentication, Long newKycDetailsId, DocumentsIdProof documentsIdProof) {
+	private void insertIntoDocAuthentication(DocAuthentication oldDocAuthentication, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof) {
 		DocAuthentication docAuthentication = new DocAuthentication();
-		
-		docAuthentication.setDocKycDetailsId(newKycDetailsId);
-		docAuthentication.setDocId(documentsIdProof.getId());
-		docAuthentication.setMerchantId(oldDocAuthentication.getMerchantId());
+		docAuthentication.setDocKycDetails(docKycDetails);
+		docAuthentication.setDocumentsIdProof(documentsIdProof);
+		docAuthentication.setMerchant(oldDocAuthentication.getMerchant());
 		docAuthentication.setDocType(oldDocAuthentication.getDocType());
 		docAuthentication.setStatus(oldDocAuthentication.getStatus());
 		docAuthentication.setDuplicate(oldDocAuthentication.getDuplicate());
@@ -301,7 +286,7 @@ public class SignAgreementService {
 		docAuthenticationDao.save(docAuthentication);
 	}
 	
-	private Map<String, Boolean> sendOTP(Long mobile) {
+	private Map<String, Boolean> sendOTP(String mobile) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);

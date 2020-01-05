@@ -23,7 +23,7 @@ public class LoanUtil {
 		selectedLoan.put("category", application.getCategory());
 		selectedLoan.put("construct", application.getLoanConstruct());
 		selectedLoan.put("tenure", application.getTenure());
-		selectedLoan.put("id", application.getApplicationId());
+		selectedLoan.put("id", application.getId());
 		selectedLoan.put("finance_charge", application.getProcessingFee());
 		selectedLoan.put("edi", application.getEdi());
 		selectedLoan.put("edi_duration", application.getPayableDays());
@@ -39,7 +39,7 @@ public class LoanUtil {
 	public static SelectedLoanDTO prepareSelectedLoanDTO(LendingApplication application) {
 		SelectedLoanDTO selectedLoan = new SelectedLoanDTO();
 		
-		selectedLoan.setId(application.getApplicationId());
+		selectedLoan.setId(application.getId());
 		selectedLoan.setAmount(application.getLoanAmount());
 		selectedLoan.setCategory(application.getCategory());
 		selectedLoan.setConstruct(application.getLoanConstruct());
