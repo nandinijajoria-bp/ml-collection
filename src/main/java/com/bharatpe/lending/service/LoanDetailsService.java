@@ -135,7 +135,11 @@ public class LoanDetailsService {
 
 			if(lendingApplication != null) {
 				if("rejected".equals(lendingApplication.getStatus())) {
-					LendingAuditTrial auditTrial = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchant().getId(), lendingApplication.getId(), "REJECTED");
+					List<LendingAuditTrial> auditTrialList = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchant().getId(), lendingApplication.getId(), "REJECTED");
+					LendingAuditTrial auditTrial = null;
+					if(auditTrialList != null && !auditTrialList.isEmpty()){
+						auditTrial = auditTrialList.get(0);
+					}
 					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(auditTrial, 7)) {
 						eligibleFlag = false;
 						loanHistoryDTOs = null;
