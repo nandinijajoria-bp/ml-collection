@@ -324,7 +324,7 @@ public class LoanDetailsService {
 				loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
 				loanEligibilityDTO.setRepayment(breakup.getRepayment());
 				loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
-				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter().replace("Months", "").replace("Month", "").trim());
+				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter());
 				loanEligibilityDTO.setConstruct(availableLoan.getLoanConstruct());
 				loanEligibilityDTO.setList(prepareLabels(breakup));
 				loanEligibilityDTO.setType(breakup.getType());

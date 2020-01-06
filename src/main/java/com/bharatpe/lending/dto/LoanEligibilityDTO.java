@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class LoanEligibilityDTO {
 
-	@JsonProperty(value = "processing_fee")
+	@JsonProperty(value = "finance_charge")
 	private Integer processingFee;
 	
 	@JsonProperty(value = "interest_rate")
@@ -26,8 +26,11 @@ public class LoanEligibilityDTO {
 	private String category;
 	private String tenure;
 	private String construct;
-	private List<LabelDTO> list;
 	private String type;
+	
+	@JsonProperty(value = "installment_details")
+	private List<LabelDTO> list;
+
 	
 	public Integer getProcessingFee() {
 		return processingFee;
