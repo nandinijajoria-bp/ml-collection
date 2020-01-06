@@ -116,13 +116,13 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-		sendNotification(merchant, lendingApplication.getLoanAmount());
+		sendNotification(merchant, lendingApplication);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
 		
-	private void sendNotification(Merchant merchant, Double loanAmount) {
+	private void sendNotification(Merchant merchant, LendingApplication lendingApplication) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		if(merchantBankDetail == null) {
 			return;
@@ -130,6 +130,7 @@ public class VerifyOTPService {
 
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
+		Double loanAmount = lendingApplication.getLoanAmount();
 		String smsContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount.intValue()+" has been received successfully.";
 		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
 
@@ -140,7 +141,9 @@ public class VerifyOTPService {
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "homepage.html");
 		}
 		
-		String whatsappContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
+		String whatsappContent = "Hi " + merchantBankDetail.getBeneficiaryName() + ", Your loan application for INR " +loanAmount.intValue()+ " has been received successfully.Your Application ID is "+ lendingApplication.getExternalLoanId() ;
+		
+//		String whatsappContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
 		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles);
 		
 	}
