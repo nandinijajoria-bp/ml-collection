@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("lending/handshake/*")
 public class HandshakeController {
 
-	@RequestMapping(value="ping")
-    public ResponseEntity<HttpStatus> ineligibleDetails() {
-           return new ResponseEntity<>(HttpStatus.OK);
-    }
+	@RequestMapping(value = "ping")
+	public ResponseEntity<String> ping() {
+		return new ResponseEntity<>("Ok", HttpStatus.OK);
+	}
 }
