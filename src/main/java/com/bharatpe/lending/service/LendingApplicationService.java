@@ -91,6 +91,7 @@ public class LendingApplicationService {
 		lendingApplication.setRepayment(Double.valueOf(breakupDetail.getRepayment()));
 		lendingApplication.setInterestRate(breakupDetail.getEffectiveInterestRate());
 		lendingApplication.setProcessingFee(Double.valueOf(breakupDetail.getProcessingFee()));
+		lendingApplication.setDisbursalAmount(Double.valueOf(breakupDetail.getDisbursementAmount()));
 		lendingApplication.setStatus("draft");
 		lendingApplication.setMode("AUTO");
 		lendingApplication.setMerchant(merchant);
@@ -124,13 +125,9 @@ public class LendingApplicationService {
 
 		loanApplication.setApplicationId(lendingApplication.getId());
 		loanApplication.setApplicationStatus(lendingApplication.getStatus());
-
 		loanApplication.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication));
-
 		loanApplication.setShopDetails(LoanUtil.prepareShopDetailsForClient(lendingApplication));
-
 		lendingApplicationResponse.setLoanApplication(loanApplication);
-
 		lendingApplicationResponse.setSuccess(true);
 
 		return lendingApplicationResponse;

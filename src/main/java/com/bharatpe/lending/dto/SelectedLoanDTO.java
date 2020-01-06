@@ -10,7 +10,7 @@ public class SelectedLoanDTO {
 	private Long id;
 
 	@JsonProperty("amount")
-	private Double amount;
+	private Integer amount;
 
 	@JsonProperty("category")
 	private String category;
@@ -22,7 +22,7 @@ public class SelectedLoanDTO {
 	private String tenure;
 
 	@JsonProperty("finance_charge")
-	private Double fincanceCharge;
+	private Integer fincanceCharge;
 
 	@JsonProperty("edi")
 	private Double edi;
@@ -34,13 +34,13 @@ public class SelectedLoanDTO {
 	private Double interestRate;
 
 	@JsonProperty("repayment")
-	private Double repayment;
+	private Integer repayment;
 
 	@JsonProperty("disbursement_amount")
-	private Double disbursementAmount;
+	private Integer disbursementAmount;
 
 	@JsonProperty("interest_amount")
-	private Double interestAmount;
+	private Integer interestAmount;
 
 	@JsonProperty("installment_details")
 	private List<LabelDTO> installmentDetails;
@@ -53,11 +53,11 @@ public class SelectedLoanDTO {
 		this.id = id;
 	}
 
-	public Double getAmount() {
+	public Integer getAmount() {
 		return amount;
 	}
 
-	public void setAmount(Double amount) {
+	public void setAmount(Integer amount) {
 		this.amount = amount;
 	}
 
@@ -85,11 +85,11 @@ public class SelectedLoanDTO {
 		this.tenure = tenure;
 	}
 
-	public Double getFincanceCharge() {
+	public Integer getFincanceCharge() {
 		return fincanceCharge;
 	}
 
-	public void setFincanceCharge(Double fincanceCharge) {
+	public void setFincanceCharge(Integer fincanceCharge) {
 		this.fincanceCharge = fincanceCharge;
 	}
 
@@ -117,27 +117,27 @@ public class SelectedLoanDTO {
 		this.interestRate = interestRate;
 	}
 
-	public Double getRepayment() {
+	public Integer getRepayment() {
 		return repayment;
 	}
 
-	public void setRepayment(Double repayment) {
+	public void setRepayment(Integer repayment) {
 		this.repayment = repayment;
 	}
 
-	public Double getDisbursementAmount() {
+	public Integer getDisbursementAmount() {
 		return disbursementAmount;
 	}
 
-	public void setDisbursementAmount(Double disbursementAmount) {
+	public void setDisbursementAmount(Integer disbursementAmount) {
 		this.disbursementAmount = disbursementAmount;
 	}
 
-	public Double getInterestAmount() {
+	public Integer getInterestAmount() {
 		return interestAmount;
 	}
 
-	public void setInterestAmount(Double interestAmount) {
+	public void setInterestAmount(Integer interestAmount) {
 		this.interestAmount = interestAmount;
 	}
 
