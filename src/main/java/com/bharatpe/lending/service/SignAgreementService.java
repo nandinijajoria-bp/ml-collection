@@ -92,7 +92,7 @@ public class SignAgreementService {
 
 		Long applicationId =  requestDTO.getPayload().getApplicationId();
 
-		if(applicationId != null && applicationId == 0) {
+		if(applicationId != null && applicationId != 0) {
 			finalResponse = verifyApplicationAndSendOTP(merchant, applicationId);
 		} else {
 			finalResponse = createNewApplicationAndSendOTP(requestDTO, merchant);

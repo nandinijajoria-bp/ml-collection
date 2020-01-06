@@ -14,9 +14,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
-        .excludePathPatterns("/lending/csPanel/**")
-        .excludePathPatterns("/lending/ping");
+				.excludePathPatterns("/lending/csPanel/**", "/lending/handshake/**");
         
-//        registry.addInterceptor(new AccessControlInterceptor());
     }
 }
