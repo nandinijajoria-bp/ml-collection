@@ -61,7 +61,7 @@ import com.bharatpe.common.utils.CurrencyUtils;
 public class LoanDetailsService {
 	private Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
 	
-	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam");
+	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada");
 	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada");
 	
 	@Autowired
@@ -249,7 +249,7 @@ public class LoanDetailsService {
 	private Boolean isValidFOSMerchant(String referalCode) {
 		Boolean responseFlag = false;
 		
-		if(!referalCode.isEmpty()) {
+		if(StringUtils.isEmpty(referalCode)) {
 			Agent agent = agentDao.fetchByReferalCode(referalCode);
 			if(agent != null && validAgentCities.contains(agent.getCity())) {
 				responseFlag = true;
