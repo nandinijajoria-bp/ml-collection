@@ -34,33 +34,33 @@ public class LendingAgreementService {
 		String lenderText = "";
 		Map<String, Object> resp = new LinkedHashMap<> ();
 		
-		Integer applicationId = (Integer) commonAPIRequest.getPayload().get("application_id");
-		if(applicationId == null || applicationId == 0) {
-			logger.error("Application ID not preset/zero, returning failure.");
-			resp.put("success",false);
-			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			return resp;
-		}
+//		Integer applicationId = (Integer) commonAPIRequest.getPayload().get("application_id");
+//		if(applicationId == null || applicationId == 0) {
+//			logger.error("Application ID not preset/zero, returning failure.");
+//			resp.put("success",false);
+//			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+//			return resp;
+//		}
 		
 
-		LendingApplication application = lendingApplicationDao.findByIdAndMerchant(applicationId.longValue(), merchant);
+//		LendingApplication application = lendingApplicationDao.findByIdAndMerchant(applicationId.longValue(), merchant);
 		
-		if(application == null) {
-			logger.info("LendingAgreementService application present");
-			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			resp.put("success",false);
-			return resp;
-		}
+//		if(application == null) {
+//			logger.info("LendingAgreementService application present");
+//			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+//			resp.put("success",false);
+//			return resp;
+//		}
 
-		Double loanAmount = application.getLoanAmount();
-		String tenure = application.getTenure();
-		
-		if(loanAmount == 5000 && tenure.equals("1 Month")) {
-			id = (long) 4;
-		} else {
+//		Double loanAmount = application.getLoanAmount();
+//		String tenure = application.getTenure();
+//		
+//		if(loanAmount == 5000 && tenure.equals("1 Month")) {
+//			id = (long) 4;
+//		} else {
 			id = (long) 3;
 			lenderText = "BharatPe is the processing partner for this loan. <br /> Loan is in books of BharatPe Partner NBFCs and will be disbursed from their account.";
-		}
+//		}
 		
 		Optional<LendingNbfscs> optionalObj = lendingNbfscsDao.findById(id);
 		
