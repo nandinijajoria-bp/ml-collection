@@ -44,6 +44,13 @@ public class LendingAgreementService {
 		
 
 		LendingApplication application = lendingApplicationDao.findByIdAndMerchant(applicationId.longValue(), merchant);
+		
+		if(application == null) {
+			logger.info("LendingAgreementService application present");
+			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+			resp.put("success",false);
+			return resp;
+		}
 
 		Double loanAmount = application.getLoanAmount();
 		String tenure = application.getTenure();

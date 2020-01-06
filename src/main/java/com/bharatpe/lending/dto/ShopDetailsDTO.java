@@ -20,7 +20,7 @@ public class ShopDetailsDTO {
 	private String landmark = "";
 	
 	@JsonProperty("pincode")
-	private String pincode;
+	private String pincode = "";
 	
 	@JsonProperty("city")
 	private String city = "";

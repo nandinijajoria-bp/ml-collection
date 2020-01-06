@@ -84,6 +84,10 @@ public class VerifyOTPService {
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		DateFormat df = new SimpleDateFormat("ddMMyyyy");
+		Date dateobj = new Date();
+		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
+		
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 
@@ -93,12 +97,10 @@ public class VerifyOTPService {
 		lendingApplication.setLatitude(meta.getLatitude());
 		lendingApplication.setLongitude(meta.getLongitude());
 		lendingApplication.setIp(meta.getIp());
+		lendingApplication.setExternalLoanId(loanId);
 		lendingApplicationDao.save(lendingApplication);
 
-		DateFormat df = new SimpleDateFormat("dMMY");
-		Date dateobj = new Date();
 
-		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 		lendingAuditTrial.setApplicationId(lendingApplication.getId());
 		lendingAuditTrial.setMerchantId(merchant.getId());
