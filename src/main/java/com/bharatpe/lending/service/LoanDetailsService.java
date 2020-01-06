@@ -185,7 +185,7 @@ public class LoanDetailsService {
 				if(merchantSummary != null) {
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
 				} else {
-					logger.error("Merchant summary is empty for merchant ID  {}", merchant.getId());
+					logger.info("Merchant summary is empty for merchant ID  {}", merchant.getId());
 				}
 			}
 			

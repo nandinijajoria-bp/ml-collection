@@ -196,7 +196,7 @@ public class UploadDocumentService {
 	}
 
 	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
-		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("votercard") || proofType.equals("passport")) {
+		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("aadharcard") || proofType.equals("votercard") || proofType.equals("passport")) {
 			new Thread(() -> {
 				kycUsingKarzaAPI(proofType, frontSide, documentsIdProof, merchant, lendingApplication);
 				if (singlePageDocument == 0) {
@@ -307,7 +307,7 @@ public class UploadDocumentService {
 				doi = details.get("doi").get("value");
 				docKycDetails.setGender(details.get("gender").get("value"));
 				docKycDetails.setCountryCode(details.get("countryCode").get("value"));
-			}else if(proofType.equals("adhaarcard")) {
+			}else if(proofType.equals("adhaarcard") || proofType.equals("aadharcard")) {
 				if(type.equals("Aadhaar Front Bottom")) {
 					docKycDetails.setDocNo(details.get("aadhaar").get("value"));
 					dob = details.get("dob").get("value");
@@ -343,7 +343,6 @@ public class UploadDocumentService {
 				}
 				
 			} catch (ParseException e) {
-				e.printStackTrace();
 				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
 			}
 			docKycDetailsDao.save(docKycDetails);
