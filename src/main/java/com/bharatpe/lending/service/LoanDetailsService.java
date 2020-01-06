@@ -347,12 +347,12 @@ public class LoanDetailsService {
 			list.add(new LabelDTO("Repayment Amount", CurrencyUtils.formatToIN(breakup.getRepayment())));
 		} else if("CONSTRUCT_2".equals(breakup.getConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
-			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Month", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
+			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
 			list.add(new LabelDTO("No EDI on", "Sundays"));
 			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
 		} else if("CONSTRUCT_3".equals(breakup.getConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatToIN(breakup.getIoEdi()) + "/day"));
-			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Month", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
+			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
 			list.add(new LabelDTO("No EDI on", "Sundays"));
 			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
 		} else {
