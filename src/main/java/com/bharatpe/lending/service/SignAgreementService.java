@@ -172,6 +172,7 @@ public class SignAgreementService {
 		newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
 		newApplication.setInterestRate(breakup.getEffectiveInterestRate());
 		newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
+		newApplication.setLoanConstruct(breakup.getConstruct());
 		newApplication.setMerchant(merchant);
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
