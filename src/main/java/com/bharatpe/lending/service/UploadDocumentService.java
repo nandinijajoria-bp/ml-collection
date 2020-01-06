@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocAuthenticationDao;
@@ -101,14 +102,14 @@ public class UploadDocumentService {
 		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
 		for(UploadDocumentRequestDTO.Document document : documents) {
-			if(document.getProof().isEmpty()) {
-				logger.error("Empty Documents");
-			}
-
 			if(isUpdate && !document.getChangeFlag()) {
 				continue;
 			}
-
+			
+			if(document.getProof() != null && document.getProof().isEmpty()) {
+				logger.error("Empty Documents");
+			}
+			
 			String proofType = document.getProofType();
 			int singlePageDocument = document.getSinglePageDocument() ? 1 : 0;
 
@@ -145,7 +146,7 @@ public class UploadDocumentService {
 		String frontUrl = s3BucketHandler.uploadToS3Bucket(frontBase64Encoded, merchant.getId());
 		proofSides.put("frontSide", frontUrl);
 
-		if(proof.size() > 1) {
+		if(proof.size() > 1 && !StringUtils.isEmpty(proof.get(1))) {
 			String backBase64Encoded = processBase64String(proof.get(1));
 			String backUrl = s3BucketHandler.uploadToS3Bucket(backBase64Encoded, merchant.getId());
 			proofSides.put("backSide", backUrl);
