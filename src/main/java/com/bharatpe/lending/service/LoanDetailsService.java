@@ -344,17 +344,17 @@ public class LoanDetailsService {
 		if("CONSTRUCT_1".equals(breakup.getConstruct())) {
 			list.add(new LabelDTO("Daily Installment", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
 			list.add(new LabelDTO("No Installment on", "Sundays"));
-			list.add(new LabelDTO("Repayment Amount", CurrencyUtils.formatToIN(breakup.getRepayment())));
+			list.add(new LabelDTO("Repayment Amount", "₹" +CurrencyUtils.formatToIN(breakup.getRepayment())));
 		} else if("CONSTRUCT_2".equals(breakup.getConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
 			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
 			list.add(new LabelDTO("No EDI on", "Sundays"));
-			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
+			list.add(new LabelDTO("Repayment Amount", "₹" +String.valueOf(breakup.getRepayment())));
 		} else if("CONSTRUCT_3".equals(breakup.getConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatToIN(breakup.getIoEdi()) + "/day"));
 			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatToIN(breakup.getEdi()) + "/day"));
 			list.add(new LabelDTO("No EDI on", "Sundays"));
-			list.add(new LabelDTO("Repayment Amount", String.valueOf(breakup.getRepayment())));
+			list.add(new LabelDTO("Repayment Amount", "₹" +String.valueOf(breakup.getRepayment())));
 		} else {
 			logger.error("Construct {} not defined, throwing Exception", breakup.getConstruct());
 			throw new RuntimeException("Construct not defined.");
