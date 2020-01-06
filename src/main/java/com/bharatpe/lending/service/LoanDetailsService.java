@@ -288,12 +288,13 @@ public class LoanDetailsService {
 		
 		List<LoanEligibilityDTO> availableLoanDTOList = new ArrayList<>();
 		
-		List<AvailableLoan> availableLoanList = null;
-		if(merchant.getId() % 2 == 0) {
-			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_2");
-		} else {
-			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");
-		}
+		List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_2");;
+		
+//		if(merchant.getId() % 2 == 0) {
+//			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_2");
+//		} else {
+//			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");
+//		}
 		
 		if(availableLoanList == null || availableLoanList.isEmpty()) {
 			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_1");
