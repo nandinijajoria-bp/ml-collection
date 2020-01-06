@@ -2,7 +2,9 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
+import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.IneligibleDetailsService;
 import com.bharatpe.lending.service.NotifyEligibleService;
 import org.slf4j.Logger;
@@ -27,9 +29,9 @@ public class IneligibleController {
     NotifyEligibleService notifyEligibleService;
 
     @RequestMapping(value="/ineligibleDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<IneligibleResponseDTO> ineligibleDetails(@RequestAttribute Merchant merchant, @RequestBody(required = false) CommonAPIRequest commonAPIRequest, @RequestParam(required = false) Integer requestedLoanAmount) {
+    public ResponseEntity<IneligibleResponseDTO> ineligibleDetails(@RequestAttribute Merchant merchant, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
         try {
-            IneligibleResponseDTO ineligibleResponseDTO = ineligibleDetailsService.fetchIneligibleLoanDetails(merchant, requestedLoanAmount);
+            IneligibleResponseDTO ineligibleResponseDTO = ineligibleDetailsService.fetchIneligibleLoanDetails(merchant, requestDTO.getPayload());
             logger.debug("ineligibleDetails response : {}", ineligibleResponseDTO);
             return new ResponseEntity<>(ineligibleResponseDTO, HttpStatus.OK);
         } catch (Exception e) {

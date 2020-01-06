@@ -6,6 +6,7 @@ import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantLoanRequest;
 import com.bharatpe.common.entities.MerchantSummary;
+import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 
 import org.slf4j.Logger;
@@ -32,16 +33,16 @@ public class IneligibleDetailsService {
     @Autowired
     private MerchantDao merchantDao;
 
-    public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, Integer requestedLoanAmount) {
+    public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
         MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
         int previousLoanCount = (merchantSummary != null && merchantSummary.getTotalLoansCount() != null) ? merchantSummary.getTotalLoansCount() : 0;
         IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
         MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
-        if (requestedLoanAmount != null) {
-            logger.info("New Ineligible Loan request for amount : {} and merchantId : {}", requestedLoanAmount, merchant.getId());
+        if (ineligibleRequestDTO != null && ineligibleRequestDTO.getRequestedLoanAmount() != null && ineligibleRequestDTO.getPanCard() != null && !ineligibleRequestDTO.getPanCard().trim().equalsIgnoreCase("")) {
+            logger.info("New Ineligible Loan request for amount : {} with panCard : {} and merchantId : {}", ineligibleRequestDTO.getRequestedLoanAmount(), ineligibleRequestDTO.getPanCard(), merchant.getId());
             merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
-            merchantLoanRequest = calculateTarget(merchantSummary, requestedLoanAmount, merchant.getId());
+            merchantLoanRequest = calculateTarget(merchantSummary, ineligibleRequestDTO.getRequestedLoanAmount(), merchant.getId(), ineligibleRequestDTO.getPanCard());
         }
         if (merchantLoanRequest != null) {
             calculateIneligibleLoanDetails(merchantSummary, merchantLoanRequest, ineligibleResponseDTO);
@@ -83,7 +84,7 @@ public class IneligibleDetailsService {
         ineligibleResponseDTO.setRequestedLoanAmt(merchantLoanRequest.getRequestedLoanAmount());
     }
 
-    private MerchantLoanRequest calculateTarget(MerchantSummary merchantSummary, Integer requestedLoanAmount, Long merchantId){
+    private MerchantLoanRequest calculateTarget(MerchantSummary merchantSummary, Integer requestedLoanAmount, Long merchantId, String panCard){
         //long vintage = TimeUnit.DAYS.convert(new Date().getTime() - merchantSummary.getCreatedAt().getTime(), TimeUnit.MILLISECONDS);
         int tenure = 6;
         float multiplier = 0.5f;
@@ -94,6 +95,6 @@ public class IneligibleDetailsService {
         int totalTxnRequired = (avgTxnValue != 0) ? (int) Math.ceil(totalAmountRequired/avgTxnValue) : 50;//taking minimum transaction count as 50
         logger.info("Calculating target for ineligible loan---");
         logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", totalTxnCount, totalTxnValue, totalAmountRequired, totalTxnRequired);
-        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, requestedLoanAmount, totalTxnCount, totalTxnValue, totalTxnRequired, totalAmountRequired));
+        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, requestedLoanAmount, totalTxnCount, totalTxnValue, totalTxnRequired, totalAmountRequired, panCard));
     }
 }
