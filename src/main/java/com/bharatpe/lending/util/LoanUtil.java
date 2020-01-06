@@ -97,11 +97,11 @@ public class LoanUtil {
 		} else if("CONSTRUCT_2".equals(application.getLoanConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
 			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
-			list.add(new LabelDTO("No Deduction on", "Sundays"));
+			list.add(new LabelDTO("No Deduction on Sundays", ""));
 		} else if("CONSTRUCT_3".equals(application.getLoanConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
 			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
-			list.add(new LabelDTO("No Deduction on", "Sundays"));
+			list.add(new LabelDTO("No Deduction on Sundays", ""));
 		} else {
 			logger.error("Construct {} not defined, throwing Exception", application.getLoanConstruct());
 			throw new RuntimeException("Construct not defined.");
