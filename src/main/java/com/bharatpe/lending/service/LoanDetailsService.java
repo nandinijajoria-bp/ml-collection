@@ -184,7 +184,9 @@ public class LoanDetailsService {
 				}
 			}
 			
-			if(lendingApplication != null && "rejected".equals(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+			if(lendingApplication != null 
+					&& ("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()))
+					|| "approved".equalsIgnoreCase(lendingApplication.getStatus())) {
 				loanApplicationDTO.setShowReapply(true);
 //				loanHistoryDTOs = null;
 				loanApplicationDTO.setApplicationId(null);;

@@ -6,9 +6,10 @@ public class SignAgreementDTO {
 
 	private Boolean agreement;
 	
+	@JsonProperty(value = "category", required = false)
 	private String category;
 	
-	@JsonProperty(value = "agreement")
+	@JsonProperty(value = "application_id", required = false)
 	private Long applicationId;
 
 	public Boolean getAgreement() {
