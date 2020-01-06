@@ -22,6 +22,7 @@ public class LoanEligibilityDTO {
 	private boolean optionEnable;
 
 	private Integer amount;
+	private Integer edi;
 	private Integer repayment;
 	private String category;
 	private String tenure;
@@ -103,6 +104,12 @@ public class LoanEligibilityDTO {
 	}
 	public void setRepayment(Integer repayment) {
 		this.repayment = repayment;
+	}
+	public Integer getEdi() {
+		return edi;
+	}
+	public void setEdi(Integer edi) {
+		this.edi = edi;
 	}
 	
 	@Override

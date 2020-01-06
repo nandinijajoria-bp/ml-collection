@@ -254,10 +254,10 @@ public class LoanDetailsService {
 			if(agent != null && validAgentCities.contains(agent.getCity())) {
 				responseFlag = true;
 			} else {
-				logger.error("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
+				logger.info("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
 			}
 		}
-		logger.error("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
+		logger.info("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
 		return responseFlag;
 	}
 	
@@ -268,7 +268,7 @@ public class LoanDetailsService {
 		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity())) {
 			responseFlag = true;
 		} else {
-			logger.error("Not valid DIY Merchant with merchant id {}, returning false.", merchant.getId());
+			logger.info("Not valid DIY Merchant with merchant id {}, returning false.", merchant.getId());
 		}
 		
 		return responseFlag;
@@ -322,6 +322,7 @@ public class LoanDetailsService {
 				loanEligibilityDTO.setAmount(availableLoan.getAmount().intValue());
 				loanEligibilityDTO.setCategory(lendingCategoryDetail.getCategory());
 				loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
+				loanEligibilityDTO.setEdi(breakup.getEdi());
 				loanEligibilityDTO.setRepayment(breakup.getRepayment());
 				loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
 				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter());
