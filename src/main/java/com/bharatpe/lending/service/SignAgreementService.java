@@ -80,8 +80,8 @@ public class SignAgreementService {
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
 
-	public Map<String,Boolean> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
-		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
+		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 
@@ -101,8 +101,8 @@ public class SignAgreementService {
 		return finalResponse;
 	}
 	
-	private Map<String, Boolean> verifyApplicationAndSendOTP(Merchant merchant, Long applicationId) {
-		Map<String, Boolean> response = new LinkedHashMap<>();
+	private Map<String, Object> verifyApplicationAndSendOTP(Merchant merchant, Long applicationId) {
+		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
 		
@@ -117,11 +117,13 @@ public class SignAgreementService {
 		if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
 			return response;
 		}
-		return sendOTP(merchant.getMobile());
+		response =  sendOTP(merchant.getMobile());
+		response.put("application_id", applicationId);
+		return response;
 	}
 	
-	private Map<String, Boolean> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, Merchant merchant) {
-		Map<String, Boolean> response = new LinkedHashMap<>();
+	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, Merchant merchant) {
+		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
 		
@@ -133,10 +135,10 @@ public class SignAgreementService {
 		}
 		
 		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
-		if(merchantSummary == null || !"ACTIVE".equalsIgnoreCase(merchant.getStatus())) {
+		if(merchantSummary == null) {
+			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
 			return response;
 		}
-
 
 		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
 		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
@@ -213,6 +215,7 @@ public class SignAgreementService {
 			response = sendOTP(merchant.getMobile());
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
+			response.put("application_id", newApplication.getId());
 		}
 		return response;
 	}
@@ -296,8 +299,8 @@ public class SignAgreementService {
 		docAuthenticationDao.save(docAuthentication);
 	}
 	
-	private Map<String, Boolean> sendOTP(String mobile) {
-		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+	private Map<String, Object> sendOTP(String mobile) {
+		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 		
