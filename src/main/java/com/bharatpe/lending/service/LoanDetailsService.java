@@ -265,7 +265,7 @@ public class LoanDetailsService {
 		Boolean responseFlag = false;
 		
 		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
-		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity()) && isInvalidAgentReferalCode(merchant.getReferalCode())) {
+		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity())) {
 			responseFlag = true;
 		} else {
 			logger.error("Not valid DIY Merchant with merchant id {}, returning false.", merchant.getId());
@@ -274,16 +274,16 @@ public class LoanDetailsService {
 		return responseFlag;
 	}
 	
-	private Boolean isInvalidAgentReferalCode(String agentReferalCode) {
-		Boolean flag = false;
-		
-		Agent agent = agentDao.fetchByReferalCode(agentReferalCode);
-		if(agent != null) {
-			flag = true;
-		}
-		
-		return flag;
-	}
+//	private Boolean isInvalidAgentReferalCode(String agentReferalCode) {
+//		Boolean flag = false;
+//		
+//		Agent agent = agentDao.fetchByReferalCode(agentReferalCode);
+//		if(agent != null) {
+//			flag = true;
+//		}
+//		
+//		return flag;
+//	}
 	
 	private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant merchant) {
 		
