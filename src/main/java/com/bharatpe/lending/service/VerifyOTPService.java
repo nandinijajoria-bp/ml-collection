@@ -130,17 +130,18 @@ public class VerifyOTPService {
 
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
-		String message = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount+" has been received successfully.";
-		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+		String smsContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount.intValue()+" has been received successfully.";
+		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
 
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
 		if(merchantFcmToken != null) {
-			message = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.";
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "homepage.html");
+			String pushContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "homepage.html");
 		}
 		
-		whatsappNotificationService.send(merchant, null, message, mobiles);
+		String whatsappContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
+		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles);
 		
 	}
 }
