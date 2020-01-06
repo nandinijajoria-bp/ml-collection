@@ -455,7 +455,11 @@ public class LoanDetailsService {
 				history.setEndDate(null);
 			}
 			history.setRepaid(lendingPaymentSchedule.getPaidAmount());
-			history.setDue(lendingPaymentSchedule.getTotalPayableAmount());
+			Double dueAmount = lendingPaymentSchedule.getTotalPayableAmount();
+			if(lendingPaymentSchedule.getPaidAmount() != null) {
+				dueAmount -= lendingPaymentSchedule.getPaidAmount();
+			}
+			history.setDue(dueAmount);
 			loanHistoryList.add(history);
 		}
 

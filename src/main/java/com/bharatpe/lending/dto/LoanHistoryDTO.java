@@ -83,7 +83,7 @@ public class LoanHistoryDTO {
 		this.loanStatusMessage = loanStatusMessage;
 	}
 
-	public Double setRepaid() {
+	public Double getRepaid() {
 		return repaid;
 	}
 
