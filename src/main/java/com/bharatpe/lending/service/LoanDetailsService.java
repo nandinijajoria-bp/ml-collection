@@ -456,9 +456,9 @@ public class LoanDetailsService {
 			}
 			history.setRepaid(lendingPaymentSchedule.getPaidAmount());
 			Double dueAmount = lendingPaymentSchedule.getTotalPayableAmount();
-			if(lendingPaymentSchedule.getPaidAmount() != null) {
-				dueAmount -= lendingPaymentSchedule.getPaidAmount();
-			}
+//			if(lendingPaymentSchedule.getPaidAmount() != null) {
+//				dueAmount -= lendingPaymentSchedule.getPaidAmount();
+//			}
 			history.setDue(dueAmount);
 			loanHistoryList.add(history);
 		}
