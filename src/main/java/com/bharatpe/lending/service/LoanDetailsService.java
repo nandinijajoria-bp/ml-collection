@@ -249,7 +249,7 @@ public class LoanDetailsService {
 	private Boolean isValidFOSMerchant(String referalCode) {
 		Boolean responseFlag = false;
 		
-		if(StringUtils.isEmpty(referalCode)) {
+		if(!StringUtils.isEmpty(referalCode)) {
 			Agent agent = agentDao.fetchByReferalCode(referalCode);
 			if(agent != null && validAgentCities.contains(agent.getCity())) {
 				responseFlag = true;
