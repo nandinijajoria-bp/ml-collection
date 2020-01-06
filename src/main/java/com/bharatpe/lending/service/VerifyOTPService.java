@@ -8,6 +8,7 @@ import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
@@ -46,6 +47,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
+	
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -135,5 +139,8 @@ public class VerifyOTPService {
 			message = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount+" has been received successfully.";
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "homepage.html");
 		}
+		
+		whatsappNotificationService.send(merchant, null, message, mobiles);
+		
 	}
 }

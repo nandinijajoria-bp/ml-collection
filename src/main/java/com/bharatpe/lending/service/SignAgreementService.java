@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.dao.AvailableLoanDao;
@@ -35,6 +36,9 @@ import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.TmpLoanGenerateDao;
+import com.bharatpe.lending.dto.MetaDTO;
+import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.SignAgreementDTO;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
@@ -76,23 +80,22 @@ public class SignAgreementService {
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
 
-	public Map<String,Boolean> signAgreement(Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Map<String,Boolean> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 
-		Boolean agreement =  commonAPIRequest.getPayload().get("agreement") != null ? (boolean) commonAPIRequest.getPayload().get("agreement") : false;
-		if(!agreement) {
+		Boolean agreement =  requestDTO.getPayload().getAgreement();
+		if(agreement == null || !agreement) {
 			return finalResponse;
 		}
 
-		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+		Long applicationId =  requestDTO.getPayload().getApplicationId();
 
-		if(applicationId != null) {
+		if(applicationId != null && applicationId == 0) {
 			finalResponse = verifyApplicationAndSendOTP(merchant, applicationId);
 		} else {
-			Map<String, String> selectedLoan = (Map<String, String>) commonAPIRequest.getPayload().get("selected_loan");
-			finalResponse = createNewApplicationAndSendOTP(selectedLoan, merchant, commonAPIRequest.getMeta());
+			finalResponse = createNewApplicationAndSendOTP(requestDTO, merchant);
 		}
 
 		return finalResponse;
@@ -117,11 +120,17 @@ public class SignAgreementService {
 		return sendOTP(merchant.getMobile());
 	}
 	
-	private Map<String, Boolean> createNewApplicationAndSendOTP(Map<String, String> selectedLoan, Merchant merchant, Meta meta) {
+	private Map<String, Boolean> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, Merchant merchant) {
 		Map<String, Boolean> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
-		String selectedCategory = selectedLoan.get("category");
+		
+		String selectedCategory = requestDTO.getPayload().getCategory();
+		
+		if(StringUtils.isEmpty(selectedCategory)) {
+			logger.error("Selected category is null/empty for merchant {}", merchant.getId());
+			return response;
+		}
 		
 		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
 		if(merchantSummary == null || !"ACTIVE".equalsIgnoreCase(merchant.getStatus())) {
@@ -179,9 +188,9 @@ public class SignAgreementService {
 		newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
 		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 		newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
-		newApplication.setLatitude(meta.getLatitude());
-		newApplication.setLongitude(meta.getLongitude());
-		newApplication.setIp(meta.getIp());
+		newApplication.setLatitude(requestDTO.getMeta().getLatitude());
+		newApplication.setLongitude(requestDTO.getMeta().getLongitude());
+		newApplication.setIp(requestDTO.getMeta().getIp());
 		lendingApplicationDao.save(newApplication);
 
 		if(newApplication.getId() != null) {
@@ -195,7 +204,7 @@ public class SignAgreementService {
 			lendingAuditTrialDao.save(lendingAuditTrial);
 
 			if("AUTO".equalsIgnoreCase(prevApplication.getMode())) {
-				replicateDocumentsForNewApplication(prevApplication, newApplication, merchant, meta);
+				replicateDocumentsForNewApplication(prevApplication, newApplication, merchant, requestDTO.getMeta());
 			} else {
 				logger.info("Application mode is {}, not replicating documents for new application id {} and merchant id {}", newApplication.getId(), merchant.getId());
 			}
@@ -208,7 +217,7 @@ public class SignAgreementService {
 		return response;
 	}
 	
-	private void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, Meta meta) {
+	private void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
 		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
 			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();

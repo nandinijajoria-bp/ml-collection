@@ -70,10 +70,10 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("singAgreement request : {}",commonAPIRequest);
-		commonAPIRequest.getMeta().setIp(clientIp);
-		Object resp = signAgreementService.signAgreement(merchant, commonAPIRequest);
+	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp,  @RequestBody RequestDTO<SignAgreementDTO> requestDTO) {
+		logger.info("singAgreement request : {}",requestDTO);
+		requestDTO.getMeta().setIp(clientIp);
+		Object resp = signAgreementService.signAgreement(merchant, requestDTO);
 		logger.info("signAgreement response : {}", resp);
 		return resp;
 	}
