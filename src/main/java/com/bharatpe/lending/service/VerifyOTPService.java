@@ -84,7 +84,7 @@ public class VerifyOTPService {
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
-		DateFormat df = new SimpleDateFormat("ddMMyyyy");
+		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
 		
