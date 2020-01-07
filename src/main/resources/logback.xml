@@ -7,7 +7,7 @@
 	
 	<springProfile name="!dev">
 		<property name="LOG.APPENDER" value="RollingFile" />
-		<property name="LOG.FILE" value="/home/ubuntu/logs/lending-java.log" />
+		<property name="LOG.FILE" value="/data/logs/lending-java.log" />
 	</springProfile>
 	
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">

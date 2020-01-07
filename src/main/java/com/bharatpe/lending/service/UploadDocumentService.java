@@ -400,7 +400,7 @@ public class UploadDocumentService {
 			docAuthentication.setDobMatch(String.valueOf(result.get("dobMatch")));
 			if(String.valueOf(result.get("duplicate")).equals("false") && String.valueOf(result.get("nameMatch")).equals("true") && String.valueOf(result.get("dobMatch")).equals("true") ) {
 				docAuthentication.setStatus("ACCEPTED");
-				lendingApplicationDao.updateApplicationManualKyc("APPROVED", lendingApplication.getId());
+//				lendingApplicationDao.updateApplicationManualKyc("APPROVED", lendingApplication.getId());
 			}else {
 				docAuthentication.setStatus("REJECTED");
 			}

@@ -46,8 +46,7 @@ public class KarzaHandler {
             Instant end = Instant.now();
     		logger.info("Time Taken by Karza KYC API : {} miliseconds", Duration.between(start, end).toMillis());
         }catch(Exception e) {
-        	e.printStackTrace();
-        	logger.info("exception while Karza KYC API, signedURL : {}",signedURL);
+        	logger.info("exception while Karza KYC API, signedURL : {}, Exception is {}", signedURL, e);
         }
 		
 		return response;
@@ -76,8 +75,7 @@ public class KarzaHandler {
             Instant end = Instant.now();
     		logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
         }catch(Exception e) {
-        	e.printStackTrace();
-        	logger.info("Exception while Karza Pan Authentication API");
+        	logger.info("Exception while Karza Pan Authentication API, Exception is {}", e);
         }
         
 		return response;
