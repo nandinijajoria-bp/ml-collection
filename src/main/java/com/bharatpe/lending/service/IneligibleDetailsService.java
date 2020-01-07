@@ -18,6 +18,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class IneligibleDetailsService {
@@ -65,6 +66,15 @@ public class IneligibleDetailsService {
         c.setTime(merchantLoanRequest.getCreatedAt());
         c.add(Calendar.DATE, 30);
         Date unlockDate = c.getTime();
+        if (transactionCountLeft == 0 && transactionAmountLeft == 0) {
+            ineligibleResponseDTO.setEligible(true);
+        } else {
+            ineligibleResponseDTO.setEligible(false);
+        }
+        long gracePeriod = TimeUnit.DAYS.convert(new Date().getTime() - unlockDate.getTime(), TimeUnit.MILLISECONDS);
+        if (gracePeriod > 6) {//if grace period is more than 7 days then start a new loan cycle
+            return;
+        }
         transactionCountDetails.put("txn_left", merchantLoanRequest.getTargetTransactionCount().equals(0) ? 0 : transactionCountLeft);
         transactionCountDetails.put("txn_ongoing", merchantLoanRequest.getTargetTransactionCount().equals(0) ? currentTxnCount : onGoingTransactions);
         transactionCountDetails.put("txn_total", merchantLoanRequest.getTargetTransactionCount().equals(0) ? currentTxnCount : merchantLoanRequest.getTargetTransactionCount());
@@ -76,11 +86,6 @@ public class IneligibleDetailsService {
         ineligibleResponseDTO.setTransactionCountDetails(transactionCountDetails);
         ineligibleResponseDTO.setTransactionAmtDetails(transactionAmountDetails);
         ineligibleResponseDTO.setLoanDetails(loanDetails);
-        if (transactionCountLeft == 0 && transactionAmountLeft == 0) {
-            ineligibleResponseDTO.setEligible(true);
-        } else {
-            ineligibleResponseDTO.setEligible(false);
-        }
         ineligibleResponseDTO.setRequestedLoanAmt(merchantLoanRequest.getRequestedLoanAmount());
     }
 
