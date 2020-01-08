@@ -508,7 +508,7 @@ public class LoanDetailsService {
 			DocumentDTO document = new DocumentDTO();
 			document.setId(documentsIdProof.getId());
 			document.setProofType(documentsIdProof.getProofType());
-			document.setSinglePageDocument(documentsIdProof.getSinglePage() == 0 ? false : true);
+			document.setSinglePageDocument(documentsIdProof.getSinglePage() != null && documentsIdProof.getSinglePage() == 0 ? false : true);
 		}
 		return documents;
 	}

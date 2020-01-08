@@ -237,7 +237,13 @@ public class SignAgreementService {
 			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
 			toSaveDocuments.setLendingApplication(newApplication);
 			toSaveDocuments.setStatus("pending_verification");
-			toSaveDocuments.setSinglePage(documentsIdProof.getSinglePage());
+			Integer singleProofDoc = documentsIdProof.getSinglePage();
+			if(singleProofDoc == null) {
+				if(documentsIdProof.getProofBackSide() != null) {
+					singleProofDoc = 0;
+				}
+			}
+			toSaveDocuments.setSinglePage(singleProofDoc);
 			toSaveDocuments.setLatitude(meta.getLatitude());
 			toSaveDocuments.setLongitude(meta.getLongitude());
 			toSaveDocuments.setIp(meta.getIp());
