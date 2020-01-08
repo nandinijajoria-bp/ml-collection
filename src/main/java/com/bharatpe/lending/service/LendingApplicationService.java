@@ -61,14 +61,14 @@ public class LendingApplicationService {
 			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
 		}else {
-			AvailableLoan availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-			if(availableLoan == null) {
+			List<AvailableLoan> availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+			if(availableLoan == null || availableLoan.isEmpty()) {
 				logger.info("No loan available for Merchant {} and category", merchantId, lendingApplicationRequest.getCategory());
 				lendingApplicationResponse = new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
-			lendingApplication = createApplication(merchant, availableLoan, lendingApplicationRequest);
+			lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
