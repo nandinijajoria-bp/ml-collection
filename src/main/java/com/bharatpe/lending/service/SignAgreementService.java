@@ -79,6 +79,9 @@ public class SignAgreementService {
 	
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
+	
+	@Autowired
+	LendingApplicationService lendingApplicationService;
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -218,6 +221,8 @@ public class SignAgreementService {
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
+			
+			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
 		}
 		return response;
 	}

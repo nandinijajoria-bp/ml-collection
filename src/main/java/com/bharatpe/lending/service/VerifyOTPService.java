@@ -1,8 +1,28 @@
 package com.bharatpe.lending.service;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
-import com.bharatpe.common.entities.*;
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
@@ -12,15 +32,6 @@ import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
 
 
 @Service
@@ -50,6 +61,8 @@ public class VerifyOTPService {
 	
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
+	
+	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -116,13 +129,15 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-		sendNotification(merchant, lendingApplication);
+		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
 		
 	private void sendNotification(Merchant merchant, LendingApplication lendingApplication) {
+		
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		if(merchantBankDetail == null) {
 			return;
@@ -131,8 +146,16 @@ public class VerifyOTPService {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
+		
 		String smsContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount.intValue()+" has been received successfully.";
 		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
+
+		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" + 
+				"\n" + 
+				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" + 
+				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
+		
+		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles);
 
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
@@ -140,11 +163,5 @@ public class VerifyOTPService {
 			String pushContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "homepage.html");
 		}
-		
-		String whatsappContent = "Hi " + merchantBankDetail.getBeneficiaryName() + ", Your loan application for INR " +loanAmount.intValue()+ " has been received successfully.Your Application ID is "+ lendingApplication.getExternalLoanId() ;
-		
-//		String whatsappContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
-		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles);
-		
 	}
 }
