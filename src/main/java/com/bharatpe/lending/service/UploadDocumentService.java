@@ -212,6 +212,7 @@ public class UploadDocumentService {
 			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
+			boolean isDocAuthEntryMade = false;
 			if(!tempPublicURL.isEmpty()) {
 				start = Instant.now();
 				String response = karzaHandler.curlKarzaKycAPI(tempPublicURL);
@@ -229,6 +230,7 @@ public class UploadDocumentService {
 							pancardAuthenticationUsingKarzaAPI(responseMap, docKycDetails, documentsIdProof, merchant, lendingApplication);
 							end = Instant.now();
 							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
+							isDocAuthEntryMade = true;
 						}
 					}else {
 						String requestId = (String) responseMap.get("requestId");
@@ -240,6 +242,13 @@ public class UploadDocumentService {
 				}
 			}else {
 				logger.info("UploadDocumentService blank tempURL from S3 bucket for key : {}",fileName);
+			}
+			
+			// TODO: Need to do entry first and update based on the response update the details
+			if(proofType.equals("pancard") && !isDocAuthEntryMade) {
+				logger.info("Marking blank entries for pancard in DocKycDetails and DocAuthentication for merchant id {}", merchant.getId());
+				DocKycDetails docDetails = createFailedDocKycDetails("pancard", documentsIdProof, merchant);
+				createFailedEntryForPancardDocAuthentication(docDetails, documentsIdProof, merchant, lendingApplication);
 			}
 		} catch (FileNotFoundException e) {
 			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket,file not found for key : {}",fileName);
@@ -365,6 +374,7 @@ public class UploadDocumentService {
 				processAndSavePanAuthenticationResponse(curlResponse, docKycDetails, documentsIdProof, merchant, lendingApplication);
 			}else {
 				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
+				createFailedEntryForPancardDocAuthentication(docKycDetails, documentsIdProof, merchant, lendingApplication);
 			}
 		}
 	}
@@ -414,4 +424,41 @@ public class UploadDocumentService {
 		}
 		docAuthenticationDao.save(docAuthentication);
 	}
+	
+	private void createFailedEntryForPancardDocAuthentication(DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
+		DocAuthentication docAuthentication = new DocAuthentication();
+		docAuthentication.setDocKycDetails(docKycDetails);
+		docAuthentication.setMerchant(merchant);
+		docAuthentication.setDocType("pancard");
+		docAuthentication.setFullResponse("");
+		docAuthentication.setDocumentsIdProof(documentsIdProof);
+		docAuthentication.setCreatedAt(new Date());
+		docAuthentication.setUpdatedAt(new Date());
+		docAuthentication.setDocStatus("FAILED");
+		docAuthentication.setDuplicate("");
+		docAuthentication.setNameMatch("");
+		docAuthentication.setDobMatch("");
+		docAuthentication.setStatus("");
+		docAuthenticationDao.save(docAuthentication);
+	}
+	
+	private DocKycDetails createFailedDocKycDetails(String docType, DocumentsIdProof documentsIdProof, Merchant merchant) {
+		DocKycDetails docKycDetails = new DocKycDetails();
+		docKycDetails.setDocumentsIdProof(documentsIdProof);
+		docKycDetails.setMerchant(merchant);
+		docKycDetails.setCreatedAt(new Date());
+		docKycDetails.setUpdatedAt(new Date());
+		docKycDetails.setModule("LENDING");
+		docKycDetails.setDocSide("FRONT");
+		docKycDetails.setStatus("");
+		docKycDetails.setDocType(docType);
+		docKycDetails.setResponse("");
+		docKycDetails.setDocNo("");
+		docKycDetails.setDob("1970-01-01");
+		docKycDetails.setPersonName("");
+		docKycDetails.setFatherName("");
+		docKycDetailsDao.save(docKycDetails);
+		return docKycDetails;
+	}
+	
 }
