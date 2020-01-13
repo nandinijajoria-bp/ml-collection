@@ -19,6 +19,7 @@ import com.bharatpe.common.dao.LoanDetailsDao;
 import com.bharatpe.common.dao.MerchantAddressDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.dao.MerchantStoreDao;
 import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.Agent;
 import com.bharatpe.common.entities.AvailableLoan;
@@ -31,6 +32,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantAddress;
 import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.common.entities.MerchantStore;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.lending.dao.AgentDao;
 import com.bharatpe.lending.dao.BankListDao;
@@ -102,11 +104,26 @@ public class LoanDetailsService {
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
+	
+	@Autowired
+	MerchantStoreDao merchantStoreDao;
 
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<LoanDetailsRequestDTO> requestDTO) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 			boolean eligibleFlag = true;
+			
+			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+			if(stores != null && !stores.isEmpty()) {
+				eligibleFlag = false;
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<LoanEligibilityDTO>());
+				loanDetailsDTO.setHistory(new ArrayList<LoanHistoryDTO>());
+				loanDetailsDTO.setEligible(false);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
+			}
 			
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 

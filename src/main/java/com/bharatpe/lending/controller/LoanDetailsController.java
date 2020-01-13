@@ -1,6 +1,5 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
 import com.bharatpe.lending.dto.LoanDetailsRequestDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.ImageURLService;
