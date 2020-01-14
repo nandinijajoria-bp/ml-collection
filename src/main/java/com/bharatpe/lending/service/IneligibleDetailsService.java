@@ -102,6 +102,7 @@ public class IneligibleDetailsService {
         double totalTxnValue = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0;
         int totalTxnCount = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;
         double avgTxnValue = (totalTxnValue != 0 && totalTxnCount != 0) ? Math.floor((totalTxnValue/totalTxnCount)/10.0)*10 : 0;
+        avgTxnValue = Math.max(avgTxnValue, 100d);
         double totalAmountRequired = (((requestedLoanAmount * 3)/(tenure * multiplier))-totalTxnValue)/2;
         totalAmountRequired = totalAmountRequired > 0 ? totalAmountRequired : 0;
         if (totalAmountRequired > 0 && (totalAmountRequired + totalTxnValue < 7500)) {
