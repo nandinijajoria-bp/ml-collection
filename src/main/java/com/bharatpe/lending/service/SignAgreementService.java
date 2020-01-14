@@ -198,7 +198,7 @@ public class SignAgreementService {
 		newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 		newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
-		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount());
+		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
 		lendingApplicationDao.save(newApplication);
 
 		if(newApplication.getId() != null) {

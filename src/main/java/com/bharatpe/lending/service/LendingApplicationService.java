@@ -73,7 +73,7 @@ public class LendingApplicationService {
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
-			lendingApplication.setTotalLoansCount(summary.getTotalLoansCount());
+			lendingApplication.setTotalLoansCount(summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
 			lendingApplicationDao.save(lendingApplication);
 			createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			createStatusAuditTrail(lendingApplication);
