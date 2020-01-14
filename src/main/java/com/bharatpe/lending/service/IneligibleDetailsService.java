@@ -72,7 +72,13 @@ public class IneligibleDetailsService {
             ineligibleResponseDTO.setEligible(false);
         }
         long gracePeriod = TimeUnit.DAYS.convert(new Date().getTime() - unlockDate.getTime(), TimeUnit.MILLISECONDS);
-        if (gracePeriod > 6) {//if grace period is more than 7 days then start a new loan cycle
+        if (merchantLoanRequest.getRequestedLoanAmount() >= 10000 && merchantLoanRequest.getRequestedLoanAmount() < 200000 && gracePeriod > 6) {//if grace period is more than 7 days then start a new loan cycle
+            return;
+        }
+        if (merchantLoanRequest.getRequestedLoanAmount() >= 200000 && merchantLoanRequest.getRequestedLoanAmount() < 400000 && gracePeriod > 20) {//if grace period is more than 7 days then start a new loan cycle
+            return;
+        }
+        if (merchantLoanRequest.getRequestedLoanAmount() >= 400000 && gracePeriod > 29) {//if grace period is more than 7 days then start a new loan cycle
             return;
         }
         transactionCountDetails.put("txn_left", merchantLoanRequest.getTargetTransactionCount().equals(0) ? 0 : transactionCountLeft);
