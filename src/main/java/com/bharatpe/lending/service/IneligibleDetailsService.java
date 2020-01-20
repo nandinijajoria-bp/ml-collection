@@ -63,7 +63,7 @@ public class IneligibleDetailsService {
         Map<String, Object> transactionCountDetails = new HashMap<>();
         Map<String, Object> transactionAmountDetails = new HashMap<>();
         Map<String, Object> loanDetails = new HashMap<>();
-        int currentTxnCount = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;
+        int currentTxnCount = (merchantSummary != null && merchantSummary.getDailyTxnCount() != null) ? merchantSummary.getDailyTxnCount() : 0;
         double currentTxnValue = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0;
         int onGoingTransactions = currentTxnCount - merchantLoanRequest.getInitialTransactionCount();
         double onGoingAmount = currentTxnValue - merchantLoanRequest.getInitialTransactionAmount();
