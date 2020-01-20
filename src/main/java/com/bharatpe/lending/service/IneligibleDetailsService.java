@@ -1,10 +1,12 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.dao.MerchantLoanRequestAuditTrailDoa;
 import com.bharatpe.common.dao.MerchantLoanRequestDoa;
 import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantLoanRequest;
+import com.bharatpe.common.entities.MerchantLoanRequestAuditTrail;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
@@ -34,6 +36,10 @@ public class IneligibleDetailsService {
     @Autowired
     private MerchantDao merchantDao;
 
+    @Autowired
+    MerchantLoanRequestAuditTrailDoa merchantLoanRequestAuditTrailDoa;
+
+
     public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
         MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
@@ -44,6 +50,8 @@ public class IneligibleDetailsService {
             logger.info("New Ineligible Loan request for amount : {} with panCard : {} and merchantId : {}", ineligibleRequestDTO.getRequestedLoanAmount(), ineligibleRequestDTO.getPanCard(), merchant.getId());
             merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
             merchantLoanRequest = calculateTarget(merchantSummary, ineligibleRequestDTO.getRequestedLoanAmount(), merchant.getId(), ineligibleRequestDTO.getPanCard());
+            MerchantLoanRequestAuditTrail merchantLoanRequestAuditTrail = MerchantLoanRequestAuditTrail.createObject(merchantLoanRequest);
+            merchantLoanRequestAuditTrailDoa.save(merchantLoanRequestAuditTrail);
         }
         if (merchantLoanRequest != null) {
             calculateIneligibleLoanDetails(merchantSummary, merchantLoanRequest, ineligibleResponseDTO);
