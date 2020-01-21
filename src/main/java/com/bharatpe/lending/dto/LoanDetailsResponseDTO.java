@@ -32,7 +32,7 @@ public class LoanDetailsResponseDTO {
 
 	public static class LoanDetailsDTO {
 		private boolean eligible;
-		private boolean loanClosed =false;
+		private boolean loanClosed = true;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
