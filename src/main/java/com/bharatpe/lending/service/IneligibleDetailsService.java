@@ -108,6 +108,8 @@ public class IneligibleDetailsService {
         float multiplier = 0.5f;
         double totalTxnValue = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0;
         int totalTxnCount = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;
+        int currentTxnCount = (merchantSummary != null && merchantSummary.getDailyTxnCount() != null) ? merchantSummary.getDailyTxnCount() : 0;
+        double currentTxnValue = (merchantSummary != null && merchantSummary.getDailyTxnAmount() != null) ? merchantSummary.getDailyTxnAmount() : 0;
         double avgTxnValue = (totalTxnValue != 0 && totalTxnCount != 0) ? Math.floor((totalTxnValue / totalTxnCount) / 10.0) * 10 : 0;
         avgTxnValue = Math.max(avgTxnValue, 100d);
         double totalAmountRequired = (((requestedLoanAmount * 3) / (tenure * multiplier)) - totalTxnValue) / 2;
@@ -119,6 +121,6 @@ public class IneligibleDetailsService {
         totalTxnRequired = totalAmountRequired > 0 ? totalTxnRequired : 0;
         logger.info("Calculating target for ineligible loan---");
         logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", totalTxnCount, totalTxnValue, totalAmountRequired, totalTxnRequired);
-        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, requestedLoanAmount, totalTxnCount, totalTxnValue, totalTxnRequired, totalAmountRequired, panCard));
+        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, requestedLoanAmount,  currentTxnCount, currentTxnValue, totalTxnRequired, totalAmountRequired, panCard));
     }
 }
