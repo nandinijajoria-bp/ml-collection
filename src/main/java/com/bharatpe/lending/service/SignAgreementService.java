@@ -146,7 +146,7 @@ public class SignAgreementService {
 		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
 		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 
-		if(prevLendingSchedule == null || prevApplication == null || !prevLendingSchedule.getStatus().equals("CLOSED") || !"DISBURSED".equals(prevApplication.getLoanDisbursalStatus())) {
+		if(prevLendingSchedule == null || prevApplication == null || !prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equals(prevApplication.getLoanDisbursalStatus()))) {
 			logger.error("User not eligible, last loan not closed/found or last application is not disbursed/found");
 			return response;
 		}
@@ -198,6 +198,7 @@ public class SignAgreementService {
 		newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 		newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
+		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
 		lendingApplicationDao.save(newApplication);
 
 		if(newApplication.getId() != null) {

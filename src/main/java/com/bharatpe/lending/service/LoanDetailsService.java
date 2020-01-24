@@ -60,6 +60,9 @@ public class LoanDetailsService {
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
+	
+	@Autowired
+	MerchantStoreDao merchantStoreDao;
 
 	@Autowired
 	ExperianDao experianDao;
@@ -88,6 +91,20 @@ public class LoanDetailsService {
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
 				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D));
+			}
+			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+			if(stores != null && !stores.isEmpty()) {
+				eligibleFlag = false;
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<>());
+				loanDetailsDTO.setHistory(new ArrayList<>());
+				loanDetailsDTO.setEligible(eligibleFlag);
+				loanDetailsDTO.setRejected(rejected);
+				loanDetailsDTO.setRejectReason(rejectReason);
+				loanDetailsDTO.setPanCard(panCard);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
 			}
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 

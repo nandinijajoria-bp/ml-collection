@@ -68,12 +68,14 @@ public class LendingApplicationService {
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
+			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
+			lendingApplication.setTotalLoansCount(summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
 			lendingApplicationDao.save(lendingApplication);
-			createMerchantSummarySnapshot(merchant, lendingApplication, null);
+			createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			createStatusAuditTrail(lendingApplication);
 		}
 
@@ -149,9 +151,6 @@ public class LendingApplicationService {
 	
 	public void createMerchantSummarySnapshot(Merchant merchant, LendingApplication application, MerchantSummary summary) {
 		try {
-			if(summary == null)
-				summary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			
 			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
 			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchant.getId());
 			

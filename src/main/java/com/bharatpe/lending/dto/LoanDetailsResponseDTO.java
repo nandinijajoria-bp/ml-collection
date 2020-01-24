@@ -35,6 +35,7 @@ public class LoanDetailsResponseDTO {
 		private boolean rejected;
 		private String panCard;
 		private String rejectReason;
+		private boolean loanClosed = true;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -43,6 +44,14 @@ public class LoanDetailsResponseDTO {
 		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
+
+		public boolean isLoanClosed() {
+			return loanClosed;
+		}
+
+		public void setLoanClosed(boolean loanClosed) {
+			this.loanClosed = loanClosed;
+		}
 
 		public boolean isEligible() {
 			return eligible;
@@ -107,6 +116,7 @@ public class LoanDetailsResponseDTO {
 					", rejected=" + rejected +
 					", panCard='" + panCard + '\'' +
 					", rejectReason='" + rejectReason + '\'' +
+					", loanClosed=" + loanClosed +
 					", history=" + history +
 					", eligibility=" + eligibility +
 					", loanApplication=" + loanApplication +
