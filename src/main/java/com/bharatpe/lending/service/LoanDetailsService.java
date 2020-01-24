@@ -1,61 +1,25 @@
 package com.bharatpe.lending.service;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.MerchantCategory;
+import com.bharatpe.common.enums.Status.GeneralStatus;
+import com.bharatpe.common.enums.Status.LendingStatus;
+import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
+import com.bharatpe.lending.util.LoanCalculationUtil;
+import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import com.bharatpe.common.dao.AvailableLoanDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.LoanDetailsDao;
-import com.bharatpe.common.dao.MerchantAddressDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
-import com.bharatpe.common.entities.Agent;
-import com.bharatpe.common.entities.AvailableLoan;
-import com.bharatpe.common.entities.BankList;
-import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.LendingCategories;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantAddress;
-import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.entities.MerchantSummary;
-import com.bharatpe.lending.dao.AgentDao;
-import com.bharatpe.lending.dao.BankListDao;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.DocumentDTO;
-import com.bharatpe.lending.dto.LabelDTO;
-import com.bharatpe.lending.dto.LoanApplicationDTO;
-import com.bharatpe.lending.dto.LoanDetailsRequestDTO;
-import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
-import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
-import com.bharatpe.lending.dto.LoanEligibilityDTO;
-import com.bharatpe.lending.dto.LoanHistoryDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.SelectedLoanDTO;
-import com.bharatpe.lending.dto.ShopDetailsDTO;
-import com.bharatpe.lending.util.LoanCalculationUtil;
-import com.bharatpe.lending.util.LoanUtil;
-import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
-import com.bharatpe.common.enums.MerchantCategory;
-import com.bharatpe.common.enums.Status.GeneralStatus;
-import com.bharatpe.common.enums.Status.LendingStatus;
-import com.bharatpe.common.utils.CurrencyUtils;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @Service
 public class LoanDetailsService {
@@ -63,9 +27,6 @@ public class LoanDetailsService {
 	
 	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada");
 	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada");
-	
-	@Autowired
-	MerchantDao merchantDao;
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
@@ -89,9 +50,6 @@ public class LoanDetailsService {
 	LendingCategoryDao lendingCategoryDao;
 	
 	@Autowired
-	LoanDetailsDao loanDetailsDao;
-	
-	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
 	@Autowired
@@ -103,11 +61,34 @@ public class LoanDetailsService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<LoanDetailsRequestDTO> requestDTO) {
+	@Autowired
+	ExperianDao experianDao;
+
+	@Autowired
+	LoanEligibleService loanEligibleService;
+
+	@Transactional
+	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 			boolean eligibleFlag = true;
-			
+			boolean rejected = false;
+			String rejectReason = null;
+			String panCard = null;
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			if (experian != null && experian.getPancardNumber() != null) {
+				panCard = experian.getPancardNumber();
+			}
+			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+			if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
+				rejected = true;
+				rejectReason = experian.getReason();
+			}
+			if (requestDTO.getPayload().getPanCard() != null) {
+				experianDao.deleteByMerchantId(merchant.getId());
+				panCard = requestDTO.getPayload().getPanCard();
+				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D));
+			}
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
@@ -128,6 +109,9 @@ public class LoanDetailsService {
 				loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 				loanDetailsDTO.setHistory(loanHistoryDTOs);
 				loanDetailsDTO.setEligible(true);
+				loanDetailsDTO.setRejected(rejected);
+				loanDetailsDTO.setRejectReason(rejectReason);
+				loanDetailsDTO.setPanCard(panCard);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -174,19 +158,17 @@ public class LoanDetailsService {
 					loanDetailsDTO.setHistory(loanHistoryDTOs);
 					loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 					loanDetailsDTO.setEligible(true);
+					loanDetailsDTO.setRejected(rejected);
+					loanDetailsDTO.setRejectReason(rejectReason);
+					loanDetailsDTO.setPanCard(panCard);
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
 					return response;
 				}
 			}
-
-			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant)) {
-				MerchantSummary merchantSummary = merchantSummaryDao.findActiveMerchantSummary(merchant.getId());
-				if(merchantSummary != null) {
-					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
-				} else {
-					logger.info("Merchant summary is empty for merchant ID  {}", merchant.getId());
-				}
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant, merchantBankDetail) && !rejected && experian != null) {
+				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(requestDTO.getPayload(), merchant, experian, merchantSummary, merchantBankDetail));
 			}
 			
 			if(lendingApplication != null 
@@ -194,9 +176,9 @@ public class LoanDetailsService {
 					|| "approved".equalsIgnoreCase(lendingApplication.getStatus()))) {
 				loanApplicationDTO.setShowReapply(true);
 //				loanHistoryDTOs = null;
-				loanApplicationDTO.setApplicationId(null);;
+				loanApplicationDTO.setApplicationId(null);
 			}
-			if((loanHistoryDTOs == null || loanHistoryDTOs.isEmpty()) && loanEligibilityDTOs.isEmpty()) {
+			if(loanHistoryDTOs.isEmpty() && loanEligibilityDTOs.isEmpty()) {
 				eligibleFlag = false;	
 			}
 			
@@ -205,7 +187,9 @@ public class LoanDetailsService {
 			loanDetailsDTO.setHistory(loanHistoryDTOs);
 			loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 			loanDetailsDTO.setEligible(eligibleFlag);
-			
+			loanDetailsDTO.setRejected(rejected);
+			loanDetailsDTO.setRejectReason(rejectReason);
+			loanDetailsDTO.setPanCard(panCard);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
@@ -236,7 +220,7 @@ public class LoanDetailsService {
 			}
 			
 			Date rejectedTimestamp = auditTrial.getCreatedAt();
-			Date nDaysBeforeTimestamp = new Date(System.currentTimeMillis() - Long.valueOf(nDays) * 24 * 3600 * 1000);
+			Date nDaysBeforeTimestamp = new Date(System.currentTimeMillis() - (long) nDays * 24 * 3600 * 1000);
 			
 			if(rejectedTimestamp.compareTo(nDaysBeforeTimestamp) > 0) {
 				logger.info("Application with id {} has been rejected in last {} days", auditTrial.getApplicationId(), nDays);
@@ -251,7 +235,7 @@ public class LoanDetailsService {
 	}
 
 	private Boolean isValidFOSMerchant(String referalCode) {
-		Boolean responseFlag = false;
+		boolean responseFlag = false;
 		
 		if(!StringUtils.isEmpty(referalCode)) {
 			Agent agent = agentDao.fetchByReferalCode(referalCode);
@@ -266,7 +250,7 @@ public class LoanDetailsService {
 	}
 	
 	private Boolean isValidDIYMerchant(Merchant merchant) {
-		Boolean responseFlag = false;
+		boolean responseFlag = false;
 		
 		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
 		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity())) {
@@ -331,7 +315,7 @@ public class LoanDetailsService {
 				loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
 				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter());
 				loanEligibilityDTO.setConstruct(availableLoan.getLoanConstruct());
-				loanEligibilityDTO.setList(prepareLabels(breakup));
+				loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup));
 				loanEligibilityDTO.setType(breakup.getType());
 				loanEligibilityDTO.setOptionEnable(true);
 
@@ -341,30 +325,6 @@ public class LoanDetailsService {
 			}
 		}
 		return availableLoanDTOList;
-	}
-	
-	private List<LabelDTO> prepareLabels(LoanBreakupDetail breakup) {
-		List<LabelDTO> list = new ArrayList<>();
-		
-		if("CONSTRUCT_1".equals(breakup.getConstruct())) {
-			list.add(new LabelDTO("Daily Installment", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
-			list.add(new LabelDTO("No Installment on", "Sundays"));
-			list.add(new LabelDTO("Repayment Amount", "₹" + CurrencyUtils.formatInt(breakup.getRepayment())));
-		} else if("CONSTRUCT_2".equals(breakup.getConstruct())) {
-			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
-			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
-			list.add(new LabelDTO("No EDI on", "Sundays"));
-			list.add(new LabelDTO("Repayment Amount", "₹" +String.valueOf(breakup.getRepayment())));
-		} else if("CONSTRUCT_3".equals(breakup.getConstruct())) {
-			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(breakup.getIoEdi()) + "/day"));
-			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
-			list.add(new LabelDTO("No EDI on", "Sundays"));
-			list.add(new LabelDTO("Repayment Amount", "₹" + CurrencyUtils.formatInt(breakup.getRepayment())));
-		} else {
-			logger.error("Construct {} not defined, throwing Exception", breakup.getConstruct());
-			throw new RuntimeException("Construct not defined.");
-		}
-		return list;
 	}
 
 	private List<AvailableLoan> sort(List<AvailableLoan> availableLoanList) {
@@ -513,10 +473,8 @@ public class LoanDetailsService {
 		return documents;
 	}
 	
-	private boolean isPaymentBank(Merchant merchant) {
+	private boolean isPaymentBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
 		try {
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-			
 			if(merchantBankDetail == null) {
 				logger.error("No merchnat bank detail found for merchant id {}", merchant.getId());
 				return true;

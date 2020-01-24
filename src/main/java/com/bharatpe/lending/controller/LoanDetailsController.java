@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
 import com.bharatpe.lending.dto.LoanDetailsRequestDTO;
 import com.bharatpe.lending.dto.RequestDTO;
@@ -35,10 +36,10 @@ public class LoanDetailsController {
 	ImageURLService imageURLService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LoanDetailsRequestDTO> requestDTO) {
+	public Object loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
 		logger.info("loanDetails request : {}", requestDTO);
 		
-		Object resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO);
+		Object resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO, clientIp);
 		
 		logger.info("loanDetails response : {}", resp);
 		return resp;

@@ -32,7 +32,10 @@ public class LoanDetailsResponseDTO {
 
 	public static class LoanDetailsDTO {
 		private boolean eligible;
-		
+		private boolean rejected;
+		private String panCard;
+		private String rejectReason;
+
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
 		
@@ -47,6 +50,30 @@ public class LoanDetailsResponseDTO {
 
 		public void setEligible(boolean eligible) {
 			this.eligible = eligible;
+		}
+
+		public boolean isRejected() {
+			return rejected;
+		}
+
+		public void setRejected(boolean rejected) {
+			this.rejected = rejected;
+		}
+
+		public String getPanCard() {
+			return panCard;
+		}
+
+		public void setPanCard(String panCard) {
+			this.panCard = panCard;
+		}
+
+		public String getRejectReason() {
+			return rejectReason;
+		}
+
+		public void setRejectReason(String rejectReason) {
+			this.rejectReason = rejectReason;
 		}
 
 		public List<LoanHistoryDTO> getHistory() {
@@ -75,8 +102,15 @@ public class LoanDetailsResponseDTO {
 
 		@Override
 		public String toString() {
-			return "LoanDetailsDTO [eligible=" + eligible + ", history=" + history + ", eligibility=" + eligibility
-					+ ", loanApplication=" + loanApplication + "]";
+			return "LoanDetailsDTO{" +
+					"eligible=" + eligible +
+					", rejected=" + rejected +
+					", panCard='" + panCard + '\'' +
+					", rejectReason='" + rejectReason + '\'' +
+					", history=" + history +
+					", eligibility=" + eligibility +
+					", loanApplication=" + loanApplication +
+					'}';
 		}
 	}
 }
