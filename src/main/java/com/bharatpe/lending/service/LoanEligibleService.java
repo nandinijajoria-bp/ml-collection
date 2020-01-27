@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.ExperianAuditTrailDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
+import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -26,9 +27,12 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 @Service
@@ -36,6 +40,7 @@ public class LoanEligibleService {
 
     List<Integer> derogAccountStatus = Arrays.asList(93,89,93,97,97,97,97,30,31,32,33,35,37,38,39,41,42,43,44,45,47,49,50,51,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,77,79,81,85,86,87,88,94,90,91);
     List<Integer> derogUnsecuredProducts = Arrays.asList(5,10,36,37,38,39,43,51,52,53,54,55,56,57,58,60,61);
+    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "pawan@bharatpe.com", "puneet@bharatpe.com", "khushal.virmani@bharatpe.com", "nishit@bharatpe.com", "satyam@bharatpe.com");
     Map<Integer, List<Integer>> tenureMap = createMap();
     private static Map<Integer, List<Integer>> createMap() {
         Map<Integer, List<Integer>> tenureMap = new HashMap<>();
@@ -66,6 +71,9 @@ public class LoanEligibleService {
     @Autowired
     LendingLedgerDao lendingLedgerDao;
 
+    @Autowired
+    EmailHandler emailHandler;
+
     public List<LoanEligibilityDTO> getNewLoanDetails(IneligibleRequestDTO ineligibleRequestDTO, Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
@@ -95,30 +103,39 @@ public class LoanEligibleService {
         try {
             JsonNode experianResponse;
             ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
-            if (experianAuditTrail != null && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 30) {//get experian data from db if less than 30 days old
+            if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 30) {//get experian data from db if less than 30 days old
                 experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
             } else {
-                experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), ineligibleRequestDTO.getPanCard());
-                if (experianResponse != null) {
-                    experianAuditTrailDao.save(new ExperianAuditTrail(merchant.getId(), experianResponse.toString()));
+                try {
+                    experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber());
+                } catch (ResourceAccessException e) {
+                    experianResponse = null;
+                    if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
+                        logger.error("Experian not responding---", e);
+                        experian.setRetryCount(experian.getRetryCount() + 1);
+                        experianDao.save(experian);
+                        emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
+                        return new ArrayList<>();
+                    } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
+                        experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber());
+                    }
                 }
             }
             if (experianResponse != null){
                 experian.setResponse(experianResponse.toString());
+                experian.setRetryCount(0);
                 experianDao.save(experian);//updating response
             }
-            if (experianResponse != null && validatePancard(experianResponse, ineligibleRequestDTO.getPanCard(), merchant.getId(), experian)){
+            if (experianResponse != null && validatePancard(experianResponse, experian.getPancardNumber(), merchant.getId(), experian)){
                 if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
                     JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-                    if (derogChecks(caisAccountDetails, merchant.getId())) {
-                        //Derog checks failed, reject merchant for loan...
+                    if (derogChecks(caisAccountDetails, merchant.getId(), experian)) {
                         logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
                         return new ArrayList<>();
                     }
                 } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
                     for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                        if (derogChecks(caisAccountDetails, merchant.getId())) {
-                            //Derog checks failed, reject merchant for loan...
+                        if (derogChecks(caisAccountDetails, merchant.getId(), experian)) {
                             logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
                             return new ArrayList<>();
                         }
@@ -127,17 +144,26 @@ public class LoanEligibleService {
                 //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
                 if (checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)){
                     logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
-                    experianDao.updateReason(merchant.getId(), ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
+                    experian.setRejected(true);
+                    experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
+                    experianDao.save(experian);
                     return new ArrayList<>();
                 }
                 //Not more than 6 enquiries in the last 3 months ( across all product types) --- Derog check
                 if (checkLoanEnquiriesInLast3Months(experianResponse)){
                     logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
-                    experianDao.updateReason(merchant.getId(), ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
+                    experian.setRejected(true);
+                    experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
+                    experianDao.save(experian);
                     return new ArrayList<>();
                 }
                 return fetchBureauEligibleLoan(experianResponse, merchant.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays);
             }
+        } catch (ResourceAccessException e) {
+            logger.error("Experian not responding---", e);
+            experian.setRetryCount(experian.getRetryCount() + 1);
+            experianDao.save(experian);
+            emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
         } catch (Exception e) {
             logger.error("Exception while fetching experian details---", e);
         }
@@ -452,47 +478,61 @@ public class LoanEligibleService {
         return 0;
     }
 
-    private boolean derogChecks(JsonNode jsonNode, Long merchantId) {
+    private boolean derogChecks(JsonNode jsonNode, Long merchantId, Experian experian) {
         //Check for Derog Account Status
         if (jsonNode.get("Account_Status") != null && derogAccountStatus.contains(jsonNode.get("Account_Status").intValue())){
             logger.info("Derog Account Status check failed, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_ACCOUNT_STATUS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_ACCOUNT_STATUS);
+            experianDao.save(experian);
             return true;
         }
         //Check for Derog DPD Last 3 months
         if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 3)){
             logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_DPD_LAST_3_MONTHS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_DPD_LAST_3_MONTHS);
+            experianDao.save(experian);
             return true;
         }
         //Check for Derog DPD Last 6 months
         if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 6)){
             logger.info("Derog DPD Last 6 months check failed, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_DPD_LAST_6_MONTHS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_DPD_LAST_6_MONTHS);
+            experianDao.save(experian);
             return true;
         }
         //Check for Derog DPD Last 12 months
         if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 12)){
             logger.info("Derog DPD Last 12 months check failed, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_DPD_LAST_12_MONTHS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_DPD_LAST_12_MONTHS);
+            experianDao.save(experian);
             return true;
         }
         //Check for Derog DPD Last 24 months
         if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 24)){
             logger.info("Derog DPD Last 24 months check failed, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_DPD_LAST_24_MONTHS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_DPD_LAST_24_MONTHS);
+            experianDao.save(experian);
             return true;
         }
         //Check for Derog DPD Older than 24 months
         if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDOlderThan24months(jsonNode)){
             logger.info("Derog DPD Older than 24 months check failed, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_DPD_OLDER_THAN_24_MONTHS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_DPD_OLDER_THAN_24_MONTHS);
+            experianDao.save(experian);
             return true;
         }
         //Not more than 3 live unsecured loans running
         if (checkUnsecuredLiveLoans(jsonNode)) {
             logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchantId);
-            experianDao.updateReason(merchantId, ExperianConstants.DEROG_UNSECURED_LOANS);
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
+            experianDao.save(experian);
             return true;
         }
         return false;
@@ -593,7 +633,7 @@ public class LoanEligibleService {
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
                 if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
-                    String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
+                    String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
                     experian.setMerchantName(merchantName);
                     experianDao.save(experian);
                     return true;
@@ -602,7 +642,7 @@ public class LoanEligibleService {
         } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
             JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
             if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
-                String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
+                String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
                 experian.setMerchantName(merchantName);
                 experianDao.save(experian);
                 return true;
@@ -616,6 +656,9 @@ public class LoanEligibleService {
 
 
     private JsonNode fetchExperianDetails(String firstName, String lastName, String contact, String panCard) throws IOException {
+        if (contact.length() > 10) {
+            contact = contact.substring(2);//remove 91
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);

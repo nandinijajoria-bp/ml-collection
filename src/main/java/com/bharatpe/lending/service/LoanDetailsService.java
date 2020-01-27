@@ -70,6 +70,9 @@ public class LoanDetailsService {
 	@Autowired
 	LoanEligibleService loanEligibleService;
 
+	@Autowired
+	ExperianAuditTrailDao experianAuditTrailDao;
+
 	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -78,6 +81,20 @@ public class LoanDetailsService {
 			boolean rejected = false;
 			String rejectReason = null;
 			String panCard = null;
+			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+			if(stores != null && !stores.isEmpty()) {
+				eligibleFlag = false;
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<>());
+				loanDetailsDTO.setHistory(new ArrayList<>());
+				loanDetailsDTO.setEligible(false);
+				loanDetailsDTO.setRejected(false);
+				loanDetailsDTO.setRejectReason(null);
+				loanDetailsDTO.setPanCard(null);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
+			}
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			if (experian != null && experian.getPancardNumber() != null) {
 				panCard = experian.getPancardNumber();
@@ -86,25 +103,16 @@ public class LoanDetailsService {
 			if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
 				rejected = true;
 				rejectReason = experian.getReason();
+			} else if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) >= 30) {
+				experian.setRejected(false);
+				experian.setReason(null);
+				experian.setCreatedAt(new Date());
+				experianDao.save(experian);
 			}
 			if (requestDTO.getPayload().getPanCard() != null) {
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
-				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D));
-			}
-			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
-			if(stores != null && !stores.isEmpty()) {
-				eligibleFlag = false;
-				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setEligibility(new ArrayList<>());
-				loanDetailsDTO.setHistory(new ArrayList<>());
-				loanDetailsDTO.setEligible(eligibleFlag);
-				loanDetailsDTO.setRejected(rejected);
-				loanDetailsDTO.setRejectReason(rejectReason);
-				loanDetailsDTO.setPanCard(panCard);
-				response.setDetails(loanDetailsDTO);
-				response.setSuccess(true);
-				return response;
+				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0));
 			}
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 
@@ -186,6 +194,14 @@ public class LoanDetailsService {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant, merchantBankDetail) && !rejected && experian != null) {
 				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(requestDTO.getPayload(), merchant, experian, merchantSummary, merchantBankDetail));
+				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+				if (experian.getRejected()) {
+					rejected = true;
+					rejectReason = experian.getReason();
+				}
+				if (experian.getRetryCount() == 1) {//experian timeout
+					return null;
+				}
 			}
 			
 			if(lendingApplication != null 
@@ -262,7 +278,6 @@ public class LoanDetailsService {
 				logger.info("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
 			}
 		}
-		logger.info("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
 		return responseFlag;
 	}
 	

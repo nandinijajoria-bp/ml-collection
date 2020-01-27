@@ -14,11 +14,11 @@ public interface ExperianConstants {
     String LOW_TPV = "LOW_TPV";
     String CATEGORY_RED = "CATEGORY_RED";
     String DEROG_ACCOUNT_STATUS = "Loan default / partial settlement";
-    String DEROG_DPD_LAST_3_MONTHS = "Late repayment by 5+ days in Last 3 months";
-    String DEROG_DPD_LAST_6_MONTHS = "Late repayment by 30+ days in Last 6 months";
-    String DEROG_DPD_LAST_24_MONTHS = "Late repayment by 90+ days in Last 24 months";
-    String DEROG_DPD_OLDER_THAN_24_MONTHS = "Late repayment by 60+ days in older than 2 year loans";
-    String DEROG_DPD_LAST_12_MONTHS = "Late repayment by 60+ days in Last 12 months";
+    String DEROG_DPD_LAST_3_MONTHS = "Late repayment (5+ days) in last 3 months";
+    String DEROG_DPD_LAST_6_MONTHS = "Late repayment (30+ days) in last 6 months";
+    String DEROG_DPD_LAST_24_MONTHS = "Late repayment (90+ days) in last 24 months";
+    String DEROG_DPD_OLDER_THAN_24_MONTHS = "Late repayment (60+ days) in older than 2 year loans";
+    String DEROG_DPD_LAST_12_MONTHS = "Late repayment (60+ days) in last 12 months";
     String DEROG_UNSECURED_LOAN_ENQUIRY = "High unsecured loan enquiries";
     String DEROG_UNSECURED_LOANS = "More than 3 Unsecured Loans";
     String DEROG_MORE_THAN_6_LOAN_ENQUIRY = "High number of loan enquiries in last 6 months";
