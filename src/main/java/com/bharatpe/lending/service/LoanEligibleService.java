@@ -630,22 +630,48 @@ public class LoanEligibleService {
     }
 
     private boolean validatePancard(JsonNode experianResponse, String panCard, Long merchantId, Experian experian){
+        if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
+            String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
+            experian.setEmail(email);
+        }
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
+                if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").isObject()) {
+                    if (jsonNode.get("CAIS_Holder_Details").get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
+                        String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
+                        experian.setMerchantName(merchantName);
+                        experianDao.save(experian);
+                        return true;
+                    }
+                } else if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").isArray()) {
+                    for (JsonNode node : jsonNode.get("CAIS_Holder_Details")) {
+                        if (node.get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
+                            String merchantName = node.get("First_Name_Non_Normalized").textValue() + " " + node.get("Middle_Name_1_Non_Normalized").textValue() + " " + node.get("Surname_Non_Normalized").textValue();
+                            experian.setMerchantName(merchantName);
+                            experianDao.save(experian);
+                            return true;
+                        }
+                    }
+                }
+            }
+        } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
+            JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
+            if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").isObject()) {
+                if (jsonNode.get("CAIS_Holder_Details").get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
                     String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
                     experian.setMerchantName(merchantName);
                     experianDao.save(experian);
                     return true;
                 }
-            }
-        } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
-            JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
-                String merchantName = jsonNode.get("CAIS_Holder_Details").get("First_Name_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Middle_Name_1_Non_Normalized").textValue() + " " + jsonNode.get("CAIS_Holder_Details").get("Surname_Non_Normalized").textValue();
-                experian.setMerchantName(merchantName);
-                experianDao.save(experian);
-                return true;
+            } else if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").isArray()) {
+                for (JsonNode node : jsonNode.get("CAIS_Holder_Details")) {
+                    if (node.get("Income_TAX_PAN").textValue().equalsIgnoreCase(panCard)) {
+                        String merchantName = node.get("First_Name_Non_Normalized").textValue() + " " + node.get("Middle_Name_1_Non_Normalized").textValue() + " " + node.get("Surname_Non_Normalized").textValue();
+                        experian.setMerchantName(merchantName);
+                        experianDao.save(experian);
+                        return true;
+                    }
+                }
             }
         }
         logger.info("Pancard not matched with experian for merchant: {}", merchantId);
@@ -662,7 +688,7 @@ public class LoanEligibleService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
-        String response = restTemplate.postForObject("https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPeJLUNe&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "", request, String.class);
+        String response = restTemplate.postForObject("https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPe214K2&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "", request, String.class);
         JsonNode jsonNode = objectMapper.readTree(response);
         if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
             return null;
