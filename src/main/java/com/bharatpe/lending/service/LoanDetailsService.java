@@ -506,28 +506,28 @@ public class LoanDetailsService {
 	}
 	
 	private boolean isPaymentBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
-		try {
-			if(merchantBankDetail == null) {
-				logger.error("No merchnat bank detail found for merchant id {}", merchant.getId());
-				return true;
-			}
-			
-			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
-				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
-				return true;
-			}
-			
-			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(merchantBankDetail.getIfscCode().substring(0,4));
-				
-			if (nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
-				return false;
-			} else {
-				logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfscCode());
-				return true;
-			}
-		} catch(Exception ex) {
-			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
-		}
-		return true;
+//		try {
+//			if(merchantBankDetail == null) {
+//				logger.error("No merchnat bank detail found for merchant id {}", merchant.getId());
+//				return true;
+//			}
+//
+//			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
+//				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
+//				return true;
+//			}
+//
+//			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(merchantBankDetail.getIfscCode().substring(0,4));
+//
+//			if (nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
+//				return false;
+//			} else {
+//				logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfscCode());
+//				return true;
+//			}
+//		} catch(Exception ex) {
+//			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
+//		}
+		return false;
 	}
 }
