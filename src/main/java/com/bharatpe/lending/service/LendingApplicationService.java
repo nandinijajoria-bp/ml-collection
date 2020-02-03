@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.AvailableLoanDao;
+import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
@@ -44,6 +45,9 @@ public class LendingApplicationService {
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
 
+	@Autowired
+	EligibleLoanDao eligibleLoanDao;
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
@@ -61,15 +65,15 @@ public class LendingApplicationService {
 			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
 		}else {
-			List<AvailableLoan> availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-			if(availableLoan == null || availableLoan.isEmpty()) {
-				logger.info("No loan available for Merchant {} and category", merchantId, lendingApplicationRequest.getCategory());
+			List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+			if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+				logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
 				lendingApplicationResponse = new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
 			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
-			lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
+			lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
@@ -95,29 +99,29 @@ public class LendingApplicationService {
 		return lendingApplication;
 	}
 	
-	private LendingApplication createApplication(Merchant merchant, AvailableLoan availableLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
+	private LendingApplication createApplication(Merchant merchant, EligibleLoan eligibleLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
-		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
+		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(eligibleLoan.getCategory()).get(0);
 		
-		LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
+		//LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
 		
-		lendingApplication.setEdi(Double.valueOf(breakupDetail.getEdi()));
-		lendingApplication.setIoEdi(Double.valueOf(breakupDetail.getIoEdi()));
-		lendingApplication.setRepayment(Double.valueOf(breakupDetail.getRepayment()));
-		lendingApplication.setInterestRate(breakupDetail.getEffectiveInterestRate());
-		lendingApplication.setProcessingFee(Double.valueOf(breakupDetail.getProcessingFee()));
-		lendingApplication.setDisbursalAmount(Double.valueOf(breakupDetail.getDisbursementAmount()));
+		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+		lendingApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+		lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+		lendingApplication.setInterestRate(lendingCategory.getInterestRate());
+		lendingApplication.setProcessingFee(0D);
+		lendingApplication.setDisbursalAmount(eligibleLoan.getAmount());
 		lendingApplication.setStatus("draft");
 		lendingApplication.setMode("AUTO");
 		lendingApplication.setMerchant(merchant);
-		lendingApplication.setLoanAmount(availableLoan.getAmount());
-		lendingApplication.setCategory(availableLoan.getCategory());
+		lendingApplication.setLoanAmount(eligibleLoan.getAmount());
+		lendingApplication.setCategory(eligibleLoan.getCategory());
 		lendingApplication.setTenure(lendingCategory.getPayableConverter());
 		lendingApplication.setTenureInMonths(lendingCategory.getTenureMonths().intValue());
-		lendingApplication.setPayableDays(Long.valueOf(lendingCategory.getPayableDays()));
+		lendingApplication.setPayableDays((long) lendingCategory.getPayableDays());
 		lendingApplication.setEdiFreeDays(lendingCategory.getEdiFreeDays());
 		lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
-		lendingApplication.setLoanConstruct(availableLoan.getLoanConstruct());
+		lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 
 		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 

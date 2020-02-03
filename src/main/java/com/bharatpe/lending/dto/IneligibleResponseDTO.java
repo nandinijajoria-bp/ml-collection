@@ -17,8 +17,8 @@ public class IneligibleResponseDTO implements Serializable {
     @JsonProperty("min_loan_amt")
     private int minLoanAmt = 10000;
 
-    @JsonProperty("requested_loan_amt")
-    private Integer requestedLoanAmt;
+    @JsonProperty("panCard")
+    private String panCard;
 
     private boolean isLoanRequested;
 
@@ -62,12 +62,12 @@ public class IneligibleResponseDTO implements Serializable {
         this.minLoanAmt = minLoanAmt;
     }
 
-    public Integer getRequestedLoanAmt() {
-        return requestedLoanAmt;
+    public String getPanCard() {
+        return panCard;
     }
 
-    public void setRequestedLoanAmt(Integer requestedLoanAmt) {
-        this.requestedLoanAmt = requestedLoanAmt;
+    public void setPanCard(String panCard) {
+        this.panCard = panCard;
     }
 
     public boolean isLoanRequested() {
@@ -115,7 +115,7 @@ public class IneligibleResponseDTO implements Serializable {
         return "IneligibleResponseDTO{" +
                 "maxLoanAmt=" + maxLoanAmt +
                 ", minLoanAmt=" + minLoanAmt +
-                ", requestedLoanAmt=" + requestedLoanAmt +
+                ", panCard=" + panCard +
                 ", isLoanRequested=" + isLoanRequested +
                 ", eligible=" + eligible +
                 ", transactionCountDetails=" + transactionCountDetails +

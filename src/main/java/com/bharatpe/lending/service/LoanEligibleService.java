@@ -1,14 +1,15 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianAuditTrailDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -41,15 +42,6 @@ public class LoanEligibleService {
     List<Integer> derogAccountStatus = Arrays.asList(93,89,93,97,97,97,97,30,31,32,33,35,37,38,39,41,42,43,44,45,47,49,50,51,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,77,79,81,85,86,87,88,94,90,91);
     List<Integer> derogUnsecuredProducts = Arrays.asList(5,10,36,37,38,39,43,51,52,53,54,55,56,57,58,60,61);
     List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "pawan@bharatpe.com", "puneet@bharatpe.com", "khushal.virmani@bharatpe.com", "nishit@bharatpe.com", "satyam@bharatpe.com");
-    Map<Integer, List<Integer>> tenureMap = createMap();
-    private static Map<Integer, List<Integer>> createMap() {
-        Map<Integer, List<Integer>> tenureMap = new HashMap<>();
-        tenureMap.put(3, Arrays.asList(1,3));
-        tenureMap.put(6, Arrays.asList(1,3,6));
-        tenureMap.put(9, Arrays.asList(1,3,6,9));
-        tenureMap.put(12, Arrays.asList(1,3,6,9,12));
-        return tenureMap;
-    }
 
     private Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 
@@ -74,7 +66,13 @@ public class LoanEligibleService {
     @Autowired
     EmailHandler emailHandler;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(IneligibleRequestDTO ineligibleRequestDTO, Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail){
+    @Autowired
+    LendingCategoryDao lendingCategoryDao;
+
+    @Autowired
+    EligibleLoanDao eligibleLoanDao;
+
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
         int txnLast30Days = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;
@@ -82,26 +80,12 @@ public class LoanEligibleService {
         List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
         int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
         boolean repeatedLoan = loanCount > 0;
-        if (bpScore <= 10D) {
-            logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
-            experian.setCategory("1N");
-            experian.setColor(ExperianConstants.COLOR.RED.name());
-            experian.setReason(ExperianConstants.LOW_BP_SCORE);
-            experianDao.save(experian);
-            return new ArrayList<>();
-        }
-        if ((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)){
-            logger.info("Last 30 days tpv less than minimum required, so rejecting merchant: {}", merchant.getId());
-            experian.setReason(ExperianConstants.LOW_TPV);
-            experianDao.save(experian);
-            return new ArrayList<>();
-        }
         String firstName = getFirstName(merchantBankDetail);
         String lastName = getLastName(merchantBankDetail);
+        JsonNode experianResponse;
         boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
         try {
-            JsonNode experianResponse;
             ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
             if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 30) {//get experian data from db if less than 30 days old
                 experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
@@ -125,6 +109,20 @@ public class LoanEligibleService {
                 experian.setResponse(experianResponse.toString());
                 experian.setRetryCount(0);
                 experianDao.save(experian);//updating response
+            }
+            if (bpScore <= 10D) {
+                logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
+                experian.setCategory("1N");
+                experian.setColor(ExperianConstants.COLOR.RED.name());
+                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+                experianDao.save(experian);
+                return new ArrayList<>();
+            }
+            if ((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)){
+                logger.info("Last 30 days tpv less than minimum required, so rejecting merchant: {}", merchant.getId());
+                experian.setReason(ExperianConstants.LOW_TPV);
+                experianDao.save(experian);
+                return new ArrayList<>();
             }
             if (experianResponse != null && validatePancard(experianResponse, experian.getPancardNumber(), merchant.getId(), experian)){
                 if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
@@ -203,7 +201,7 @@ public class LoanEligibleService {
         experian.setColor(color);
         experianDao.save(experian);
         logger.info("Calculating bureau eligible loans for merchant: {}", merchantId);
-        return calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays);
+        return calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId());
     }
 
     private List<LoanEligibilityDTO> calculateNTC(Double bpScore, Long merchantId, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, Experian experian, int loanCount, int previousLoanDays) {
@@ -225,113 +223,122 @@ public class LoanEligibleService {
         experian.setCategory(segment);
         experian.setColor(color);
         experianDao.save(experian);
-        return loanCount > 2 ? calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays) : calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, true, previousLoanDays);
+        return loanCount > 2 ? calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId()) : calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, true, previousLoanDays, merchantId, experian.getId());
     }
 
-    private List<LoanEligibilityDTO> calculateEligibleLoans(double avgTpv, boolean repeatedLoan, String color, boolean isEligibleForConstruct2And3, boolean isNTC, int previousLoanDays) {
+    private List<LoanEligibilityDTO> calculateEligibleLoans(double avgTpv, boolean repeatedLoan, String color, boolean isEligibleForConstruct2And3, boolean isNTC, int previousLoanDays, Long merchantId, Long experianId) {
+        String masterCategory = getMasterCategory(color, isNTC, repeatedLoan);
+        List<LendingCategories> lendingCategories;
+        String type;
+        if (isEligibleForConstruct2And3) {
+            List<String> payableConverters = new ArrayList<>();
+            switch (previousLoanDays){
+                case 26: payableConverters.add("1+3 Months");break;
+                case 77: payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months"));break;
+                default: payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months", "1+12 Months"));
+            }
+            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct3(masterCategory, payableConverters);
+            type = "Only Interest";
+        } else {
+            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1(masterCategory);
+            type = null;
+        }
+        if (lendingCategories.isEmpty()) {
+            logger.error("No active lending category found");
+            return new ArrayList<>();
+        } else {
+            eligibleLoanDao.deleteByMerchantId(merchantId);
+            List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
+            for (LendingCategories lendingCategory : lendingCategories) {
+                loanEligibilityDTOList.add(calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId));
+            }
+            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).reversed());
+            return loanEligibilityDTOList;
+        }
+    }
+
+    private String getMasterCategory(String color, boolean isNTC, boolean repeatedLoan) {
         switch (color){
             case "AMBER":
                 if (isNTC){
                     if (repeatedLoan){
-                        return calculateLoanBreakup(0.4, avgTpv, 6, 2.5, 30000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S4A";
                     } else {
-                        return calculateLoanBreakup(0.3, avgTpv, 3, 3, 10000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S3A";
                     }
                 } else {
                     if (repeatedLoan){
-                        return calculateLoanBreakup(0.6, avgTpv, 6, 2, 100000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S2A";
                     } else {
-                        return calculateLoanBreakup(0.4, avgTpv, 3, 2.5, 50000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S1A";
                     }
                 }
             case "LIGHT_GREEN":
                 if (isNTC){
                     if (repeatedLoan){
-                        return calculateLoanBreakup(0.5, avgTpv, 6, 2.25, 50000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S4LG";
                     } else {
-                        return calculateLoanBreakup(0.4, avgTpv, 3, 3, 20000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S3LG";
                     }
                 } else {
                     if (repeatedLoan){
-                        return calculateLoanBreakup(0.7, avgTpv, 12, 2, 300000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S2LG";
                     } else {
-                        return calculateLoanBreakup(0.5, avgTpv, 6, 2, 150000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S1LG";
                     }
                 }
             case "DARK_GREEN":
                 if (isNTC){
                     if (repeatedLoan){
-                        return calculateLoanBreakup(0.6, avgTpv, 9, 2, 75000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S4DG";
                     } else {
-                        return calculateLoanBreakup(0.5, avgTpv, 6, 3, 30000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S3DG";
                     }
                 } else {
                     if (repeatedLoan){
-                        return calculateLoanBreakup(0.8, avgTpv, 12, 1.75, 500000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S2DG";
                     } else {
-                        return calculateLoanBreakup(0.6, avgTpv, 9, 2, 300000, isEligibleForConstruct2And3, previousLoanDays);
+                        return "S1DG";
                     }
                 }
         }
-        return new ArrayList<>();
+        return "S4A";
     }
 
-    private List<LoanEligibilityDTO> calculateLoanBreakup(double percentage, double avgTpv, int tenure, double interest, int maxAmount, boolean isEligibleForConstruct2And3, int previousLoanDays) {
-        List<LoanEligibilityDTO> availableLoanDTOList = new ArrayList<>();
-        String construct = isEligibleForConstruct2And3 ? "CONSTRUCT_3" : "CONSTRUCT_1";
-        if (isEligibleForConstruct2And3) {
-            String type = "Only Interest";
-            if (previousLoanDays == 26) {// 1+3 month only
-                LoanCalculationUtil.LoanBreakupDetail breakup = getBreakup(3, construct, type, avgTpv, percentage, interest, maxAmount, true);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, 3));
-            } else if (previousLoanDays == 77){// 1+3 month, 1+6month
-                LoanCalculationUtil.LoanBreakupDetail breakup = getBreakup(3, construct, type, avgTpv, percentage, interest, maxAmount, true);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, 3));
-                breakup = getBreakup(6, construct, type, avgTpv, percentage, interest, maxAmount, true);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, 6));
-            } else {// 1+3 month, 1+6 month, 1+12 month
-                LoanCalculationUtil.LoanBreakupDetail breakup = getBreakup(3, construct, type, avgTpv, percentage, interest, maxAmount, true);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, 3));
-                breakup = getBreakup(6, construct, type, avgTpv, percentage, interest, maxAmount, true);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, 6));
-                breakup = getBreakup(12, construct, type, avgTpv, percentage, interest, maxAmount, true);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, 12));
-            }
-        } else {
-            for (Integer tenureMonth : tenureMap.get(tenure)) {
-                LoanCalculationUtil.LoanBreakupDetail breakup = getBreakup(tenureMonth, construct, null, avgTpv, percentage, interest, maxAmount, false);
-                availableLoanDTOList.add(createLoanEligibilityDTO(breakup, tenureMonth));
-            }
-        }
-        availableLoanDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).reversed());
-        return availableLoanDTOList;
+    private LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId) {
+        double percentage = lendingCategories.getMultiplier();
+        double interest = lendingCategories.getInterestRate();
+        int tenure = Math.round(lendingCategories.getTenureMonths());
+        int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
+        int maxAmount = lendingCategories.getMaxTpvAmount();
+        int ioPayableDays = lendingCategories.getIoPayableDays();
+        String construct = lendingCategories.getLoanConstruct();
+        String category = lendingCategories.getCategory();
+        String payableConverter = lendingCategories.getPayableConverter();
+        int ioEdiDays = construct.equalsIgnoreCase("CONSTRUCT_3") ? 30 : 0;
+        LoanCalculationUtil.LoanBreakupDetail breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
+        eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct));
+        return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
 
-    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, boolean isEligibleForConstruct2And3){
+    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays){
         int processingFee = 0;
-        int ediDays, disbursementAmount, ioInterestAmount, ioOrFreeEdiTenure, principleEdiTenure, repayment;
+        int tenure = tenureMonth - ioTenure;
+        int ediDays, disbursementAmount, ioInterestAmount, principleEdiTenure, repayment;
         double loanAmount, edi, totalInterestAmount, ioEdi;
-        ediDays = getEdiDays(tenureMonth);
+        ediDays = getEdiDays(tenure);
         edi = (avgTpv * percentage);
         repayment = (int)Math.round(ediDays * edi);
-        loanAmount = roundDown(Math.min(repayment / (1 + (interest/100)*tenureMonth), maxAmount));// round down
-        edi = Math.ceil((loanAmount * (1 + (interest/100)*tenureMonth)) / ediDays);
+        loanAmount = roundDown(Math.min(repayment / (1 + (interest/100)*tenure), maxAmount));// round down
+        edi = Math.ceil((loanAmount * (1 + (interest/100)*tenure)) / ediDays);
         disbursementAmount = (int)loanAmount - processingFee;
-        if (isEligibleForConstruct2And3) {//for case of 1+ only
-            ioEdi = Math.ceil((loanAmount * (interest / 100)) / 26);
-            repayment =  (int) Math.round((edi * ediDays) + (ioEdi * 26));
-            ioInterestAmount = (int) (ioEdi * 26);
-            ioOrFreeEdiTenure = 1;
-        } else {
-            repayment = (int) Math.round(edi * ediDays);
-            ioInterestAmount = 0;
-            ioEdi =0;
-            ioOrFreeEdiTenure = 0;
-        }
+        ioEdi = ioPayableDays > 0 ? Math.ceil((loanAmount * (interest / 100)) / ioPayableDays) : 0;
+        ioInterestAmount = (int) (ioEdi * ioPayableDays);
+        repayment =  (int) Math.round((edi * ediDays) + ioInterestAmount);
         totalInterestAmount = repayment - loanAmount;
-        principleEdiTenure = tenureMonth;
+        principleEdiTenure = tenure;
         return new LoanCalculationUtil.LoanBreakupDetail(construct, (int)edi, (int)ioEdi, processingFee, ioInterestAmount, (int)totalInterestAmount,(int) totalInterestAmount,
-                ioOrFreeEdiTenure, principleEdiTenure, repayment, disbursementAmount, type, (int)loanAmount, interest);
+                ioTenure, principleEdiTenure, repayment, disbursementAmount, type, (int)loanAmount, interest);
     }
 
     private double roundDown(double loanAmount) {
@@ -344,17 +351,17 @@ public class LoanEligibleService {
         }
     }
 
-    private LoanEligibilityDTO createLoanEligibilityDTO(LoanCalculationUtil.LoanBreakupDetail breakup, int tenure){
+    private LoanEligibilityDTO createLoanEligibilityDTO(LoanCalculationUtil.LoanBreakupDetail breakup, String tenure, String category){
         LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
         loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
         loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
         loanEligibilityDTO.setAmount(breakup.getLoanAmount());
-        loanEligibilityDTO.setCategory(null);
+        loanEligibilityDTO.setCategory(category);
         loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
         loanEligibilityDTO.setEdi(breakup.getEdi());
         loanEligibilityDTO.setRepayment(breakup.getRepayment());
         loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
-        loanEligibilityDTO.setTenure(tenure == 1 ? tenure + " Month" : tenure + " Months");
+        loanEligibilityDTO.setTenure(tenure);
         loanEligibilityDTO.setConstruct(breakup.getConstruct());
         loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup));
         loanEligibilityDTO.setType(breakup.getType());
@@ -634,6 +641,9 @@ public class LoanEligibleService {
             String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
             experian.setEmail(email);
         }
+        if (experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore") != null) {
+            experian.setExperianScore(experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore").doubleValue());
+        }
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
                 if (jsonNode.get("CAIS_Holder_Details") != null && jsonNode.get("CAIS_Holder_Details").isObject()) {
@@ -682,6 +692,7 @@ public class LoanEligibleService {
 
 
     private JsonNode fetchExperianDetails(String firstName, String lastName, String contact, String panCard) throws IOException {
+        Long a = DateTime.now().getMillis();
         if (contact.length() > 10) {
             contact = contact.substring(2);//remove 91
         }
@@ -696,6 +707,8 @@ public class LoanEligibleService {
         String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").textValue().replaceAll("&amp;", "&").replaceAll("&gt;",">").replaceAll("&lt;","<").replaceAll("&quot;","\"");
         //String xmlResponse = new String(Files.readAllBytes(Paths.get("/Users/admin/codebase/Lending/src/main/resources/experian_sample.txt")));
         JSONObject jsonObject = XML.toJSONObject(xmlResponse);
+        Long b = DateTime.now().getMillis();
+        logger.info("Experian API response time---" + (b-a) + "ms");
         return objectMapper.readTree(jsonObject.toString());
     }
 

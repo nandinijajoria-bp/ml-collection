@@ -1,13 +1,7 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.dao.MerchantLoanRequestAuditTrailDoa;
-import com.bharatpe.common.dao.MerchantLoanRequestDoa;
-import com.bharatpe.common.dao.MerchantSummaryDao;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantLoanRequest;
-import com.bharatpe.common.entities.MerchantLoanRequestAuditTrail;
-import com.bharatpe.common.entities.MerchantSummary;
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import org.slf4j.Logger;
@@ -38,6 +32,8 @@ public class IneligibleDetailsService {
     @Autowired
     MerchantLoanRequestAuditTrailDoa merchantLoanRequestAuditTrailDoa;
 
+    @Autowired
+    ScoreCategoryMasterDao scoreCategoryMasterDao;
 
     public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
@@ -45,10 +41,19 @@ public class IneligibleDetailsService {
         int previousLoanCount = (merchantSummary != null && merchantSummary.getTotalLoansCount() != null) ? merchantSummary.getTotalLoansCount() : 0;
         IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
         MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
-        if (ineligibleRequestDTO != null && ineligibleRequestDTO.getRequestedLoanAmount() != null && ineligibleRequestDTO.getPanCard() != null && !ineligibleRequestDTO.getPanCard().trim().equalsIgnoreCase("")) {
-            logger.info("New Ineligible Loan request for amount : {} with panCard : {} and merchantId : {}", ineligibleRequestDTO.getRequestedLoanAmount(), ineligibleRequestDTO.getPanCard(), merchant.getId());
+        ScoreCategoryMaster scoreCategoryMaster;
+        if (merchant.getBusinessCategory() != null && !merchant.getBusinessCategory().trim().equalsIgnoreCase("")) {
+            scoreCategoryMaster = scoreCategoryMasterDao.getByCategory(merchant.getBusinessCategory());
+        } else {
+            Object[] objects = scoreCategoryMasterDao.getCategoryAverage();
+            scoreCategoryMaster = new ScoreCategoryMaster();
+            scoreCategoryMaster.setTxnCount((double)objects[0]);
+            scoreCategoryMaster.setAvgDailyTpv((double)objects[1]);
+        }
+        if (ineligibleRequestDTO != null && ineligibleRequestDTO.getPanCard() != null && !ineligibleRequestDTO.getPanCard().trim().equalsIgnoreCase("")) {
+            logger.info("New Ineligible Loan request with panCard : {} and merchantId : {}", ineligibleRequestDTO.getPanCard(), merchant.getId());
             merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
-            merchantLoanRequest = calculateTarget(merchantSummary, ineligibleRequestDTO.getRequestedLoanAmount(), merchant.getId(), ineligibleRequestDTO.getPanCard());
+            merchantLoanRequest = calculateTarget(merchantSummary, merchant.getId(), ineligibleRequestDTO.getPanCard(), scoreCategoryMaster);
             MerchantLoanRequestAuditTrail merchantLoanRequestAuditTrail = MerchantLoanRequestAuditTrail.createObject(merchantLoanRequest);
             merchantLoanRequestAuditTrailDoa.save(merchantLoanRequestAuditTrail);
         }
@@ -66,7 +71,6 @@ public class IneligibleDetailsService {
         double currentTxnValue = (merchantSummary != null && merchantSummary.getDailyTxnAmount() != null) ? merchantSummary.getDailyTxnAmount() : 0;
         int onGoingTransactions = currentTxnCount - merchantLoanRequest.getInitialTransactionCount();
         double onGoingAmount = currentTxnValue - merchantLoanRequest.getInitialTransactionAmount();
-        double avgTxnValue = merchantLoanRequest.getTargetTransactionCount().equals(0) ? 100d : Math.ceil((merchantLoanRequest.getTargetTransactionAmount() / merchantLoanRequest.getTargetTransactionCount()) / 10.0) * 10;
         int transactionCountLeft = Math.max(merchantLoanRequest.getTargetTransactionCount() - onGoingTransactions, 0);
         double transactionAmountLeft = Math.max(merchantLoanRequest.getTargetTransactionAmount() - onGoingAmount, 0);
         Calendar c = Calendar.getInstance();
@@ -78,49 +82,37 @@ public class IneligibleDetailsService {
         } else {
             ineligibleResponseDTO.setEligible(false);
         }
-        long gracePeriod = TimeUnit.DAYS.convert(new Date().getTime() - unlockDate.getTime(), TimeUnit.MILLISECONDS);
-        if (merchantLoanRequest.getRequestedLoanAmount() >= 10000 && merchantLoanRequest.getRequestedLoanAmount() < 200000 && gracePeriod > 6) {//if grace period is more than 7 days then start a new loan cycle
-            return;
-        }
-        if (merchantLoanRequest.getRequestedLoanAmount() >= 200000 && merchantLoanRequest.getRequestedLoanAmount() < 400000 && gracePeriod > 20) {//if grace period is more than 7 days then start a new loan cycle
-            return;
-        }
-        if (merchantLoanRequest.getRequestedLoanAmount() >= 400000 && gracePeriod > 29) {//if grace period is more than 7 days then start a new loan cycle
-            return;
-        }
+//        long gracePeriod = TimeUnit.DAYS.convert(new Date().getTime() - unlockDate.getTime(), TimeUnit.MILLISECONDS);
+//        if (merchantLoanRequest.getRequestedLoanAmount() >= 10000 && merchantLoanRequest.getRequestedLoanAmount() < 200000 && gracePeriod > 6) {//if grace period is more than 7 days then start a new loan cycle
+//            return;
+//        }
+//        if (merchantLoanRequest.getRequestedLoanAmount() >= 200000 && merchantLoanRequest.getRequestedLoanAmount() < 400000 && gracePeriod > 20) {//if grace period is more than 7 days then start a new loan cycle
+//            return;
+//        }
+//        if (merchantLoanRequest.getRequestedLoanAmount() >= 400000 && gracePeriod > 29) {//if grace period is more than 7 days then start a new loan cycle
+//            return;
+//        }
         transactionCountDetails.put("txn_left", merchantLoanRequest.getTargetTransactionCount().equals(0) ? 0 : transactionCountLeft);
         transactionCountDetails.put("txn_ongoing", merchantLoanRequest.getTargetTransactionCount().equals(0) ? currentTxnCount : onGoingTransactions);
         transactionCountDetails.put("txn_total", merchantLoanRequest.getTargetTransactionCount().equals(0) ? currentTxnCount : merchantLoanRequest.getTargetTransactionCount());
         transactionAmountDetails.put("txn_left", merchantLoanRequest.getTargetTransactionCount().equals(0) ? 0 : transactionAmountLeft);
         transactionAmountDetails.put("txn_ongoing", merchantLoanRequest.getTargetTransactionCount().equals(0) ? currentTxnValue : onGoingAmount);
         transactionAmountDetails.put("txn_total", merchantLoanRequest.getTargetTransactionCount().equals(0) ? currentTxnValue : merchantLoanRequest.getTargetTransactionAmount());
-        loanDetails.put("average_txn", avgTxnValue);
+        loanDetails.put("average_txn", 100);
         loanDetails.put("unlock_date", unlockDate);
         ineligibleResponseDTO.setTransactionCountDetails(transactionCountDetails);
         ineligibleResponseDTO.setTransactionAmtDetails(transactionAmountDetails);
         ineligibleResponseDTO.setLoanDetails(loanDetails);
-        ineligibleResponseDTO.setRequestedLoanAmt(merchantLoanRequest.getRequestedLoanAmount());
+        ineligibleResponseDTO.setPanCard(merchantLoanRequest.getPancardNumber());
     }
 
-    private MerchantLoanRequest calculateTarget(MerchantSummary merchantSummary, Integer requestedLoanAmount, Long merchantId, String panCard) {
-        //long vintage = TimeUnit.DAYS.convert(new Date().getTime() - merchantSummary.getCreatedAt().getTime(), TimeUnit.MILLISECONDS);
-        int tenure = 6;
-        float multiplier = 0.5f;
-        double totalTxnValue = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0;
-        int totalTxnCount = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;
+    private MerchantLoanRequest calculateTarget(MerchantSummary merchantSummary, Long merchantId, String panCard, ScoreCategoryMaster scoreCategoryMaster) {
         int currentTxnCount = (merchantSummary != null && merchantSummary.getDailyTxnCount() != null) ? merchantSummary.getDailyTxnCount() : 0;
         double currentTxnValue = (merchantSummary != null && merchantSummary.getDailyTxnAmount() != null) ? merchantSummary.getDailyTxnAmount() : 0;
-        double avgTxnValue = (totalTxnValue != 0 && totalTxnCount != 0) ? Math.floor((totalTxnValue / totalTxnCount) / 10.0) * 10 : 0;
-        avgTxnValue = Math.max(avgTxnValue, 100d);
-        double totalAmountRequired = (((requestedLoanAmount * 3) / (tenure * multiplier)) - totalTxnValue) / 2;
-        totalAmountRequired = totalAmountRequired > 0 ? totalAmountRequired : 0;
-        if (totalAmountRequired > 0 && (totalAmountRequired + totalTxnValue < 7500)) {
-            totalAmountRequired += 7500 - (totalAmountRequired + totalTxnValue);
-        }
-        int totalTxnRequired = (avgTxnValue != 0) ? (int) Math.ceil(totalAmountRequired / avgTxnValue) : 50;//taking minimum transaction count as 50
-        totalTxnRequired = totalAmountRequired > 0 ? totalTxnRequired : 0;
         logger.info("Calculating target for ineligible loan---");
-        logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", totalTxnCount, totalTxnValue, totalAmountRequired, totalTxnRequired);
-        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, requestedLoanAmount,  currentTxnCount, currentTxnValue, totalTxnRequired, totalAmountRequired, panCard));
+        double totalTxnRequired = 2 * scoreCategoryMaster.getTxnCount();
+        double totalAmountRequired = 2 * scoreCategoryMaster.getAvgDailyTpv();
+        logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", currentTxnCount, currentTxnValue, totalAmountRequired, totalTxnRequired);
+        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, 0,  currentTxnCount, currentTxnValue, (int)totalTxnRequired, totalAmountRequired, panCard));
     }
 }

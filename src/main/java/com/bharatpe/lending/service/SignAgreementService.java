@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.objects.Meta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,22 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 
-import com.bharatpe.common.dao.AvailableLoanDao;
-import com.bharatpe.common.dao.DocAuthenticationDao;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
-import com.bharatpe.common.entities.AvailableLoan;
-import com.bharatpe.common.entities.DocAuthentication;
-import com.bharatpe.common.entities.DocKycDetails;
-import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.LendingCategories;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantSummary;
-import com.bharatpe.common.entities.TmpLoanGenerate;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
@@ -82,6 +68,9 @@ public class SignAgreementService {
 	
 	@Autowired
 	LendingApplicationService lendingApplicationService;
+
+	@Autowired
+	EligibleLoanDao eligibleLoanDao;
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -151,32 +140,32 @@ public class SignAgreementService {
 			return response;
 		}
 
-		List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantSummary.getLoanType());
-		AvailableLoan selectedAvailableLoan = null;
+		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
+//
+//		for(AvailableLoan current : availableLoanList) {
+//			if(current.getCategory().equals(selectedCategory)) {
+//				selectedAvailableLoan = current;
+//				break;
+//			}
+//		}
 
-		for(AvailableLoan current : availableLoanList) {
-			if(current.getCategory().equals(selectedCategory)) {
-				selectedAvailableLoan = current;
-				break;
-			}
-		}
-
-		if(selectedAvailableLoan == null) {
+		if(eligibleLoans == null || eligibleLoans.isEmpty()) {
 			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
 			return response;
 		}
+		EligibleLoan eligibleLoan = eligibleLoans.get(0);
 
 		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
-		LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData);
+		//LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData);
 
 		LendingApplication newApplication = new LendingApplication();
-		newApplication.setEdi(Double.valueOf(breakup.getEdi()));
-		newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
-		newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
-		newApplication.setInterestRate(breakup.getEffectiveInterestRate());
-		newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
-		newApplication.setLoanConstruct(breakup.getConstruct());
-		newApplication.setDisbursalAmount(Double.valueOf(breakup.getDisbursementAmount()));
+		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+		newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+		newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
+		newApplication.setProcessingFee(0D);
+		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
+		newApplication.setDisbursalAmount(eligibleLoan.getAmount());
 		newApplication.setMerchant(merchant);
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -191,10 +180,10 @@ public class SignAgreementService {
 		newApplication.setCategory(selectedCategory);
 		newApplication.setTenure(selectedCategoriesData.getPayableConverter());
 		newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-		newApplication.setPayableDays(Long.valueOf(selectedCategoriesData.getPayableDays()));
+		newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
 		newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
 		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
-		newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
+		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 		newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());

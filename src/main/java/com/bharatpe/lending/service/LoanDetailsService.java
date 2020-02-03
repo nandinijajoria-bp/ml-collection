@@ -193,7 +193,7 @@ public class LoanDetailsService {
 			}
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !isPaymentBank(merchant, merchantBankDetail) && !rejected && experian != null) {
-				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(requestDTO.getPayload(), merchant, experian, merchantSummary, merchantBankDetail));
+				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail));
 				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				if (experian.getRejected()) {
 					rejected = true;
