@@ -120,6 +120,8 @@ public class LoanDetailsService {
 					panCard = requestDTO.getPayload().getPanCard();
 					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0));
 				}
+			} else {
+				panCard = requestDTO.getPayload().getPanCard();
 			}
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 
@@ -212,7 +214,6 @@ public class LoanDetailsService {
 					}
 				} else if (merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
-					panCard = "";
 				}
 			}
 			
