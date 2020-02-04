@@ -215,8 +215,8 @@ public class LendingApplicationService {
 			snapshot.setTotalTxnAmount(summary.getDailyTxnAmount());
 			snapshot.setCategory(summary.getCategory());
 			snapshot.setAvgTpv(summary.getAvgTpv());
-			snapshot.setMaxEligibleLoanAmount(((BigDecimal) data.get(0)[0]).doubleValue());
-			snapshot.setEligibleLoanCategories((String) data.get(0)[1]);
+//			snapshot.setMaxEligibleLoanAmount(((BigDecimal) data.get(0)[0]).doubleValue());
+//			snapshot.setEligibleLoanCategories((String) data.get(0)[1]);
 			snapshot.setLoanType(summary.getLoanType());
 			snapshot.setTpv1Mon(summary.getTpv1Mon());
 			snapshot.setTpv2Mon(summary.getTpv2Mon());
