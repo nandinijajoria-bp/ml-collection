@@ -209,8 +209,8 @@ public class UploadDocumentService {
 	private void kycUsingKarzaAPI(String proofType, String fileName, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 		try {
 			Instant start = Instant.now();
-//			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
-			String tempPublicURL = "";
+			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
+//			String tempPublicURL = "";
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
 			boolean isDocAuthEntryMade = false;
