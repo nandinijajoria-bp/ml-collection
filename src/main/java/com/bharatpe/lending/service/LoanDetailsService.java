@@ -14,6 +14,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -73,6 +74,9 @@ public class LoanDetailsService {
 	@Autowired
 	ExperianAuditTrailDao experianAuditTrailDao;
 
+	@Value("${experian.enable:true}")
+	Boolean EXPERIAN_ENABLED;
+
 	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -95,24 +99,27 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			Experian experian = experianDao.getByMerchantId(merchant.getId());
-			if (experian != null && experian.getPancardNumber() != null) {
-				panCard = experian.getPancardNumber();
-			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
-				rejected = true;
-				rejectReason = experian.getReason();
-			} else if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) >= 30) {
-				experian.setRejected(false);
-				experian.setReason(null);
-				experian.setCreatedAt(new Date());
-				experianDao.save(experian);
-			}
-			if (requestDTO.getPayload().getPanCard() != null) {
-				experianDao.deleteByMerchantId(merchant.getId());
-				panCard = requestDTO.getPayload().getPanCard();
-				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0));
+			Experian experian = null;
+			if (EXPERIAN_ENABLED) {
+				experian = experianDao.getByMerchantId(merchant.getId());
+				if (experian != null && experian.getPancardNumber() != null) {
+					panCard = experian.getPancardNumber();
+				}
+				if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
+					rejected = true;
+					rejectReason = experian.getReason();
+				} else if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) >= 30) {
+					experian.setRejected(false);
+					experian.setReason(null);
+					experian.setCreatedAt(new Date());
+					experianDao.save(experian);
+				}
+				if (requestDTO.getPayload().getPanCard() != null) {
+					experianDao.deleteByMerchantId(merchant.getId());
+					panCard = requestDTO.getPayload().getPanCard();
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0));
+				}
 			}
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
 
@@ -192,15 +199,20 @@ public class LoanDetailsService {
 				}
 			}
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected && experian != null) {
-				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail));
-				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
-				if (experian.getRejected()) {
-					rejected = true;
-					rejectReason = experian.getReason();
-				}
-				if (experian.getRetryCount() == 1) {//experian timeout
-					return null;
+			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
+				if (EXPERIAN_ENABLED && experian != null) {
+					loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail));
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					if (experian.getRejected()) {
+						rejected = true;
+						rejectReason = experian.getReason();
+					}
+					if (experian.getRetryCount() == 1) {//experian timeout
+						return null;
+					}
+				} else if (merchantSummary != null){
+					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
+					panCard = "";
 				}
 			}
 			
