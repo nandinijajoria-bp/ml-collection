@@ -212,7 +212,7 @@ public class LoanDetailsService {
 					if (experian.getRetryCount() == 1) {//experian timeout
 						return null;
 					}
-				} else if (merchantSummary != null){
+				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
 				}
 			}
