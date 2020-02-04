@@ -251,7 +251,10 @@ public class LoanEligibleService {
             eligibleLoanDao.deleteByMerchantId(merchantId);
             List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
             for (LendingCategories lendingCategory : lendingCategories) {
-                loanEligibilityDTOList.add(calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId));
+                LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId);
+                if (loanEligibilityDTO != null) {
+                    loanEligibilityDTOList.add(loanEligibilityDTO);
+                }
             }
             loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).reversed());
             return loanEligibilityDTOList;
@@ -318,6 +321,9 @@ public class LoanEligibleService {
         String payableConverter = lendingCategories.getPayableConverter();
         int ioEdiDays = construct.equalsIgnoreCase("CONSTRUCT_3") ? 30 : 0;
         LoanCalculationUtil.LoanBreakupDetail breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
+        if (breakup.getLoanAmount() < 10000) {
+            return null;
+        }
         eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct));
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
