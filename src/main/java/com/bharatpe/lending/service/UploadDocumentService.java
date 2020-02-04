@@ -242,7 +242,7 @@ public class UploadDocumentService {
 					logger.info("UploadDocumentService karza kyc api failure with blank response for documentId : {}",documentsIdProof.getId());
 				}
 			}else {
-				logger.info("UploadDocumentService blank tempURL from S3 bucket for key : {}",fileName);
+				logger.info("UploadDocumentService blank tempURL from S3 bucket, merchant: {} for key : {}",merchant.getId(), fileName);
 			}
 			
 			// TODO: Need to do entry first and update based on the response update the details
@@ -252,10 +252,10 @@ public class UploadDocumentService {
 				createFailedEntryForPancardDocAuthentication(docDetails, documentsIdProof, merchant, lendingApplication);
 			}
 		} catch (FileNotFoundException e) {
-			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket,file not found for key : {}",fileName);
+			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchantId: {},file not found for key : {}",merchant.getId(), fileName);
 		} catch (Exception e) {
 			e.printStackTrace();
-			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, message : {}",e.getMessage());
+			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchant: {}, message : {}",merchant.getId(), e.getMessage());
 		}
 	}
 	
