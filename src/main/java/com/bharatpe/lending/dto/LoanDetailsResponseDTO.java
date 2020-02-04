@@ -7,8 +7,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class LoanDetailsResponseDTO {
 	
 	private boolean success;
+	private String message;
 	private LoanDetailsDTO details;
-	
+
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
 	public boolean isSuccess() {
 		return success;
 	}

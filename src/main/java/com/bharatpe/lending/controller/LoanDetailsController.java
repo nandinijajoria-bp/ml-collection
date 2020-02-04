@@ -43,7 +43,10 @@ public class LoanDetailsController {
 		LoanDetailsResponseDTO resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO, clientIp);
 		if (resp == null){
 			logger.info("Sending gateway timeout for merchant: {}", merchant.getId());
-			return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
+			LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();
+			response1.setSuccess(false);
+			response1.setMessage("Experian Failed");
+			return new ResponseEntity<>(response1, HttpStatus.OK);
 		}
 		logger.info("loanDetails response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
