@@ -35,7 +35,7 @@ public class LoanDetailsResponseDTO {
 		private boolean rejected;
 		private String panCard;
 		private String rejectReason;
-		private boolean loanClosed = true;
+		private boolean loanClosed = false;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
