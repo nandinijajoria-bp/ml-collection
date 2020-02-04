@@ -41,10 +41,11 @@ public class IneligibleDetailsService {
         int previousLoanCount = (merchantSummary != null && merchantSummary.getTotalLoansCount() != null) ? merchantSummary.getTotalLoansCount() : 0;
         IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
         MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
-        ScoreCategoryMaster scoreCategoryMaster;
+        ScoreCategoryMaster scoreCategoryMaster = null;
         if (merchant.getBusinessCategory() != null && !merchant.getBusinessCategory().trim().equalsIgnoreCase("")) {
             scoreCategoryMaster = scoreCategoryMasterDao.getByCategory(merchant.getBusinessCategory());
-        } else {
+        }
+        if (scoreCategoryMaster == null) {
             Object[] objects = scoreCategoryMasterDao.getCategoryAverage();
             scoreCategoryMaster = new ScoreCategoryMaster();
             scoreCategoryMaster.setTxnCount((double)objects[0]);
