@@ -42,6 +42,7 @@ public class LoanDetailsController {
 
 		LoanDetailsResponseDTO resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO, clientIp);
 		if (resp == null){
+			logger.info("Sending gateway timeout for merchant: {}", merchant.getId());
 			return new ResponseEntity<>(HttpStatus.GATEWAY_TIMEOUT);
 		}
 		logger.info("loanDetails response : {}", resp);
