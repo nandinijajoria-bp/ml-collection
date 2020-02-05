@@ -97,6 +97,7 @@ public class LoanEligibleService {
                     experianResponse = null;
                     if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
                         logger.error("Experian not responding---", e);
+                        logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
                         experian.setRetryCount(experian.getRetryCount() + 1);
                         experianDao.save(experian);
                         emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
@@ -160,6 +161,7 @@ public class LoanEligibleService {
             }
         } catch (ResourceAccessException e) {
             logger.error("Experian not responding---", e);
+            logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
             emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
