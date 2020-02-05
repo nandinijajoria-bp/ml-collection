@@ -95,8 +95,8 @@ public class LoanEligibleService {
                     experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber());
                 } catch (ResourceAccessException e) {
                     experianResponse = null;
+                    logger.error("Experian not responding---", e);
                     if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
-                        logger.error("Experian not responding---", e);
                         logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
                         experian.setRetryCount(experian.getRetryCount() + 1);
                         experianDao.save(experian);
@@ -701,14 +701,16 @@ public class LoanEligibleService {
 
 
     private JsonNode fetchExperianDetails(String firstName, String lastName, String contact, String panCard) throws IOException {
-        Long a = DateTime.now().getMillis();
         if (contact.length() > 10) {
             contact = contact.substring(2);//remove 91
         }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+        Long a = DateTime.now().getMillis();
         String response = restTemplate.postForObject("https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPe214K2&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "", request, String.class);
+        Long b = DateTime.now().getMillis();
+        logger.info("Experian API response time---" + (b-a) + "ms");
         JsonNode jsonNode = objectMapper.readTree(response);
         if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
             return null;
@@ -716,8 +718,6 @@ public class LoanEligibleService {
         String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").textValue().replaceAll("&amp;", "&").replaceAll("&gt;",">").replaceAll("&lt;","<").replaceAll("&quot;","\"");
         //String xmlResponse = new String(Files.readAllBytes(Paths.get("/Users/admin/codebase/Lending/src/main/resources/experian_sample.txt")));
         JSONObject jsonObject = XML.toJSONObject(xmlResponse);
-        Long b = DateTime.now().getMillis();
-        logger.info("Experian API response time---" + (b-a) + "ms");
         return objectMapper.readTree(jsonObject.toString());
     }
 
