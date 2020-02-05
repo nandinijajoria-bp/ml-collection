@@ -463,15 +463,15 @@ public class LoanEligibleService {
         boolean a=false, b=false, c=false;
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                if (categoryA.contains(jsonNode.get("Account_Type").intValue())) { a = true;}
-                if (categoryB.contains(jsonNode.get("Account_Type").intValue())) { b = true;}
-                if (categoryC.contains(jsonNode.get("Account_Type").intValue())) { c = true;}
+                if (categoryA.contains(jsonNode.get("Account_Type").asInt())) { a = true;}
+                if (categoryB.contains(jsonNode.get("Account_Type").asInt())) { b = true;}
+                if (categoryC.contains(jsonNode.get("Account_Type").asInt())) { c = true;}
             }
         } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
             JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            if (categoryA.contains(jsonNode.get("Account_Type").intValue())) { a = true;}
-            if (categoryB.contains(jsonNode.get("Account_Type").intValue())) { b = true;}
-            if (categoryC.contains(jsonNode.get("Account_Type").intValue())) { c = true;}
+            if (categoryA.contains(jsonNode.get("Account_Type").asInt())) { a = true;}
+            if (categoryB.contains(jsonNode.get("Account_Type").asInt())) { b = true;}
+            if (categoryC.contains(jsonNode.get("Account_Type").asInt())) { c = true;}
         }
         return c ? "C" : b ? "B" : a ? "A" : "NTC";
     }
@@ -494,7 +494,7 @@ public class LoanEligibleService {
 
     private boolean derogChecks(JsonNode jsonNode, Long merchantId, Experian experian) {
         //Check for Derog Account Status
-        if (jsonNode.get("Account_Status") != null && derogAccountStatus.contains(jsonNode.get("Account_Status").intValue())){
+        if (jsonNode.get("Account_Status") != null && derogAccountStatus.contains(jsonNode.get("Account_Status").asInt())){
             logger.info("Derog Account Status check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_ACCOUNT_STATUS);
@@ -502,7 +502,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 3 months
-        if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 3)){
+        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 3)){
             logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_3_MONTHS);
@@ -510,7 +510,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 6 months
-        if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 6)){
+        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 6)){
             logger.info("Derog DPD Last 6 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_6_MONTHS);
@@ -518,7 +518,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 12 months
-        if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 12)){
+        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12)){
             logger.info("Derog DPD Last 12 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_12_MONTHS);
@@ -526,7 +526,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 24 months
-        if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDLastXmonths(jsonNode, 24)){
+        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24)){
             logger.info("Derog DPD Last 24 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_24_MONTHS);
@@ -534,7 +534,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Older than 24 months
-        if (jsonNode.get("AccountHoldertypeCode").intValue() != 7 && checkDPDOlderThan24months(jsonNode)){
+        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDOlderThan24months(jsonNode)){
             logger.info("Derog DPD Older than 24 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_OLDER_THAN_24_MONTHS);
@@ -553,15 +553,15 @@ public class LoanEligibleService {
     }
 
     private boolean checkUnsecuredLiveLoans(JsonNode jsonNode) {
-        return jsonNode.get("Date_Closed").toString().equals("\"\"") && jsonNode.get("Account_Type").intValue() != 10 && derogUnsecuredProducts.contains(jsonNode.get("Account_Type").intValue());
+        return jsonNode.get("Date_Closed").toString().equals("\"\"") && jsonNode.get("Account_Type").asInt() != 10 && derogUnsecuredProducts.contains(jsonNode.get("Account_Type").asInt());
     }
 
     private boolean checkLoanEnquiriesInLast3Months(JsonNode experianResponse) {
-        return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").intValue() > 6;
+        return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").asInt() > 6;
     }
 
     private boolean checkUnsecuredLoanEnquiriesInLast6Months(JsonNode experianResponse) {
-        if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days").intValue() <= 4){
+        if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days").asInt() <= 4){
             return false;
         }
         Calendar c = Calendar.getInstance();
@@ -571,10 +571,10 @@ public class LoanEligibleService {
         long previous6MonthDate = Long.parseLong(c.get(Calendar.YEAR) + month + day);
         if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isObject()) {
             JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details");
-            return derogUnsecuredProducts.contains(jsonNode.get("Product").intValue()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate;
+            return derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate;
         } else if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isArray()) {
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details")) {
-                if (derogUnsecuredProducts.contains(jsonNode.get("Product").intValue()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate) {
+                if (derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate) {
                     return true;
                 }
             }
@@ -599,13 +599,13 @@ public class LoanEligibleService {
         }
         if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isArray()) {
             for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-                if (monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year")) && !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").intValue() >= dpd) {
+                if (monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year")) && !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= dpd) {
                     return true;
                 }
             }
         } else if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isObject()){
             JsonNode cais_account_history = jsonNode.get("CAIS_Account_History");
-            return monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year")) && !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").intValue() >= dpd;
+            return monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year")) && !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= dpd;
         }
         return false;
     }
@@ -628,7 +628,7 @@ public class LoanEligibleService {
                     }
                 }
                 for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-                    if (!cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").intValue() >= 60) {
+                    if (!cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= 60) {
                         return true;
                     }
                 }
@@ -637,7 +637,7 @@ public class LoanEligibleService {
                 if (monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year"))) {
                     return false;//active loan found in last 24 months without any DPD then return false
                 }
-                return !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").intValue() >= 60;
+                return !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= 60;
             }
         }
         return false;
