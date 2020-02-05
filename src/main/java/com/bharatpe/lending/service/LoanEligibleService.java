@@ -741,7 +741,12 @@ public class LoanEligibleService {
             if (lastIndexOfSpace != -1){
                 return merchantBankDetail.getBeneficiaryName().substring(0, lastIndexOfSpace);
             } else {
-                return merchantBankDetail.getBeneficiaryName();
+                lastIndexOfSpace = merchantBankDetail.getBeneficiaryName().lastIndexOf(".");
+                if (lastIndexOfSpace != -1) {
+                    return merchantBankDetail.getBeneficiaryName().substring(0, lastIndexOfSpace);
+                } else {
+                    return merchantBankDetail.getBeneficiaryName();
+                }
             }
         }
         return "";
@@ -753,7 +758,12 @@ public class LoanEligibleService {
             if (lastIndexOfSpace != -1){
                 return merchantBankDetail.getBeneficiaryName().substring(lastIndexOfSpace + 1);
             } else {
-                return  "";
+                lastIndexOfSpace = merchantBankDetail.getBeneficiaryName().lastIndexOf(".");
+                if (lastIndexOfSpace != -1) {
+                    return merchantBankDetail.getBeneficiaryName().substring(lastIndexOfSpace + 1);
+                } else {
+                    return  merchantBankDetail.getBeneficiaryName();
+                }
             }
         }
         return "";
