@@ -92,7 +92,7 @@ public class LoanEligibleService {
                 experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
             } else {
                 try {
-                    experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber());
+                    experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber(), merchant.getId());
                 } catch (ResourceAccessException e) {
                     experianResponse = null;
                     logger.error("Experian not responding---", e);
@@ -103,7 +103,7 @@ public class LoanEligibleService {
                         emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
                         return new ArrayList<>();
                     } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
-                        experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber());
+                        experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber(), merchant.getId());
                     }
                 }
             }
@@ -708,7 +708,7 @@ public class LoanEligibleService {
     }
 
 
-    private JsonNode fetchExperianDetails(String firstName, String lastName, String contact, String panCard) {
+    private JsonNode fetchExperianDetails(String firstName, String lastName, String contact, String panCard, Long merchantId) {
         if (contact.length() > 10) {
             contact = contact.substring(2);//remove 91
         }
@@ -716,7 +716,9 @@ public class LoanEligibleService {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
         Long a = DateTime.now().getMillis();
-        String response = restTemplate.postForObject("https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPe214K2&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "", request, String.class);
+        String url = "https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPe214K2&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "";
+        logger.info("Experian request for merchant: {} is {}", merchantId, url);
+        String response = restTemplate.postForObject(url, request, String.class);
         Long b = DateTime.now().getMillis();
         logger.info("Experian API response time---" + (b-a) + "ms");
         try {
