@@ -1,11 +1,11 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.dao.ExperianAuditTrailDao;
-import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.common.utils.AesEncryption;
+import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -24,16 +24,19 @@ import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Service
@@ -72,6 +75,18 @@ public class LoanEligibleService {
     @Autowired
     EligibleLoanDao eligibleLoanDao;
 
+    @Autowired
+    LendingPancardDao lendingPancardDao;
+
+    @Autowired
+    ExternalGatewayDao externalGatewayDao;
+
+    @Autowired
+    AesEncryption aesEncryption;
+
+    @Autowired
+    HmacCalculator hmacCalculator;
+
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
@@ -80,8 +95,19 @@ public class LoanEligibleService {
         List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
         int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
         boolean repeatedLoan = loanCount > 0;
-        String firstName = getFirstName(merchantBankDetail);
-        String lastName = getLastName(merchantBankDetail);
+        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+        if (lendingPancard == null) {// get data from liquiloans
+            lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+        }
+        String firstName;
+        String lastName;
+        if (lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("")) {
+            firstName = getFirstName(lendingPancard.getName());
+            lastName = getLastName(lendingPancard.getName());
+        } else {
+            firstName = getFirstName(merchantBankDetail.getBeneficiaryName());
+            lastName = getLastName(merchantBankDetail.getBeneficiaryName());
+        }
         JsonNode experianResponse;
         boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
@@ -171,6 +197,55 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays);
+    }
+
+    private LendingPancard fetchNameFromLiquiloans(String pancardNumber, Long merchantId) {
+        String name = null;
+        String apiResponse = null;
+        try {
+            ExternalGateway externalGateway = externalGatewayDao.findByGatewayNameAndTypeAndStatus("LIQUILOANS", null, "ACTIVE");
+            if (externalGateway != null) {
+                Map<String, String> requestParams = new HashMap<>();
+                Date currentTime = new Date();
+                String payload = pancardNumber + "||" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(currentTime);
+                String checksum = hmacCalculator.calculateHMACHexEncoded(payload, aesEncryption.decrypt(externalGateway.getSecret()));
+                logger.info("Liquiloans Checksum:{} for payload: {} for merchant:{}, PAN: {}", checksum, payload, merchantId, pancardNumber);
+                requestParams.put("MID", externalGateway.getMbid());
+                requestParams.put("Pan", pancardNumber);
+                requestParams.put("Timestamp", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(currentTime));
+                requestParams.put("Checksum", checksum);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setCacheControl(CacheControl.noCache());
+                HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
+                try {
+                    long startTime = System.currentTimeMillis();
+                    Map response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
+                    logger.info("Liquloans PAN validation API response: {}, response time: {}ms", response, (System.currentTimeMillis() - startTime));
+                    if (response != null && response.containsKey("status")) {
+                        apiResponse= response.toString();
+                        boolean status = (boolean) response.get("status");
+                        Map responseDataMap = (Map) response.get("data");
+                        String statusCode = (String) responseDataMap.get("status-code");
+                        if (status && statusCode.equals("101")) {
+                            Map responseResultMap = (Map) responseDataMap.get("result");
+                            name = (String) responseResultMap.get("name");
+                            logger.info("Liquiloans Set status success for merchant: {}", merchantId);
+                        } else {
+                            logger.info("Liquiloans Set status failed Response params status : {}, status code: {} for merchant: {}", status, statusCode.equals("101"), merchantId);
+                        }
+                    } else {
+                        logger.info("Liquiloans Set status failed response not contain status for merchant: {}", merchantId);
+                    }
+                } catch (RestClientException e) {
+                    logger.error("RestClient Exception accrue in Liquiloans API calling", e);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception while fetching name from liquiloans for merchant: {}", merchantId);
+            logger.error("Exception---", e);
+        }
+        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
 
     private List<LoanEligibilityDTO> fetchBureauEligibleLoan(JsonNode experianResponse, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays) {
@@ -737,37 +812,37 @@ public class LoanEligibleService {
         }
     }
 
-    private String getFirstName(MerchantBankDetail merchantBankDetail){
-        if (merchantBankDetail != null && merchantBankDetail.getBeneficiaryName() != null){
-            int lastIndexOfSpace = merchantBankDetail.getBeneficiaryName().lastIndexOf(" ");
-            if (lastIndexOfSpace != -1){
-                return merchantBankDetail.getBeneficiaryName().substring(0, lastIndexOfSpace);
+    private String getFirstName(String name){
+        if (name == null) {
+            return "";
+        }
+        int lastIndexOfSpace = name.lastIndexOf(" ");
+        if (lastIndexOfSpace != -1){
+            return name.substring(0, lastIndexOfSpace);
+        } else {
+            lastIndexOfSpace = name.lastIndexOf(".");
+            if (lastIndexOfSpace != -1) {
+                return name.substring(0, lastIndexOfSpace);
             } else {
-                lastIndexOfSpace = merchantBankDetail.getBeneficiaryName().lastIndexOf(".");
-                if (lastIndexOfSpace != -1) {
-                    return merchantBankDetail.getBeneficiaryName().substring(0, lastIndexOfSpace);
-                } else {
-                    return merchantBankDetail.getBeneficiaryName();
-                }
+                return name;
             }
         }
-        return "";
     }
 
-    private String getLastName(MerchantBankDetail merchantBankDetail){
-        if (merchantBankDetail != null && merchantBankDetail.getBeneficiaryName() != null){
-            int lastIndexOfSpace = merchantBankDetail.getBeneficiaryName().lastIndexOf(" ");
-            if (lastIndexOfSpace != -1){
-                return merchantBankDetail.getBeneficiaryName().substring(lastIndexOfSpace + 1);
+    private String getLastName(String name){
+        if (name == null) {
+            return "";
+        }
+        int lastIndexOfSpace = name.lastIndexOf(" ");
+        if (lastIndexOfSpace != -1){
+            return name.substring(lastIndexOfSpace + 1);
+        } else {
+            lastIndexOfSpace = name.lastIndexOf(".");
+            if (lastIndexOfSpace != -1) {
+                return name.substring(lastIndexOfSpace + 1);
             } else {
-                lastIndexOfSpace = merchantBankDetail.getBeneficiaryName().lastIndexOf(".");
-                if (lastIndexOfSpace != -1) {
-                    return merchantBankDetail.getBeneficiaryName().substring(lastIndexOfSpace + 1);
-                } else {
-                    return  merchantBankDetail.getBeneficiaryName();
-                }
+                return name;
             }
         }
-        return "";
     }
 }
