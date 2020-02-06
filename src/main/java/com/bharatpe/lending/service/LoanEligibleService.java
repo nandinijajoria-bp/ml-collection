@@ -152,7 +152,7 @@ public class LoanEligibleService {
                 experianDao.save(experian);
                 return new ArrayList<>();
             }
-            if (experianResponse != null && validatePancard(experianResponse, experian.getPancardNumber(), merchant.getId(), experian)){
+            if (experianResponse != null){
                 if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
                     JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
                     if (derogChecks(caisAccountDetails, merchant.getId(), experian)) {
