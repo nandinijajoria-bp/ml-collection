@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.dao.BankListDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +20,6 @@ import org.springframework.util.StringUtils;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
@@ -61,6 +58,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
+
+	@Autowired
+	BankListDao bankListDao;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 
@@ -162,6 +162,38 @@ public class VerifyOTPService {
 		if(merchantFcmToken != null) {
 			String pushContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "homepage.html");
+			if (isPaymentBank(merchant, merchantBankDetail)) {
+				String pushNotification = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
+						"\n" +
+						"We have received your Loan Application of Rs." + loanAmount.intValue() + ".Our lending partners do not support disbursal in Payment Banks. Please change your registered account with us to a non-payment bank to get Rs." + loanAmount.intValue() + " NOW!";
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushNotification, "bharatpe://dynamic?key=change-acc");
+			}
 		}
+	}
+
+	private boolean isPaymentBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
+		try {
+			if(merchantBankDetail == null) {
+				logger.error("No merchnat bank detail found for merchant id {}", merchant.getId());
+				return true;
+			}
+
+			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
+				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
+				return true;
+			}
+
+			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(merchantBankDetail.getIfscCode().substring(0,4));
+
+			if (nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
+				return false;
+			} else {
+				logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfscCode());
+				return true;
+			}
+		} catch(Exception ex) {
+			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
+		}
+		return true;
 	}
 }

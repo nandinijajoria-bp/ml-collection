@@ -7,8 +7,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class LoanDetailsResponseDTO {
 	
 	private boolean success;
+	private String message;
 	private LoanDetailsDTO details;
-	
+
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
 	public boolean isSuccess() {
 		return success;
 	}
@@ -32,7 +41,10 @@ public class LoanDetailsResponseDTO {
 
 	public static class LoanDetailsDTO {
 		private boolean eligible;
-		private boolean loanClosed = true;
+		private boolean rejected;
+		private String panCard;
+		private String rejectReason;
+		private boolean loanClosed = false;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -56,6 +68,30 @@ public class LoanDetailsResponseDTO {
 
 		public void setEligible(boolean eligible) {
 			this.eligible = eligible;
+		}
+
+		public boolean isRejected() {
+			return rejected;
+		}
+
+		public void setRejected(boolean rejected) {
+			this.rejected = rejected;
+		}
+
+		public String getPanCard() {
+			return panCard;
+		}
+
+		public void setPanCard(String panCard) {
+			this.panCard = panCard;
+		}
+
+		public String getRejectReason() {
+			return rejectReason;
+		}
+
+		public void setRejectReason(String rejectReason) {
+			this.rejectReason = rejectReason;
 		}
 
 		public List<LoanHistoryDTO> getHistory() {
@@ -84,8 +120,16 @@ public class LoanDetailsResponseDTO {
 
 		@Override
 		public String toString() {
-			return "LoanDetailsDTO [eligible=" + eligible + ", history=" + history + ", eligibility=" + eligibility
-					+ ", loanApplication=" + loanApplication +", loanClosed=" + loanClosed + "]";
+			return "LoanDetailsDTO{" +
+					"eligible=" + eligible +
+					", rejected=" + rejected +
+					", panCard='" + panCard + '\'' +
+					", rejectReason='" + rejectReason + '\'' +
+					", loanClosed=" + loanClosed +
+					", history=" + history +
+					", eligibility=" + eligibility +
+					", loanApplication=" + loanApplication +
+					'}';
 		}
 	}
 }

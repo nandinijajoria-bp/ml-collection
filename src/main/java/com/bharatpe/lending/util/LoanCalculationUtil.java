@@ -1,9 +1,13 @@
 package com.bharatpe.lending.util;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.LendingCategories;
+import com.bharatpe.common.utils.CurrencyUtils;
+import com.bharatpe.lending.dto.LabelDTO;
 
 public class LoanCalculationUtil {
 	
@@ -92,7 +96,27 @@ public class LoanCalculationUtil {
 		private String type;
 		private Integer loanAmount;
 		private Double effectiveInterestRate;
-		
+
+		public LoanBreakupDetail(String construct, Integer edi, Integer ioEdi, Integer processingFee, Integer ioInterestAmount, Integer interestAmount, Integer totalInterestAmount, Integer ioOrFreeEdiTenure, Integer principleEdiTenure, Integer repayment, Integer disbursementAmount, String type, Integer loanAmount, Double effectiveInterestRate) {
+			this.construct = construct;
+			this.edi = edi;
+			this.ioEdi = ioEdi;
+			this.processingFee = processingFee;
+			this.ioInterestAmount = ioInterestAmount;
+			this.interestAmount = interestAmount;
+			this.totalInterestAmount = totalInterestAmount;
+			this.ioOrFreeEdiTenure = ioOrFreeEdiTenure;
+			this.principleEdiTenure = principleEdiTenure;
+			this.repayment = repayment;
+			this.disbursementAmount = disbursementAmount;
+			this.type = type;
+			this.loanAmount = loanAmount;
+			this.effectiveInterestRate = effectiveInterestRate;
+		}
+
+		public LoanBreakupDetail() {
+		}
+
 		public String getConstruct() {
 			return construct;
 		}
@@ -186,5 +210,28 @@ public class LoanCalculationUtil {
 					+ ", repayment=" + repayment + ", effectiveInterestRate=" + effectiveInterestRate + "]";
 		}
 		
+	}
+
+	public static List<LabelDTO> prepareLabels(LoanBreakupDetail breakup) {
+		List<LabelDTO> list = new ArrayList<>();
+
+		if("CONSTRUCT_1".equals(breakup.getConstruct())) {
+			list.add(new LabelDTO("Daily Installment", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
+			list.add(new LabelDTO("No Installment on", "Sundays"));
+			list.add(new LabelDTO("Repayment Amount", "₹" + CurrencyUtils.formatInt(breakup.getRepayment())));
+		} else if("CONSTRUCT_2".equals(breakup.getConstruct())) {
+			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
+			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
+			list.add(new LabelDTO("No EDI on", "Sundays"));
+			list.add(new LabelDTO("Repayment Amount", "₹" +String.valueOf(breakup.getRepayment())));
+		} else if("CONSTRUCT_3".equals(breakup.getConstruct())) {
+			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(breakup.getIoEdi()) + "/day"));
+			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
+			list.add(new LabelDTO("No EDI on", "Sundays"));
+			list.add(new LabelDTO("Repayment Amount", "₹" + CurrencyUtils.formatInt(breakup.getRepayment())));
+		} else {
+			throw new RuntimeException("Construct not defined.");
+		}
+		return list;
 	}
 }
