@@ -134,6 +134,13 @@ public class LoanEligibleService {
                 }
             }
             if (experianResponse != null){
+                if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
+                    String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
+                    experian.setEmail(email);
+                }
+                if (experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore") != null) {
+                    experian.setExperianScore(experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore").doubleValue());
+                }
                 experian.setResponse(experianResponse.toString());
                 experian.setRetryCount(0);
                 experianDao.save(experian);//updating response
