@@ -105,6 +105,9 @@ public class LoanDetailsService {
 				experian = experianDao.getByMerchantId(merchant.getId());
 				if (experian != null && experian.getPancardNumber() != null) {
 					panCard = experian.getPancardNumber();
+					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
+						experian.setBpScore(merchantSummary.getBpScore());
+					}
 				}
 				if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
 					rejected = true;
