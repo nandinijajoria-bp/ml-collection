@@ -14,6 +14,7 @@ import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
@@ -61,6 +62,9 @@ public class UploadDocumentService {
 	
 	@Autowired
 	KarzaHandler karzaHandler;
+
+	@Value("${aws.s3.bucket}")
+	private String bucket;
 
 	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -143,18 +147,20 @@ public class UploadDocumentService {
 		proofSides.put("backSide", "");
 
 		String frontBase64Encoded = processBase64String(proof.get(0));
-		String frontUrl = s3BucketHandler.uploadToS3Bucket(frontBase64Encoded, merchant.getId());
+		String fileName = merchant.getId() + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+		String frontUrl = s3BucketHandler.uploadToS3Bucket(frontBase64Encoded, fileName, bucket);
 		proofSides.put("frontSide", frontUrl);
 
 		if(proof.size() > 1 && !StringUtils.isEmpty(proof.get(1))) {
 			String backBase64Encoded = processBase64String(proof.get(1));
-			String backUrl = s3BucketHandler.uploadToS3Bucket(backBase64Encoded, merchant.getId());
+			fileName = merchant.getId() + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			String backUrl = s3BucketHandler.uploadToS3Bucket(backBase64Encoded, fileName, bucket);
 			proofSides.put("backSide", backUrl);
 		}
 		return proofSides;
 	}
 	
-	private String processBase64String(String base64EncodedString) {
+	public String processBase64String(String base64EncodedString) {
 		base64EncodedString.replace(' ', '+');
 		if(base64EncodedString.contains("base64,")) {
 			String [] base64EncodedSplit = base64EncodedString.split("base64,");
@@ -209,7 +215,7 @@ public class UploadDocumentService {
 	private void kycUsingKarzaAPI(String proofType, String fileName, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 		try {
 			Instant start = Instant.now();
-			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
+			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName, bucket);
 //			String tempPublicURL = "";
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());

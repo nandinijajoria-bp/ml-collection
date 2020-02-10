@@ -32,6 +32,17 @@ public class LoanApplicationDTO {
 	@JsonProperty(value = "reapply")
 	private boolean showReapply;
 
+	@JsonProperty(value = "self_verification")
+	private boolean selfVerification = true;
+
+	public boolean isSelfVerification() {
+		return selfVerification;
+	}
+
+	public void setSelfVerification(boolean selfVerification) {
+		this.selfVerification = selfVerification;
+	}
+
 	public ShopDetailsDTO getShopDetails() {
 		return shopDetails;
 	}

@@ -16,6 +16,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
@@ -38,6 +39,9 @@ public class ImageURLService {
 
 	@Autowired
 	S3BucketHandler s3BucketHandler;
+
+	@Value("${aws.s3.bucket}")
+	private String bucket;
 	
 	public Map<String, Object> fetchAndWrapResult(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> result = new HashMap<String, Object>();
@@ -76,11 +80,11 @@ public class ImageURLService {
 					logger.error("Empty front Url for documentsIdProof: {}", documentsIdProof.getId());
 					continue;
 				}
-				String frontURL = s3BucketHandler.getTemporaryPublicURL(documentsIdProof.getProofFrontSide());
+				String frontURL = s3BucketHandler.getTemporaryPublicURL(documentsIdProof.getProofFrontSide(), bucket);
 				imageURL.add(frontURL);
 
 				if(!StringUtils.isEmpty(documentsIdProof.getProofBackSide())) {
-					String backURL = s3BucketHandler.getTemporaryPublicURL(documentsIdProof.getProofBackSide());
+					String backURL = s3BucketHandler.getTemporaryPublicURL(documentsIdProof.getProofBackSide(), bucket);
 					imageURL.add(backURL);
 
 				}
