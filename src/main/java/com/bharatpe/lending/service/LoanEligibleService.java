@@ -160,35 +160,52 @@ public class LoanEligibleService {
                 return new ArrayList<>();
             }
             if (experianResponse != null){
-                if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
-                    JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-                    if (derogChecks(caisAccountDetails, merchant.getId(), experian)) {
-                        logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
-                        return new ArrayList<>();
-                    }
-                } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
-                    for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
+                try {
+                    if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()) {
+                        JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
                         if (derogChecks(caisAccountDetails, merchant.getId(), experian)) {
                             logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
                             return new ArrayList<>();
                         }
+                    } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()) {
+                        int unsecuredLoanCount = 0;
+                        for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
+                            if (derogChecks(caisAccountDetails, merchant.getId(), experian)) {
+                                logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
+                                return new ArrayList<>();
+                            }
+                            if (checkUnsecuredLiveLoans(caisAccountDetails)) {
+                                unsecuredLoanCount++;
+                            }
+                        }
+                        //Not more than 3 live unsecured loans running
+                        if (unsecuredLoanCount > 3) {
+                            logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchant.getId());
+                            experian.setRejected(true);
+                            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
+                            experianDao.save(experian);
+                            return new ArrayList<>();
+                        }
                     }
-                }
-                //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
-                if (checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)){
-                    logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
-                    experian.setRejected(true);
-                    experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
-                    experianDao.save(experian);
-                    return new ArrayList<>();
-                }
-                //Not more than 6 enquiries in the last 3 months ( across all product types) --- Derog check
-                if (checkLoanEnquiriesInLast3Months(experianResponse)){
-                    logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
-                    experian.setRejected(true);
-                    experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
-                    experianDao.save(experian);
-                    return new ArrayList<>();
+                    //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
+                    if (checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)) {
+                        logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
+                        experian.setRejected(true);
+                        experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
+                        experianDao.save(experian);
+                        return new ArrayList<>();
+                    }
+                    //Not more than 6 enquiries in the last 3 months ( across all product types) --- Derog check
+                    if (checkLoanEnquiriesInLast3Months(experianResponse)) {
+                        logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
+                        experian.setRejected(true);
+                        experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
+                        experianDao.save(experian);
+                        return new ArrayList<>();
+                    }
+                } catch (Exception e) {
+                    logger.info("Exception while checking derog for merchant: {}", merchant.getId());
+                    logger.error("Exception---", e);
                 }
                 return fetchBureauEligibleLoan(experianResponse, merchant.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays);
             }
@@ -633,14 +650,6 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return true;
         }
-        //Not more than 3 live unsecured loans running
-        if (checkUnsecuredLiveLoans(jsonNode)) {
-            logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
-            experianDao.save(experian);
-            return true;
-        }
         return false;
     }
 
@@ -666,7 +675,7 @@ public class LoanEligibleService {
             return derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate;
         } else if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isArray()) {
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details")) {
-                if (derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate) {
+                if (jsonNode.get("Product") != null && derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request") != null && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate) {
                     return true;
                 }
             }
