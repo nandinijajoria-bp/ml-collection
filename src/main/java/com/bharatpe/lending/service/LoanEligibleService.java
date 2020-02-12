@@ -112,6 +112,20 @@ public class LoanEligibleService {
         boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
         experian.setReason(null);
+        if (bpScore <= 10D) {
+            logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
+            experian.setCategory("1N");
+            experian.setColor(ExperianConstants.COLOR.RED.name());
+            experian.setReason(ExperianConstants.LOW_BP_SCORE);
+            experianDao.save(experian);
+            return new ArrayList<>();
+        }
+        if ((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)){
+            logger.info("Last 30 days tpv less than minimum required, so rejecting merchant: {}", merchant.getId());
+            experian.setReason(ExperianConstants.LOW_TPV);
+            experianDao.save(experian);
+            return new ArrayList<>();
+        }
         try {
             ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
             if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
@@ -144,20 +158,6 @@ public class LoanEligibleService {
                 experian.setResponse(experianResponse.toString());
                 experian.setRetryCount(0);
                 experianDao.save(experian);//updating response
-            }
-            if (bpScore <= 10D) {
-                logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-                experianDao.save(experian);
-                return new ArrayList<>();
-            }
-            if ((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)){
-                logger.info("Last 30 days tpv less than minimum required, so rejecting merchant: {}", merchant.getId());
-                experian.setReason(ExperianConstants.LOW_TPV);
-                experianDao.save(experian);
-                return new ArrayList<>();
             }
             if (experianResponse != null){
                 try {
