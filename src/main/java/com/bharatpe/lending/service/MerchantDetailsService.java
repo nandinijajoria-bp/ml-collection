@@ -256,6 +256,9 @@ public class MerchantDetailsService {
 
     public MerchantDetailsDTO getMerchantDetails(Long applicationId) {
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, MODULE);
+        if (lendingCpvDetails == null) {
+            return new MerchantDetailsDTO();
+        }
         MerchantDetailsDTO merchantDetailsDTO = new MerchantDetailsDTO();
         merchantDetailsDTO.setApplicationId(applicationId);
         setPersonalDetails(lendingCpvDetails, merchantDetailsDTO);
