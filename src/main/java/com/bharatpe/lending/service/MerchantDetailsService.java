@@ -37,6 +37,8 @@ public class MerchantDetailsService {
 
     private static final String S3_BUCKET = "loan-document";
 
+    private static final String MODULE = "MERCHANT_APP";
+
     Map<String, Integer> imageSize = new HashMap<String, Integer>() {{
         put("SHOP_FRONT", 1);
         put("QR_CODE", 1);
@@ -51,8 +53,7 @@ public class MerchantDetailsService {
     }};
 
     public MerchantDetailsDTO updatePersonalDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
-        String module = "MERCHANT_APP";
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), MODULE);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
@@ -70,14 +71,13 @@ public class MerchantDetailsService {
         lendingCpvDetails.setState(merchantDetailsDTO.getPersonalDetails().getState());
         lendingCpvDetails.setCity(merchantDetailsDTO.getPersonalDetails().getCity());
         lendingCpvDetails.setLandmark(merchantDetailsDTO.getPersonalDetails().getLandmark());
-        lendingCpvDetails.setModule(module);
+        lendingCpvDetails.setModule(MODULE);
         lendingCpvDetailsDao.save(lendingCpvDetails);
         return merchantDetailsDTO;
     }
 
     public MerchantDetailsDTO updateShopDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
-        String module = "MERCHANT_APP";
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), MODULE);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
@@ -87,18 +87,18 @@ public class MerchantDetailsService {
         }
         lendingCpvDetails.setMerchantId(merchant.getId());
         lendingCpvDetails.setApplicationId(merchantDetailsDTO.getApplicationId());
-        lendingCpvDetails.setModule(module);
+        lendingCpvDetails.setModule(MODULE);
         lendingCpvDetails.setBusinessType(merchantDetailsDTO.getShopDetails().getBusinessType());
         lendingCpvDetails.setOwnership(merchantDetailsDTO.getShopDetails().getShopOwnership());
         lendingCpvDetails.setShopName(merchantDetailsDTO.getShopDetails().getShopName());
         lendingCpvDetailsDao.save(lendingCpvDetails);
-        getShopDetailsImages(merchantDetailsDTO, lendingCpvDetails, module);
+        getShopDetailsImages(merchantDetailsDTO, lendingCpvDetails);
         return merchantDetailsDTO;
     }
 
-    private void getShopDetailsImages(MerchantDetailsDTO merchantDetailsDTO, LendingCpvDetails lendingCpvDetails, String module) {
+    private void getShopDetailsImages(MerchantDetailsDTO merchantDetailsDTO, LendingCpvDetails lendingCpvDetails) {
         Map<String, List<CpvDocumentsIdProof>> cpvDocumentTypeMap = new HashMap<>();
-        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("SHOP_FRONT", "QR_CODE", "STOCK"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), module);
+        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("SHOP_FRONT", "QR_CODE", "STOCK"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), MODULE);
         for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentsIdProofList) {
             cpvDocumentTypeMap.putIfAbsent(cpvDocumentsIdProof.getProofType(), new ArrayList<>());
             cpvDocumentTypeMap.get(cpvDocumentsIdProof.getProofType()).add(cpvDocumentsIdProof);
@@ -111,19 +111,19 @@ public class MerchantDetailsService {
             if (cpvDocumentTypeMap.containsKey("SHOP_FRONT")) {
                 for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentTypeMap.get("SHOP_FRONT")) {
                     url = s3BucketHandler.getTemporaryPublicURL(cpvDocumentsIdProof.getProofFrontSide(), S3_BUCKET);
-                    merchantDetailsDTO.getShopDetails().getShopImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url));
+                    merchantDetailsDTO.getShopDetails().getShopImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url, cpvDocumentsIdProof.getImageDescription()));
                 }
             }
             if (cpvDocumentTypeMap.containsKey("QR_CODE")) {
                 for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentTypeMap.get("QR_CODE")) {
                     url = s3BucketHandler.getTemporaryPublicURL(cpvDocumentsIdProof.getProofFrontSide(), S3_BUCKET);
-                    merchantDetailsDTO.getShopDetails().getBharatpeQrImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url));
+                    merchantDetailsDTO.getShopDetails().getBharatpeQrImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url, cpvDocumentsIdProof.getImageDescription()));
                 }
             }
             if (cpvDocumentTypeMap.containsKey("STOCK")) {
                 for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentTypeMap.get("STOCK")) {
                     url = s3BucketHandler.getTemporaryPublicURL(cpvDocumentsIdProof.getProofFrontSide(), S3_BUCKET);
-                    merchantDetailsDTO.getShopDetails().getStockImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url));
+                    merchantDetailsDTO.getShopDetails().getStockImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url, cpvDocumentsIdProof.getImageDescription()));
                 }
             }
         } catch (FileNotFoundException e) {
@@ -132,8 +132,7 @@ public class MerchantDetailsService {
     }
 
     public MerchantDetailsDTO updateBusinessDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
-        String module = "MERCHANT_APP";
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), MODULE);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
@@ -143,17 +142,17 @@ public class MerchantDetailsService {
         }
         lendingCpvDetails.setMerchantId(merchant.getId());
         lendingCpvDetails.setApplicationId(merchantDetailsDTO.getApplicationId());
-        lendingCpvDetails.setModule(module);
+        lendingCpvDetails.setModule(MODULE);
         lendingCpvDetails.setBusinessStartedAt(merchantDetailsDTO.getBusinessDetails().getBusinessStartDate());
         lendingCpvDetails.setDailySales(merchantDetailsDTO.getBusinessDetails().getDailySales());
         lendingCpvDetailsDao.save(lendingCpvDetails);
-        getBusinessDetailsImages(merchantDetailsDTO, lendingCpvDetails, module);
+        getBusinessDetailsImages(merchantDetailsDTO, lendingCpvDetails);
         return merchantDetailsDTO;
     }
 
-    private void getBusinessDetailsImages(MerchantDetailsDTO merchantDetailsDTO, LendingCpvDetails lendingCpvDetails, String module) {
+    private void getBusinessDetailsImages(MerchantDetailsDTO merchantDetailsDTO, LendingCpvDetails lendingCpvDetails) {
         Map<String, List<CpvDocumentsIdProof>> cpvDocumentTypeMap = new HashMap<>();
-        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("RELATIONSHIP", "OWNERSHIP", "CHEQUE"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), module);
+        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("RELATIONSHIP", "OWNERSHIP", "CHEQUE"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), MODULE);
         for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentsIdProofList) {
             cpvDocumentTypeMap.putIfAbsent(cpvDocumentsIdProof.getProofType(), new ArrayList<>());
             cpvDocumentTypeMap.get(cpvDocumentsIdProof.getProofType()).add(cpvDocumentsIdProof);
@@ -166,19 +165,19 @@ public class MerchantDetailsService {
             if (cpvDocumentTypeMap.containsKey("RELATIONSHIP")) {
                 for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentTypeMap.get("RELATIONSHIP")) {
                     url = s3BucketHandler.getTemporaryPublicURL(cpvDocumentsIdProof.getProofFrontSide(), S3_BUCKET);
-                    merchantDetailsDTO.getBusinessDetails().getRelationshipImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url));
+                    merchantDetailsDTO.getBusinessDetails().getRelationshipImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url, cpvDocumentsIdProof.getImageDescription()));
                 }
             }
             if (cpvDocumentTypeMap.containsKey("OWNERSHIP")) {
                 for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentTypeMap.get("OWNERSHIP")) {
                     url = s3BucketHandler.getTemporaryPublicURL(cpvDocumentsIdProof.getProofFrontSide(), S3_BUCKET);
-                    merchantDetailsDTO.getBusinessDetails().getOwnershipImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url));
+                    merchantDetailsDTO.getBusinessDetails().getOwnershipImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url, cpvDocumentsIdProof.getImageDescription()));
                 }
             }
             if (cpvDocumentTypeMap.containsKey("CHEQUE")) {
                 for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentTypeMap.get("CHEQUE")) {
                     url = s3BucketHandler.getTemporaryPublicURL(cpvDocumentsIdProof.getProofFrontSide(), S3_BUCKET);
-                    merchantDetailsDTO.getBusinessDetails().getRepaymentDocImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url));
+                    merchantDetailsDTO.getBusinessDetails().getRepaymentDocImage().add(new ImageDTO(cpvDocumentsIdProof.getId(), url, cpvDocumentsIdProof.getImageDescription()));
                 }
             }
         } catch (FileNotFoundException e) {
@@ -187,13 +186,12 @@ public class MerchantDetailsService {
     }
 
     public UploadImageDTO uploadImage(UploadImageDTO uploadImageDTO, Merchant merchant, String lat, String lng) {
-        String module = "MERCHANT_APP";
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(uploadImageDTO.getApplicationId(), module);
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(uploadImageDTO.getApplicationId(), MODULE);
         if (lendingCpvDetails == null) {
             logger.info("lending cpv details not found for merchant: {}, for application: {}", merchant.getId(), uploadImageDTO.getApplicationId());
             return null;
         }
-        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.findByProofTypeAndCpvIdAndModule(uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), module);
+        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.findByProofTypeAndCpvIdAndModule(uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), MODULE);
         int count = 0;
         for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentsIdProofList) {
             if (cpvDocumentsIdProof.getDeletedAt() == null) {
@@ -206,7 +204,7 @@ public class MerchantDetailsService {
         }
         int index;
         if (uploadImageDTO.getImageData().getImageId() != null) {
-            CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(uploadImageDTO.getImageData().getImageId(), lendingCpvDetails.getId(), merchant.getId(), module);
+            CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(uploadImageDTO.getImageData().getImageId(), lendingCpvDetails.getId(), merchant.getId(), MODULE);
             if (cpvDocumentsIdProof == null || cpvDocumentsIdProof.getDeletedAt() != null) {
                 logger.info("Image not found/already deleted for id: {}, cpvId: {}, merchant: {}", uploadImageDTO.getImageData().getImageId(), lendingCpvDetails.getId(), merchant.getId());
                 return null;
@@ -233,7 +231,7 @@ public class MerchantDetailsService {
         } catch (FileNotFoundException e) {
             logger.info("Exception while fetching file from S3---", e);
         }
-        CpvDocumentsIdProof cpvDocumentsIdProof = new CpvDocumentsIdProof(merchant.getId(), uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), filename, index, uploadImageDTO.getApplicationId(), null, "PENDING_VERIFICATION", uploadImageDTO.getImageData().getImageDescription(), null, latitude, longitude, module);
+        CpvDocumentsIdProof cpvDocumentsIdProof = new CpvDocumentsIdProof(merchant.getId(), uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), filename, index, uploadImageDTO.getApplicationId(), null, "PENDING_VERIFICATION", uploadImageDTO.getImageData().getImageDescription(), null, latitude, longitude, MODULE);
         cpvDocumentsIdProof = cpvDocumentsIdProofDao.save(cpvDocumentsIdProof);
         uploadImageDTO.getImageData().setImageUrl(imageUrl);
         uploadImageDTO.getImageData().setImageId(cpvDocumentsIdProof.getId());
@@ -241,13 +239,12 @@ public class MerchantDetailsService {
     }
 
     public int deleteImage(Long imageId, Merchant merchant, Long applicationId) {
-        String module = "MERCHANT_APP";
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, module);
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, MODULE);
         if (lendingCpvDetails == null) {
             logger.info("lending cpv details not found for merchant: {}, for application: {}", merchant.getId(), applicationId);
             return 0;
         }
-        CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(imageId, lendingCpvDetails.getId(), merchant.getId(), module);
+        CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(imageId, lendingCpvDetails.getId(), merchant.getId(), MODULE);
         if (cpvDocumentsIdProof == null || cpvDocumentsIdProof.getDeletedAt() != null) {
             logger.info("Image not found/already deleted for id: {}, cpvId: {}, merchant: {}", imageId, lendingCpvDetails.getId(), merchant.getId());
             return 0;
@@ -258,36 +255,35 @@ public class MerchantDetailsService {
     }
 
     public MerchantDetailsDTO getMerchantDetails(Long applicationId) {
-        String module = "MERCHANT_APP";
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, module);
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, MODULE);
         MerchantDetailsDTO merchantDetailsDTO = new MerchantDetailsDTO();
         merchantDetailsDTO.setApplicationId(applicationId);
         setPersonalDetails(lendingCpvDetails, merchantDetailsDTO);
-        setShopDetails(lendingCpvDetails, merchantDetailsDTO, module);
-        setBusinessDetails(lendingCpvDetails, merchantDetailsDTO, module);
+        setShopDetails(lendingCpvDetails, merchantDetailsDTO);
+        setBusinessDetails(lendingCpvDetails, merchantDetailsDTO);
         return merchantDetailsDTO;
     }
 
-    private void setBusinessDetails(LendingCpvDetails lendingCpvDetails, MerchantDetailsDTO merchantDetailsDTO, String module) {
+    private void setBusinessDetails(LendingCpvDetails lendingCpvDetails, MerchantDetailsDTO merchantDetailsDTO) {
         merchantDetailsDTO.setBusinessDetails(new MerchantDetailsDTO.BusinessDetails());
         merchantDetailsDTO.getBusinessDetails().setBusinessStartDate(lendingCpvDetails.getBusinessStartedAt());
         merchantDetailsDTO.getBusinessDetails().setDailySales(lendingCpvDetails.getDailySales());
-        getBusinessDetailsImages(merchantDetailsDTO, lendingCpvDetails, module);
+        getBusinessDetailsImages(merchantDetailsDTO, lendingCpvDetails);
     }
 
-    private void setShopDetails(LendingCpvDetails lendingCpvDetails, MerchantDetailsDTO merchantDetailsDTO, String module) {
+    private void setShopDetails(LendingCpvDetails lendingCpvDetails, MerchantDetailsDTO merchantDetailsDTO) {
         merchantDetailsDTO.setShopDetails(new MerchantDetailsDTO.ShopDetails());
         merchantDetailsDTO.getShopDetails().setBusinessType(lendingCpvDetails.getBusinessType());
         merchantDetailsDTO.getShopDetails().setShopOwnership(lendingCpvDetails.getOwnership());
         merchantDetailsDTO.getShopDetails().setShopName(lendingCpvDetails.getShopName());
-        getShopDetailsImages(merchantDetailsDTO, lendingCpvDetails, module);
+        getShopDetailsImages(merchantDetailsDTO, lendingCpvDetails);
     }
 
     private void setPersonalDetails(LendingCpvDetails lendingCpvDetails, MerchantDetailsDTO merchantDetailsDTO) {
         merchantDetailsDTO.setPersonalDetails(new MerchantDetailsDTO.PersonalDetails());
         merchantDetailsDTO.getPersonalDetails().setAlternateMobile(lendingCpvDetails.getMobile() != null ? lendingCpvDetails.getMobile().toString() : null);
         merchantDetailsDTO.getPersonalDetails().setEmail(lendingCpvDetails.getEmail());
-        merchantDetailsDTO.getPersonalDetails().setMaritalStatus(lendingCpvDetails.getEmail());
+        merchantDetailsDTO.getPersonalDetails().setMaritalStatus(lendingCpvDetails.getMaritalStatus());
         merchantDetailsDTO.getPersonalDetails().setResidentialAddress(lendingCpvDetails.getAddress());
         merchantDetailsDTO.getPersonalDetails().setPincode(lendingCpvDetails.getPin() != null ? lendingCpvDetails.getPin().toString() : null);
         merchantDetailsDTO.getPersonalDetails().setState(lendingCpvDetails.getState());

@@ -9,10 +9,12 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class ImageDTO {
     private Long imageId;
     private String imageUrl;
+    private String imageDescription;
 
-    public ImageDTO(Long imageId, String imageUrl) {
+    public ImageDTO(Long imageId, String imageUrl, String imageDescription) {
         this.imageId = imageId;
         this.imageUrl = imageUrl;
+        this.imageDescription = imageDescription;
     }
 
     public ImageDTO() {
@@ -34,11 +36,20 @@ public class ImageDTO {
         this.imageUrl = imageUrl;
     }
 
+    public String getImageDescription() {
+        return imageDescription;
+    }
+
+    public void setImageDescription(String imageDescription) {
+        this.imageDescription = imageDescription;
+    }
+
     @Override
     public String toString() {
         return "ImageDTO{" +
                 "imageId=" + imageId +
                 ", imageUrl='" + imageUrl + '\'' +
+                ", imageDescription='" + imageDescription + '\'' +
                 '}';
     }
 }
