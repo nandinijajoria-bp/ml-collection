@@ -50,9 +50,8 @@ public class S3BucketHandler {
 		return s3client;
 	}
 	
-	public String uploadToS3Bucket(String base64Encoded, Long merchantId) {
+	public String uploadToS3Bucket(String base64Encoded, String fileName, String bucket) {
 		Instant start = Instant.now();
-		String fileName = merchantId + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
 		byte[] bI = org.apache.commons.codec.binary.Base64.decodeBase64(base64Encoded.getBytes());
 		InputStream fis = new ByteArrayInputStream(bI);
 		
@@ -74,7 +73,7 @@ public class S3BucketHandler {
 		return fileName;
 	}
 	
-	public String getTemporaryPublicURL(String key) throws FileNotFoundException {
+	public String getTemporaryPublicURL(String key, String bucket) throws FileNotFoundException {
 	    try {
 	    	logger.info("Getting temp URL for keu: {}", key);
 			Instant start = Instant.now();

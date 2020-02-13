@@ -17,6 +17,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
@@ -62,6 +63,9 @@ public class VerifyApplicationKarzaStatusService {
 	
 	@Autowired
 	KarzaHandler karzaHandler;
+
+	@Value("${aws.s3.bucket}")
+	private String bucket;
 	
 	public Map<String, String> verifyApplicationStatusUsingKarza(HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -229,7 +233,7 @@ public class VerifyApplicationKarzaStatusService {
 			String docType = documentsIdProof.get().getProofType();
 			docId = documentsIdProof.get().getId();
 			try {
-				String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
+				String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName, bucket);
 				Instant start = Instant.now();
 				String response = karzaHandler.curlKarzaKycAPI(tempPublicURL);
 				Instant end = Instant.now();

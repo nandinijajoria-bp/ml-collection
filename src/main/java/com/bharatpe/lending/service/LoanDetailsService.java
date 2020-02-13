@@ -155,6 +155,9 @@ public class LoanDetailsService {
 			}
 
 			if(lendingApplication != null) {
+				if (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null")) {
+					loanApplicationDTO.setSelfVerification(false);
+				}
 				if("rejected".equals(lendingApplication.getStatus())) {
 					List<LendingAuditTrial> auditTrialList = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchant().getId(), lendingApplication.getId(), "REJECTED");
 					LendingAuditTrial auditTrial = null;

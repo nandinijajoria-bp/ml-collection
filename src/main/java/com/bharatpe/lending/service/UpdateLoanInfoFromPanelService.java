@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.FileNotFoundException;
@@ -77,6 +78,9 @@ public class UpdateLoanInfoFromPanelService {
 	
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
+
+	@Value("${aws.s3.bucket}")
+	private String bucket;
 
 	public Map<String, String> updateLoanInfoFromPanel(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -137,11 +141,11 @@ public class UpdateLoanInfoFromPanelService {
 	}
 	
 	private String processAndUploadDocToS3(String base64Encoded, Long merchantId) {
-		String fileName = null;
+		String fileName = merchantId + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
 		base64Encoded = processBase64String(base64Encoded);
 		
 		Instant start = Instant.now();
-		fileName = s3BucketHandler.uploadToS3Bucket(base64Encoded, merchantId);
+		fileName = s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
 		Instant end = Instant.now();
 		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
 		
@@ -197,7 +201,7 @@ public class UpdateLoanInfoFromPanelService {
 	private void kycUsingKarzaAPI(String proofType, String fileName, Long documentId, Long merchantId, Long applicationId) {
 		try {
 			Instant start = Instant.now();
-			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName);
+			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName, bucket);
 			Instant end = Instant.now();
 			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
 			if(!tempPublicURL.isEmpty()) {
