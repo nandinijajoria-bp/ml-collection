@@ -155,7 +155,7 @@ public class LoanDetailsService {
 			}
 
 			if(lendingApplication != null) {
-				if (lendingApplication.getPhysicalVerificationStatus() != null) {
+				if (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null")) {
 					loanApplicationDTO.setSelfVerification(false);
 				}
 				if("rejected".equals(lendingApplication.getStatus())) {
