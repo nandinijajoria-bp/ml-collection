@@ -20,7 +20,7 @@ public class LoanCalculationUtil {
 		Integer edi, ioEdi, processingFee, ioInterestAmount, interestAmount, totalInterestAmount, ioOrFreeEdiTenure, principleEdiTenure, repayment, disbursementAmount;
 		Double effectiveInterestRate = null;
 		
-		if("CONSTRUCT_2".equals(availableLoan.getLoanConstruct())) {
+		if("CONSTRUCT_2".equals(category.getLoanConstruct())) {
 			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
 			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * category.getTenureMonths()))) / category.getPayableDays());
 			repayment = (int) Math.round(category.getPayableDays() * edi);
@@ -28,7 +28,7 @@ public class LoanCalculationUtil {
 			ioOrFreeEdiTenure = 1;
 			ioEdi = ioInterestAmount = 0;
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
-		} else if("CONSTRUCT_3".equals(availableLoan.getLoanConstruct())) {
+		} else if("CONSTRUCT_3".equals(category.getLoanConstruct())) {
 			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
 			ioEdi = (int) Math.ceil(availableLoan.getAmount() * (category.getInterestRate() / 100) * category.getIoTenureMonths() / category.getIoPayableDays());
 			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * (category.getTenureMonths() - 1)))) / category.getPayableDays());
@@ -51,7 +51,7 @@ public class LoanCalculationUtil {
 		effectiveInterestRate = ((repayment - availableLoan.getAmount())) / (availableLoan.getAmount() * category.getTenureMonths()) * 100;
 		disbursementAmount = availableLoan.getAmount().intValue() - processingFee; 
 		
-		breakup.setConstruct(availableLoan.getLoanConstruct());
+		breakup.setConstruct(category.getLoanConstruct());
 		breakup.setEdi(edi);
 		breakup.setIoEdi(ioEdi);
 		breakup.setProcessingFee(processingFee);
@@ -63,7 +63,7 @@ public class LoanCalculationUtil {
 		breakup.setRepayment(repayment);
 		breakup.setEffectiveInterestRate(Double.valueOf(df.format(effectiveInterestRate)));
 		breakup.setDisbursementAmount(disbursementAmount);
-		breakup.setType(getType(availableLoan.getLoanConstruct()));
+		breakup.setType(getType(category.getLoanConstruct()));
 		breakup.setLoanAmount(availableLoan.getAmount().intValue());
 		return breakup;
 		

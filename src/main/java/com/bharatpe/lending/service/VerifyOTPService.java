@@ -147,15 +147,15 @@ public class VerifyOTPService {
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
 		
-		String smsContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for Rs. "+loanAmount.intValue()+" has been received successfully.";
+		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+", loan application for Rs."+loanAmount.intValue()+" received. (Loan ID- "+ lendingApplication.getId() +"). Please submit additional info for faster disbursal. bharatpe.in/loan";
 		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
 
-		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" + 
-				"\n" + 
-				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" + 
-				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
+//		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
+//				"\n" +
+//				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
+//				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
 		
-		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles);
+		whatsappNotificationService.send(merchant, null, smsContent, mobiles);
 
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
