@@ -147,7 +147,7 @@ public class VerifyOTPService {
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
 		
-		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+", loan application for Rs."+loanAmount.intValue()+" received. (Loan ID- "+ lendingApplication.getExternalLoanId() +"). Please submit additional info for faster disbursal. bharatpe.in/loan";
+		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+", loan application for Rs."+loanAmount.intValue()+" recd. (Loan ID- "+lendingApplication.getExternalLoanId()+"). Pls. submit addl. info for faster disbursal. bharatpe.in/loan";
 		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
 
 //		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
