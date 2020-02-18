@@ -380,7 +380,7 @@ public class LoanEligibleService {
                 }
             }
             loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).reversed());
-            if (lendingApplication != null && loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount && lendingApplication != null)) {
+            if (lendingApplication != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
                 LendingCategories lendingCategory = lendingCategoryDao.findByCategory(lendingApplication.getCategory()).get(0);
                 if (lendingCategory != null) {
                     LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, 0, type, merchantId, experianId, prevLoanAmount);
