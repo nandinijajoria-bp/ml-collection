@@ -155,7 +155,7 @@ public class VerifyOTPService {
 //				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
 //				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
 		
-		whatsappNotificationService.send(merchant, null, smsContent, mobiles);
+		whatsappNotificationService.send(merchant, null, smsContent, mobiles, null);
 
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		

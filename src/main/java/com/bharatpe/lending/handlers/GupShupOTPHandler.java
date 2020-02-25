@@ -20,10 +20,9 @@ public class GupShupOTPHandler {
 	@Autowired
 	RestTemplate restTemplate;
 
-	public Boolean sendOTP(String mobile) {
+	public Boolean sendOTP(String mobile, String message) {
 		Boolean responseFlag = false;
-		String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-		
+
 		Map<String, String> urlParams = new LinkedHashMap<>();
 		urlParams.put("userId", LendingConstants.GUPSHUP_OTP_API_USERID);
 		urlParams.put("password", LendingConstants.GUPSHUP_OTP_API_PASSWORD);

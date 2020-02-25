@@ -45,7 +45,7 @@ public class LoanEligibleService {
 
     List<Integer> derogAccountStatus = Arrays.asList(93,89,93,97,97,97,97,30,31,32,33,35,37,38,39,41,42,43,44,45,47,49,50,51,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,77,79,81,85,86,87,88,94,90,91);
     List<Integer> derogUnsecuredProducts = Arrays.asList(5,10,36,37,38,39,43,51,52,53,54,55,56,57,58,60,61);
-    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com");
+    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com", "puneet.arora@bharatpe.com");
 
     private Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 
@@ -91,7 +91,7 @@ public class LoanEligibleService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail){
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, String panCard){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
         int txnLast30Days = 30;
@@ -167,6 +167,10 @@ public class LoanEligibleService {
                 }
                 experian.setResponse(experianResponse.toString());
                 experianDao.save(experian);//updating response
+            } else if (panCard != null) {
+                logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
+                experian.setNoExperian(true);
+                return new ArrayList<>();
             }
             if (experianResponse != null){
                 try {
@@ -223,7 +227,7 @@ public class LoanEligibleService {
             logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
-            emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
+            emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
         } catch (Exception e) {
             logger.error("Exception while fetching experian details---", e);
         }
@@ -888,7 +892,7 @@ public class LoanEligibleService {
         }
     }
 
-    private String getFirstName(String name){
+    public String getFirstName(String name){
         if (name == null) {
             return "";
         }
@@ -905,7 +909,7 @@ public class LoanEligibleService {
         }
     }
 
-    private String getLastName(String name){
+    public String getLastName(String name){
         if (name == null) {
             return "";
         }

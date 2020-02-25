@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
+import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
@@ -26,8 +27,8 @@ import java.util.*;
 public class LoanDetailsService {
 	private Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
 	
-	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada");
-	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada");
+	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada", "New Delhi");
+	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada", "New Delhi");
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
@@ -77,12 +78,16 @@ public class LoanDetailsService {
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
 
-	@Transactional
+	@Autowired
+	EmailHandler emailHandler;
+
+//	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 			boolean eligibleFlag = true;
 			boolean rejected = false;
+			boolean noExperian = false;
 			String rejectReason = null;
 			String panCard = null;
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
@@ -209,14 +214,23 @@ public class LoanDetailsService {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
-					loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail));
-					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					try {
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().getPanCard()));
+						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					} catch (Exception e) {
+						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
+						logger.error("Exception---", e);
+						emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Eligible Loan Exception", "");
+					}
 					if (experian.getRejected()) {
 						rejected = true;
 						rejectReason = experian.getReason();
 					}
 					if (experian.getRetryCount() == 1) {//experian timeout
 						return null;
+					}
+					if (experian.isNoExperian()) {
+						noExperian = true;
 					}
 				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
@@ -242,6 +256,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setRejected(rejected);
 			loanDetailsDTO.setRejectReason(rejectReason);
 			loanDetailsDTO.setPanCard(panCard);
+			loanDetailsDTO.setNoExperian(noExperian);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			

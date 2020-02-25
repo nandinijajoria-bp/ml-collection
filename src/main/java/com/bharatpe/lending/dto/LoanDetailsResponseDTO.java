@@ -45,6 +45,7 @@ public class LoanDetailsResponseDTO {
 		private String panCard;
 		private String rejectReason;
 		private boolean loanClosed = false;
+		private boolean noExperian = false;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -118,6 +119,14 @@ public class LoanDetailsResponseDTO {
 			this.loanApplication = loanApplication;
 		}
 
+		public boolean isNoExperian() {
+			return noExperian;
+		}
+
+		public void setNoExperian(boolean noExperian) {
+			this.noExperian = noExperian;
+		}
+
 		@Override
 		public String toString() {
 			return "LoanDetailsDTO{" +
@@ -129,6 +138,7 @@ public class LoanDetailsResponseDTO {
 					", history=" + history +
 					", eligibility=" + eligibility +
 					", loanApplication=" + loanApplication +
+					", noExperian=" + noExperian +
 					'}';
 		}
 	}
