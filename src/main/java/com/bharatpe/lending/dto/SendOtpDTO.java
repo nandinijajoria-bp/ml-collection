@@ -9,6 +9,8 @@ public class SendOtpDTO {
 
     private String otp;
 
+    private boolean retry;
+
     public String getMobile() {
         return mobile;
     }
@@ -23,5 +25,13 @@ public class SendOtpDTO {
 
     public void setOtp(String otp) {
         this.otp = otp;
+    }
+
+    public boolean isRetry() {
+        return retry;
+    }
+
+    public void setRetry(boolean retry) {
+        this.retry = retry;
     }
 }

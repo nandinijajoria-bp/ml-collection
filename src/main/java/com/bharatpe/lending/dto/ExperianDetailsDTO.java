@@ -10,6 +10,7 @@ public class ExperianDetailsDTO implements Serializable {
     private String address;
     private String gender;
     private String dob;
+    private boolean retry;
 
     public String getPincode() {
         return pincode;
@@ -59,6 +60,14 @@ public class ExperianDetailsDTO implements Serializable {
         this.dob = dob;
     }
 
+    public boolean isRetry() {
+        return retry;
+    }
+
+    public void setRetry(boolean retry) {
+        this.retry = retry;
+    }
+
     @Override
     public String toString() {
         return "ExperianDetailsDTO{" +
@@ -68,6 +77,7 @@ public class ExperianDetailsDTO implements Serializable {
                 ", address='" + address + '\'' +
                 ", gender='" + gender + '\'' +
                 ", dob='" + dob + '\'' +
+                ", retry='" + retry + '\'' +
                 '}';
     }
 }

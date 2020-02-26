@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -76,8 +77,16 @@ public class ExperianService {
         }
         ExperianDetails experianDetails = new ExperianDetails(merchantId, experian.getId(), experianDetailsDTO.getPincode(), experianDetailsDTO.getState(), experianDetailsDTO.getCity(), experianDetailsDTO.getAddress(), experianDetailsDTO.getGender(), experianDetailsDTO.getDob());
         List<String> maskedMobiles = new ArrayList<>();
-        JsonNode experianResponse = fetchExperianDetails(firstName, lastName, contact, experian.getPancardNumber(), experianDetailsDTO, merchantId, maskedMobiles, experianDetails);
-        experianDetailsDao.deleteByMerchantIdAndExperianId(merchantId, experian.getId());
+        JsonNode experianResponse;
+        try {
+            experianResponse = fetchExperianDetails(firstName, lastName, contact, experian.getPancardNumber(), experianDetailsDTO, merchantId, maskedMobiles, experianDetails);
+        } catch (Exception e) {
+            experianResponse = null;
+            if (!experianDetailsDTO.isRetry()) {
+                return new ResponseDTO(false, "timeout", null);
+            }
+        }
+        experianDetailsDao.deleteByMerchantId(merchantId);
         experianDetailsDao.save(experianDetails);
         if (experianResponse != null) {
             experian.setResponse(experianResponse.toString());
@@ -105,12 +114,12 @@ public class ExperianService {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         setLongApiParams(body, firstName, lastName, contact, panCard, experianDetailsDTO);
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
-        Long a = DateTime.now().getMillis();
-        logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, body.toString());
-        String response = restTemplate.postForObject(ExperianConstants.LONG_API_URL, request, String.class);
-        Long b = DateTime.now().getMillis();
-        logger.info("ExperianV2 long API response time---" + (b-a) + "ms");
         try {
+            Long a = DateTime.now().getMillis();
+            logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, body.toString());
+            String response = restTemplate.postForObject(ExperianConstants.LONG_API_URL, request, String.class);
+            Long b = DateTime.now().getMillis();
+            logger.info("ExperianV2 long API response time---" + (b-a) + "ms");
             JsonNode jsonNode = objectMapper.readTree(response);
             if (jsonNode == null) {
                 return null;
@@ -132,9 +141,11 @@ public class ExperianService {
                 }
             }
             return null;
+        } catch (ResourceAccessException e) {
+            logger.error("ExperianV2 API timeout", e);
+            throw new RuntimeException("Timeout");
         } catch (Exception e) {
             logger.error("Exception while parsing experianV2 long API response", e);
-            logger.info("ExperianV2 long API response is---" + response);
             return null;
         }
     }
@@ -206,16 +217,24 @@ public class ExperianService {
         return new ResponseDTO(true, null, null);
     }
 
-    public ResponseDTO verifyOtp(String mobile, Merchant merchant, String otp) {
+    public ResponseDTO verifyOtp(String mobile, Merchant merchant, String otp, boolean retry) {
         Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
-        if (isOTPVerified) {
-            authenticateExperian(merchant.getId(), mobile);
-            return new ResponseDTO(true, null, null);
-        }
-        isOTPVerified = gupShupOTPHandler.verifyOTP(mobile, otp);
-        if (isOTPVerified) {
-            authenticateExperian(merchant.getId(), mobile);
-            return new ResponseDTO(true, null, null);
+        try {
+            if (isOTPVerified) {
+                authenticateExperian(merchant.getId(), mobile);
+                return new ResponseDTO(true, null, null);
+            }
+            isOTPVerified = gupShupOTPHandler.verifyOTP(mobile, otp);
+            if (isOTPVerified) {
+                authenticateExperian(merchant.getId(), mobile);
+                return new ResponseDTO(true, null, null);
+            }
+        } catch (Exception e) {
+            if (!retry) {
+                return new ResponseDTO(false, "timeout", null);
+            } else {
+                return new ResponseDTO(true, null, null);
+            }
         }
         return new ResponseDTO(false, "Invalid OTP", null);
     }
