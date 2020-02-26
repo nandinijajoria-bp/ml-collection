@@ -638,6 +638,8 @@ public class UpdateLoanInfoFromPanelService {
 			months = 6;
 		}else if(payableDays == 311) {
 			months = 12;
+		}else if(payableDays == 388) {
+			months = 15;
 		}
 		
 		LocalDate localDate = LocalDate.now().plusDays(days).plusMonths(months);

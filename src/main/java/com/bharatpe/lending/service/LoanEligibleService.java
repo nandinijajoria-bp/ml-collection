@@ -528,7 +528,8 @@ public class LoanEligibleService {
             case 3: return 77;
             case 6: return 155;
             case 9: return 234;
-            default: return 311;//12 months
+            case 12: return 311;
+            default: return 388;//15 months
         }
     }
 
