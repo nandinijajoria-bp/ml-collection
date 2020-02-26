@@ -9,6 +9,13 @@ public interface ExperianConstants {
         RED, AMBER, LIGHT_GREEN, DARK_GREEN;
     }
 
+    String SHORT_API_URL = "https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action";
+    String LONG_API_URL = "https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/singleAction.action";
+    String MASKED_MOBILE_URL = "https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/generateMaskedDeliveryData.action";
+    String AUTHENTICATE_MOBILE_URL = "https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/authenticateDeliveryData.action";
+    String CLIENT_NAME = "BHARATPE_EM";
+    String VOUCHER_CODE = "BharatPe214K2";
+
     String INVALID_PANCARD = "INVALID_PANCARD";
     String LOW_BP_SCORE = "LOW_BP_SCORE";
     String LOW_TPV = "LOW_TPV";

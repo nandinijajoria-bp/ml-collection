@@ -30,6 +30,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -869,11 +871,12 @@ public class LoanEligibleService {
         }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        setExperianApiParams(body, firstName, lastName, contact, panCard);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body,headers);
         Long a = DateTime.now().getMillis();
-        String url = "https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPe214K2&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "";
-        logger.info("Experian request for merchant: {} is {}", merchantId, url);
-        String response = restTemplate.postForObject(url, request, String.class);
+        logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
+        String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
         Long b = DateTime.now().getMillis();
         logger.info("Experian API response time---" + (b-a) + "ms");
         try {
@@ -890,6 +893,23 @@ public class LoanEligibleService {
             logger.info("Experian response is---" + response);
             return null;
         }
+    }
+
+    private void setExperianApiParams(MultiValueMap<String, Object> body, String firstName, String lastName, String contact, String panCard) {
+        body.add("clientName", ExperianConstants.CLIENT_NAME);
+        body.add("allowInput", "1");
+        body.add("allowEdit", "1");
+        body.add("allowCaptcha", "1");
+        body.add("allowConsent", "1");
+        body.add("allowEmailVerify", "1");
+        body.add("allowVoucher", "1");
+        body.add("voucherCode", ExperianConstants.VOUCHER_CODE);
+        body.add("firstName", firstName);
+        body.add("surName", lastName);
+        body.add("mobileNo", contact);
+        body.add("noValidationByPass", "0");
+        body.add("emailConditionalByPass", "1");
+        body.add("pan", panCard);
     }
 
     public String getFirstName(String name){

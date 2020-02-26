@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
@@ -17,12 +18,13 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class ExperianService {
@@ -100,11 +102,12 @@ public class ExperianService {
         }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        setLongApiParams(body, firstName, lastName, contact, panCard, experianDetailsDTO);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
         Long a = DateTime.now().getMillis();
-        String url = "https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/singleAction.action?clientName=BHARATPE_FM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPepZBZv&firstName="+firstName+"&surName="+lastName+"&dateOfBirth="+experianDetailsDTO.getDob()+"&gender="+experianDetailsDTO.getGender()+"&mobileNo="+contact+"&flatno="+experianDetailsDTO.getAddress()+"&city="+experianDetailsDTO.getCity()+"&state="+experianDetailsDTO.getState()+"&pincode="+experianDetailsDTO.getPincode()+"&pan="+panCard+"&noValidationByPass=0&emailConditionalByPass=1";
-        logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, url);
-        String response = restTemplate.postForObject(url, request, String.class);
+        logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, body.toString());
+        String response = restTemplate.postForObject(ExperianConstants.LONG_API_URL, request, String.class);
         Long b = DateTime.now().getMillis();
         logger.info("ExperianV2 long API response time---" + (b-a) + "ms");
         try {
@@ -115,8 +118,10 @@ public class ExperianService {
             if (!jsonNode.get("showHtmlReportForCreditReport").isNull()) {
                 String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").textValue().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
                 JSONObject jsonObject = XML.toJSONObject(xmlResponse);
+                logger.info("Successfully found experian report for merchant: {}", merchantId);
                 return objectMapper.readTree(jsonObject.toString());
             } else if (!jsonNode.get("errorString").isNull() && jsonNode.get("errorString").textValue().contains("Validation Failed")) {
+                logger.info("Validation Failed for merchant: {}", merchantId);
                 String stageOneId = jsonNode.get("stageOneId_").textValue();
                 String stageTwoId = jsonNode.get("stageTwoId_").textValue();
                 experianDetails.setStageOneId(stageOneId);
@@ -134,19 +139,46 @@ public class ExperianService {
         }
     }
 
+    private void setLongApiParams(MultiValueMap<String, Object> body, String firstName, String lastName, String contact, String panCard, ExperianDetailsDTO experianDetailsDTO) {
+        body.add("clientName", "BHARATPE_FM");
+        body.add("allowInput", "1");
+        body.add("allowEdit", "1");
+        body.add("allowCaptcha", "1");
+        body.add("allowConsent", "1");
+        body.add("allowEmailVerify", "1");
+        body.add("allowVoucher", "1");
+        body.add("voucherCode", "BharatPepZBZv");
+        body.add("firstName", firstName);
+        body.add("surName", lastName);
+        body.add("dateOfBirth", experianDetailsDTO.getDob());
+        body.add("gender", experianDetailsDTO.getGender());
+        body.add("mobileNo", contact);
+        body.add("flatno", experianDetailsDTO.getAddress());
+        body.add("city", experianDetailsDTO.getCity());
+        body.add("state", experianDetailsDTO.getState());
+        body.add("pincode", experianDetailsDTO.getPincode());
+        body.add("pan", panCard);
+        body.add("noValidationByPass", "0");
+        body.add("emailConditionalByPass", "1");
+    }
+
     private List<String> fetchMaskedMobileNumbers(String stageOneId, String stageTwoId, Long merchantId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("clientName", "BHARATPE_FM");
+        body.add("stgOneHitId", stageOneId);
+        body.add("stgTwoHitId", stageTwoId);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
         Long a = DateTime.now().getMillis();
-        String url = "https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/generateMaskedDeliveryData.action?clientName=BHARATPE_FM&stgOneHitId="+stageOneId+"&stgTwoHitId="+stageTwoId;
-        logger.info("ExperianV2 mobile API request for merchant: {} is {}", merchantId, url);
-        String response = restTemplate.postForObject(url, request, String.class);
+        logger.info("ExperianV2 mobile API request for merchant: {} is {}", merchantId, body.toString());
+        String response = restTemplate.postForObject(ExperianConstants.MASKED_MOBILE_URL, request, String.class);
         Long b = DateTime.now().getMillis();
         logger.info("ExperianV2 mobile API response time---" + (b-a) + "ms");
         try {
             JsonNode jsonNode = objectMapper.readTree(response);
             if (jsonNode != null && !jsonNode.get("maskMobileno").isNull()) {
+                logger.info("Found Masked mobile numbers for merchant: {}", merchantId);
                 List<String> maskedMobiles = new ArrayList<>();
                 for (JsonNode maskMobileno : jsonNode.get("maskMobileno")) {
                     maskedMobiles.add(maskMobileno.textValue());
@@ -157,6 +189,7 @@ public class ExperianService {
             logger.error("Exception while parsing experianV2 mobile API response", e);
             logger.info("ExperianV2 mobile API response is---" + response);
         }
+        logger.info("Masked mobile numbers not found for merchant: {}", merchantId);
         return new ArrayList<>();
     }
 
@@ -192,11 +225,15 @@ public class ExperianService {
         if (experianDetails != null && experianDetails.getStageOneId() != null && experianDetails.getStageTwoId() != null) {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("stgOneHitId", experianDetails.getStageOneId());
+            body.add("ActualEmailADDR", "");
+            body.add("stgTwoHitId", experianDetails.getStageTwoId());
+            body.add("ActualMobileNumber", mobile);
+            HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
             Long a = DateTime.now().getMillis();
-            String url = "https://cbv2cpu.uat.experian.in:16443/ECV-P2/content/authenticateDeliveryData.action?stgOneHitId="+experianDetails.getStageOneId()+"&ActualEmailADDR&stgTwoHitId="+experianDetails.getStageTwoId()+"&ActualMobileNumber="+mobile;
-            logger.info("ExperianV2 authenticate API request for merchant: {} is {}", merchantId, url);
-            String response = restTemplate.postForObject(url, request, String.class);
+            logger.info("ExperianV2 authenticate API request for merchant: {} is {}", merchantId, body.toString());
+            String response = restTemplate.postForObject(ExperianConstants.AUTHENTICATE_MOBILE_URL, request, String.class);
             Long b = DateTime.now().getMillis();
             logger.info("ExperianV2 authenticate API response time---" + (b-a) + "ms");
             try {
