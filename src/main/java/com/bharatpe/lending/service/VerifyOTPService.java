@@ -12,6 +12,8 @@ import java.util.concurrent.Executors;
 
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dao.BankListDao;
+import com.bharatpe.lending.dao.OglLoansDao;
+import com.bharatpe.lending.entity.OglLoans;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +63,9 @@ public class VerifyOTPService {
 
 	@Autowired
 	BankListDao bankListDao;
+
+	@Autowired
+	OglLoansDao oglLoansDao;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 
@@ -100,21 +105,30 @@ public class VerifyOTPService {
 	}
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
-		
-		finalResponse.put("success",false);
-		finalResponse.put("agreement_verified",false);
-
-		lendingApplication.setStatus("pending_verification");
 		lendingApplication.setAgreementAt(new Date());
 		lendingApplication.setAgreement(1);
 		lendingApplication.setLatitude(meta.getLatitude());
 		lendingApplication.setLongitude(meta.getLongitude());
 		lendingApplication.setIp(meta.getIp());
 		lendingApplication.setExternalLoanId(loanId);
+		if (oglLoans != null) {
+			logger.info("Found OGL merchant: {}", merchant.getId());
+			lendingApplication.setStatus("approved");
+			lendingApplication.setManualKyc("APPROVED");
+			lendingApplication.setManualCibil("APPROVED");
+			lendingApplication.setPhysicalVerificationStatus("APPROVED");
+			lendingApplication.setLender("LIQUILOANS");
+		} else {
+			lendingApplication.setStatus("pending_verification");
+		}
+		
+		finalResponse.put("success",false);
+		finalResponse.put("agreement_verified",false);
 		lendingApplicationDao.save(lendingApplication);
 
 
@@ -124,7 +138,11 @@ public class VerifyOTPService {
 		lendingAuditTrial.setLoanId(loanId);
 		lendingAuditTrial.setUserId(Long.parseLong("0"));
 		lendingAuditTrial.setOldStatus("draft");
-		lendingAuditTrial.setNewStatus("pending_verification");
+		if (oglLoans != null) {
+			lendingAuditTrial.setNewStatus("approved");
+		} else {
+			lendingAuditTrial.setNewStatus("pending_verification");
+		}
 		lendingAuditTrial.setType("APP_STATUS");
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
