@@ -46,6 +46,7 @@ public class LoanDetailsResponseDTO {
 		private String rejectReason;
 		private boolean loanClosed = false;
 		private boolean noExperian = false;
+		private List<String> maskedMobiles;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -54,6 +55,14 @@ public class LoanDetailsResponseDTO {
 		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
+
+		public List<String> getMaskedMobiles() {
+			return maskedMobiles;
+		}
+
+		public void setMaskedMobiles(List<String> maskedMobiles) {
+			this.maskedMobiles = maskedMobiles;
+		}
 
 		public boolean isLoanClosed() {
 			return loanClosed;

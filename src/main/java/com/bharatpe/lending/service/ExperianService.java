@@ -225,20 +225,27 @@ public class ExperianService {
 
     public ResponseDTO verifyOtp(String mobile, Merchant merchant, String otp, boolean retry) {
         Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
+        ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         try {
             if (isOTPVerified) {
                 authenticateExperian(merchant.getId(), mobile);
+                experianDetails.setOtpVerified(true);
+                experianDetailsDao.save(experianDetails);
                 return new ResponseDTO(true, null, null);
             }
             isOTPVerified = gupShupOTPHandler.verifyOTP(mobile, otp);
             if (isOTPVerified) {
                 authenticateExperian(merchant.getId(), mobile);
+                experianDetails.setOtpVerified(true);
+                experianDetailsDao.save(experianDetails);
                 return new ResponseDTO(true, null, null);
             }
         } catch (Exception e) {
             if (!retry) {
                 return new ResponseDTO(false, "timeout", null);
             } else {
+                experianDetails.setOtpVerified(true);
+                experianDetailsDao.save(experianDetails);
                 return new ResponseDTO(true, null, null);
             }
         }

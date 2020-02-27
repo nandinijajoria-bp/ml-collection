@@ -88,6 +88,7 @@ public class LoanDetailsService {
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
+			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
@@ -231,6 +232,9 @@ public class LoanDetailsService {
 					}
 					if (experian.isNoExperian()) {
 						noExperian = true;
+						if (experian.getMaskedMobiles() != null && !experian.getMaskedMobiles().isEmpty()) {
+							maskedMobiles = experian.getMaskedMobiles();
+						}
 					}
 				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
@@ -257,6 +261,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setRejectReason(rejectReason);
 			loanDetailsDTO.setPanCard(panCard);
 			loanDetailsDTO.setNoExperian(noExperian);
+			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			

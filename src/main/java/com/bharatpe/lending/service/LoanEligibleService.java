@@ -14,6 +14,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.DateTime;
@@ -108,6 +109,10 @@ public class LoanEligibleService {
         if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
             lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
         }
+        if (skip) {
+            experian.setSkip(true);
+            experianDao.save(experian);
+        }
         String firstName;
         String lastName;
         if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("")) {
@@ -173,9 +178,17 @@ public class LoanEligibleService {
                 }
                 experian.setResponse(experianResponse.toString());
                 experianDao.save(experian);//updating response
-            } else if (!skip && experianDetails == null) {
+            } else if (!experian.isSkip() && experianDetails == null) {
                 logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
                 experian.setNoExperian(true);
+                return new ArrayList<>();
+            } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+                logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
+                experian.setNoExperian(true);
+                String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
+                List<String> maskedMobiles = new ArrayList<>();
+                Collections.addAll(maskedMobiles, mobiles);
+                experian.setMaskedMobiles(maskedMobiles);
                 return new ArrayList<>();
             }
             if (experianResponse != null){
