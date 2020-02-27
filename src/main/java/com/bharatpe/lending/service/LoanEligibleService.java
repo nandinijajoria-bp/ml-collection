@@ -93,7 +93,10 @@ public class LoanEligibleService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, String panCard){
+    @Autowired
+    ExperianDetailsDao experianDetailsDao;
+
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
         int txnLast30Days = 30;
@@ -159,6 +162,7 @@ public class LoanEligibleService {
                 }
             }
             experian.setRetryCount(0);
+            ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
             if (experianResponse != null){
                 if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
                     String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
@@ -169,7 +173,7 @@ public class LoanEligibleService {
                 }
                 experian.setResponse(experianResponse.toString());
                 experianDao.save(experian);//updating response
-            } else if (panCard != null) {
+            } else if (!skip && experianDetails == null) {
                 logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
                 experian.setNoExperian(true);
                 return new ArrayList<>();
@@ -889,6 +893,7 @@ public class LoanEligibleService {
             JSONObject jsonObject = XML.toJSONObject(xmlResponse);
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");
             logger.error("Exception while parsing experian response", e);
             logger.info("Experian response is---" + response);
             return null;

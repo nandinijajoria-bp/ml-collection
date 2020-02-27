@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
@@ -58,6 +59,9 @@ public class ExperianService {
 
     @Autowired
     GupShupOTPHandler gupShupOTPHandler;
+
+    @Autowired
+    EmailHandler emailHandler;
 
     public ResponseDTO updateDetails(ExperianDetailsDTO experianDetailsDTO, Long merchantId, String contact) {
         Experian experian = experianDao.getByMerchantId(merchantId);
@@ -145,6 +149,7 @@ public class ExperianService {
             logger.error("ExperianV2 API timeout", e);
             throw new RuntimeException("Timeout");
         } catch (Exception e) {
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Long API Exception", "");
             logger.error("Exception while parsing experianV2 long API response", e);
             return null;
         }
@@ -197,6 +202,7 @@ public class ExperianService {
                 return maskedMobiles;
             }
         } catch (Exception e) {
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Masked Mobile Exception", "");
             logger.error("Exception while parsing experianV2 mobile API response", e);
             logger.info("ExperianV2 mobile API response is---" + response);
         }
@@ -270,6 +276,7 @@ public class ExperianService {
                     logger.info("Experian Report not found for merchant: {} with mobile: {}", merchantId, mobile);
                 }
             } catch (IOException e) {
+                emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Authenticate Exception", "");
                 logger.error("Exception while parsing experianV2 authenticate API response", e);
                 logger.info("ExperianV2 authenticate API response is---" + response);
             }
