@@ -97,7 +97,7 @@ public class LoanEligibleService {
     @Autowired
     ExperianDetailsDao experianDetailsDao;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip){
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
         int txnLast30Days = 30;
@@ -178,7 +178,7 @@ public class LoanEligibleService {
                 }
                 experian.setResponse(experianResponse.toString());
                 experianDao.save(experian);//updating response
-            } else if (!experian.isSkip() && experianDetails == null) {
+            } else if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
                 logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
                 experian.setNoExperian(true);
                 return new ArrayList<>();
