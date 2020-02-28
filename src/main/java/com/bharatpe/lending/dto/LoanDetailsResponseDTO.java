@@ -45,6 +45,8 @@ public class LoanDetailsResponseDTO {
 		private String panCard;
 		private String rejectReason;
 		private boolean loanClosed = false;
+		private boolean noExperian = false;
+		private List<String> maskedMobiles;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -53,6 +55,14 @@ public class LoanDetailsResponseDTO {
 		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
+
+		public List<String> getMaskedMobiles() {
+			return maskedMobiles;
+		}
+
+		public void setMaskedMobiles(List<String> maskedMobiles) {
+			this.maskedMobiles = maskedMobiles;
+		}
 
 		public boolean isLoanClosed() {
 			return loanClosed;
@@ -118,6 +128,14 @@ public class LoanDetailsResponseDTO {
 			this.loanApplication = loanApplication;
 		}
 
+		public boolean isNoExperian() {
+			return noExperian;
+		}
+
+		public void setNoExperian(boolean noExperian) {
+			this.noExperian = noExperian;
+		}
+
 		@Override
 		public String toString() {
 			return "LoanDetailsDTO{" +
@@ -129,6 +147,7 @@ public class LoanDetailsResponseDTO {
 					", history=" + history +
 					", eligibility=" + eligibility +
 					", loanApplication=" + loanApplication +
+					", noExperian=" + noExperian +
 					'}';
 		}
 	}

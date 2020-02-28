@@ -343,7 +343,8 @@ public class SignAgreementService {
 		
 		String mobileString = mobile.toString();
 		if(mobileString.length() == 12) {
-			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobileString);
+			String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobileString, message);
 			if(isOTPSent) {
 				finalResponse.put("success",true);
 				finalResponse.put("otp_flow",true);
