@@ -192,7 +192,7 @@ public class LoanDetailsService {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 				} else if("draft".equals(lendingApplication.getStatus())) {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
