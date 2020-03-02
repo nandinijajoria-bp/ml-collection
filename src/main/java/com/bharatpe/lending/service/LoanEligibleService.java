@@ -14,6 +14,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.DateTime;
@@ -30,6 +31,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -45,7 +48,7 @@ public class LoanEligibleService {
 
     List<Integer> derogAccountStatus = Arrays.asList(93,89,93,97,97,97,97,30,31,32,33,35,37,38,39,41,42,43,44,45,47,49,50,51,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,77,79,81,85,86,87,88,94,90,91);
     List<Integer> derogUnsecuredProducts = Arrays.asList(5,10,36,37,38,39,43,51,52,53,54,55,56,57,58,60,61);
-    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com");
+    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com", "puneet.arora@bharatpe.com");
 
     private Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 
@@ -91,7 +94,10 @@ public class LoanEligibleService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail){
+    @Autowired
+    ExperianDetailsDao experianDetailsDao;
+
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
         int txnLast30Days = 30;
@@ -101,7 +107,15 @@ public class LoanEligibleService {
         boolean repeatedLoan = loanCount > 0;
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
-            lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+            try {
+                lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+            } catch (Exception e) {
+                logger.error("Exception in Liquiloans API---", e);
+            }
+        }
+        if (skip) {
+            experian.setSkip(true);
+            experianDao.save(experian);
         }
         String firstName;
         String lastName;
@@ -157,6 +171,7 @@ public class LoanEligibleService {
                 }
             }
             experian.setRetryCount(0);
+            ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
             if (experianResponse != null){
                 if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
                     String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
@@ -167,6 +182,18 @@ public class LoanEligibleService {
                 }
                 experian.setResponse(experianResponse.toString());
                 experianDao.save(experian);//updating response
+            } else if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
+                logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
+                experian.setNoExperian(true);
+                return new ArrayList<>();
+            } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+                logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
+                experian.setNoExperian(true);
+                String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
+                List<String> maskedMobiles = new ArrayList<>();
+                Collections.addAll(maskedMobiles, mobiles);
+                experian.setMaskedMobiles(maskedMobiles);
+                return new ArrayList<>();
             }
             if (experianResponse != null){
                 try {
@@ -223,7 +250,7 @@ public class LoanEligibleService {
             logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
-            emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
+            emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
         } catch (Exception e) {
             logger.error("Exception while fetching experian details---", e);
         }
@@ -866,11 +893,12 @@ public class LoanEligibleService {
         }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        setExperianApiParams(body, firstName, lastName, contact, panCard);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body,headers);
         Long a = DateTime.now().getMillis();
-        String url = "https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action?clientName=BHARATPE_EM&allowInput=1&allowEdit=1&allowCaptcha=1&allowConsent=1&allowEmailVerify=1&allowVoucher=1&voucherCode=BharatPe214K2&firstName=" + firstName + "&surName=" + lastName + "&mobileNo=" + contact + "&noValidationByPass=0&emailConditionalByPass=1&pan=" + panCard + "";
-        logger.info("Experian request for merchant: {} is {}", merchantId, url);
-        String response = restTemplate.postForObject(url, request, String.class);
+        logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
+        String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
         Long b = DateTime.now().getMillis();
         logger.info("Experian API response time---" + (b-a) + "ms");
         try {
@@ -883,13 +911,31 @@ public class LoanEligibleService {
             JSONObject jsonObject = XML.toJSONObject(xmlResponse);
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");
             logger.error("Exception while parsing experian response", e);
             logger.info("Experian response is---" + response);
             return null;
         }
     }
 
-    private String getFirstName(String name){
+    private void setExperianApiParams(MultiValueMap<String, Object> body, String firstName, String lastName, String contact, String panCard) {
+        body.add("clientName", ExperianConstants.CLIENT_NAME);
+        body.add("allowInput", "1");
+        body.add("allowEdit", "1");
+        body.add("allowCaptcha", "1");
+        body.add("allowConsent", "1");
+        body.add("allowEmailVerify", "1");
+        body.add("allowVoucher", "1");
+        body.add("voucherCode", ExperianConstants.VOUCHER_CODE);
+        body.add("firstName", firstName);
+        body.add("surName", lastName);
+        body.add("mobileNo", contact);
+        body.add("noValidationByPass", "0");
+        body.add("emailConditionalByPass", "1");
+        body.add("pan", panCard);
+    }
+
+    public String getFirstName(String name){
         if (name == null) {
             return "";
         }
@@ -906,7 +952,7 @@ public class LoanEligibleService {
         }
     }
 
-    private String getLastName(String name){
+    public String getLastName(String name){
         if (name == null) {
             return "";
         }

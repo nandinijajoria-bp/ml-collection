@@ -22,7 +22,7 @@ public class NotifyEligibleService {
 	@Autowired
 	NotifyEligibleDao notifyEligibleDao;
 	
-	public Map<String, Boolean> notifyEligible(Merchant merchant, HttpServletResponse response) {
+	public Map<String, Boolean> notifyEligible(Merchant merchant, HttpServletResponse response, String type) {
 		Map<String, Boolean> resp = new LinkedHashMap<> ();
 		Long merchantId = merchant.getId();
 		
@@ -30,6 +30,7 @@ public class NotifyEligibleService {
 
 		notifyEligible.setMerchantId(merchantId);
 		notifyEligible.setStatus("PENDING");
+		notifyEligible.setType(type);
 		notifyEligibleDao.save(notifyEligible);
 		
 		if(notifyEligible.getId() > 0) {

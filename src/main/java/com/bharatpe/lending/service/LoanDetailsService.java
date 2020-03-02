@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
+import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
@@ -26,8 +27,8 @@ import java.util.*;
 public class LoanDetailsService {
 	private Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
 	
-	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada");
-	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada");
+	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada", "New Delhi");
+	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada", "New Delhi");
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
@@ -77,17 +78,47 @@ public class LoanDetailsService {
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
 
-	@Transactional
+	@Autowired
+	EmailHandler emailHandler;
+
+	@Autowired
+	LendingCitiesDao lendingCitiesDao;
+
+//	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 			boolean eligibleFlag = true;
 			boolean rejected = false;
+			boolean noExperian = false;
+			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+			Integer pincode = null;
+			if (requestDTO.getPayload().getPincode() != null) {
+				pincode = requestDTO.getPayload().getPincode();
+			} else if (experian != null && experian.getPincode() != null) {
+				pincode = experian.getPincode();
+			}
+			if (pincode != null) {
+				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
+				if (lendingCities == null) {
+					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+					loanDetailsDTO.setEligibility(new ArrayList<>());
+					loanDetailsDTO.setHistory(new ArrayList<>());
+					loanDetailsDTO.setEligible(false);
+					loanDetailsDTO.setRejected(false);
+					loanDetailsDTO.setRejectReason(null);
+					loanDetailsDTO.setPanCard(null);
+					loanDetailsDTO.setOgl(true);
+					response.setDetails(loanDetailsDTO);
+					response.setSuccess(true);
+					return response;
+				}
+			}
 			if(stores != null && !stores.isEmpty()) {
-				eligibleFlag = false;
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
@@ -100,9 +131,7 @@ public class LoanDetailsService {
 				return response;
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			Experian experian = null;
 			if (EXPERIAN_ENABLED) {
-				experian = experianDao.getByMerchantId(merchant.getId());
 				if (experian != null && experian.getPancardNumber() != null) {
 					panCard = experian.getPancardNumber();
 					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
@@ -118,10 +147,10 @@ public class LoanDetailsService {
 					experian.setCreatedAt(new Date());
 					experianDao.save(experian);
 				}
-				if (requestDTO.getPayload().getPanCard() != null) {
+				if (requestDTO.getPayload().getPanCard() != null && requestDTO.getPayload().getPincode() != null) {
 					experianDao.deleteByMerchantId(merchant.getId());
 					panCard = requestDTO.getPayload().getPanCard();
-					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, null));
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				}
 			} else {
 				panCard = requestDTO.getPayload().getPanCard();
@@ -186,7 +215,7 @@ public class LoanDetailsService {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 				} else if("draft".equals(lendingApplication.getStatus())) {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
@@ -209,14 +238,26 @@ public class LoanDetailsService {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
-					loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail));
-					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					try {
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard()));
+						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					} catch (Exception e) {
+						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
+						logger.error("Exception---", e);
+						emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Eligible Loan Exception", "");
+					}
 					if (experian.getRejected()) {
 						rejected = true;
 						rejectReason = experian.getReason();
 					}
 					if (experian.getRetryCount() == 1) {//experian timeout
 						return null;
+					}
+					if (experian.isNoExperian()) {
+						noExperian = true;
+						if (experian.getMaskedMobiles() != null && !experian.getMaskedMobiles().isEmpty()) {
+							maskedMobiles = experian.getMaskedMobiles();
+						}
 					}
 				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
@@ -242,6 +283,8 @@ public class LoanDetailsService {
 			loanDetailsDTO.setRejected(rejected);
 			loanDetailsDTO.setRejectReason(rejectReason);
 			loanDetailsDTO.setPanCard(panCard);
+			loanDetailsDTO.setNoExperian(noExperian);
+			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
