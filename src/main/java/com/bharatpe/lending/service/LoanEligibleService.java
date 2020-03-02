@@ -107,7 +107,11 @@ public class LoanEligibleService {
         boolean repeatedLoan = loanCount > 0;
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
-            lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+            try {
+                lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+            } catch (Exception e) {
+                logger.error("Exception in Liquiloans API---", e);
+            }
         }
         if (skip) {
             experian.setSkip(true);

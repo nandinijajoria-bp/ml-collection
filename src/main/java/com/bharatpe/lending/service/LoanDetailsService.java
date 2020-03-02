@@ -81,6 +81,9 @@ public class LoanDetailsService {
 	@Autowired
 	EmailHandler emailHandler;
 
+	@Autowired
+	LendingCitiesDao lendingCitiesDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -91,9 +94,31 @@ public class LoanDetailsService {
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+			Integer pincode = null;
+			if (requestDTO.getPayload().getPincode() != null) {
+				pincode = requestDTO.getPayload().getPincode();
+			} else if (experian != null && experian.getPincode() != null) {
+				pincode = experian.getPincode();
+			}
+			if (pincode != null) {
+				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
+				if (lendingCities == null) {
+					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+					loanDetailsDTO.setEligibility(new ArrayList<>());
+					loanDetailsDTO.setHistory(new ArrayList<>());
+					loanDetailsDTO.setEligible(false);
+					loanDetailsDTO.setRejected(false);
+					loanDetailsDTO.setRejectReason(null);
+					loanDetailsDTO.setPanCard(null);
+					loanDetailsDTO.setOgl(true);
+					response.setDetails(loanDetailsDTO);
+					response.setSuccess(true);
+					return response;
+				}
+			}
 			if(stores != null && !stores.isEmpty()) {
-				eligibleFlag = false;
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
@@ -106,9 +131,7 @@ public class LoanDetailsService {
 				return response;
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			Experian experian = null;
 			if (EXPERIAN_ENABLED) {
-				experian = experianDao.getByMerchantId(merchant.getId());
 				if (experian != null && experian.getPancardNumber() != null) {
 					panCard = experian.getPancardNumber();
 					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
@@ -124,10 +147,10 @@ public class LoanDetailsService {
 					experian.setCreatedAt(new Date());
 					experianDao.save(experian);
 				}
-				if (requestDTO.getPayload().getPanCard() != null) {
+				if (requestDTO.getPayload().getPanCard() != null && requestDTO.getPayload().getPincode() != null) {
 					experianDao.deleteByMerchantId(merchant.getId());
 					panCard = requestDTO.getPayload().getPanCard();
-					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0));
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				}
 			} else {
 				panCard = requestDTO.getPayload().getPanCard();
