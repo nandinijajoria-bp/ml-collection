@@ -1,6 +1,7 @@
 package com.bharatpe.lending.dao;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.bharatpe.common.entities.Merchant;
 import org.springframework.data.jpa.repository.Modifying;
@@ -23,6 +24,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	LendingApplication findTop1ByMerchantOrderByIdDesc(Merchant merchant);
 
 	List<LendingApplication> fetchLatestOpenApplication(Merchant merchant);
+
+	Optional<LendingApplication> findFirstByMerchantAndStatus(Merchant merchant, String status);
 	
 	@Modifying
 	@Query(value="UPDATE lending_application SET manual_kyc=:status where id=:applicationId",nativeQuery = true)
