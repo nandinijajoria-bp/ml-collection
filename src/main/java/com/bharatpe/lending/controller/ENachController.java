@@ -19,26 +19,21 @@ import javax.servlet.http.HttpServletResponse;
 @RestController
 @RequestMapping("enach")
 public class ENachController {
+
 	Logger logger = LoggerFactory.getLogger(ENachController.class);
 
 	@Autowired
 	ENachService eNachService;
 
-	@RequestMapping(value="/initiate", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateENach(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, @RequestBody(required = false) RequestDTO<String> requestDTO) {
-		logger.info("E-Nach Init request : {}", requestDTO);
-		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-
-		responseDTO = eNachService.eNachInitiate(merchant);
-
-		return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateENach(@RequestAttribute Merchant merchant) {
+		return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object submit(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody ENachSubmitRequestDTO body) {
+	public ResponseEntity submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
 		logger.info("Enach Submit request : {}",body);
-
-		Boolean status = eNachService.submitEnach(merchant, body);
-
-		return new ResponseEntity<>(status, HttpStatus.OK);	}
+		eNachService.submitEnach(merchant, body);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 }

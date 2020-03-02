@@ -1,6 +1,30 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ENachIntitiationResponseDTO {
+
+    private String merchantIdentifier = "T517110";
+
+    private Long transactionIdentifier;
+
+    private Long transactionReferenceNumber;
+
+    private String schemeCode = "First";
+
+    private String bankCode;
+
+    private Double loanAmount;
+
+    private String loanStartDate;
+
+    private Long applicationId;
 
     public String getMerchantIdentifier() {
         return merchantIdentifier;
@@ -58,30 +82,6 @@ public class ENachIntitiationResponseDTO {
         this.loanStartDate = loanStartDate;
     }
 
-    private String merchantIdentifier;
-
-    private Long transactionIdentifier;
-
-    private Long transactionReferenceNumber;
-
-    private String schemeCode;
-
-    private String bankCode;
-
-    private Double loanAmount;
-
-    private String loanStartDate;
-
-    private String responseStatus;
-
-    public String getResponseStatus() {
-        return responseStatus;
-    }
-
-    public void setResponseStatus(String responseStatus) {
-        this.responseStatus = responseStatus;
-    }
-
     public Long getApplicationId() {
         return applicationId;
     }
@@ -90,16 +90,17 @@ public class ENachIntitiationResponseDTO {
         this.applicationId = applicationId;
     }
 
-    private Long applicationId;
-
-
-
-    public ENachIntitiationResponseDTO(){
-        init();
-    }
-
-    private void init(){
-          this.merchantIdentifier = "T517110";
-          this.schemeCode = "First";
+    @Override
+    public String toString() {
+        return "ENachIntitiationResponseDTO{" +
+                "merchantIdentifier='" + merchantIdentifier + '\'' +
+                ", transactionIdentifier=" + transactionIdentifier +
+                ", transactionReferenceNumber=" + transactionReferenceNumber +
+                ", schemeCode='" + schemeCode + '\'' +
+                ", bankCode='" + bankCode + '\'' +
+                ", loanAmount=" + loanAmount +
+                ", loanStartDate='" + loanStartDate + '\'' +
+                ", applicationId=" + applicationId +
+                '}';
     }
 }

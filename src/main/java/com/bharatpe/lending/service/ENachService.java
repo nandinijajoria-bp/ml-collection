@@ -4,26 +4,22 @@ import com.bharatpe.common.dao.LendingEnachDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
-import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 @Service
 public class ENachService {
 
     private Logger logger = LoggerFactory.getLogger(ENachService.class);
-
-    private static final String PENDING_VERIFICATION = "pending_verification";
-    private static final String ACTIVE = "ACTIVE";
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
@@ -35,83 +31,74 @@ public class ENachService {
     LendingEnachDao lendingEnachDao;
 
     @Autowired
-    RestTemplate restTemplate;
-
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
     // if bank is suported , insert in ENach Detail Table.
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        Optional<LendingApplication> lendingApplicationOptional = fetchEligibleLoanApplicationByMerchant(merchant);
-        if(!lendingApplicationOptional.isPresent()){
-            logger.error("Unable to find loan application for Merchant - {}", merchant);
-            responseDTO.setResponseStatus("FAILED");
+        LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        if(lendingApplication == null) {
+            logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
             return responseDTO;
         }
 
-        MerchantBankDetail  merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), ACTIVE);
-        if(merchantBankDetail == null){
-            logger.error("No Bank detail found for Merchant - {}", merchant);
-            responseDTO.setResponseStatus("FAILED");
+        MerchantBankDetail  merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        if(merchantBankDetail == null) {
+            logger.error("No Bank detail found for Merchant - {}", merchant.getId());
             return responseDTO;
         }
         String bankCode = fetchBankCode(merchantBankDetail.getIfscCode());
         if(bankCode == null){
             logger.error("Merchant Bank not supported for Enach - {}", merchant);
-            responseDTO.setResponseStatus("FAILED");
             return responseDTO;
         }
+        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode);
+        lendingEnach = lendingEnachDao.save(lendingEnach);
 
         responseDTO.setBankCode(bankCode);
-        responseDTO.setLoanAmount(lendingApplicationOptional.get().getLoanAmount());
-        responseDTO.setApplicationId(lendingApplicationOptional.get().getId());
+        responseDTO.setLoanAmount(lendingApplication.getLoanAmount());
+        responseDTO.setApplicationId(lendingApplication.getId());
         responseDTO.setLoanStartDate(LocalDate.now().plusDays(1).toString());
-
-        LendingEnach lendingEnach = new LendingEnach();
-
-        lendingEnach.setBankCode(responseDTO.getBankCode());
-        lendingEnach.setApplicationId(responseDTO.getApplicationId());
-        lendingEnachDao.save(lendingEnach);
-
+        responseDTO.setTransactionIdentifier(lendingEnach.getId());
+        responseDTO.setTransactionReferenceNumber(lendingEnach.getId());
 
         return responseDTO;
     }
 
 
     public Boolean submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
-
-        LendingEnach lendingEnach = new LendingEnach();
-
-        // Update Lending Application for ENACH
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
-
-        lendingEnach.setApplicationId(requestDTO.getApplicationId());
+        LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        if (lendingEnach == null) {
+            return false;
+        }
         lendingEnach.setIdentifier(requestDTO.getIdentifier());
         lendingEnach.setMandateId(requestDTO.getMandateId());
         lendingEnach.setResponse(requestDTO.getResponse());
         lendingEnach.setStatus(requestDTO.getStatus());
+        lendingEnachDao.save(lendingEnach);
 
-        try {
-            lendingEnachDao.save(lendingEnach);
-
-            lendingApplication.setNachType("ENACH");
-            lendingApplication.setNachLender("BHARATPE");
-            lendingApplication.setNachStatus("INITIATED");
-            lendingApplication.setNachReferenceNumber("BPEN" + merchant.getId() + lendingEnach.getId());
-
-            return Boolean.TRUE;
-        } catch (Exception e){
-            logger.error("Unable to save enach submit request for merchant-{}", merchant, e);
-            return Boolean.FALSE;
+        // Update Lending Application for ENACH
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
+        if (lendingApplication == null) {
+            return false;
         }
+        lendingApplication.setNachType("ENACH");
+        lendingApplication.setNachLender("BHARATPE");
+        lendingApplication.setNachStatus("INITIATED");
+        lendingApplication.setNachReferenceNumber("BPEN" + merchant.getId() + lendingEnach.getId());
+        List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+        if (prevLoans != null && prevLoans.size() > 0) {
+            lendingApplication.setStatus("approved");
+            lendingApplication.setManualKyc("APPROVED");
+            lendingApplication.setManualCibil("APPROVED");
+            lendingApplication.setPhysicalVerificationStatus("APPROVED");
+            lendingApplication.setLender("LIQUILOANS");
+        }
+        lendingApplicationDao.save(lendingApplication);
+        return true;
     }
-
-    private Optional<LendingApplication> fetchEligibleLoanApplicationByMerchant(Merchant merchant){
-        return lendingApplicationDao.findFirstByMerchantAndStatus(merchant, PENDING_VERIFICATION);
-    }
-
-
 
     // fetch if bank is supported or not
     private String fetchBankCode(String ifscCode){

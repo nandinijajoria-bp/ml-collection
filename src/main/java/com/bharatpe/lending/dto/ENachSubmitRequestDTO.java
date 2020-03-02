@@ -1,22 +1,24 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ENachSubmitRequestDTO {
 
-//    "status" : true/false,
-//            "loan_id" : 1234
-//            "response" : full response from sdk
-//    "transaction_identifier" : 1
-//            "identifier" : 122
-//            "mandate_id" : 12
-
     private Long mandateId;
-    private Long identifier;
-    private Long applicationId;
-    private Boolean status;
-    private String response;
 
-    public ENachSubmitRequestDTO() {
-    }
+    private Long identifier;
+
+    private Long applicationId;
+
+    private Boolean status;
+
+    private String response;
 
     private Long transactionIdentifier;
 
@@ -66,5 +68,17 @@ public class ENachSubmitRequestDTO {
 
     public void setTransactionIdentifier(Long transactionIdentifier) {
         this.transactionIdentifier = transactionIdentifier;
+    }
+
+    @Override
+    public String toString() {
+        return "ENachSubmitRequestDTO{" +
+                "mandateId=" + mandateId +
+                ", identifier=" + identifier +
+                ", applicationId=" + applicationId +
+                ", status=" + status +
+                ", response='" + response + '\'' +
+                ", transactionIdentifier=" + transactionIdentifier +
+                '}';
     }
 }
