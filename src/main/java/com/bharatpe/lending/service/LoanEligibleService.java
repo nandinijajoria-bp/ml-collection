@@ -107,7 +107,11 @@ public class LoanEligibleService {
         boolean repeatedLoan = loanCount > 0;
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
-            lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+            try {
+                lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+            } catch (Exception e) {
+                logger.error("Exception in liquiloans api---", e);
+            }
         }
         if (skip) {
             experian.setSkip(true);
@@ -131,6 +135,14 @@ public class LoanEligibleService {
         }
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
         experian.setReason(null);
+        if (checkFraud(merchantSummary)) {
+            logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
+            experian.setCategory("1N");
+            experian.setColor(ExperianConstants.COLOR.RED.name());
+            experian.setReason(ExperianConstants.FRAUD);
+            experianDao.save(experian);
+            return new ArrayList<>();
+        }
         if (bpScore <= 10D) {
             logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
@@ -253,6 +265,11 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication);
+    }
+
+    private boolean checkFraud(MerchantSummary merchantSummary) {
+        return (merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null && merchantSummary.getUniqueCustomer1mon() < 15)
+                || (merchantSummary != null && merchantSummary.getFraudCustomer() != null);
     }
 
     private LendingPancard fetchNameFromLiquiloans(String pancardNumber, Long merchantId) {
