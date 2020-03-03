@@ -22,7 +22,9 @@ public class ENachIntitiationResponseDTO {
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     public static class Data {
 
-        private String merchantIdentifier = "T517110";
+        private String deep_link;
+
+        private String merchantIdentifier = "L517110";
 
         private Long transactionIdentifier;
 
@@ -37,6 +39,44 @@ public class ENachIntitiationResponseDTO {
         private String loanStartDate;
 
         private Long applicationId;
+
+        private String accountNumber;
+
+        private String beneficiaryName;
+
+        private String ifscCode;
+
+        public String getAccountNumber() {
+            return accountNumber;
+        }
+
+        public void setAccountNumber(String accountNumber) {
+            this.accountNumber = accountNumber;
+        }
+
+        public String getBeneficiaryName() {
+            return beneficiaryName;
+        }
+
+        public void setBeneficiaryName(String beneficiaryName) {
+            this.beneficiaryName = beneficiaryName;
+        }
+
+        public String getIfscCode() {
+            return ifscCode;
+        }
+
+        public void setIfscCode(String ifscCode) {
+            this.ifscCode = ifscCode;
+        }
+
+        public String getDeep_link() {
+            return deep_link;
+        }
+
+        public void setDeep_link(String deep_link) {
+            this.deep_link = deep_link;
+        }
 
         public String getMerchantIdentifier() {
             return merchantIdentifier;
@@ -105,7 +145,8 @@ public class ENachIntitiationResponseDTO {
         @Override
         public String toString() {
             return "Data{" +
-                    "merchantIdentifier='" + merchantIdentifier + '\'' +
+                    "deep_link='" + deep_link + '\'' +
+                    ", merchantIdentifier='" + merchantIdentifier + '\'' +
                     ", transactionIdentifier=" + transactionIdentifier +
                     ", transactionReferenceNumber=" + transactionReferenceNumber +
                     ", schemeCode='" + schemeCode + '\'' +
@@ -113,6 +154,9 @@ public class ENachIntitiationResponseDTO {
                     ", loanAmount=" + loanAmount +
                     ", loanStartDate='" + loanStartDate + '\'' +
                     ", applicationId=" + applicationId +
+                    ", accountNumber='" + accountNumber + '\'' +
+                    ", beneficiaryName='" + beneficiaryName + '\'' +
+                    ", ifscCode='" + ifscCode + '\'' +
                     '}';
         }
     }

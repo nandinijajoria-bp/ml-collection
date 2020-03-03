@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingEnachDao;
+import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -13,7 +14,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +36,11 @@ public class ENachService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingNachBankDao lendingNachBankDao;
+
+    SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -54,8 +62,8 @@ public class ENachService {
             logger.error("No Bank detail found for Merchant - {}", merchant.getId());
             return responseDTO;
         }
-        String bankCode = fetchBankCode(merchantBankDetail.getIfscCode());
-        if(bankCode == null){
+        String bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+        if(bankCode == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Bank not supported for Enach");
             logger.error("Merchant Bank not supported for Enach - {}", merchant);
@@ -66,11 +74,14 @@ public class ENachService {
 
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setBankCode(bankCode);
-        responseDTO.getData().setLoanAmount(lendingApplication.getLoanAmount());
+        responseDTO.getData().setLoanAmount(100000D);
         responseDTO.getData().setApplicationId(lendingApplication.getId());
-        responseDTO.getData().setLoanStartDate(LocalDate.now().plusDays(1).toString());
+        responseDTO.getData().setLoanStartDate(sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24))));
         responseDTO.getData().setTransactionIdentifier(lendingEnach.getId());
         responseDTO.getData().setTransactionReferenceNumber(lendingEnach.getId());
+        responseDTO.getData().setAccountNumber(merchantBankDetail.getAccountNumber());
+        responseDTO.getData().setBeneficiaryName(merchantBankDetail.getBeneficiaryName());
+        responseDTO.getData().setIfscCode(merchantBankDetail.getIfscCode());
 
         return responseDTO;
     }
@@ -78,7 +89,8 @@ public class ENachService {
 
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        responseDTO.setData(null);
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         if (lendingEnach == null) {
             responseDTO.setResponse(false);
@@ -116,8 +128,26 @@ public class ENachService {
         return responseDTO;
     }
 
+    //changing skip status to true
+    public ResponseDTO setEnachSkipStatus(Merchant merchant){
+        LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        if (lendingApplication == null) {
+            return new ResponseDTO(false, "Loan Application not found", null);
+        }
+        LendingEnach lendingEnach= lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+        if(lendingEnach == null) {
+            lendingEnach = new LendingEnach();
+            lendingEnach.setApplicationId(lendingApplication.getId());
+            lendingEnach.setMerchantId(merchant.getId());
+        }
+        lendingEnach.setSkip(true);
+        lendingEnachDao.save(lendingEnach);
+        return new ResponseDTO(true, null, null);
+    }
+
     // fetch if bank is supported or not
-    private String fetchBankCode(String ifscCode){
-        return "9560";
+    public String fetchBankCode(String ifscCode, String mode){
+        LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode, mode);
+        return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
 }

@@ -43,4 +43,9 @@ public class ENachController {
 		logger.info("Enach Submit request : {}", body);
 		return new ResponseEntity<>(eNachService.submitEnach(merchant, body), HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/skip",method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant){
+		return new ResponseEntity<>(eNachService.setEnachSkipStatus(merchant), HttpStatus.OK);
+	}
 }

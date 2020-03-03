@@ -84,6 +84,12 @@ public class LoanDetailsService {
 	@Autowired
 	LendingCitiesDao lendingCitiesDao;
 
+	@Autowired
+	ENachService eNachService;
+
+	@Autowired
+	LendingEnachDao lendingEnachDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -91,6 +97,7 @@ public class LoanDetailsService {
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
+			String enach = null;
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
@@ -182,6 +189,7 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 
 			if(lendingApplication != null) {
 				if (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null")) {
@@ -212,6 +220,15 @@ public class LoanDetailsService {
 					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
 					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
+					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+					try {
+						String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+						if ((lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+							enach = "bharatpe://enachtp";//set deep link for enach
+						}
+					} catch (Exception e) {
+						logger.error("Exception while checking enach bank", e);
+					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
@@ -230,12 +247,12 @@ public class LoanDetailsService {
 					loanDetailsDTO.setRejected(rejected);
 					loanDetailsDTO.setRejectReason(rejectReason);
 					loanDetailsDTO.setPanCard(panCard);
+					loanDetailsDTO.setEnach(enach);
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
 					return response;
 				}
 			}
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
 					try {

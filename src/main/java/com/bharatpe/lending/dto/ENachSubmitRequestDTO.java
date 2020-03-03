@@ -12,7 +12,7 @@ public class ENachSubmitRequestDTO {
 
     private Long mandateId;
 
-    private Long identifier;
+    private String identifier;
 
     private Long applicationId;
 
@@ -30,11 +30,11 @@ public class ENachSubmitRequestDTO {
         this.mandateId = mandateId;
     }
 
-    public Long getIdentifier() {
+    public String getIdentifier() {
         return identifier;
     }
 
-    public void setIdentifier(Long identifier) {
+    public void setIdentifier(String identifier) {
         this.identifier = identifier;
     }
 
