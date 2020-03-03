@@ -26,14 +26,21 @@ public class ENachController {
 	ENachService eNachService;
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateENach(@RequestAttribute Merchant merchant) {
-		return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant) {
+		try {
+			return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
+		} catch (Exception e) {
+			logger.error("Exception while initiating enach", e);
+			ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+			responseDTO.setResponse(false);
+			responseDTO.setMessage("Something went wrong");
+			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+		}
 	}
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
-		logger.info("Enach Submit request : {}",body);
-		eNachService.submitEnach(merchant, body);
-		return new ResponseEntity<>(HttpStatus.OK);
+	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
+		logger.info("Enach Submit request : {}", body);
+		return new ResponseEntity<>(eNachService.submitEnach(merchant, body), HttpStatus.OK);
 	}
 }

@@ -10,97 +10,143 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ENachIntitiationResponseDTO {
 
-    private String merchantIdentifier = "T517110";
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Data data;
 
-    private Long transactionIdentifier;
+    private boolean response = true;
 
-    private Long transactionReferenceNumber;
+    private String message = "success";
 
-    private String schemeCode = "First";
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    public static class Data {
 
-    private String bankCode;
+        private String merchantIdentifier = "T517110";
 
-    private Double loanAmount;
+        private Long transactionIdentifier;
 
-    private String loanStartDate;
+        private Long transactionReferenceNumber;
 
-    private Long applicationId;
+        private String schemeCode = "First";
 
-    public String getMerchantIdentifier() {
-        return merchantIdentifier;
+        private String bankCode;
+
+        private Double loanAmount;
+
+        private String loanStartDate;
+
+        private Long applicationId;
+
+        public String getMerchantIdentifier() {
+            return merchantIdentifier;
+        }
+
+        public void setMerchantIdentifier(String merchantIdentifier) {
+            this.merchantIdentifier = merchantIdentifier;
+        }
+
+        public Long getTransactionIdentifier() {
+            return transactionIdentifier;
+        }
+
+        public void setTransactionIdentifier(Long transactionIdentifier) {
+            this.transactionIdentifier = transactionIdentifier;
+        }
+
+        public Long getTransactionReferenceNumber() {
+            return transactionReferenceNumber;
+        }
+
+        public void setTransactionReferenceNumber(Long transactionReferenceNumber) {
+            this.transactionReferenceNumber = transactionReferenceNumber;
+        }
+
+        public String getSchemeCode() {
+            return schemeCode;
+        }
+
+        public void setSchemeCode(String schemeCode) {
+            this.schemeCode = schemeCode;
+        }
+
+        public String getBankCode() {
+            return bankCode;
+        }
+
+        public void setBankCode(String bankCode) {
+            this.bankCode = bankCode;
+        }
+
+        public Double getLoanAmount() {
+            return loanAmount;
+        }
+
+        public void setLoanAmount(Double loanAmount) {
+            this.loanAmount = loanAmount;
+        }
+
+        public String getLoanStartDate() {
+            return loanStartDate;
+        }
+
+        public void setLoanStartDate(String loanStartDate) {
+            this.loanStartDate = loanStartDate;
+        }
+
+        public Long getApplicationId() {
+            return applicationId;
+        }
+
+        public void setApplicationId(Long applicationId) {
+            this.applicationId = applicationId;
+        }
+
+        @Override
+        public String toString() {
+            return "Data{" +
+                    "merchantIdentifier='" + merchantIdentifier + '\'' +
+                    ", transactionIdentifier=" + transactionIdentifier +
+                    ", transactionReferenceNumber=" + transactionReferenceNumber +
+                    ", schemeCode='" + schemeCode + '\'' +
+                    ", bankCode='" + bankCode + '\'' +
+                    ", loanAmount=" + loanAmount +
+                    ", loanStartDate='" + loanStartDate + '\'' +
+                    ", applicationId=" + applicationId +
+                    '}';
+        }
     }
 
-    public void setMerchantIdentifier(String merchantIdentifier) {
-        this.merchantIdentifier = merchantIdentifier;
+    public Data getData() {
+        return data;
     }
 
-    public Long getTransactionIdentifier() {
-        return transactionIdentifier;
+    public void setData(Data data) {
+        this.data = data;
     }
 
-    public void setTransactionIdentifier(Long transactionIdentifier) {
-        this.transactionIdentifier = transactionIdentifier;
+    public boolean getResponse() {
+        return response;
     }
 
-    public Long getTransactionReferenceNumber() {
-        return transactionReferenceNumber;
+    public void setResponse(boolean response) {
+        this.response = response;
     }
 
-    public void setTransactionReferenceNumber(Long transactionReferenceNumber) {
-        this.transactionReferenceNumber = transactionReferenceNumber;
+    public String getMessage() {
+        return message;
     }
 
-    public String getSchemeCode() {
-        return schemeCode;
-    }
-
-    public void setSchemeCode(String schemeCode) {
-        this.schemeCode = schemeCode;
-    }
-
-    public String getBankCode() {
-        return bankCode;
-    }
-
-    public void setBankCode(String bankCode) {
-        this.bankCode = bankCode;
-    }
-
-    public Double getLoanAmount() {
-        return loanAmount;
-    }
-
-    public void setLoanAmount(Double loanAmount) {
-        this.loanAmount = loanAmount;
-    }
-
-    public String getLoanStartDate() {
-        return loanStartDate;
-    }
-
-    public void setLoanStartDate(String loanStartDate) {
-        this.loanStartDate = loanStartDate;
-    }
-
-    public Long getApplicationId() {
-        return applicationId;
-    }
-
-    public void setApplicationId(Long applicationId) {
-        this.applicationId = applicationId;
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     @Override
     public String toString() {
         return "ENachIntitiationResponseDTO{" +
-                "merchantIdentifier='" + merchantIdentifier + '\'' +
-                ", transactionIdentifier=" + transactionIdentifier +
-                ", transactionReferenceNumber=" + transactionReferenceNumber +
-                ", schemeCode='" + schemeCode + '\'' +
-                ", bankCode='" + bankCode + '\'' +
-                ", loanAmount=" + loanAmount +
-                ", loanStartDate='" + loanStartDate + '\'' +
-                ", applicationId=" + applicationId +
+                "data=" + data +
+                ", response='" + response + '\'' +
+                ", message='" + message + '\'' +
                 '}';
     }
 }
