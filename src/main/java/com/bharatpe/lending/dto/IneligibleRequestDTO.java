@@ -8,6 +8,8 @@ public class IneligibleRequestDTO implements Serializable {
 
     private boolean skip;
 
+    private Integer pincode;
+
     public String getPanCard() {
         return panCard;
     }
@@ -22,5 +24,13 @@ public class IneligibleRequestDTO implements Serializable {
 
     public void setSkip(boolean skip) {
         this.skip = skip;
+    }
+
+    public Integer getPincode() {
+        return pincode;
+    }
+
+    public void setPincode(Integer pincode) {
+        this.pincode = pincode;
     }
 }

@@ -110,7 +110,7 @@ public class LoanEligibleService {
             try {
                 lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
             } catch (Exception e) {
-                logger.error("Exception in liquiloans api---", e);
+                logger.error("Exception in Liquiloans API---", e);
             }
         }
         if (skip) {

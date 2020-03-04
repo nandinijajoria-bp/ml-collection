@@ -47,6 +47,8 @@ public class LoanDetailsResponseDTO {
 		private boolean loanClosed = false;
 		private boolean noExperian = false;
 		private List<String> maskedMobiles;
+		private boolean ogl = false;
+		private String enach;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -136,6 +138,22 @@ public class LoanDetailsResponseDTO {
 			this.noExperian = noExperian;
 		}
 
+		public boolean isOgl() {
+			return ogl;
+		}
+
+		public void setOgl(boolean ogl) {
+			this.ogl = ogl;
+		}
+
+		public String getEnach() {
+			return enach;
+		}
+
+		public void setEnach(String enach) {
+			this.enach = enach;
+		}
+
 		@Override
 		public String toString() {
 			return "LoanDetailsDTO{" +
@@ -144,10 +162,13 @@ public class LoanDetailsResponseDTO {
 					", panCard='" + panCard + '\'' +
 					", rejectReason='" + rejectReason + '\'' +
 					", loanClosed=" + loanClosed +
+					", noExperian=" + noExperian +
+					", maskedMobiles=" + maskedMobiles +
+					", ogl=" + ogl +
 					", history=" + history +
 					", eligibility=" + eligibility +
 					", loanApplication=" + loanApplication +
-					", noExperian=" + noExperian +
+					", enach=" + enach +
 					'}';
 		}
 	}

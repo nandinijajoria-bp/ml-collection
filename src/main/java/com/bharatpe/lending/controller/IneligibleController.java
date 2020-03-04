@@ -41,9 +41,9 @@ public class IneligibleController {
     }
 
     @RequestMapping(value="/notifyEligible", method = RequestMethod.GET, produces="application/json")
-    public Object notifyEligible(@RequestAttribute Merchant merchant, HttpServletResponse response) {
+    public Object notifyEligible(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestParam String type) {
 
-        Object resp = notifyEligibleService.notifyEligible(merchant, response);
+        Object resp = notifyEligibleService.notifyEligible(merchant, response, type);
 
         logger.info("notifyEligible response : {}", response);
         return resp;

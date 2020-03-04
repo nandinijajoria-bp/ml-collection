@@ -81,6 +81,15 @@ public class LoanDetailsService {
 	@Autowired
 	EmailHandler emailHandler;
 
+	@Autowired
+	LendingCitiesDao lendingCitiesDao;
+
+	@Autowired
+	ENachService eNachService;
+
+	@Autowired
+	LendingEnachDao lendingEnachDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -88,12 +97,36 @@ public class LoanDetailsService {
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
+			String enach = null;
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
+			boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+			Integer pincode = null;
+			if (requestDTO.getPayload().getPincode() != null) {
+				pincode = requestDTO.getPayload().getPincode();
+			} else if (experian != null && experian.getPincode() != null) {
+				pincode = experian.getPincode();
+			}
+			if (pincode != null) {
+				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
+				if (lendingCities == null) {
+					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+					loanDetailsDTO.setEligibility(new ArrayList<>());
+					loanDetailsDTO.setHistory(new ArrayList<>());
+					loanDetailsDTO.setEligible(false);
+					loanDetailsDTO.setRejected(false);
+					loanDetailsDTO.setRejectReason(null);
+					loanDetailsDTO.setPanCard(null);
+					loanDetailsDTO.setOgl(true);
+					response.setDetails(loanDetailsDTO);
+					response.setSuccess(true);
+					return response;
+				}
+			}
 			if(stores != null && !stores.isEmpty()) {
-				eligibleFlag = false;
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
@@ -106,9 +139,7 @@ public class LoanDetailsService {
 				return response;
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			Experian experian = null;
 			if (EXPERIAN_ENABLED) {
-				experian = experianDao.getByMerchantId(merchant.getId());
 				if (experian != null && experian.getPancardNumber() != null) {
 					panCard = experian.getPancardNumber();
 					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
@@ -127,12 +158,13 @@ public class LoanDetailsService {
 				if (requestDTO.getPayload().getPanCard() != null) {
 					experianDao.deleteByMerchantId(merchant.getId());
 					panCard = requestDTO.getPayload().getPanCard();
-					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0));
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				}
 			} else {
 				panCard = requestDTO.getPayload().getPanCard();
 			}
 			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
+			boolean repeatLoan = lendingPaymentScheduleList != null && lendingPaymentScheduleList.size() > 0;
 
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 
@@ -143,7 +175,7 @@ public class LoanDetailsService {
 				lendingApplication = lendingApplicationList.get(0);
 			}
 
-			List<LoanHistoryDTO> loanHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan);
+			List<LoanHistoryDTO> loanHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess);
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 
@@ -159,9 +191,10 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 
 			if(lendingApplication != null) {
-				if (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null")) {
+				if ((enachSuccess && repeatLoan) || (enachSuccess && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
 					loanApplicationDTO.setSelfVerification(false);
 				}
 				if("rejected".equals(lendingApplication.getStatus())) {
@@ -189,10 +222,27 @@ public class LoanDetailsService {
 					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
 					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
+					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+					try {
+						String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+						if ((lendingEnach == null || !lendingEnach.getSkip()) && (lendingEnach == null || (lendingEnach.getStatus() == null || !lendingEnach.getStatus())) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+							enach = "bharatpe://enachtp";//set deep link for enach
+						}
+					} catch (Exception e) {
+						logger.error("Exception while checking enach bank", e);
+					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
-					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					if (enachSuccess) {
+						loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
+					} else if (lendingEnach != null) {
+						loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					} else {
+						loanApplicationDTO.setStatusTitle("Application submitted successfully!");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					}
 				} else if("draft".equals(lendingApplication.getStatus())) {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
@@ -207,12 +257,12 @@ public class LoanDetailsService {
 					loanDetailsDTO.setRejected(rejected);
 					loanDetailsDTO.setRejectReason(rejectReason);
 					loanDetailsDTO.setPanCard(panCard);
+					loanDetailsDTO.setEnach(enach);
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
 					return response;
 				}
 			}
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
 					try {
@@ -453,7 +503,7 @@ public class LoanDetailsService {
 		return lendingCategoryDetails;
 	}
 	
-	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan) {
+	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, boolean enachSuccess) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
 		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
@@ -464,8 +514,13 @@ public class LoanDetailsService {
 			history.setStartDate(null);
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
-			history.setLoanStatusTitle("Loan Approved");
-			history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
+			if (enachSuccess && repeatLoan) {
+				history.setLoanStatusTitle("Loan Approved");
+				history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
+			} else {
+				history.setLoanStatusTitle("Loan Approved");
+				history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
+			}
 			history.setRepaid(0D);
 			history.setDue(application.getRepayment());
 
