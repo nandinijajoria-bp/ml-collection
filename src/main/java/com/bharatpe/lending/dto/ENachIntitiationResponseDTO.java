@@ -22,6 +22,22 @@ public class ENachIntitiationResponseDTO {
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     public static class Data {
 
+        private String mid;
+
+        private String currency = "INR";
+
+        private String pennyAmount = "1.0";
+
+        private String transactionMerchantInitiated = "Y";
+
+        private String paymentInstructionAction = "Y";
+
+        private String paymentInstructionType = "M";
+
+        private String payFrequency = "ADHO";
+
+        private String accountType = "Saving";
+
         private String deep_link;
 
         private String merchantIdentifier = "L517110";
@@ -46,7 +62,7 @@ public class ENachIntitiationResponseDTO {
 
         private String ifscCode;
 
-        public Data(Long transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode) {
+        public Data(Long transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid) {
             this.transactionIdentifier = transactionIdentifier;
             this.transactionReferenceNumber = transactionReferenceNumber;
             this.bankCode = bankCode;
@@ -56,9 +72,74 @@ public class ENachIntitiationResponseDTO {
             this.accountNumber = accountNumber;
             this.beneficiaryName = beneficiaryName;
             this.ifscCode = ifscCode;
+            this.mid = mid;
         }
 
         public Data() {
+        }
+
+        public String getMid() {
+            return mid;
+        }
+
+        public void setMid(String mid) {
+            this.mid = mid;
+        }
+
+        public String getCurrency() {
+            return currency;
+        }
+
+        public void setCurrency(String currency) {
+            this.currency = currency;
+        }
+
+        public String getPennyAmount() {
+            return pennyAmount;
+        }
+
+        public void setPennyAmount(String pennyAmount) {
+            this.pennyAmount = pennyAmount;
+        }
+
+        public String getTransactionMerchantInitiated() {
+            return transactionMerchantInitiated;
+        }
+
+        public void setTransactionMerchantInitiated(String transactionMerchantInitiated) {
+            this.transactionMerchantInitiated = transactionMerchantInitiated;
+        }
+
+        public String getPaymentInstructionAction() {
+            return paymentInstructionAction;
+        }
+
+        public void setPaymentInstructionAction(String paymentInstructionAction) {
+            this.paymentInstructionAction = paymentInstructionAction;
+        }
+
+        public String getPaymentInstructionType() {
+            return paymentInstructionType;
+        }
+
+        public void setPaymentInstructionType(String paymentInstructionType) {
+            this.paymentInstructionType = paymentInstructionType;
+        }
+
+        public String getPayFrequency() {
+            return payFrequency;
+        }
+
+        public void setPayFrequency(String payFrequency) {
+            this.payFrequency = payFrequency;
+        }
+
+        public String getAccount_type() {
+            return accountType;
+        }
+
+        public void setAccount_type(String account_type) {
+            this.accountType = account_type;
         }
 
         public String getAccountNumber() {
