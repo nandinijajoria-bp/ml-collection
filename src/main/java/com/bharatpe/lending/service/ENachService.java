@@ -4,15 +4,23 @@ import com.bharatpe.common.dao.LendingEnachDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -70,9 +78,9 @@ public class ENachService {
             logger.error("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
-        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode, LOAN_AMOUNT, mandateDate);
+        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode, LOAN_AMOUNT, mandateDate, merchant.getMid());
         lendingEnach = lendingEnachDao.save(lendingEnach);
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode()));
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
         return responseDTO;
     }
 
@@ -105,7 +113,7 @@ public class ENachService {
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("INITIATED");
-            lendingApplication.setNachReferenceNumber("BPEN" + merchant.getId() + lendingEnach.getId());
+            lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
             List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
             if (prevLoans != null && prevLoans.size() > 0) {
                 lendingApplication.setStatus("approved");

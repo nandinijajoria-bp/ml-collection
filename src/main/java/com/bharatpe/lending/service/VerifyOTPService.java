@@ -123,6 +123,12 @@ public class VerifyOTPService {
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setPhysicalVerificationStatus("APPROVED");
 			lendingApplication.setLender("LIQUILOANS");
+		} else if (lendingApplication.getNachStatus() != null && (lendingApplication.getNachStatus().equalsIgnoreCase("initiated") || lendingApplication.getNachStatus().equalsIgnoreCase("approved"))) {
+			logger.info("Physical nach submitted by merchant: {}", merchant.getId());
+			lendingApplication.setStatus("approved");
+			lendingApplication.setManualKyc("APPROVED");
+			lendingApplication.setManualCibil("APPROVED");
+			lendingApplication.setPhysicalVerificationStatus("APPROVED");
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
@@ -138,7 +144,7 @@ public class VerifyOTPService {
 		lendingAuditTrial.setLoanId(loanId);
 		lendingAuditTrial.setUserId(Long.parseLong("0"));
 		lendingAuditTrial.setOldStatus("draft");
-		if (oglLoans != null) {
+		if (oglLoans != null || (lendingApplication.getNachStatus() != null && (lendingApplication.getNachStatus().equalsIgnoreCase("initiated") || lendingApplication.getNachStatus().equalsIgnoreCase("approved")))) {
 			lendingAuditTrial.setNewStatus("approved");
 		} else {
 			lendingAuditTrial.setNewStatus("pending_verification");
