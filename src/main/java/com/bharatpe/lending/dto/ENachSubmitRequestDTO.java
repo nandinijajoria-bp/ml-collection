@@ -22,6 +22,8 @@ public class ENachSubmitRequestDTO {
 
     private Long transactionIdentifier;
 
+    private String statusMessage;
+
     public Long getMandateId() {
         return mandateId;
     }
@@ -70,6 +72,14 @@ public class ENachSubmitRequestDTO {
         this.transactionIdentifier = transactionIdentifier;
     }
 
+    public String getStatusMessage() {
+        return statusMessage;
+    }
+
+    public void setStatusMessage(String statusMessage) {
+        this.statusMessage = statusMessage;
+    }
+
     @Override
     public String toString() {
         return "ENachSubmitRequestDTO{" +
@@ -79,6 +89,7 @@ public class ENachSubmitRequestDTO {
                 ", status=" + status +
                 ", response='" + response + '\'' +
                 ", transactionIdentifier=" + transactionIdentifier +
+                ", statusMessage=" + statusMessage +
                 '}';
     }
 }

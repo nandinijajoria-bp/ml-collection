@@ -46,6 +46,21 @@ public class ENachIntitiationResponseDTO {
 
         private String ifscCode;
 
+        public Data(Long transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode) {
+            this.transactionIdentifier = transactionIdentifier;
+            this.transactionReferenceNumber = transactionReferenceNumber;
+            this.bankCode = bankCode;
+            this.loanAmount = loanAmount;
+            this.loanStartDate = loanStartDate;
+            this.applicationId = applicationId;
+            this.accountNumber = accountNumber;
+            this.beneficiaryName = beneficiaryName;
+            this.ifscCode = ifscCode;
+        }
+
+        public Data() {
+        }
+
         public String getAccountNumber() {
             return accountNumber;
         }

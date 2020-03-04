@@ -46,6 +46,8 @@ public class ENachService {
     // validate bank for mandate support
     // if bank is suported , insert in ENach Detail Table.
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant){
+        String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
+        final double LOAN_AMOUNT = 1d;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
         if(lendingApplication == null) {
@@ -54,7 +56,6 @@ public class ENachService {
             logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
             return responseDTO;
         }
-
         MerchantBankDetail  merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
         if(merchantBankDetail == null) {
             responseDTO.setResponse(false);
@@ -69,20 +70,9 @@ public class ENachService {
             logger.error("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
-        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode);
+        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode, LOAN_AMOUNT, mandateDate);
         lendingEnach = lendingEnachDao.save(lendingEnach);
-
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        responseDTO.getData().setBankCode(bankCode);
-        responseDTO.getData().setLoanAmount(100000D);
-        responseDTO.getData().setApplicationId(lendingApplication.getId());
-        responseDTO.getData().setLoanStartDate(sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24))));
-        responseDTO.getData().setTransactionIdentifier(lendingEnach.getId());
-        responseDTO.getData().setTransactionReferenceNumber(lendingEnach.getId());
-        responseDTO.getData().setAccountNumber(merchantBankDetail.getAccountNumber());
-        responseDTO.getData().setBeneficiaryName(merchantBankDetail.getBeneficiaryName());
-        responseDTO.getData().setIfscCode(merchantBankDetail.getIfscCode());
-
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode()));
         return responseDTO;
     }
 
@@ -101,6 +91,7 @@ public class ENachService {
         lendingEnach.setMandateId(requestDTO.getMandateId());
         lendingEnach.setResponse(requestDTO.getResponse());
         lendingEnach.setStatus(requestDTO.getStatus());
+        lendingEnach.setStatusMessage(requestDTO.getStatusMessage());
         lendingEnachDao.save(lendingEnach);
 
         if (requestDTO.getStatus()) {
@@ -121,7 +112,6 @@ public class ENachService {
                 lendingApplication.setManualKyc("APPROVED");
                 lendingApplication.setManualCibil("APPROVED");
                 lendingApplication.setPhysicalVerificationStatus("APPROVED");
-                lendingApplication.setLender("LIQUILOANS");
             }
             lendingApplicationDao.save(lendingApplication);
         }
