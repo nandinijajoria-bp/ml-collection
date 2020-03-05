@@ -143,7 +143,10 @@ public class LoanDetailsService {
 					loanDetailsDTO.setOgl(true);
 					loanDetailsDTO.setPincode(pincode);
 					if (pincodeCityStateMapping != null) {
-						loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+						if(StringUtils.isEmpty(pincodeCityStateMapping.getCity()))
+							loanDetailsDTO.setCity(" ");
+						else
+							loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 					}
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);

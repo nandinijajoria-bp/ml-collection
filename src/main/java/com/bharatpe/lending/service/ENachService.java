@@ -4,29 +4,18 @@ import com.bharatpe.common.dao.LendingEnachDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
-
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ENachService {
@@ -55,7 +44,7 @@ public class ENachService {
     // if bank is suported , insert in ENach Detail Table.
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant){
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
-        final double LOAN_AMOUNT = 1d;
+        final double LOAN_AMOUNT = 100000d;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
         if(lendingApplication == null) {
@@ -88,7 +77,7 @@ public class ENachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=lendingdev");
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         if (lendingEnach == null) {
             responseDTO.setResponse(false);
