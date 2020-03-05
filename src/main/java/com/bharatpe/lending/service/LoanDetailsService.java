@@ -94,6 +94,7 @@ public class LoanDetailsService {
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
+			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
@@ -105,6 +106,11 @@ public class LoanDetailsService {
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 			Integer pincode = null;
+			if (requestDTO.getPayload().getPanCard() != null) {
+				experianDao.deleteByMerchantId(merchant.getId());
+				panCard = requestDTO.getPayload().getPanCard();
+				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+			}
 			if (requestDTO.getPayload().getPincode() != null) {
 				pincode = requestDTO.getPayload().getPincode();
 			} else if (experian != null && experian.getPincode() != null) {
@@ -138,7 +144,6 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getPancardNumber() != null) {
 					panCard = experian.getPancardNumber();
@@ -154,11 +159,6 @@ public class LoanDetailsService {
 					experian.setReason(null);
 					experian.setCreatedAt(new Date());
 					experianDao.save(experian);
-				}
-				if (requestDTO.getPayload().getPanCard() != null) {
-					experianDao.deleteByMerchantId(merchant.getId());
-					panCard = requestDTO.getPayload().getPanCard();
-					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				}
 			} else {
 				panCard = requestDTO.getPayload().getPanCard();
