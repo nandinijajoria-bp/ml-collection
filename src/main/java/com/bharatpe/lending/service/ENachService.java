@@ -88,7 +88,7 @@ public class ENachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=lendingdev");
         LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         if (lendingEnach == null) {
             responseDTO.setResponse(false);
