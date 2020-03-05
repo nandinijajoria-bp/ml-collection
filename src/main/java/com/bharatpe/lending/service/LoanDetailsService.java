@@ -90,6 +90,9 @@ public class LoanDetailsService {
 	@Autowired
 	LendingEnachDao lendingEnachDao;
 
+	@Autowired
+	LendingOglAuditDao lendingOglAuditDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -111,6 +114,12 @@ public class LoanDetailsService {
 				panCard = requestDTO.getPayload().getPanCard();
 				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 			}
+			if (experian != null && experian.getPancardNumber() != null) {
+				panCard = experian.getPancardNumber();
+				if (merchantSummary != null && merchantSummary.getBpScore() != null) {
+					experian.setBpScore(merchantSummary.getBpScore());
+				}
+			}
 			if (requestDTO.getPayload().getPincode() != null) {
 				pincode = requestDTO.getPayload().getPincode();
 			} else if (experian != null && experian.getPincode() != null) {
@@ -119,6 +128,7 @@ public class LoanDetailsService {
 			if (pincode != null) {
 				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
 				if (lendingCities == null) {
+					lendingOglAuditDao.save(new LendingOglAudit(merchant.getId(), panCard, pincode));
 					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 					loanDetailsDTO.setEligibility(new ArrayList<>());
 					loanDetailsDTO.setHistory(new ArrayList<>());
@@ -145,12 +155,6 @@ public class LoanDetailsService {
 				return response;
 			}
 			if (EXPERIAN_ENABLED) {
-				if (experian != null && experian.getPancardNumber() != null) {
-					panCard = experian.getPancardNumber();
-					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
-						experian.setBpScore(merchantSummary.getBpScore());
-					}
-				}
 				if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
 					rejected = true;
 					rejectReason = experian.getReason();
