@@ -49,6 +49,8 @@ public class LoanDetailsResponseDTO {
 		private List<String> maskedMobiles;
 		private boolean ogl = false;
 		private String enach;
+		private String city;
+		private Integer pincode;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -57,6 +59,22 @@ public class LoanDetailsResponseDTO {
 		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
+
+		public String getCity() {
+			return city;
+		}
+
+		public void setCity(String city) {
+			this.city = city;
+		}
+
+		public Integer getPincode() {
+			return pincode;
+		}
+
+		public void setPincode(Integer pincode) {
+			this.pincode = pincode;
+		}
 
 		public List<String> getMaskedMobiles() {
 			return maskedMobiles;

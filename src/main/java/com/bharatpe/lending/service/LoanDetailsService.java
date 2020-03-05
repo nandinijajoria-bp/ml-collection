@@ -93,6 +93,9 @@ public class LoanDetailsService {
 	@Autowired
 	LendingOglAuditDao lendingOglAuditDao;
 
+	@Autowired
+	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -128,6 +131,7 @@ public class LoanDetailsService {
 			if (pincode != null) {
 				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
 				if (lendingCities == null) {
+					PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 					lendingOglAuditDao.save(new LendingOglAudit(merchant.getId(), panCard, pincode));
 					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 					loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -137,6 +141,10 @@ public class LoanDetailsService {
 					loanDetailsDTO.setRejectReason(null);
 					loanDetailsDTO.setPanCard(panCard);
 					loanDetailsDTO.setOgl(true);
+					loanDetailsDTO.setPincode(pincode);
+					if (pincodeCityStateMapping != null) {
+						loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+					}
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
 					return response;
