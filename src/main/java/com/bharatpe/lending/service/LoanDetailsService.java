@@ -135,7 +135,7 @@ public class LoanDetailsService {
 					loanDetailsDTO.setEligible(false);
 					loanDetailsDTO.setRejected(false);
 					loanDetailsDTO.setRejectReason(null);
-					loanDetailsDTO.setPanCard(null);
+					loanDetailsDTO.setPanCard(panCard);
 					loanDetailsDTO.setOgl(true);
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
