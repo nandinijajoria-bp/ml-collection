@@ -142,11 +142,10 @@ public class LoanDetailsService {
 					loanDetailsDTO.setPanCard(panCard);
 					loanDetailsDTO.setOgl(true);
 					loanDetailsDTO.setPincode(pincode);
-					if (pincodeCityStateMapping != null) {
-						if(StringUtils.isEmpty(pincodeCityStateMapping.getCity()))
-							loanDetailsDTO.setCity(" ");
-						else
-							loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+					if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
+						loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+					} else {
+						loanDetailsDTO.setCity(" ");
 					}
 					response.setDetails(loanDetailsDTO);
 					response.setSuccess(true);
