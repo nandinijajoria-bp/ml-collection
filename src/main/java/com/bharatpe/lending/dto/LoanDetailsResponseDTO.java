@@ -51,6 +51,7 @@ public class LoanDetailsResponseDTO {
 		private String enach;
 		private String city;
 		private Integer pincode;
+		private boolean isYesBank = false;
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -59,6 +60,14 @@ public class LoanDetailsResponseDTO {
 		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
+
+		public boolean isYesBank() {
+			return isYesBank;
+		}
+
+		public void setYesBank(boolean yesBank) {
+			isYesBank = yesBank;
+		}
 
 		public String getCity() {
 			return city;
