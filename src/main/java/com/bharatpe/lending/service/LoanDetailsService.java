@@ -96,6 +96,12 @@ public class LoanDetailsService {
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
+	@Autowired
+	LendingYblAuditDao lendingYblAuditDao;
+
+	@Autowired
+	MerchantStaticVpaDao merchantStaticVpaDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -108,6 +114,7 @@ public class LoanDetailsService {
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
+			boolean isYesBank = false;
 			boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
@@ -315,6 +322,10 @@ public class LoanDetailsService {
 			if(loanHistoryDTOs.isEmpty() && loanEligibilityDTOs.isEmpty()) {
 				eligibleFlag = false;	
 			}
+			if (eligibleFlag && isYesBank(merchant, merchantBankDetail)) {
+				isYesBank = true;
+				lendingYblAuditDao.save(new LendingYblAudit(merchant.getId(), panCard, pincode));
+			}
 			
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 			loanDetailsDTO.setEligibility(loanEligibilityDTOs);
@@ -326,6 +337,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setPanCard(panCard);
 			loanDetailsDTO.setNoExperian(noExperian);
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
+			loanDetailsDTO.setYesBank(isYesBank);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
@@ -335,7 +347,35 @@ public class LoanDetailsService {
 		}
 		return response;
 	}
-	
+
+	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
+		try {
+			if(merchantBankDetail == null) {
+				logger.error("No merchant bank detail found for merchant id {}", merchant.getId());
+				return false;
+			}
+			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
+				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
+				return false;
+			}
+			if (merchantBankDetail.getIfscCode().substring(0,4).equalsIgnoreCase("YESB")) {
+				return true;
+			}
+			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
+			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
+				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
+					if (merchantStaticVpa.getFullVpa().contains("icic")) {
+						return false;
+					}
+				}
+				return true;
+			}
+		} catch(Exception ex) {
+			logger.error("Exception while checking if merchant's bank is yes bank with merchant id {}, Exception is {}", merchant.getId(), ex);
+		}
+		return false;
+	}
+
 	private LoanDetailsResponseDTO createFailureResponse() {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
