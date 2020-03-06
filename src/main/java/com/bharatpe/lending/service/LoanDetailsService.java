@@ -364,10 +364,11 @@ public class LoanDetailsService {
 			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
 			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
 				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
-					if (merchantStaticVpa.getFullVpa().contains("yesbankltd")) {
-						return true;
+					if (merchantStaticVpa.getFullVpa().contains("icic")) {
+						return false;
 					}
 				}
+				return true;
 			}
 		} catch(Exception ex) {
 			logger.error("Exception while checking if merchant's bank is yes bank with merchant id {}, Exception is {}", merchant.getId(), ex);
