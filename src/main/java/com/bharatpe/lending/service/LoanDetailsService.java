@@ -136,6 +136,7 @@ public class LoanDetailsService {
 				pincode = experian.getPincode();
 			}
 			if (pincode != null) {
+				logger.info("Pincode for merchantId {} is {}", merchant.getId(), pincode);
 				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
 				if (lendingCities == null) {
 					PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
