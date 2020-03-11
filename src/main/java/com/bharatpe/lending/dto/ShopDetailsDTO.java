@@ -96,11 +96,7 @@ public class ShopDetailsDTO {
 	public String toString() {
 		return "ShopDetailsDTO [businessName=" + businessName + ", shopNumber=" + shopNumber + ", streetAddress="
 				+ streetAddress + ", area=" + area + ", landmark=" + landmark + ", pincode=" + pincode + ", city="
-				+ city + ", state=" + state + ", getBusinessName()=" + getBusinessName() + ", getShopNumber()="
-				+ getShopNumber() + ", getStreetAddress()=" + getStreetAddress() + ", getArea()=" + getArea()
-				+ ", getLandmark()=" + getLandmark() + ", getPincode()=" + getPincode() + ", getCity()=" + getCity()
-				+ ", getState()=" + getState() + ", getClass()=" + getClass() + ", hashCode()=" + hashCode()
-				+ ", toString()=" + super.toString() + "]";
+				+ city + ", state=" + state + "]";
 	}
 	
 }

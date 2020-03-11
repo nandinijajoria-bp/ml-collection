@@ -33,4 +33,9 @@ public class IneligibleRequestDTO implements Serializable {
     public void setPincode(Integer pincode) {
         this.pincode = pincode;
     }
+
+	@Override
+	public String toString() {
+		return "IneligibleRequestDTO [panCard=" + panCard + ", skip=" + skip + ", pincode=" + pincode + "]";
+	}
 }
