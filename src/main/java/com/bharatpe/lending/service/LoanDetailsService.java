@@ -91,16 +91,13 @@ public class LoanDetailsService {
 	LendingEnachDao lendingEnachDao;
 
 	@Autowired
-	LendingOglAuditDao lendingOglAuditDao;
-
-	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
 	@Autowired
-	LendingYblAuditDao lendingYblAuditDao;
+	MerchantStaticVpaDao merchantStaticVpaDao;
 
 	@Autowired
-	MerchantStaticVpaDao merchantStaticVpaDao;
+	LendingClosedAuditDao lendingClosedAuditDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -114,7 +111,7 @@ public class LoanDetailsService {
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
 			String panCard = null;
-			boolean isYesBank = false;
+			String tempClosed = null;
 			boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
@@ -140,7 +137,7 @@ public class LoanDetailsService {
 				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
 				if (lendingCities == null) {
 					PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
-					lendingOglAuditDao.save(new LendingOglAudit(merchant.getId(), panCard, pincode));
+					lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 					loanDetailsDTO.setEligibility(new ArrayList<>());
 					loanDetailsDTO.setHistory(new ArrayList<>());
@@ -324,8 +321,12 @@ public class LoanDetailsService {
 				eligibleFlag = false;	
 			}
 			if (eligibleFlag && isYesBank(merchant, merchantBankDetail)) {
-				isYesBank = true;
-				lendingYblAuditDao.save(new LendingYblAudit(merchant.getId(), panCard, pincode));
+				tempClosed = "YBL";
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "YBL"));
+			}
+			if (eligibleFlag && isLoanClosed(experian, merchant)) {
+				tempClosed = "CORONA";
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "CORONA"));
 			}
 			
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
@@ -338,7 +339,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setPanCard(panCard);
 			loanDetailsDTO.setNoExperian(noExperian);
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
-			loanDetailsDTO.setYesBank(isYesBank);
+			loanDetailsDTO.setTempClosed(tempClosed);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
@@ -347,6 +348,33 @@ public class LoanDetailsService {
 			return createFailureResponse();
 		}
 		return response;
+	}
+
+	private boolean isLoanClosed(Experian experian, Merchant merchant) {
+		List<String> closedCities = Arrays.asList("Pune", "Mumbai", "Ghaziabad", "Noida");
+		List<String> closedCategories = Arrays.asList("2N","3","4","5","6","14","15","16","17","18","26","29","37");
+		List<ExperianAuditTrail> experianAuditTrailList = experianAuditTrailDao.findByMerchantId(merchant.getId());
+		List<LendingClosedAudit> lendingClosedAuditList = lendingClosedAuditDao.findByMerchantIdAndType(merchant.getId(), "CORONA");
+		if (lendingClosedAuditList != null && !lendingClosedAuditList.isEmpty()) {
+			return true;
+		}
+		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
+			return false;
+		}
+		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
+		if (merchantAddress != null && closedCities.contains(merchantAddress.getCity())) {
+			return true;
+		}
+		if (merchant.getReferalCode() != null) {
+			Agent agent = agentDao.fetchByReferalCode(merchant.getReferalCode());
+			if (agent != null && closedCities.contains(agent.getCity())) {
+				return true;
+			}
+		}
+		if (experian.getCategory() != null && closedCategories.contains(experian.getCategory())) {
+			return true;
+		}
+		return false;
 	}
 
 	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
