@@ -361,18 +361,15 @@ public class LoanDetailsService {
 		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
 			return false;
 		}
-		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
-		if (merchantAddress != null && closedCities.contains(merchantAddress.getCity())) {
-			return true;
-		}
-		if (merchant.getReferalCode() != null) {
-			Agent agent = agentDao.fetchByReferalCode(merchant.getReferalCode());
-			if (agent != null && closedCities.contains(agent.getCity())) {
+		if (experian.getCategory() != null && closedCategories.contains(experian.getCategory())) {
+			MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
+			if (merchantAddress != null && closedCities.contains(merchantAddress.getCity())) {
 				return true;
 			}
-		}
-		if (experian.getCategory() != null && closedCategories.contains(experian.getCategory())) {
-			return true;
+			if (merchant.getReferalCode() != null) {
+				Agent agent = agentDao.fetchByReferalCode(merchant.getReferalCode());
+				return agent != null && closedCities.contains(agent.getCity());
+			}
 		}
 		return false;
 	}
