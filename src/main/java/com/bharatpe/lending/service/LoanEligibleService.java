@@ -747,7 +747,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Older than 24 months
-        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDOlderThan24months(jsonNode)){
+        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDOlderThan24months(jsonNode)){
             logger.info("Derog DPD Older than 24 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_OLDER_THAN_24_MONTHS);
