@@ -199,6 +199,12 @@ public class ENachService {
     	if(lendingPancard==null || lendingPancard.getPancardNumber()==null) {
     		logger.info("Fetching the pancard details from experian");
     		Experian experian=experianDao.getByMerchantId(merchant.getId());
+    		if(experian==null || experian.getPancardNumber()==null){
+    			enachInitiationResponseDto.setResponse(false);
+        		enachInitiationResponseDto.setMessage("Pancard detail not found");
+                logger.error("Unable to find pancard detail for Merchant - {}", merchant.getId());
+                return enachInitiationResponseDto;
+    		}
     		digioEnach.getMandate_data().setCustomer_pan(experian.getPancardNumber());
     		digioEnach.getMandate_data().setCustomer_name(merchantBankDetail.getBeneficiaryName());
     	}
