@@ -138,29 +138,6 @@ public class LoanDetailsService {
 			
 			if (pincode != null) {
 				lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
-				logger.info("Pincode for merchantId {} is {}", merchant.getId(), pincode);
-				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
-				if (lendingCities == null) {
-					PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
-					lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
-					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-					loanDetailsDTO.setEligibility(new ArrayList<>());
-					loanDetailsDTO.setHistory(new ArrayList<>());
-					loanDetailsDTO.setEligible(false);
-					loanDetailsDTO.setRejected(false);
-					loanDetailsDTO.setRejectReason(null);
-					loanDetailsDTO.setPanCard(panCard);
-					loanDetailsDTO.setOgl(true);
-					loanDetailsDTO.setPincode(pincode);
-					if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
-						loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
-					} else {
-						loanDetailsDTO.setCity(" ");
-					}
-					response.setDetails(loanDetailsDTO);
-					response.setSuccess(true);
-					return response;
-				}
 			}
 			
 			if(stores != null && !stores.isEmpty()) {
@@ -272,22 +249,24 @@ public class LoanDetailsService {
 				loanDetailsDTO.setRejectReason(rejectReason);
 				loanDetailsDTO.setPanCard(panCard);
 				
-				if(!(pincode != null && lendingCity == null)) {
-					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.getTopupLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
-					loanDetailsDTO.setTopupLoan(topupLoans);
-					if(lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()))) {
-						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
-						if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-							Double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueAmount();
-							Integer disburseMentAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - prevLoanUnpaidAmount.intValue();
-							loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disburseMentAmount);
-						}
-					} else {
-						loanDetailsDTO.setLoanApplication(null);
-					}
-				} else {
-					loanDetailsDTO.setTopupLoan(new ArrayList<>());
-				}
+//				if(!(pincode != null && lendingCity == null)) {
+//					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.getTopupLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
+//					loanDetailsDTO.setTopupLoan(topupLoans);
+//					if(lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()))) {
+//						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+//						if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+//							Double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueAmount();
+//							Integer disburseMentAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - prevLoanUnpaidAmount.intValue();
+//							loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disburseMentAmount);
+//						}
+//					} else {
+//						loanDetailsDTO.setLoanApplication(null);
+//					}
+//				} else {
+//					loanDetailsDTO.setTopupLoan(new ArrayList<>());
+//				}
+				
+				loanDetailsDTO.setTopupLoan(new ArrayList<>());
 				loanDetailsDTO.setEnach(enach);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
@@ -310,18 +289,27 @@ public class LoanDetailsService {
 			}
 			
 			if (pincode != null && lendingCity == null) {
+				PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
 				loanDetailsDTO.setEligible(false);
 				loanDetailsDTO.setRejected(false);
 				loanDetailsDTO.setRejectReason(null);
-				loanDetailsDTO.setPanCard(null);
+				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setOgl(true);
+				loanDetailsDTO.setPincode(pincode);
+				if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
+					loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+				} else {
+					loanDetailsDTO.setCity(" ");
+				}
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
 			}
+			
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
 					try {
