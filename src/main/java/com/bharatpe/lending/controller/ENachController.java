@@ -31,7 +31,6 @@ public class ENachController {
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant) {
-		System.out.println(enachServiceToUse);
 		if(!enachServiceToUse.equals("digio")) {
 		try {
 			return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
