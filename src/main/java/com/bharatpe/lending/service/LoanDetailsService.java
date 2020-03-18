@@ -6,6 +6,7 @@ import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
@@ -351,10 +352,13 @@ public class LoanDetailsService {
 			if (eligibleFlag && isYesBank(merchant, merchantBankDetail)) {
 				tempClosed = "YBL";
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "YBL"));
-			}
-			if (eligibleFlag && isLoanClosed(experian, merchant)) {
+			} else if (eligibleFlag && isLoanClosed(experian, merchant)) {
 				tempClosed = "CORONA";
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "CORONA"));
+			} else if (experian != null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)) {
+				tempClosed = "FRAUD";
+				eligibleFlag = true;
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "FRAUD"));
 			}
 			
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
@@ -379,8 +383,7 @@ public class LoanDetailsService {
 	}
 
 	private boolean isLoanClosed(Experian experian, Merchant merchant) {
-		List<String> closedCities = Arrays.asList("Pune", "Mumbai", "Ghaziabad", "Noida");
-		List<String> closedCategories = Arrays.asList("2N","3","4","5","6","14","15","16","17","18","26","29","37");
+		List<String> closedCategories = Arrays.asList("7","8","19","20");
 		List<ExperianAuditTrail> experianAuditTrailList = experianAuditTrailDao.findByMerchantId(merchant.getId());
 		List<LendingClosedAudit> lendingClosedAuditList = lendingClosedAuditDao.findByMerchantIdAndType(merchant.getId(), "CORONA");
 		if (lendingClosedAuditList != null && !lendingClosedAuditList.isEmpty()) {
@@ -389,17 +392,10 @@ public class LoanDetailsService {
 		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
 			return false;
 		}
-		if (experian.getCategory() != null && closedCategories.contains(experian.getCategory())) {
-			MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
-			if (merchantAddress != null && closedCities.contains(merchantAddress.getCity())) {
-				return true;
-			}
-			if (merchant.getReferalCode() != null) {
-				Agent agent = agentDao.fetchByReferalCode(merchant.getReferalCode());
-				return agent != null && closedCities.contains(agent.getCity());
-			}
+		if (experian.getColor() != null && experian.getColor().equalsIgnoreCase(ExperianConstants.COLOR.AMBER.name())) {
+			return true;
 		}
-		return false;
+		return experian.getCategory() != null && closedCategories.contains(experian.getCategory());
 	}
 
 	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
@@ -415,15 +411,15 @@ public class LoanDetailsService {
 			if (merchantBankDetail.getIfscCode().substring(0,4).equalsIgnoreCase("YESB")) {
 				return true;
 			}
-			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
-			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
-				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
-					if (merchantStaticVpa.getFullVpa().contains("icic")) {
-						return false;
-					}
-				}
-				return true;
-			}
+//			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
+//			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
+//				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
+//					if (merchantStaticVpa.getFullVpa().contains("icic")) {
+//						return false;
+//					}
+//				}
+//				return true;
+//			}
 		} catch(Exception ex) {
 			logger.error("Exception while checking if merchant's bank is yes bank with merchant id {}, Exception is {}", merchant.getId(), ex);
 		}
