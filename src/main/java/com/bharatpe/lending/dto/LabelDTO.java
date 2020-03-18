@@ -25,4 +25,9 @@ public class LabelDTO {
 	public void setValue(String value) {
 		this.value = value;
 	}
+
+	@Override
+	public String toString() {
+		return "LabelDTO [label=" + label + ", value=" + value + "]";
+	}
 }

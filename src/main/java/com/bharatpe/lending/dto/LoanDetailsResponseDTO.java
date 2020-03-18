@@ -58,6 +58,9 @@ public class LoanDetailsResponseDTO {
 		
 		private List<LoanEligibilityDTO> eligibility;
 		
+		@JsonProperty(value = "topup_loan")
+		private List<LoanEligibilityDTO> topupLoan;
+		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
 
@@ -181,22 +184,22 @@ public class LoanDetailsResponseDTO {
 			this.enach = enach;
 		}
 
+		public List<LoanEligibilityDTO> getTopupLoan() {
+			return topupLoan;
+		}
+
+		public void setTopupLoan(List<LoanEligibilityDTO> topupLoan) {
+			this.topupLoan = topupLoan;
+		}
+
 		@Override
 		public String toString() {
-			return "LoanDetailsDTO{" +
-					"eligible=" + eligible +
-					", rejected=" + rejected +
-					", panCard='" + panCard + '\'' +
-					", rejectReason='" + rejectReason + '\'' +
-					", loanClosed=" + loanClosed +
-					", noExperian=" + noExperian +
-					", maskedMobiles=" + maskedMobiles +
-					", ogl=" + ogl +
-					", history=" + history +
-					", eligibility=" + eligibility +
-					", loanApplication=" + loanApplication +
-					", enach=" + enach +
-					'}';
+			return "LoanDetailsDTO [eligible=" + eligible + ", rejected=" + rejected + ", panCard=" + panCard
+					+ ", rejectReason=" + rejectReason + ", loanClosed=" + loanClosed + ", noExperian=" + noExperian
+					+ ", maskedMobiles=" + maskedMobiles + ", ogl=" + ogl + ", enach=" + enach + ", history=" + history
+					+ ", eligibility=" + eligibility + ", topupLoan=" + topupLoan + ", loanApplication="
+					+ loanApplication + "]";
 		}
+		
 	}
 }

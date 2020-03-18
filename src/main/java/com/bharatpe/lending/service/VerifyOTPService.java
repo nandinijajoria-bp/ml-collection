@@ -123,6 +123,16 @@ public class VerifyOTPService {
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setPhysicalVerificationStatus("APPROVED");
 			lendingApplication.setLender("LIQUILOANS");
+		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
+			if(lendingApplication.getLoanAmount() > 100000) {
+				lendingApplication.setStatus("pending_verification");
+			} else {
+				lendingApplication.setPhysicalVerificationStatus("APPROVED");
+				lendingApplication.setStatus("approved");
+			}
+			lendingApplication.setManualKyc("APPROVED");
+			lendingApplication.setManualCibil("APPROVED");
 		} else if (lendingApplication.getNachStatus() != null && (lendingApplication.getNachStatus().equalsIgnoreCase("initiated") || lendingApplication.getNachStatus().equalsIgnoreCase("approved"))) {
 			logger.info("Physical nach submitted by merchant: {}", merchant.getId());
 			lendingApplication.setStatus("approved");

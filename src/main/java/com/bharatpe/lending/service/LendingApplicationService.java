@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.AvailableLoanDao;
 import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.LendingCitiesDao;
 import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
@@ -28,6 +29,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class LendingApplicationService {
 	private Logger logger = LoggerFactory.getLogger(LendingApplicationService.class);
+	
+	@Autowired
+	LendingCitiesDao lendingCitiesDao;
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
@@ -228,10 +232,23 @@ public class LendingApplicationService {
 			snapshot.setTotalTxns2Month(summary.getTotalTxns2Month());
 			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
 			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
+			snapshot.setBpScore(summary.getBpScore());
 			
 			merchantSummarySnapshotDao.save(snapshot);
 		} catch(Exception ex) {
 			logger.error("Exception while creating merchant summary snapshot for merchant id {} and application id {}, Exception is {}", merchant.getId(), application.getId(), ex);
 		}
 	}
+	
+	public boolean checkLoanRequestPinCodeForLoanEligibilty(int pinCode) {
+		try {
+			LendingCities lendingCities=lendingCitiesDao.findActiveCityByPincode(pinCode);
+			if(lendingCities==null) return false;
+			return true;
+		}
+		catch(Exception e){
+			logger.error("error occured while fetching the lending city details for pin code {}",pinCode);
+		}
+		return false;
+	} 
 }

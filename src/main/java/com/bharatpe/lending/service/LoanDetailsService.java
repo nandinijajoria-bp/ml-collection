@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.text.SimpleDateFormat;
@@ -89,6 +88,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingEnachDao lendingEnachDao;
+	
+	@Autowired
+	TopupLoanEligibleService topupLoanEligibleService;
 
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
@@ -116,6 +118,7 @@ public class LoanDetailsService {
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 			Integer pincode = null;
+			LendingCities lendingCity = null;
 			if (requestDTO.getPayload().getPanCard() != null) {
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
@@ -132,7 +135,9 @@ public class LoanDetailsService {
 			} else if (experian != null && experian.getPincode() != null) {
 				pincode = experian.getPincode();
 			}
+			
 			if (pincode != null) {
+				lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
 				logger.info("Pincode for merchantId {} is {}", merchant.getId(), pincode);
 				LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
 				if (lendingCities == null) {
@@ -157,6 +162,7 @@ public class LoanDetailsService {
 					return response;
 				}
 			}
+			
 			if(stores != null && !stores.isEmpty()) {
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -194,24 +200,12 @@ public class LoanDetailsService {
 				lendingApplication = lendingApplicationList.get(0);
 			}
 
-			List<LoanHistoryDTO> loanHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess);
+			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess);
+			List<LoanHistoryDTO> loanHistoryDTOs = orignalHistoryDTOs;
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
-			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
-
-			if(activeLoan != null) {
-				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setEligibility(loanEligibilityDTOs);
-				loanDetailsDTO.setHistory(loanHistoryDTOs);
-				loanDetailsDTO.setEligible(true);
-				loanDetailsDTO.setRejected(rejected);
-				loanDetailsDTO.setRejectReason(rejectReason);
-				loanDetailsDTO.setPanCard(panCard);
-				response.setDetails(loanDetailsDTO);
-				response.setSuccess(true);
-				return response;
-			}
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-
+			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
+			
 			if(lendingApplication != null) {
 				if ((enachSuccess && repeatLoan) || (enachSuccess && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
 					loanApplicationDTO.setSelfVerification(false);
@@ -266,21 +260,67 @@ public class LoanDetailsService {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 				}
-
-				if(!eligibleFlag) {
-					LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-					loanDetailsDTO.setEligibility(loanEligibilityDTOs);
-					loanDetailsDTO.setHistory(loanHistoryDTOs);
-					loanDetailsDTO.setLoanApplication(loanApplicationDTO);
-					loanDetailsDTO.setEligible(true);
-					loanDetailsDTO.setRejected(rejected);
-					loanDetailsDTO.setRejectReason(rejectReason);
-					loanDetailsDTO.setPanCard(panCard);
-					loanDetailsDTO.setEnach(enach);
-					response.setDetails(loanDetailsDTO);
-					response.setSuccess(true);
-					return response;
+			}
+			
+			if(activeLoan != null) {
+				logger.info("Active loan found for merchant with ID {}", merchant.getId());
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(loanEligibilityDTOs);
+				loanDetailsDTO.setHistory(orignalHistoryDTOs);
+				loanDetailsDTO.setEligible(true);
+				loanDetailsDTO.setRejected(rejected);
+				loanDetailsDTO.setRejectReason(rejectReason);
+				loanDetailsDTO.setPanCard(panCard);
+				
+				if(!(pincode != null && lendingCity == null)) {
+					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.getTopupLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
+					loanDetailsDTO.setTopupLoan(topupLoans);
+					if(lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()))) {
+						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+						if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+							Double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueAmount();
+							Integer disburseMentAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - prevLoanUnpaidAmount.intValue();
+							loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disburseMentAmount);
+						}
+					} else {
+						loanDetailsDTO.setLoanApplication(null);
+					}
+				} else {
+					loanDetailsDTO.setTopupLoan(new ArrayList<>());
 				}
+				loanDetailsDTO.setEnach(enach);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
+			}
+			
+			if(lendingApplication != null && !eligibleFlag) {
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(loanEligibilityDTOs);
+				loanDetailsDTO.setHistory(loanHistoryDTOs);
+				loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+				loanDetailsDTO.setEligible(true);
+				loanDetailsDTO.setRejected(rejected);
+				loanDetailsDTO.setRejectReason(rejectReason);
+				loanDetailsDTO.setPanCard(panCard);
+				loanDetailsDTO.setEnach(enach);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
+			}
+			
+			if (pincode != null && lendingCity == null) {
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<>());
+				loanDetailsDTO.setHistory(new ArrayList<>());
+				loanDetailsDTO.setEligible(false);
+				loanDetailsDTO.setRejected(false);
+				loanDetailsDTO.setRejectReason(null);
+				loanDetailsDTO.setPanCard(null);
+				loanDetailsDTO.setOgl(true);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
 			}
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
@@ -636,6 +676,7 @@ public class LoanDetailsService {
 		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
 		
 	    if(application != null) {
+	    	logger.info("Open application found for merchant ID {}", merchant.getId());
 	        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application);
 	        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application);
 	        List<DocumentDTO> documents = fetchDocuments(application, merchant);

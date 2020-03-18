@@ -1,6 +1,8 @@
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.constants.ResponseCode;
+import com.bharatpe.common.dao.PincodeCityStateMappingDao;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;
@@ -10,9 +12,10 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.PincodeCityStateMapping;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
 import javax.servlet.http.HttpServletResponse;
@@ -39,9 +42,19 @@ public class LendingApplicationController {
 
 	@Autowired
 	CancelApplicationService cancelApplicationService;
-
+	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+		
+		if(!lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
+			logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
+			LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
+			lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
+			lendingApplicationResponse.setMessage(LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
+			lendingApplicationResponse.setSuccess(false);
+			return lendingApplicationResponse;
+		}
+		
 		logger.info("Create Application request : {}",requestDTO);
 		if(requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
@@ -51,6 +64,8 @@ public class LendingApplicationController {
 		requestDTO.getMeta().setIp(clientIp);
 		LendingApplicationResponseDTO lendingApplicationResponse = lendingApplicationService.createApplication(merchant, requestDTO);
 		logger.info("Create Application response : {}", lendingApplicationResponse);
+		lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
+		lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
 		return lendingApplicationResponse;
 	}
 
@@ -105,4 +120,5 @@ public class LendingApplicationController {
 		logger.info("cancelApplication response : {}", resp);
 		return resp;
 	}
+
 }

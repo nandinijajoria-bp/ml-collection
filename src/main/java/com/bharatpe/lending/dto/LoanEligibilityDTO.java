@@ -18,9 +18,12 @@ public class LoanEligibilityDTO {
 	@JsonProperty(value = "disbursement_amount")
 	private Integer disbursementAmount;
 	
+	@JsonProperty(value = "prev_loan_unpaid_amount")
+	private Integer prevLoanUnpaidAmount;
+	
 	@JsonProperty(value = "option_enable")
 	private boolean optionEnable;
-
+	
 	private Integer amount;
 	private Integer edi;
 	private Integer repayment;
@@ -111,12 +114,18 @@ public class LoanEligibilityDTO {
 	public void setEdi(Integer edi) {
 		this.edi = edi;
 	}
-	
+	public Integer getPrevLoanUnpaidAmount() {
+		return prevLoanUnpaidAmount;
+	}
+	public void setPrevLoanUnpaidAmount(Integer prevLoanUnpaidAmount) {
+		this.prevLoanUnpaidAmount = prevLoanUnpaidAmount;
+	}
 	@Override
 	public String toString() {
 		return "LoanEligibilityDTO [processingFee=" + processingFee + ", interestRate=" + interestRate
 				+ ", interestAmount=" + interestAmount + ", disbursementAmount=" + disbursementAmount
-				+ ", optionEnable=" + optionEnable + ", amount=" + amount + ", category=" + category + ", tenure="
-				+ tenure + ", construct=" + construct + ", list=" + list + ", type=" + type + "]";
+				+ ", prevLoanUnpaidAmount=" + prevLoanUnpaidAmount + ", optionEnable=" + optionEnable + ", amount="
+				+ amount + ", edi=" + edi + ", repayment=" + repayment + ", category=" + category + ", tenure=" + tenure
+				+ ", construct=" + construct + ", type=" + type + ", list=" + list + "]";
 	}
 }

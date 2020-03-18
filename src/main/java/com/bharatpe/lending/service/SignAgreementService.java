@@ -18,6 +18,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -139,10 +140,27 @@ public class SignAgreementService {
 		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
 		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 
-		if(prevLendingSchedule == null || prevApplication == null || !prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
-			logger.error("User not eligible, last loan not closed/found or last application is not disbursed/found");
+		if(prevLendingSchedule == null || prevApplication == null) {
+			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			return response;
 		}
+		
+		// pin code check for loan eligibility
+		try {
+			logger.info("Starting pin code check for loan eligibilty ");
+			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
+			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
+			if(!lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
+				logger.error("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
+				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
+				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
+				return response;
+			}
+		}
+		catch(Exception e) {
+			logger.error("Error ocuured while checking loan eligibilty for pin code {}",(long)prevApplication.getPincode());
+		}
+		
 		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
 		LendingApplication newApplication = new LendingApplication();
 
@@ -153,13 +171,20 @@ public class SignAgreementService {
 				return response;
 			}
 			EligibleLoan eligibleLoan = eligibleLoans.get(0);
+			
+			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
+				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
+				return response;
+			}
+			
 			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 			newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 			newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
 			newApplication.setProcessingFee(0D);
 			newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-			newApplication.setDisbursalAmount(eligibleLoan.getAmount());
+			if (!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()))
+				newApplication.setDisbursalAmount(eligibleLoan.getAmount());
 			newApplication.setMerchant(merchant);
 			newApplication.setShopNumber(prevApplication.getShopNumber());
 			newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -178,9 +203,16 @@ public class SignAgreementService {
 			newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
 			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 			newApplication.setLoanAmount(eligibleLoan.getAmount());
+			newApplication.setLoanType(eligibleLoan.getLoanType());
 		} else {
 			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantSummary.getLoanType());
 			AvailableLoan selectedAvailableLoan = null;
+			
+			if(!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
+				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
+				return response;
+			}
+			
 			for(AvailableLoan current : availableLoanList) {
 				if(current.getCategory().equals(selectedCategory)) {
 					selectedAvailableLoan = current;
@@ -218,8 +250,10 @@ public class SignAgreementService {
 			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
 		}
-		newApplication.setLatitude(requestDTO.getMeta().getLatitude());
-		newApplication.setLongitude(requestDTO.getMeta().getLongitude());
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()))
+			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()))
+			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
 		lendingApplicationDao.save(newApplication);

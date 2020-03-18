@@ -8,10 +8,31 @@ public class LendingApplicationResponseDTO {
 
     @JsonProperty("loan_application")
     private LoanApplication loanApplication;
-
+    
     private Boolean success;
+    
+    private String message;
 
-    public LoanApplication getLoanApplication() {
+    private String code;
+    
+
+    public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
+	public String getCode() {
+		return code;
+	}
+
+	public void setCode(String code) {
+		this.code = code;
+	}
+
+	public LoanApplication getLoanApplication() {
         return loanApplication;
     }
 
