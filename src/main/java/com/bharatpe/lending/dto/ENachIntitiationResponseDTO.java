@@ -61,6 +61,10 @@ public class ENachIntitiationResponseDTO {
         private String beneficiaryName;
 
         private String ifscCode;
+        
+        private String mandate_id;
+        
+        private String customer_identifier;
 
         public Data(Long transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid) {
             this.transactionIdentifier = transactionIdentifier;
@@ -73,9 +77,36 @@ public class ENachIntitiationResponseDTO {
             this.beneficiaryName = beneficiaryName;
             this.ifscCode = ifscCode;
             this.mid = mid;
+           
         }
+        
+        
+        
+        public String getMandate_id() {
+			return mandate_id;
+		}
 
-        public Data() {
+
+
+		public void setMandate_id(String mandate_id) {
+			this.mandate_id = mandate_id;
+		}
+
+
+
+		public String getCustomer_identifier() {
+			return customer_identifier;
+		}
+
+
+
+		public void setCustomer_identifier(String customer_identifier) {
+			this.customer_identifier = customer_identifier;
+		}
+
+
+
+		public Data() {
         }
 
         public String getMid() {
@@ -238,23 +269,23 @@ public class ENachIntitiationResponseDTO {
             this.applicationId = applicationId;
         }
 
-        @Override
-        public String toString() {
-            return "Data{" +
-                    "deep_link='" + deep_link + '\'' +
-                    ", merchantIdentifier='" + merchantIdentifier + '\'' +
-                    ", transactionIdentifier=" + transactionIdentifier +
-                    ", transactionReferenceNumber=" + transactionReferenceNumber +
-                    ", schemeCode='" + schemeCode + '\'' +
-                    ", bankCode='" + bankCode + '\'' +
-                    ", loanAmount=" + loanAmount +
-                    ", loanStartDate='" + loanStartDate + '\'' +
-                    ", applicationId=" + applicationId +
-                    ", accountNumber='" + accountNumber + '\'' +
-                    ", beneficiaryName='" + beneficiaryName + '\'' +
-                    ", ifscCode='" + ifscCode + '\'' +
-                    '}';
-        }
+
+
+		@Override
+		public String toString() {
+			return "Data [mid=" + mid + ", currency=" + currency + ", pennyAmount=" + pennyAmount
+					+ ", transactionMerchantInitiated=" + transactionMerchantInitiated + ", paymentInstructionAction="
+					+ paymentInstructionAction + ", paymentInstructionType=" + paymentInstructionType
+					+ ", payFrequency=" + payFrequency + ", accountType=" + accountType + ", deep_link=" + deep_link
+					+ ", merchantIdentifier=" + merchantIdentifier + ", transactionIdentifier=" + transactionIdentifier
+					+ ", transactionReferenceNumber=" + transactionReferenceNumber + ", schemeCode=" + schemeCode
+					+ ", bankCode=" + bankCode + ", loanAmount=" + loanAmount + ", loanStartDate=" + loanStartDate
+					+ ", applicationId=" + applicationId + ", accountNumber=" + accountNumber + ", beneficiaryName="
+					+ beneficiaryName + ", ifscCode=" + ifscCode + ", mandate_id=" + mandate_id
+					+ ", customer_identifier=" + customer_identifier + "]";
+		}
+
+        
     }
 
     public Data getData() {
@@ -281,6 +312,7 @@ public class ENachIntitiationResponseDTO {
         this.message = message;
     }
 
+    
     @Override
     public String toString() {
         return "ENachIntitiationResponseDTO{" +

@@ -1,18 +1,31 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingEnachDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
+import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.DigioEnachInitiationRequestDTO;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -36,6 +49,18 @@ public class ENachService {
 
     @Autowired
     LendingNachBankDao lendingNachBankDao;
+    
+    @Autowired
+    ExperianDao experianDao;
+    
+    @Autowired
+    LendingPancardDao lendingPanCardDao;
+    
+    @Autowired
+    RestTemplate restTemplate;
+    
+    @Autowired
+    ObjectMapper objectMapper;
 
     SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
 
@@ -137,4 +162,71 @@ public class ENachService {
         LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode, mode);
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
+    
+    public ENachIntitiationResponseDTO enachInititateForDigio(Merchant merchant){
+    	final double LOAN_AMOUNT = 100000d;
+    	ENachIntitiationResponseDTO enachInitiationResponseDto=new ENachIntitiationResponseDTO();
+    	
+    	HttpHeaders headers = new HttpHeaders();
+    	headers.setContentType(MediaType.APPLICATION_JSON);
+    	DigioEnachInitiationRequestDTO digioEnach=new DigioEnachInitiationRequestDTO();
+    	digioEnach.setMandate_data(new DigioEnachInitiationRequestDTO.Data());
+    	digioEnach.setCustomer_identifier(merchant.getMobile());
+    	
+    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+    	if(merchantBankDetail==null){
+    		enachInitiationResponseDto.setResponse(false);
+    		enachInitiationResponseDto.setMessage("Merchant bank detail not found");
+            logger.error("Unable to find bank detail for Merchant - {}", merchant.getId());
+            return enachInitiationResponseDto;
+    	}
+    	
+    	sdf = new SimpleDateFormat("dd-mm-yyyy hh:mm:ss");
+    	String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
+    	digioEnach.getMandate_data().setFirst_collection_date(mandateDate);
+    	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfscCode());
+    	digioEnach.getMandate_data().setDestination_bank_name(merchantBankDetail.getBankName());
+    	digioEnach.getMandate_data().setCustomer_mobile(merchant.getMobile());
+    	digioEnach.getMandate_data().setCustomer_account_number(merchantBankDetail.getAccountNumber());
+    	
+    	logger.info("Fetching the pancard from the Lending_pan_card table");
+    	LendingPancard lendingPancard=lendingPanCardDao.findByMerchantId(merchant.getId());
+    	System.out.println(lendingPancard);
+    	if(lendingPancard==null || lendingPancard.getPancardNumber()==null) {
+    	Experian experian=experianDao.getByMerchantId(merchant.getId());
+    		digioEnach.getMandate_data().setCustomer_pan(experian.getPancardNumber());
+    		digioEnach.getMandate_data().setCustomer_name(merchantBankDetail.getBeneficiaryName());
+    	}
+    	else {
+	    	digioEnach.getMandate_data().setCustomer_pan(lendingPancard.getPancardNumber());
+			digioEnach.getMandate_data().setCustomer_name(lendingPancard.getName());
+    	}
+    	if(digioEnach.getMandate_data().getCustomer_name()==null) {
+    		digioEnach.getMandate_data().setCustomer_name(merchantBankDetail.getBeneficiaryName());
+    	}
+    	
+    	HttpEntity<DigioEnachInitiationRequestDTO> request = new HttpEntity<>(digioEnach, headers);
+    	try {   		
+    		String response = restTemplate.postForObject(ExperianConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
+    		JsonNode jsonNode=objectMapper.readTree(response);
+    		//enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
+    		if(jsonNode.has("mandate_id")){
+    			enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
+    			enachInitiationResponseDto.getData().setMandate_id(jsonNode.get("mandate_id").asText());
+    			enachInitiationResponseDto.getData().setCustomer_identifier(merchant.getMobile());
+    		}
+    		else {
+    			enachInitiationResponseDto.setResponse(false);
+        		enachInitiationResponseDto.setMessage("Enach not enabled");
+                return enachInitiationResponseDto;
+    		}
+    	}
+    	catch(Exception e) {
+    		enachInitiationResponseDto.setResponse(false);
+    		enachInitiationResponseDto.setMessage("Error occured while fetching enach data");
+    	}
+    	return enachInitiationResponseDto;
+    }
+    
+    
 }
