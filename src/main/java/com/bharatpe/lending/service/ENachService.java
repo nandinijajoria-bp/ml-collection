@@ -164,9 +164,7 @@ public class ENachService {
     }
     
     public ENachIntitiationResponseDTO enachInititateForDigio(Merchant merchant){
-    	final double LOAN_AMOUNT = 100000d;
     	ENachIntitiationResponseDTO enachInitiationResponseDto=new ENachIntitiationResponseDTO();
-    	
     	HttpHeaders headers = new HttpHeaders();
     	headers.setContentType(MediaType.APPLICATION_JSON);
     	DigioEnachInitiationRequestDTO digioEnach=new DigioEnachInitiationRequestDTO();
@@ -186,14 +184,21 @@ public class ENachService {
     	digioEnach.getMandate_data().setFirst_collection_date(mandateDate);
     	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfscCode());
     	digioEnach.getMandate_data().setDestination_bank_name(merchantBankDetail.getBankName());
-    	digioEnach.getMandate_data().setCustomer_mobile(merchant.getMobile());
+    	try{
+    		digioEnach.getMandate_data().setCustomer_mobile(merchant.getMobile());
+    	}
+    	catch(Exception e) {
+    		enachInitiationResponseDto.setResponse(false);
+    		enachInitiationResponseDto.setMessage("Merchant mobile number not found");
+            logger.error("Unable to find mobile number for Merchant - {}", merchant.getId());
+            return enachInitiationResponseDto;
+    	}
     	digioEnach.getMandate_data().setCustomer_account_number(merchantBankDetail.getAccountNumber());
-    	
     	logger.info("Fetching the pancard from the Lending_pan_card table");
     	LendingPancard lendingPancard=lendingPanCardDao.findByMerchantId(merchant.getId());
-    	System.out.println(lendingPancard);
     	if(lendingPancard==null || lendingPancard.getPancardNumber()==null) {
-    	Experian experian=experianDao.getByMerchantId(merchant.getId());
+    		logger.info("Fetching the pancard details from experian");
+    		Experian experian=experianDao.getByMerchantId(merchant.getId());
     		digioEnach.getMandate_data().setCustomer_pan(experian.getPancardNumber());
     		digioEnach.getMandate_data().setCustomer_name(merchantBankDetail.getBeneficiaryName());
     	}
@@ -209,7 +214,6 @@ public class ENachService {
     	try {   		
     		String response = restTemplate.postForObject(ExperianConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
     		JsonNode jsonNode=objectMapper.readTree(response);
-    		//enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
     		if(jsonNode.has("mandate_id")){
     			enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
     			enachInitiationResponseDto.getData().setMandate_id(jsonNode.get("mandate_id").asText());
@@ -217,7 +221,7 @@ public class ENachService {
     		}
     		else {
     			enachInitiationResponseDto.setResponse(false);
-        		enachInitiationResponseDto.setMessage("Enach not enabled");
+        		enachInitiationResponseDto.setMessage("Mandate not created");
                 return enachInitiationResponseDto;
     		}
     	}
