@@ -392,10 +392,10 @@ public class LoanDetailsService {
 		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
 			return false;
 		}
-		if (experian.getColor() != null && experian.getColor().equalsIgnoreCase(ExperianConstants.COLOR.AMBER.name())) {
+		if (experian != null && experian.getColor() != null && experian.getColor().equalsIgnoreCase(ExperianConstants.COLOR.AMBER.name())) {
 			return true;
 		}
-		return experian.getCategory() != null && closedCategories.contains(experian.getCategory());
+		return experian != null && experian.getCategory() != null && closedCategories.contains(experian.getCategory());
 	}
 
 	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
