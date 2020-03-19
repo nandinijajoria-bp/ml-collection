@@ -213,7 +213,7 @@ public class ENachService {
     	LendingPancard lendingPancard=lendingPanCardDao.findByMerchantId(merchant.getId());
     	if(lendingPancard==null || lendingPancard.getPancardNumber()==null) {
     		
-    		logger.error("Error occured while etching pancard detail from the Lending_pan_card table for merchant id {}",merchant.getId());
+    		logger.error("Error occured while fetching pancard detail from the Lending_pan_card table for merchant id {}",merchant.getId());
     		
     		logger.info("Fetching the pancard details from experian");
     		Experian experian=experianDao.getByMerchantId(merchant.getId());
