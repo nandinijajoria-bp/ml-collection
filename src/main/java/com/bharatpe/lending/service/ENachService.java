@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -61,6 +62,9 @@ public class ENachService {
     
     @Autowired
     ObjectMapper objectMapper;
+    
+    @Value("${enach.digio.authorization}")
+    String authorization;
 
     SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
 
@@ -164,42 +168,59 @@ public class ENachService {
     }
     
     public ENachIntitiationResponseDTO enachInititateForDigio(Merchant merchant){
+    	
     	ENachIntitiationResponseDTO enachInitiationResponseDto=new ENachIntitiationResponseDTO();
+    	
     	HttpHeaders headers = new HttpHeaders();
     	headers.setContentType(MediaType.APPLICATION_JSON);
+    	headers.add("Authorization",authorization);
+    	
+    	//populating the data into request body class for the digio API call
     	DigioEnachInitiationRequestDTO digioEnach=new DigioEnachInitiationRequestDTO();
     	digioEnach.setMandate_data(new DigioEnachInitiationRequestDTO.Data());
-    	digioEnach.setCustomer_identifier(merchant.getMobile());
     	
-    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-    	if(merchantBankDetail==null){
-    		enachInitiationResponseDto.setResponse(false);
-    		enachInitiationResponseDto.setMessage("Merchant bank detail not found");
-            logger.error("Unable to find bank detail for Merchant - {}", merchant.getId());
-            return enachInitiationResponseDto;
-    	}
-    	
-    	sdf = new SimpleDateFormat("dd-mm-yyyy hh:mm:ss");
-    	String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
-    	digioEnach.getMandate_data().setFirst_collection_date(mandateDate);
-    	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfscCode());
-    	digioEnach.getMandate_data().setDestination_bank_name(merchantBankDetail.getBankName());
-    	try{
-    		digioEnach.getMandate_data().setCustomer_mobile(merchant.getMobile());
-    	}
-    	catch(Exception e) {
+    	if(merchant.getMobile()==null){
     		enachInitiationResponseDto.setResponse(false);
     		enachInitiationResponseDto.setMessage("Merchant mobile number not found");
             logger.error("Unable to find mobile number for Merchant - {}", merchant.getId());
             return enachInitiationResponseDto;
     	}
+    	else {
+    		digioEnach.setCustomer_identifier(merchant.getMobile());
+    		digioEnach.getMandate_data().setCustomer_mobile(merchant.getMobile());
+    	}
+    	
+    	
+    	logger.info("Fetching the bank details for the merchant {}",merchant.getId());
+    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+    	if(merchantBankDetail==null){
+    		logger.error("Error occured fetching bank detils for merchant {}",merchant.getId());
+    		enachInitiationResponseDto.setResponse(false);
+    		enachInitiationResponseDto.setMessage("Merchant bank detail not found");
+            logger.error("Unable to find bank detail for Merchant - {}", merchant.getId());
+            return enachInitiationResponseDto;
+    	}
+    	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfscCode());
+    	digioEnach.getMandate_data().setDestination_bank_name(merchantBankDetail.getBankName());
     	digioEnach.getMandate_data().setCustomer_account_number(merchantBankDetail.getAccountNumber());
+    	
+    	
+    	sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    	String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
+    	digioEnach.getMandate_data().setFirst_collection_date(mandateDate);
+    	
     	logger.info("Fetching the pancard from the Lending_pan_card table");
     	LendingPancard lendingPancard=lendingPanCardDao.findByMerchantId(merchant.getId());
     	if(lendingPancard==null || lendingPancard.getPancardNumber()==null) {
+    		
+    		logger.error("Error occured while etching pancard detail from the Lending_pan_card table for merchant id {}",merchant.getId());
+    		
     		logger.info("Fetching the pancard details from experian");
     		Experian experian=experianDao.getByMerchantId(merchant.getId());
+    		
     		if(experian==null || experian.getPancardNumber()==null){
+    			
+    			logger.error("Error occured while fetching experian details for merchant if {}",merchant.getId());
     			enachInitiationResponseDto.setResponse(false);
         		enachInitiationResponseDto.setMessage("Pancard detail not found");
                 logger.error("Unable to find pancard detail for Merchant - {}", merchant.getId());
@@ -212,12 +233,16 @@ public class ENachService {
 	    	digioEnach.getMandate_data().setCustomer_pan(lendingPancard.getPancardNumber());
 			digioEnach.getMandate_data().setCustomer_name(lendingPancard.getName());
     	}
+    	
+    	//check for the merchant name, incase name is not present in the lending_pancard table
     	if(digioEnach.getMandate_data().getCustomer_name()==null) {
     		digioEnach.getMandate_data().setCustomer_name(merchantBankDetail.getBeneficiaryName());
     	}
     	
+    	
     	HttpEntity<DigioEnachInitiationRequestDTO> request = new HttpEntity<>(digioEnach, headers);
-    	try {   		
+    	try {
+    		logger.info("Hitting digio for the enach initiation");
     		String response = restTemplate.postForObject(ExperianConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
     		JsonNode jsonNode=objectMapper.readTree(response);
     		if(jsonNode.has("mandate_id")){
@@ -226,12 +251,14 @@ public class ENachService {
     			enachInitiationResponseDto.getData().setCustomer_identifier(merchant.getMobile());
     		}
     		else {
+    			logger.error("Mandate not found");
     			enachInitiationResponseDto.setResponse(false);
         		enachInitiationResponseDto.setMessage("Mandate not created");
                 return enachInitiationResponseDto;
     		}
     	}
     	catch(Exception e) {
+    		logger.error("Error occured while fetching enach data from digio");
     		enachInitiationResponseDto.setResponse(false);
     		enachInitiationResponseDto.setMessage("Error occured while fetching enach data");
     	}

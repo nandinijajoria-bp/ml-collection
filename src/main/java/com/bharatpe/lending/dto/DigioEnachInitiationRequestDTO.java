@@ -39,11 +39,11 @@ public class DigioEnachInitiationRequestDTO {
 		
 		private String customer_account_number;
 		
-		private String customer_account_type;
+		private String customer_account_type="Savings";
 		
-		private Boolean is_recurring;
+		private Boolean is_recurring=true;
 		
-		private Integer maximum_amount;
+		private Integer maximum_amount=1;
 		
 		
 		public String getDestination_bank_id() {

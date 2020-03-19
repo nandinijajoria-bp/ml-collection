@@ -31,25 +31,21 @@ public class ENachController {
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant) {
-		if(!enachServiceToUse.equals("digio")) {
+		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+		responseDTO.setResponse(false);
 		try {
+			if(enachServiceToUse==null || (!enachServiceToUse.equals("digio") && !enachServiceToUse.equals("techprocess"))){
+				responseDTO.setMessage("Incorrect Enach service provider mentioned");
+				return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+			}
+			else if(enachServiceToUse.equals("techprocess")) {
 			return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
-		} catch (Exception e) {
+			} 
+			else {
+				return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant), HttpStatus.OK);
+			}
+		}catch (Exception e) {
 			logger.error("Exception while initiating enach", e);
-			ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-			responseDTO.setResponse(false);
-			responseDTO.setMessage("Something went wrong");
-			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
-		}
-		}
-		
-		try {
-			return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant),HttpStatus.OK);
-		}
-		catch(Exception e) {
-			logger.error("Exception while initiating enach", e);
-			ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-			responseDTO.setResponse(false);
 			responseDTO.setMessage("Something went wrong");
 			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
 		}
