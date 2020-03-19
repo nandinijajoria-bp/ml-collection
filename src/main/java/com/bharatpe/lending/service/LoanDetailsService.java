@@ -359,6 +359,9 @@ public class LoanDetailsService {
 				tempClosed = "FRAUD";
 				eligibleFlag = true;
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "FRAUD"));
+			} else if (!eligibleFlag) {
+				tempClosed = "INELIGIBLE";
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "INELIGIBLE"));
 			}
 			
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
