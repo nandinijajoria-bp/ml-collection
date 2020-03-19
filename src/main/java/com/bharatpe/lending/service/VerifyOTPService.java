@@ -181,7 +181,7 @@ public class VerifyOTPService {
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
 		
-		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+", loan application for Rs."+loanAmount.intValue()+" recd. (Loan ID- "+lendingApplication.getExternalLoanId()+"). Pls. submit addl. info for faster disbursal. bharatpe.in/loan";
+		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\n Your loan application for INR "+loanAmount.intValue()+" has been received successfully. Your Application ID is "+lendingApplication.getExternalLoanId()+".\nNote: Due to necessary precautions for Coronavirus, there may be some delay in processing your application. We'll keep you updated.";
 		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
 
 //		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
