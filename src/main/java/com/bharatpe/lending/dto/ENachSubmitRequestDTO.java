@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ENachSubmitRequestDTO {
 
-    private Long mandateId;
+    private String mandateId;
 
     private String identifier;
 
@@ -24,19 +24,30 @@ public class ENachSubmitRequestDTO {
 
     private String statusMessage;
 
-    public Long getMandateId() {
-        return mandateId;
-    }
-
-    public void setMandateId(Long mandateId) {
-        this.mandateId = mandateId;
-    }
-
+//    public Long getMandateId() {
+//        return mandateId;
+//    }
+//
+//    public void setMandateId(Long mandateId) {
+//        this.mandateId = mandateId;
+//    }
+    
+    
+    
+    
     public String getIdentifier() {
         return identifier;
     }
 
-    public void setIdentifier(String identifier) {
+    public String getMandateId() {
+		return mandateId;
+	}
+
+	public void setMandateId(String mandateId) {
+		this.mandateId = mandateId;
+	}
+
+	public void setIdentifier(String identifier) {
         this.identifier = identifier;
     }
 

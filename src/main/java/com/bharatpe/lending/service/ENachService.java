@@ -106,6 +106,7 @@ public class ENachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+        
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         if (lendingEnach == null) {
@@ -170,7 +171,17 @@ public class ENachService {
     public ENachIntitiationResponseDTO enachInititateForDigio(Merchant merchant){
     	
     	ENachIntitiationResponseDTO enachInitiationResponseDto=new ENachIntitiationResponseDTO();
-    	
+    	enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
+    	//populating lending application
+    	logger.info("Fetching lending application");
+        LendingApplication lendingApplication=lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        if(lendingApplication==null){
+        	enachInitiationResponseDto.setResponse(false);
+    		enachInitiationResponseDto.setMessage("Lending application not found");
+            return enachInitiationResponseDto;
+        }
+        enachInitiationResponseDto.getData().setApplicationId(lendingApplication.getId());;
+        
     	HttpHeaders headers = new HttpHeaders();
     	headers.setContentType(MediaType.APPLICATION_JSON);
     	headers.add("Authorization",authorization);
@@ -178,6 +189,9 @@ public class ENachService {
     	//populating the data into request body class for the digio API call
     	DigioEnachInitiationRequestDTO digioEnach=new DigioEnachInitiationRequestDTO();
     	digioEnach.setMandate_data(new DigioEnachInitiationRequestDTO.Data());
+    	
+    	enachInitiationResponseDto.getData().setMandate_id("");
+		enachInitiationResponseDto.getData().setCustomer_identifier("");
     	
     	if(merchant.getMobile()==null){
     		enachInitiationResponseDto.setResponse(false);
@@ -189,7 +203,6 @@ public class ENachService {
     		digioEnach.setCustomer_identifier(merchant.getMobile());
     		digioEnach.getMandate_data().setCustomer_mobile(merchant.getMobile());
     	}
-    	
     	
     	logger.info("Fetching the bank details for the merchant {}",merchant.getId());
     	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
@@ -245,8 +258,7 @@ public class ENachService {
     		logger.info("Hitting digio for the enach initiation");
     		String response = restTemplate.postForObject(ExperianConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
     		JsonNode jsonNode=objectMapper.readTree(response);
-    		if(jsonNode.has("mandate_id")){
-    			enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
+    		if(jsonNode.has("mandate_id")) {
     			enachInitiationResponseDto.getData().setMandate_id(jsonNode.get("mandate_id").asText());
     			enachInitiationResponseDto.getData().setCustomer_identifier(merchant.getMobile());
     		}
