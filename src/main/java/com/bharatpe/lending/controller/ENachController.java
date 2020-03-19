@@ -39,12 +39,13 @@ public class ENachController {
 				return new ResponseEntity<>(responseDTO, HttpStatus.OK);
 			}
 			else if(enachServiceToUse.equals("techprocess")) {
-			return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
+				return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
 			} 
 			else {
 				return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant), HttpStatus.OK);
 			}
-		}catch (Exception e) {
+		 }
+		catch (Exception e) {
 			logger.error("Exception while initiating enach", e);
 			responseDTO.setMessage("Something went wrong");
 			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
