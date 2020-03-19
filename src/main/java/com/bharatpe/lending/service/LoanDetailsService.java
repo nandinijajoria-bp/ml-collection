@@ -399,30 +399,30 @@ public class LoanDetailsService {
 	}
 
 	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
-		try {
-			if(merchantBankDetail == null) {
-				logger.error("No merchant bank detail found for merchant id {}", merchant.getId());
-				return false;
-			}
-			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
-				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
-				return false;
-			}
-			if (merchantBankDetail.getIfscCode().substring(0,4).equalsIgnoreCase("YESB")) {
-				return true;
-			}
-//			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
-//			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
-//				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
-//					if (merchantStaticVpa.getFullVpa().contains("icic")) {
-//						return false;
-//					}
-//				}
+//		try {
+//			if(merchantBankDetail == null) {
+//				logger.error("No merchant bank detail found for merchant id {}", merchant.getId());
+//				return false;
+//			}
+//			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
+//				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
+//				return false;
+//			}
+//			if (merchantBankDetail.getIfscCode().substring(0,4).equalsIgnoreCase("YESB")) {
 //				return true;
 //			}
-		} catch(Exception ex) {
-			logger.error("Exception while checking if merchant's bank is yes bank with merchant id {}, Exception is {}", merchant.getId(), ex);
-		}
+////			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
+////			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
+////				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
+////					if (merchantStaticVpa.getFullVpa().contains("icic")) {
+////						return false;
+////					}
+////				}
+////				return true;
+////			}
+//		} catch(Exception ex) {
+//			logger.error("Exception while checking if merchant's bank is yes bank with merchant id {}, Exception is {}", merchant.getId(), ex);
+//		}
 		return false;
 	}
 
