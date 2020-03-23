@@ -54,8 +54,20 @@ public class ENachController {
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
-		logger.info("Enach Submit request : {}", body);
-		return new ResponseEntity<>(eNachService.submitEnach(merchant, body), HttpStatus.OK);
+		logger.info("Enach Submit request : {}", body);			
+		if(enachServiceToUse.equals("techprocess")) {
+			return new ResponseEntity<>(eNachService.submitEnach(merchant, body), HttpStatus.OK);
+		}
+		else if(enachServiceToUse.equals("digio")){
+			return new ResponseEntity<>(eNachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
+		}
+		else {
+			logger.error("Mentioned wrong enach service provider");
+			ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+			responseDTO.setResponse(false);
+			responseDTO.setMessage("Wrong enach serive provider");
+			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+		}
 	}
 
 	@RequestMapping(value="/skip",method = RequestMethod.GET, consumes="application/json", produces="application/json")

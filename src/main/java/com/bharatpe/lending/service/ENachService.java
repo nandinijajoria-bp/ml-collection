@@ -6,7 +6,7 @@ import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.DigioEnachInitiationRequestDTO;
@@ -22,7 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -102,6 +104,66 @@ public class ENachService {
         return responseDTO;
     }
 
+    
+
+    //Submit enach for digio
+
+    public ENachIntitiationResponseDTO submitEnachForDigio(Merchant merchant, ENachSubmitRequestDTO requestDTO){
+   	 ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
+        LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        if (lendingEnach == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Enach not initiated");
+            return responseDTO;
+        }
+        lendingEnach.setIdentifier(requestDTO.getIdentifier());
+        lendingEnach.setMandateId(requestDTO.getMandateId());
+        lendingEnach.setResponse(requestDTO.getResponse());
+        lendingEnach.setStatus(requestDTO.getStatus());
+        lendingEnach.setStatusMessage(requestDTO.getStatusMessage());
+        lendingEnachDao.save(lendingEnach);
+
+      //calling digio api to check if enach is success
+        JsonNode jsonNode=null;
+    	try {
+    	String URL=LendingConstants.DIGIO_ENACH_STATUS_CHECK+requestDTO.getMandateId();
+    	HttpHeaders header=new HttpHeaders();
+    	header.add("Authorization",authorization);
+    	HttpEntity<String> request=new HttpEntity<String>(header);
+    	ResponseEntity<String> response=restTemplate.exchange(URL, HttpMethod.GET,request,String.class);
+    	String jsonResonse=response.getBody();
+    	jsonNode=objectMapper.readTree(jsonResonse);
+    	}
+    	catch(Exception e){
+    		logger.error("Error occured while fetching enach autherization data",e);
+    	}
+        if (jsonNode!=null && jsonNode.has("state") && jsonNode.get("state").asText().equals("auth_success") && requestDTO.getStatus()) {
+            // Update Lending Application for ENACH
+       	 logger.info("Autherization was successful");
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
+            if (lendingApplication == null) {
+                responseDTO.setResponse(false);
+                responseDTO.setMessage("Loan Application not found");
+                return responseDTO;
+            }
+            lendingApplication.setNachType("ENACH");
+            lendingApplication.setNachLender("BHARATPE");
+            lendingApplication.setNachStatus("APPROVED");
+            lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
+            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+            if (prevLoans != null && prevLoans.size() > 0) {
+                lendingApplication.setStatus("approved");
+                lendingApplication.setManualKyc("APPROVED");
+                lendingApplication.setManualCibil("APPROVED");
+                lendingApplication.setPhysicalVerificationStatus("APPROVED");
+            }
+            lendingApplicationDao.save(lendingApplication);
+        }
+        return responseDTO;
+   }
 
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -162,7 +224,7 @@ public class ENachService {
         return new ResponseDTO(true, null, null);
     }
 
-    // fetch if bank is supported or not
+    // check if bank is supported or not
     public String fetchBankCode(String ifscCode, String mode){
         LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode, mode);
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
@@ -255,10 +317,10 @@ public class ENachService {
     	
     	HttpEntity<DigioEnachInitiationRequestDTO> request = new HttpEntity<>(digioEnach, headers);
     	try {
-    		logger.info("Hitting digio for the enach initiation");
-    		String response = restTemplate.postForObject(ExperianConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
+    		logger.info("Hitting digio API for the enach initiation");
+    		String response = restTemplate.postForObject(LendingConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
     		JsonNode jsonNode=objectMapper.readTree(response);
-    		if(jsonNode.has("mandate_id")) {
+    		if(jsonNode.has("mandate_id") && !jsonNode.get("mandate_id").isNull()) {
     			enachInitiationResponseDto.getData().setMandate_id(jsonNode.get("mandate_id").asText());
     			enachInitiationResponseDto.getData().setCustomer_identifier(merchant.getMobile());
     		}
