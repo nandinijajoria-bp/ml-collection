@@ -225,6 +225,9 @@ public class LoanDetailsService {
 							bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
 						}
 						if ((lendingEnach == null || !lendingEnach.getSkip()) && (lendingEnach == null || (lendingEnach.getStatus() == null || !lendingEnach.getStatus())) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+							if (merchant.getId().equals(5277086L)) {
+								enach = "bharatpe://enachdigio";//set deep link for enach digio
+							}
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
