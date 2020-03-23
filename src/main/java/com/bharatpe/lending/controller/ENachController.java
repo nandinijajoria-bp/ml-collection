@@ -30,7 +30,7 @@ public class ENachController {
 	private String enachServiceToUse;
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion) {
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
@@ -39,7 +39,7 @@ public class ENachController {
 				return new ResponseEntity<>(responseDTO, HttpStatus.OK);
 			}
 			else if(enachServiceToUse.equals("techprocess")) {
-				return new ResponseEntity<>(eNachService.eNachInitiate(merchant), HttpStatus.OK);
+				return new ResponseEntity<>(eNachService.eNachInitiate(merchant, appVersion), HttpStatus.OK);
 			} 
 			else {
 				return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant), HttpStatus.OK);

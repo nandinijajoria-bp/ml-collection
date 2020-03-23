@@ -73,7 +73,7 @@ public class ENachService {
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
     // if bank is suported , insert in ENach Detail Table.
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant){
+    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion){
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
         final double LOAN_AMOUNT = 100000d;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -91,7 +91,12 @@ public class ENachService {
             logger.error("No Bank detail found for Merchant - {}", merchant.getId());
             return responseDTO;
         }
-        String bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+        String bankCode;
+        if (appVersion != null && Integer.parseInt(appVersion) >= 238) {
+            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
+        } else {
+            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+        }
         if(bankCode == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Bank not supported for Enach");
@@ -109,7 +114,7 @@ public class ENachService {
     //Submit enach for digio
 
     public ENachIntitiationResponseDTO submitEnachForDigio(Merchant merchant, ENachSubmitRequestDTO requestDTO){
-   	 ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
 
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
@@ -126,23 +131,23 @@ public class ENachService {
         lendingEnach.setStatusMessage(requestDTO.getStatusMessage());
         lendingEnachDao.save(lendingEnach);
 
-      //calling digio api to check if enach is success
+        //calling digio api to check if enach is success
         JsonNode jsonNode=null;
-    	try {
-    	String URL=LendingConstants.DIGIO_ENACH_STATUS_CHECK+requestDTO.getMandateId();
-    	HttpHeaders header=new HttpHeaders();
-    	header.add("Authorization",authorization);
-    	HttpEntity<String> request=new HttpEntity<String>(header);
-    	ResponseEntity<String> response=restTemplate.exchange(URL, HttpMethod.GET,request,String.class);
-    	String jsonResonse=response.getBody();
-    	jsonNode=objectMapper.readTree(jsonResonse);
-    	}
-    	catch(Exception e){
-    		logger.error("Error occured while fetching enach autherization data",e);
-    	}
+        try {
+            String URL=LendingConstants.DIGIO_ENACH_STATUS_CHECK+requestDTO.getMandateId();
+            HttpHeaders header=new HttpHeaders();
+            header.add("Authorization",authorization);
+            HttpEntity<String> request=new HttpEntity<String>(header);
+            ResponseEntity<String> response=restTemplate.exchange(URL, HttpMethod.GET,request,String.class);
+            String jsonResonse=response.getBody();
+            jsonNode=objectMapper.readTree(jsonResonse);
+        }
+        catch(Exception e){
+            logger.error("Error occured while fetching enach autherization data",e);
+        }
         if (jsonNode!=null && jsonNode.has("state") && jsonNode.get("state").asText().equals("auth_success") && requestDTO.getStatus()) {
             // Update Lending Application for ENACH
-       	 logger.info("Autherization was successful");
+            logger.info("Autherization was successful");
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
             if (lendingApplication == null) {
                 responseDTO.setResponse(false);
@@ -163,7 +168,7 @@ public class ENachService {
             lendingApplicationDao.save(lendingApplication);
         }
         return responseDTO;
-   }
+    }
 
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();

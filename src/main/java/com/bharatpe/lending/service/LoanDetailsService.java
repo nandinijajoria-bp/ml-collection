@@ -101,6 +101,9 @@ public class LoanDetailsService {
 	@Autowired
 	LendingClosedAuditDao lendingClosedAuditDao;
 
+	@Value("${enach.provider}")
+	private String enachServiceToUse;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -237,9 +240,18 @@ public class LoanDetailsService {
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					try {
-						String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+						String bankCode;
+						if (requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
+							bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
+						} else {
+							bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+						}
 						if ((lendingEnach == null || !lendingEnach.getSkip()) && (lendingEnach == null || (lendingEnach.getStatus() == null || !lendingEnach.getStatus())) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
-							enach = "bharatpe://enachtp";//set deep link for enach
+							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
+								enach = "bharatpe://enachdigio";//set deep link for enach digio
+							} else {
+								enach = "bharatpe://enachtp";//set deep link for enach techprocess
+							}
 						}
 					} catch (Exception e) {
 						logger.error("Exception while checking enach bank", e);
