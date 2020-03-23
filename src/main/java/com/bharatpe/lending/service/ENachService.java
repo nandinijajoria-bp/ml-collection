@@ -68,12 +68,11 @@ public class ENachService {
     @Value("${enach.digio.authorization}")
     String authorization;
 
-    SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
-
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
     // if bank is suported , insert in ENach Detail Table.
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion){
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
         final double LOAN_AMOUNT = 100000d;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -236,7 +235,6 @@ public class ENachService {
     }
     
     public ENachIntitiationResponseDTO enachInititateForDigio(Merchant merchant){
-    	
     	ENachIntitiationResponseDTO enachInitiationResponseDto=new ENachIntitiationResponseDTO();
     	enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
     	//populating lending application
@@ -283,9 +281,9 @@ public class ENachService {
     	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfscCode());
     	digioEnach.getMandate_data().setDestination_bank_name(merchantBankDetail.getBankName());
     	digioEnach.getMandate_data().setCustomer_account_number(merchantBankDetail.getAccountNumber());
-    	
-    	
-    	sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
     	String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
     	digioEnach.getMandate_data().setFirst_collection_date(mandateDate);
     	
