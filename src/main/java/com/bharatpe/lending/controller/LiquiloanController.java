@@ -17,7 +17,7 @@ import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.LiquiloansService;
 
 @RestController
-@RequestMapping("lending/liquiloan")
+@RequestMapping("lending/liquiloan/*")
 public class LiquiloanController {
 	
 	@Autowired
@@ -26,7 +26,7 @@ public class LiquiloanController {
 	
 	Logger logger=LoggerFactory.getLogger(LiquiloanController.class);
 	
-	@RequestMapping(value = "/getStatus", method =RequestMethod.POST)
+	@RequestMapping(value = "getStatus", method =RequestMethod.POST)
 	public ResponseEntity<ResponseDTO> checkLoanStatus(@RequestBody LiquiloanCallbackRequestDTO callbackRequestDto){
 		//fetching lending application for given liquiloan_loan_id and bp_loan_id
 		return new ResponseEntity<>(liquilaonService.checkLoanStatus(callbackRequestDto),HttpStatus.OK);

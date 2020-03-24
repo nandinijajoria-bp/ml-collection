@@ -31,8 +31,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	void updateApplicationManualKyc(String status, Long applicationId);
 	
 	
-	@Query(value="select * from lending_application where external_loan_id=:externalLoanId and ll_loan_id=:llLoanId and status=:status", nativeQuery = true)
-	LendingApplication findByExternalLoanIdLlLoanIdAndStatus(String externalLoanId, String llLoanId,String status);
+	@Query(value="select * from lending_application where external_loan_id=:externalLoanId and nbfc_id=:nbfcId and status=:status", nativeQuery = true)
+	LendingApplication findByExternalLoanIdNbfcIdAndStatus(String externalLoanId, String nbfcId,String status);
 	
 	List<LendingPaymentSchedule> findByMerchant(Merchant merchant);
 }

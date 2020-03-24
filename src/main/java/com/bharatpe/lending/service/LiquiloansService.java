@@ -104,7 +104,7 @@ public class LiquiloansService {
     public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto) {
     	logger.info("Fetching lending application for given liquiloan_loan_id and bp_loan_id");
     	try {
-		LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdLlLoanIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
+		LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
 		if(lendingApplication==null) {
 			return new ResponseDTO(false,"loan application not found",null);
 		}
