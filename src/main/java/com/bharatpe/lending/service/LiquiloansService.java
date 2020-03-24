@@ -20,12 +20,17 @@ import org.springframework.web.client.RestTemplate;
 
 import com.bharatpe.common.dao.ExternalGatewayDao;
 import com.bharatpe.common.dao.LendingPancardDao;
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.ExternalGateway;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPancard;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 
@@ -51,6 +56,12 @@ public class LiquiloansService {
     
     @Autowired
     LendingPancardDao lendingPancardDao;
+    
+    @Autowired
+    MerchantDao merchantDao;
+    
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
     
     public LendingPancard fetchNameOnPancard(String pancardNumber, Long merchantId) {
         String name = null;
@@ -122,5 +133,44 @@ public class LiquiloansService {
     		logger.error("Error occured while updating lending application disbursal status",e);
     		return new ResponseDTO(false,"Error occured while updating disbursal status",null);
     	}
+    }
+    
+    public ResponseEntity<String> populateLendingPaymentSchedule(LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
+    	
+    	try{
+    		logger.info("Fetching merchant for the merchant id {}",postPayoutRequestDto.getMerchantId());
+    		Merchant merchant=merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId())).get();
+    		if(merchant==null){
+    			logger.error("Merchant not found for the merchant id {}",postPayoutRequestDto.getMerchantId());
+    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);	
+    		}
+    		logger.info("Fetching loan application on the basis of application id and merchant");
+    		LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant);
+    		
+    		if(lendingApplication==null){
+    			logger.error("Error occured while fetching loan application for loan id {} and merchant {}",postPayoutRequestDto.getApplicationId(),merchant);
+    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
+    		}
+    		
+    		LendingPaymentSchedule lendingPaymentSchedule=new LendingPaymentSchedule();
+    		
+    		logger.info("Popualting data into lending_payment_schedule table");
+    		lendingPaymentSchedule.setApplicationId(lendingApplication.getId());
+    		lendingPaymentSchedule.setMerchant(merchant);
+    		lendingPaymentSchedule.setLoanAmount(lendingApplication.getLoanAmount());
+    		lendingPaymentSchedule.setLoanType(lendingApplication.getLoanType());
+    		lendingPaymentSchedule.setMobile(merchant.getMobile());
+    		lendingPaymentSchedule.setEdiAmount(lendingApplication.getEdi());
+    		lendingPaymentSchedule.setStatus("ACTIVE");
+    		lendingPaymentSchedule.setNbfc("LIQUILOANS");
+    		
+    		lendingApplicationDao.save(lendingApplication);
+    		
+    	}
+    	catch(Exception e){
+    		logger.error("Error occured while populating data into lending_payment_schedule table",e);
+    		return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
+    	}
+    	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
 }

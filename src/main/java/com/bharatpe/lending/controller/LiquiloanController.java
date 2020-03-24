@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.LiquiloansService;
@@ -30,5 +31,10 @@ public class LiquiloanController {
 	public ResponseEntity<ResponseDTO> checkLoanStatus(@RequestBody LiquiloanCallbackRequestDTO callbackRequestDto){
 		//fetching lending application for given liquiloan_loan_id and bp_loan_id
 		return new ResponseEntity<>(liquilaonService.checkLoanStatus(callbackRequestDto),HttpStatus.OK);
+	}
+	
+	@RequestMapping(value="postPayoutStatusUpdate",method=RequestMethod.POST)
+	public ResponseEntity<String> postPayoutStatusUpdate(@RequestBody LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
+		return null;
 	}
 }
