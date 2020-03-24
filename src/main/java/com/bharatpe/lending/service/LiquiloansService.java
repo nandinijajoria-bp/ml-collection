@@ -11,7 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -19,9 +21,13 @@ import org.springframework.web.client.RestTemplate;
 import com.bharatpe.common.dao.ExternalGatewayDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.ExternalGateway;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
 
 @Component
 public class LiquiloansService {
@@ -39,6 +45,9 @@ public class LiquiloansService {
     
     @Autowired
     RestTemplate restTemplate;
+    
+    @Autowired
+	LendingApplicationDao lendingApplicationDao;
     
     @Autowired
     LendingPancardDao lendingPancardDao;
@@ -90,5 +99,28 @@ public class LiquiloansService {
             logger.error("Exception---", e);
         }
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
+    }
+    
+    public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto) {
+    	logger.info("Fetching lending application for given liquiloan_loan_id and bp_loan_id");
+    	try {
+		LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdLlLoanIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
+		if(lendingApplication==null) {
+			return new ResponseDTO(false,"loan application not found",null);
+		}
+		else if(callbackRequestDto.getStatus().equals("approved") || callbackRequestDto.getStatus().equals("rejected") || callbackRequestDto.getStatus().equals("disbursed")){
+			lendingApplication.setLoanDisbursalStatus(callbackRequestDto.getStatus());
+			lendingApplicationDao.save(lendingApplication);
+			return new ResponseDTO(true,null,null);
+		}
+		
+		else {
+			return new ResponseDTO(false,"invalid loan status",null);
+		}
+    	}
+    	catch(Exception e){
+    		logger.error("Error occured while updating lending application disbursal status",e);
+    		return new ResponseDTO(false,"Error occured while updating disbursal status",null);
+    	}
     }
 }
