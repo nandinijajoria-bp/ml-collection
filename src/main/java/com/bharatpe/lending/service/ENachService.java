@@ -320,7 +320,7 @@ public class ENachService {
     	
     	HttpEntity<DigioEnachInitiationRequestDTO> request = new HttpEntity<>(digioEnach, headers);
     	try {
-    		logger.info("Hitting digio API for the enach initiation");
+    		logger.info("Hitting digio API for the enach initiation for merchant: {}", merchant.getId());
     		String response = restTemplate.postForObject(LendingConstants.DIGIO_ENACH_INITIATION_URL, request, String.class);
     		JsonNode jsonNode=objectMapper.readTree(response);
     		if(jsonNode.has("mandate_id") && !jsonNode.get("mandate_id").isNull()) {
@@ -328,17 +328,19 @@ public class ENachService {
     			enachInitiationResponseDto.getData().setCustomer_identifier(merchant.getMobile());
     		}
     		else {
-    			logger.error("Mandate not found");
+    			logger.error("Mandate not found for merchant: {}", merchant.getId());
     			enachInitiationResponseDto.setResponse(false);
         		enachInitiationResponseDto.setMessage("Mandate not created");
                 return enachInitiationResponseDto;
     		}
     	}
     	catch(Exception e) {
-    		logger.error("Error occured while fetching enach data from digio");
+    		logger.error("Error occured while fetching enach data from digio for merchant: {}", merchant.getId());
     		enachInitiationResponseDto.setResponse(false);
     		enachInitiationResponseDto.setMessage("Error occured while fetching enach data");
     	}
+        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), null, (double)digioEnach.getMandate_data().getMaximum_amount(), mandateDate, merchant.getMid());
+    	lendingEnachDao.save(lendingEnach);
     	return enachInitiationResponseDto;
     }
     

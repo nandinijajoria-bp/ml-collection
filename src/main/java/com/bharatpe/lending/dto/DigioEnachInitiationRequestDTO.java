@@ -43,7 +43,7 @@ public class DigioEnachInitiationRequestDTO {
 		
 		private Boolean is_recurring=true;
 		
-		private Integer maximum_amount=1;
+		private Integer maximum_amount=100000;
 		
 		
 		public String getDestination_bank_id() {
