@@ -230,7 +230,7 @@ public class LoanDetailsService {
 							} else {
 								enach = "bharatpe://enachtp";//set deep link for enach techprocess
 							}
-							if (merchant.getId().equals(1141505L)) {
+							if (merchant.getId().equals(1141505L) || merchant.getId().equals(5277086L)) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							}
 						}

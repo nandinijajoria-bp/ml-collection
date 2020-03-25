@@ -34,7 +34,7 @@ public class ENachController {
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
-			if (merchant.getId().equals(1141505L)) {
+			if (merchant.getId().equals(1141505L) || merchant.getId().equals(5277086L)) {
 				return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant), HttpStatus.OK);
 			}
 			if(enachServiceToUse==null || (!enachServiceToUse.equals("digio") && !enachServiceToUse.equals("techprocess"))){
@@ -58,7 +58,7 @@ public class ENachController {
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
 		logger.info("Enach Submit request : {}", body);
-		if (merchant.getId().equals(1141505L)) {
+		if (merchant.getId().equals(1141505L) || merchant.getId().equals(5277086L)) {
 			return new ResponseEntity<>(eNachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
 		}
 		if(enachServiceToUse.equals("techprocess")) {
