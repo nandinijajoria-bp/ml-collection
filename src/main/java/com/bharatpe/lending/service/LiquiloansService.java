@@ -1,19 +1,23 @@
 package com.bharatpe.lending.service;
 
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -29,6 +33,7 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
@@ -62,6 +67,15 @@ public class LiquiloansService {
     
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+    
+    @Autowired
+    Environment env;
+    
+    @Autowired
+    LendingCategoryDao lendingCategoryDao;
+    
+    @Autowired
+    private KafkaTemplate<String, Object> kafkaTemplate;
     
     public LendingPancard fetchNameOnPancard(String pancardNumber, Long merchantId) {
         String name = null;
@@ -119,8 +133,19 @@ public class LiquiloansService {
 		if(lendingApplication==null) {
 			return new ResponseDTO(false,"loan application not found",null);
 		}
-		else if(callbackRequestDto.getStatus().equals("approved") || callbackRequestDto.getStatus().equals("rejected") || callbackRequestDto.getStatus().equals("disbursed")){
-			lendingApplication.setLoanDisbursalStatus(callbackRequestDto.getStatus());
+		else if(callbackRequestDto.getStatus().equals("approved")){
+			lendingApplication.setLoanDisbursalStatus("pending");
+			lendingApplicationDao.save(lendingApplication);
+			publishForDisbursal(lendingApplication.getId());
+			return new ResponseDTO(true,null,null);
+		}
+		else if(callbackRequestDto.getStatus().equals("rejected")){
+			lendingApplication.setLoanDisbursalStatus("rejected");
+			lendingApplicationDao.save(lendingApplication);
+			return new ResponseDTO(true,null,null);
+		}
+		else if(callbackRequestDto.getStatus().equals("disbursed")){
+			lendingApplication.setLoanDisbursalStatus("disbursed");
 			lendingApplicationDao.save(lendingApplication);
 			return new ResponseDTO(true,null,null);
 		}
@@ -132,6 +157,19 @@ public class LiquiloansService {
     	catch(Exception e){
     		logger.error("Error occured while updating lending application disbursal status",e);
     		return new ResponseDTO(false,"Error occured while updating disbursal status",null);
+    	}
+    }
+    
+    public void publishForDisbursal(Long lendingAppId){
+    	
+    	Map<String, String> payloadMap =new HashMap<>();
+    	try {
+    		logger.info("Publishing aaplication_id of loan pending for disbursal to kafka");
+	    	payloadMap.put("lending_application_id",lendingAppId.toString());
+	    	kafkaTemplate.send(env.getProperty("kafka.topic.lending.payout"), lendingAppId.toString(), payloadMap);
+    	}
+    	catch(Exception e){
+    		logger.error("Error publishing lending application: {id} to kafka",lendingAppId);
     	}
     }
     
@@ -155,22 +193,103 @@ public class LiquiloansService {
     		LendingPaymentSchedule lendingPaymentSchedule=new LendingPaymentSchedule();
     		
     		logger.info("Popualting data into lending_payment_schedule table");
+    		
     		lendingPaymentSchedule.setApplicationId(lendingApplication.getId());
     		lendingPaymentSchedule.setMerchant(merchant);
     		lendingPaymentSchedule.setLoanAmount(lendingApplication.getLoanAmount());
-    		lendingPaymentSchedule.setLoanType(lendingApplication.getLoanType());
     		lendingPaymentSchedule.setMobile(merchant.getMobile());
     		lendingPaymentSchedule.setEdiAmount(lendingApplication.getEdi());
     		lendingPaymentSchedule.setStatus("ACTIVE");
-    		lendingPaymentSchedule.setNbfc("LIQUILOANS");
+    		lendingPaymentSchedule.setNbfc(lendingApplication.getLender());
     		
-    		lendingApplicationDao.save(lendingApplication);
     		
+    		
+    		
+    		lendingPaymentSchedule.setEdiCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
+    		lendingPaymentSchedule.setOverdueEdiCount(0);
+    		lendingPaymentSchedule.setDueAmount(0D);
+    		lendingPaymentSchedule.setIncentiveAmount(0D);
+    		lendingPaymentSchedule.setEdiRemainingCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
+    		lendingPaymentSchedule.setOverdueAmount(0D);
+    		lendingPaymentSchedule.setPaidAmount(0D);
+    		lendingPaymentSchedule.setTotalCashbackAmount(0D);
+    		lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
+    		lendingPaymentSchedule.setCreatedAt(new Date());
+    		lendingPaymentSchedule.setUpdatedAt(new Date());
+   
+    		
+    		String construct=lendingApplication.getLoanConstruct();
+    		lendingPaymentSchedule.setLoanConstruct(construct);
+    		
+    		Date date=new Date();
+    		
+    		SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd 00:00:00");
+    		
+    		//getting tommorow's date
+    		
+    		Date tomorrow = new Date(date.getTime() + (1000 * 60 * 60 * 24));  	
+    		//checking if next day is Sunday or not because we don't cut edi on Sunday
+    		if(tomorrow.getDay()==0) {
+    			tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
+    		}
+    		tomorrow=format.parse(format.format(tomorrow));
+    		
+    		//getting date after one month
+    		Date oneMonthLaterDate=getDateAfterNMonths(date, 1);
+    		if(oneMonthLaterDate.getDay()==0) {
+    			oneMonthLaterDate = new Date(oneMonthLaterDate.getTime() + (1000 * 60 * 60 * 24));
+    		}
+    		oneMonthLaterDate=format.parse(format.format(oneMonthLaterDate));
+    	    
+    	    
+    		if(construct.equals("CONSTRUCT_1")) {
+        		lendingPaymentSchedule.setStartDate(tomorrow);
+    		}
+    		else if(construct.equals("CONSTRUCT_2") || construct.equals("CONSTRUCT_3")) {
+    			
+    			lendingPaymentSchedule.setStartDate(oneMonthLaterDate);
+    			lendingPaymentSchedule.setInterestOnlyStartDate(tomorrow);		
+    			lendingPaymentSchedule.setInterestOnlyEdiAmount(lendingApplication.getIoEdi());
+    			lendingPaymentSchedule.setInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
+    		}
+    		else {
+    			logger.error("Wrong construct type found");
+    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
+    		}	
+    		
+    		lendingPaymentSchedule.setNextEdiDate(lendingPaymentSchedule.getStartDate());
+    		
+    		Date tenativeLoanEndDate=getDateAfterNMonths(date,lendingApplication.getTenureInMonths()); 
+    		if(tenativeLoanEndDate==null){
+    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);	
+    		}
+    		lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
+    		lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
     		return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
     	}
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
+    }
+    
+    public Date getDateAfterNMonths(Date startDate, int month){
+    	
+    	try {
+    		logger.info("Getting date after N month");
+    
+        	Calendar myCal = Calendar.getInstance();
+            myCal.setTime(startDate);   
+            myCal.add(Calendar.MONTH, +month);   
+            Date tentativeEndDate = myCal.getTime();
+            SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd 00:00:00");
+            return format.parse(format.format(tentativeEndDate));
+    	}
+    	catch(Exception e){
+    		logger.error("Error occured while catculating date post N month",e);
+    		return null;
+    	}
+    	
+    	
     }
 }
