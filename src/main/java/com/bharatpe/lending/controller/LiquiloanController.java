@@ -14,6 +14,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
+import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.LiquiloansService;
 
@@ -40,5 +41,10 @@ public class LiquiloanController {
 			return liquilaonService.populateLendingPaymentSchedule(postPayoutRequestDto);
 		}
 		return new ResponseEntity<>("Ok", HttpStatus.OK);
+	}
+	
+	@RequestMapping(value="settlement",method=RequestMethod.POST)
+	public ResponseEntity<ResponseDTO> populateSettlementDetails(@RequestBody LiquiloanSettlementRequestDTO settlementRequestDto){
+		return new ResponseEntity<>(liquilaonService.populateSettlementDetails(settlementRequestDto),HttpStatus.OK);
 	}
 }

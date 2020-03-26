@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import com.bharatpe.common.dao.ExternalGatewayDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.DisbursalSettlement;
 import com.bharatpe.common.entities.ExternalGateway;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPancard;
@@ -29,12 +30,15 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.dao.DisbursalSettlementDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
+import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
 public class LiquiloansService {
@@ -70,6 +74,13 @@ public class LiquiloansService {
     
     @Autowired
     LendingCategoryDao lendingCategoryDao;
+    
+    @Autowired
+    DisbursalSettlementDao disbursalSettlementDao;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
     
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -288,5 +299,35 @@ public class LiquiloansService {
     	}
     	
     	
+    }
+    
+
+    public ResponseDTO populateSettlementDetails(LiquiloanSettlementRequestDTO settlementRequest){
+    	logger.info("Insertng disbursal settlement details");
+    	System.out.println(settlementRequest);
+    	try {
+    			String requestBody=objectMapper.writeValueAsString(settlementRequest);
+    			Date transferDate=new SimpleDateFormat("dd-MM-yyyy").parse(settlementRequest.getTransferDate());
+
+	    	for(LiquiloanSettlementRequestDTO.LoanData loanDetail : settlementRequest.getLoanDetails()){
+
+	    		DisbursalSettlement disbursalSettlement=new DisbursalSettlement();
+	    		disbursalSettlement.setAmount(Double.parseDouble(loanDetail.getAmount()));
+	    		disbursalSettlement.setLoanId(loanDetail.getLoanId());
+	    		disbursalSettlement.setNbfc("LIQUILOANS");
+	    		disbursalSettlement.setRequestBody(requestBody);
+	    		disbursalSettlement.setTransferDate(transferDate);
+	    		disbursalSettlement.setUrn(loanDetail.getUrn());
+	    		disbursalSettlement.setUtrNumber(settlementRequest.getUtrNumber());
+	    		disbursalSettlementDao.save(disbursalSettlement);
+	    	}
+
+    	}
+    	catch(Exception e){
+    		logger.error("Error occured while populating disbursal settlement details",e);
+    		return new ResponseDTO(false,"Error occured while processing settlemet details",null);
+    	}
+
+    	return new ResponseDTO(true,null,null);
     }
 }
