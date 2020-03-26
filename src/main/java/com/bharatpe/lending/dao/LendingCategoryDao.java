@@ -18,7 +18,4 @@ public interface LendingCategoryDao extends CrudRepository<LendingCategories, Lo
 
 	@Query(value = "select l from LendingCategories l where l.masterCategory=?1 and l.status='ACTIVE' and l.loanConstruct='CONSTRUCT_3' and l.payableConverter in ?2")
 	List<LendingCategories> getByMasterCategoryForConstruct3(String category, List<String> payableConverters);
-	
-	@Query("select distinct l.tenureMonths from LendingCategories l where l.payableDays=:payableDay and l.status='ACTIVE'")
-	Integer findByPayableDay(int payableDay);
 }
