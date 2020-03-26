@@ -27,7 +27,7 @@ public class LiquiloanController {
 	
 	Logger logger=LoggerFactory.getLogger(LiquiloanController.class);
 	
-	@RequestMapping(value = "getStatus", method =RequestMethod.POST)
+	@RequestMapping(value = "approveLoan", method =RequestMethod.POST)
 	public ResponseEntity<ResponseDTO> checkLoanStatus(@RequestBody LiquiloanCallbackRequestDTO callbackRequestDto){
 		//fetching lending application for given liquiloan_loan_id and bp_loan_id
 		return new ResponseEntity<>(liquilaonService.checkLoanStatus(callbackRequestDto),HttpStatus.OK);
@@ -36,7 +36,7 @@ public class LiquiloanController {
 	@RequestMapping(value="postPayoutStatusUpdate",method=RequestMethod.POST)
 	public ResponseEntity<String> postPayoutStatusUpdate(@RequestBody LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
 		
-		if(postPayoutRequestDto.getStatus().equals("approved")){
+		if(postPayoutRequestDto.getStatus().equalsIgnoreCase("approved")){
 			return liquilaonService.populateLendingPaymentSchedule(postPayoutRequestDto);
 		}
 		return new ResponseEntity<>("Ok", HttpStatus.OK);

@@ -1,10 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 
 import org.slf4j.Logger;
@@ -125,51 +122,51 @@ public class LiquiloansService {
         }
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
-    
-    public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto) {
-    	logger.info("Fetching lending application for given liquiloan_loan_id and bp_loan_id");
-    	try {
-		LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
-		if(lendingApplication==null) {
-			return new ResponseDTO(false,"loan application not found",null);
+
+	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto) {
+		logger.info("Fetching lending application for given liquiloan_loan_id and bp_loan_id");
+		try {
+			LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
+			if(lendingApplication==null) {
+				return new ResponseDTO(false,"loan application not found",null);
+			}
+			else if(callbackRequestDto.getStatus().equalsIgnoreCase("approved")){
+				lendingApplication.setLoanDisbursalStatus("PENDING");
+				lendingApplicationDao.save(lendingApplication);
+				publishForDisbursal(lendingApplication.getId());
+				return new ResponseDTO(true,null,null);
+			}
+			else if(callbackRequestDto.getStatus().equalsIgnoreCase("rejected")){
+				lendingApplication.setLoanDisbursalStatus("REJECTED");
+				lendingApplicationDao.save(lendingApplication);
+				return new ResponseDTO(true,null,null);
+			}
+			else if(callbackRequestDto.getStatus().equalsIgnoreCase("disbursed")){
+				lendingApplication.setLoanDisbursalStatus("DISBURSED");
+				lendingApplicationDao.save(lendingApplication);
+				return new ResponseDTO(true,null,null);
+			}
+
+			else {
+				return new ResponseDTO(false,"invalid loan status",null);
+			}
 		}
-		else if(callbackRequestDto.getStatus().equals("approved")){
-			lendingApplication.setLoanDisbursalStatus("pending");
-			lendingApplicationDao.save(lendingApplication);
-			publishForDisbursal(lendingApplication.getId());
-			return new ResponseDTO(true,null,null);
+		catch(Exception e){
+			logger.error("Error occured while updating lending application disbursal status",e);
+			return new ResponseDTO(false,"Error occurred while updating loan",null);
 		}
-		else if(callbackRequestDto.getStatus().equals("rejected")){
-			lendingApplication.setLoanDisbursalStatus("rejected");
-			lendingApplicationDao.save(lendingApplication);
-			return new ResponseDTO(true,null,null);
-		}
-		else if(callbackRequestDto.getStatus().equals("disbursed")){
-			lendingApplication.setLoanDisbursalStatus("disbursed");
-			lendingApplicationDao.save(lendingApplication);
-			return new ResponseDTO(true,null,null);
-		}
-		
-		else {
-			return new ResponseDTO(false,"invalid loan status",null);
-		}
-    	}
-    	catch(Exception e){
-    		logger.error("Error occured while updating lending application disbursal status",e);
-    		return new ResponseDTO(false,"Error occured while updating disbursal status",null);
-    	}
-    }
+	}
     
     public void publishForDisbursal(Long lendingAppId){
     	
     	Map<String, String> payloadMap =new HashMap<>();
     	try {
-    		logger.info("Publishing aaplication_id of loan pending for disbursal to kafka");
+    		logger.info("Publishing aaplication_id: {} of loan pending for disbursal to kafka", lendingAppId);
 	    	payloadMap.put("lending_application_id",lendingAppId.toString());
-	    	kafkaTemplate.send(env.getProperty("kafka.topic.lending.payout"), lendingAppId.toString(), payloadMap);
+	    	kafkaTemplate.send(Objects.requireNonNull(env.getProperty("kafka.topic.lending.payout")), lendingAppId.toString(), payloadMap);
     	}
     	catch(Exception e){
-    		logger.error("Error publishing lending application: {id} to kafka",lendingAppId);
+    		logger.error("Error publishing lending application: {} to kafka for disbursal",lendingAppId);
     	}
     }
     
@@ -177,34 +174,36 @@ public class LiquiloansService {
     	
     	try{
     		logger.info("Fetching merchant for the merchant id {}",postPayoutRequestDto.getMerchantId());
-    		Merchant merchant=merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId())).get();
-    		if(merchant==null){
+			Optional<Merchant> merchant=merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId()));
+    		if(!merchant.isPresent()){
     			logger.error("Merchant not found for the merchant id {}",postPayoutRequestDto.getMerchantId());
-    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);	
+    			return new ResponseEntity<>("Invalid merchantId", HttpStatus.BAD_REQUEST);
     		}
     		logger.info("Fetching loan application on the basis of application id and merchant");
-    		LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant);
+    		LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
     		
     		if(lendingApplication==null){
-    			logger.error("Error occured while fetching loan application for loan id {} and merchant {}",postPayoutRequestDto.getApplicationId(),merchant);
-    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
+    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
     		}
+
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
+    		if (lendingPaymentSchedule != null) {
+				logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.",postPayoutRequestDto.getApplicationId(),merchant);
+				return new ResponseEntity<>("Duplicate Request", HttpStatus.BAD_REQUEST);
+			}
     		
-    		LendingPaymentSchedule lendingPaymentSchedule=new LendingPaymentSchedule();
+    		lendingPaymentSchedule=new LendingPaymentSchedule();
     		
-    		logger.info("Popualting data into lending_payment_schedule table");
+    		logger.info("Popualting data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
     		
-    		lendingPaymentSchedule.setApplicationId(lendingApplication.getId());
-    		lendingPaymentSchedule.setMerchant(merchant);
+    		lendingPaymentSchedule.setLoanApplication(lendingApplication);
+    		lendingPaymentSchedule.setMerchant(merchant.get());
     		lendingPaymentSchedule.setLoanAmount(lendingApplication.getLoanAmount());
-    		lendingPaymentSchedule.setMobile(merchant.getMobile());
+    		lendingPaymentSchedule.setMobile(merchant.get().getMobile());
     		lendingPaymentSchedule.setEdiAmount(lendingApplication.getEdi());
     		lendingPaymentSchedule.setStatus("ACTIVE");
     		lendingPaymentSchedule.setNbfc(lendingApplication.getLender());
-    		
-    		
-    		
-    		
     		lendingPaymentSchedule.setEdiCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
     		lendingPaymentSchedule.setOverdueEdiCount(0);
     		lendingPaymentSchedule.setDueAmount(0D);
@@ -216,8 +215,6 @@ public class LiquiloansService {
     		lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
     		lendingPaymentSchedule.setCreatedAt(new Date());
     		lendingPaymentSchedule.setUpdatedAt(new Date());
-   
-    		
     		String construct=lendingApplication.getLoanConstruct();
     		lendingPaymentSchedule.setLoanConstruct(construct);
     		
@@ -253,8 +250,8 @@ public class LiquiloansService {
     			lendingPaymentSchedule.setInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
     		}
     		else {
-    			logger.error("Wrong construct type found");
-    			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
+    			logger.error("Wrong construct type found for applicationId: {}", lendingApplication.getId());
+    			return new ResponseEntity<>("Wrong construct type found in application", HttpStatus.BAD_REQUEST);
     		}	
     		
     		lendingPaymentSchedule.setNextEdiDate(lendingPaymentSchedule.getStartDate());
@@ -268,7 +265,7 @@ public class LiquiloansService {
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
-    		return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);
+    		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
