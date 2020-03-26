@@ -320,8 +320,14 @@ public class LiquiloansService {
 	    		disbursalSettlement.setUrn(loanDetail.getUrn());
 	    		disbursalSettlement.setUtrNumber(settlementRequest.getUtrNumber());
 	    		disbursalSettlementDao.save(disbursalSettlement);
+	    		
+	    		logger.info("Populating 'disbursal_settlement_id' field in table 'lending_payment_schedule' for loan id {}",loanDetail.getLoanId());
+	    		if(!updateDisbursalSettlementIdInLendingPaymentSchedule(loanDetail.getLoanId(),loanDetail.getUrn(),disbursalSettlement.getId())){
+	    			return new ResponseDTO(false,"Error occured while processing settlemet details",null);
+	    		}
+	    	
 	    	}
-
+	    	
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating disbursal settlement details",e);
@@ -329,5 +335,33 @@ public class LiquiloansService {
     	}
 
     	return new ResponseDTO(true,null,null);
+    }
+    
+    public boolean updateDisbursalSettlementIdInLendingPaymentSchedule(String loanId, String urnId, Integer settlementId){
+    	logger.info("Fetching lending application for the externa loan id {} and nbfc id {}",urnId,loanId);
+    	try {
+    	LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(urnId, loanId, "approved");
+    	
+    	if(lendingApplication==null) {
+    		logger.error("Lending application not found");
+    		return false;
+    	}
+    	
+    	logger.info("Fetching lending payment schedule details for lending appliation {}",lendingApplication.getId());
+    	
+    	LendingPaymentSchedule lendingPaymentSchedule =lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+    	
+    	if(lendingPaymentSchedule==null){
+    		logger.error("Lending payment schedule not found");
+    		return false;
+    	}
+    	lendingPaymentSchedule.setDisbursalSettlementId(settlementId);
+    	lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+    	}
+    	catch(Exception e) {
+    		logger.error("error occured while updating 'disbursal_settlement_id' In lending_payment_schedule table",e);
+    		return false;
+    	}
+    	return true;
     }
 }
