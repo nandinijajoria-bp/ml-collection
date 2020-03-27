@@ -15,7 +15,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	private ValidateLiquiloanTokenInterceptor validateLiquiloanTokenInterceptor;
 	
 	@Autowired
-	private ClientHmacInterceptor clientHmacInterceptor;
+	private InternalClientHmacInterceptor clientHmacInterceptor;
 	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {

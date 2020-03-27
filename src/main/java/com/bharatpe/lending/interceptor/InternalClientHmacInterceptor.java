@@ -2,9 +2,7 @@ package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dto.Response;
@@ -26,8 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
-public class ClientHmacInterceptor implements HandlerInterceptor {
-    Logger logger = LoggerFactory.getLogger(ClientHmacInterceptor.class);
+public class InternalClientHmacInterceptor implements HandlerInterceptor {
+    Logger logger = LoggerFactory.getLogger(InternalClientHmacInterceptor.class);
 
     @Autowired
     private HmacCalculator hmacCalculator;
