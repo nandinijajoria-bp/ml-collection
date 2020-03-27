@@ -296,7 +296,7 @@ public class LiquiloansService {
     public Date getDateAfterNMonths(Date startDate, int month){
     	
     	try {
-    		logger.info("Getting date after N month");
+    		logger.info("Getting date after {} month",month);
     
         	Calendar myCal = Calendar.getInstance();
             myCal.setTime(startDate);   
