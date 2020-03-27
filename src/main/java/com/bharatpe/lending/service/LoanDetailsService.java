@@ -230,9 +230,9 @@ public class LoanDetailsService {
 							} else {
 								enach = "bharatpe://enachtp";//set deep link for enach techprocess
 							}
-							if (merchant.getId().equals(1141505L)) {
-								enach = "bharatpe://enachdigio";//set deep link for enach digio
-							}
+//							if (merchant.getId().equals(1141505L)) {
+//								enach = "bharatpe://enachdigio";//set deep link for enach digio
+//							}
 						}
 					} catch (Exception e) {
 						logger.error("Exception while checking enach bank", e);
