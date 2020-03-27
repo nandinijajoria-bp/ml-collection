@@ -182,7 +182,7 @@ public class LiquiloansService {
     }
     
     public ResponseEntity<String> populateLendingPaymentSchedule(LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
-    	
+    	LendingApplication lendingApplication=null;
     	try{
     		logger.info("Fetching merchant for the merchant id {}",postPayoutRequestDto.getMerchantId());
 			Optional<Merchant> merchant=merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId()));
@@ -191,12 +191,17 @@ public class LiquiloansService {
     			return new ResponseEntity<>("Invalid merchantId", HttpStatus.BAD_REQUEST);
     		}
     		logger.info("Fetching loan application on the basis of application id and merchant");
-    		LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
+    		lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
+    		
     		
     		if(lendingApplication==null){
     			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
     			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
     		}
+    		
+    		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
+    		lendingApplication.setLoanDisbursalStatus("DISBURSED");
+    		lendingApplicationDao.save(lendingApplication);
 
 			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
     		if (lendingPaymentSchedule != null) {
@@ -276,6 +281,13 @@ public class LiquiloansService {
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
+    		
+    		logger.info("Changing loan_disbursal_status back to 'PENDING'");
+    		if(lendingApplication!=null){
+    			lendingApplication.setLoanDisbursalStatus("PENDING");
+    			lendingApplicationDao.save(lendingApplication);
+    		}		
+    		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
