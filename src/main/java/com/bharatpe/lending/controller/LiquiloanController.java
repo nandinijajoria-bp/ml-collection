@@ -37,7 +37,7 @@ public class LiquiloanController {
 	@RequestMapping(value="postPayoutStatusUpdate",method=RequestMethod.POST)
 	public ResponseEntity<String> postPayoutStatusUpdate(@RequestBody LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
 		
-		if(postPayoutRequestDto.getStatus().equalsIgnoreCase("approved")){
+		if(postPayoutRequestDto.getStatus().equalsIgnoreCase("SUCCESS")){
 			return liquilaonService.populateLendingPaymentSchedule(postPayoutRequestDto);
 		}
 		return new ResponseEntity<>("Ok", HttpStatus.OK);
