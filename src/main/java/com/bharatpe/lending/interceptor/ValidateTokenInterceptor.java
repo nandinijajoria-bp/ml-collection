@@ -34,7 +34,6 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
 	
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		logger.info("Pre handle Interceptor of ValidateTokenInterceptor for {}",request);
-		
         String token = request.getHeader("token");
         
         try {

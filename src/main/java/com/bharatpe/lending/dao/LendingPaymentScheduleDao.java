@@ -17,4 +17,7 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	List<LendingPaymentSchedule> findByMerchantIdOrderByIdDesc(Long merchantId);
 	@Query(value = "SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId ORDER BY start_date DESC", nativeQuery = true)
 	List<LendingPaymentSchedule> findPreviousLoansByMerchant(Long merchantId);
+
+	@Query(value = "select * from lending_payment_schedule WHERE merchant_id = :merchantId and application_id=:applicationId", nativeQuery = true)
+	LendingPaymentSchedule findByMerchantIdAndApplicationId(Long merchantId, Long applicationId);
 }
