@@ -6,6 +6,7 @@ import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -199,13 +200,15 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
-//            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
-//            if (prevLoans != null && prevLoans.size() > 0) {
-//                lendingApplication.setStatus("approved");
-//                lendingApplication.setManualKyc("APPROVED");
-//                lendingApplication.setManualCibil("APPROVED");
-//                lendingApplication.setPhysicalVerificationStatus("APPROVED");
-//            }
+            if (!ExperianConstants.LOCKDOWN) {
+                List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+                if (prevLoans != null && prevLoans.size() > 0) {
+                    lendingApplication.setStatus("approved");
+                    lendingApplication.setManualKyc("APPROVED");
+                    lendingApplication.setManualCibil("APPROVED");
+                    lendingApplication.setPhysicalVerificationStatus("APPROVED");
+                }
+            }
             lendingApplicationDao.save(lendingApplication);
         }
         return responseDTO;

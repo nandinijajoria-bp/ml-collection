@@ -101,8 +101,15 @@ public class LoanEligibleService {
     MerchantSummaryLendingDao merchantSummaryLendingDao;
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending){
-        Double bpScore = (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) ? merchantSummaryLending.getBpScore() : 0D;
-        double tpvLast30Days = (merchantSummaryLending != null && merchantSummaryLending.getTpv() != null) ? merchantSummaryLending.getTpv() : 0D;
+        Double bpScore;
+        double tpvLast30Days;
+        if (ExperianConstants.LOCKDOWN) {
+            bpScore = (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) ? merchantSummaryLending.getBpScore() : 0D;
+            tpvLast30Days = (merchantSummaryLending != null && merchantSummaryLending.getTpv() != null) ? merchantSummaryLending.getTpv() : 0D;
+        } else {
+            bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
+            tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
+        }
         int txnLast30Days = 30;
         double avgTpv = tpvLast30Days/txnLast30Days;
         List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
@@ -491,7 +498,12 @@ public class LoanEligibleService {
     }
 
     private LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set) {
-        double percentage = set.equalsIgnoreCase("1") ? (lendingCategories.getMultiplier() - 0.1) : lendingCategories.getMultiplier();
+        double percentage;
+        if (ExperianConstants.LOCKDOWN) {
+            percentage = set.equalsIgnoreCase("1") ? (lendingCategories.getMultiplier() - 0.1) : lendingCategories.getMultiplier();
+        } else {
+            percentage = lendingCategories.getMultiplier();
+        }
         double interest = lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
@@ -509,12 +521,22 @@ public class LoanEligibleService {
         } else {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
         }
-        if (set.equalsIgnoreCase("1") && breakup.getLoanAmount() < 20000) {
-            logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
-            return null;
-        } else if (breakup.getLoanAmount() < 10000) {
-            logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
-            return null;
+        if (ExperianConstants.LOCKDOWN) {
+            if (set.equalsIgnoreCase("1") && breakup.getLoanAmount() < 20000) {
+                logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
+                return null;
+            } else if (breakup.getLoanAmount() < 10000) {
+                logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
+                return null;
+            }
+        } else {
+            if (color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000) {
+                logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
+                return null;
+            } else if (breakup.getLoanAmount() < 10000) {
+                logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
+                return null;
+            }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
         EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, "REGULAR"));

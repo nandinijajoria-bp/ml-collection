@@ -131,12 +131,22 @@ public class LoanDetailsService {
 			if (requestDTO.getPayload().getPanCard() != null) {
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
-				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) ? merchantSummaryLending.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+				if (ExperianConstants.LOCKDOWN) {
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) ? merchantSummaryLending.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+				} else {
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+				}
 			}
 			if (experian != null && experian.getPancardNumber() != null) {
 				panCard = experian.getPancardNumber();
-				if (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) {
-					experian.setBpScore(merchantSummaryLending.getBpScore());
+				if (ExperianConstants.LOCKDOWN) {
+					if (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) {
+						experian.setBpScore(merchantSummaryLending.getBpScore());
+					}
+				} else {
+					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
+						experian.setBpScore(merchantSummary.getBpScore());
+					}
 				}
 			}
 			if (requestDTO.getPayload().getPincode() != null) {
@@ -220,9 +230,14 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
-					loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
-					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
+					if (ExperianConstants.LOCKDOWN) {
+						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
+						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
+					} else {
+						loanApplicationDTO.setStatusTitle("Application submitted successfully!");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					}
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					try {
@@ -248,16 +263,30 @@ public class LoanDetailsService {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
-					if (enachSuccess) {
-						accountDetails = true;
-						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
-					} else if (lendingEnach != null && !lendingEnach.getSkip()) {
-						loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
+					if (ExperianConstants.LOCKDOWN) {
+						if (enachSuccess) {
+							accountDetails = true;
+							loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within 10 days after Lockdown ends.");
+						} else if (lendingEnach != null && !lendingEnach.getSkip()) {
+							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within 3 days after Lockdown opens for physical verification.");
+						} else {
+							loanApplicationDTO.setStatusTitle("Physical Verification Pending");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within 3 days after Lockdown opens for physical verification.");
+						}
 					} else {
-						loanApplicationDTO.setStatusTitle("Physical Verification Pending");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
+						if (enachSuccess) {
+							accountDetails = true;
+							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
+						} else if (lendingEnach != null && !lendingEnach.getSkip()) {
+							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+						} else {
+							loanApplicationDTO.setStatusTitle("Application submitted successfully!");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+						}
 					}
 				} else if("draft".equals(lendingApplication.getStatus())) {
 					eligibleFlag = false;
@@ -648,16 +677,19 @@ public class LoanDetailsService {
 			history.setStartDate(null);
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
-			history.setLoanStatusHeader("Loan Pre-Booked Successfully");
-			history.setLoanStatusTitle("Loan Transfer Post Lockdown");
-			history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
-//			if (enachSuccess && repeatLoan) {
-//				history.setLoanStatusTitle("Loan Approved");
-//				history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
-//			} else {
-//				history.setLoanStatusTitle("Loan Approved");
-//				history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
-//			}
+			if (ExperianConstants.LOCKDOWN) {
+				history.setLoanStatusHeader("Loan Pre-Booked Successfully");
+				history.setLoanStatusTitle("Loan Transfer Post Lockdown");
+				history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within 10 days after Lockdown ends.");
+			} else {
+				if (enachSuccess && repeatLoan) {
+					history.setLoanStatusTitle("Loan Approved");
+					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
+				} else {
+					history.setLoanStatusTitle("Loan Approved");
+					history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
+				}
+			}
 			history.setRepaid(0D);
 			history.setDue(application.getRepayment());
 
