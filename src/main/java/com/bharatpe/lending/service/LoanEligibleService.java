@@ -491,6 +491,7 @@ public class LoanEligibleService {
     }
 
     private LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set) {
+        logger.info("avg tpv is {} for merchant: {}", avgTpv, merchantId);
         double percentage = set.equalsIgnoreCase("1") ? (lendingCategories.getMultiplier() - 0.1) : lendingCategories.getMultiplier();
         double interest = lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
