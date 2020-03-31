@@ -267,10 +267,10 @@ public class LoanDetailsService {
 						if (enachSuccess) {
 							accountDetails = true;
 							loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within 10 days after Lockdown ends.");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 						} else if (lendingEnach != null && !lendingEnach.getSkip()) {
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within 3 days after Lockdown opens for physical verification.");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
 						} else {
 							loanApplicationDTO.setStatusTitle("Physical Verification Pending");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
@@ -680,7 +680,7 @@ public class LoanDetailsService {
 			if (ExperianConstants.LOCKDOWN) {
 				history.setLoanStatusHeader("Loan Pre-Booked Successfully");
 				history.setLoanStatusTitle("Loan Transfer Post Lockdown");
-				history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within 10 days after Lockdown ends.");
+				history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 			} else {
 				if (enachSuccess && repeatLoan) {
 					history.setLoanStatusTitle("Loan Approved");
