@@ -102,6 +102,9 @@ public class LoanDetailsService {
 	@Autowired
 	LendingClosedAuditDao lendingClosedAuditDao;
 
+	@Autowired
+	MerchantSummaryLendingDao merchantSummaryLendingDao;
+
 	@Value("${enach.provider}")
 	private String enachServiceToUse;
 
@@ -110,9 +113,11 @@ public class LoanDetailsService {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+			MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
+			boolean accountDetails = false;
 			String enach = null;
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
@@ -126,12 +131,12 @@ public class LoanDetailsService {
 			if (requestDTO.getPayload().getPanCard() != null) {
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
-				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) ? merchantSummaryLending.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 			}
 			if (experian != null && experian.getPancardNumber() != null) {
 				panCard = experian.getPancardNumber();
-				if (merchantSummary != null && merchantSummary.getBpScore() != null) {
-					experian.setBpScore(merchantSummary.getBpScore());
+				if (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) {
+					experian.setBpScore(merchantSummaryLending.getBpScore());
 				}
 			}
 			if (requestDTO.getPayload().getPincode() != null) {
@@ -200,6 +205,7 @@ public class LoanDetailsService {
 					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(auditTrial, 7)) {
 						eligibleFlag = false;
 						loanHistoryDTOs = null;
+						loanApplicationDTO.setStatusHeader("Loan Approved");
 						loanApplicationDTO.setStatusTitle("Verification Failed!");
 						if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
 							loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment. Please write to us on  support@bharatpe.com to apply again.");
@@ -213,8 +219,10 @@ public class LoanDetailsService {
 					}
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
-					loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+					accountDetails = true;
+					loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
+					loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
+					loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					try {
@@ -239,15 +247,17 @@ public class LoanDetailsService {
 					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
+					loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 					if (enachSuccess) {
-						loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
+						accountDetails = true;
+						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 					} else if (lendingEnach != null) {
 						loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
 					} else {
-						loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+						loanApplicationDTO.setStatusTitle("Physical Verification Pending");
+						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
 					}
 				} else if("draft".equals(lendingApplication.getStatus())) {
 					eligibleFlag = false;
@@ -264,7 +274,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setRejected(rejected);
 				loanDetailsDTO.setRejectReason(rejectReason);
 				loanDetailsDTO.setPanCard(panCard);
-				
+				loanDetailsDTO.setAccountDetails(accountDetails);
 //				if(!(pincode != null && lendingCity == null)) {
 //					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.getTopupLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
 //					loanDetailsDTO.setTopupLoan(topupLoans);
@@ -299,6 +309,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setRejectReason(rejectReason);
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setEnach(enach);
+				loanDetailsDTO.setAccountDetails(accountDetails);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -329,7 +340,7 @@ public class LoanDetailsService {
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null) {
 					try {
-						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard()));
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending));
 						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
@@ -390,6 +401,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setNoExperian(noExperian);
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
 			loanDetailsDTO.setTempClosed(tempClosed);
+			loanDetailsDTO.setAccountDetails(accountDetails);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
@@ -636,13 +648,16 @@ public class LoanDetailsService {
 			history.setStartDate(null);
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
-			if (enachSuccess && repeatLoan) {
-				history.setLoanStatusTitle("Loan Approved");
-				history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
-			} else {
-				history.setLoanStatusTitle("Loan Approved");
-				history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
-			}
+			history.setLoanStatusHeader("Loan Pre-Booked Successfully");
+			history.setLoanStatusTitle("Loan Transfer Post Lockdown");
+			history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
+//			if (enachSuccess && repeatLoan) {
+//				history.setLoanStatusTitle("Loan Approved");
+//				history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
+//			} else {
+//				history.setLoanStatusTitle("Loan Approved");
+//				history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
+//			}
 			history.setRepaid(0D);
 			history.setDue(application.getRepayment());
 

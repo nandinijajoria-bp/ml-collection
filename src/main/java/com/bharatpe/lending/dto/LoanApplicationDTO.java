@@ -35,6 +35,9 @@ public class LoanApplicationDTO {
 	@JsonProperty(value = "self_verification")
 	private boolean selfVerification = true;
 
+	@JsonProperty(value = "status_header")
+	private String statusHeader = "";
+
 	public boolean isSelfVerification() {
 		return selfVerification;
 	}
@@ -113,6 +116,14 @@ public class LoanApplicationDTO {
 
 	public void setShowReapply(boolean showReapply) {
 		this.showReapply = showReapply;
+	}
+
+	public String getStatusHeader() {
+		return statusHeader;
+	}
+
+	public void setStatusHeader(String statusHeader) {
+		this.statusHeader = statusHeader;
 	}
 
 	@Override
