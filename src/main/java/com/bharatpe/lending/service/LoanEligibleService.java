@@ -510,6 +510,7 @@ public class LoanEligibleService {
         } else {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
         }
+        logger.info("loan amount is {} for merchant: {}", breakup.getLoanAmount(), merchantId);
         if (set.equalsIgnoreCase("1") && breakup.getLoanAmount() < 20000) {
             logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
             return null;
