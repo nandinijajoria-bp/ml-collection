@@ -252,7 +252,7 @@ public class LoanDetailsService {
 						accountDetails = true;
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
-					} else if (lendingEnach != null) {
+					} else if (lendingEnach != null && !lendingEnach.getSkip()) {
 						loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
 					} else {
