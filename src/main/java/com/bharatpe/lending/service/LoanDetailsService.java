@@ -273,7 +273,7 @@ public class LoanDetailsService {
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within 3 days after Lockdown opens for physical verification.");
 						} else {
 							loanApplicationDTO.setStatusTitle("Physical Verification Pending");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within 3 days after Lockdown opens for physical verification.");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
 						}
 					} else {
 						if (enachSuccess) {
