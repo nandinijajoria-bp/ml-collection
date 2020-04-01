@@ -539,7 +539,7 @@ public class LoanEligibleService {
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
-        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, "REGULAR"));
+        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, "PREBOOK"));
         logger.info("eligible loan for merchant: {} is-- {}", merchantId, eligibleLoan.toString());
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
