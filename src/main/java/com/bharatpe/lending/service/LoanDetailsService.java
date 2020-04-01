@@ -262,7 +262,11 @@ public class LoanDetailsService {
 					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
-					loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
+					if (enach != null) {
+						loanApplicationDTO.setStatusHeader("Details Submitted");//enach screen
+					} else {
+						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
+					}
 					if (ExperianConstants.LOCKDOWN) {
 						if (enachSuccess) {
 							accountDetails = true;
