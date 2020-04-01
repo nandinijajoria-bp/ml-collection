@@ -147,7 +147,7 @@ public class LendingApplicationService {
 		lendingApplication.setEdiFreeDays(lendingCategory.getEdiFreeDays());
 		lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
 		lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-
+		lendingApplication.setLoanType(eligibleLoan.getLoanType());
 		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 
 		return lendingApplication;
