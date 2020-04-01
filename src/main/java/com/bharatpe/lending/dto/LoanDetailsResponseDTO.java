@@ -48,6 +48,7 @@ public class LoanDetailsResponseDTO {
 		private boolean noExperian = false;
 		private List<String> maskedMobiles;
 		private boolean ogl = false;
+		private boolean accountDetails = false;
 		private String enach;
 		private String city;
 		private Integer pincode;
@@ -63,6 +64,14 @@ public class LoanDetailsResponseDTO {
 		
 		@JsonProperty(value = "loan_application")
 		private LoanApplicationDTO loanApplication;
+
+		public boolean isAccountDetails() {
+			return accountDetails;
+		}
+
+		public void setAccountDetails(boolean accountDetails) {
+			this.accountDetails = accountDetails;
+		}
 
 		public String getTempClosed() {
 			return tempClosed;

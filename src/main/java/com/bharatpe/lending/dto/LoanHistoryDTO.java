@@ -24,6 +24,9 @@ public class LoanHistoryDTO {
 	@JsonProperty(value = "loan_status_message")
 	private String loanStatusMessage;
 
+	@JsonProperty(value = "loan_status_header")
+	private String loanStatusHeader;
+
 	private Double repaid;
 	private Double due;
 
@@ -97,6 +100,14 @@ public class LoanHistoryDTO {
 
 	public void setDue(Double due) {
 		this.due = due;
+	}
+
+	public String getLoanStatusHeader() {
+		return loanStatusHeader;
+	}
+
+	public void setLoanStatusHeader(String loanStatusHeader) {
+		this.loanStatusHeader = loanStatusHeader;
 	}
 
 	@Override
