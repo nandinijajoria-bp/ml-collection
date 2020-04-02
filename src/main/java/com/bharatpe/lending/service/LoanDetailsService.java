@@ -269,7 +269,7 @@ public class LoanDetailsService {
 					loanHistoryDTOs = null;
 					if (enach != null) {
 						loanApplicationDTO.setStatusHeader("Details Submitted");//enach screen
-						if (lendingPrebookLoans != null && lendingPrebookLoans.getOtpVerified()) {
+						if (lendingPrebookLoans != null) {
 							skipEnatch = false;
 						}
 					} else {
