@@ -13,6 +13,8 @@ public class ResponseDTO {
 
     private List<String> maskedMobiles;
 
+    private String mobile;
+
     public ResponseDTO(boolean success, String message, List<String> maskedMobiles) {
         this.success = success;
         this.message = message;
@@ -44,6 +46,14 @@ public class ResponseDTO {
 
     public void setMaskedMobiles(List<String> maskedMobiles) {
         this.maskedMobiles = maskedMobiles;
+    }
+
+    public String getMobile() {
+        return mobile;
+    }
+
+    public void setMobile(String mobile) {
+        this.mobile = mobile;
     }
 
     @Override

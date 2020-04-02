@@ -262,7 +262,9 @@ public class LendingApplicationService {
 		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
 		if (otp) {
 			logger.info("OTP sent on mobile: {} for merchant: {}", merchant.getMobile(), merchant.getId());
-			return new ResponseDTO(true, null, null);
+			ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+			responseDTO.setMobile(merchant.getMobile());
+			return responseDTO;
 		}
 		return new ResponseDTO(false, "Unable to send otp", null);
 	}
