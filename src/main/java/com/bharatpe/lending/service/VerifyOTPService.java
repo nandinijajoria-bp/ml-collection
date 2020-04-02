@@ -2,34 +2,27 @@ package com.bharatpe.lending.service;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.dao.BankListDao;
-import com.bharatpe.lending.dao.OglLoansDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.OglLoans;
+import com.bharatpe.lending.util.LoanCalculationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantFcmTokenDao;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 
 
@@ -66,8 +59,25 @@ public class VerifyOTPService {
 
 	@Autowired
 	OglLoansDao oglLoansDao;
+
+	@Autowired
+	MerchantSummaryLendingDao merchantSummaryLendingDao;
+
+	@Autowired
+	MerchantSummaryDao merchantSummaryDao;
+
+	@Autowired
+	LendingCategoryDao lendingCategoryDao;
+
+	@Autowired
+	PaymentTransactionNewDao paymentTransactionNewDao;
+
+	@Autowired
+	LendingPrebookLoansDao lendingPrebookLoansDao;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
+
+	ExecutorService preBookExecutor = Executors.newFixedThreadPool(5);
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -164,12 +174,50 @@ public class VerifyOTPService {
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		if (merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
+		}
 		
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
-		
+
+	private void checkPreBook(Merchant merchant, LendingApplication lendingApplication) {
+		LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
+		if (lendingPrebookLoans != null) {
+			logger.info("Prebook loan already exists for merchant: {}", merchant.getId());
+			return;
+		}
+		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
+		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
+		List<String> preBookCategories = Arrays.asList("Grocery","Medical","Dairy");
+		List<String> etcCategories = Arrays.asList("S1LG","S1DG","S2LG","S2DG");
+		List<String> cities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi");
+		if (preBookCategories.contains(merchant.getBusinessCategory()) && merchantSummaryLending != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2") && merchantSummary.getBpScore() > 10 && lendingCategories.getMasterCategory() != null && etcCategories.contains(lendingCategories.getMasterCategory()) && cities.contains(lendingApplication.getCity())) {
+			Calendar c = Calendar.getInstance();
+			c.setTime(lendingApplication.getAgreementAt());
+			c.add(Calendar.DATE, -9);
+			Date startDate = c.getTime();
+			List<Object[]> transactions = paymentTransactionNewDao.getCountForPreBook(merchant.getId(), startDate, lendingApplication.getAgreementAt());
+			if (transactions != null && transactions.size() >= 8) {
+				Double previousLoanAmount = lendingApplication.getLoanAmount();
+				AvailableLoan availableLoan = new AvailableLoan();
+				availableLoan.setAmount(100000D);
+				LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories);
+				lendingApplication.setEdi(Double.valueOf(breakup.getEdi()));
+				lendingApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
+				lendingApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
+				lendingApplication.setDisbursalAmount((double)breakup.getLoanAmount());
+				lendingApplication.setLoanAmount((double)breakup.getLoanAmount());
+				lendingApplicationDao.save(lendingApplication);
+				lendingPrebookLoansDao.save(new LendingPrebookLoans(merchant.getId(), lendingApplication.getId(), previousLoanAmount));
+				logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchant.getId(), lendingApplication.getId());
+			}
+		}
+	}
+
 	private void sendNotification(Merchant merchant, LendingApplication lendingApplication) {
 		
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");

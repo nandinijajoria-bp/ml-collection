@@ -12,6 +12,8 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
 import com.bharatpe.lending.dto.LendingApplicationResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
@@ -56,6 +58,9 @@ public class LendingApplicationService {
 
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
+
+	@Autowired
+	GupShupOTPHandler gupShupOTPHandler;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
@@ -250,5 +255,15 @@ public class LendingApplicationService {
 			logger.error("error occured while fetching the lending city details for pin code {}",pinCode);
 		}
 		return false;
-	} 
+	}
+
+	public ResponseDTO sendOtp(Merchant merchant) {
+		String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
+		if (otp) {
+			logger.info("OTP sent on mobile: {} for merchant: {}", merchant.getMobile(), merchant.getId());
+			return new ResponseDTO(true, null, null);
+		}
+		return new ResponseDTO(false, "Unable to send otp", null);
+	}
 }
