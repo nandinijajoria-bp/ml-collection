@@ -177,7 +177,6 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 		String bankCode = null;
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		if (merchantBankDetail != null && meta.getAppVersion() != null && Integer.parseInt(meta.getAppVersion()) >= 238) {
@@ -187,6 +186,8 @@ public class VerifyOTPService {
 		}
 		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
+		} else {
+			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 		}
 		
 		finalResponse.put("success",true);
@@ -225,6 +226,7 @@ public class VerifyOTPService {
 				lendingApplicationDao.save(lendingApplication);
 				lendingPrebookLoansDao.save(new LendingPrebookLoans(merchant.getId(), lendingApplication.getId(), previousLoanAmount));
 				logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchant.getId(), lendingApplication.getId());
+				notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 			}
 		}
 	}
