@@ -75,6 +75,9 @@ public class VerifyOTPService {
 
 	@Autowired
 	LendingPrebookLoansDao lendingPrebookLoansDao;
+
+	@Autowired
+	ENachService eNachService;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 
@@ -175,7 +178,14 @@ public class VerifyOTPService {
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		if (ExperianConstants.LOCKDOWN && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+		String bankCode = null;
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		if (merchantBankDetail != null && meta.getAppVersion() != null && Integer.parseInt(meta.getAppVersion()) >= 238) {
+			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
+		} else if (merchantBankDetail != null){
+			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+		}
+		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
 		}
 		
