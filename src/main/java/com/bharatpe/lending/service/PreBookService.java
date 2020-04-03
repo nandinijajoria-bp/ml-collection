@@ -32,7 +32,9 @@ public class PreBookService {
     public PreBookResponseDTO getDetails(Merchant merchant) {
         LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
         if (lendingPrebookLoans == null) {
-            return new PreBookResponseDTO(false, "Merchant not applicable for pre book loan");
+            PreBookResponseDTO responseDTO = new PreBookResponseDTO(false, "Merchant not applicable for pre book loan");
+            responseDTO.setDeepLink(DEEP_LINK);
+            return responseDTO;
         }
         if (lendingPrebookLoans.getOtpVerified()) {
             PreBookResponseDTO preBookResponseDTO = new PreBookResponseDTO();
