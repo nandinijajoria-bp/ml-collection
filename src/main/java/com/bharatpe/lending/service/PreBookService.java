@@ -31,19 +31,16 @@ public class PreBookService {
 
     public PreBookResponseDTO getDetails(Merchant merchant) {
         LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
-        if (lendingPrebookLoans == null) {
-            PreBookResponseDTO responseDTO = new PreBookResponseDTO(false, "Merchant not applicable for pre book loan");
-            responseDTO.setDeepLink(DEEP_LINK);
-            return responseDTO;
-        }
-        if (lendingPrebookLoans.getOtpVerified()) {
+        if (lendingPrebookLoans == null || lendingPrebookLoans.getOtpVerified()) {
             PreBookResponseDTO preBookResponseDTO = new PreBookResponseDTO();
             preBookResponseDTO.setDeepLink(DEEP_LINK);
             return preBookResponseDTO;
         }
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPrebookLoans.getApplicationId(), merchant);
         if (lendingApplication == null) {
-            return new PreBookResponseDTO(false, "Loan Application not found");
+            PreBookResponseDTO preBookResponseDTO = new PreBookResponseDTO();
+            preBookResponseDTO.setDeepLink(DEEP_LINK);
+            return preBookResponseDTO;
         }
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
         if (merchantBankDetail == null) {
