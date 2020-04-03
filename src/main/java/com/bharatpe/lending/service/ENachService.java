@@ -1,10 +1,6 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.LendingEnachDao;
-import com.bharatpe.common.dao.LendingNachBankDao;
-import com.bharatpe.common.dao.LendingPancardDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -68,6 +64,9 @@ public class ENachService {
     
     @Value("${enach.digio.authorization}")
     String authorization;
+
+    @Autowired
+    MerchantSummaryLendingDao merchantSummaryLendingDao;
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -173,7 +172,7 @@ public class ENachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        
+        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         if (lendingEnach == null) {
@@ -200,7 +199,7 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
-            if (!ExperianConstants.LOCKDOWN) {
+            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2"))) {
                 List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
                 if (prevLoans != null && prevLoans.size() > 0) {
                     lendingApplication.setStatus("approved");

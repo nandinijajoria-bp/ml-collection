@@ -49,6 +49,7 @@ public class LoanDetailsResponseDTO {
 		private List<String> maskedMobiles;
 		private boolean ogl = false;
 		private boolean accountDetails = false;
+		private boolean skipEnatch = true;
 		private String enach;
 		private String city;
 		private Integer pincode;
@@ -199,6 +200,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setTopupLoan(List<LoanEligibilityDTO> topupLoan) {
 			this.topupLoan = topupLoan;
+		}
+
+		public boolean isSkipEnatch() {
+			return skipEnatch;
+		}
+
+		public void setSkipEnatch(boolean skipEnatch) {
+			this.skipEnatch = skipEnatch;
 		}
 
 		@Override

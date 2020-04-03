@@ -8,6 +8,8 @@ import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -119,6 +121,11 @@ public class LendingApplicationController {
 
 		logger.info("cancelApplication response : {}", resp);
 		return resp;
+	}
+
+	@RequestMapping(value="/sendOTP", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant) {
+		return new ResponseEntity<>(lendingApplicationService.sendOtp(merchant), HttpStatus.OK);
 	}
 
 }

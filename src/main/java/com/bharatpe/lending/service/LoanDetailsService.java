@@ -105,6 +105,9 @@ public class LoanDetailsService {
 	@Autowired
 	MerchantSummaryLendingDao merchantSummaryLendingDao;
 
+	@Autowired
+	LendingPrebookLoansDao lendingPrebookLoansDao;
+
 	@Value("${enach.provider}")
 	private String enachServiceToUse;
 
@@ -114,10 +117,12 @@ public class LoanDetailsService {
 		try {
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 			MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
+			LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
 			boolean accountDetails = false;
+			boolean skipEnatch = true;
 			String enach = null;
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
@@ -264,6 +269,9 @@ public class LoanDetailsService {
 					loanHistoryDTOs = null;
 					if (enach != null) {
 						loanApplicationDTO.setStatusHeader("Details Submitted");//enach screen
+						if (lendingPrebookLoans != null) {
+							skipEnatch = false;
+						}
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 					}
@@ -343,6 +351,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setEnach(enach);
 				loanDetailsDTO.setAccountDetails(accountDetails);
+				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -435,6 +444,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
 			loanDetailsDTO.setTempClosed(tempClosed);
 			loanDetailsDTO.setAccountDetails(accountDetails);
+			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
