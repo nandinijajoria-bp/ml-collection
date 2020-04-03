@@ -47,7 +47,7 @@ public class PreBookService {
         if (merchantBankDetail == null) {
             return new PreBookResponseDTO(false, "Merchant Bank Details not found");
         }
-        return new PreBookResponseDTO(merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), lendingApplication.getLoanAmount(), lendingApplication.getEdi(), DEEP_LINK);
+        return new PreBookResponseDTO(merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), lendingApplication.getLoanAmount(), lendingApplication.getEdi(), null);
     }
 
     public PreBookResponseDTO verifyOTP(Merchant merchant, String otp) {

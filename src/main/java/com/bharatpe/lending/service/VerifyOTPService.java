@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.OglLoans;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -174,7 +175,7 @@ public class VerifyOTPService {
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		if (merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+		if (ExperianConstants.LOCKDOWN && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
 		}
 		
