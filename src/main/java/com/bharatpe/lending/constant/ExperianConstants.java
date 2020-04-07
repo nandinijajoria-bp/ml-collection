@@ -21,6 +21,7 @@ public interface ExperianConstants {
     String INVALID_PANCARD = "INVALID_PANCARD";
     String LOW_BP_SCORE = "LOW_BP_SCORE";
     String FRAUD = "FRAUD";
+    String OVERDUE = "OVERDUE";
     String LOW_TPV = "LOW_TPV";
     String CATEGORY_RED = "CATEGORY_RED";
     String DEROG_ACCOUNT_STATUS = "Loan default / partial settlement";
