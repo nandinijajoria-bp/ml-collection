@@ -153,6 +153,14 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
+        if (checkOverdue(prevLoans)) {
+            logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
+            experian.setCategory("1N");
+            experian.setColor(ExperianConstants.COLOR.RED.name());
+            experian.setReason(ExperianConstants.OVERDUE);
+            experianDao.save(experian);
+            return new ArrayList<>();
+        }
         if (bpScore <= 10D) {
             logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
@@ -275,6 +283,21 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication);
+    }
+
+    private boolean checkOverdue(List<LendingPaymentSchedule> prevLoans) {
+        try {
+            if(prevLoans == null || prevLoans.isEmpty()) {
+                return false;
+            }
+            if(prevLoans.get(0) != null && prevLoans.get(0).getLoanAmount() <= 5000D) {
+                return false;
+            }
+            return getOvershootPeriod(prevLoans.get(0)) > 15;
+        } catch(Exception ex){
+            logger.error("Error while fetching eligibility for repeat loan no derog", ex);
+            return false;
+        }
     }
 
     private boolean checkFraud(MerchantSummary merchantSummary) {
