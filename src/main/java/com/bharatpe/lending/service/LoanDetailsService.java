@@ -456,19 +456,20 @@ public class LoanDetailsService {
 	}
 
 	private boolean isLoanClosed(Experian experian, Merchant merchant) {
-		List<String> closedCategories = Arrays.asList("7","8","19","20");
-		List<ExperianAuditTrail> experianAuditTrailList = experianAuditTrailDao.findByMerchantId(merchant.getId());
-		List<LendingClosedAudit> lendingClosedAuditList = lendingClosedAuditDao.findByMerchantIdAndType(merchant.getId(), "CORONA");
-		if (lendingClosedAuditList != null && !lendingClosedAuditList.isEmpty()) {
-			return true;
-		}
-		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
-			return false;
-		}
-		if (experian != null && experian.getColor() != null && experian.getColor().equalsIgnoreCase(ExperianConstants.COLOR.AMBER.name())) {
-			return true;
-		}
-		return experian != null && experian.getCategory() != null && closedCategories.contains(experian.getCategory());
+//		List<String> closedCategories = Arrays.asList("7","8","19","20");
+//		List<ExperianAuditTrail> experianAuditTrailList = experianAuditTrailDao.findByMerchantId(merchant.getId());
+//		List<LendingClosedAudit> lendingClosedAuditList = lendingClosedAuditDao.findByMerchantIdAndType(merchant.getId(), "CORONA");
+//		if (lendingClosedAuditList != null && !lendingClosedAuditList.isEmpty()) {
+//			return true;
+//		}
+//		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
+//			return false;
+//		}
+//		if (experian != null && experian.getColor() != null && experian.getColor().equalsIgnoreCase(ExperianConstants.COLOR.AMBER.name())) {
+//			return true;
+//		}
+//		return experian != null && experian.getCategory() != null && closedCategories.contains(experian.getCategory());
+		return false;
 	}
 
 	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
