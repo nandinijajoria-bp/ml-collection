@@ -1,8 +1,10 @@
 package com.bharatpe.lending;
 
+import com.bharatpe.common.service.LoyaltyService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.PropertySources;
@@ -20,5 +22,10 @@ public class Application
 {
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args);
+	}
+
+	@Bean
+	public LoyaltyService loyaltyService() {
+		return new LoyaltyService();
 	}
 }
