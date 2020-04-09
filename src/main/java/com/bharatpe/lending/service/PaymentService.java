@@ -116,8 +116,8 @@ public class PaymentService {
 			}
 			
 			String vpa = (String) vpaResponse.get("bharatpeTxnId");
-			String intent = (String) vpaResponse.get("paymentLink");
-			String paymentLink = (String) vpaResponse.get("upiString");
+			String paymentLink = (String) vpaResponse.get("paymentLink");
+			String intent = (String) vpaResponse.get("upiString");
 			
 			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink);
 			return new InitiatePaymentResponseDTO(data);
