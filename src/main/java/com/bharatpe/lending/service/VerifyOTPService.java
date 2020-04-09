@@ -211,6 +211,7 @@ public class VerifyOTPService {
 		LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
 		if (lendingPrebookLoans != null) {
 			logger.info("Prebook loan already exists for merchant: {}", merchant.getId());
+			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 			return;
 		}
 		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
@@ -238,9 +239,9 @@ public class VerifyOTPService {
 				lendingApplicationDao.save(lendingApplication);
 				lendingPrebookLoansDao.save(new LendingPrebookLoans(merchant.getId(), lendingApplication.getId(), previousLoanAmount));
 				logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchant.getId(), lendingApplication.getId());
-				notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 			}
 		}
+		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 	}
 
 	private void sendNotification(Merchant merchant, LendingApplication lendingApplication) {
