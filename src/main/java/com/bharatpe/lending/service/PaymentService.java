@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -15,6 +16,9 @@ import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.enums.LoyaltyTransactionType;
+import com.bharatpe.common.objects.LoyaltyServiceRequest;
+import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
@@ -40,6 +44,9 @@ public class PaymentService {
 	
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
+	
+	@Autowired
+	LoyaltyService loyaltyService;
 	
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
 		logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -142,6 +149,13 @@ public class PaymentService {
 				return "OK";
 			}
 			
+			List<LendingLedger> ledgers = lendingLedgerDao.findByLendingPaymentScheduleAndDescription(activeLoan, getDescription(request.getBankReferenceNo()));
+			
+			if(ledgers != null && !ledgers.isEmpty()) {
+				logger.error("Payment alrady done for loan id {} and bank rrn {}", activeLoan.getId(), request.getBankReferenceNo());
+				return "OK";
+			}
+ 			
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
 			
 			Double paidInterestAmount = 0D;
@@ -181,13 +195,30 @@ public class PaymentService {
 				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + balance);
 			}
 					
-			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount, "PREPAYMENT : " + request.getBankReferenceNo());
+			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNo()));
 			lendingPaymentScheduleDao.save(activeLoan);
+			
+			LoyaltyTransactionType txnType = LoyaltyTransactionType.LENDING_EDI;
+			if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
+				txnType = LoyaltyTransactionType.PRE_LOAN_CLOSURE;
+			} 
+			
+			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), txnType)
+	                    .amount(request.getAmount())
+	                    .merchantStoreId(null)
+	                    .transactionId(activeLoan.getId())
+                    .build();
+			
+			loyaltyService.pushAsync(requestBean);
 
 		} catch(Exception ex) {
 			logger.error("Execption whilehandling payment callback for merchant id {}, Exception is {}", request.getMerchantId(), ex);
 		}
 		return "OK";
+	}
+	
+	private String getDescription(String bankRRN) {
+		return "PREPAYMENT : " + bankRRN;
 	}
 	
 	private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle, Double interest, String description) {
