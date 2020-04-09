@@ -152,15 +152,19 @@ public class PaymentService {
 				paidInterestAmount = activeLoan.getDueInterest();
 				paidPrincipalAmount = request.getAmount() - paidInterestAmount;
 				
-				createLendingLedger(activeLoan, -1 * (request.getAmount() - activeLoan.getDueAmount()) , -1 * (request.getAmount() - activeLoan.getDueAmount()), 0D, "PREPAYMENT");
-				
-				activeLoan.setDueAmount(0D);
-				activeLoan.setDueInterest(0D);
-				activeLoan.setDuePrinciple(0D);
+				if(activeLoan.getDueAmount() >= 0) {
+					createLendingLedger(activeLoan, -1 * (request.getAmount() - activeLoan.getDueAmount()) , -1 * (request.getAmount() - activeLoan.getDueAmount()), 0D, "PREPAYMENT");
+				} else {
+					createLendingLedger(activeLoan, -1 * request.getAmount() , -1 * request.getAmount(), 0D, "PREPAYMENT");
+				}
 				
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
 				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
 				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + paidPrincipalAmount);
+
+				activeLoan.setDueAmount(0D);
+				activeLoan.setDueInterest(0D);
+				activeLoan.setDuePrinciple(0D);
 				
 				activeLoan.setStatus("CLOSED");
 			} else {
