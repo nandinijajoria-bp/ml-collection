@@ -68,6 +68,7 @@ public class APIGatewayService {
             requestParams.put("mid", merchant.getMid());
             requestParams.put("orderDescription", "Loan Repayment");
             requestParams.put("txnNote", "Loan Repayment");
+            requestParams.put("type", "LOAN_PAYMENT");
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();
