@@ -8,6 +8,9 @@ import java.util.concurrent.Executors;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.LoyaltyTransactionType;
+import com.bharatpe.common.objects.LoyaltyServiceRequest;
+import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.OglLoans;
@@ -82,6 +85,9 @@ public class VerifyOTPService {
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 
 	ExecutorService preBookExecutor = Executors.newFixedThreadPool(5);
+
+	@Autowired
+	LoyaltyService loyaltyService;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -160,6 +166,12 @@ public class VerifyOTPService {
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		lendingApplicationDao.save(lendingApplication);
+		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
+				.amount(0D)
+				.merchantStoreId(null)
+				.transactionId(lendingApplication.getId())
+				.build();
+		loyaltyService.pushAsync(requestBean);
 
 
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
@@ -199,6 +211,7 @@ public class VerifyOTPService {
 		LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
 		if (lendingPrebookLoans != null) {
 			logger.info("Prebook loan already exists for merchant: {}", merchant.getId());
+			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 			return;
 		}
 		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
@@ -226,9 +239,9 @@ public class VerifyOTPService {
 				lendingApplicationDao.save(lendingApplication);
 				lendingPrebookLoansDao.save(new LendingPrebookLoans(merchant.getId(), lendingApplication.getId(), previousLoanAmount));
 				logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchant.getId(), lendingApplication.getId());
-				notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 			}
 		}
+		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 	}
 
 	private void sendNotification(Merchant merchant, LendingApplication lendingApplication) {
@@ -243,7 +256,10 @@ public class VerifyOTPService {
 		Double loanAmount = lendingApplication.getLoanAmount();
 		
 		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+".\n\nNote: Due to necessary precautions for Coronavirus, there may be some delay in processing your application. We'll keep you updated.";
+
+		String prebookSms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Pre-booked your Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in 10 days post Lockdown.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
 		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
+		smsServiceHandler.sendSMS(mobiles, prebookSms, NotificationProvider.SMS.GUPSHUP);
 
 //		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
 //				"\n" +
