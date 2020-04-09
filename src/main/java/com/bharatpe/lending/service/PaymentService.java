@@ -1,22 +1,29 @@
 package com.bharatpe.lending.service;
 
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -47,6 +54,14 @@ public class PaymentService {
 	
 	@Autowired
 	LoyaltyService loyaltyService;
+	
+	@Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
+	
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
+	
+	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
 		logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -198,6 +213,8 @@ public class PaymentService {
 			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNo()));
 			lendingPaymentScheduleDao.save(activeLoan);
 			
+			notificationExecutor.submit(() -> sendSMS(merchant.get(), request.getAmount()));
+
 			if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
 				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
 	                    .amount(request.getAmount())
@@ -220,6 +237,22 @@ public class PaymentService {
 			logger.error("Execption whilehandling payment callback for merchant id {}, Exception is {}", request.getMerchantId(), ex);
 		}
 		return "OK";
+	}
+	
+	private void sendSMS(Merchant merchant, Double amount) {
+		try {
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+			if(merchantBankDetail == null) {
+				return;
+			}
+			
+			String content = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nYou have successfully made Pre-Payment your Rs." + amount.intValue() + " for your BharatPe Loan.";
+			
+			smsServiceHandler.sendSMS(Arrays.asList(merchant.getMobile()), content, NotificationProvider.SMS.GUPSHUP);
+			
+		} catch(Exception ex) {
+			logger.error("Exception while sending payment SMS to merchant {}, Exception is {}");
+		}
 	}
 	
 	private String getDescription(String bankRRN) {

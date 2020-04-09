@@ -1,7 +1,6 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
@@ -28,9 +27,6 @@ public class APIGatewayService {
 
     private static Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
 
-    @Value("${internal.merchant.id}")
-    Long merchantId;
-    
     @Value("${create.vpa.endpoint}")
     String createVPAEndpoint;
 
