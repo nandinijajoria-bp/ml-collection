@@ -213,9 +213,11 @@ public class PaymentService {
 			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNo()));
 			lendingPaymentScheduleDao.save(activeLoan);
 			
-			notificationExecutor.submit(() -> sendSMS(merchant.get(), request.getAmount()));
+			boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
+			
+			notificationExecutor.submit(() -> sendSMS(merchant.get(), request.getAmount(), isLoanClosed));
 
-			if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
+			if(isLoanClosed) {
 				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
 	                    .amount(request.getAmount())
 	                    .merchantStoreId(null)
@@ -239,14 +241,19 @@ public class PaymentService {
 		return "OK";
 	}
 	
-	private void sendSMS(Merchant merchant, Double amount) {
+	private void sendSMS(Merchant merchant, Double amount, boolean isLoanClosed) {
 		try {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			if(merchantBankDetail == null) {
 				return;
 			}
 			
-			String content = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nYou have successfully made Pre-Payment your Rs." + amount.intValue() + " for your BharatPe Loan.";
+			String content = null;
+			if(isLoanClosed) {
+				content = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nThank you for making prepayment of Rs." + amount.intValue() + " towards your Bharatpe Loan. Your Loan is successfully closed.\nYou have earned 10 runs which you can use to get rewards on BharatPe app.";
+			} else {
+				content = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nThank you for making payment of Rs." + amount.intValue() + " towards your BharatPe Loan.";
+			}
 			
 			smsServiceHandler.sendSMS(Arrays.asList(merchant.getMobile()), content, NotificationProvider.SMS.GUPSHUP);
 			
