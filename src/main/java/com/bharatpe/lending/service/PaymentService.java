@@ -198,12 +198,17 @@ public class PaymentService {
 			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNo()));
 			lendingPaymentScheduleDao.save(activeLoan);
 			
-			LoyaltyTransactionType txnType = LoyaltyTransactionType.LENDING_EDI;
 			if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
-				txnType = LoyaltyTransactionType.PRE_LOAN_CLOSURE;
+				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
+	                    .amount(request.getAmount())
+	                    .merchantStoreId(null)
+	                    .transactionId(activeLoan.getId())
+                    .build();
+				
+				loyaltyService.pushAsync(requestBean);
 			} 
 			
-			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), txnType)
+			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), LoyaltyTransactionType.LENDING_EDI)
 	                    .amount(request.getAmount())
 	                    .merchantStoreId(null)
 	                    .transactionId(activeLoan.getId())
