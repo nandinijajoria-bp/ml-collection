@@ -108,7 +108,7 @@ public class PaymentService {
 			
 			String orderId = activeLoan.getId() + sdf.format(new Date());
 			
-			Map vpaResponse = apiGatewayService.createVPA(Double.valueOf(amount), orderId);
+			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
 			
 			if(vpaResponse == null || !"OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
 				logger.error("Create VPA not successful, retuning failure.");
