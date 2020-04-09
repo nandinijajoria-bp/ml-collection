@@ -15,6 +15,7 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
 import com.bharatpe.lending.dto.InitiatePaymentResponseDTO;
 import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
+import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.PaymentCallbackRequestDTO;
 import com.bharatpe.lending.service.PaymentService;
 
@@ -33,7 +34,7 @@ public class PaymentController {
     }
     
     @RequestMapping(value="/initiate", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
-    public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(@RequestAttribute Merchant merchant, @RequestBody InitiatePaymentRequestDTO requestDTO) {
+    public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
     	return new ResponseEntity<>(paymentService.initiatePayment(merchant, requestDTO), HttpStatus.OK);
     }
     

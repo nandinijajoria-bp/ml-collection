@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class PaymentCallbackRequestDTO {
 
 	private Long merchantId;
-	private Integer amount;
+	private Double amount;
 	private String bankReferenceNo;
 
 	public Long getMerchantId() {
@@ -22,11 +22,11 @@ public class PaymentCallbackRequestDTO {
 		this.merchantId = merchantId;
 	}
 
-	public Integer getAmount() {
+	public Double getAmount() {
 		return amount;
 	}
 
-	public void setAmount(Integer amount) {
+	public void setAmount(Double amount) {
 		this.amount = amount;
 	}
 

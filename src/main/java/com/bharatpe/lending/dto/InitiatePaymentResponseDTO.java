@@ -10,9 +10,22 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class InitiatePaymentResponseDTO {
 
-	private boolean success = true;
+	private boolean success;
 	private String message;
-	private Data data = new Data();
+	private Data data;
+	
+	public InitiatePaymentResponseDTO() {
+		
+	}
+	
+	public InitiatePaymentResponseDTO(String message) {
+		this.message = message;
+	}
+	
+	public InitiatePaymentResponseDTO(InitiatePaymentResponseDTO.Data data) {
+		this.success = true;
+		this.data = data;
+	}
 
 	public boolean isSuccess() {
 		return success;
@@ -47,9 +60,9 @@ public class InitiatePaymentResponseDTO {
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 	public static class Data {
-		private String vpa = "BHARATPE.0853080088@icici";
-		private String intent = "upi://pay?pa=BHARATPE.0853080088@icici&pn=CARD&cu=INR&am=1.0";
-		private String paymentLink = "https://bharatpe.in/yHAVj";
+		private String vpa;
+		private String intent;
+		private String paymentLink;
 		
 		public Data() {
 			

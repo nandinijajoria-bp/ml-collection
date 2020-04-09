@@ -10,16 +10,21 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class PaymentDetailsResponseDTO {
 
-	private boolean success = true;
+	private boolean success;
 	private String message;
-	private Data data = new Data();
+	private Data data;
 	
 	public PaymentDetailsResponseDTO() {
 		
 	}
 	
 	public PaymentDetailsResponseDTO(String message) {
-		
+		this.message = message;
+	}
+	
+	public PaymentDetailsResponseDTO(PaymentDetailsResponseDTO.Data data) {
+		this.data = data;
+		this.success = true;
 	}
 	
 	public boolean isSuccess() {
@@ -50,20 +55,22 @@ public class PaymentDetailsResponseDTO {
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 	public static class Data { 
-		private Integer loanAmount = 100;
-		private Integer overdueAmount = 10;
-		private Integer principalDueAmount = 10;
-		private Integer overdueDays = 2;
+		private Integer loanAmount;
+		private Integer overdueAmount;
+		private Integer principalDueAmount;
+		private Integer overdueDays;
+		private Boolean isEligibleForPayment;
 		
 		public Data() {
 			
 		}
 		
-		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays) {
+		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment) {
 			this.loanAmount = loanAmount;
 			this.overdueAmount = overdueAmount;
 			this.principalDueAmount = principalDueAmount;
 			this.overdueDays = overdueDays;
+			this.isEligibleForPayment = isEligibleForPayment;
 		}
 
 		public Integer getLoanAmount() {
@@ -90,10 +97,18 @@ public class PaymentDetailsResponseDTO {
 		public void setOverdueDays(Integer overdueDays) {
 			this.overdueDays = overdueDays;
 		}
+		public Boolean getIsEligibleForPayment() {
+			return isEligibleForPayment;
+		}
+		public void setIsEligibleForPayment(Boolean isEligibleForPayment) {
+			this.isEligibleForPayment = isEligibleForPayment;
+		}
+
 		@Override
 		public String toString() {
 			return "Data [loanAmount=" + loanAmount + ", overdueAmount=" + overdueAmount + ", principalDueAmount="
-					+ principalDueAmount + ", overdueDays=" + overdueDays + "]";
+					+ principalDueAmount + ", overdueDays=" + overdueDays + ", isEligibleForPayment="
+					+ isEligibleForPayment + "]";
 		}
 	}
 }
