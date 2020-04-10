@@ -201,13 +201,18 @@ public class PaymentService {
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
 				
 				Double balance = request.getAmount() - activeLoan.getDueInterest();
-				
-				paidInterestAmount = activeLoan.getDueInterest();
-				paidPrincipalAmount = balance;
-				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + activeLoan.getDuePrinciple());
-				activeLoan.setDueInterest(0D);
-				activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
-				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + balance);
+				if(balance > 0) { // Paid amount is greater than due interest
+					paidInterestAmount = activeLoan.getDueInterest();
+					paidPrincipalAmount = balance;
+					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + activeLoan.getDuePrinciple());
+					activeLoan.setDueInterest(0D);
+					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
+					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + balance);
+				} else {
+					paidInterestAmount = request.getAmount();
+					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
+					activeLoan.setDueInterest(activeLoan.getDueInterest() - paidInterestAmount);
+				}
 			}
 					
 			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNo()));
