@@ -41,8 +41,6 @@ public class PaymentService {
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 	
-	SimpleDateFormat sdf = new SimpleDateFormat("ddMMyyhhmmss");
-	
 	@Autowired
 	APIGatewayService apiGatewayService;
 	
@@ -79,7 +77,7 @@ public class PaymentService {
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
 			
 			boolean isPayable = true;
-			if(overdueAmount < 1 && principalDueAmount > 100000) {
+			if(overdueDays < 2) {
 				isPayable = false;
 			}
 			
@@ -116,12 +114,12 @@ public class PaymentService {
 				amount = overdueAmount;
 			}
 			
-			if(amount > 100000) {
-				logger.error("Amount greater than 100000 for merchant id {}", merchant.getId());
-				return new InitiatePaymentResponseDTO("Amount can not be greater than 100000.");
+			if(amount < 1 || amount > 99999) {
+				logger.error("Amount not between 1-99999 for merchant id {}", merchant.getId());
+				return new InitiatePaymentResponseDTO("Amount shoule be between 1-99999.");
 			}
 			
-			String orderId = activeLoan.getId() + sdf.format(new Date());
+			String orderId = activeLoan.getId() + "" + System.currentTimeMillis();
 			
 			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
 			
