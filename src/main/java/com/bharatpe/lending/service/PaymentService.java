@@ -1,12 +1,12 @@
 package com.bharatpe.lending.service;
 
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -119,7 +119,7 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("Amount shoule be between 1-99999.");
 			}
 			
-			String orderId = activeLoan.getId() + "" + System.currentTimeMillis();
+			String orderId = activeLoan.getId() + getRandomNumber() + "" + System.currentTimeMillis();
 			
 			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
 			
@@ -300,4 +300,10 @@ public class PaymentService {
         cal.set(Calendar.SECOND, 0);
         return cal.getTime();
 	}
+	
+	public String getRandomNumber() { 
+		Random random = new Random();
+		return String.format("%04d", random.nextInt(10000));
+	}
+	
 }
