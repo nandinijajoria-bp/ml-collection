@@ -13,6 +13,7 @@ public class PaymentCallbackRequestDTO {
 	private Long merchantId;
 	private Double amount;
 	private String bankReferenceNo;
+	private String orderId;
 
 	public Long getMerchantId() {
 		return merchantId;
@@ -37,10 +38,19 @@ public class PaymentCallbackRequestDTO {
 	public void setBankReferenceNo(String bankReferenceNo) {
 		this.bankReferenceNo = bankReferenceNo;
 	}
+	
+	public String getOrderId() {
+		return orderId;
+	}
+
+	public void setOrderId(String orderId) {
+		this.orderId = orderId;
+	}
 
 	@Override
 	public String toString() {
 		return "PaymentCallbackRequestDTO [merchantId=" + merchantId + ", amount=" + amount + ", bankReferenceNo="
-				+ bankReferenceNo + "]";
+				+ bankReferenceNo + ", orderId=" + orderId + "]";
 	}
+
 }

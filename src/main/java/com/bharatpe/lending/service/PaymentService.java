@@ -3,10 +3,8 @@ package com.bharatpe.lending.service;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -28,10 +26,12 @@ import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
 import com.bharatpe.lending.dto.InitiatePaymentResponseDTO;
 import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.entity.LoanPaymentOrder;
 
 @Service
 public class PaymentService {
@@ -58,6 +58,9 @@ public class PaymentService {
 	
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
+	
+	@Autowired
+	LoanPaymentOrderDao loanPaymentOrderDao;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -119,18 +122,38 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("Amount shoule be between 1-99999.");
 			}
 			
-			String orderId = activeLoan.getId() + getRandomNumber() + "" + System.currentTimeMillis();
+			LoanPaymentOrder order = new LoanPaymentOrder();
+			order.setMerchant(merchant);
+			order.setOwner("lending_payment_schedule");
+			order.setOwnerId(activeLoan.getId());
+			order.setAmount(Double.valueOf(amount));
+			order.setStatus("INIT");
+			
+			order = loanPaymentOrderDao.save(order);
+			
+			String orderId = "LOAN" + (10000000L + order.getId()); 
+			
+			order.setOrderId(orderId);
 			
 			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
 			
 			if(vpaResponse == null || !"OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
 				logger.error("Create VPA not successful, retuning failure.");
+				order.setStatus("FAILED");
+				order.setDescription("Create Dynamic VPA API Failed");
+				loanPaymentOrderDao.save(order);
 				return new InitiatePaymentResponseDTO("Something went wrong.");
 			}
 			
 			String vpa = (String) vpaResponse.get("bharatpeTxnId");
 			String paymentLink = (String) vpaResponse.get("paymentLink");
 			String intent = (String) vpaResponse.get("upiString");
+			
+			order.setStatus("PENDING");
+			order.setVpa(vpa);
+			order.setShortLink(paymentLink);
+			order.setUpiIntent(intent);
+			loanPaymentOrderDao.save(order);
 			
 			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink);
 			return new InitiatePaymentResponseDTO(data);
@@ -162,12 +185,28 @@ public class PaymentService {
 				return "OK";
 			}
 			
-			List<LendingLedger> ledgers = lendingLedgerDao.findByLendingPaymentScheduleAndDescription(activeLoan, getDescription(request.getBankReferenceNo()));
-			
-			if(ledgers != null && !ledgers.isEmpty()) {
-				logger.error("Payment alrady done for loan id {} and bank rrn {}", activeLoan.getId(), request.getBankReferenceNo());
+			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
+			if(order == null) {
+				logger.error("No order for merchant id {} and order id {}", merchant.get().getId(), request.getOrderId());
 				return "OK";
 			}
+			
+			if("SUCCESS".equalsIgnoreCase(order.getStatus())) {
+				logger.error("Payment for merchant id {} and order id {} is already successful", merchant.get().getId(), request.getOrderId());
+				return "OK";
+			}
+			
+			if(order.getAmount()  - request.getAmount() < -1 || order.getAmount() - request.getAmount() > 1) { 
+				logger.error("Amount mismatch for the merchant {} and order id {}", merchant.get().getId(), request.getOrderId());
+				order.setStatus("FAILED");
+				order.setDescription("Amount mismatch");
+				loanPaymentOrderDao.save(order);
+				return "OK";
+			}
+			
+			order.setBankRefNo(request.getBankReferenceNo());
+			order.setStatus("SUCCESS");
+			loanPaymentOrderDao.save(order);
  			
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
 			
@@ -299,11 +338,6 @@ public class PaymentService {
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0);
         return cal.getTime();
-	}
-	
-	public String getRandomNumber() { 
-		Random random = new Random();
-		return String.format("%04d", random.nextInt(10000));
 	}
 	
 }
