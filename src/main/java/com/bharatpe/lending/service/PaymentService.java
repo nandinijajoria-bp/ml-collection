@@ -137,6 +137,11 @@ public class PaymentService {
 			
 			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
 			
+			if(vpaResponse == null) {
+				logger.info("API generation response failed, Retrying.");
+				vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
+			}
+			
 			if(vpaResponse == null || !"OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
 				logger.error("Create VPA not successful, retuning failure.");
 				order.setStatus("FAILED");

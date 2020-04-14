@@ -34,9 +34,6 @@ public class APIGatewayService {
     private HmacCalculator hmacCalculator;
 
     @Autowired
-    private RestTemplate restTemplate;
-    
-    @Autowired
     private AesEncryption aesEncryption;
     
     @Autowired
@@ -76,8 +73,9 @@ public class APIGatewayService {
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
             logger.info("createVPA internal request: {}", mapper.writeValueAsString(request));
-
-            Map response = restTemplate.postForObject(createVPAEndpoint, request, Map.class);
+            
+            RestTemplate rTemplate = new RestTemplate();
+            Map response = rTemplate.postForObject(createVPAEndpoint, request, Map.class);
             logger.info("Response received from create VPA API {}", mapper.writeValueAsString(response));
             return response;
         } catch (HttpClientErrorException ex) {
