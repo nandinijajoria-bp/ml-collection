@@ -10,9 +10,11 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
+import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -111,6 +114,12 @@ public class LoanDetailsService {
 	@Value("${enach.provider}")
 	private String enachServiceToUse;
 
+	@Autowired
+	LendingPrebookTargetDao lendingPrebookTargetDao;
+
+	@Autowired
+	PaymentTransactionNewDao paymentTransactionNewDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -200,8 +209,56 @@ public class LoanDetailsService {
 			if(lendingApplicationList != null && !lendingApplicationList.isEmpty()) {
 				lendingApplication = lendingApplicationList.get(0);
 			}
+			boolean showTarget = false;
+			boolean lockdownOpened = false;
+			double targetTpv = 0d;
+			String lockdownEnd = "";
+			String targetEnd = "";
+			try {
+				// 4 may to 13may target and 24 april to 3 may tpv (lockdown end date - 3may)
+				if (lendingApplication != null && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+					LendingPrebookTarget lendingPrebookTarget = lendingPrebookTargetDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+					if (lendingPrebookTarget != null) {
+						DateTime lockdownEndDate = new DateTime(lendingPrebookTarget.getLockdownEndDate()).plusDays(1);
+						DateTime targetAchieveDate = new DateTime(lendingPrebookTarget.getTargetAchieveDate()).plusDays(1);
+						lockdownEnd = new SimpleDateFormat("dd MMM").format(lockdownEndDate.toDate());
+						targetEnd = new SimpleDateFormat("dd MMM").format(lendingPrebookTarget.getTargetAchieveDate());
+						if (lockdownEndDate.isBeforeNow() && targetAchieveDate.isAfterNow()) {
+							//if set 2, if 3 may to 24april tpv >= target -> loan transfer initiated(approved) or cpv(pending) else (target - tpv from 3 may to today) >= 0 target screen else loan transfer initiated(approved) or cpv(pending)
+							//if set 1, target - (tpv from 3 may to today) >=0 target screen else loan transfer initiated(approved) or cpv(pending)
+							lockdownOpened = true;
+							if (lendingPrebookTarget.getSegment().equalsIgnoreCase("2")) {
+								Calendar c = Calendar.getInstance();
+								c.setTime(lendingPrebookTarget.getLockdownEndDate());
+								c.add(Calendar.DAY_OF_MONTH, -9);
+								Date startDate = c.getTime();
+								double tpv = ((BigDecimal) paymentTransactionNewDao.getAmount(startDate, lockdownEndDate.toDate(), lendingApplication.getMerchant().getId())).doubleValue();
+								if (tpv < lendingPrebookTarget.getTarget()) {
+									double currentTpv = ((BigDecimal) paymentTransactionNewDao.getAmount(lendingPrebookTarget.getLockdownEndDate(), new Date(), lendingApplication.getMerchant().getId())).doubleValue();
+									if (lendingPrebookTarget.getTarget() - currentTpv > 0) {
+										showTarget = true;
+										targetTpv = lendingPrebookTarget.getTarget() - currentTpv;
+									}
+								}
+							} else {
+								double currentTpv = ((BigDecimal) paymentTransactionNewDao.getAmount(lendingPrebookTarget.getLockdownEndDate(), new Date(), lendingApplication.getMerchant().getId())).doubleValue();
+								if (lendingPrebookTarget.getTarget() - currentTpv > 0) {
+									showTarget = true;
+									targetTpv = lendingPrebookTarget.getTarget() - currentTpv;
+								}
+							}
+						} else if (targetAchieveDate.isBeforeNow()) {
+							//if rejected show loan offer expired, else if 3 may to 13 may tpv >= target then loan transfer initiated(approved) or cpv(pending)
+							lockdownOpened = true;
+						}
+					}
+				}
+			} catch (Exception e) {
+				logger.error("Exception while calculating prebook target for merchant: {}", merchant.getId());
+				logger.error("Exception---", e);
+			}
 
-			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess);
+			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess, showTarget, lockdownOpened, targetTpv, lockdownEnd, targetEnd);
 			List<LoanHistoryDTO> loanHistoryDTOs = orignalHistoryDTOs;
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
@@ -231,6 +288,10 @@ public class LoanDetailsService {
 							calender.add(Calendar.DATE, 7);
 							loanApplicationDTO.setStatusMessage("Please revisit the page after " + new SimpleDateFormat("dd-MM-yyyy").format(calender.getTime()) + " to check your eligibility and apply again.");
 						}
+					}
+					if (ExperianConstants.LOCKDOWN && lockdownOpened) {
+						loanApplicationDTO.setStatusTitle("Loan Offer Expired!");
+						loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your loan since you did not meet your QR Transaction target.");
 					}
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
@@ -276,16 +337,24 @@ public class LoanDetailsService {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 					}
 					if (ExperianConstants.LOCKDOWN) {
-						if (enachSuccess) {
-							accountDetails = true;
-							loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
-						} else if (lendingEnach != null && !lendingEnach.getSkip()) {
-							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
-						} else {
+						if (lockdownOpened && showTarget) {
+							loanApplicationDTO.setStatusTitle("Increase BharatPe QR Txns to Get Loan");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days post Lockdown opening(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
+						} else if (lockdownOpened) {
 							loanApplicationDTO.setStatusTitle("Physical Verification Pending");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+						} else {
+							if (enachSuccess) {
+								accountDetails = true;
+								loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
+								loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
+							} else if (lendingEnach != null && !lendingEnach.getSkip()) {
+								loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
+								loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
+							} else {
+								loanApplicationDTO.setStatusTitle("Physical Verification Pending");
+								loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our agent will visit you within <b>3 days</b> after Lockdown opens for physical verification.");
+							}
 						}
 					} else {
 						if (enachSuccess) {
@@ -681,7 +750,7 @@ public class LoanDetailsService {
 		return lendingCategoryDetails;
 	}
 	
-	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, boolean enachSuccess) {
+	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, boolean enachSuccess, boolean showTarget, boolean lockdownOpened, double targetTpv, String lockdownEnd, String targetEnd) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
 		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
@@ -693,9 +762,19 @@ public class LoanDetailsService {
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
 			if (ExperianConstants.LOCKDOWN) {
-				history.setLoanStatusHeader("Loan Pre-Booked Successfully");
-				history.setLoanStatusTitle("Loan Transfer Post Lockdown");
-				history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
+				if (lockdownOpened && showTarget) {
+					history.setLoanStatusHeader("Loan Pre-Booked Successfully");
+					history.setLoanStatusTitle("Increase BharatPe QR Txns to Get Loan");
+					history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days post Lockdown opening(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
+				} else if (lockdownOpened) {
+					history.setLoanStatusHeader("Loan Approved");
+					history.setLoanStatusTitle("Loan Transfer Initiated");
+					history.setLoanStatusMessage("The amount will reflect in your bank account within 24-48 hours.");
+				} else {
+					history.setLoanStatusHeader("Loan Pre-Booked Successfully");
+					history.setLoanStatusTitle("Loan Transfer Post Lockdown");
+					history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
+				}
 			} else {
 				if (enachSuccess && repeatLoan) {
 					history.setLoanStatusTitle("Loan Approved");

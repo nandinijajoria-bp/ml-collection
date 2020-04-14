@@ -1,25 +1,26 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.AvailableLoanDao;
-import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.dao.LendingCitiesDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
-import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
+import com.bharatpe.lending.dao.LendingPrebookTargetDao;
 import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
 import com.bharatpe.lending.dto.LendingApplicationResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -61,6 +62,12 @@ public class LendingApplicationService {
 
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
+
+	@Autowired
+	LendingPrebookTargetDao lendingPrebookTargetDao;
+
+	@Autowired
+	MerchantSummaryLendingDao merchantSummaryLendingDao;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
@@ -111,12 +118,29 @@ public class LendingApplicationService {
 			lendingApplicationDao.save(lendingApplication);
 			createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			createStatusAuditTrail(lendingApplication);
+			createPrebookTarget(lendingApplication, merchant);
 		}
 
 		logger.info("Loan Application saved : {}",lendingApplication);
 		return prepareAPIResponse(lendingApplication);
 	}
-	
+
+	public void createPrebookTarget(LendingApplication lendingApplication, Merchant merchant) {
+		try {
+			if (ExperianConstants.LOCKDOWN && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+				MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
+				if (merchantSummaryLending != null && merchantSummaryLending.getTpv() > 0D) {
+					double tpv = merchantSummaryLending.getSegment().equalsIgnoreCase("1") ? merchantSummaryLending.getTpv() * 0.25 : merchantSummaryLending.getTpv() * 0.15;
+					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-03");
+					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-13");
+					lendingPrebookTargetDao.save(new LendingPrebookTarget(merchant.getId(), merchantSummaryLending.getSegment(), lendingApplication.getId(), lendingApplication.getPincode(), tpv, lockdownEndDate, targetAchieveDate));
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Exception while inserting lending_prebook_target for merchant: {}", merchant.getId());
+		}
+	}
+
 	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequest) {
 		lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
 		lendingApplication.setShopNumber(lendingApplicationRequest.getShopNumber());
