@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.amazonaws.services.dynamodbv2.xspec.M;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +64,9 @@ public class UploadDocumentService {
 	@Autowired
 	KarzaHandler karzaHandler;
 
+	@Autowired
+	LendingCategoryDao lendingCategoryDao;
+
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 
@@ -85,6 +89,7 @@ public class UploadDocumentService {
 			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
 			return uploadDocumentResponse;
 		}
+		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofdao.findByMerchantAndLendingApplication(merchant, lendingApplication);
 		Boolean isUpdate = false;
@@ -98,7 +103,7 @@ public class UploadDocumentService {
 			uploadDocumentResponse.setSuccess(true);
 		}
 		uploadDocumentResponse.setDocument(documentList);
-		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication));
+		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
 		return uploadDocumentResponse;
 	}
 	

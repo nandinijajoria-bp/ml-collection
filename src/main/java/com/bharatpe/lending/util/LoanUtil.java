@@ -3,6 +3,7 @@ package com.bharatpe.lending.util;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import com.bharatpe.common.entities.LendingCategories;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,7 @@ import com.bharatpe.lending.dto.ShopDetailsDTO;
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
 
-	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application) {
+	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
 		
 		selectedLoan.put("amount", application.getLoanAmount().intValue());
@@ -30,12 +31,12 @@ public class LoanUtil {
 		selectedLoan.put("repayment", application.getRepayment().intValue());
 		selectedLoan.put("disbursement_amount", application.getLoanAmount().intValue() - application.getProcessingFee().intValue());
 		selectedLoan.put("interest_amount", application.getRepayment().intValue() - application.getLoanAmount().intValue());
-		selectedLoan.put("installment_details", prepareLabels(application));
+		selectedLoan.put("installment_details", prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
 		
 		return selectedLoan;
 	}
 	
-	public static SelectedLoanDTO prepareSelectedLoanDTO(LendingApplication application) {
+	public static SelectedLoanDTO prepareSelectedLoanDTO(LendingApplication application, LendingCategories lendingCategories) {
 		SelectedLoanDTO selectedLoan = new SelectedLoanDTO();
 		
 		selectedLoan.setId(application.getId());
@@ -50,7 +51,7 @@ public class LoanUtil {
 		selectedLoan.setRepayment(application.getRepayment().intValue());
 		selectedLoan.setDisbursementAmount((application.getLoanAmount().intValue() - application.getProcessingFee().intValue()));
 		selectedLoan.setInterestAmount(application.getRepayment().intValue() - application.getLoanAmount().intValue());
-		selectedLoan.setInstallmentDetails(prepareLabels(application));
+		selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
 		
 		return selectedLoan;
 	}
@@ -87,7 +88,7 @@ public class LoanUtil {
 		return shopDetails;
 	}
 	
-	private static List<LabelDTO> prepareLabels(LendingApplication application) {
+	private static List<LabelDTO> prepareLabels(LendingApplication application, int months) {
 		List<LabelDTO> list = new ArrayList<>();
 		
 		if("CONSTRUCT_1".equals(application.getLoanConstruct())) {
@@ -97,8 +98,12 @@ public class LoanUtil {
 			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
 			list.add(new LabelDTO("No Deduction on Sundays", ""));
 		} else if("CONSTRUCT_3".equals(application.getLoanConstruct())) {
-			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
-			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
+			if (months > 1) {
+				list.add(new LabelDTO("EDI for 1st "+months+" Months", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
+			} else {
+				list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
+			}
+			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - months) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
 			list.add(new LabelDTO("No Deduction on Sundays", ""));
 		} else {
 			logger.error("Construct {} not defined, throwing Exception", application.getLoanConstruct());

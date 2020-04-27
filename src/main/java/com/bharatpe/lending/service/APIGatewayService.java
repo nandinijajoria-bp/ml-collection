@@ -90,7 +90,9 @@ public class APIGatewayService {
     private String getSecret() {
     	if(StringUtils.isEmpty(this.clientSecret)) {
     		InternalClient client = inernalClientDao.findByClientName("LENDING");
-    		this.clientSecret = aesEncryption.decrypt(client.getSecret());
+    		if (client != null) {
+                this.clientSecret = aesEncryption.decrypt(client.getSecret());
+            }
     	} 
     	return this.clientSecret;
     }

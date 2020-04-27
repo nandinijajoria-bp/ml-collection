@@ -158,13 +158,14 @@ public class LendingApplicationService {
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(eligibleLoan.getCategory()).get(0);
 		
 		//LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
-		
+		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
+
 		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		lendingApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 		lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 		lendingApplication.setInterestRate(lendingCategory.getInterestRate());
-		lendingApplication.setProcessingFee(0D);
-		lendingApplication.setDisbursalAmount(eligibleLoan.getAmount());
+		lendingApplication.setProcessingFee((double) processingFee);
+		lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
 		lendingApplication.setStatus("draft");
 		lendingApplication.setMode("AUTO");
 		lendingApplication.setMerchant(merchant);
@@ -223,12 +224,13 @@ public class LendingApplicationService {
 	}
 	
 	private LendingApplicationResponseDTO prepareAPIResponse(LendingApplication lendingApplication) {
+		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 		LendingApplicationResponseDTO lendingApplicationResponse = new LendingApplicationResponseDTO();
 		LendingApplicationResponseDTO.LoanApplication loanApplication = lendingApplicationResponse.new LoanApplication();
 
 		loanApplication.setApplicationId(lendingApplication.getId());
 		loanApplication.setApplicationStatus(lendingApplication.getStatus());
-		loanApplication.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication));
+		loanApplication.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
 		loanApplication.setShopDetails(LoanUtil.prepareShopDetailsForClient(lendingApplication));
 		lendingApplicationResponse.setLoanApplication(loanApplication);
 		lendingApplicationResponse.setSuccess(true);

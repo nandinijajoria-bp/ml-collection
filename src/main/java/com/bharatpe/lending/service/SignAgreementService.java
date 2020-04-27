@@ -176,15 +176,15 @@ public class SignAgreementService {
 				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
-			
+			int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
 			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 			newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 			newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
-			newApplication.setProcessingFee(0D);
+			newApplication.setProcessingFee((double)processingFee);
 			newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 			if (!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()))
-				newApplication.setDisbursalAmount(eligibleLoan.getAmount());
+				newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
 			newApplication.setMerchant(merchant);
 			newApplication.setShopNumber(prevApplication.getShopNumber());
 			newApplication.setStreetAddress(prevApplication.getStreetAddress());

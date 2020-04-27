@@ -100,7 +100,7 @@ public class LoanEligibleService {
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending){
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato){
         Double bpScore;
         double tpvLast30Days;
         if (ExperianConstants.LOCKDOWN) {
@@ -145,7 +145,7 @@ public class LoanEligibleService {
         }
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
         experian.setReason(null);
-        if (checkFraud(merchantSummary)) {
+        if (checkFraud(merchantSummary) && !isZomato) {
             logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -153,7 +153,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (checkOverdue(prevLoans)) {
+        if (checkOverdue(prevLoans)  && !isZomato) {
             logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -161,7 +161,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (bpScore <= 10D) {
+        if (bpScore <= 10D  && !isZomato) {
             logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -169,7 +169,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if ((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)){
+        if (((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)) && !isZomato){
             logger.info("Last 30 days tpv less than minimum required, so rejecting merchant: {}", merchant.getId());
             experian.setReason(ExperianConstants.LOW_TPV);
             experianDao.save(experian);
@@ -447,7 +447,7 @@ public class LoanEligibleService {
             eligibleLoanDao.deleteByMerchantId(merchantId);
             List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
             for (LendingCategories lendingCategory : lendingCategories) {
-                LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set);
+                LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set, "PREBOOK", false);
                 if (loanEligibilityDTO != null) {
                     loanEligibilityDTOList.add(loanEligibilityDTO);
                 } else {
@@ -458,7 +458,7 @@ public class LoanEligibleService {
             if (lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
                 List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(lendingApplication.getCategory());
                 if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty()) {
-                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategoriesList.get(0), 0, type, merchantId, experianId, prevLoanAmount, color, set);
+                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategoriesList.get(0), 0, type, merchantId, experianId, prevLoanAmount, color, set, "PREBOOK", false);
                     if (loanEligibilityDTO != null) {
                         logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
                         loanEligibilityDTOList.add(loanEligibilityDTO);
@@ -520,9 +520,9 @@ public class LoanEligibleService {
         return "S4A";
     }
 
-    private LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set) {
-        double percentage;
-        if (ExperianConstants.LOCKDOWN) {
+    public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato) {
+        Double percentage;
+        if (ExperianConstants.LOCKDOWN && !isZomato) {
             percentage = set.equalsIgnoreCase("1") ? (lendingCategories.getMultiplier() - 0.1) : lendingCategories.getMultiplier();
         } else {
             percentage = lendingCategories.getMultiplier();
@@ -535,7 +535,7 @@ public class LoanEligibleService {
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
         String payableConverter = lendingCategories.getPayableConverter();
-        int ioEdiDays = construct.equalsIgnoreCase("CONSTRUCT_3") ? 30 : 0;
+        int ioEdiDays = lendingCategories.getIoEdiDays();
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
             AvailableLoan availableLoan = new AvailableLoan();
@@ -544,7 +544,7 @@ public class LoanEligibleService {
         } else {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
         }
-        if (ExperianConstants.LOCKDOWN) {
+        if (ExperianConstants.LOCKDOWN && !isZomato) {
             if (set.equalsIgnoreCase("1") && breakup.getLoanAmount() < 20000) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
@@ -552,7 +552,7 @@ public class LoanEligibleService {
                 logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
                 return null;
             }
-        } else {
+        } else if (!isZomato){
             if (color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
@@ -562,7 +562,7 @@ public class LoanEligibleService {
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
-        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, "PREBOOK"));
+        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType));
         logger.info("eligible loan for merchant: {} is-- {}", merchantId, eligibleLoan.toString());
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
@@ -609,9 +609,10 @@ public class LoanEligibleService {
         loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
         loanEligibilityDTO.setTenure(tenure);
         loanEligibilityDTO.setConstruct(breakup.getConstruct());
-        loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup));
+        loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
         loanEligibilityDTO.setType(breakup.getType());
         loanEligibilityDTO.setOptionEnable(true);
+        loanEligibilityDTO.setPrincipleEdiTenure(breakup.getPrincipleEdiTenure());
         return loanEligibilityDTO;
     }
 
@@ -1033,5 +1034,13 @@ public class LoanEligibleService {
                 return name;
             }
         }
+    }
+
+    public boolean isNTC(Experian experian) {
+        if (experian == null || experian.getCategory() == null) {
+            return true;
+        }
+        List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
+        return ntcCategories.contains(experian.getCategory());
     }
 }

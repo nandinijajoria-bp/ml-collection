@@ -29,14 +29,14 @@ public class LoanCalculationUtil {
 			ioEdi = ioInterestAmount = 0;
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
 		} else if("CONSTRUCT_3".equals(category.getLoanConstruct())) {
+			ioOrFreeEdiTenure = category.getIoTenureMonths().intValue();
 			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
 			ioEdi = (int) Math.ceil(availableLoan.getAmount() * (category.getInterestRate() / 100) * category.getIoTenureMonths() / category.getIoPayableDays());
-			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * (category.getTenureMonths() - 1)))) / category.getPayableDays());
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * (category.getTenureMonths() - ioOrFreeEdiTenure)))) / category.getPayableDays());
 			repayment = (int) Math.round((category.getPayableDays() * edi) + (category.getIoPayableDays() * ioEdi));
 			ioInterestAmount = category.getIoPayableDays() * ioEdi;
 			interestAmount = repayment - ioInterestAmount - availableLoan.getAmount().intValue();
 			totalInterestAmount = ioInterestAmount + interestAmount;
-			ioOrFreeEdiTenure = category.getIoTenureMonths().intValue();
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
 		} else {
 			processingFee = Integer.valueOf(category.getProcessingFee());
@@ -212,7 +212,7 @@ public class LoanCalculationUtil {
 		
 	}
 
-	public static List<LabelDTO> prepareLabels(LoanBreakupDetail breakup) {
+	public static List<LabelDTO> prepareLabels(LoanBreakupDetail breakup, int months) {
 		List<LabelDTO> list = new ArrayList<>();
 
 		if("CONSTRUCT_1".equals(breakup.getConstruct())) {
@@ -225,7 +225,11 @@ public class LoanCalculationUtil {
 			list.add(new LabelDTO("No EDI on", "Sundays"));
 			list.add(new LabelDTO("Repayment Amount", "₹" +String.valueOf(breakup.getRepayment())));
 		} else if("CONSTRUCT_3".equals(breakup.getConstruct())) {
-			list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(breakup.getIoEdi()) + "/day"));
+			if (months > 1) {
+				list.add(new LabelDTO("EDI for 1st "+months+" Months", "₹" + CurrencyUtils.formatInt(breakup.getIoEdi()) + "/day"));
+			} else {
+				list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(breakup.getIoEdi()) + "/day"));
+			}
 			list.add(new LabelDTO("EDI for Next " + breakup.getPrincipleEdiTenure() + " Months", "₹" + CurrencyUtils.formatInt(breakup.getEdi()) + "/day"));
 			list.add(new LabelDTO("No EDI on", "Sundays"));
 			list.add(new LabelDTO("Repayment Amount", "₹" + CurrencyUtils.formatInt(breakup.getRepayment())));

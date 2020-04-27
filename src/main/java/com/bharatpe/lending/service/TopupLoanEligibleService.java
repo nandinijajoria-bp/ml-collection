@@ -608,9 +608,10 @@ public class TopupLoanEligibleService {
         loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
         loanEligibilityDTO.setTenure(tenure);
         loanEligibilityDTO.setConstruct(breakup.getConstruct());
-        loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup));
+        loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
         loanEligibilityDTO.setType(breakup.getType());
         loanEligibilityDTO.setOptionEnable(true);
+        loanEligibilityDTO.setPrincipleEdiTenure(breakup.getPrincipleEdiTenure());
         return loanEligibilityDTO;
     }
 

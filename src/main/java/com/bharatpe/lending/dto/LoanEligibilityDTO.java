@@ -2,6 +2,7 @@ package com.bharatpe.lending.dto;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class LoanEligibilityDTO {
@@ -31,6 +32,8 @@ public class LoanEligibilityDTO {
 	private String tenure;
 	private String construct;
 	private String type;
+	@JsonIgnore
+	private Integer principleEdiTenure;
 	
 	@JsonProperty(value = "installment_details")
 	private List<LabelDTO> list;
@@ -120,6 +123,9 @@ public class LoanEligibilityDTO {
 	public void setPrevLoanUnpaidAmount(Integer prevLoanUnpaidAmount) {
 		this.prevLoanUnpaidAmount = prevLoanUnpaidAmount;
 	}
+	public Integer getPrincipleEdiTenure() { return principleEdiTenure; }
+	public void setPrincipleEdiTenure(Integer principleEdiTenure) { this.principleEdiTenure = principleEdiTenure; }
+
 	@Override
 	public String toString() {
 		return "LoanEligibilityDTO [processingFee=" + processingFee + ", interestRate=" + interestRate
