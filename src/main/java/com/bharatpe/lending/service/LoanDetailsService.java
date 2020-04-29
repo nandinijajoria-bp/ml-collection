@@ -305,14 +305,14 @@ public class LoanDetailsService {
 							loanApplicationDTO.setStatusMessage("Please revisit the page after " + new SimpleDateFormat("dd-MM-yyyy").format(calender.getTime()) + " to check your eligibility and apply again.");
 						}
 					}
-					if (ExperianConstants.LOCKDOWN && lockdownOpened) {
+					if (ExperianConstants.LOCKDOWN && lockdownOpened && !isZomato) {
 						loanApplicationDTO.setStatusTitle("Loan Offer Expired!");
 						loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your loan since you did not meet your QR Transaction target.");
 					}
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					if (ExperianConstants.LOCKDOWN) {
+					if (ExperianConstants.LOCKDOWN  && !isZomato) {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
@@ -346,7 +346,7 @@ public class LoanDetailsService {
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 					}
-					if (ExperianConstants.LOCKDOWN) {
+					if (ExperianConstants.LOCKDOWN  && !isZomato) {
 						if (lockdownOpened && showTarget) {
 							loanApplicationDTO.setStatusTitle("Increase BharatPe QR Txns to Get Loan");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days post Lockdown opening(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
