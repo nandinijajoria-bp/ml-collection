@@ -269,7 +269,7 @@ public class LoanDetailsService {
 				logger.error("Exception---", e);
 			}
 
-			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess, showTarget, lockdownOpened, targetTpv, lockdownEnd, targetEnd);
+			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess, showTarget, lockdownOpened, targetTpv, lockdownEnd, targetEnd, isZomato);
 			List<LoanHistoryDTO> loanHistoryDTOs = orignalHistoryDTOs;
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
@@ -317,6 +317,7 @@ public class LoanDetailsService {
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 					} else {
+						loanApplicationDTO.setStatusHeader("Loan Approved");
 						loanApplicationDTO.setStatusTitle("Application submitted successfully!");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 					}
@@ -367,6 +368,7 @@ public class LoanDetailsService {
 							}
 						}
 					} else {
+						loanApplicationDTO.setStatusHeader("Loan Approved");
 						if (enachSuccess) {
 							accountDetails = true;
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
@@ -795,7 +797,7 @@ public class LoanDetailsService {
 		return lendingCategoryDetails;
 	}
 	
-	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, boolean enachSuccess, boolean showTarget, boolean lockdownOpened, double targetTpv, String lockdownEnd, String targetEnd) {
+	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, boolean enachSuccess, boolean showTarget, boolean lockdownOpened, double targetTpv, String lockdownEnd, String targetEnd, boolean isZomato) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
 		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
@@ -806,7 +808,7 @@ public class LoanDetailsService {
 			history.setStartDate(null);
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
-			if (ExperianConstants.LOCKDOWN) {
+			if (ExperianConstants.LOCKDOWN && !isZomato) {
 				if (lockdownOpened && showTarget) {
 					history.setLoanStatusHeader("Loan Pre-Booked Successfully");
 					history.setLoanStatusTitle("Increase BharatPe QR Txns to Get Loan");
@@ -821,6 +823,7 @@ public class LoanDetailsService {
 					history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 				}
 			} else {
+				history.setLoanStatusHeader("Loan Approved");
 				if (enachSuccess && repeatLoan) {
 					history.setLoanStatusTitle("Loan Approved");
 					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
