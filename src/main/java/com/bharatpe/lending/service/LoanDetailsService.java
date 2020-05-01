@@ -132,7 +132,7 @@ public class LoanDetailsService {
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 			MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 			LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
-			List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartner(merchant.getId(), "ZOMATO");
+			List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartnerAndMobile(merchant.getId(), "ZOMATO", merchant.getMobile());
 			boolean isZomato = false;
 			if (lendingPartnerOffers != null && !lendingPartnerOffers.isEmpty()) {
 				isZomato = true;
