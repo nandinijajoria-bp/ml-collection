@@ -293,7 +293,7 @@ public class LoanDetailsService {
 					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(auditTrial, 7)) {
 						eligibleFlag = false;
 						loanHistoryDTOs = null;
-						loanApplicationDTO.setStatusHeader("Loan Approved");
+						loanApplicationDTO.setStatusHeader("Loan Application Submitted");
 						loanApplicationDTO.setStatusTitle("Verification Failed!");
 						if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
 							loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment. Please write to us on  support@bharatpe.com to apply again.");
