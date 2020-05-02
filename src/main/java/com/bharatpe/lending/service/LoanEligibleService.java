@@ -144,7 +144,9 @@ public class LoanEligibleService {
             lendingApplication = lendingApplicationDao.findByIdAndMerchant(prevLoans.get(0).getApplicationId(), merchant);
         }
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
-        experian.setReason(null);
+        if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
+            experian.setReason(null);
+        }
         if (checkFraud(merchantSummary) && !isZomato) {
             logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
@@ -1039,6 +1041,9 @@ public class LoanEligibleService {
     public boolean isNTC(Experian experian) {
         if (experian == null || experian.getCategory() == null) {
             return true;
+        }
+        if (experian.getReason() != null && experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
+            return false;
         }
         List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
         return ntcCategories.contains(experian.getCategory());
