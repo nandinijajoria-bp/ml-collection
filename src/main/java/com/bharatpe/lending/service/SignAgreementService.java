@@ -281,7 +281,6 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			
 			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
-			lendingApplicationService.createPrebookTarget(newApplication, merchant);
 		}
 		return response;
 	}

@@ -13,6 +13,7 @@ import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.OglLoans;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import org.slf4j.Logger;
@@ -89,6 +90,9 @@ public class VerifyOTPService {
 	@Autowired
 	LoyaltyService loyaltyService;
 
+	@Autowired
+	LendingPrebookTargetDao lendingPrebookTargetDao;
+
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -119,6 +123,7 @@ public class VerifyOTPService {
 			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
 			if(isOTPVerified) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
+				createPrebookTarget(lendingApplication, merchant);
 			}
 		}
 		return finalResponse;
@@ -318,5 +323,28 @@ public class VerifyOTPService {
 			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
 		}
 		return true;
+	}
+
+	public void createPrebookTarget(LendingApplication lendingApplication, Merchant merchant) {
+		try {
+			if (ExperianConstants.LOCKDOWN && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+				MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
+				if (merchantSummaryLending != null && merchantSummaryLending.getTpv() > 0D) {
+					double tpv = merchantSummaryLending.getSegment().equalsIgnoreCase("1") ? merchantSummaryLending.getTpv() * 0.25 : merchantSummaryLending.getTpv() * 0.15;
+					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-17");
+					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-27");
+					if (lendingApplication.getAgreementAt().after(lockdownEndDate)) {
+						lockdownEndDate = lendingApplication.getAgreementAt();
+						Calendar c = Calendar.getInstance();
+						c.setTime(lockdownEndDate);
+						c.add(Calendar.DATE, 10);
+						targetAchieveDate = c.getTime();
+					}
+					lendingPrebookTargetDao.save(new LendingPrebookTarget(merchant.getId(), merchantSummaryLending.getSegment(), lendingApplication.getId(), lendingApplication.getPincode(), tpv, lockdownEndDate, targetAchieveDate));
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Exception while inserting lending_prebook_target for merchant: {}", merchant.getId());
+		}
 	}
 }

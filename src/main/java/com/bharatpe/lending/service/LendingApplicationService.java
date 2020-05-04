@@ -64,12 +64,6 @@ public class LendingApplicationService {
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
 
-	@Autowired
-	LendingPrebookTargetDao lendingPrebookTargetDao;
-
-	@Autowired
-	MerchantSummaryLendingDao merchantSummaryLendingDao;
-
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
@@ -121,34 +115,10 @@ public class LendingApplicationService {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			}
 			createStatusAuditTrail(lendingApplication);
-			createPrebookTarget(lendingApplication, merchant);
 		}
 
 		logger.info("Loan Application saved : {}",lendingApplication);
 		return prepareAPIResponse(lendingApplication);
-	}
-
-	public void createPrebookTarget(LendingApplication lendingApplication, Merchant merchant) {
-		try {
-			if (ExperianConstants.LOCKDOWN && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
-				MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
-				if (merchantSummaryLending != null && merchantSummaryLending.getTpv() > 0D) {
-					double tpv = merchantSummaryLending.getSegment().equalsIgnoreCase("1") ? merchantSummaryLending.getTpv() * 0.25 : merchantSummaryLending.getTpv() * 0.15;
-					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-17");
-					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-27");
-					if (lendingApplication.getCreatedAt().after(lockdownEndDate)) {
-						lockdownEndDate = lendingApplication.getCreatedAt();
-						Calendar c = Calendar.getInstance();
-						c.setTime(lockdownEndDate);
-						c.add(Calendar.DATE, 10);
-						targetAchieveDate = c.getTime();
-					}
-					lendingPrebookTargetDao.save(new LendingPrebookTarget(merchant.getId(), merchantSummaryLending.getSegment(), lendingApplication.getId(), lendingApplication.getPincode(), tpv, lockdownEndDate, targetAchieveDate));
-				}
-			}
-		} catch (Exception e) {
-			logger.error("Exception while inserting lending_prebook_target for merchant: {}", merchant.getId());
-		}
 	}
 
 	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequest) {
