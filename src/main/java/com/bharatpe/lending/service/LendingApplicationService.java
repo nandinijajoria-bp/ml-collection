@@ -20,6 +20,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -133,8 +134,15 @@ public class LendingApplicationService {
 				MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 				if (merchantSummaryLending != null && merchantSummaryLending.getTpv() > 0D) {
 					double tpv = merchantSummaryLending.getSegment().equalsIgnoreCase("1") ? merchantSummaryLending.getTpv() * 0.25 : merchantSummaryLending.getTpv() * 0.15;
-					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-03");
-					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-13");
+					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-17");
+					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-27");
+					if (lendingApplication.getCreatedAt().after(lockdownEndDate)) {
+						lockdownEndDate = lendingApplication.getCreatedAt();
+						Calendar c = Calendar.getInstance();
+						c.setTime(lockdownEndDate);
+						c.add(Calendar.DATE, 10);
+						targetAchieveDate = c.getTime();
+					}
 					lendingPrebookTargetDao.save(new LendingPrebookTarget(merchant.getId(), merchantSummaryLending.getSegment(), lendingApplication.getId(), lendingApplication.getPincode(), tpv, lockdownEndDate, targetAchieveDate));
 				}
 			}
