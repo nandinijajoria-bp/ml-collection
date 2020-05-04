@@ -199,7 +199,7 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
-            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2"))) {
+            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2"))) {
                 List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
                 if (prevLoans != null && prevLoans.size() > 0) {
                     lendingApplication.setStatus("approved");

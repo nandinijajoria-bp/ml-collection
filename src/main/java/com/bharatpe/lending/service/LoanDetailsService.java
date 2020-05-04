@@ -274,11 +274,15 @@ public class LoanDetailsService {
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
-			String bankCode;
-			if (requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
-				bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
-			} else {
-				bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+			String bankCode = null;
+			try {
+				if (requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
+					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+				} else {
+					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+				}
+			} catch (Exception e) {
+				logger.error("Exception while checking enach bank code:", e);
 			}
 			if(lendingApplication != null) {
 				if ((enachSuccess && repeatLoan) || (enachSuccess && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
