@@ -419,7 +419,7 @@ public class LoanDetailsService {
 //					loanDetailsDTO.setTopupLoan(new ArrayList<>());
 //				}
 				
-				loanDetailsDTO.setTopupLoan(new ArrayList<>());
+				loanDetailsDTO.setTopupLoan(null);
 				loanDetailsDTO.setEnach(enach);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
