@@ -27,7 +27,7 @@ public class LendingPartnerService {
     public void saveDetails(PartnerDetailsRequestDTO partnerDetailsRequestDTO) {
         List<LendingPartnerDetails> lendingPartnerDetails = lendingPartnerDetailsDao.findByUserMobileAndPartner(partnerDetailsRequestDTO.getMobile(), partnerDetailsRequestDTO.getPartner());
         if (lendingPartnerDetails == null || lendingPartnerDetails.isEmpty()) {
-            String smsContent = "Thank you for registering for Zomato Loan. BharatPe needs your restaurant info:\n- Name\n- Address\n- Email\n- Zomato Onboarding Date\n\nWe'll call you in next 24 hours.";
+            String smsContent = "Thank you for registering for Zomato Loan. BharatPe needs your restaurant info:\n- Name\n- Address\n- Email\n\nWe'll call you in next 24 hours.";
             smsServiceHandler.sendSMS(new ArrayList<String>(){{add(partnerDetailsRequestDTO.getMobile());}}, smsContent, NotificationProvider.SMS.GUPSHUP);
         }
         lendingPartnerDetailsDao.save(new LendingPartnerDetails(partnerDetailsRequestDTO.getPartner(), partnerDetailsRequestDTO.getName(), partnerDetailsRequestDTO.getMobile()));
