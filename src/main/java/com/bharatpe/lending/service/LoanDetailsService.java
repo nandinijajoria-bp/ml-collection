@@ -473,11 +473,6 @@ public class LoanDetailsService {
 					try {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato));
 						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
-						if (isZomato) {
-							loanEligibilityDTOs.clear();
-							skipEnatch = false;
-							loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers, bankCode));
-						}
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -495,6 +490,11 @@ public class LoanDetailsService {
 						if (experian.getMaskedMobiles() != null && !experian.getMaskedMobiles().isEmpty()) {
 							maskedMobiles = experian.getMaskedMobiles();
 						}
+					}
+					if (isZomato && !rejected) {
+						loanEligibilityDTOs.clear();
+						skipEnatch = false;
+						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers, bankCode));
 					}
 				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
