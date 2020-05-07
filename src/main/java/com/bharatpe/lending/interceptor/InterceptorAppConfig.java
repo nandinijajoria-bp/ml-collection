@@ -17,6 +17,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	@Autowired
 	private InternalClientHmacInterceptor clientHmacInterceptor;
 	
+	@Autowired
+	private HmacForMIDAndInternalClientInterceptor midInterceptor;
+	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
@@ -24,7 +27,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
         
         registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/liquiloan/approveLoan","/lending/liquiloan/settlement");
         
-        registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/liquiloan/postPayoutStatusUpdate", "/lending/payment/callback");
+        registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/liquiloan/postPayoutStatusUpdate");
+        
+        registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback");
         
     }
 }
