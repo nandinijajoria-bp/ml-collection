@@ -158,6 +158,7 @@ public class PaymentService {
 			order.setVpa(vpa);
 			order.setShortLink(paymentLink);
 			order.setUpiIntent(intent);
+			order.setMid(mid);
 			loanPaymentOrderDao.save(order);
 			
 			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink);
