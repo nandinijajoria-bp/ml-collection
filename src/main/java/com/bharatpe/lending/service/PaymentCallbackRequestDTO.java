@@ -10,18 +10,15 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class PaymentCallbackRequestDTO {
 
-	private Long merchantId;
 	private Double amount;
-	private String bankReferenceNo;
 	private String orderId;
-
-	public Long getMerchantId() {
-		return merchantId;
-	}
-
-	public void setMerchantId(Long merchantId) {
-		this.merchantId = merchantId;
-	}
+	private String paymentVpa;
+	private String transactionId;
+    private String bankReferenceNumber;
+    private String transactionDate;
+    private String status;
+    private String customerName;
+    private String transactionMessage;
 
 	public Double getAmount() {
 		return amount;
@@ -31,14 +28,6 @@ public class PaymentCallbackRequestDTO {
 		this.amount = amount;
 	}
 
-	public String getBankReferenceNo() {
-		return bankReferenceNo;
-	}
-
-	public void setBankReferenceNo(String bankReferenceNo) {
-		this.bankReferenceNo = bankReferenceNo;
-	}
-	
 	public String getOrderId() {
 		return orderId;
 	}
@@ -47,10 +36,67 @@ public class PaymentCallbackRequestDTO {
 		this.orderId = orderId;
 	}
 
-	@Override
-	public String toString() {
-		return "PaymentCallbackRequestDTO [merchantId=" + merchantId + ", amount=" + amount + ", bankReferenceNo="
-				+ bankReferenceNo + ", orderId=" + orderId + "]";
+	public String getPaymentVpa() {
+		return paymentVpa;
 	}
 
+	public void setPaymentVpa(String paymentVpa) {
+		this.paymentVpa = paymentVpa;
+	}
+
+	public String getTransactionId() {
+		return transactionId;
+	}
+
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+
+	public String getBankReferenceNumber() {
+		return bankReferenceNumber;
+	}
+
+	public void setBankReferenceNumber(String bankReferenceNumber) {
+		this.bankReferenceNumber = bankReferenceNumber;
+	}
+
+	public String getTransactionDate() {
+		return transactionDate;
+	}
+
+	public void setTransactionDate(String transactionDate) {
+		this.transactionDate = transactionDate;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getCustomerName() {
+		return customerName;
+	}
+
+	public void setCustomerName(String customerName) {
+		this.customerName = customerName;
+	}
+
+	public String getTransactionMessage() {
+		return transactionMessage;
+	}
+
+	public void setTransactionMessage(String transactionMessage) {
+		this.transactionMessage = transactionMessage;
+	}
+
+	@Override
+	public String toString() {
+		return "PaymentCallbackRequestDTO [amount=" + amount + ", orderId=" + orderId + ", paymentVpa=" + paymentVpa
+				+ ", transactionId=" + transactionId + ", bankReferenceNumber=" + bankReferenceNumber
+				+ ", transactionDate=" + transactionDate + ", status=" + status + ", customerName=" + customerName
+				+ ", transactionMessage=" + transactionMessage + "]";
+	}
 }

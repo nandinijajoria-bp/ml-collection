@@ -51,6 +51,9 @@ public class LoanPaymentOrder extends BaseEntity {
     
     @Column(name = "status")
     private String status;
+    
+    @Column(name = "mid")
+    private String mid;
 
 	public Merchant getMerchant() {
 		return merchant;
@@ -147,13 +150,21 @@ public class LoanPaymentOrder extends BaseEntity {
 	public void setDescription(String description) {
 		this.description = description;
 	}
+	
+	public String getMid() {
+		return mid;
+	}
+
+	public void setMid(String mid) {
+		this.mid = mid;
+	}
 
 	@Override
 	public String toString() {
 		return "LoanPaymentOrder [merchant=" + merchant + ", merchantStore=" + merchantStore + ", owner=" + owner
 				+ ", ownerId=" + ownerId + ", orderId=" + orderId + ", amount=" + amount + ", vpa=" + vpa
-				+ ", bankRefNo=" + bankRefNo + ", shortLink=" + shortLink + ", upiIntent=" + upiIntent + ", status="
-				+ status + "]";
+				+ ", bankRefNo=" + bankRefNo + ", description=" + description + ", shortLink=" + shortLink
+				+ ", upiIntent=" + upiIntent + ", status=" + status + ", mid=" + mid + "]";
 	}
-
+	
 }

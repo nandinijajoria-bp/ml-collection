@@ -1,7 +1,6 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
@@ -13,12 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.annotation.PostConstruct;
 
@@ -29,6 +28,9 @@ public class APIGatewayService {
 
     @Value("${create.vpa.endpoint}")
     String createVPAEndpoint;
+    
+    @Value("${internal.merchant.id}")
+    long merchantId;
 
     @Autowired
     private HmacCalculator hmacCalculator;
@@ -37,9 +39,10 @@ public class APIGatewayService {
     private AesEncryption aesEncryption;
     
     @Autowired
-    private InternalClientDao inernalClientDao;
+    private MerchantDao merchantDao;
     
-    private static String clientSecret;
+    private static String SECRET;
+    private static String MID;
     
     ObjectMapper mapper = new ObjectMapper();
     
@@ -47,6 +50,7 @@ public class APIGatewayService {
     public void init() {
     	try { 
     		getSecret();
+    		getMid();
     	} catch(Exception ex) {
     		logger.error("Exception while loading Secret in APIGatewayService, Exception is {}", ex);
     	}
@@ -58,24 +62,20 @@ public class APIGatewayService {
             Map requestParams = new HashMap<>();
             requestParams.put("amount", amount);
             requestParams.put("orderId", orderId);
-            requestParams.put("mid", merchant.getMid());
-            requestParams.put("orderDescription", "Loan Repayment");
-            requestParams.put("txnNote", "Loan Repayment");
-            requestParams.put("type", "LOAN_PAYMENT");
+            requestParams.put("mid", getMid());
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
-            headers.set("clientName", "LENDING");
             headers.set("hash", hash);
             headers.set("mid", merchant.getMid());
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
             logger.info("createVPA internal request: {}", mapper.writeValueAsString(request));
             
-            RestTemplate rTemplate = new RestTemplate();
-            Map response = rTemplate.postForObject(createVPAEndpoint, request, Map.class);
+            RestTemplate restTemplate = new RestTemplate();
+            Map response = restTemplate.postForObject(createVPAEndpoint, request, Map.class);
             logger.info("Response received from create VPA API {}", mapper.writeValueAsString(response));
             return response;
         } catch (HttpClientErrorException ex) {
@@ -88,12 +88,24 @@ public class APIGatewayService {
     }
 
     private String getSecret() {
-    	if(StringUtils.isEmpty(this.clientSecret)) {
-    		InternalClient client = inernalClientDao.findByClientName("LENDING");
-    		if (client != null) {
-                this.clientSecret = aesEncryption.decrypt(client.getSecret());
+        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        if (merchantOptional.isPresent()) {
+            Merchant merchant = merchantOptional.get();
+            if (SECRET == null) {
+            	SECRET = aesEncryption.decrypt(merchant.getSecret());
             }
-    	} 
-    	return this.clientSecret;
+        }
+        return SECRET;
+    }
+    
+    private String getMid() {
+        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        if (merchantOptional.isPresent()) {
+            Merchant merchant = merchantOptional.get();
+            if (MID == null) {
+                MID = merchant.getMid();
+            }
+        }
+        return MID;
     }
 }

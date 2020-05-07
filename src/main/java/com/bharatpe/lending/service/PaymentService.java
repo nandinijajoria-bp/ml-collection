@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -153,6 +152,7 @@ public class PaymentService {
 			String vpa = (String) vpaResponse.get("bharatpeTxnId");
 			String paymentLink = (String) vpaResponse.get("paymentLink");
 			String intent = (String) vpaResponse.get("upiString");
+			String mid = (String) vpaResponse.get("mid");
 			
 			order.setStatus("PENDING");
 			order.setVpa(vpa);
@@ -169,47 +169,42 @@ public class PaymentService {
 	}
 	
 	public String handleCallback(PaymentCallbackRequestDTO request) {
-		logger.info("Received payment callback request for merchant {} : {}", request.getMerchantId(), request);
+		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
 		try {
 			
-			Optional<Merchant> merchant = merchantDao.findById(request.getMerchantId());
-			if(!merchant.isPresent()) {
-				logger.error("Merchant not found with id {}", request.getMerchantId());
-				return "OK";
-			}
-			
-			if(request.getAmount() == null || request.getAmount() <= 0D) {
-				logger.error("Invalid amount received for merchant {} and amount {}", request.getMerchantId(), request.getAmount());
-				return "OK";
-			}
-			
-			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.get().getId(), "ACTIVE");
-			
-			if(activeLoan == null) {
-				logger.error("No active loan found for merchant id {}", merchant.get().getId());
-				return "OK";
-			}
-			
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
+			
 			if(order == null) {
-				logger.error("No order for merchant id {} and order id {}", merchant.get().getId(), request.getOrderId());
+				logger.error("No order for order id {}", request.getOrderId());
 				return "OK";
 			}
 			
 			if("SUCCESS".equalsIgnoreCase(order.getStatus())) {
-				logger.error("Payment for merchant id {} and order id {} is already successful", merchant.get().getId(), request.getOrderId());
+				logger.error("Payment for merchant id {} and order id {} is already successful", order.getMerchant().getId(), request.getOrderId());
+				return "OK";
+			}
+			
+			if(request.getAmount() == null || request.getAmount() <= 0D) {
+				logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchant().getId(), request.getAmount());
+				return "OK";
+			}
+			
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId()).get();
+			
+			if(activeLoan == null) {
+				logger.error("No active loan found for id {}", order.getOwnerId());
 				return "OK";
 			}
 			
 			if(order.getAmount()  - request.getAmount() < -1 || order.getAmount() - request.getAmount() > 1) { 
-				logger.error("Amount mismatch for the merchant {} and order id {}", merchant.get().getId(), request.getOrderId());
+				logger.error("Amount mismatch for the merchant {} and order id {}", order.getMerchant().getId(), request.getOrderId());
 				order.setStatus("FAILED");
 				order.setDescription("Amount mismatch");
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
 			
-			order.setBankRefNo(request.getBankReferenceNo());
+			order.setBankRefNo(request.getBankReferenceNumber());
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
  			
@@ -257,15 +252,15 @@ public class PaymentService {
 				}
 			}
 					
-			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNo()));
+			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNumber()));
 			lendingPaymentScheduleDao.save(activeLoan);
 			
 			boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 			
-			notificationExecutor.submit(() -> sendSMS(merchant.get(), request.getAmount(), isLoanClosed));
+			notificationExecutor.submit(() -> sendSMS(order.getMerchant(), request.getAmount(), isLoanClosed));
 
 			if(isLoanClosed) {
-				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
+				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(order.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
 	                    .amount(request.getAmount())
 	                    .merchantStoreId(null)
 	                    .transactionId(activeLoan.getId())
@@ -274,7 +269,7 @@ public class PaymentService {
 				loyaltyService.pushAsync(requestBean);
 			} 
 			
-			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.get().getId(), LoyaltyTransactionType.LENDING_EDI)
+			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(order.getMerchant().getId(), LoyaltyTransactionType.LENDING_EDI)
 	                    .amount(request.getAmount())
 	                    .merchantStoreId(null)
 	                    .transactionId(activeLoan.getId())
@@ -283,7 +278,7 @@ public class PaymentService {
 			loyaltyService.pushAsync(requestBean);
 
 		} catch(Exception ex) {
-			logger.error("Execption whilehandling payment callback for merchant id {}, Exception is {}", request.getMerchantId(), ex);
+			logger.error("Execption whilehandling payment callback for order id {}, Exception is {}", request.getOrderId(), ex);
 		}
 		return "OK";
 	}
