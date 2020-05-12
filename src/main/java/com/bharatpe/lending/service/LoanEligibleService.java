@@ -131,7 +131,7 @@ public class LoanEligibleService {
         if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
             experian.setReason(null);
         }
-        if (checkFraud(merchantSummary) && !isZomato && !exemptMerchant.contains(merchant.getId())) {
+        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkFraud(merchantSummary)) {
             logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -139,7 +139,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (checkOverdue(prevLoans)  && !isZomato && !exemptMerchant.contains(merchant.getId())) {
+        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkOverdue(prevLoans)) {
             logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -147,7 +147,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (bpScore <= 10D  && !isZomato) {
+        if (!isZomato && bpScore <= 10D) {
             logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -203,7 +203,7 @@ public class LoanEligibleService {
             }
             if (experianResponse != null){
                 try {
-                    if (isDerog(experianResponse, merchant, experian, isRepeatLoanNoDerog) && !exemptMerchant.contains(merchant.getId())) {
+                    if (!exemptMerchant.contains(merchant.getId()) && isDerog(experianResponse, merchant, experian, isRepeatLoanNoDerog)) {
                         return new ArrayList<>();
                     }
                 } catch (Exception e) {
