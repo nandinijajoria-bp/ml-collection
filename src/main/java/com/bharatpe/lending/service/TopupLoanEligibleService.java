@@ -68,13 +68,13 @@ public class TopupLoanEligibleService {
     		 Experian experian = experianDao.getByMerchantId(merchant.get().getId());
     		 MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.get().getId(), "ACTIVE");
     		 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.get().getId());
-             fetchTopupLoans(merchant.get(), experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
+             fetchTopupLoans(merchant.get(), experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, null);
     	 } catch(Exception ex) {
     		 logger.error("Exception while generating new loans for merchant with ID {}, Exception is {}", merchantId, ex);
     	 }
     }
 
-    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList) {
+    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
         if (!Arrays.asList("918980994455","919899818499","918506057690","919971011197").contains(merchant.getMobile())) {//TODO remove this after testing
             return new ArrayList<>();
@@ -134,7 +134,7 @@ public class TopupLoanEligibleService {
             LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false);
             double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
             if (loanEligibilityDTO != null) {
-                if (loanEligibilityDTO.getAmount() > 100000 && !enachSuccess) {
+                if (loanEligibilityDTO.getAmount() > 100000 && !enachSuccess && bankCode == null) {
                     logger.info("Topup Loan amount is more than 1lac and enach not found for merchant:{}", merchant.getId());
                     return new ArrayList<>();
                 }
