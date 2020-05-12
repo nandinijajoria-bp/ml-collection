@@ -38,6 +38,9 @@ public class LoanEligibilityDTO {
 	@JsonProperty(value = "installment_details")
 	private List<LabelDTO> list;
 
+	private boolean skipEnatch;
+	private String enach;
+
 	
 	public Integer getProcessingFee() {
 		return processingFee;
@@ -125,6 +128,22 @@ public class LoanEligibilityDTO {
 	}
 	public Integer getPrincipleEdiTenure() { return principleEdiTenure; }
 	public void setPrincipleEdiTenure(Integer principleEdiTenure) { this.principleEdiTenure = principleEdiTenure; }
+
+	public boolean isSkipEnatch() {
+		return skipEnatch;
+	}
+
+	public void setSkipEnatch(boolean skipEnatch) {
+		this.skipEnatch = skipEnatch;
+	}
+
+	public String getEnach() {
+		return enach;
+	}
+
+	public void setEnach(String enach) {
+		this.enach = enach;
+	}
 
 	@Override
 	public String toString() {

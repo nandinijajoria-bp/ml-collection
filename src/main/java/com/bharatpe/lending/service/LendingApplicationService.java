@@ -130,6 +130,10 @@ public class LendingApplicationService {
 		lendingApplication.setPincode(lendingApplicationRequest.getPincode());
 		lendingApplication.setCity(lendingApplicationRequest.getCity());
 		lendingApplication.setState(lendingApplicationRequest.getState());
+		if (lendingApplicationRequest.getAlternativeContact() != null) {
+			lendingApplication.setAlternateMobile(lendingApplicationRequest.getAlternativeContact().getPhoneNumber());
+			lendingApplication.setAlternateName(lendingApplicationRequest.getAlternativeContact().getName());
+		}
 		return lendingApplication;
 	}
 	

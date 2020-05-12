@@ -180,7 +180,11 @@ public class SignAgreementService {
 			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 			newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-			newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
+			if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
+				newApplication.setInterestRate(1.75D);
+			} else {
+				newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
+			}
 			newApplication.setProcessingFee((double)processingFee);
 			newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 			if (!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()))

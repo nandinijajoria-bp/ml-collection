@@ -115,26 +115,9 @@ public class LoanEligibleService {
         List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
         int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
         boolean repeatedLoan = loanCount > 0;
-        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
-        if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
-            try {
-                lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
-            } catch (Exception e) {
-                logger.error("Exception in Liquiloans API---", e);
-            }
-        }
         if (skip) {
             experian.setSkip(true);
             experianDao.save(experian);
-        }
-        String firstName;
-        String lastName;
-        if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("")) {
-            firstName = getFirstName(lendingPancard.getName());
-            lastName = getLastName(lendingPancard.getName());
-        } else {
-            firstName = getFirstName(merchantBankDetail.getBeneficiaryName());
-            lastName = getLastName(merchantBankDetail.getBeneficiaryName());
         }
         JsonNode experianResponse;
         boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
@@ -171,30 +154,24 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (((repeatedLoan && avgTpv < 35d) || (!repeatedLoan && avgTpv < 62d)) && !isZomato){
-            logger.info("Last 30 days tpv less than minimum required, so rejecting merchant: {}", merchant.getId());
-            experian.setReason(ExperianConstants.LOW_TPV);
-            experianDao.save(experian);
-            return new ArrayList<>();
-        }
         try {
             ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
             if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
                 experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
             } else {
                 try {
-                    experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber(), merchant.getId());
+                    experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                 } catch (ResourceAccessException e) {
                     experianResponse = null;
                     logger.error("Experian not responding---", e);
                     if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
-                        logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
+                        logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
                         experian.setRetryCount(experian.getRetryCount() + 1);
                         experianDao.save(experian);
                         //emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
                         return new ArrayList<>();
                     } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
-                        experianResponse = fetchExperianDetails(firstName, lastName, merchant.getMobile(), experian.getPancardNumber(), merchant.getId());
+                        experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                     }
                 }
             }
@@ -225,46 +202,7 @@ public class LoanEligibleService {
             }
             if (experianResponse != null){
                 try {
-                    if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()) {
-                        JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-                        if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog)) {
-                            logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
-                            return new ArrayList<>();
-                        }
-                    } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()) {
-                        int unsecuredLoanCount = 0;
-                        for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                            if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog)) {
-                                logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
-                                return new ArrayList<>();
-                            }
-                            if (checkUnsecuredLiveLoans(caisAccountDetails)) {
-                                unsecuredLoanCount++;
-                            }
-                        }
-                        //Not more than 3 live unsecured loans running
-                        if (!isRepeatLoanNoDerog && unsecuredLoanCount > 3) {
-                            logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchant.getId());
-                            experian.setRejected(true);
-                            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
-                            experianDao.save(experian);
-                            return new ArrayList<>();
-                        }
-                    }
-                    //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
-                    if (!isRepeatLoanNoDerog && checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)) {
-                        logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
-                        experian.setRejected(true);
-                        experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
-                        experianDao.save(experian);
-                        return new ArrayList<>();
-                    }
-                    //Not more than 6 enquiries in the last 3 months ( across all product types) --- Derog check
-                    if (!isRepeatLoanNoDerog && checkLoanEnquiriesInLast3Months(experianResponse)) {
-                        logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
-                        experian.setRejected(true);
-                        experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
-                        experianDao.save(experian);
+                    if (isDerog(experianResponse, merchant, experian, isRepeatLoanNoDerog)) {
                         return new ArrayList<>();
                     }
                 } catch (Exception e) {
@@ -275,7 +213,7 @@ public class LoanEligibleService {
             }
         } catch (ResourceAccessException e) {
             logger.error("Experian not responding---", e);
-            logger.error("Experian timeout for merchant: {}, firstname: {}, lastname:{}, pancard: {}", merchant.getId(), firstName,lastName,experian.getPancardNumber());
+            logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
             emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
@@ -285,6 +223,52 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication);
+    }
+
+    public boolean isDerog(JsonNode experianResponse, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) {
+        if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()) {
+            JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
+            if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog)) {
+                logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
+                return true;
+            }
+        } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()) {
+            int unsecuredLoanCount = 0;
+            for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
+                if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog)) {
+                    logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
+                    return true;
+                }
+                if (checkUnsecuredLiveLoans(caisAccountDetails)) {
+                    unsecuredLoanCount++;
+                }
+            }
+            //Not more than 3 live unsecured loans running
+            if (!isRepeatLoanNoDerog && unsecuredLoanCount > 3) {
+                logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchant.getId());
+                experian.setRejected(true);
+                experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
+                experianDao.save(experian);
+                return true;
+            }
+        }
+        //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
+        if (!isRepeatLoanNoDerog && checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)) {
+            logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
+            experianDao.save(experian);
+            return true;
+        }
+        //Not more than 6 enquiries in the last 3 months ( across all product types) --- Derog check
+        if (!isRepeatLoanNoDerog && checkLoanEnquiriesInLast3Months(experianResponse)) {
+            logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
+            experian.setRejected(true);
+            experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
+            experianDao.save(experian);
+            return true;
+        }
+        return false;
     }
 
     private boolean checkOverdue(List<LendingPaymentSchedule> prevLoans) {
@@ -687,7 +671,7 @@ public class LoanEligibleService {
         return LoanUtil.getDateDiffInDays(lastEDI.getDate(), lastPayment.getDate());
     }
 
-    private String calculateSegment(int bureauVintage, String accountCategory, Double bpScore) {
+    public String calculateSegment(int bureauVintage, String accountCategory, Double bpScore) {
         int col;
         int row;
         String[][] m1 = {{"1","5","9"}, {"2","6","10"}, {"3","7","11"}, {"4","8","12"}};
@@ -714,7 +698,7 @@ public class LoanEligibleService {
         }
     }
 
-    private String fetchAccountCategory(JsonNode experianResponse) {
+    public String fetchAccountCategory(JsonNode experianResponse) {
         List<Integer> categoryA = Arrays.asList(6,7,13,38,39,43);
         List<Integer> categoryB = Arrays.asList(1,5,8,9,10,11,12,17,32,33,34,36,37,51,52,53,54,55,56,57,58,59,60,61);
         List<Integer> categoryC = Arrays.asList(2,3);
@@ -734,7 +718,7 @@ public class LoanEligibleService {
         return c ? "C" : b ? "B" : a ? "A" : "NTC";
     }
 
-    private int fetchBureauVintage(JsonNode experianResponse) {
+    public int fetchBureauVintage(JsonNode experianResponse) {
         DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyyMMdd");
         DateTime min = new DateTime();
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
@@ -956,7 +940,24 @@ public class LoanEligibleService {
     }
 
 
-    private JsonNode fetchExperianDetails(String firstName, String lastName, String contact, String panCard, Long merchantId) {
+    public JsonNode fetchExperianDetails(String contact, String panCard, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail) {
+        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+        if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
+            try {
+                lendingPancard = fetchNameFromLiquiloans(panCard, merchantId);
+            } catch (Exception e) {
+                logger.error("Exception in Liquiloans API---", e);
+            }
+        }
+        String firstName;
+        String lastName;
+        if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("")) {
+            firstName = getFirstName(lendingPancard.getName());
+            lastName = getLastName(lendingPancard.getName());
+        } else {
+            firstName = getFirstName(merchantBankDetail.getBeneficiaryName());
+            lastName = getLastName(merchantBankDetail.getBeneficiaryName());
+        }
         if (contact.length() > 10) {
             contact = contact.substring(2);//remove 91
         }

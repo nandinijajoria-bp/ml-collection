@@ -199,7 +199,7 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
-            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2"))) {
+            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
                 List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
                 if (prevLoans != null && prevLoans.size() > 0) {
                     lendingApplication.setStatus("approved");
@@ -215,7 +215,7 @@ public class ENachService {
 
     //changing skip status to true
     public ResponseDTO setEnachSkipStatus(Merchant merchant){
-        LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
         if (lendingApplication == null) {
             return new ResponseDTO(false, "Loan Application not found", null);
         }

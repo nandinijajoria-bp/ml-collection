@@ -93,6 +93,9 @@ public class VerifyOTPService {
 	@Autowired
 	LendingPrebookTargetDao lendingPrebookTargetDao;
 
+	@Autowired
+	LendingEnachDao lendingEnachDao;
+
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -131,6 +134,7 @@ public class VerifyOTPService {
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
+		boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
@@ -150,11 +154,11 @@ public class VerifyOTPService {
 			lendingApplication.setLender("LIQUILOANS");
 		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
-			if(lendingApplication.getLoanAmount() > 100000) {
-				lendingApplication.setStatus("pending_verification");
-			} else {
+			if (enachSuccess || lendingApplication.getLoanAmount() < 100000) {
 				lendingApplication.setPhysicalVerificationStatus("APPROVED");
 				lendingApplication.setStatus("approved");
+			} else {
+				lendingApplication.setStatus("pending_verification");
 			}
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setManualCibil("APPROVED");
@@ -345,6 +349,7 @@ public class VerifyOTPService {
 			}
 		} catch (Exception e) {
 			logger.error("Exception while inserting lending_prebook_target for merchant: {}", merchant.getId());
+			logger.error("Exception---", e);
 		}
 	}
 }

@@ -1,7 +1,9 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class LendingApplicationRequestDTO {
 
     @JsonProperty("application_id")
@@ -30,6 +32,32 @@ public class LendingApplicationRequestDTO {
     private String city;
 
     private String state;
+
+    @JsonProperty("alternative_contact")
+    private AlternateContact alternativeContact;
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AlternateContact {
+
+        private String name;
+        private String phoneNumber;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getPhoneNumber() {
+            return phoneNumber;
+        }
+
+        public void setPhoneNumber(String phoneNumber) {
+            this.phoneNumber = phoneNumber;
+        }
+    }
 
     public Long getApplicationId() {
         return applicationId;
@@ -117,6 +145,14 @@ public class LendingApplicationRequestDTO {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public AlternateContact getAlternativeContact() {
+        return alternativeContact;
+    }
+
+    public void setAlternativeContact(AlternateContact alternativeContact) {
+        this.alternativeContact = alternativeContact;
     }
 
     @Override

@@ -125,6 +125,9 @@ public class LoanDetailsService {
 	@Autowired
 	LendingPartnerOffersDao lendingPartnerOffersDao;
 
+	@Autowired
+	EligibleLoanDao eligibleLoanDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -316,42 +319,51 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					if (ExperianConstants.LOCKDOWN  && !isZomato) {
+					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Approved");
-						loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of total loan amount & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+						loanApplicationDTO.setStatusTitle("Loan Transfer Initiated");
+						if (enachSuccess && repeatLoan) {
+							loanApplicationDTO.setStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
+						} else {
+							loanApplicationDTO.setStatusMessage("The amount will reflect in your bank account within 48 hours.");
+						}
 					}
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					try {
-						if ((lendingEnach == null || !lendingEnach.getSkip()) && (lendingEnach == null || (lendingEnach.getStatus() == null || !lendingEnach.getStatus())) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						//enach not success and not skipped and bankcode enachable and app version >= 237
+						if (!enachSuccess && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
 								enach = "bharatpe://enachtp";//set deep link for enach techprocess
 							}
-//							if (merchant.getId().equals(1141505L)) {
-//								enach = "bharatpe://enachdigio";//set deep link for enach digio
-//							}
 						}
-					} catch (Exception e) {
+					} catch (Exception e) {// exception due to undefined app version
 						logger.error("Exception while checking enach bank", e);
+						if (!enachSuccess && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
+							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
+								enach = "bharatpe://enachdigio";//set deep link for enach digio
+							} else {
+								enach = "bharatpe://enachtp";//set deep link for enach techprocess
+							}
+						}
 					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					if (enach != null) {
 						loanApplicationDTO.setStatusHeader("Details Submitted");//enach screen
-						if (lendingPrebookLoans != null) {
+						if (lendingPrebookLoans != null || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 							skipEnatch = false;
 						}
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 					}
-					if (ExperianConstants.LOCKDOWN  && !isZomato) {
+					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						if (lockdownOpened && showTarget) {
 							loanApplicationDTO.setStatusTitle("Increase BharatPe QR Txns to Get Loan");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days post Lockdown opening(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
@@ -402,24 +414,35 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setZomato(isZomato);
-//				if(!(pincode != null && lendingCity == null)) {
-//					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.getTopupLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
-//					loanDetailsDTO.setTopupLoan(topupLoans);
-//					if(lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()))) {
-//						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
-//						if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-//							Double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueAmount();
-//							Integer disburseMentAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - prevLoanUnpaidAmount.intValue();
-//							loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disburseMentAmount);
-//						}
-//					} else {
-//						loanDetailsDTO.setLoanApplication(null);
-//					}
-//				} else {
-//					loanDetailsDTO.setTopupLoan(new ArrayList<>());
-//				}
-				
-				loanDetailsDTO.setTopupLoan(null);
+				if(!(pincode != null && lendingCity == null) && !isZomato) {
+					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.fetchTopupLoans(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList);
+					loanDetailsDTO.setTopupLoan(topupLoans == null || topupLoans.isEmpty() ? null : topupLoans);
+					if(!topupLoans.isEmpty() && lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
+						double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
+						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
+						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
+						LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+						if ((lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
+								enach = "bharatpe://enachdigio";//set deep link for enach digio
+							} else {
+								enach = "bharatpe://enachtp";//set deep link for enach techprocess
+							}
+							loanDetailsDTO.getTopupLoan().get(0).setEnach(enach);
+							if ("approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
+								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(true);
+							} else {
+								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
+							}
+						}
+					} else {
+						loanDetailsDTO.setLoanApplication(null);
+					}
+				} else {
+					loanDetailsDTO.setTopupLoan(null);
+				}
+				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setEnach(enach);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
@@ -565,6 +588,7 @@ public class LoanDetailsService {
 				logger.error("Invalid Zomato category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
 				continue;
 			}
+			eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
 			eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingPartnerOffer.getLoanAmount(), experian.getColor(), "2", "ZOMATO", true));
 			categorySeen.add(lendingPartnerOffer.getCategory());
 		}
@@ -812,7 +836,7 @@ public class LoanDetailsService {
 			history.setStartDate(null);
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
-			if (ExperianConstants.LOCKDOWN && !isZomato) {
+			if (ExperianConstants.LOCKDOWN && !isZomato && !"TOPUP".equalsIgnoreCase(application.getLoanType())) {
 				if (lockdownOpened && showTarget) {
 					history.setLoanStatusHeader("Loan Pre-Booked Successfully");
 					history.setLoanStatusTitle("Increase BharatPe QR Txns to Get Loan");
@@ -828,11 +852,10 @@ public class LoanDetailsService {
 				}
 			} else {
 				history.setLoanStatusHeader("Loan Approved");
+				history.setLoanStatusTitle("Loan Transfer Initiated");
 				if (enachSuccess && repeatLoan) {
-					history.setLoanStatusTitle("Loan Approved");
 					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
 				} else {
-					history.setLoanStatusTitle("Loan Approved");
 					history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
 				}
 			}
