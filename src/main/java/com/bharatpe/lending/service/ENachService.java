@@ -76,7 +76,7 @@ public class ENachService {
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
         final double LOAN_AMOUNT = 100000d;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
         if(lendingApplication == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Loan Application not found");
@@ -241,7 +241,7 @@ public class ENachService {
     	enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
     	//populating lending application
     	logger.info("Fetching lending application");
-        LendingApplication lendingApplication=lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+        LendingApplication lendingApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
         if(lendingApplication==null){
         	enachInitiationResponseDto.setResponse(false);
     		enachInitiationResponseDto.setMessage("Lending application not found");
