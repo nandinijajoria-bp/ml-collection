@@ -423,7 +423,7 @@ public class LoanDetailsService {
 						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
 						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
 						LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-						if ((lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if ((lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {

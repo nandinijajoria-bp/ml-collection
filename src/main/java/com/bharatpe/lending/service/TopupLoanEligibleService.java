@@ -153,6 +153,7 @@ public class TopupLoanEligibleService {
         experian.setResponse(experianResponse.toString());
         experian.setPancardNumber(pancard);
         experian.setPincode(pincode.intValue());
+        experian.setRequestedLoanAmount(0);
         if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
             String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
             experian.setEmail(email);
