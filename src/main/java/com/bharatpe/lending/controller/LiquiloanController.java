@@ -1,5 +1,7 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
+import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,9 @@ public class LiquiloanController {
 	
 	@Autowired
 	LiquiloansService liquilaonService;
+
+	@Autowired
+	LiquiloansDirectDisbursalRawResponseDao liquiloansDirectDisbursalRawResponseDao;
 	
 	
 	Logger logger=LoggerFactory.getLogger(LiquiloanController.class);
@@ -31,7 +36,12 @@ public class LiquiloanController {
 	@RequestMapping(value = "approveLoan", method =RequestMethod.POST)
 	public ResponseEntity<ResponseDTO> checkLoanStatus(@RequestBody LiquiloanCallbackRequestDTO callbackRequestDto){
 		//fetching lending application for given liquiloan_loan_id and bp_loan_id
-		return new ResponseEntity<>(liquilaonService.checkLoanStatus(callbackRequestDto),HttpStatus.OK);
+		LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse = new LiquiloansDirectDisbursalRawResponse();
+		ResponseDTO responseDTO = liquilaonService.checkLoanStatus(callbackRequestDto, liquiloansDirectDisbursalRawResponse);
+		liquiloansDirectDisbursalRawResponse.setResponse(responseDTO.toString());
+		liquiloansDirectDisbursalRawResponse.setStatus(responseDTO.isSuccess() ? "SUCCESS" : "FAILED");
+		liquiloansDirectDisbursalRawResponseDao.save(liquiloansDirectDisbursalRawResponse);
+		return new ResponseEntity<>(responseDTO, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value="postPayoutStatusUpdate",method=RequestMethod.POST)
@@ -45,6 +55,11 @@ public class LiquiloanController {
 	
 	@RequestMapping(value="settlement",method=RequestMethod.POST)
 	public ResponseEntity<ResponseDTO> populateSettlementDetails(@RequestBody LiquiloanSettlementRequestDTO settlementRequestDto){
-		return new ResponseEntity<>(liquilaonService.populateSettlementDetails(settlementRequestDto),HttpStatus.OK);
+		LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse = new LiquiloansDirectDisbursalRawResponse();
+		ResponseDTO responseDTO = liquilaonService.populateSettlementDetails(settlementRequestDto,liquiloansDirectDisbursalRawResponse);
+		liquiloansDirectDisbursalRawResponse.setResponse(responseDTO.toString());
+		liquiloansDirectDisbursalRawResponse.setStatus(responseDTO.isSuccess() ? "SUCCESS" : "FAILED");
+		liquiloansDirectDisbursalRawResponseDao.save(liquiloansDirectDisbursalRawResponse);
+		return new ResponseEntity<>(responseDTO,HttpStatus.OK);
 	}
 }

@@ -16,6 +16,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	
 	@Autowired
 	private InternalClientHmacInterceptor clientHmacInterceptor;
+
+	@Autowired
+	LiquiloanInterceptor liquiloanInterceptor;
 	
 	@Autowired
 	private HmacForMIDAndInternalClientInterceptor midInterceptor;
@@ -25,11 +28,8 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
         registry.addInterceptor(validateTokenInterceptor)
 				.excludePathPatterns("/lending/csPanel/**", "/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback", "/partner/details");
         
-        registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/liquiloan/approveLoan","/lending/liquiloan/settlement");
-        
+        registry.addInterceptor(liquiloanInterceptor).addPathPatterns("/lending/liquiloan/approveLoan","/lending/liquiloan/settlement");
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/liquiloan/postPayoutStatusUpdate");
-        
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback");
-        
     }
 }
