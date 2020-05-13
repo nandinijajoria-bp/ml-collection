@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 
+import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,12 +135,21 @@ public class LiquiloansService {
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
 
-	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto) {
-		logger.info("Fetching lending application for given liquiloan_loan_id and bp_loan_id");
+	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse) {
+		logger.info("Fetching lending application for given liquiloan_loan_id:{} and bp_loan_id:{}", callbackRequestDto.getUrn(),callbackRequestDto.getLoanId());
+		liquiloansDirectDisbursalRawResponse.setApiName("APPROVELOAN");
+		liquiloansDirectDisbursalRawResponse.setRequest(callbackRequestDto.toString());
 		try {
 			LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
 			if(lendingApplication==null) {
 				return new ResponseDTO(false,"loan application not found",null);
+			}
+			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
+			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
+			liquiloansDirectDisbursalRawResponse.setLoanId(lendingApplication.getExternalLoanId());
+			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
+			if (lendingApplication.getLoanDisbursalStatus() != null) {
+				return new ResponseDTO(false,"duplicate request",null);
 			}
 			else if(callbackRequestDto.getStatus().equalsIgnoreCase("approved")){
 				lendingApplication.setLoanDisbursalStatus("PENDING");
@@ -157,7 +167,6 @@ public class LiquiloansService {
 				lendingApplicationDao.save(lendingApplication);
 				return new ResponseDTO(true,null,null);
 			}
-
 			else {
 				return new ResponseDTO(false,"invalid loan status",null);
 			}
@@ -214,6 +223,7 @@ public class LiquiloansService {
     		logger.info("Popualting data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
     		
     		lendingPaymentSchedule.setLoanApplication(lendingApplication);
+    		lendingPaymentSchedule.setLoanType("NORMAL");
     		lendingPaymentSchedule.setMerchant(merchant.get());
     		lendingPaymentSchedule.setLoanAmount(lendingApplication.getLoanAmount());
     		lendingPaymentSchedule.setMobile(merchant.get().getMobile());
@@ -314,12 +324,13 @@ public class LiquiloansService {
     }
     
 
-    public ResponseDTO populateSettlementDetails(LiquiloanSettlementRequestDTO settlementRequest){
+    public ResponseDTO populateSettlementDetails(LiquiloanSettlementRequestDTO settlementRequest, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse){
     	logger.info("Insertng disbursal settlement details");
-    	System.out.println(settlementRequest);
+		liquiloansDirectDisbursalRawResponse.setApiName("SETTLEMENT");
+		liquiloansDirectDisbursalRawResponse.setRequest(settlementRequest.toString());
     	try {
     			String requestBody=objectMapper.writeValueAsString(settlementRequest);
-    			Date transferDate=new SimpleDateFormat("dd-MM-yyyy").parse(settlementRequest.getTransferDate());
+    			Date transferDate=new SimpleDateFormat("yyyy-MM-dd").parse(settlementRequest.getTransferDate());
 
 	    	for(LiquiloanSettlementRequestDTO.LoanData loanDetail : settlementRequest.getLoanDetails()){
 
@@ -334,7 +345,7 @@ public class LiquiloansService {
 	    		disbursalSettlementDao.save(disbursalSettlement);
 	    		
 	    		logger.info("Populating 'disbursal_settlement_id' field in table 'lending_payment_schedule' for loan id {}",loanDetail.getLoanId());
-	    		if(!updateDisbursalSettlementIdInLendingPaymentSchedule(loanDetail.getLoanId(),loanDetail.getUrn(),disbursalSettlement.getId())){
+	    		if(!updateDisbursalSettlementIdInLendingPaymentSchedule(loanDetail.getLoanId(),loanDetail.getUrn(),disbursalSettlement.getId(), liquiloansDirectDisbursalRawResponse)){
 	    			return new ResponseDTO(false,"Error occured while processing settlemet details",null);
 	    		}
 	    	
@@ -349,7 +360,7 @@ public class LiquiloansService {
     	return new ResponseDTO(true,null,null);
     }
     
-    public boolean updateDisbursalSettlementIdInLendingPaymentSchedule(String loanId, String urnId, Integer settlementId){
+    public boolean updateDisbursalSettlementIdInLendingPaymentSchedule(String loanId, String urnId, Integer settlementId, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse){
     	logger.info("Fetching lending application for the externa loan id {} and nbfc id {}",urnId,loanId);
     	try {
     	LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(urnId, loanId, "approved");
@@ -360,6 +371,10 @@ public class LiquiloansService {
     	}
     	
     	logger.info("Fetching lending payment schedule details for lending appliation {}",lendingApplication.getId());
+			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
+			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
+			liquiloansDirectDisbursalRawResponse.setLoanId(lendingApplication.getExternalLoanId());
+			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
     	
     	LendingPaymentSchedule lendingPaymentSchedule =lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
     	
