@@ -134,7 +134,7 @@ public class VerifyOTPService {
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
-		boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
+		LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
@@ -145,6 +145,16 @@ public class VerifyOTPService {
 		lendingApplication.setLongitude(meta.getLongitude());
 		lendingApplication.setIp(meta.getIp());
 		lendingApplication.setExternalLoanId(loanId);
+		if (enachSuccess != null) {
+			if (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
+				lendingApplication.setNachType("EXTERNAL");
+				lendingApplication.setNachLender("LIQUILOANS");
+			} else {
+				lendingApplication.setNachType("ENACH");
+				lendingApplication.setNachLender("BHARATPE");
+			}
+			lendingApplication.setNachStatus("APPROVED");
+		}
 		if (oglLoans != null) {
 			logger.info("Found OGL merchant: {}", merchant.getId());
 			lendingApplication.setStatus("approved");
@@ -154,16 +164,11 @@ public class VerifyOTPService {
 			lendingApplication.setLender("LIQUILOANS");
 		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
-			if (enachSuccess || lendingApplication.getLoanAmount() < 100000) {
+			if (enachSuccess != null || lendingApplication.getLoanAmount() < 100000) {
 				lendingApplication.setPhysicalVerificationStatus("APPROVED");
 				lendingApplication.setStatus("approved");
 			} else {
 				lendingApplication.setStatus("pending_verification");
-			}
-			if (enachSuccess) {
-				lendingApplication.setNachType("ENACH");
-				lendingApplication.setNachLender("BHARATPE");
-				lendingApplication.setNachStatus("APPROVED");
 			}
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setManualCibil("APPROVED");
