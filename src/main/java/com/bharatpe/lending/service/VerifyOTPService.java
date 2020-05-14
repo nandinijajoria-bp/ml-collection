@@ -264,20 +264,21 @@ public class VerifyOTPService {
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
 		
-		String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+".\n\nNote: Due to necessary precautions for Coronavirus, there may be some delay in processing your application. We'll keep you updated.";
 		if (!StringUtils.isEmpty(lendingApplication.getLoanType()) && "PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
+			String sms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+".\n\nNote: Due to necessary precautions for Coronavirus, there may be some delay in processing your application. We'll keep you updated.";
 			String prebookSms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Pre-booked your Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in 10 days post Lockdown.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
 			smsServiceHandler.sendSMS(mobiles, prebookSms, NotificationProvider.SMS.GUPSHUP);
+			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
+			whatsappNotificationService.send(merchant, null, sms, mobiles, null);
+		} else {
+			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+".";
+			smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
+			String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
+				"\n" +
+				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
+				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
+			whatsappNotificationService.send(merchant, null, whatsappContent, mobiles, null);
 		}
-		smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
-
-//		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
-//				"\n" +
-//				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
-//				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
-		
-		whatsappNotificationService.send(merchant, null, smsContent, mobiles, null);
-
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
 		if(merchantFcmToken != null) {

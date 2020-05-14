@@ -7,3 +7,4 @@
 .settings/  
 .metadata/
 bin/
+/LOG.FILE_IS_UNDEFINED
