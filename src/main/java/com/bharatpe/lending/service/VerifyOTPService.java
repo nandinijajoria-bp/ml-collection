@@ -160,6 +160,11 @@ public class VerifyOTPService {
 			} else {
 				lendingApplication.setStatus("pending_verification");
 			}
+			if (enachSuccess) {
+				lendingApplication.setNachType("ENACH");
+				lendingApplication.setNachLender("BHARATPE");
+				lendingApplication.setNachStatus("APPROVED");
+			}
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setVerifyOcr("yes");
