@@ -150,7 +150,7 @@ public class LoanDetailsService {
 			String rejectReason = null;
 			String panCard = null;
 			String tempClosed = null;
-			boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
+			LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 			Integer pincode = null;
@@ -288,7 +288,7 @@ public class LoanDetailsService {
 				logger.error("Exception while checking enach bank code:", e);
 			}
 			if(lendingApplication != null) {
-				if ((enachSuccess && repeatLoan) || (enachSuccess && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
+				if ((enachSuccess != null && repeatLoan) || (enachSuccess != null && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
 					loanApplicationDTO.setSelfVerification(false);
 				}
 				if("rejected".equals(lendingApplication.getStatus())) {
@@ -319,6 +319,15 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
+					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+					if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
+							enach = "bharatpe://enachdigio";//set deep link for enach digio
+						} else {
+							enach = "bharatpe://enachtp";//set deep link for enach techprocess
+						}
+						skipEnatch = true;
+					}
 					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
@@ -326,7 +335,7 @@ public class LoanDetailsService {
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Approved");
 						loanApplicationDTO.setStatusTitle("Loan Transfer Initiated");
-						if (enachSuccess && repeatLoan) {
+						if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
 							loanApplicationDTO.setStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
 						} else {
 							loanApplicationDTO.setStatusMessage("The amount will reflect in your bank account within 48 hours.");
@@ -336,7 +345,7 @@ public class LoanDetailsService {
 					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					try {
 						//enach not success and not skipped and bankcode enachable and app version >= 237
-						if (!enachSuccess && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
@@ -345,7 +354,7 @@ public class LoanDetailsService {
 						}
 					} catch (Exception e) {// exception due to undefined app version
 						logger.error("Exception while checking enach bank", e);
-						if (!enachSuccess && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
+						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
@@ -371,7 +380,7 @@ public class LoanDetailsService {
 							loanApplicationDTO.setStatusTitle("Physical Verification Pending");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 						} else {
-							if (enachSuccess) {
+							if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
 								accountDetails = true;
 								loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 								loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
@@ -385,7 +394,7 @@ public class LoanDetailsService {
 						}
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Approved");
-						if (enachSuccess) {
+						if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
 							accountDetails = true;
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
@@ -423,7 +432,7 @@ public class LoanDetailsService {
 						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
 						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
 						LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-						if (!enachSuccess && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
@@ -825,7 +834,7 @@ public class LoanDetailsService {
 		return lendingCategoryDetails;
 	}
 	
-	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, boolean enachSuccess, boolean showTarget, boolean lockdownOpened, double targetTpv, String lockdownEnd, String targetEnd, boolean isZomato) {
+	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, LendingEnach enachSuccess, boolean showTarget, boolean lockdownOpened, double targetTpv, String lockdownEnd, String targetEnd, boolean isZomato) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
 		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
@@ -853,7 +862,7 @@ public class LoanDetailsService {
 			} else {
 				history.setLoanStatusHeader("Loan Approved");
 				history.setLoanStatusTitle("Loan Transfer Initiated");
-				if (enachSuccess && repeatLoan) {
+				if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
 					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
 				} else {
 					history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
