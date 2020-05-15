@@ -116,7 +116,7 @@ public class TopupLoanEligibleService {
             }
         }
         double prevLoanAmount = 0d;
-        String color = (experian != null && !experian.getRejected()) ? experian.getColor() : "AMBER";
+        String color = (experian != null && !experian.getRejected() && experian.getColor() != null) ? experian.getColor() : "AMBER";
         switch (color){
             case "AMBER": prevLoanAmount = lendingApplication.getLoanAmount() * 1.1;break;
             case "LIGHT_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;break;
