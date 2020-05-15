@@ -144,13 +144,19 @@ public class SignAgreementService {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			return response;
 		}
-		
-		// pin code check for loan eligibility
+		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
+		if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
+			return response;
+		}
+		EligibleLoan eligibleLoan = eligibleLoans.get(0);
+		// pin code check for loan eligibility(removing this check for topup loan)
 		try {
 			logger.info("Starting pin code check for loan eligibilty ");
 			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
 			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
-			if(!lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
+			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
 				logger.error("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
 				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
 				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
@@ -161,16 +167,9 @@ public class SignAgreementService {
 			logger.error("Error ocuured while checking loan eligibilty for pin code {}",(long)prevApplication.getPincode());
 		}
 		
-		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
 		LendingApplication newApplication = new LendingApplication();
 
 		if (EXPERIAN_ENABLED) {
-			List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
-			if(eligibleLoans == null || eligibleLoans.isEmpty()) {
-				logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
-				return response;
-			}
-			EligibleLoan eligibleLoan = eligibleLoans.get(0);
 			
 			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
 				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
