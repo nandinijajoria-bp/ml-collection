@@ -144,10 +144,10 @@ public class SignAgreementService {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			return response;
 		}
-		if ("TOPUP".equalsIgnoreCase(prevApplication.getLoanType()) && "ACTIVE".equalsIgnoreCase(prevLendingSchedule.getStatus()) && (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
-			logger.error("Topup loan already created for merchant:{}", merchant.getId());
-			return response;
-		}
+//		if ("TOPUP".equalsIgnoreCase(prevApplication.getLoanType()) && "ACTIVE".equalsIgnoreCase(prevLendingSchedule.getStatus()) && (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
+//			logger.error("Topup loan already created for merchant:{}", merchant.getId());
+//			return response;
+//		}
 		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
 		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
 		if(eligibleLoans == null || eligibleLoans.isEmpty()) {
