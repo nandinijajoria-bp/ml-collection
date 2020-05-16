@@ -148,7 +148,7 @@ public class LiquiloansService {
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
 			liquiloansDirectDisbursalRawResponse.setLoanId(lendingApplication.getExternalLoanId());
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
-			if (lendingApplication.getLoanDisbursalStatus() != null) {
+			if (lendingApplication.getLoanDisbursalStatus() != null && !"null".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 				return new ResponseDTO(false,"duplicate request",null);
 			}
 			else if(callbackRequestDto.getStatus().equalsIgnoreCase("approved")){
