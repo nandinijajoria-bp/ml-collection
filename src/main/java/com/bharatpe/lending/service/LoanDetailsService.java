@@ -439,7 +439,8 @@ public class LoanDetailsService {
 								enach = "bharatpe://enachtp";//set deep link for enach techprocess
 							}
 							loanDetailsDTO.getTopupLoan().get(0).setEnach(enach);
-							if ("approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
+							experian = experianDao.getByMerchantId(merchant.getId());
+							if ("approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) && (experian == null || (experian.getColor() != null && !"AMBER".equalsIgnoreCase(experian.getColor())))) {
 								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(true);
 							} else {
 								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
@@ -891,10 +892,10 @@ public class LoanDetailsService {
 			}
 			history.setRepaid(lendingPaymentSchedule.getPaidAmount());
 			Double dueAmount = lendingPaymentSchedule.getTotalPayableAmount();
-			if(lendingPaymentSchedule.getPaidAmount() != null) {
+			if(lendingPaymentSchedule.getPaidAmount() != null && dueAmount != null) {
 				dueAmount -= lendingPaymentSchedule.getPaidAmount();
 			}
-			history.setDue(dueAmount);
+			history.setDue(dueAmount != null ? dueAmount : 0D);
 			loanHistoryList.add(history);
 		}
 
