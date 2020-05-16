@@ -96,6 +96,9 @@ public class VerifyOTPService {
 	@Autowired
 	LendingEnachDao lendingEnachDao;
 
+	@Autowired
+	LendingCitiesDao lendingCitiesDao;
+
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -351,6 +354,16 @@ public class VerifyOTPService {
 					double tpv = merchantSummaryLending.getSegment().equalsIgnoreCase("1") ? merchantSummaryLending.getTpv() * 0.25 : merchantSummaryLending.getTpv() * 0.15;
 					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-17");
 					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-27");
+					if (lendingApplication.getPincode() != null) {
+						LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
+						if (lendingCities != null && lendingCities.getLockdownEndDate() != null) {
+							lockdownEndDate = new SimpleDateFormat("MM/dd/yyyy").parse(lendingCities.getLockdownEndDate());
+							Calendar c = Calendar.getInstance();
+							c.setTime(lockdownEndDate);
+							c.add(Calendar.DATE, 10);
+							targetAchieveDate = c.getTime();
+						}
+					}
 					if (lendingApplication.getAgreementAt().after(lockdownEndDate)) {
 						lockdownEndDate = lendingApplication.getAgreementAt();
 						Calendar c = Calendar.getInstance();
