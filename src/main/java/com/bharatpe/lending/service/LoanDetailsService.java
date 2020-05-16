@@ -445,6 +445,8 @@ public class LoanDetailsService {
 								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
 							}
 						}
+					} else if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && "draft".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
+						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 					} else {
 						loanDetailsDTO.setLoanApplication(null);
 					}
