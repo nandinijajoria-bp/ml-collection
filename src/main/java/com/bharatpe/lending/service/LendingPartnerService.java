@@ -30,7 +30,7 @@ public class LendingPartnerService {
             String smsContent = "Thank you for registering for Zomato Loan. BharatPe needs your restaurant info:\n- Name\n- Address\n- Email\n\nWe'll call you in next 24 hours.";
             smsServiceHandler.sendSMS(new ArrayList<String>(){{add(partnerDetailsRequestDTO.getMobile());}}, smsContent, NotificationProvider.SMS.GUPSHUP);
         }
-        lendingPartnerDetailsDao.save(new LendingPartnerDetails(partnerDetailsRequestDTO.getPartner(), partnerDetailsRequestDTO.getName(), partnerDetailsRequestDTO.getMobile()));
+        lendingPartnerDetailsDao.save(new LendingPartnerDetails(partnerDetailsRequestDTO.getPartner(), partnerDetailsRequestDTO.getName(), partnerDetailsRequestDTO.getMobile(), true, false));
         logger.info("Successfully saved partner details for mobile: {}", partnerDetailsRequestDTO.getMobile());
     }
 }

@@ -156,7 +156,7 @@ public class ENachService {
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
-            lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
+            lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
             List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
             if (prevLoans != null && prevLoans.size() > 0) {
                 lendingApplication.setStatus("approved");
@@ -198,7 +198,7 @@ public class ENachService {
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
-            lendingApplication.setNachReferenceNumber(requestDTO.getMandateId().toString());
+            lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
             if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
                 List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
                 if (prevLoans != null && prevLoans.size() > 0) {
