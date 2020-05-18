@@ -287,7 +287,7 @@ public class LoanEligibleService {
         }
     }
 
-    private boolean checkFraud(MerchantSummary merchantSummary) {
+    public boolean checkFraud(MerchantSummary merchantSummary) {
         return (merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null && merchantSummary.getUniqueCustomer1mon() < 15)
                 || (merchantSummary != null && merchantSummary.getFraudCustomer() != null);
     }

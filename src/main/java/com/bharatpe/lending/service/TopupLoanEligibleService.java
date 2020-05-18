@@ -97,6 +97,10 @@ public class TopupLoanEligibleService {
             logger.info("DPD is greater than 3 for merchant ID {}", merchant.getId());
             return new ArrayList<>();
         }
+        if (loanEligibleService.checkFraud(merchantSummary)) {
+            logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
+            return new ArrayList<>();
+        }
         if (experian == null) {
             DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestPanCardDetails(merchant.getId(), activeLoan.getApplicationId());
             if (docKycDetails != null && docKycDetails.getDocNo() != null) {
