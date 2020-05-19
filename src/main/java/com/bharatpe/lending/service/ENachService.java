@@ -206,6 +206,8 @@ public class ENachService {
                     lendingApplication.setManualKyc("APPROVED");
                     lendingApplication.setManualCibil("APPROVED");
                     lendingApplication.setPhysicalVerificationStatus("APPROVED");
+                    lendingApplication.setVerifyOcr("yes");
+                    lendingApplication.setVerifyPan("yes");
                 }
             }
             lendingApplicationDao.save(lendingApplication);

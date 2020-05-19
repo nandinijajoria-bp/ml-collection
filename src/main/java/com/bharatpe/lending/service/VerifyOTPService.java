@@ -170,19 +170,21 @@ public class VerifyOTPService {
 			if (enachSuccess != null || lendingApplication.getLoanAmount() < 100000) {
 				lendingApplication.setPhysicalVerificationStatus("APPROVED");
 				lendingApplication.setStatus("approved");
+				lendingApplication.setVerifyOcr("yes");
+				lendingApplication.setVerifyPan("yes");
 			} else {
 				lendingApplication.setStatus("pending_verification");
 			}
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setManualCibil("APPROVED");
-			lendingApplication.setVerifyOcr("yes");
-			lendingApplication.setVerifyPan("yes");
 		} else if (lendingApplication.getNachStatus() != null && (lendingApplication.getNachStatus().equalsIgnoreCase("initiated") || lendingApplication.getNachStatus().equalsIgnoreCase("approved"))) {
 			logger.info("Physical nach submitted by merchant: {}", merchant.getId());
 			lendingApplication.setStatus("approved");
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setPhysicalVerificationStatus("APPROVED");
+			lendingApplication.setVerifyOcr("yes");
+			lendingApplication.setVerifyPan("yes");
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
