@@ -529,7 +529,7 @@ public class LoanDetailsService {
 					if (isZomato && !rejected) {
 						loanEligibilityDTOs.clear();
 						skipEnatch = false;
-						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers, bankCode));
+						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
 				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
@@ -585,8 +585,8 @@ public class LoanDetailsService {
 		return response;
 	}
 
-	private List<LoanEligibilityDTO> fetchZomatoOffers(Experian experian, List<LendingPartnerOffers> lendingPartnerOffers, String bankCode) {
-		if (loanEligibleService.isNTC(experian) || lendingPartnerOffers.isEmpty() || bankCode == null) {
+	private List<LoanEligibilityDTO> fetchZomatoOffers(Experian experian, List<LendingPartnerOffers> lendingPartnerOffers) {
+		if (loanEligibleService.isNTC(experian) || lendingPartnerOffers.isEmpty()) {
 			return new ArrayList<>();
 		}
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
