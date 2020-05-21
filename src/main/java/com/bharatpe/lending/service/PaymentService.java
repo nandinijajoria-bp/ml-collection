@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -12,8 +13,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
@@ -61,6 +64,9 @@ public class PaymentService {
 	@Autowired
 	LoanPaymentOrderDao loanPaymentOrderDao;
 	
+	@Autowired
+	LendingEDIScheduleDao lendingEDIScheduleDao;
+	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
@@ -77,13 +83,14 @@ public class PaymentService {
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			boolean isPayable = true;
 			if(overdueDays < 2) {
 				isPayable = false;
 			}
 			
-			PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount, overdueDays, isPayable);
+			PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount + ediHolidayInterestAmount, overdueDays, isPayable);
 			return new PaymentDetailsResponseDTO(data);
 			
 		} catch(Exception ex) {
@@ -106,12 +113,13 @@ public class PaymentService {
 			
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			Integer amount = 0;
 			if("CUSTOM".equalsIgnoreCase(request.getPayload().getPaymentType())) {
 				amount = request.getPayload().getAmount();
 			} else if("PRINCIPAL".equalsIgnoreCase(request.getPayload().getPaymentType())) {
-				amount = principalDueAmount;
+				amount = principalDueAmount + ediHolidayInterestAmount;
 			} else {
 				amount = overdueAmount;
 			}
@@ -210,19 +218,20 @@ public class PaymentService {
 			loanPaymentOrderDao.save(order);
  			
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			Double paidInterestAmount = 0D;
 			Double paidPrincipalAmount = 0D;
 			
-			if(principalDueAmount - request.getAmount() <= 1D) {
+			if(principalDueAmount + ediHolidayInterestAmount - request.getAmount() <= 1D) {
 				
-				paidInterestAmount = activeLoan.getDueInterest();
+				paidInterestAmount = activeLoan.getDueInterest() + ediHolidayInterestAmount;
 				paidPrincipalAmount = request.getAmount() - paidInterestAmount;
 				
 				if(activeLoan.getDueAmount() >= 0) {
-					createLendingLedger(activeLoan, -1 * (request.getAmount() - activeLoan.getDueAmount()) , -1 * (request.getAmount() - activeLoan.getDueAmount()), 0D, "PREPAYMENT");
+					createLendingLedger(activeLoan, -1 * (request.getAmount() - activeLoan.getDueAmount()) , -1 * (request.getAmount() - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
 				} else {
-					createLendingLedger(activeLoan, -1 * request.getAmount() , -1 * request.getAmount(), 0D, "PREPAYMENT");
+					createLendingLedger(activeLoan, -1 * request.getAmount() , -1 * request.getAmount() - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
 				}
 				
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
@@ -341,4 +350,15 @@ public class PaymentService {
         return cal.getTime();
 	}
 	
+	private Integer getEDIHolidayInterestAmount(LendingPaymentSchedule lps) {
+		try {
+			List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.getByLoanIdAndEdiType(lps.getId(), "EDIHOLIDAY");
+			if (lendingEDISchedules != null && !lendingEDISchedules.isEmpty()) {
+				return lendingEDISchedules.stream().mapToInt(LendingEDISchedule::getTotalEdi).sum();
+			}
+		} catch(Exception ex) {
+			logger.error("Exception in getEDIHolidayInterestAmount for Loan ID {}, Exception is {}", lps.getId(), ex);
+		}
+		return 0;
+	}
 }
