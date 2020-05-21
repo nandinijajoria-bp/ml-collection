@@ -155,8 +155,8 @@ public class VerifyOTPService {
 			} else {
 				lendingApplication.setNachType("ENACH");
 				lendingApplication.setNachLender("BHARATPE");
-				lendingApplication.setNachReferenceNumber(enachSuccess.getMid());
 			}
+			lendingApplication.setNachReferenceNumber(enachSuccess.getMid());
 			lendingApplication.setNachStatus("APPROVED");
 		}
 		if (oglLoans != null) {
