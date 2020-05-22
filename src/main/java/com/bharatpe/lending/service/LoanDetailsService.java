@@ -856,7 +856,11 @@ public class LoanDetailsService {
 				} else if (lockdownOpened) {
 					history.setLoanStatusHeader("Loan Approved");
 					history.setLoanStatusTitle("Loan Transfer Initiated");
-					history.setLoanStatusMessage("The amount will reflect in your bank account within 24-48 hours.");
+					if ("PREBOOK".equalsIgnoreCase(application.getLoanType())) {
+						history.setLoanStatusMessage("The amount will reflect in your bank account in next 7 days.");
+					} else {
+						history.setLoanStatusMessage("The amount will reflect in your bank account within 24-48 hours.");
+					}
 				} else {
 					history.setLoanStatusHeader("Loan Pre-Booked Successfully");
 					history.setLoanStatusTitle("Loan Transfer Post Lockdown");
