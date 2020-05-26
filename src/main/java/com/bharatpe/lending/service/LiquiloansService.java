@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +83,9 @@ public class LiquiloansService {
 
     @Autowired
     ObjectMapper objectMapper;
+
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
 
     
     @Autowired
@@ -192,6 +197,7 @@ public class LiquiloansService {
     
     public ResponseEntity<String> populateLendingPaymentSchedule(LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
     	LendingApplication lendingApplication=null;
+		LendingPaymentSchedule lendingPaymentSchedule;
     	try{
     		logger.info("Fetching merchant for the merchant id {}",postPayoutRequestDto.getMerchantId());
 			Optional<Merchant> merchant=merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId()));
@@ -212,7 +218,7 @@ public class LiquiloansService {
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
     		lendingApplicationDao.save(lendingApplication);
 
-			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
+    		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
     		if (lendingPaymentSchedule != null) {
 				logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.",postPayoutRequestDto.getApplicationId(),merchant);
 				return new ResponseEntity<>("Duplicate Request", HttpStatus.BAD_REQUEST);
@@ -300,10 +306,34 @@ public class LiquiloansService {
     		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
+    	sendSms(lendingApplication, lendingPaymentSchedule);
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
-    
-    public Date getDateAfterNMonths(Date startDate, int month){
+
+	private void sendSms(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
+		String sms1;
+    	if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+			sms1 = "Congrats! INR"+lendingApplication.getDisbursalAmount()+" against your BharatPe Loan "+lendingApplication.getExternalLoanId()+" have been disbursed to your Bank A/c. https://bharatpe.in/loan~";
+		} else {
+			sms1 = "Congrats! INR"+lendingApplication.getLoanAmount()+" against your BharatPe Loan "+lendingApplication.getExternalLoanId()+" have been disbursed to your Bank A/c. https://bharatpe.in/loan~";
+		}
+    	String sms2 = null;
+		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
+			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
+		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
+			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
+		} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
+			sms2 = "Your daily installment for 1st month is INR "+lendingPaymentSchedule.getInterestOnlyEdiAmount()+" (Only Interest). After that, it will be INR"+lendingApplication.getEdi()+". First installment date is "+lendingPaymentSchedule.getStartDate()+" Installments will be deducted from your daily settlements.";
+		}
+		smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, sms1, NotificationProvider.SMS.GUPSHUP);
+		if (sms2 != null) {
+			smsServiceHandler.sendSMS(new ArrayList<String>() {{
+				add(lendingApplication.getMerchant().getMobile());
+			}}, sms2, NotificationProvider.SMS.GUPSHUP);
+		}
+	}
+
+	public Date getDateAfterNMonths(Date startDate, int month){
     	
     	try {
     		logger.info("Getting date after {} month",month);
