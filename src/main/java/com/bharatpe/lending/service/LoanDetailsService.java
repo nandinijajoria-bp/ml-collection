@@ -329,7 +329,7 @@ public class LoanDetailsService {
 						skipEnatch = true;
 					}
 					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
+						loanApplicationDTO.setStatusHeader("Loan Approved");
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 					} else {
@@ -370,12 +370,12 @@ public class LoanDetailsService {
 							skipEnatch = false;
 						}
 					} else {
-						loanApplicationDTO.setStatusHeader("Loan Pre-Booked Successfully");
+						loanApplicationDTO.setStatusHeader("Loan Applied Successfully");
 					}
 					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						if (lockdownOpened && showTarget) {
 							loanApplicationDTO.setStatusTitle("Increase BharatPe QR Txns to Get Loan");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days post Lockdown opening(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
 						} else if (lockdownOpened) {
 							loanApplicationDTO.setStatusTitle("Physical Verification Pending");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
@@ -850,9 +850,9 @@ public class LoanDetailsService {
 			history.setStatus("INTRANSFER");
 			if (ExperianConstants.LOCKDOWN && !isZomato && !"TOPUP".equalsIgnoreCase(application.getLoanType())) {
 				if (lockdownOpened && showTarget) {
-					history.setLoanStatusHeader("Loan Pre-Booked Successfully");
+					history.setLoanStatusHeader("Loan Approved");
 					history.setLoanStatusTitle("Increase BharatPe QR Txns to Get Loan");
-					history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days post Lockdown opening(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
+					history.setLoanStatusMessage("Your Application ID is " + application.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
 				} else if (lockdownOpened) {
 					history.setLoanStatusHeader("Loan Approved");
 					history.setLoanStatusTitle("Loan Transfer Initiated");
