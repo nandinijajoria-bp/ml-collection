@@ -223,11 +223,12 @@ public class VerifyOTPService {
 		} else if (merchantBankDetail != null){
 			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
 		}
-		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
-			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
-		} else {
-			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		}
+		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+// 		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
+// 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
+// 		} else {
+// 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+// 		}
 		
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
@@ -283,7 +284,7 @@ public class VerifyOTPService {
 		Double loanAmount = lendingApplication.getLoanAmount();
 		
 		if (!StringUtils.isEmpty(lendingApplication.getLoanType()) && "PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
-			String sms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+".\n\nNote: Due to necessary precautions for Coronavirus, there may be some delay in processing your application. We'll keep you updated.";
+			String sms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Applied for Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in next 10 days post verification.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.“;
 			String prebookSms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Pre-booked your Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in 10 days post Lockdown.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
 			smsServiceHandler.sendSMS(mobiles, prebookSms, NotificationProvider.SMS.GUPSHUP);
 			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
