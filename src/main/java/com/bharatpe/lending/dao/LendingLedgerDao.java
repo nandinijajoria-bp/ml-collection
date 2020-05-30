@@ -19,5 +19,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
     LendingLedger findLastEDIDueEntryByMerchantAndLoan(Long merchantId, Long loanId);
     
     List<LendingLedger> findByLendingPaymentScheduleAndDescription(LendingPaymentSchedule lendingPaymentSchedule, String description);
+
+    List<LendingLedger> findByLendingPaymentSchedule(LendingPaymentSchedule lendingPaymentSchedule);
     
 }

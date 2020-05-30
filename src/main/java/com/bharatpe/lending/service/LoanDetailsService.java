@@ -128,6 +128,9 @@ public class LoanDetailsService {
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;
 
+	@Autowired
+	LendingLedgerDao lendingLedgerDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -978,5 +981,26 @@ public class LoanDetailsService {
 //			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
 //		}
 		return false;
+	}
+
+	public SettlementResponseDTO getSettlements(Merchant merchant) {
+		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+		if (lendingPaymentSchedule == null){
+			return new SettlementResponseDTO(false, "No Active Loan");
+		}
+		List<LendingLedger> lendingLedgers = lendingLedgerDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
+		List<SettlementResponseDTO.Settlement> settlementList = new ArrayList<>();
+		for (LendingLedger lendingLedger : lendingLedgers) {
+			if (lendingLedger.getAmount() > 0 && (lendingLedger.getAdjustmentMode() == null || !"TOPUP".equalsIgnoreCase(lendingLedger.getAdjustmentMode()))) {
+				settlementList.add(new SettlementResponseDTO.Settlement(lendingLedger.getDate(), lendingLedger.getAmount(), LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "QR Txns.")));
+			}
+		}
+		if (settlementList.isEmpty()) {
+			return new SettlementResponseDTO(false, "No Settlement Found");
+		}
+		settlementList.sort(Comparator.comparing(SettlementResponseDTO.Settlement::getDate).reversed());
+		SettlementResponseDTO settlementResponseDTO = new SettlementResponseDTO();
+		settlementResponseDTO.setSettlement(settlementList);
+		return settlementResponseDTO;
 	}
 }

@@ -3,6 +3,7 @@ package com.bharatpe.lending.controller;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
 import org.slf4j.Logger;
@@ -69,5 +70,15 @@ public class LoanDetailsController {
 
 		logger.info("ImageURLController response : {}", resp);
 		return resp;
+	}
+
+	@RequestMapping(value="/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute Merchant merchant) {
+		try {
+			return new ResponseEntity<>(loanDetailsService.getSettlements(merchant), HttpStatus.OK);
+		} catch (Exception e) {
+			logger.error("Exception in settlement---", e);
+			return new ResponseEntity<>(new SettlementResponseDTO(false, "Something went wrong"), HttpStatus.OK);
+		}
 	}
 }
