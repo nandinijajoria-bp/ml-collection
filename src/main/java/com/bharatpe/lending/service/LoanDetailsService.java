@@ -903,6 +903,7 @@ public class LoanDetailsService {
 				dueAmount -= lendingPaymentSchedule.getPaidAmount();
 			}
 			history.setDue(dueAmount != null ? dueAmount : 0D);
+			history.setEdi(lendingPaymentSchedule.getEdiAmount());
 			loanHistoryList.add(history);
 		}
 
