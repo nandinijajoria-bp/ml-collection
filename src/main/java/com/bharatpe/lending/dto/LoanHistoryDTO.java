@@ -29,6 +29,7 @@ public class LoanHistoryDTO {
 
 	private Double repaid;
 	private Double due;
+	private Double edi;
 
 	public Long getId() {
 		return id;
@@ -108,6 +109,14 @@ public class LoanHistoryDTO {
 
 	public void setLoanStatusHeader(String loanStatusHeader) {
 		this.loanStatusHeader = loanStatusHeader;
+	}
+	
+	public Double getEdi() {
+		return edi;
+	}
+
+	public void setEdi(Double edi) {
+		this.edi = edi;
 	}
 
 	@Override
