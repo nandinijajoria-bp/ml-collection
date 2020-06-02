@@ -99,6 +99,9 @@ public class VerifyOTPService {
 	@Autowired
 	LendingCitiesDao lendingCitiesDao;
 
+	@Autowired
+	DocumentsIdProofDao documentsIdProofdao;
+
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -129,7 +132,7 @@ public class VerifyOTPService {
 			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
 			if(isOTPVerified) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
-				createPrebookTarget(lendingApplication, merchant);
+				//createPrebookTarget(lendingApplication, merchant);
 			}
 		}
 		return finalResponse;
@@ -138,6 +141,8 @@ public class VerifyOTPService {
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
+		LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
+		boolean cpvMandatory = lendingCities != null && lendingCities.getCpvMandatory();
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
@@ -168,24 +173,17 @@ public class VerifyOTPService {
 			lendingApplication.setLender("LIQUILOANS");
 		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
-			if (enachSuccess != null || lendingApplication.getLoanAmount() < 100000) {
+			if (!cpvMandatory && (enachSuccess != null && lendingApplication.getLoanAmount() < 300000)) {
 				lendingApplication.setPhysicalVerificationStatus("APPROVED");
 				lendingApplication.setStatus("approved");
-				lendingApplication.setVerifyOcr("yes");
-				lendingApplication.setVerifyPan("yes");
 			} else {
+				sendTopupSms(merchant, lendingApplication);
 				lendingApplication.setStatus("pending_verification");
 			}
-			lendingApplication.setManualKyc("APPROVED");
-			lendingApplication.setManualCibil("APPROVED");
-		} else if (lendingApplication.getNachStatus() != null && (lendingApplication.getNachStatus().equalsIgnoreCase("initiated") || lendingApplication.getNachStatus().equalsIgnoreCase("approved"))) {
-			logger.info("Physical nach submitted by merchant: {}", merchant.getId());
-			lendingApplication.setStatus("approved");
-			lendingApplication.setManualKyc("APPROVED");
-			lendingApplication.setManualCibil("APPROVED");
-			lendingApplication.setPhysicalVerificationStatus("APPROVED");
 			lendingApplication.setVerifyOcr("yes");
 			lendingApplication.setVerifyPan("yes");
+			lendingApplication.setManualKyc("APPROVED");
+			lendingApplication.setManualCibil("APPROVED");
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
@@ -233,6 +231,29 @@ public class VerifyOTPService {
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
+	}
+
+	private void sendTopupSms(Merchant merchant, LendingApplication lendingApplication) {
+		try {
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			if (merchantBankDetail == null) {
+				return;
+			}
+			Long docId = documentsIdProofdao.fetchLatestAddressProofDocId(merchant.getId(), lendingApplication.getId(), "LENDING");
+			String proof = "";
+			if (docId != null) {
+				Optional<DocumentsIdProof> documentsIdProof = documentsIdProofdao.findById(docId);
+				if (documentsIdProof.isPresent()) {
+					proof = documentsIdProof.get().getProofType();
+				}
+			}
+			String sms = "Hi " + merchantBankDetail.getBeneficiaryName() + ",a BharatPe agent will visit you in 72 hrs. to collect the following:\n- PAN\n- Address Proof (" + proof + ")\n- Cheque (" + merchantBankDetail.getIfscCode() + ", " + merchantBankDetail.getAccountNumber() + ")\n- Shop Ownership Doc\n- Business Ownership Proof";
+			smsServiceHandler.sendSMS(new ArrayList<String>() {{
+				add(merchant.getMobile());
+			}}, sms, NotificationProvider.SMS.GUPSHUP);
+		} catch (Exception e) {
+			logger.error("Exception while sending topup sms---", e);
+		}
 	}
 
 	private void checkPreBook(Merchant merchant, LendingApplication lendingApplication) {
@@ -285,19 +306,16 @@ public class VerifyOTPService {
 		
 		if (!StringUtils.isEmpty(lendingApplication.getLoanType()) && "PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
 			String sms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Applied for Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in next 10 days post verification.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
-			String prebookSms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Pre-booked your Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in 10 days post Lockdown.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
-			smsServiceHandler.sendSMS(mobiles, prebookSms, NotificationProvider.SMS.GUPSHUP);
 			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, sms, mobiles, null);
 		} else {
-			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+".";
+			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+" and this should get processed in the next 7 days.\nNote: Due to necessary precautions for coronavirus, there may be a delay in processing your application. We'll keep you posted.";
 			smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
-			String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
+		}
+		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
 				"\n" +
 				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
 				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
-			whatsappNotificationService.send(merchant, null, whatsappContent, mobiles, null);
-		}
+		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
 		if(merchantFcmToken != null) {

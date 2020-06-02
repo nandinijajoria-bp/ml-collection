@@ -331,7 +331,7 @@ public class LoanDetailsService {
 						}
 						skipEnatch = true;
 					}
-					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+					if ("PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						loanApplicationDTO.setStatusHeader("Loan Approved");
 						loanApplicationDTO.setStatusTitle("Loan Transfer Post Lockdown");
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
@@ -369,13 +369,13 @@ public class LoanDetailsService {
 					loanHistoryDTOs = null;
 					if (enach != null) {
 						loanApplicationDTO.setStatusHeader("Details Submitted");//enach screen
-						if (lendingPrebookLoans != null || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-							skipEnatch = false;
-						}
+//						if (lendingPrebookLoans != null || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+//							skipEnatch = false;
+//						}
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Applied Successfully");
 					}
-					if (ExperianConstants.LOCKDOWN  && !isZomato && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+					if ("PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						if (lockdownOpened && showTarget) {
 							loanApplicationDTO.setStatusTitle("Increase BharatPe QR Txns to Get Loan");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ".\nJust Collect <b>Rs."+(int)targetTpv+"</b> more from your customers on BharatPe QR in 10 days(between <b>"+lockdownEnd+" - "+targetEnd+"</b>) to transfer Loan in your Bank A/c");
@@ -396,17 +396,17 @@ public class LoanDetailsService {
 							}
 						}
 					} else {
-						loanApplicationDTO.setStatusHeader("Loan Approved");
+						loanApplicationDTO.setStatusHeader("Loan Applied Successfully");
 						if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
 							accountDetails = true;
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
 						} else if (lendingEnach != null && !lendingEnach.getSkip()) {
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification in the next 3 days. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 						} else {
 							loanApplicationDTO.setStatusTitle("Application submitted successfully!");
-							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
+							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification in the next 3 days. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 						}
 					}
 				} else if("draft".equals(lendingApplication.getStatus())) {
@@ -443,11 +443,11 @@ public class LoanDetailsService {
 							}
 							loanDetailsDTO.getTopupLoan().get(0).setEnach(enach);
 							experian = experianDao.getByMerchantId(merchant.getId());
-							if ("approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) && (experian == null || (experian.getColor() != null && !"AMBER".equalsIgnoreCase(experian.getColor())))) {
-								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(true);
-							} else {
-								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
-							}
+//							if ("approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) && (experian == null || (experian.getColor() != null && !"AMBER".equalsIgnoreCase(experian.getColor())))) {
+//								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(true);
+//							} else {
+//								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
+//							}
 						}
 					} else if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && "draft".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
 						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
@@ -481,9 +481,9 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			
-			if (pincode != null && lendingCity == null) {
-				PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+			PincodeCityStateMapping pincodeCityStateMapping = null;
+			if ((pincode != null && lendingCity == null) || (lendingCity != null && lendingCity.getCategoriesAllowed() != null && !lendingCity.getCategoriesAllowed().contains(merchant.getBusinessCategory()))) {
+				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -531,14 +531,13 @@ public class LoanDetailsService {
 					}
 					if (isZomato && !rejected) {
 						loanEligibilityDTOs.clear();
-						skipEnatch = false;
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
 				} else if (!EXPERIAN_ENABLED && merchantSummary != null){
 					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
 				}
 //			}
-			
+			boolean ogl = false;
 			if(lendingApplication != null 
 					&& (("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()))
 					|| "approved".equalsIgnoreCase(lendingApplication.getStatus()))) {
@@ -559,6 +558,11 @@ public class LoanDetailsService {
 				tempClosed = "FRAUD";
 				eligibleFlag = true;
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "FRAUD"));
+			} else if (eligibleFlag && lendingCity != null && !lendingCity.getNtcAllowed() && loanEligibleService.isNTC(experian)) {
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
+				eligibleFlag = false;
+				ogl = true;
+
 			} else if (!eligibleFlag) {
 				tempClosed = "INELIGIBLE";
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "INELIGIBLE"));
@@ -578,6 +582,15 @@ public class LoanDetailsService {
 			loanDetailsDTO.setAccountDetails(accountDetails);
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setZomato(isZomato);
+			loanDetailsDTO.setOgl(ogl);
+			loanDetailsDTO.setPincode(pincode);
+			loanDetailsDTO.setZomato(isZomato);
+			loanDetailsDTO.setSkipEnatch(skipEnatch);
+			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
+				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+			} else {
+				loanDetailsDTO.setCity(" ");
+			}
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
 			
@@ -851,7 +864,7 @@ public class LoanDetailsService {
 			history.setStartDate(null);
 			history.setEndDate(null);
 			history.setStatus("INTRANSFER");
-			if (ExperianConstants.LOCKDOWN && !isZomato && !"TOPUP".equalsIgnoreCase(application.getLoanType())) {
+			if ("PREBOOK".equalsIgnoreCase(application.getLoanType())) {
 				if (lockdownOpened && showTarget) {
 					history.setLoanStatusHeader("Loan Approved");
 					history.setLoanStatusTitle("Increase BharatPe QR Txns to Get Loan");
@@ -903,7 +916,11 @@ public class LoanDetailsService {
 				dueAmount -= lendingPaymentSchedule.getPaidAmount();
 			}
 			history.setDue(dueAmount != null ? dueAmount : 0D);
-			history.setEdi(lendingPaymentSchedule.getEdiAmount());
+			if (lendingPaymentSchedule.getRemainingInterestOnlyEdiCount() != null && lendingPaymentSchedule.getRemainingInterestOnlyEdiCount() > 0) {
+				history.setEdi(lendingPaymentSchedule.getInterestOnlyEdiAmount());
+			} else {
+				history.setEdi(lendingPaymentSchedule.getEdiAmount());
+			}
 			loanHistoryList.add(history);
 		}
 
@@ -937,6 +954,7 @@ public class LoanDetailsService {
 		if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.size() == 0) {
 			return null;
 		}
+		lendingPaymentScheduleList.sort(Comparator.comparing(LendingPaymentSchedule::getId));
 		
 		for(LendingPaymentSchedule schedule : lendingPaymentScheduleList) {
 			if(LendingStatus.ACTIVE.toString().equals(schedule.getStatus())) {

@@ -9,11 +9,13 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -56,6 +58,12 @@ public class TopupLoanEligibleService {
 
     @Autowired
     LendingEnachDao lendingEnachDao;
+
+    @Autowired
+    ExperianAuditTrailDao experianAuditTrailDao;
+
+    @Autowired
+    ObjectMapper objectMapper;
     
     public void generateTopupLoan(Long merchantId) {
     	 try {
@@ -78,7 +86,7 @@ public class TopupLoanEligibleService {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
         double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0d;
         LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
-        if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null) {
+        if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {
             logger.info("No previous loan/active loan for merchant ID {}", merchant.getId());
             return new ArrayList<>();
         }
@@ -87,14 +95,10 @@ public class TopupLoanEligibleService {
             logger.info("Lending Application not found/topup loan for merchant:{}", merchant.getId());
             return new ArrayList<>();
         }
-        double paidRatio = activeLoan.getPaidAmount() / activeLoan.getTotalPayableAmount();
-        if(paidRatio < 0.10D || paidRatio > 0.98D) {
-            logger.info("Amount paid is less than 10% or more than 98% for merchant ID {}", merchant.getId());
-            return new ArrayList<>();
-        }
+        double paidRatio = activeLoan.getPaidPrinciple() / activeLoan.getLoanAmount();
         double dpd = activeLoan.getDueAmount() / activeLoan.getEdiAmount();
-        if(dpd > 3D) {
-            logger.info("DPD is greater than 3 for merchant ID {}", merchant.getId());
+        if(dpd > 5D) {
+            logger.info("DPD is greater than 5 for merchant ID {}", merchant.getId());
             return new ArrayList<>();
         }
         if (loanEligibleService.checkFraud(merchantSummary)) {
@@ -109,6 +113,7 @@ public class TopupLoanEligibleService {
                     JsonNode experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), docKycDetails.getDocNo(), merchant.getId(), bpScore, merchantBankDetail);
                     if (experianResponse != null) {
                         experian = updateExperian(experianResponse, merchant, bpScore, docKycDetails.getDocNo(), lendingApplication.getPincode());
+                        experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                     } else {
                         logger.info("Experian not found for merchant:{}", merchant.getId());
                     }
@@ -118,16 +123,42 @@ public class TopupLoanEligibleService {
             } else {
                 logger.info("pancard not found for merchant:{} for application:{}", merchant.getId(), activeLoan.getApplicationId());
             }
+        } else {
+            try {
+                JsonNode experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                if (experianResponse != null) {
+                    experian.setResponse(experianResponse.toString());
+                    experianDao.save(experian);
+                    experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                }
+            } catch (Exception e) {
+                logger.error("Exception while fetching experian---", e);
+            }
         }
+        if (experian != null && experian.getResponse() != null) {
+            try {
+                JsonNode response = objectMapper.readTree(experian.getResponse());
+                if (loanEligibleService.isDerog(response, merchant, experian, true)) {
+                    logger.info("Derog Merchant, so rejecting merchant: {}", merchant.getId());
+                    return new ArrayList<>();
+                }
+            } catch (IOException e) {
+                logger.error("Exception parsing experian response---", e);
+            }
+        }
+        double repaidRatio = 0.6d;
         double prevLoanAmount = 0d;
-        String color = (experian != null && !experian.getRejected() && experian.getColor() != null) ? experian.getColor() : "AMBER";
+        String color = (experian != null && !experian.getRejected() && experian.getColor() != null && !loanEligibleService.isNTC(experian)) ? experian.getColor() : "AMBER";
         switch (color){
             case "AMBER": prevLoanAmount = lendingApplication.getLoanAmount() * 1.1;break;
-            case "LIGHT_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;break;
-            case "DARK_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.5;break;
+            case "LIGHT_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;repaidRatio=0.5;break;
+            case "DARK_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.5;repaidRatio=0.4;break;
+        }
+        if(paidRatio < repaidRatio || paidRatio > 0.98D) {
+            logger.info("Insufficient paid ratio for merchant ID {}", merchant.getId());
+            return new ArrayList<>();
         }
         LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-        boolean enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId()) != null;
         if (lendingCategories != null) {
             lendingCategories.setInterestRate(1.75D);//fixed for topup loan
             Long experianId = experian != null ? experian.getId() : 0L;
@@ -135,10 +166,6 @@ public class TopupLoanEligibleService {
             LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false);
             double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
             if (loanEligibilityDTO != null) {
-                if (loanEligibilityDTO.getAmount() > 100000 && !enachSuccess && bankCode == null) {
-                    logger.info("Topup Loan amount is more than 1lac and enach not found for merchant:{}", merchant.getId());
-                    return new ArrayList<>();
-                }
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
                 loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getDisbursementAmount() - (int) prevLoanUnpaidAmount);
                 return new ArrayList<LoanEligibilityDTO>(){{add(loanEligibilityDTO);}};

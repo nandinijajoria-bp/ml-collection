@@ -68,6 +68,9 @@ public class ENachService {
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
 
+    @Autowired
+    LendingCitiesDao lendingCitiesDao;
+
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
     // if bank is suported , insert in ENach Detail Table.
@@ -199,17 +202,23 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
-            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-                List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
-                if (prevLoans != null && prevLoans.size() > 0) {
-                    lendingApplication.setStatus("approved");
-                    lendingApplication.setManualKyc("APPROVED");
-                    lendingApplication.setManualCibil("APPROVED");
-                    lendingApplication.setPhysicalVerificationStatus("APPROVED");
-                    lendingApplication.setVerifyOcr("yes");
-                    lendingApplication.setVerifyPan("yes");
-                }
-            }
+//            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+//                List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+//                if (prevLoans != null && prevLoans.size() > 0) {
+//                    LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
+//                    if ((lendingCities != null && lendingCities.getCpvMandatory()) || lendingApplication.getLoanAmount() > 300000) {
+//                        lendingApplication.setManualKyc("APPROVED");
+//                        lendingApplication.setManualCibil("APPROVED");
+//                    } else {
+//                        lendingApplication.setStatus("approved");
+//                        lendingApplication.setManualKyc("APPROVED");
+//                        lendingApplication.setManualCibil("APPROVED");
+//                        lendingApplication.setPhysicalVerificationStatus("APPROVED");
+//                    }
+//                    lendingApplication.setVerifyOcr("yes");
+//                    lendingApplication.setVerifyPan("yes");
+//                }
+//            }
             lendingApplicationDao.save(lendingApplication);
         }
         return responseDTO;

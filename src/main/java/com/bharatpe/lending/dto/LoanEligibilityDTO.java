@@ -38,7 +38,7 @@ public class LoanEligibilityDTO {
 	@JsonProperty(value = "installment_details")
 	private List<LabelDTO> list;
 
-	private boolean skipEnatch;
+	private boolean skipEnatch = true;
 	private String enach;
 
 	

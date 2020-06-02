@@ -9,7 +9,7 @@ public interface ExperianConstants {
         RED, AMBER, LIGHT_GREEN, DARK_GREEN;
     }
 
-    Boolean LOCKDOWN = true;
+    Boolean LOCKDOWN = false;
 
     String SHORT_API_URL = "https://consumer.experian.in:8443/ECV-P2/content/enhancedMatch.action";
     String LONG_API_URL = "https://consumer.experian.in:8443/ECV-P2/content/singleAction.action";
