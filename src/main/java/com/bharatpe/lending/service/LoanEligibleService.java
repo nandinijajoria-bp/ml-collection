@@ -147,8 +147,8 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (!isZomato && bpScore < 15D) {
-            logger.info("BP Score less than 15, so rejecting merchant: {}", merchant.getId());
+        if (!isZomato && bpScore < 13D) {
+            logger.info("BP Score less than 13, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
             experian.setReason(ExperianConstants.LOW_BP_SCORE);
