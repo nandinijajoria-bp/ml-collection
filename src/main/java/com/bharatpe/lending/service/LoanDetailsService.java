@@ -954,7 +954,7 @@ public class LoanDetailsService {
 		if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.size() == 0) {
 			return null;
 		}
-		lendingPaymentScheduleList.sort(Comparator.comparing(LendingPaymentSchedule::getId));
+		
 		
 		for(LendingPaymentSchedule schedule : lendingPaymentScheduleList) {
 			if(LendingStatus.ACTIVE.toString().equals(schedule.getStatus())) {
