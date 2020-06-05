@@ -13,16 +13,17 @@ public class LoanCalculationUtil {
 	
 	private static DecimalFormat df = new DecimalFormat("0.00");
 	
-	public static LoanBreakupDetail getLoanBreakup(AvailableLoan availableLoan, LendingCategories category) {
+	public static LoanBreakupDetail getLoanBreakup(AvailableLoan availableLoan, LendingCategories category, String loanType) {
 		
 		LoanBreakupDetail breakup = new LoanBreakupDetail();
+		double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : category.getInterestRate();
 		
 		Integer edi, ioEdi, processingFee, ioInterestAmount, interestAmount, totalInterestAmount, ioOrFreeEdiTenure, principleEdiTenure, repayment, disbursementAmount;
 		Double effectiveInterestRate = null;
 		
 		if("CONSTRUCT_2".equals(category.getLoanConstruct())) {
 			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
-			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * category.getTenureMonths()))) / category.getPayableDays());
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
 			repayment = (int) Math.round(category.getPayableDays() * edi);
 			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
 			ioOrFreeEdiTenure = 1;
@@ -31,8 +32,8 @@ public class LoanCalculationUtil {
 		} else if("CONSTRUCT_3".equals(category.getLoanConstruct())) {
 			ioOrFreeEdiTenure = category.getIoTenureMonths().intValue();
 			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
-			ioEdi = (int) Math.ceil(availableLoan.getAmount() * (category.getInterestRate() / 100) * category.getIoTenureMonths() / category.getIoPayableDays());
-			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * (category.getTenureMonths() - ioOrFreeEdiTenure)))) / category.getPayableDays());
+			ioEdi = (int) Math.ceil(availableLoan.getAmount() * (interest / 100) * category.getIoTenureMonths() / category.getIoPayableDays());
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * (category.getTenureMonths() - ioOrFreeEdiTenure)))) / category.getPayableDays());
 			repayment = (int) Math.round((category.getPayableDays() * edi) + (category.getIoPayableDays() * ioEdi));
 			ioInterestAmount = category.getIoPayableDays() * ioEdi;
 			interestAmount = repayment - ioInterestAmount - availableLoan.getAmount().intValue();
@@ -40,7 +41,7 @@ public class LoanCalculationUtil {
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
 		} else {
 			processingFee = Integer.valueOf(category.getProcessingFee());
-			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (category.getInterestRate() / 100) * category.getTenureMonths()))) / category.getPayableDays());
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
 			repayment = (int) Math.round(category.getPayableDays() * edi);
 			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
 			ioOrFreeEdiTenure = 0;

@@ -514,7 +514,7 @@ public class LoanEligibleService {
         } else {
             percentage = lendingCategories.getMultiplier();
         }
-        double interest = lendingCategories.getInterestRate();
+        double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
         Integer maxAmount = lendingCategories.getMaxTpvAmount();
@@ -527,7 +527,7 @@ public class LoanEligibleService {
         if (avgTpv == 0 && prevLoanAmount > 0) {
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
-            breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories);
+            breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
         } else {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
         }

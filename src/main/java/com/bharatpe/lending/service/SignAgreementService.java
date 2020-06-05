@@ -230,7 +230,7 @@ public class SignAgreementService {
 				logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
 				return response;
 			}
-			LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData);
+			LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData, null);
 			newApplication.setEdi(Double.valueOf(breakup.getEdi()));
 			newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
 			newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));

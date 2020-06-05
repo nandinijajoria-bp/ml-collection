@@ -279,7 +279,7 @@ public class VerifyOTPService {
 				Double previousLoanAmount = lendingApplication.getLoanAmount();
 				AvailableLoan availableLoan = new AvailableLoan();
 				availableLoan.setAmount(100000D);
-				LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories);
+				LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, null);
 				lendingApplication.setEdi(Double.valueOf(breakup.getEdi()));
 				lendingApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
 				lendingApplication.setRepayment(Double.valueOf(breakup.getRepayment()));

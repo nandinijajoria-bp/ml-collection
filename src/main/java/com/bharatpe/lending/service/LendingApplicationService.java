@@ -171,7 +171,7 @@ public class LendingApplicationService {
 		LendingApplication lendingApplication = new LendingApplication();
 		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 
-		LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
+		LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, null);
 
 		lendingApplication.setEdi(Double.valueOf(breakupDetail.getEdi()));
 		lendingApplication.setIoEdi(Double.valueOf(breakupDetail.getIoEdi()));

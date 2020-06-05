@@ -160,7 +160,7 @@ public class TopupLoanEligibleService {
         }
         LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
         if (lendingCategories != null) {
-            lendingCategories.setInterestRate(1.75D);//fixed for topup loan
+            //lendingCategories.setInterestRate(1.75D);//fixed for topup loan
             Long experianId = experian != null ? experian.getId() : 0L;
             eligibleLoanDao.deleteByMerchantId(merchant.getId());
             LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false);

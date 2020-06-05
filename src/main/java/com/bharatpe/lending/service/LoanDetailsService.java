@@ -773,7 +773,7 @@ public class LoanDetailsService {
 			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
 			if(lendingCategoryDetail != null) {
 				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
-				LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategoryDetail);
+				LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategoryDetail, null);
 				
 				loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
 				loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
