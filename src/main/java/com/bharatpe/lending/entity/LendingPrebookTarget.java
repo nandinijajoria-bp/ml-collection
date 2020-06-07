@@ -27,6 +27,9 @@ public class LendingPrebookTarget {
     @Column(name = "target_achieve_date")
     private Date targetAchieveDate;
 
+    @Column(name = "target_achieved")
+    private Boolean targetAchieved;
+
     public LendingPrebookTarget(Long merchantId, String segment, Long applicationId, Long pincode, Double target, Date lockdownEndDate, Date targetAchieveDate) {
         this.merchantId = merchantId;
         this.segment = segment;
@@ -94,6 +97,14 @@ public class LendingPrebookTarget {
 
     public void setTargetAchieveDate(Date targetAchieveDate) {
         this.targetAchieveDate = targetAchieveDate;
+    }
+
+    public Boolean getTargetAchieved() {
+        return targetAchieved;
+    }
+
+    public void setTargetAchieved(Boolean targetAchieved) {
+        this.targetAchieved = targetAchieved;
     }
 
     @Override
