@@ -64,6 +64,8 @@ public class TopupLoanEligibleService {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    List<Long> exemptMerchant = Arrays.asList(3692069L);
     
     public void generateTopupLoan(Long merchantId) {
     	 try {
@@ -138,7 +140,7 @@ public class TopupLoanEligibleService {
         if (experian != null && experian.getResponse() != null) {
             try {
                 JsonNode response = objectMapper.readTree(experian.getResponse());
-                if (loanEligibleService.isDerog(response, merchant, experian, true)) {
+                if (!exemptMerchant.contains(merchant.getId()) && loanEligibleService.isDerog(response, merchant, experian, true)) {
                     logger.info("Derog Merchant, so rejecting merchant: {}", merchant.getId());
                     return new ArrayList<>();
                 }
