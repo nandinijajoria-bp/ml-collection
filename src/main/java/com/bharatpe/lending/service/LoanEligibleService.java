@@ -112,7 +112,7 @@ public class LoanEligibleService {
             bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
             tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
         }
-        if (!isZomato && bpScore < 13D && merchantSummaryLending != null && "2".equals(merchantSummaryLending.getSegment()) && merchantSummaryLending.getBpScore() > 10D && merchantSummaryLending.getTpv() > 1000D) {
+        if (!isZomato && bpScore <= 10D && merchantSummaryLending != null && "2".equals(merchantSummaryLending.getSegment()) && merchantSummaryLending.getBpScore() > 10D && merchantSummaryLending.getTpv() > 1000D) {
             bpScore =  merchantSummaryLending.getBpScore();
             tpvLast30Days = merchantSummaryLending.getTpv();
             prebook = true;
@@ -153,8 +153,8 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (!isZomato && !prebook && bpScore < 13D) {
-            logger.info("BP Score less than 13, so rejecting merchant: {}", merchant.getId());
+        if (!isZomato && !prebook && bpScore <= 10D) {
+            logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
             experian.setReason(ExperianConstants.LOW_BP_SCORE);
