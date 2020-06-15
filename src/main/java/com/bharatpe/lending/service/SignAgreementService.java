@@ -190,8 +190,7 @@ public class SignAgreementService {
 			}
 			newApplication.setProcessingFee((double)processingFee);
 			newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-			if (!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()))
-				newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+			newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
 			newApplication.setMerchant(merchant);
 			newApplication.setShopNumber(prevApplication.getShopNumber());
 			newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -292,7 +291,7 @@ public class SignAgreementService {
 		return response;
 	}
 	
-	private void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
+	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
 		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
 			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();

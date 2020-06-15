@@ -141,7 +141,7 @@ public class UploadDocumentService {
 				documentResponse.setSinglePageDocument(singlePageDocument);
 				documentList.add(documentResponse);
 			}
-			karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
+			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
 		return documentList;
 	}

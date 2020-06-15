@@ -9,10 +9,12 @@ import java.util.concurrent.Executors;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
+import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.OglLoans;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -102,6 +104,12 @@ public class VerifyOTPService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofdao;
 
+	@Autowired
+	SignAgreementService signAgreementService;
+
+	@Autowired
+	LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -180,6 +188,7 @@ public class VerifyOTPService {
 				sendTopupSms(merchant, lendingApplication);
 				lendingApplication.setStatus("pending_verification");
 			}
+			updateDocuments(lendingApplication, meta);
 			lendingApplication.setVerifyOcr("yes");
 			lendingApplication.setVerifyPan("yes");
 			lendingApplication.setManualKyc("APPROVED");
@@ -231,6 +240,21 @@ public class VerifyOTPService {
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
+	}
+
+	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {
+		try {
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
+			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
+			if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {
+				logger.info("No previous loan/active loan for merchant ID {}", lendingApplication.getMerchant().getId());
+				return;
+			}
+			LendingApplication prevApplication = lendingApplicationDao.findByIdAndMerchant(activeLoan.getApplicationId(), lendingApplication.getMerchant());
+			signAgreementService.replicateDocumentsForNewApplication(prevApplication, lendingApplication, lendingApplication.getMerchant(), new MetaDTO(meta));
+		} catch (Exception e) {
+			logger.error("Exception replicating documents for topup---", e);
+		}
 	}
 
 	private void sendTopupSms(Merchant merchant, LendingApplication lendingApplication) {
@@ -400,5 +424,17 @@ public class VerifyOTPService {
 			logger.error("Exception while inserting lending_prebook_target for merchant: {}", merchant.getId());
 			logger.error("Exception---", e);
 		}
+	}
+
+	private LendingPaymentSchedule getActiveLoan(List<LendingPaymentSchedule> lendingPaymentScheduleList) {
+		if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.size() == 0) {
+			return null;
+		}
+		for(LendingPaymentSchedule schedule : lendingPaymentScheduleList) {
+			if(Status.LendingStatus.ACTIVE.toString().equals(schedule.getStatus())) {
+				return schedule;
+			}
+		}
+		return null;
 	}
 }

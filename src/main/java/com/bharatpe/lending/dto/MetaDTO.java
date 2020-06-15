@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.common.objects.Meta;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class MetaDTO {
@@ -22,7 +23,19 @@ public class MetaDTO {
 
 	@JsonProperty("device_info")
 	private DeviceInfoDTO deviceInfo;
-	
+
+	public MetaDTO(Meta meta) {
+		this.appVersion = meta.getAppVersion();
+		this.client = meta.getClient();
+		this.latitude = meta.getLatitude();
+		this.longitude = meta.getLongitude();
+		this.ip = meta.getIp();
+		this.deviceId = meta.getDeviceId();
+	}
+
+	public MetaDTO() {
+	}
+
 	public String getAppVersion() {
 		return appVersion;
 	}
