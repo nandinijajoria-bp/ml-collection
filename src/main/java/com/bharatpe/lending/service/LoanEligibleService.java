@@ -448,7 +448,7 @@ public class LoanEligibleService {
                     logger.info("loan offer is null for merchant: {}", merchantId);
                 }
             }
-            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).reversed());
+            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
             if (lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
                 List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(lendingApplication.getCategory());
                 if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty()) {
@@ -456,7 +456,7 @@ public class LoanEligibleService {
                     if (loanEligibilityDTO != null) {
                         logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
                         loanEligibilityDTOList.add(loanEligibilityDTO);
-                        loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).reversed());
+                        loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
                     } else {
                         logger.info("loan offer is null for merchant: {}", merchantId);
                     }
@@ -776,7 +776,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 12 months
-        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12)){
+        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12)){
             logger.info("Derog DPD Last 12 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_12_MONTHS);
@@ -784,7 +784,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 24 months
-        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24)){
+        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24)){
             logger.info("Derog DPD Last 24 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_24_MONTHS);
