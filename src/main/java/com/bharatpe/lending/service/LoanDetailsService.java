@@ -569,9 +569,10 @@ public class LoanDetailsService {
 	}
 
 	private List<LoanEligibilityDTO> fetchZomatoOffers(Experian experian, List<LendingPartnerOffers> lendingPartnerOffers) {
-		if (loanEligibleService.isNTC(experian) || lendingPartnerOffers.isEmpty()) {
+		if (lendingPartnerOffers.isEmpty()) {
 			return new ArrayList<>();
 		}
+		boolean ntc = loanEligibleService.isNTC(experian);
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
 		List<String> categorySeen = new ArrayList<>();
 		for (LendingPartnerOffers lendingPartnerOffer : lendingPartnerOffers) {
@@ -581,6 +582,10 @@ public class LoanDetailsService {
 			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingPartnerOffer.getCategory());
 			if (lendingCategories == null) {
 				logger.error("Invalid Zomato category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
+				continue;
+			}
+			if (ntc && !lendingCategories.getCategory().contains("ZNTC")) {
+				logger.error("Invalid Zomato NTC category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
 				continue;
 			}
 			eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
