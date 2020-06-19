@@ -216,6 +216,7 @@ public class LiquiloansService {
     		
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
+			lendingApplication.setDisburseTimestamp(new Date());
     		lendingApplicationDao.save(lendingApplication);
 
     		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
@@ -300,6 +301,7 @@ public class LiquiloansService {
     		
     		logger.info("Changing loan_disbursal_status back to 'PENDING'");
     		if(lendingApplication!=null){
+    			lendingApplication.setDisburseTimestamp(null);
     			lendingApplication.setLoanDisbursalStatus("PENDING");
     			lendingApplicationDao.save(lendingApplication);
     		}		
