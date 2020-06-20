@@ -52,7 +52,7 @@ public class LoanDetailsResponseDTO {
 		private boolean skipEnatch = true;
 		@JsonProperty(value = "isZomato")
 		private boolean isZomato = false;
-		private String enach;
+		private String enach = "false";
 		private String city;
 		private Integer pincode;
 		private String tempClosed;

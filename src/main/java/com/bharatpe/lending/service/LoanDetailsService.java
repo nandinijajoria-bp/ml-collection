@@ -277,6 +277,7 @@ public class LoanDetailsService {
 			} catch (Exception e) {
 				logger.error("Exception while checking enach bank code:", e);
 			}
+			LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 			if(lendingApplication != null) {
 				if ((enachSuccess != null && repeatLoan) || (enachSuccess != null && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
 					loanApplicationDTO.setSelfVerification(false);
@@ -309,7 +310,6 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 						if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 							enach = "bharatpe://enachdigio";//set deep link for enach digio
@@ -332,7 +332,6 @@ public class LoanDetailsService {
 						}
 					}
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
-					LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 					try {
 						//enach not success and not skipped and bankcode enachable and app version >= 237
 						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
@@ -401,7 +400,6 @@ public class LoanDetailsService {
 						double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
 						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
 						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
-						LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
@@ -429,6 +427,15 @@ public class LoanDetailsService {
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
+			}
+			if (enach == null) {
+				if (enachSuccess != null) {
+					enach = "success";
+				} else if (lendingEnach != null && lendingEnach.getSkip() != null && lendingEnach.getSkip()) {
+					enach = "skipped";
+				} else {
+					enach = "false";
+				}
 			}
 			
 			if(lendingApplication != null && !eligibleFlag) {
