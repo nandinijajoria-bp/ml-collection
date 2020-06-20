@@ -428,15 +428,15 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			if (enach == null) {
-				if (enachSuccess != null) {
-					enach = "success";
-				} else if (lendingEnach != null && lendingEnach.getSkip() != null && lendingEnach.getSkip()) {
-					enach = "skipped";
-				} else {
-					enach = "false";
-				}
-			}
+//			if (enach == null) {
+//				if (enachSuccess != null) {
+//					enach = "success";
+//				} else if (lendingEnach != null && lendingEnach.getSkip() != null && lendingEnach.getSkip()) {
+//					enach = "skipped";
+//				} else {
+//					enach = "false";
+//				}
+//			}
 			
 			if(lendingApplication != null && !eligibleFlag) {
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
