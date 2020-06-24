@@ -532,6 +532,7 @@ public class LoanEligibleService {
         int ioEdiDays = lendingCategories.getIoEdiDays();
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
+            prevLoanAmount = Math.min(prevLoanAmount, 700000);
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
