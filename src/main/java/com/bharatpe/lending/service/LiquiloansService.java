@@ -287,7 +287,7 @@ public class LiquiloansService {
     			return new ResponseEntity<>("Wrong construct type found in application", HttpStatus.BAD_REQUEST);
     		}	
     		
-    		lendingPaymentSchedule.setNextEdiDate(lendingPaymentSchedule.getStartDate());
+    		lendingPaymentSchedule.setNextEdiDate(tomorrow);
     		
     		Date tenativeLoanEndDate=getDateAfterNMonths(date,lendingApplication.getTenureInMonths()); 
     		if(tenativeLoanEndDate==null){
