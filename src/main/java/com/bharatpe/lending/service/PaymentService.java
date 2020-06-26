@@ -276,7 +276,7 @@ public class PaymentService {
 	                    .transactionId(activeLoan.getId())
                     .build();
 				
-				loyaltyService.pushAsync(requestBean);
+				loyaltyService.pushToKafka(requestBean);
 			} 
 			
 			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(order.getMerchant().getId(), LoyaltyTransactionType.LENDING_EDI)
@@ -285,7 +285,7 @@ public class PaymentService {
 	                    .transactionId(activeLoan.getId())
                     .build();
 			
-			loyaltyService.pushAsync(requestBean);
+			loyaltyService.pushToKafka(requestBean);
 
 		} catch(Exception ex) {
 			logger.error("Execption whilehandling payment callback for order id {}, Exception is {}", request.getOrderId(), ex);

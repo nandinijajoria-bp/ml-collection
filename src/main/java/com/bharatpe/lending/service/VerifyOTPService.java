@@ -205,7 +205,7 @@ public class VerifyOTPService {
 				.merchantStoreId(null)
 				.transactionId(lendingApplication.getId())
 				.build();
-		loyaltyService.pushAsync(requestBean);
+		loyaltyService.pushToKafka(requestBean);
 
 
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
