@@ -72,7 +72,7 @@ public class BPEnachService {
 
         BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), module, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
-                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate,BPEnachEnum.applicationStatus.INTI.toString()
+                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INTI.toString()
         );
 
         bpEnach = bpEnachDao.save(bpEnach);
@@ -85,7 +85,7 @@ public class BPEnachService {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
-        BpEnach bpEnach = bpEnachDao.findByMerchantIdAndStatus(merchant.getId(), "PENDING");
+        BpEnach bpEnach = bpEnachDao.findByMerchantIdAndStatus(merchant.getId(), BPEnachEnum.applicationStatus.INTI.toString());
 
         if (bpEnach == null) {
             responseDTO.setResponse(false);
@@ -97,7 +97,6 @@ public class BPEnachService {
         bpEnach.setMandateId(requestDTO.getMandateId());
         bpEnach.setResponse(requestDTO.getResponse());
         bpEnach.setBankMessage(requestDTO.getStatusMessage());
-        bpEnach.setReferenceNumber(requestDTO.getMandateId());
 
         if (requestDTO.getStatus()) {
             bpEnach.setStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
@@ -123,6 +122,7 @@ public class BPEnachService {
             return new ResponseDTO(false, "Loan Application not found", null);
         }
 
+        bpEnachSkip.setSkip(true);
         bpEnachSkip.setMerchantId(merchant.getId());
         bpEnachSkip.setMerchantStoreId(bpEnach.getMerchantStoreId());
         bpEnachSkip.setReferenceNumber(referenceNumber);

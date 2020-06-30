@@ -60,7 +60,7 @@ public class BPEnachController {
             return new ResponseEntity<>(bpEnachService.submitEnach(merchant, body), HttpStatus.OK);
         }
 //        else if(enachServiceToUse.equals("digio")){
-//            return new ResponseEntity<>(eNachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
+//            return new ResponseEntity<>(bpEnachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
 //        }
         else {
             logger.error("Mentioned wrong enach service provider");
@@ -72,7 +72,7 @@ public class BPEnachController {
     }
 
     @RequestMapping(value = "/skip", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "reference_number", required = false) String referenceNumber) {
+    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
         return new ResponseEntity<>(bpEnachService.setEnachSkipStatus(merchant, referenceNumber), HttpStatus.OK);
     }
 
