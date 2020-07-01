@@ -1,0 +1,147 @@
+package com.bharatpe.lending.service;
+
+import com.bharatpe.common.dao.LendingNachBankDao;
+import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Constants.BPEnachConstant;
+import com.bharatpe.lending.common.entity.BpEnachSkip;
+import com.bharatpe.lending.common.enums.BPEnachEnum;
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.BPEnachDao;
+import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.dao.BPEnachSkipDao;
+import com.bharatpe.lending.dto.DigioEnachInitiationRequestDTO;
+import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
+import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+
+@Service
+public class BPEnachService {
+
+    @Autowired
+    MerchantBankDetailDao merchantBankDetailDao;
+
+    @Autowired
+    BPEnachDao bpEnachDao;
+
+    @Autowired
+    LendingNachBankDao lendingNachBankDao;
+
+    @Autowired
+    BPEnachSkipDao bpEnachSkipDao;
+
+
+    @Value("${enach.digio.authorization}")
+    String authorization;
+
+    @Autowired
+    RestTemplate restTemplate;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+
+    Logger logger = LoggerFactory.getLogger(BPEnachService.class);
+
+    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+        Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
+        final double LOAN_AMOUNT = nachAmount;
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        if (merchantBankDetail == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Active Bank not found");
+            logger.error("No Bank detail found for Merchant - {}", merchant.getId());
+            return responseDTO;
+        }
+        String bankCode;
+        if (appVersion != null && Integer.parseInt(appVersion) >= 238) {
+            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+        } else {
+            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+        }
+        if (bankCode == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Bank not supported for Enach");
+            logger.error("Merchant Bank not supported for Enach - {}", merchant);
+            return responseDTO;
+        }
+
+        BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
+                merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
+                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INTI.toString()
+        );
+
+        bpEnach = bpEnachDao.save(bpEnach);
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data(bpEnach.getId(), bpEnach.getId(), bankCode, LOAN_AMOUNT, sdf.format(mandateDate), bpEnach.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
+        return responseDTO;
+    }
+
+
+    public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO) {
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
+        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INTI.toString());
+
+        if (bpEnach == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Enach not initiated");
+            return responseDTO;
+        }
+
+        bpEnach.setIdentifier(requestDTO.getIdentifier());
+        bpEnach.setMandateId(requestDTO.getMandateId());
+        bpEnach.setResponse(requestDTO.getResponse());
+        bpEnach.setBankMessage(requestDTO.getStatusMessage());
+
+        if (requestDTO.getStatus()) {
+            bpEnach.setStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
+        } else {
+            responseDTO.setMessage("Enach rejected");
+            bpEnach.setStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
+        }
+        bpEnachDao.save(bpEnach);
+        return responseDTO;
+    }
+
+
+    public String fetchBankCode(String ifscCode, String mode) {
+        LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode, mode);
+        return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
+    }
+
+
+    public ResponseDTO setEnachSkipStatus(Merchant merchant, String referenceNumber) {
+        BpEnach bpEnach = bpEnachDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
+        BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
+        if (bpEnachSkip == null) {
+            return new ResponseDTO(false, "Loan Application not found", null);
+        }
+
+        bpEnachSkip.setSkip(true);
+        bpEnachSkip.setMerchantId(merchant.getId());
+        bpEnachSkip.setMerchantStoreId(bpEnach.getMerchantStoreId());
+        bpEnachSkip.setReferenceNumber(referenceNumber);
+        bpEnachSkipDao.save(bpEnachSkip);
+        return new ResponseDTO(true, null, null);
+
+    }
+}
+
+
+
