@@ -35,6 +35,9 @@ public class S3BucketHandler {
 
     @Value("${aws.s3.region}")
     private String region;
+    
+	@Value("${aws.s3.loan.agreement.bucket}")
+	private String bucket1;
 	
 	private AmazonS3 createS3BucketConnection() {
 		AmazonS3 s3client = null;
@@ -92,5 +95,26 @@ public class S3BucketHandler {
 	            throw exception;
 	        }
 	    }
+	}
+
+	public String getPreSignedPublicURL(String key, String bucket1)throws FileNotFoundException  {
+		 try {
+		    	logger.info("Getting temp URL for keu: {}", key);
+				Instant start = Instant.now();
+		    	AmazonS3 s3client = createS3BucketConnection();
+				String tempUrl = s3client.generatePresignedUrl(bucket1, key, new DateTime().plusMinutes(7*24*60).toDate()).toString();
+				logger.info("Temp Url: {}", tempUrl);
+				Instant end = Instant.now();
+				logger.info("Time Taken by AWS S3 tempPublicURL API : {} miliseconds", Duration.between(start, end).toMillis());
+				return tempUrl;
+		    }
+		    catch (AmazonS3Exception exception){
+		        if(exception.getStatusCode() == 404){
+		            throw new FileNotFoundException(key);
+		        }
+		        else{
+		            throw exception;
+		        }
+		    }
 	}
 }
