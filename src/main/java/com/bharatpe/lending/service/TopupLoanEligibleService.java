@@ -101,7 +101,10 @@ public class TopupLoanEligibleService {
             logger.info("Active loan lender is not LIQUILOANS for merchant:{}", merchant.getId());
             return new ArrayList<>();
         }
-        double paidRatio = activeLoan.getPaidPrinciple() / activeLoan.getLoanAmount();
+        double paidRatio = 0d;
+        if (activeLoan.getPaidPrinciple() != null && activeLoan.getLoanAmount() != null) {
+            paidRatio = activeLoan.getPaidPrinciple() / activeLoan.getLoanAmount();
+        }
         double dpd = activeLoan.getDueAmount() / activeLoan.getEdiAmount();
         if(dpd > 5D) {
             logger.info("DPD is greater than 5 for merchant ID {}", merchant.getId());
