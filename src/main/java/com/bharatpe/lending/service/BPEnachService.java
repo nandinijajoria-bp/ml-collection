@@ -83,7 +83,7 @@ public class BPEnachService {
 
         BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
-                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INTI.toString()
+                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString()
         );
 
         bpEnach = bpEnachDao.save(bpEnach);
@@ -96,7 +96,7 @@ public class BPEnachService {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
-        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INTI.toString());
+        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
 
         if (bpEnach == null) {
             responseDTO.setResponse(false);
@@ -111,9 +111,11 @@ public class BPEnachService {
 
         if (requestDTO.getStatus()) {
             bpEnach.setStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
+            bpEnach.setNachStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
         } else {
             responseDTO.setMessage("Enach rejected");
             bpEnach.setStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
+            bpEnach.setNachStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
         }
         bpEnachDao.save(bpEnach);
         return responseDTO;
