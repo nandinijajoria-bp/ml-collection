@@ -31,12 +31,16 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.SettlementSchedule;
+import com.bharatpe.common.entities.Validate;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dao.DisbursalSettlementDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.SettlementScheduleDao;
+import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
@@ -87,6 +91,11 @@ public class LiquiloansService {
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
 
+	@Autowired
+	ValidateDao validateDao;
+	
+	@Autowired
+	SettlementScheduleDao settlementScheduleDao;
     
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -194,10 +203,10 @@ public class LiquiloansService {
     		logger.error("Error publishing lending application: {} to kafka for disbursal",lendingAppId);
     	}
     }
-    
+   
     public ResponseEntity<String> populateLendingPaymentSchedule(LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
     	LendingApplication lendingApplication=null;
-		LendingPaymentSchedule lendingPaymentSchedule;
+		LendingPaymentSchedule lendingPaymentSchedule=null;
     	try{
     		logger.info("Fetching merchant for the merchant id {}",postPayoutRequestDto.getMerchantId());
 			Optional<Merchant> merchant=merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId()));
@@ -295,6 +304,7 @@ public class LiquiloansService {
     		}
     		lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
     		lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+    		changeDeductionFromInstantToDaily(merchant.get());
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
@@ -304,12 +314,29 @@ public class LiquiloansService {
     			lendingApplication.setDisburseTimestamp(null);
     			lendingApplication.setLoanDisbursalStatus("PENDING");
     			lendingApplicationDao.save(lendingApplication);
+    			lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
     		}		
     		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
     	sendSms(lendingApplication, lendingPaymentSchedule);
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
+    }
+    
+    private void changeDeductionFromInstantToDaily(Merchant merchant) {
+    		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
+    		merchant.setSettlementType("DAILY");
+    		merchant.setKycType("LEVEL2");
+    		List<Validate> validateList=validateDao.findByMobile(merchant.getMobile());
+    		for(Validate validate:validateList){
+    			validate.setSettlement("daily");
+    		}
+    		SettlementSchedule settlementSchedule=settlementScheduleDao.findTop1ByMerchantIdAndStatus(merchant.getId(), "PENDING");
+    		settlementSchedule.setSettlementDate(new Date());
+    		settlementSchedule.setMoveDaily("YES");
+    		merchantDao.save(merchant);
+    		validateDao.saveAll(validateList);
+    		settlementScheduleDao.save(settlementSchedule);
     }
 
 	private void sendSms(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
