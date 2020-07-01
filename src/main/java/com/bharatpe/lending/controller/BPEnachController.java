@@ -26,7 +26,7 @@ public class BPEnachController {
     private BPEnachService bpEnachService;
 
     @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion, @RequestParam(name = "platform", required = true) String module, @RequestParam(name = "loan_amount", required = true) String amount) {
+    public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion, @RequestParam(name = "platform", required = true) String module, @RequestParam(name = "loan_amount", required = true) String amount, @RequestParam(name = "type", required = true) String type) {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setResponse(false);
         try {
@@ -36,13 +36,12 @@ public class BPEnachController {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
-            return new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount), HttpStatus.OK);
+            return new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount, type), HttpStatus.OK);
+//            disabled for now
 //            if (enachServiceToUse.equals("techprocess")) {
 //                return new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount), HttpStatus.OK);
-//            }
-
-//            else {
-////                return new ResponseEntity<>(BPEnachService.enachInititateForDigio(merchant), HttpStatus.OK);
+//            } else {
+//                return new ResponseEntity<>(BPEnachService.enachInititateForDigio(merchant), HttpStatus.OK);
 //            }
         } catch (Exception e) {
             logger.error("Exception while initiating enach", e);
@@ -59,6 +58,7 @@ public class BPEnachController {
         if (enachServiceToUse.equals("techprocess")) {
             return new ResponseEntity<>(bpEnachService.submitEnach(merchant, body), HttpStatus.OK);
         }
+        //disabled for now
 //        else if(enachServiceToUse.equals("digio")){
 //            return new ResponseEntity<>(bpEnachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
 //        }

@@ -10,18 +10,19 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.BPEnachSkipDao;
+import com.bharatpe.lending.dto.DigioEnachInitiationRequestDTO;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -43,9 +44,19 @@ public class BPEnachService {
     BPEnachSkipDao bpEnachSkipDao;
 
 
+    @Value("${enach.digio.authorization}")
+    String authorization;
+
+    @Autowired
+    RestTemplate restTemplate;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
 
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount) {
+    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
         final double LOAN_AMOUNT = nachAmount;
@@ -70,7 +81,7 @@ public class BPEnachService {
             return responseDTO;
         }
 
-        BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), module, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
+        BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
                 BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INTI.toString()
         );
@@ -85,7 +96,7 @@ public class BPEnachService {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
-        BpEnach bpEnach = bpEnachDao.findByMerchantIdAndStatus(merchant.getId(), BPEnachEnum.applicationStatus.INTI.toString());
+        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INTI.toString());
 
         if (bpEnach == null) {
             responseDTO.setResponse(false);
