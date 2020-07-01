@@ -1,29 +1,43 @@
 package com.bharatpe.lending.service;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
+import com.bharatpe.lending.constant.LendingConstants;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.bharatpe.common.dao.ExternalGatewayDao;
 import com.bharatpe.common.dao.LendingPancardDao;
+import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.DisbursalSettlement;
 import com.bharatpe.common.entities.ExternalGateway;
@@ -31,6 +45,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.SettlementSchedule;
 import com.bharatpe.common.entities.Validate;
 import com.bharatpe.common.utils.AesEncryption;
@@ -39,12 +54,19 @@ import com.bharatpe.lending.dao.DisbursalSettlementDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.SettlementScheduleDao;
 import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
@@ -90,7 +112,21 @@ public class LiquiloansService {
 
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
+    @Autowired
+	LoanAgreementDao loanAgreementDao;
 
+    @Autowired
+	S3BucketHandler s3BucketHandler;
+
+    @Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
+
+    @Autowired
+	WhatsappNotificationService whatsappNotificationService;
+		
+	@Value("${aws.s3.loan.agreement.bucket}")
+	private String bucket;
+	
 	@Autowired
 	ValidateDao validateDao;
 	
@@ -319,7 +355,11 @@ public class LiquiloansService {
     		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
-    	sendSms(lendingApplication, lendingPaymentSchedule);
+    	try {
+			sendSms(lendingApplication, lendingPaymentSchedule);
+		} catch (Exception e) {
+    		logger.error("Exception while sending disbursal sms---", e);
+		}
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
     
@@ -340,13 +380,30 @@ public class LiquiloansService {
     }
 
 	private void sendSms(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
-		String sms1;
-    	if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-			sms1 = "Congrats! INR"+lendingApplication.getDisbursalAmount()+" against your BharatPe Loan "+lendingApplication.getExternalLoanId()+" have been disbursed to your Bank A/c. https://bharatpe.in/loan~";
-		} else {
-			sms1 = "Congrats! INR"+lendingApplication.getLoanAmount()+" against your BharatPe Loan "+lendingApplication.getExternalLoanId()+" have been disbursed to your Bank A/c. https://bharatpe.in/loan~";
+		String sms1;String sms2 = null; String shortUrl="";
+		LoanAgreement loanAgreement=loanAgreementDao.findByApplicationId(lendingApplication.getId());
+		Merchant merchant=lendingApplication.getMerchant();
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if (merchantBankDetail == null) {
+			return;
 		}
-    	String sms2 = null;
+		if (loanAgreement != null) {
+			String fileName = loanAgreement.getAgreementName();
+			try {
+				shortUrl = getShorturl(fileName, loanAgreement);
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+		}
+		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+			sms1= "Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
+					"Your BharatPe Loan of Rs."+ lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
+					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
+		} else {
+			sms1="Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
+					"Your BharatPe Loan of Rs."+lendingApplication.getLoanAmount()+" is successfully disbursed. " +
+					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
+		}
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
 		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
@@ -360,9 +417,12 @@ public class LiquiloansService {
 				add(lendingApplication.getMerchant().getMobile());
 			}}, sms2, NotificationProvider.SMS.GUPSHUP);
 		}
+		List<String> mobiles = new ArrayList<> ();
+		mobiles.add(merchant.getMobile());
+		whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
 	}
-
-	public Date getDateAfterNMonths(Date startDate, int month){
+         
+	 public Date getDateAfterNMonths(Date startDate, int month){
     	
     	try {
     		logger.info("Getting date after {} month",month);
@@ -450,4 +510,39 @@ public class LiquiloansService {
     	}
     	return true;
     }
+
+	public String getShorturl(String fileName,LoanAgreement loanAgreement) throws UnsupportedEncodingException {
+		String tempUrl="";
+		try {
+			tempUrl=s3BucketHandler.getPreSignedPublicURL(fileName, bucket);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		String url = "https://bharatpe.in/yourls-api.php?signature=a872b1348e&action=shorturl&format=json&keyword=&url="+URLEncoder.encode(tempUrl,"UTF-8");
+		String response="";
+		try {
+			Instant start = Instant.now();
+			response = restTemplate.getForObject(url,String.class);
+			logger.info("shorturl response : {}", response);
+			Instant end = Instant.now();
+			logger.info("Time Taken by shorturl API : {} miliseconds", Duration.between(start, end).toMillis());
+		}catch(Exception e) {
+			logger.error("exception while shorturl API : {}, Exception is {}", url, e);
+		}
+		JsonNode rootNode=null;
+		try {
+			rootNode = objectMapper.readTree(response);
+		} catch (Exception e) {
+			logger.error("Exception while parsing short url---", e);
+		}
+		if(rootNode != null && rootNode.path("status") != null && rootNode.path("status").textValue().equals("success")){
+			String shortUrl=rootNode.path("shorturl").textValue();
+			loanAgreement.setShortUrl(shortUrl);
+			loanAgreementDao.save(loanAgreement);
+			return shortUrl;
+		}
+		return " ";
+	}
+
+
 }
