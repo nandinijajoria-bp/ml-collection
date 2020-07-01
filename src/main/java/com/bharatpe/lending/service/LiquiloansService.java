@@ -372,11 +372,16 @@ public class LiquiloansService {
     			validate.setSettlement("daily");
     		}
     		SettlementSchedule settlementSchedule=settlementScheduleDao.findTop1ByMerchantIdAndStatus(merchant.getId(), "PENDING");
-    		settlementSchedule.setSettlementDate(new Date());
-    		settlementSchedule.setMoveDaily("YES");
+    		if(settlementSchedule!=null) {
+    			settlementSchedule.setSettlementDate(new Date());
+        		settlementSchedule.setMoveDaily("YES");
+        		settlementScheduleDao.save(settlementSchedule);
+    		}
     		merchantDao.save(merchant);
-    		validateDao.saveAll(validateList);
-    		settlementScheduleDao.save(settlementSchedule);
+    		if(!validateList.isEmpty()){
+    			validateDao.saveAll(validateList);
+    		}
+    		
     }
 
 	private void sendSms(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
