@@ -6,10 +6,19 @@ import com.bharatpe.lending.common.entity.BaseEntity;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
+import java.util.Date;
 
 @Entity
 @Table(name = "merchant_nach_raw_response")
 public class BPEnachRawRequest extends BaseEntity {
+
+    public Date getDeleted_at() {
+        return deleted_at;
+    }
+
+    public void setDeleted_at(Date deleted_at) {
+        this.deleted_at = deleted_at;
+    }
 
     @Column(name = "merchant_id")
     private Long merchantId;
@@ -28,6 +37,10 @@ public class BPEnachRawRequest extends BaseEntity {
     private String response;
 
     private String status;
+
+    @Column(name = "deleted_at")
+    private Date deleted_at;
+
 
     public BPEnachRawRequest(Long merchantId, String apiName) {
         this.merchantId = merchantId;
