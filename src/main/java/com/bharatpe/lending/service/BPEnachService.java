@@ -4,23 +4,22 @@ import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Constants.BPEnachConstant;
+import com.bharatpe.lending.common.dao.IfscNewDao;
 import com.bharatpe.lending.common.entity.BpEnachSkip;
+import com.bharatpe.lending.common.entity.IfscNew;
 import com.bharatpe.lending.common.enums.BPEnachEnum;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.BPEnachSkipDao;
-import com.bharatpe.lending.dto.DigioEnachInitiationRequestDTO;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -54,6 +53,10 @@ public class BPEnachService {
     ObjectMapper objectMapper;
 
 
+    @Autowired
+    IfscNewDao ifscNewDao;
+
+
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type) {
@@ -80,10 +83,17 @@ public class BPEnachService {
             logger.error("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
+        String bankBranch = getBranchName(merchantBankDetail.getIfscCode());
+        if (bankBranch == null || StringUtils.isEmpty(bankBranch)) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Bank Branch not found for Enach");
+            logger.error("Merchant Bank Br`anch not found for Enach - {}", merchant);
+            return responseDTO;
+        }
 
         BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
-                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString()
+                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString(), bankBranch
         );
 
         bpEnach = bpEnachDao.save(bpEnach);
@@ -142,6 +152,16 @@ public class BPEnachService {
         bpEnachSkipDao.save(bpEnachSkip);
         return new ResponseDTO(true, null, null);
 
+    }
+
+
+    public String getBranchName(String ifscCode) {
+        String branch = null;
+        List<IfscNew> bankList = ifscNewDao.findByIfsc(ifscCode);
+        if (bankList != null && bankList.size() > 0) {
+            branch = bankList.get(0).getBranch();
+        }
+        return branch;
     }
 }
 
