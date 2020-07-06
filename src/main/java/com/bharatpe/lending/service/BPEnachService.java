@@ -59,7 +59,7 @@ public class BPEnachService {
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
 
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type) {
+    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type,String referenceNumber) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
         final double LOAN_AMOUNT = nachAmount;
@@ -91,7 +91,7 @@ public class BPEnachService {
             return responseDTO;
         }
 
-        BpEnach bpEnach = new BpEnach(merchant.getId(), merchant.getMid(), type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
+        BpEnach bpEnach = new BpEnach(merchant.getId(), referenceNumber, type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
                 BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString(), bankBranch
         );
@@ -105,7 +105,6 @@ public class BPEnachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO) {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
 
         if (bpEnach == null) {
@@ -113,6 +112,8 @@ public class BPEnachService {
             responseDTO.setMessage("Enach not initiated");
             return responseDTO;
         }
+        BPEnachEnum.enachDeepLink bpEnachEnum =  BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase());
 
         bpEnach.setIdentifier(requestDTO.getIdentifier());
         bpEnach.setMandateId(requestDTO.getMandateId());
