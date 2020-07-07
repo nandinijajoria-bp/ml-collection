@@ -8,6 +8,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -16,10 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Component
 public class TopupLoanEligibleService {
@@ -119,7 +117,13 @@ public class TopupLoanEligibleService {
             if (docKycDetails != null && docKycDetails.getDocNo() != null) {
                 logger.info("fetching experian for merchant:{} and pancard:{}", merchant.getId(), docKycDetails.getDocNo());
                 try {
-                    JsonNode experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), docKycDetails.getDocNo(), merchant.getId(), bpScore, merchantBankDetail);
+                    JsonNode experianResponse;
+                    ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
+                    if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(docKycDetails.getDocNo()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
+                        experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
+                    } else {
+                        experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), docKycDetails.getDocNo(), merchant.getId(), bpScore, merchantBankDetail);
+                    }
                     if (experianResponse != null) {
                         experian = updateExperian(experianResponse, merchant, bpScore, docKycDetails.getDocNo(), lendingApplication.getPincode());
                         experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
@@ -134,7 +138,13 @@ public class TopupLoanEligibleService {
             }
         } else {
             try {
-                JsonNode experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                JsonNode experianResponse;
+                ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
+                if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
+                    experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
+                } else {
+                    experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                }
                 if (experianResponse != null) {
                     experian.setResponse(experianResponse.toString());
                     experianDao.save(experian);
