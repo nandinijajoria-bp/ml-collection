@@ -106,15 +106,14 @@ public class BPEnachService {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
+        BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
 
         if (bpEnach == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Enach not initiated");
             return responseDTO;
         }
-        BPEnachEnum.enachDeepLink bpEnachEnum =  BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
-        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase());
-
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() + "&&wroute=success");
         bpEnach.setIdentifier(requestDTO.getIdentifier());
         bpEnach.setMandateId(requestDTO.getMandateId());
         bpEnach.setResponse(requestDTO.getResponse());
@@ -124,6 +123,7 @@ public class BPEnachService {
             bpEnach.setStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
             bpEnach.setNachStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
         } else {
+            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() + "&&wroute=failed");
             responseDTO.setMessage("Enach rejected");
             bpEnach.setStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
             bpEnach.setNachStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
