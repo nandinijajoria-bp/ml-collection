@@ -262,6 +262,7 @@ public class LiquiloansService {
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
 			lendingApplication.setDisburseTimestamp(new Date());
+			lendingApplication.setAccountType("INVESTOR_FUNDS");
     		lendingApplicationDao.save(lendingApplication);
 
     		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
