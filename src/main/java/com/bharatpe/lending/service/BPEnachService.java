@@ -18,6 +18,7 @@ import com.bharatpe.lending.dto.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,6 +64,8 @@ public class BPEnachService {
 
     @Autowired
     ExperianDao experianDao;
+
+    JsonNode jsonNode;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
 
@@ -323,59 +326,68 @@ public class BPEnachService {
         Response finalResponse = new Response();
         List<BpEnach> bpEnaches = bpEnachDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
 
-        BpEnach bpEnach = bpEnaches.get(0);
-        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
-        EnachCheckStatusRequestDTO.Transaction transaction = new EnachCheckStatusRequestDTO.Transaction(sdf.format(bpEnach.getStartDate()));
-        EnachCheckStatusRequestDTO.Consumer consumer = new EnachCheckStatusRequestDTO.Consumer(bpEnach.getIdentifier());
-        EnachCheckStatusRequestDTO.MerchantInfo merchantInfo = new EnachCheckStatusRequestDTO.MerchantInfo();
-        EnachCheckStatusRequestDTO.PaymentInfo.Instruction instruction = new EnachCheckStatusRequestDTO.PaymentInfo.Instruction();
-        EnachCheckStatusRequestDTO.PaymentInfo paymentInfo = new EnachCheckStatusRequestDTO.PaymentInfo(instruction);
-        EnachCheckStatusRequestDTO enachCheckStatusRequestDTO = new EnachCheckStatusRequestDTO();
-        enachCheckStatusRequestDTO.setConsumer(consumer);
-        enachCheckStatusRequestDTO.setTransaction(transaction);
-        enachCheckStatusRequestDTO.setMerchantInfo(merchantInfo);
-        enachCheckStatusRequestDTO.setPaymentInfo(paymentInfo);
-
-        //test only
-        logger.info(enachCheckStatusRequestDTO.toString());
-
-        // converting to json
-        // for testing only
-//        try
-//        {
-//            ObjectMapper objectMapper = new ObjectMapper();
-//            String jsonString = objectMapper.writeValueAsString(enachCheckStatusRequestDTO);
-//            System.out.println(jsonString);
-//        }
-//        catch (Exception e)
-//        {
-//            logger.error(e.getMessage());
-//        }
-
-        try {
-            String URL = LendingConstants.ENACH_STATUS_CHECK;
-            HttpHeaders header = new HttpHeaders();
-            header.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<EnachCheckStatusRequestDTO> request = new HttpEntity<>(enachCheckStatusRequestDTO, header);
-            String response = restTemplate.postForObject(URL, request, String.class);
-            JsonNode jsonNode = objectMapper.readTree(response);
-
-            if (jsonNode.isNull()) {
-                logger.error("No response received for reference_no: {}", referenceNumber);
-            } else if (jsonNode.has("error") && jsonNode.hasNonNull("error")) {
-                logger.error("Failure response received for reference_no: {}", referenceNumber);
-                bpEnach.setNachStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
-            } else {
-                logger.error("Success response received for reference_no: {}", referenceNumber);
+        if (!bpEnaches.isEmpty() && bpEnaches.get(0) != null) {
+            BpEnach bpEnach = bpEnaches.get(0);
+            if (isStatusChanged(bpEnach)) {
                 bpEnach.setNachStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
+            } else {
+                bpEnach.setNachStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
             }
-        } catch (Exception e) {
-            logger.error("Error occurred while fetching enach status data for applicationId: {}", bpEnach.getId());
         }
         finalResponse.setStatus("true");
         finalResponse.setResponseMessage("success");
         finalResponse.setResponseCode("200");
         return finalResponse;
+    }
+
+    boolean isStatusChanged(BpEnach bpEnach) {
+        if (verifyEnach(bpEnach.getMerchantId(), bpEnach)) {
+            String statusResponse = jsonNode.get("paymentMethod").get("paymentTransaction").get("statusMessage").asText();
+            String newStatus;
+            if (statusResponse.equals("Mandate Verification Successfull")) {
+                return true;
+            } else return statusResponse.equals("Mandate Verification rejected");
+        }
+        return false;
+    }
+
+
+    private boolean verifyEnach(Long merchantId, BpEnach bpEnach) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            PaynimoRequestDTO paynimoRequestDTO = new PaynimoRequestDTO();
+            paynimoRequestDTO.getTransaction().put("dateTime", sdf.format(bpEnach.getStartDate()));
+            paynimoRequestDTO.getConsumer().put("identifier", bpEnach.getIdentifier());
+            HttpEntity<JsonNode> request = new HttpEntity<>(objectMapper.valueToTree(paynimoRequestDTO), headers);
+            Long a = DateTime.now().getMillis();
+            logger.info("Paynimo request for merchant: {} is {}", merchantId, objectMapper.valueToTree(paynimoRequestDTO));
+            String response = restTemplate.postForObject(LendingConstants.ENACH_STATUS_CHECK, request, String.class);
+            Long b = DateTime.now().getMillis();
+            logger.info("Paynimo API response time---" + (b - a) + "ms");
+            if (response != null) {
+                jsonNode = objectMapper.readTree(response);
+                if (jsonNode.get("merchantTransactionIdentifier") != null && jsonNode.get("merchantTransactionIdentifier").asInt() != bpEnach.getId()) {
+                    return false;
+                }
+                if (jsonNode.get("paymentMethod") != null) {
+                    if (jsonNode.get("paymentMethod").get("token") != null && jsonNode.get("paymentMethod").get("token").equals(bpEnach.getMandateId())) {
+                        return false;
+                    }
+                }
+                if (jsonNode.get("paymentMethod").get("paymentTransaction") != null) {
+                    if (jsonNode.get("paymentMethod").get("paymentTransaction").get("statusCode") != null &&
+                            !jsonNode.get("paymentMethod").get("paymentTransaction").get("statusCode").asText().equals("0300")) {
+                        return false;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in paynimo api for merchant: {}", merchantId);
+            return false;
+        }
+        return true;
     }
 }
 
