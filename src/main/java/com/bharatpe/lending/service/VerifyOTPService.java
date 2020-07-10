@@ -184,6 +184,9 @@ public class VerifyOTPService {
 			if (!cpvMandatory && (enachSuccess != null && lendingApplication.getLoanAmount() < 300000)) {
 				lendingApplication.setPhysicalVerificationStatus("APPROVED");
 				lendingApplication.setPhysicalApprovedDate(lendingApplication.getAgreementAt());
+				lendingApplication.setAssignedAt(lendingApplication.getAgreementAt());
+				lendingApplication.setCpvSubmitTimestamp(lendingApplication.getAgreementAt());
+				lendingApplication.setCpvCloseDate(lendingApplication.getAgreementAt());
 				lendingApplication.setStatus("approved");
 			} else {
 				sendTopupSms(merchant, lendingApplication);
@@ -194,6 +197,7 @@ public class VerifyOTPService {
 			lendingApplication.setVerifyPan("yes");
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setKycApprovedDate(lendingApplication.getAgreementAt());
+			lendingApplication.setKycAssignedAt(lendingApplication.getAgreementAt());
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setCibilApprovedDate(lendingApplication.getAgreementAt());
 		} else {
