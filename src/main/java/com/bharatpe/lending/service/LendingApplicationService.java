@@ -18,6 +18,7 @@ import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -301,8 +302,7 @@ public class LendingApplicationService {
 			if(detail==null) {
 				return null;
 			}
-			String html="<html>\n" + 
-					"<body>\n" + 
+			String html =
 					"<p><br /><br /><br /></p>\n" + 
 					"<p><strong>Loan Sanction Letter</strong></p>\n" + 
 					"<p>&nbsp;</p>\n" + 
@@ -370,8 +370,8 @@ public class LendingApplicationService {
 					"<p><span style=\"font-weight: 400;\">Tenure (Months): "+detail.getOrDefault("Tenure", "")+"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n" +  
 					"<p><span style=\"font-weight: 400;\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"&nbsp;</span></p>\n" + 
 					"<p>&nbsp;</p>\n" + 
-					"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per month):&nbsp;&nbsp; "+detail.getOrDefault("Rate of Interest", "")+" &nbsp;&nbsp;&nbsp;</span></p>\n" + 
-					"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per annum):&nbsp;&nbsp; "+detail.getOrDefault("Penal Interest", "")+"</span></p>\n" + 
+					"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per month):&nbsp;&nbsp; "+detail.getOrDefault("Interest", "")+" &nbsp;&nbsp;&nbsp;</span></p>\n" +
+					"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per annum):&nbsp;&nbsp; "+detail.getOrDefault("Rate of Interest", "")+"</span></p>\n" +
 					"<p>&nbsp;</p>\n" + 
 					"<p><span style=\"font-weight: 400;\">Registered Mobile Number:&nbsp;&nbsp; "+detail.getOrDefault("Registered Mobile Number", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n" + 
 					"<p><span style=\"font-weight: 400;\">Location:&nbsp;&nbsp; "+detail.getOrDefault("Location", "")+"&nbsp;</span></p>\n" + 
@@ -421,29 +421,26 @@ public class LendingApplicationService {
 					"<p><span style=\"font-weight: 400;\">Platform:"+"Android"+"</span></p>\n" + 
 					"<p><span style=\"font-weight: 400;\">IP Address:"+detail.getOrDefault("IP Address", "")+"</span></p>\n" + 
 					"<p><span style=\"font-weight: 400;\">Mobile Number for eSign:"+detail.getOrDefault("Registered Mobile Number", "")+"</span></p>\n" + 
-					"<p><span style=\"font-weight: 400;\">Timestamp:"+detail.getOrDefault("Timestamp", "")+"&nbsp;</span></p>\n" + 
-					"</body>\n" + 
-					"</html>";
+					"<p><span style=\"font-weight: 400;\">Timestamp:"+detail.getOrDefault("Timestamp", "")+"&nbsp;</span></p>\n";
 			return html;
 	}
 	
 	public Map<String,String> getDetails(Merchant merchant, long applicationId){
-		Map<String,String> detail=new HashMap<String, String>();
+		Map<String,String> detail=new HashMap<>();
 		try {
-			Optional<LendingApplication> lendingApplicationOptional=lendingApplicationDao.findById(applicationId);
-			if(lendingApplicationOptional==null || !lendingApplicationOptional.isPresent()) {
+			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
+			if(lendingApplication == null) {
 				logger.error("Lending application not found for id {}",applicationId);
 				return null;
 			}
-			LendingApplication lendingApplication=lendingApplicationOptional.get();
 			detail.put("Name of the Borrower",merchant.getBeneficiaryName());
 			detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
-			detail.put("Tenure", lendingApplication.getTenure().toString());
-			detail.put("Rate of Interest", lendingApplication.getInterestRate().toString());
-			Double penalInterest=lendingApplication.getInterestRate()*12;
-			detail.put("Penal Interest", penalInterest.toString());
-			detail.put("Loan ID", lendingApplication.getExternalLoanId());
-			detail.put("Date", lendingApplication.getAgreementAt().toString());
+			detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
+			detail.put("Rate of Interest", Double.toString(lendingApplication.getInterestRate() * 12));
+			detail.put("Interest", Double.toString(lendingApplication.getInterestRate()));
+			detail.put("Penal Interest", "NA");
+			detail.put("Loan ID", "Will be generated later");
+			detail.put("Date", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 			detail.put("Amount of EDI",lendingApplication.getEdi().toString());
 			detail.put("Registered Mobile Number",merchant.getMobile());
 			detail.put("Location",lendingApplication.getCity());
@@ -461,7 +458,7 @@ public class LendingApplicationService {
 				detail.put("IFSC Code", merchantBankDetail.getIfscCode());
 			}
 			detail.put("IP Address", lendingApplication.getIp());
-			detail.put("Timestamp",new Date().toString());
+			detail.put("Timestamp", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 			return detail;
 		}
 		catch(Exception e) {
