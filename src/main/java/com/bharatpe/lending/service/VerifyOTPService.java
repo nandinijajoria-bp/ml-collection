@@ -200,6 +200,7 @@ public class VerifyOTPService {
 			lendingApplication.setKycAssignedAt(lendingApplication.getAgreementAt());
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setCibilApprovedDate(lendingApplication.getAgreementAt());
+			lendingApplication.setLender("LIQUILOANS");
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
