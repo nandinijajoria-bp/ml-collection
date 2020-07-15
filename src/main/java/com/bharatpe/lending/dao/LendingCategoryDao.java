@@ -21,4 +21,6 @@ public interface LendingCategoryDao extends CrudRepository<LendingCategories, Lo
 
 	@Query(value = "select l from LendingCategories l where l.category=?1")
 	LendingCategories getByCategory(String category);
+
+	List<LendingCategories> findByBureau(String bureau);
 }

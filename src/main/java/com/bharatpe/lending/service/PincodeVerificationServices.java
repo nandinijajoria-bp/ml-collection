@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.LendingRedCitiesDao;
+import com.bharatpe.common.entities.LendingRedCities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,9 @@ public class PincodeVerificationServices {
 
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+
+	@Autowired
+	LendingRedCitiesDao lendingRedCitiesDao;
 	
 	public PincodeVerifyDTO checkPincodeValidity(Integer pincode) {
 
@@ -28,7 +33,12 @@ public class PincodeVerificationServices {
 		try {
 			logger.info("Checking pincode for loan eligibility");
 			LendingCities lendingCity = lendingCityDao.findActiveCityByPincode(pincode);
-			if (lendingCity == null || lendingCity.getPincode() == null) {
+			LendingRedCities redCity = lendingRedCitiesDao.findByPincode(pincode);
+			if (cityDetails.getCity() == null || "".equalsIgnoreCase(cityDetails.getCity().trim())) {
+				logger.info("Pincode is not eligible for the loan");
+				return cityDetails;
+			}
+			if ((lendingCity == null || lendingCity.getPincode() == null) && redCity != null) {
 				logger.info("Pincode is not eligible for the loan");
 				return cityDetails;
 			}

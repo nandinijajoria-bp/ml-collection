@@ -69,6 +69,9 @@ public class LendingApplicationService {
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 
+	@Autowired
+	LendingRedCitiesDao lendingRedCitiesDao;
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
@@ -263,7 +266,8 @@ public class LendingApplicationService {
 	public boolean checkLoanRequestPinCodeForLoanEligibilty(int pinCode) {
 		try {
 			LendingCities lendingCities=lendingCitiesDao.findActiveCityByPincode(pinCode);
-			if(lendingCities==null) return false;
+			LendingRedCities redCity = lendingRedCitiesDao.findByPincode(pinCode);
+			if(lendingCities==null && redCity != null) return false;
 			return true;
 		}
 		catch(Exception e){

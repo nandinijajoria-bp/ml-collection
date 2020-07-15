@@ -63,16 +63,16 @@ public class LendingAgreementService {
 //		}
 		
 		Optional<LendingNbfscs> optionalObj = lendingNbfscsDao.findById(id);
-		
-		if(optionalObj.isPresent() == true) {
+		LendingApplication application = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+		if(optionalObj.isPresent()) {
 			LendingNbfscs lendingNbfscs = optionalObj.orElse(null);
-			Map<String, String> lenderInfo = new LinkedHashMap<> ();
+			Map<String, Object> lenderInfo = new LinkedHashMap<> ();
 			
 			lenderInfo.put("lender_name","");
 			lenderInfo.put("lender_logo","");
 			lenderInfo.put("lender_tnc_url",lendingNbfscs.getTermsAndConditionURL());
 			lenderInfo.put("lender_text",lenderText);
-			
+			lenderInfo.put("alternate_contact", application != null && application.getLoanType() != null && "OGL".equalsIgnoreCase(application.getLoanType()));
 			resp.put("success",true);
 			resp.put("data", lenderInfo);
 		} else {
