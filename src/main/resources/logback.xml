@@ -6,7 +6,7 @@
 	</springProfile>
 	
 	<springProfile name="!dev">
-		<property name="LOG.APPENDER" value="Console" />
+		<property name="LOG.APPENDER" value="RollingFile" />
 		<property name="LOG.FILE" value="/data/logs/lending-java.log" />
 	</springProfile>
 	
