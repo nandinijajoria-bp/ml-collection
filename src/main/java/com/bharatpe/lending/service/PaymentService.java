@@ -72,6 +72,7 @@ public class PaymentService {
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
 		logger.info("Received payment details request for merchant id {}", merchant.getId());
 		try {
+			
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 			
 			if(activeLoan == null) {
@@ -197,9 +198,9 @@ public class PaymentService {
 				logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchant().getId(), request.getAmount());
 				return "OK";
 			}
-			
+
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId()).get();
-			
+
 			if(activeLoan == null) {
 				logger.error("No active loan found for id {}", order.getOwnerId());
 				return "OK";

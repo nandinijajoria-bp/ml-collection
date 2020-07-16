@@ -2,7 +2,7 @@ package com.bharatpe.lending.dto;
 
 public class TncDto {
 	
-	private boolean success;
+	private boolean success=true;
     private String message;
 	private String htmlString;
 	public boolean isSuccess() {

@@ -287,7 +287,7 @@ public class LendingApplicationService {
 		}
 		return new ResponseDTO(false, "Unable to send otp", null);
 	}
-	
+
 	public TncDto getTnc(Merchant merchant, long applicationId) {
 		String html=populateHtml(merchant, applicationId);
 		TncDto tnc=new TncDto();

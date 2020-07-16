@@ -213,7 +213,7 @@ public class LoanDetailsService {
 			} else {
 				panCard = requestDTO.getPayload().getPanCard();
 			}
-			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.getId());
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.getId(),false);
 			boolean repeatLoan = lendingPaymentScheduleList != null && lendingPaymentScheduleList.size() > 0;
 
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
@@ -490,7 +490,7 @@ public class LoanDetailsService {
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
 					try {
-						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato, yellowPincode));
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
 						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());

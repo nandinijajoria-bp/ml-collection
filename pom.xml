@@ -26,16 +26,19 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+
 		<dependency>
 			<groupId>com.bharatpe.common</groupId>
 			<artifactId>bharatpe-common</artifactId>
 			<version>2.0-SNAPSHOT</version>
 		</dependency>
-		<dependency>
+
+		 <dependency>
 			<groupId>com.bharatpe.lending.common</groupId>
 			<artifactId>lending-common</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
+    
 		<dependency>
 		    <groupId>com.amazonaws</groupId>
 		    <artifactId>aws-java-sdk</artifactId>
@@ -47,16 +50,52 @@
 			<version>20190722</version>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<executable>true</executable>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+	  <distributionManagement>
+    <repository>
+      <id>aws-release</id>
+      <name>AWS Release Repository</name>
+      <url>s3://maven-repo.bharatpe.in/release</url>
+    </repository>
+    <snapshotRepository>
+      <id>aws-snapshot</id>
+      <name>AWS Snapshot Repository</name>
+      <url>s3://maven-repo.bharatpe.in/snapshot</url>
+    </snapshotRepository>
+  </distributionManagement>
+<build>
+        <extensions>
+            <extension>
+                <groupId>com.github.platform-team</groupId>
+                <artifactId>aws-maven</artifactId>
+                <version>6.0.0</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+</build>
+  <repositories>
+       <repository>
+         <id>central</id>
+         <name>Central Repository</name>
+         <url>https://repo.maven.apache.org/maven2</url>
+         <layout>default</layout>
+         <snapshots>
+           <enabled>false</enabled>
+         </snapshots>
+       </repository>
+        <repository>
+            <id>com.bharatpe-snapshot</id>
+            <name>snapshot</name>
+            <url>s3://maven-repo.bharatpe.in/snapshot</url>
+        </repository>
+        <repository>
+            <id>com.bharatpe-release</id>
+            <name>release</name>
+            <url>s3://maven-repo.bharatpe.in/release</url>
+        </repository>
+    </repositories>
 </project>

@@ -7,6 +7,8 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dto.ResponseDTO;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,5 +54,7 @@ public class CancelApplicationService {
 		logger.info("CancelApplicationService lending_audit_trail success insert for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
 		return resp;
 	}
+	
+	
 
 }

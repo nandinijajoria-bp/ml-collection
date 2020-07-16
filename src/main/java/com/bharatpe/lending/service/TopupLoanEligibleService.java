@@ -75,7 +75,7 @@ public class TopupLoanEligibleService {
     		 MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.get().getId());
     		 Experian experian = experianDao.getByMerchantId(merchant.get().getId());
     		 MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.get().getId(), "ACTIVE");
-    		 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.get().getId());
+    		 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.get().getId(),false);
              fetchTopupLoans(merchant.get(), experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, null);
     	 } catch(Exception ex) {
     		 logger.error("Exception while generating new loans for merchant with ID {}, Exception is {}", merchantId, ex);

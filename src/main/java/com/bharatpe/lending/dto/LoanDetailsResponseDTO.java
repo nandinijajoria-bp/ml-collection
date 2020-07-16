@@ -56,6 +56,7 @@ public class LoanDetailsResponseDTO {
 		private String city;
 		private Integer pincode;
 		private String tempClosed;
+		
 
 		@JsonProperty(value = "loan_history")
 		private List<LoanHistoryDTO> history;
@@ -224,10 +225,13 @@ public class LoanDetailsResponseDTO {
 		public String toString() {
 			return "LoanDetailsDTO [eligible=" + eligible + ", rejected=" + rejected + ", panCard=" + panCard
 					+ ", rejectReason=" + rejectReason + ", loanClosed=" + loanClosed + ", noExperian=" + noExperian
-					+ ", maskedMobiles=" + maskedMobiles + ", ogl=" + ogl + ", enach=" + enach + ", history=" + history
-					+ ", eligibility=" + eligibility + ", topupLoan=" + topupLoan + ", loanApplication="
-					+ loanApplication + "]";
+					+ ", maskedMobiles=" + maskedMobiles + ", ogl=" + ogl + ", accountDetails=" + accountDetails
+					+ ", skipEnatch=" + skipEnatch + ", enach=" + enach + ", city=" + city + ", pincode=" + pincode
+					+ ", tempClosed=" + tempClosed + ", history=" + history + ", eligibility=" + eligibility
+					+ ", topupLoan=" + topupLoan + ", loanApplication=" + loanApplication + "]";
 		}
+
+		
 		
 	}
 }

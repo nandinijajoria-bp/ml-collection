@@ -101,7 +101,7 @@ public class LoanEligibleService {
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, boolean yellowPincode){
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore;
         double tpvLast30Days;
         boolean prebook = false;
@@ -119,9 +119,36 @@ public class LoanEligibleService {
         }
         int txnLast30Days = 30;
         double avgTpv = tpvLast30Days/txnLast30Days;
-        List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+        List<LendingPaymentSchedule> prevLoans=null;
+        if(lendingType.equalsIgnoreCase("CREDITLINE")) {
+        	prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchant.getId(),true);
+        }
+        else {
+        	prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchant.getId(),false);
+        }
+        
         int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
         boolean repeatedLoan = loanCount > 0;
+        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+        if(lendingType.equalsIgnoreCase("CREDITLINE")) {
+        	if (lendingPancard == null && bpScore > 15D) {// get data from liquiloans
+                try {
+                    lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+                } catch (Exception e) {
+                    logger.error("Exception in Liquiloans API---", e);
+                }
+            }
+        }
+        else {
+        	if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
+                try {
+                    lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
+                } catch (Exception e) {
+                    logger.error("Exception in Liquiloans API---", e);
+                }
+            }
+        }
+
         if (skip) {
             experian.setSkip(true);
             experianDao.save(experian);
@@ -153,22 +180,34 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return new ArrayList<>();
         }
-        if (!isZomato && !yellowPincode && !prebook && bpScore <= 10D) {
-            logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
-            experian.setCategory("1N");
-            experian.setColor(ExperianConstants.COLOR.RED.name());
-            experian.setReason(ExperianConstants.LOW_BP_SCORE);
-            experianDao.save(experian);
-            return new ArrayList<>();
+        if(lendingType.equalsIgnoreCase("CREDITLINE")) {
+        	if (bpScore <= 15D) {
+                logger.info("BP Score less than 15, so rejecting merchant: {}", merchant.getId());
+                experian.setCategory("1N");
+                experian.setColor(ExperianConstants.COLOR.RED.name());
+                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+                experianDao.save(experian);
+                return new ArrayList<>();
+            }
+        } else {
+            if (!isZomato && !yellowPincode && !prebook && bpScore <= 10D) {
+                logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
+                experian.setCategory("1N");
+                experian.setColor(ExperianConstants.COLOR.RED.name());
+                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+                experianDao.save(experian);
+                return new ArrayList<>();
+            }
+            if (yellowPincode && bpScore < 13) {
+                logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
+                experian.setCategory("1N");
+                experian.setColor(ExperianConstants.COLOR.RED.name());
+                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+                experianDao.save(experian);
+                return new ArrayList<>();
+            }
         }
-        if (yellowPincode && bpScore < 13) {
-            logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
-            experian.setCategory("1N");
-            experian.setColor(ExperianConstants.COLOR.RED.name());
-            experian.setReason(ExperianConstants.LOW_BP_SCORE);
-            experianDao.save(experian);
-            return new ArrayList<>();
-        }
+        
         try {
             ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
             if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old

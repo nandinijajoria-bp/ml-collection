@@ -15,8 +15,19 @@ import java.util.List;
 public class MerchantDetailsDTO implements Serializable {
 
     private Long applicationId;
+    
+    @JsonProperty(value = "module")
+    private String module;
+    
+    public String getModule() {
+		return module;
+	}
 
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+	public void setModule(String module) {
+		this.module = module;
+	}
+
+	@JsonInclude(JsonInclude.Include.NON_NULL)
     private SelectedLoanDTO selectedLoan;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -70,15 +81,11 @@ public class MerchantDetailsDTO implements Serializable {
     }
 
     @Override
-    public String toString() {
-        return "MerchantDetailsDTO{" +
-                "applicationId=" + applicationId +
-                ", selectedLoan=" + selectedLoan +
-                ", PersonalDetails=" + personalDetails +
-                ", shopDetails=" + shopDetails +
-                ", businessDetails=" + businessDetails +
-                '}';
-    }
+	public String toString() {
+		return "MerchantDetailsDTO [applicationId=" + applicationId + ", module=" + module + ", selectedLoan="
+				+ selectedLoan + ", personalDetails=" + personalDetails + ", shopDetails=" + shopDetails
+				+ ", businessDetails=" + businessDetails + "]";
+	}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)

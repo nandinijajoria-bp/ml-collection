@@ -11,9 +11,16 @@ public class ResponseDTO {
 
     private String message;
 
+    private Object data;
+
     private List<String> maskedMobiles;
 
     private String mobile;
+
+    public ResponseDTO(boolean success, String message) {
+        this.success = success;
+        this.message = message;
+    }
 
     public ResponseDTO(boolean success, String message, List<String> maskedMobiles) {
         this.success = success;
@@ -54,6 +61,14 @@ public class ResponseDTO {
 
     public void setMobile(String mobile) {
         this.mobile = mobile;
+    }
+
+    public Object getData() {
+        return data;
+    }
+
+    public void setData(Object data) {
+        this.data = data;
     }
 
     @Override

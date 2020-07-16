@@ -252,7 +252,7 @@ public class VerifyOTPService {
 
 	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {
 		try {
-			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(lendingApplication.getMerchant().getId(),false);
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 			if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {
 				logger.info("No previous loan/active loan for merchant ID {}", lendingApplication.getMerchant().getId());

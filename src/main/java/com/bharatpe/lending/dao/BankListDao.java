@@ -13,5 +13,7 @@ public interface BankListDao extends CrudRepository<BankList, Long> {
 
 	@Query(value="SELECT * FROM bank_list WHERE ifsc = :ifsc and is_payment_bank = 1",nativeQuery = true)
 	List<BankList> fetchNonPaymentBankList(String ifsc);
+
+	BankList findByBankCode(String bankCode);
 	
 }

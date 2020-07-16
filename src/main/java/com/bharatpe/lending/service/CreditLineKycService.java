@@ -1,0 +1,242 @@
+package com.bharatpe.lending.service;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
+import com.bharatpe.lending.common.dao.CreditApplicationDao;
+import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
+import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.dao.LendingManualKycDao;
+import com.bharatpe.lending.common.entity.CreditApplication;
+import com.bharatpe.lending.common.entity.CreditApplicationAddress;
+import com.bharatpe.lending.common.entity.CreditApplicationTransition;
+import com.bharatpe.lending.common.entity.LendingEkyc;
+import com.bharatpe.lending.common.entity.LendingManualKyc;
+import com.bharatpe.lending.dto.CreditLineKycResponseDto;
+import com.bharatpe.lending.dto.EKycRequestDTO;
+import com.bharatpe.lending.dto.EkycManualRequestDTO;
+import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+
+@Service
+public class CreditLineKycService {
+
+	@Autowired
+	LendingEkycDao  lendingEkycDao;
+
+	@Autowired
+	CreditApplicationTransitionDao 	creditApplicationTransitionDao;
+
+	@Autowired
+	LendingManualKycDao lendingManualKycDao;
+	@Autowired
+	MerchantDao merchantDao;
+	@Autowired
+	CreditApplicationAddressDao creditApplicationAddressDao;
+	@Autowired
+	CreditApplicationDao creditApplicationDao;
+	@Autowired
+	S3BucketHandler s3BucketHandler;
+ 
+	@Value("${aws.s3.lending.ekyc.bucket}")
+	private String bucket;
+	
+	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
+
+		CreditLineKycResponseDto creditLineKycResponseDto =new CreditLineKycResponseDto();
+		LendingManualKyc lendingManualKyc=lendingManualKycDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		if(lendingManualKyc==null)
+		{
+			LendingEkyc lendingEkyc=lendingEkycDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+
+			if(lendingEkyc==null)return creditLineKycResponseDto;
+			else
+			{
+
+				creditLineKycResponseDto.setFullAddress(lendingEkyc.getAddress());
+				creditLineKycResponseDto.setPincode(Long.valueOf(lendingEkyc.getPincode()));
+				creditLineKycResponseDto.setCity(lendingEkyc.getCity());
+				creditLineKycResponseDto.setState(lendingEkyc.getState());
+			}
+		}
+		else
+		{
+			creditLineKycResponseDto.setFullAddress(lendingManualKyc.getAddress());
+			creditLineKycResponseDto.setPincode(Long.valueOf(lendingManualKyc.getPincode()));
+			creditLineKycResponseDto.setCity(lendingManualKyc.getCity());
+			creditLineKycResponseDto.setState(lendingManualKyc.getState());
+		}
+		return creditLineKycResponseDto;
+	}
+
+	public Boolean isEkycDone(Merchant merchant) {
+		try{
+			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
+			if(lendingEkyc!=null){
+				return true;
+			}
+			return false;
+		}
+		catch(Exception e) {
+			return null;
+		}
+	}
+
+	public   Object verifyAddress(Merchant merchant,RequestDTO< EkycManualRequestDTO> requestDTO) {
+
+		Map<String,Object>map=new HashMap<>();
+		EkycManualRequestDTO eKycManualRequestDTO=requestDTO.getPayload();
+		if(eKycManualRequestDTO==null)
+		{
+			map.put("success", false);
+			map.put("message", "empty request");
+			return map;
+		}
+		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		if(creditApplication==null)
+		{
+			map.put("success", false);
+			map.put("message", "credit application not found");
+			return map;
+		}
+
+//		 Boolean eKycSuccess=isEkycDone(merchant);
+//		 if(eKycSuccess==null) {
+//			 map.put("success", false);
+//			 map.put("message", "Error occured while checking ekyc success status");
+//			 return map;
+//		 }
+		if(eKycManualRequestDTO.getIsAddressChanged())
+		{
+			LendingManualKyc lendingManualKyc=new LendingManualKyc();
+			lendingManualKyc.setApplicationId(creditApplication.getId());
+			lendingManualKyc.setMerchantId(merchant.getId());
+			lendingManualKyc.setmId(merchant.getMid());
+			lendingManualKyc.setAddress(eKycManualRequestDTO.getFullAdress());
+			lendingManualKyc.setCity(eKycManualRequestDTO.getCity());
+			lendingManualKyc.setPincode(String.valueOf(eKycManualRequestDTO.getPincode()));
+			lendingManualKyc.setState(eKycManualRequestDTO.getState());
+			lendingManualKycDao.save(lendingManualKyc);
+
+			map.put("success", true);
+			map.put("message", "address change successfully");
+			creditApplication.setStatus("kyc");
+			creditApplicationDao.save(creditApplication);
+			CreditApplicationTransition creditApplicationTransition =new CreditApplicationTransition ();
+			creditApplicationTransition.setApplicationId(creditApplication.getId());
+			creditApplicationTransition.setFromStatus("draft");
+			creditApplicationTransition.setToStatus("kyc");
+			creditApplicationTransition.setComment("");
+			creditApplicationTransitionDao.save(creditApplicationTransition);
+			return map;
+		}
+		creditApplication.setStatus("kyc");
+		creditApplicationDao.save(creditApplication);
+		CreditApplicationTransition creditApplicationTransition =new CreditApplicationTransition ();
+		creditApplicationTransition.setApplicationId(creditApplication.getId());
+		creditApplicationTransition.setFromStatus("draft");
+		creditApplicationTransition.setToStatus("kyc");
+		creditApplicationTransition.setComment("");
+		creditApplicationTransitionDao.save(creditApplicationTransition);
+		map.put("success", true);
+		map.put("message", "address same");
+		return map;
+	}
+
+	public Object eKycInitiate(Merchant merchant) {
+
+		Map<String,Object>map=new HashMap<>();
+
+		map.put("success", true);
+		map.put("message", "merchant found successfully");
+		map.put("mid", merchant.getMid());
+		return map;
+
+
+	}
+
+	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
+		Map<String,Object>map=new HashMap<>();
+
+
+		EKycRequestDTO eKycRequestDTO=requestDTO.getPayload();
+		if(eKycRequestDTO==null)
+		{
+			map.put("success", false);
+			map.put("message", "empty request");
+			return map;
+		}
+		else if(eKycRequestDTO.getmId().equals(""))
+		{
+			map.put("success", false);
+			map.put("message", "invalid mid");
+			return map;
+		}
+		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		if(creditApplication==null)
+		{    map.put("success", false);
+			map.put("message", "credit application not found");
+			return map;
+		}
+		LendingEkyc lendingEkyc=new LendingEkyc();
+		lendingEkyc.setApplicationId(creditApplication.getId());
+		lendingEkyc.setMerchantId(merchant.getId());;
+		lendingEkyc.setmId(eKycRequestDTO.getmId());
+		lendingEkyc.setAddress(eKycRequestDTO.getAddress());
+		lendingEkyc.setCity(eKycRequestDTO.getCity());
+		lendingEkyc.setCountry(eKycRequestDTO.getCountry());
+		lendingEkyc.setDob(eKycRequestDTO.getDob());
+		lendingEkyc.setGender(eKycRequestDTO.getGender());
+		lendingEkyc.setName(eKycRequestDTO.getName());
+		lendingEkyc.setPincode(eKycRequestDTO.getPincode());
+		lendingEkyc.setState(eKycRequestDTO.getState());
+		lendingEkyc.setStatus(eKycRequestDTO.getStatus());
+		lendingEkyc.setStatusMessage(eKycRequestDTO.getStatusMessage());
+		lendingEkyc.setResponse(eKycRequestDTO.getResponse());
+		String response=eKycRequestDTO.getResponse();
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode rootNode=null;
+		try {
+			rootNode = mapper.readTree(response);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		JsonNode uidData = (rootNode != null) ? rootNode.path("UidData") : null;
+		if(uidData==null)
+			return map;
+		String pht=uidData.path("Pht").textValue();
+		String  base64Encoded = processBase64String(pht);
+		String fileName = merchant.getId() + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+		String imagePath=s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
+		lendingEkyc.setImagePath(imagePath); 
+		lendingEkycDao.save(lendingEkyc);
+		map.put("success", true);
+		map.put("message", "ekyc created successfully");
+		return map;
+
+	}
+	public String processBase64String(String base64EncodedString) {
+		base64EncodedString.replace(' ', '+');
+		if(base64EncodedString.contains("base64,")) {
+			String [] base64EncodedSplit = base64EncodedString.split("base64,");
+			base64EncodedString = base64EncodedSplit[1];
+		}
+		return base64EncodedString;
+		 
+	}
+
+}

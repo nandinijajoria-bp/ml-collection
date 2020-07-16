@@ -160,7 +160,7 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
-            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchant.getId(),false);
             if (prevLoans != null && prevLoans.size() > 0) {
                 lendingApplication.setStatus("approved");
                 lendingApplication.setManualKyc("APPROVED");

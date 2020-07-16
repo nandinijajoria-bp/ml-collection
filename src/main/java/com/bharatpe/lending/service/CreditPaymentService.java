@@ -1,0 +1,942 @@
+package com.bharatpe.lending.service;
+
+import com.bharatpe.common.dao.InternalClientDao;
+import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.Status;
+import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.common.utils.AesEncryption;
+import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.GupShupOTPHandler;
+import com.bharatpe.lending.util.CreditUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
+import com.bharatpe.common.enums.NotificationProvider;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+@Service
+@SuppressWarnings("unchecked")
+public class CreditPaymentService {
+
+    Logger logger= LoggerFactory.getLogger(CreditPaymentService.class);
+
+    @Autowired
+    RestTemplate restTemplate;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Autowired
+    GupShupOTPHandler gupShupOTPHandler;
+
+    @Autowired
+    CreditAccountDao creditAccountDao;
+
+    @Autowired
+    LendingClTransactionDao lendingClTransactionDao;
+
+    @Autowired
+    LendingClLedgerDao lendingClLedgerDao;
+
+    @Autowired
+    InternalClientDao internalClientDao;
+
+    @Autowired
+    HmacCalculator hmacCalculator;
+
+    @Autowired
+    AesEncryption aesEncryption;
+
+    @Autowired
+    MerchantBankDetailDao merchantBankDetailDao;
+
+    @Autowired
+    LendingClPaymentDao lendingClPaymentDao;
+
+    @Autowired
+    LendingCaBalanceDetailDao lendingCaBalanceDetailDao;
+
+    @Autowired
+    CreditAccountBillDao creditAccountBillDao;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingClPaymentBreakupDao lendingClPaymentBreakupDao;
+
+    @Autowired
+    CreditUtil creditUtil;
+
+    @Autowired
+    LendingLedgerDao lendingLedgerDao;
+    
+    @Autowired
+    SmsServiceHandler smsServiceHandler;
+    
+    @Autowired
+    WhatsappNotificationService whatsappNotificationService;
+
+    @Value("${create.vpa.endpoint}")
+    String DYNAMIC_VPA_HOST;
+
+    @Value("${internal.merchant.id}")
+    long merchantId;
+
+    @Value("${payment.service.host}")
+    public String PAYMENT_HOST;
+
+    @Autowired
+    MerchantDao merchantDao;
+
+    private static String secret;
+
+    private static String mid;
+
+    public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
+        List<PaymentDetailDto> paymentDetails = new ArrayList<>();
+        try {
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.PAYMENT_MODE_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.set("token", token);
+            headers.set("clientName", "CREDIT_LINE");
+            Map<String, Object> requestParams = new HashMap<>();
+            requestParams.put("common_params", requestDTO.getMeta());
+            requestParams.put("params", requestDTO.getSimInfo());
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams,headers);
+            long startTime = System.currentTimeMillis();
+            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+            if (response.getBody() != null) {
+                paymentDetails = objectMapper.readValue(objectMapper.writeValueAsString(((Map<String, Object>) response.getBody()).get("data")),
+                        new TypeReference<List<PaymentDetailDto>>() {
+                        });
+            }
+            logger.info("Successfully Fetched Balance info in {} ms", System.currentTimeMillis() - startTime);
+        } catch (HttpClientErrorException e) {
+            logger.error("Error fetching Balance info : {} ", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error parsing details from bbps : {} ", e.getMessage());
+        } finally {
+            if (paymentDetails.isEmpty()) {
+                logger.info("No Payment Mode Received, Falling Back to UPI Payment Mode");
+                paymentDetails.addAll(fetchPaymentModes());
+            }
+        }
+        ResponseDTO responseDTO = new ResponseDTO();
+        paymentDetails.removeIf(paymentDetailDto -> paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount());
+        if (paymentDetails.isEmpty()) {
+            responseDTO.setSuccess(false);
+            responseDTO.setMessage("No Payment Mode Found");
+        } else {
+        	paymentDetails=checkForUpiTransaction(requestDTO.getPayload().getAmount(), paymentDetails);
+            responseDTO.setSuccess(true);
+            responseDTO.setData(paymentDetails);
+        }
+        return responseDTO;
+    }
+    
+    private List<PaymentDetailDto> checkForUpiTransaction(Integer amount,List<PaymentDetailDto> paymentDetails){
+    	paymentDetails.forEach(pd->{
+    		if(pd.getType().equalsIgnoreCase("UPI")) {
+    			pd.setUpiType(amount>2000?"collect_request":"intent");
+    		}
+    	});
+    	return paymentDetails;
+    } 
+
+    private List<PaymentDetailDto> fetchPaymentModes() {
+        List<PaymentDetailDto> paymentDetails = new ArrayList<>();
+        try {
+            String content = "[\n" +
+                    "  {\n" +
+                    "    \"name\": \"Pay Using UPI\",\n" +
+                    "    \"type\": \"UPI\",\n" +
+                    "    \"fund_source\": \"UPI\",\n" +
+                    "    \"balance\": null,\n" +
+                    "    \"amount_limit\": 100000.0,\n" +
+                    "    \"description\": \"if any description\",\n" +
+                    "    \"offers\": \"if any offers\",\n" +
+                    "    \"auth_required\": false,\n" +
+                    "    \"enable\": true,\n" +
+                    "    \"is_default\": true\n" +
+                    "  }\n" +
+                    "]";
+            paymentDetails = objectMapper.readValue(content, new TypeReference<List<PaymentDetailDto>>() {
+            });
+        } catch (Exception e) {
+            logger.error("Error Parsing payment Modes : {}", e.getMessage());
+        }
+        return paymentDetails;
+    }
+
+    @Transactional
+    public PaymentInitiateResponseDTO initiatePayment(RequestDTO<CreditPaymentRequestDTO> requestDTO, Merchant merchant, String token) throws JsonProcessingException {
+        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
+        if (creditAccount == null) {
+            return new PaymentInitiateResponseDTO(false, "Credit Account does not exist");
+        }
+        if (requestDTO.getPayload().getAmount() > creditUtil.getPayableAmount(creditAccount)) {
+            return new PaymentInitiateResponseDTO(false, "Amount more than total payable amount");
+        }
+        LendingClTransaction lendingClTransaction = insertClTransaction(creditAccount, requestDTO.getPayload().getAmount(), requestDTO.getPayload().getSource().name());
+        String upiString = null;
+        String request = null;
+        String response = null;
+        String vpa = null;
+        Boolean otpFlow = null;
+        String authMode = null;
+        boolean paymentSuccess = false;
+        if (requestDTO.getPayload().getType().equals(CreditConstants.PaymentMode.BPB)) {
+            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+            Map<String, Object> result = initiateTxn(requestDTO, lendingClTransaction.getId(), token, merchantBankDetail.getBeneficiaryName(), requestDTO.getPayload().getSource().name());
+            Boolean success = (Boolean) result.get("success");
+            if (success) {
+                otpFlow = (Boolean) result.get("otp_flow");
+                authMode = (String) result.get("auth_mode");
+                request = (String) result.get("request");
+                response = (String) result.get("response");
+                lendingClTransaction.setOrderId(result.get("bp_txn_id").toString());
+                lendingClTransactionDao.save(lendingClTransaction);
+                paymentSuccess = true;
+            }
+        } else { //UPI
+        	Map<String, Object> paymentResponse=null;
+        	if(requestDTO.getPayload().getAmount()>2000) {
+        		if(requestDTO.getPayload().getVpa()==null) {
+        			return new PaymentInitiateResponseDTO(false, "VPA missing");
+        		}
+        		paymentResponse= createVPA(requestDTO.getPayload().getAmount(), lendingClTransaction.getId().toString(),requestDTO.getPayload().getVpa());
+        	}
+        	else {
+        		paymentResponse = createVPA(requestDTO.getPayload().getAmount(), lendingClTransaction.getId().toString(),null);
+        	}
+            if (paymentResponse != null) {
+                request = (String) paymentResponse.get("request");
+                response = objectMapper.writeValueAsString(paymentResponse.get("response"));
+                VPARequestDto vpaRequestDto = (VPARequestDto) paymentResponse.get("response");
+                if (vpaRequestDto != null) {
+                    vpa = vpaRequestDto.getBharatpeTxnId();
+                    upiString = vpaRequestDto.getUpiString();
+                    paymentSuccess = true;
+                }
+            }
+        }
+        if (paymentSuccess) {
+            LendingClPayment lendingClPayment = insertClPayment(lendingClTransaction, request, response, merchant.getMid(), vpa, requestDTO.getPayload().getSource().name(), requestDTO.getPayload().getType().name());
+            lendingClTransaction.setRequestId(lendingClPayment.getId());
+            lendingClTransactionDao.save(lendingClTransaction);
+            return new PaymentInitiateResponseDTO(lendingClTransaction.getId(), upiString, otpFlow, authMode);
+        } else {
+            logger.error("Payment Failed for Txn Id : {}", lendingClTransaction.getId());
+            lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
+            lendingClTransactionDao.save(lendingClTransaction);
+            return new PaymentInitiateResponseDTO(false, "Payment Failed");
+        }
+    }
+
+    @Transactional
+    public CreditSpendResponseDTO verifyPayment(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, Merchant merchant, String token) throws JsonProcessingException {
+        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
+        if (creditAccount == null) {
+            return new CreditSpendResponseDTO(false, "Credit Account does not exist");
+        }
+        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByIdAndCreditAccountId(requestDTO.getPayload().getRequestId(), creditAccount.getId());
+        if (lendingClTransaction == null || !CreditConstants.PaymentStatus.PENDING.name().equalsIgnoreCase(lendingClTransaction.getStatus())) {
+            return new CreditSpendResponseDTO(false, "Invalid request id");
+        }
+        Map<String, Object> result = verifyTxn(requestDTO, token);
+        Boolean success = (Boolean) result.get("success");
+        if (success) {
+            String response = (String) result.get("response");
+            Double paymentAmount = (Double) result.get("amount");
+            String paymentStatus = (String) result.get("status");
+            Long transactionId = Long.parseLong((String) result.get("order_id"));
+            if (!transactionId.equals(lendingClTransaction.getId())) {
+                logger.error("Transaction id mismatch for requestId: {}", requestDTO.getPayload().getRequestId());
+            } else if (!lendingClTransaction.getAmount().equals(paymentAmount)) {
+                logger.error("Amount mismatch for requestId: {}", requestDTO.getPayload().getRequestId());
+            } else {
+                lendingClTransaction.setStatus(paymentStatus);
+                lendingClTransactionDao.save(lendingClTransaction);
+                LendingClPayment lendingClPayment = lendingClPaymentDao.findByClTransactionId(lendingClTransaction.getId());
+                if (lendingClPayment != null) {
+                    lendingClPayment.setResponse(response);
+                    lendingClPayment.setStatus(paymentStatus);
+                    lendingClPaymentDao.save(lendingClPayment);
+                }
+                if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
+                    updateBalances(creditAccount, lendingClTransaction);
+                    //TODO send success notification
+                    sendNotification(lendingClTransaction, creditAccount, merchant);
+                    
+                }
+                return new CreditSpendResponseDTO(true, "success");
+            }
+        }
+        return new CreditSpendResponseDTO(false, "Payment verification Failed");
+    }
+    
+    public void sendNotification(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, Merchant merchant){
+    	String message="Rs."+lendingClTransaction.getAmount()+" repayment of Bharatpe Loan is Successful.\n"+
+    					"Your Available Loan Balance is Rs." +creditAccount.getAvailableBalance()+".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: bharatpe.in/loan~";
+    	List<String> mobiles=new LinkedList<>();
+    	mobiles.add(merchant.getMobile());
+    	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+    }
+    
+    public PaymentInitiateResponseDTO resendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, Merchant merchant, String token) {
+        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
+        if (creditAccount == null) {
+            return new PaymentInitiateResponseDTO(false, "Credit Account does not exist");
+        }
+        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByIdAndCreditAccountId(requestDTO.getPayload().getRequestId(), creditAccount.getId());
+        if (lendingClTransaction == null || !CreditConstants.PaymentStatus.PENDING.name().equalsIgnoreCase(lendingClTransaction.getStatus())) {
+            return new PaymentInitiateResponseDTO(false, "Invalid request id");
+        }
+        Map<String, Object> result = sendOTP(requestDTO, token);
+        Boolean success = (Boolean) result.get("success");
+        if (success) {
+            return new PaymentInitiateResponseDTO(true, "success");
+        }
+        return new PaymentInitiateResponseDTO(false, "Unable to resend otp");
+    }
+
+    private Map<String, Object> sendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, String token) {
+        Map<String, Object> result = new HashMap<>();
+        InternalClient internalClient = internalClientDao.findByClientName("CREDIT_LINE");
+        try {
+            Map requestParams = generateSendMoneyVerify(requestDTO);
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.BP_BALANCE_RESEND_OTP_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("token", token);
+            headers.set("hash", hash);
+            headers.set("clientName", "CREDIT_LINE");
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            result.put("request", objectMapper.writeValueAsString(entity));
+            long startTime = System.currentTimeMillis();
+            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            result.put("response", objectMapper.writeValueAsString(response.getBody()));
+            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+            logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+            return result;
+        } catch (HttpClientErrorException e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error resend otp for BP Balance info---", e);
+        } catch (Exception e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error parsing details from BP Balance---", e);
+        }
+        return result;
+    }
+
+    private void insertPaymentBreakup(LendingClTransaction lendingClTransaction, Double amount, Long loanId, String type) {
+        LendingClPaymentBreakup lendingClPaymentBreakup = new LendingClPaymentBreakup();
+        lendingClPaymentBreakup.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClPaymentBreakup.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
+        lendingClPaymentBreakup.setLendingClTransaction(lendingClTransaction);
+        lendingClPaymentBreakup.setPaymentType(type);
+        lendingClPaymentBreakup.setLoanId(loanId);
+        lendingClPaymentBreakup.setAmount(amount);
+        lendingClPaymentBreakupDao.save(lendingClPaymentBreakup);
+    }
+
+    private void updateBalances(CreditAccount creditAccount, LendingClTransaction lendingClTransaction) {
+        logger.info("Repayment for amount:{} for account:{}", lendingClTransaction.getAmount(), creditAccount.getId());
+        LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
+        double amountPaid = lendingClTransaction.getAmount();
+        double remainingAmount = lendingClTransaction.getAmount();
+        creditAccount.setPayableAmount(creditUtil.getPayableAmount(creditAccount) - amountPaid);
+        CreditAccountBill creditAccountBill = creditAccountBillDao.getLastUnpaidBill(creditAccount.getId(), creditAccount.getMerchantId());
+        //If amount paid = total payable
+//        if (creditUtil.getPayableAmount(creditAccount) == amountPaid) {
+//            logger.info("Amount is equal to total payable");
+//            creditAccount.setStatus(CreditConstants.AccountStatus.ACTIVE.name());
+//            creditAccount.setMinimumAmountDue(0D);
+//            creditAccount.setInterestDue(0D);
+//            creditAccount.setAvailableBalance(creditAccount.getLimit());
+//            creditAccount.setUsedBalance(0D);
+//            lendingCaBalanceDetail.setAvailableBalance(creditAccount.getLimit());
+//            lendingCaBalanceDetail.setInterestDue(0D);
+//            lendingCaBalanceDetail.setUsedBalance(0D);
+//            lendingCaBalanceDetail.setUsedBalanceCl(0D);
+//            lendingCaBalanceDetail.setUsedBalanceG1(0D);
+//            lendingCaBalanceDetail.setUsedBalanceG2(0D);
+//            lendingCaBalanceDetail.setUsedBalanceG3(0D);
+//            creditAccountDao.save(creditAccount);
+//            lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
+//            insertPaymentBreakup(lendingClTransaction, remainingAmount, null, CreditConstants.PaymentType.CL.name());
+//            insertClLedger(lendingClTransaction, remainingAmount);
+//            if (creditAccountBill != null) {
+//                logger.info("closing all bills for account:{}", creditAccount.getId());
+//                creditAccountBillDao.closeAllBills(creditAccount.getId(), creditAccount.getMerchantId(), creditAccountBill.getAmount(), new Date());
+//                creditAccountBill.setPaidPenalty(creditAccountBill.getPenalty());
+//                creditAccountBill.setPaidInterest(creditAccountBill.getInterestAmount());
+//                creditAccountBill.setPaidPrinciple(creditAccountBill.getPrincipleAmount());
+//                creditAccountBillDao.save(creditAccountBill);
+//            }
+//            List<LendingPaymentSchedule> termLoanList=lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
+//            if (!termLoanList.isEmpty()) {
+//                logger.info("closing all term loans for account:{}", creditAccount.getId());
+//                for (LendingPaymentSchedule lendingPaymentSchedule : termLoanList) {
+//                    lendingPaymentSchedule.setStatus("CLOSED");
+//                    lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+//                }
+//            }
+//            return;
+//        }
+        double paymentCL = 0d;
+        double clPenalty = 0d;
+        double clInterest = 0d;
+        double clPrinciple = 0d;
+        double clOtherCharges = 0d;
+
+        //Clear unpaid bill balances
+        if (creditAccountBill != null) {
+            logger.info("Adjusting Bill:{} for account:{}", creditAccountBill.getId(), creditAccount.getId());
+            double remainingPenalty = creditAccountBill.getPenalty() - creditAccountBill.getPaidPenalty();
+            double remainingInterest = creditAccountBill.getInterestAmount() - creditAccountBill.getPaidInterest();
+            double remainingPrinciple = creditAccountBill.getPrincipleAmount() - creditAccountBill.getPaidPrinciple();
+            if (remainingAmount > 0 && remainingPenalty > 0) {
+                logger.info("Adjusting penalty for bill:{} and account:{}", creditAccountBill.getId(), creditAccount.getId());
+                double remaining = remainingPenalty - remainingAmount < 0 ? 0 : remainingPenalty - remainingAmount;
+                remainingAmount = remainingAmount - remainingPenalty < 0 ? 0 : remainingAmount - remainingPenalty;
+                paymentCL += (creditAccountBill.getPenalty() - remaining);
+                clPenalty += (creditAccountBill.getPenalty() - remaining);
+                creditAccountBill.setPaidPenalty((creditAccountBill.getPenalty() - remaining));
+            }
+            if (remainingAmount > 0 && remainingInterest > 0) {
+                logger.info("Adjusting interest for bill:{} and account:{}", creditAccountBill.getId(), creditAccount.getId());
+                double remaining = remainingInterest - remainingAmount < 0 ? 0 : remainingInterest - remainingAmount;
+                remainingAmount = remainingAmount - remainingInterest < 0 ? 0 : remainingAmount - remainingInterest;
+                paymentCL += (creditAccountBill.getInterestAmount() - remaining);
+                clInterest += (creditAccountBill.getInterestAmount() - remaining);
+                creditAccountBill.setPaidInterest((creditAccountBill.getInterestAmount() - remaining));
+            }
+            if (remainingAmount > 0 && creditAccountBill.getPrincipleAmount() > 0) {
+                logger.info("Adjusting principle mad for bill:{} and account:{}", creditAccountBill.getId(), creditAccount.getId());
+                double remaining = remainingPrinciple - remainingAmount < 0 ? 0 : remainingPrinciple - remainingAmount;
+                remainingAmount = remainingAmount - remainingPrinciple < 0 ? 0 : remainingAmount - remainingPrinciple;
+                double principlePaid = (remainingPrinciple - remaining);
+                paymentCL += principlePaid;
+                clPrinciple += principlePaid;
+                creditAccountBill.setPaidPrinciple(creditAccountBill.getPaidPrinciple() + principlePaid);
+                //adjust account balance principle
+                creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + principlePaid);
+                creditAccount.setUsedBalance(creditAccount.getUsedBalance() - principlePaid);
+                lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + principlePaid);
+                lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - principlePaid);
+                if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
+                    double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
+                    double usedG2 = lendingCaBalanceDetail.getUsedBalanceG2() - ((lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
+                    double usedG3 = lendingCaBalanceDetail.getUsedBalanceG3() - ((lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
+                    lendingCaBalanceDetail.setUsedBalanceG1(usedG1);
+                    lendingCaBalanceDetail.setUsedBalanceG2(usedG2);
+                    lendingCaBalanceDetail.setUsedBalanceG3(usedG3);
+                    lendingCaBalanceDetail.setUsedBalanceCl(usedG1 + usedG2 + usedG3);
+                }
+            }
+            double newMAD = (creditAccountBill.getPenalty() - creditAccountBill.getPaidPenalty()) + (creditAccountBill.getInterestAmount() - creditAccountBill.getPaidInterest()) + (creditAccountBill.getPrincipleAmount() - creditAccountBill.getPaidPrinciple());
+            logger.info("New MAD:{} for account:{}", newMAD, creditAccount.getId());
+            creditAccount.setMinimumAmountDue(newMAD);
+            creditAccountBill.setPaidAmount(creditAccountBill.getPaidPrinciple() + creditAccountBill.getPaidInterest() + creditAccountBill.getPaidPenalty());
+            creditAccountBillDao.save(creditAccountBill);
+            if (newMAD == 0d) {
+                logger.info("closing all bills for account:{}", creditAccount.getId());
+                creditAccountBillDao.closeAllBills(creditAccount.getId(), creditAccount.getMerchantId(), creditAccountBill.getPaidAmount(), new Date());
+                creditAccount.setStatus(CreditConstants.AccountStatus.ACTIVE.name());
+            }
+        }
+        //"ClearTerm loan EDIs O/s"
+        if (remainingAmount > 0) {
+            logger.info("Adjusting overdue tl for account:{}", creditAccount.getId());
+            List<LendingPaymentSchedule> termLoanList=lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
+            termLoanList.sort(Comparator.comparing(LendingPaymentSchedule::getId));
+            for (LendingPaymentSchedule lendingPaymentSchedule : termLoanList) {
+                if (lendingPaymentSchedule.getDueAmount() != null && lendingPaymentSchedule.getDueAmount() > 0) {
+                    double paymentTL = 0d;
+                    double paidOtherCharges = 0d;
+                    double paidPenalty = 0d;
+                    double paidInterest = 0d;
+                    double paidPrinciple = 0d;
+                    if (remainingAmount > 0 && lendingPaymentSchedule.getDueOtherCharges() != null && lendingPaymentSchedule.getDueOtherCharges() > 0) {
+                        logger.info("Adjusting due other charges for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                        double dueOtherCharges = lendingPaymentSchedule.getDueOtherCharges();
+                        double remaining = lendingPaymentSchedule.getDueOtherCharges() - remainingAmount < 0 ? 0 : lendingPaymentSchedule.getDueOtherCharges() - remainingAmount;
+                        remainingAmount = remainingAmount - lendingPaymentSchedule.getDueOtherCharges() < 0 ? 0 : remainingAmount - lendingPaymentSchedule.getDueOtherCharges();
+                        lendingPaymentSchedule.setDueOtherCharges(remaining);
+                        paidOtherCharges = (dueOtherCharges - remaining);
+                        paymentTL += paidOtherCharges;
+                    }
+                    if (remainingAmount > 0 && lendingPaymentSchedule.getDuePenalty() != null && lendingPaymentSchedule.getDuePenalty() > 0) {
+                        logger.info("Adjusting due penalty for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                        double duePenalty = lendingPaymentSchedule.getDuePenalty();
+                        double remaining = lendingPaymentSchedule.getDuePenalty() - remainingAmount < 0 ? 0 : lendingPaymentSchedule.getDuePenalty() - remainingAmount;
+                        remainingAmount = remainingAmount - lendingPaymentSchedule.getDuePenalty() < 0 ? 0 : remainingAmount - lendingPaymentSchedule.getDuePenalty();
+                        lendingPaymentSchedule.setDuePenalty(remaining);
+                        paidPenalty = (duePenalty - remaining);
+                        paymentTL += paidPenalty;
+                    }
+                    if (remainingAmount > 0 && lendingPaymentSchedule.getDueInterest() != null && lendingPaymentSchedule.getDueInterest() > 0) {
+                        logger.info("Adjusting due interest for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                        double dueInterest = lendingPaymentSchedule.getDueInterest();
+                        double remaining = lendingPaymentSchedule.getDueInterest() - remainingAmount < 0 ? 0 : lendingPaymentSchedule.getDueInterest() - remainingAmount;
+                        remainingAmount = remainingAmount - lendingPaymentSchedule.getDueInterest() < 0 ? 0 : remainingAmount - lendingPaymentSchedule.getDueInterest();
+                        lendingPaymentSchedule.setDueInterest(remaining);
+                        paidInterest = (dueInterest - remaining);
+                        paymentTL += paidInterest;
+                    }
+                    if (remainingAmount > 0 && lendingPaymentSchedule.getDuePrinciple() != null && lendingPaymentSchedule.getDuePrinciple() > 0) {
+                        logger.info("Adjusting due principle for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                        double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
+                        double remaining = lendingPaymentSchedule.getDuePrinciple() - remainingAmount < 0 ? 0 : lendingPaymentSchedule.getDuePrinciple() - remainingAmount;
+                        remainingAmount = remainingAmount - lendingPaymentSchedule.getDuePrinciple() < 0 ? 0 : remainingAmount - lendingPaymentSchedule.getDuePrinciple();
+                        lendingPaymentSchedule.setDuePrinciple(remaining);
+                        paidPrinciple = (duePrinciple - remaining);
+                        paymentTL += paidPrinciple;
+                        lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paidPrinciple);
+                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paidPrinciple);
+                        //adjust account balance principle
+                        creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + paidPrinciple);
+                        creditAccount.setUsedBalance(creditAccount.getUsedBalance() - paidPrinciple);
+                        lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + paidPrinciple);
+                        lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - paidPrinciple);
+                    }
+                    double dueOtherCharges = lendingPaymentSchedule.getDueOtherCharges() != null ? lendingPaymentSchedule.getDueOtherCharges() : 0d;
+                    double duePenalty = lendingPaymentSchedule.getDuePenalty() != null ? lendingPaymentSchedule.getDuePenalty() : 0d;
+                    double dueInterest = lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0d;
+                    double duePrinciple = lendingPaymentSchedule.getDuePrinciple() != null ? lendingPaymentSchedule.getDuePrinciple() : 0d;
+                    double newDueAmount = dueOtherCharges + duePenalty + dueInterest + duePrinciple;
+                    logger.info("New due amount:{} for loan:{} and account:{}", newDueAmount, lendingPaymentSchedule.getId(), creditAccount.getId());
+                    lendingPaymentSchedule.setDueAmount(newDueAmount);
+                    lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+                    if (paymentTL > 0) {
+                        insertPaymentBreakup(lendingClTransaction, paymentTL, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name());
+                        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paidPrinciple, paidInterest, paidOtherCharges, paidPenalty, "CREDIT_LINE");
+                    }
+                }
+            }
+        }
+        //"Clear Remaining CL Interest due"
+        if (remainingAmount > 0 && creditAccount.getInterestDue() > 0) {
+            logger.info("Adjusting interest due for account:{}", creditAccount.getId());
+            double remaining = creditAccount.getInterestDue() - remainingAmount < 0 ? 0 : creditAccount.getInterestDue() - remainingAmount;
+            remainingAmount = remainingAmount - creditAccount.getInterestDue() < 0 ? 0 : remainingAmount - creditAccount.getInterestDue();
+            paymentCL += (creditAccount.getInterestDue() - remaining);
+            clInterest += (creditAccount.getInterestDue() - remaining);
+            creditAccount.setInterestDue(remaining);
+            lendingCaBalanceDetail.setInterestDue(remaining);
+        }
+        //"Clear Remaining CL Principal o/s"
+        if (remainingAmount > 0) {
+            logger.info("Adjusting due cl principle for account:{}", creditAccount.getId());
+            double remaining = lendingCaBalanceDetail.getUsedBalanceCl() - remainingAmount < 0 ? 0 : lendingCaBalanceDetail.getUsedBalanceCl() - remainingAmount;
+            remainingAmount = remainingAmount - lendingCaBalanceDetail.getUsedBalanceCl() < 0 ? 0 : remainingAmount - lendingCaBalanceDetail.getUsedBalanceCl();
+            double clPaid = (lendingCaBalanceDetail.getUsedBalanceCl() - remaining);
+            paymentCL += clPaid;
+            clPrinciple += clPaid;
+            creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + clPaid);
+            creditAccount.setUsedBalance(creditAccount.getUsedBalance() - clPaid);
+            lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + clPaid);
+            lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - clPaid);
+            if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
+                double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
+                double usedG2 = lendingCaBalanceDetail.getUsedBalanceG2() - ((lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
+                double usedG3 = lendingCaBalanceDetail.getUsedBalanceG3() - ((lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
+                lendingCaBalanceDetail.setUsedBalanceG1(usedG1);
+                lendingCaBalanceDetail.setUsedBalanceG2(usedG2);
+                lendingCaBalanceDetail.setUsedBalanceG3(usedG3);
+                lendingCaBalanceDetail.setUsedBalanceCl(usedG1 + usedG2 + usedG3);
+            }
+        }
+        //"Clear Term loan Principle"
+        if (remainingAmount > 0) {
+            logger.info("Adjusting principle tl for account:{}", creditAccount.getId());
+            List<LendingPaymentSchedule> termLoanList=lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
+            termLoanList.sort(Comparator.comparing(LendingPaymentSchedule::getId));
+            double paidPrinciple = 0d;
+            for (LendingPaymentSchedule lendingPaymentSchedule : termLoanList) {
+                if (remainingAmount > 0) {
+                    double paymentTL = remainingAmount * 1/termLoanList.size();
+                    paidPrinciple += paymentTL;
+                    remainingAmount = remainingAmount - paymentTL < 0 ? 0 : remainingAmount - paymentTL;
+                    if ((lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() + lendingPaymentSchedule.getDueInterest()) <= paymentTL) {
+                        logger.info("Closing loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
+                        lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
+                        lendingPaymentSchedule.setStatus("CLOSED");
+                    } else {
+                        logger.info("New due amount:{} for loan:{} and account:{}", -paymentTL, lendingPaymentSchedule.getId(), creditAccount.getId());
+                        lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() - paymentTL);
+                    }
+                    createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paymentTL, 0d, 0d, 0d, "CREDIT_LINE");
+                    lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+                    if (paymentTL > 0) {
+                        insertPaymentBreakup(lendingClTransaction, paymentTL, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name());
+                    }
+                }
+            }
+            if (paidPrinciple > 0) {
+                creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + paidPrinciple);
+                creditAccount.setUsedBalance(creditAccount.getUsedBalance() - paidPrinciple);
+                lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + paidPrinciple);
+                lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - paidPrinciple);
+            }
+        }
+        if (creditUtil.getPayableAmount(creditAccount) < 1) {
+            //un block account
+            creditAccount.setStatus(CreditConstants.AccountStatus.ACTIVE.name());
+        }
+        creditAccountDao.save(creditAccount);
+        lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
+        if (paymentCL > 0) {
+            insertPaymentBreakup(lendingClTransaction, paymentCL, null, CreditConstants.PaymentType.CL.name());
+            insertClLedger(lendingClTransaction, paymentCL, clPrinciple, clPenalty, clInterest, clOtherCharges);
+        }
+    }
+
+    public void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description) {
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+        if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
+            lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+        }
+        lendingLedger.setLendingPaymentSchedule(lendingPaymentSchedule);
+        lendingLedger.setDate(date);
+        lendingLedger.setTxnType(txnType);
+        lendingLedger.setAmount(amount);
+        lendingLedger.setInterest(interest);
+        lendingLedger.setOtherCharges(otherCharges);
+        lendingLedger.setPenalty(penalty);
+        lendingLedger.setPrinciple(principle);
+        lendingLedger.setDescription(description);
+        lendingLedger.setAdjustmentMode("UPI");
+        lendingLedgerDao.save(lendingLedger);
+    }
+
+    private Map<String, Object> initiateTxn(RequestDTO<CreditPaymentRequestDTO> requestDTO, Long txnId, String token, String beneficiaryName, String paymentSource) {
+        Map<String, Object> result = new HashMap<>();
+        InternalClient internalClient = internalClientDao.findByClientName("CREDIT_LINE");
+        try {
+            Map requestParams = generateBPBRequest(requestDTO, txnId, beneficiaryName, paymentSource);
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.BP_BALANCE_CREATE_TXN_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("token", token);
+            headers.set("hash", hash);
+            headers.set("clientName", "CREDIT_LINE");
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            result.put("request", objectMapper.writeValueAsString(entity));
+            long startTime = System.currentTimeMillis();
+            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            result.put("response", objectMapper.writeValueAsString(response.getBody()));
+            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+            Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+            result.put("otp_flow", responseData.get("otp_flow"));
+            result.put("auth_mode", responseData.get("auth_mode"));
+            result.put("bp_txn_id", responseData.get("bp_txn_id"));
+            logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+            return result;
+        } catch (HttpClientErrorException e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error Starting txn for BP Balance info---", e);
+        } catch (Exception e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error parsing details from BP Balance---", e);
+        }
+        return result;
+    }
+
+    private Map<String, Object> generateBPBRequest(RequestDTO<CreditPaymentRequestDTO> requestDTO, Long txnId, String beneficiaryName, String paymentSource) {
+        Map<String, Object> requestParams = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> commonParams = new HashMap<>();
+        Map<String, Object> deviceInfo = new HashMap<>();
+        List<Map<String, Object>> sims = new ArrayList<>();
+        for (SimInfo.Sim sim : requestDTO.getSimInfo().getSims()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("slot", sim.getSlot());
+            map.put("sim_id", sim.getSimId());
+            map.put("carrier_name", sim.getCarrierName());
+            map.put("phone", sim.getPhone());
+            sims.add(map);
+        }
+        commonParams.put("app_version", requestDTO.getMeta().getAppVersion());
+        commonParams.put("client", requestDTO.getMeta().getClient());
+        commonParams.put("lat", requestDTO.getMeta().getLatitude());
+        commonParams.put("lon", requestDTO.getMeta().getLongitude());
+        commonParams.put("ip", requestDTO.getMeta().getIp());
+        commonParams.put("device_id", requestDTO.getMeta().getDeviceId());
+        deviceInfo.put("os", requestDTO.getMeta().getDeviceInfo().getOs());
+        deviceInfo.put("manufacturer", requestDTO.getMeta().getDeviceInfo().getManufacturer());
+        deviceInfo.put("device", requestDTO.getMeta().getDeviceInfo().getDevice());
+        deviceInfo.put("is_virtual", requestDTO.getMeta().getDeviceInfo().getIsVirtual());
+        commonParams.put("device_info", deviceInfo);
+        params.put("amount", requestDTO.getPayload().getAmount());
+        params.put("order_id", txnId);
+        params.put("beneficiary_name", beneficiaryName);
+        params.put("source", paymentSource);
+        params.put("install_id", requestDTO.getSimInfo().getInstallId());
+        params.put("device_id", requestDTO.getSimInfo().getDeviceId());
+        params.put("sims", sims);
+        requestParams.put("common_params", commonParams);
+        requestParams.put("params", params);
+        return requestParams;
+    }
+
+    private Map<String, Object> generateSendMoneyVerify(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO) {
+        Map<String, Object> requestParams = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> commonParams = new HashMap<>();
+        Map<String, Object> deviceInfo = new HashMap<>();
+        commonParams.put("app_version", requestDTO.getMeta().getAppVersion());
+        commonParams.put("client", requestDTO.getMeta().getClient());
+        commonParams.put("lat", requestDTO.getMeta().getLatitude());
+        commonParams.put("lon", requestDTO.getMeta().getLongitude());
+        commonParams.put("ip", requestDTO.getMeta().getIp());
+        commonParams.put("device_id", requestDTO.getMeta().getDeviceId());
+        deviceInfo.put("os", requestDTO.getMeta().getDeviceInfo().getOs());
+        deviceInfo.put("manufacturer", requestDTO.getMeta().getDeviceInfo().getManufacturer());
+        deviceInfo.put("device", requestDTO.getMeta().getDeviceInfo().getDevice());
+        deviceInfo.put("is_virtual", requestDTO.getMeta().getDeviceInfo().getIsVirtual());
+        commonParams.put("device_info", deviceInfo);
+        if (requestDTO.getPayload().getOtp() != null) {
+            params.put("otp", requestDTO.getPayload().getOtp());
+        }
+        params.put("order_id", requestDTO.getPayload().getRequestId());
+        requestParams.put("common_params", commonParams);
+        requestParams.put("params", params);
+        return requestParams;
+    }
+
+    private Map<String, Object> verifyTxn(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, String token) {
+        Map<String, Object> result = new HashMap<>();
+        InternalClient internalClient = internalClientDao.findByClientName("CREDIT_LINE");
+        try {
+            Map requestParams = generateSendMoneyVerify(requestDTO);
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.BP_BALANCE_CONFIRM_TXN_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("token", token);
+            headers.set("hash", hash);
+            headers.set("clientName", "CREDIT_LINE");
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            result.put("request", objectMapper.writeValueAsString(entity));
+            long startTime = System.currentTimeMillis();
+            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            result.put("response", objectMapper.writeValueAsString(response.getBody()));
+            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+            Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+            result.put("order_id", responseData.get("order_id"));
+            result.put("amount", responseData.get("amount"));
+            result.put("status", responseData.get("status"));
+            logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+            return result;
+        } catch (HttpClientErrorException e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error Verifying txn for BP Balance info---", e);
+        } catch (Exception e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error parsing details from BP Balance---", e);
+        }
+        return result;
+    }
+
+    private Map<String, Object> createVPA(Double amount, String txn_id, String vpa) {
+        logger.info("Start processing for txn: {}", txn_id);
+        try {
+            Map<String, Object> response = new HashMap<>();
+            Map requestParams = new HashMap<>();
+            requestParams.put("amount", amount);
+            requestParams.put("orderId", txn_id);
+            requestParams.put("mid", getMid());
+            if(vpa!=null) {
+                requestParams.put("payerVpa", vpa);
+            }
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("mid", getMid());
+            headers.set("hash", hash);
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+
+            long startTime = System.currentTimeMillis();
+            logger.info("payout internal request: {}", request);
+
+            response.put("request", objectMapper.writeValueAsString(request));
+            VPARequestDto responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
+            response.put("response", responseObj);
+            logger.info("payout response: {}, response time: {}", objectMapper.writeValueAsString(response), (System.currentTimeMillis() - startTime));
+            return response;
+        } catch (Exception ex) {
+            logger.error("error processing txn for dynamic vpa, txn: {}, {}", txn_id, ex);
+        }
+        return null;
+    }
+
+    private LendingClPayment insertClPayment(LendingClTransaction lendingClTransaction, String request, String response, String mid, String vpa, String source, String mode) {
+        LendingClPayment lendingClPayment = new LendingClPayment();
+        lendingClPayment.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClPayment.setCreditAccountId(lendingClTransaction.getCreditAccountId());
+        lendingClPayment.setAmount(lendingClTransaction.getAmount());
+        lendingClPayment.setRequest(request);
+        lendingClPayment.setResponse(response);
+        lendingClPayment.setStatus(lendingClTransaction.getStatus());
+        lendingClPayment.setTxnRefNo(lendingClTransaction.getOrderId());
+        lendingClPayment.setClTransactionId(lendingClTransaction.getId());
+        lendingClPayment.setMid(mid);
+        lendingClPayment.setVpa(vpa);
+        lendingClPayment.setSource(source);
+        lendingClPayment.setMode(mode);
+        return lendingClPaymentDao.save(lendingClPayment);
+    }
+
+    private LendingClTransaction insertClTransaction(CreditAccount creditAccount, Double amount, String spendMode) {
+        LendingClTransaction lendingClTransaction = new LendingClTransaction();
+        lendingClTransaction.setCreditAccountId(creditAccount.getId());
+        lendingClTransaction.setMerchantId(creditAccount.getMerchantId());
+        lendingClTransaction.setMerchantStoreId(creditAccount.getMerchantStoreId());
+        lendingClTransaction.setStatus(CreditConstants.PaymentStatus.PENDING.name());
+        lendingClTransaction.setAmount(amount);
+        lendingClTransaction.setMode("CREDIT");
+        lendingClTransaction.setType(CreditConstants.PaymentType.PAYMENT.name());
+        lendingClTransaction.setSubType(spendMode);
+        return lendingClTransactionDao.save(lendingClTransaction);
+    }
+
+    private void insertClLedger(LendingClTransaction lendingClTransaction, Double amount, Double principle, Double penalty, Double interest, Double otherCharges) {
+        LendingClLedger lendingClLedger = new LendingClLedger();
+        lendingClLedger.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClLedger.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
+        lendingClLedger.setClTransactionId(lendingClTransaction.getId());
+        lendingClLedger.setTransactionType("PAYMENT");
+        lendingClLedger.setAmount(amount);
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
+        try {
+            lendingClLedger.setDate(format.parse(format.format(new Date())));
+        } catch (ParseException e) {
+            lendingClLedger.setDate(new Date());
+            logger.error("Exception---", e);
+        }
+        lendingClLedger.setPrinciple(principle);
+        lendingClLedger.setInterest(interest);
+        lendingClLedger.setOtherCharges(otherCharges);
+        lendingClLedger.setPenalty(penalty);
+        lendingClLedgerDao.save(lendingClLedger);
+    }
+
+    @Transactional
+    public void updatePaymentStatus(VPAResponseDto responseDto) {
+        logger.info("Received request to update Payment Status : {}", responseDto);
+        Optional<LendingClTransaction> lendingClTransactionOptional;
+        CreditConstants.PaymentStatus status;
+        try {
+            Long txnId = Long.valueOf(responseDto.getOrderId());
+            status = CreditConstants.PaymentStatus.valueOf(responseDto.getStatus());
+            lendingClTransactionOptional = lendingClTransactionDao.findById(txnId);
+            if (!lendingClTransactionOptional.isPresent()) {
+                logger.info("No Transaction found with Id : {} ", txnId);
+                return;
+            }
+        } catch (Exception e) {
+            logger.info("Invalid Transaction id : {} or Status : {} ", responseDto.getOrderId(), responseDto.getStatus());
+            return;
+        }
+        LendingClTransaction lendingClTransaction = lendingClTransactionOptional.get();
+        if (!(responseDto.getAmount().equals(lendingClTransaction.getAmount())) && CreditConstants.PaymentStatus.SUCCESS.equals(status)) {
+            logger.error("Payment Amount Mismatch for txn id : {} Recieved Amount : {} ,Required Amount :{}", responseDto.getOrderId(), responseDto.getAmount(), lendingClTransaction.getAmount());
+            //TODO should we initiate refund??
+            return;
+        }
+        lendingClTransaction.setStatus(status.name());
+        lendingClTransaction.setOrderId(responseDto.getTransactionId());
+        lendingClTransaction.setBankReferenceId(responseDto.getBankReferenceNumber());
+        lendingClTransaction.setNarration1(responseDto.getCustomerName());
+        lendingClTransaction.setNarration2(responseDto.getTransactionMessage());
+        lendingClTransactionDao.save(lendingClTransaction);
+        LendingClPayment lendingClPayment = lendingClPaymentDao.findByClTransactionId(lendingClTransaction.getId());
+        if (lendingClPayment != null) {
+            try {
+                lendingClPayment.setResponse(objectMapper.writeValueAsString(responseDto));
+            } catch (JsonProcessingException e) {
+                lendingClPayment.setResponse(responseDto.toString());
+            }
+            lendingClPayment.setStatus(status.name());
+            lendingClPayment.setTxnRefNo(responseDto.getBankReferenceNumber());
+            lendingClPaymentDao.save(lendingClPayment);
+        }
+        if (CreditConstants.PaymentStatus.SUCCESS.equals(status)) {
+            CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
+            updateBalances(creditAccount, lendingClTransaction);
+            //TODO send success notification
+        }
+    }
+
+    private String getSecret() {
+        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        if (merchantOptional.isPresent()) {
+            Merchant merchant = merchantOptional.get();
+            if (secret == null) {
+                secret = aesEncryption.decrypt(merchant.getSecret());
+            }
+        }
+        return secret;
+    }
+
+    private String getMid() {
+        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        if (merchantOptional.isPresent()) {
+            Merchant merchant = merchantOptional.get();
+            if (mid == null) {
+                mid = merchant.getMid();
+            }
+        }
+        return mid;
+    }
+}
