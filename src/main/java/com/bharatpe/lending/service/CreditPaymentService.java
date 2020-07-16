@@ -104,7 +104,7 @@ public class CreditPaymentService {
     @Value("${create.vpa.endpoint}")
     String DYNAMIC_VPA_HOST;
 
-    @Value("${internal.merchant.id}")
+    @Value("${internal.credit.merchant.id}")
     long merchantId;
 
     @Value("${payment.service.host}")
