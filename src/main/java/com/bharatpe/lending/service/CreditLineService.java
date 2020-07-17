@@ -597,6 +597,7 @@ public class CreditLineService {
 			}
 		} else {
 			logger.error("Exception in bank transfer for account:{}", lendingClTransaction.getCreditAccountId());
+			lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
 		}
 	}
 	private String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
@@ -715,7 +716,13 @@ public class CreditLineService {
 			return new CreditSpendResponseDTO(false, "Insufficient Balance");
 		}
 		LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.save(new LendingClTransactionRequest(merchantId, creditAccount.getId(), creditSpendRequestDTO.getMode(), creditSpendRequestDTO.getAmount().doubleValue()));
-		return new CreditSpendResponseDTO(paymentRequest.getId(), "bharatpe://dynamic?key=credit-line-dev&wroute=order&wid="+paymentRequest.getId());
+		String deeplink;
+		if ("prod".equalsIgnoreCase(activeProfile)) {
+			deeplink = "bharatpe://dynamic?key=credit-line&wroute=order&wid=" + paymentRequest.getId();
+		} else {
+			deeplink = "bharatpe://dynamic?key=credit-line-dev&wroute=order&wid=" + paymentRequest.getId();
+		}
+		return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
 	}
 
 	@Transactional
