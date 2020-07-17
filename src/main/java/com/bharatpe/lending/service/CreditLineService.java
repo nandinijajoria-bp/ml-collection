@@ -348,11 +348,10 @@ public class CreditLineService {
 			return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
 		}
 		LendingClTransaction lendingClTransaction = insertClTransaction(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), paymentRequest.getId());
-		debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
 		if ("CL".equals(paymentRequest.getLoanType())) {
-			return transferCL(lendingClTransaction, creditAccount,merchant);
+			return transferCL(lendingClTransaction, creditAccount,merchant, paymentRequest, lendingCaBalanceDetail);
 		} else {
-			return transferTL(lendingClTransaction, paymentRequest.getTenure(), creditAccount, merchant);
+			return transferTL(lendingClTransaction, paymentRequest.getTenure(), creditAccount, merchant, paymentRequest, lendingCaBalanceDetail);
 		}
 	}
 
@@ -395,12 +394,12 @@ public class CreditLineService {
 		return lendingClTransactionDao.save(lendingClTransaction);
 	}
 
-	private CreditSpendVerifyResponseDTO transferTL(LendingClTransaction lendingClTransaction, Integer tenure, CreditAccount creditAccount, Merchant merchant) {
+	private CreditSpendVerifyResponseDTO transferTL(LendingClTransaction lendingClTransaction, Integer tenure, CreditAccount creditAccount, Merchant merchant, LendingClTransactionRequest paymentRequest, LendingCaBalanceDetail lendingCaBalanceDetail) {
 		LendingTlDetails lendingTlDetails = insertTlDetails(lendingClTransaction, tenure);
 		//createLPS(lendingTlDetails, merchant);
 		//disburse using rakshit api
 		try {
-			payout(lendingClTransaction,merchant,creditAccount,lendingTlDetails);
+			payout(lendingClTransaction,merchant,creditAccount,lendingTlDetails, paymentRequest, lendingCaBalanceDetail);
 		} catch (Exception e) {
 			logger.error("Exception in bank transfer---", e);
 		}
@@ -501,11 +500,11 @@ public class CreditLineService {
 		return lendingTlDetailsDao.save(lendingTlDetails);
 	}
 
-	private CreditSpendVerifyResponseDTO transferCL(LendingClTransaction lendingClTransaction, CreditAccount creditAccount,Merchant merchant) {
+	private CreditSpendVerifyResponseDTO transferCL(LendingClTransaction lendingClTransaction, CreditAccount creditAccount,Merchant merchant, LendingClTransactionRequest paymentRequest, LendingCaBalanceDetail lendingCaBalanceDetail) {
 		//insertClLedger(lendingClTransaction);
 		//disburse using rakshit api
 		try {
-			payout(lendingClTransaction,merchant,creditAccount,null);
+			payout(lendingClTransaction,merchant,creditAccount,null, paymentRequest, lendingCaBalanceDetail);
 		} catch (Exception e) {
 			logger.error("Exception in bank transfer---", e);
 		}
@@ -569,7 +568,7 @@ public class CreditLineService {
 		return true;
 	}
 
-	private void payout(LendingClTransaction lendingClTransaction,Merchant merchant, CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
+	private void payout(LendingClTransaction lendingClTransaction,Merchant merchant, CreditAccount creditAccount,LendingTlDetails lendingTlDetails, LendingClTransactionRequest paymentRequest, LendingCaBalanceDetail lendingCaBalanceDetail) {
 		BankTransferResponseDTO bankTransferResponseDTO;
 		if ("prod".equalsIgnoreCase(activeProfile)) {
 			bankTransferResponseDTO = callPayoutAPI(lendingClTransaction);
@@ -594,6 +593,7 @@ public class CreditLineService {
 					createLPS(lendingTlDetails, merchant);
 					sendNotification(getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails), merchant);
 				}
+				debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
 			}
 		} else {
 			logger.error("Exception in bank transfer for account:{}", lendingClTransaction.getCreditAccountId());
