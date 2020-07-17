@@ -194,6 +194,8 @@ public class CreditApplicationService {
 		creditApplication.setAmount(eligibleLoan.getAmount());
 		creditApplication.setCategory(eligibleLoan.getCategory());
 		 creditApplication.setLoanType(eligibleLoan.getLoanType());
+		 creditApplication.setMobile(merchant.getMobile());
+		 creditApplication.setAgreement(false);
 		  
 		  creditApplication =creditApplicationDao.save(creditApplication);
 			CreditApplicationAddress creditApplicationAddress=new 	CreditApplicationAddress();
