@@ -9,6 +9,7 @@ import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,9 @@ public class CreditLineBPBService {
 
     @Autowired
     LendingClTransactionDao lendingClTransactionDao;
+
+    @Value("${spring.profiles.active:dev}")
+    private String activeProfile;
 
     private final DecimalFormat df = new DecimalFormat("#.##");
 
@@ -94,7 +98,13 @@ public class CreditLineBPBService {
         }
         LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.save(new LendingClTransactionRequest(merchantId, creditAccount.getId(), requestDTO.getMode(), requestDTO.getAmount()));
         insertClTransaction(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), requestDTO, CreditConstants.PaymentStatus.PENDING.name(), paymentRequest.getId());
-        return new CreditSpendResponseDTO(paymentRequest.getId(), "bharatpe://dynamic?key=credit-line-dev&wroute=order&wid="+paymentRequest.getId());
+        String deeplink;
+        if ("prod".equalsIgnoreCase(activeProfile)) {
+            deeplink = "bharatpe://dynamic?key=credit-line&wroute=order&wid=" + paymentRequest.getId();
+        } else {
+            deeplink = "bharatpe://dynamic?key=credit-line-dev&wroute=order&wid=" + paymentRequest.getId();
+        }
+        return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
     }
 
     @Transactional
