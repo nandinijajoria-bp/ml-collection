@@ -659,7 +659,7 @@ public class CreditLineService {
 				bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
 				bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
 				bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());
-				bankTransferResponseDTO.setPayoutId((long)responseData.get("payoutId"));
+				bankTransferResponseDTO.setPayoutId(((Number)responseData.get("payoutId")).longValue());
 				bankTransferResponseDTO.setOrderId(responseData.get("orderId").toString());
 				return bankTransferResponseDTO;
 			}
