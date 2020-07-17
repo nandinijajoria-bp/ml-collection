@@ -239,7 +239,13 @@ public class CreditLineLoanHistoryService {
 				creditLineTlHistoryResponseDto.setLoanAmount(lendingPaymentSchedule.getLoanAmount());
 				creditLineTlHistoryResponseDto.setTenure(getTenure(lendingPaymentSchedule.getEdiCount()));
 				creditLineTlHistoryResponseDto.setRepaid(lendingPaymentSchedule.getPaidAmount());
-				creditLineTlHistoryResponseDto.setRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount()-lendingPaymentSchedule.getPaidAmount());
+				if(lendingPaymentSchedule.getStatus().equalsIgnoreCase("CLOSED")) {
+					creditLineTlHistoryResponseDto.setRepaymentAmount(0D);
+				}
+				else {
+					creditLineTlHistoryResponseDto.setRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount()-lendingPaymentSchedule.getPaidAmount());
+				}
+				
 				if(lendingPaymentSchedule.getInterestOnlyStartDate()!=null) {
 					creditLineTlHistoryResponseDto.setEdiStartDate(lendingPaymentSchedule.getInterestOnlyStartDate());
 				}

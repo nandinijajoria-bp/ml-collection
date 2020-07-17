@@ -397,7 +397,7 @@ public class CreditLineService {
 
 	private CreditSpendVerifyResponseDTO transferTL(LendingClTransaction lendingClTransaction, Integer tenure, CreditAccount creditAccount, Merchant merchant) {
 		LendingTlDetails lendingTlDetails = insertTlDetails(lendingClTransaction, tenure);
-		createLPS(lendingTlDetails, merchant);
+		//createLPS(lendingTlDetails, merchant);
 		//disburse using rakshit api
 		try {
 			payout(lendingClTransaction,merchant,creditAccount,lendingTlDetails);
@@ -502,7 +502,7 @@ public class CreditLineService {
 	}
 
 	private CreditSpendVerifyResponseDTO transferCL(LendingClTransaction lendingClTransaction, CreditAccount creditAccount,Merchant merchant) {
-		insertClLedger(lendingClTransaction);
+		//insertClLedger(lendingClTransaction);
 		//disburse using rakshit api
 		try {
 			payout(lendingClTransaction,merchant,creditAccount,null);
@@ -587,9 +587,11 @@ public class CreditLineService {
 			lendingClTransactionDao.save(lendingClTransaction);
 			if(bankTransferResponseDTO.getData().getPaymentStatus().equalsIgnoreCase("SUCCESS")) {
 				if(lendingClTransaction.getType().equalsIgnoreCase("CL")) {
+					insertClLedger(lendingClTransaction);
 					sendNotification(getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount), merchant);
 				}
 				else {
+					createLPS(lendingTlDetails, merchant);
 					sendNotification(getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails), merchant);
 				}
 			}
@@ -753,23 +755,23 @@ public class CreditLineService {
 			Date today = new Date();
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(today);
-			if(cal.get(Calendar.DAY_OF_WEEK)==1){
-				dailySettlementResponseDto.setTotalAmount(totalAmount);
-				return dailySettlementResponseDto;
-			}
+//			if(cal.get(Calendar.DAY_OF_WEEK)==1){
+//				dailySettlementResponseDto.setTotalAmount(totalAmount);
+//				return dailySettlementResponseDto;
+//			}
 			List<DailyRepayment> repaymentList=new LinkedList<>();
 			for(LendingPaymentSchedule loan:termLoanList) {
 				if(DateTimeUtil.getCurrentDayStartTime().compareTo(DateTimeUtil.getStartTimeFromDateTime(loan.getCreatedAt()))==0) {					
 					continue;
 				}
-				Double dueAmount=getDueAmount(loan);
-				if(dueAmount==null) {
-					return getDailySettlementErrorResponse("Error occured while calculating due amount");
+				Double dueAmount=loan.getDueAmount();
+				if(dueAmount == null || dueAmount==0D) {
+					continue;
 				}
-				totalAmount+=dueAmount+loan.getEdiAmount();
-				totalEdi+=dueAmount+loan.getEdiAmount();
+				totalAmount+=dueAmount;
+				totalEdi+=dueAmount;
 				DailyRepayment repayment=new DailyRepayment();
-				repayment.setRepaymentAmount(dueAmount+loan.getEdiAmount());
+				repayment.setRepaymentAmount(dueAmount);
 				repayment.setDate(loan.getStartDate());
 				repayment.setLoanAmount(loan.getLoanAmount());
 				Optional<LendingTlDetails> lendingTlDetailsOptional=lendingTlDetailsDao.findById(loan.getTlDetailsId());
@@ -815,28 +817,28 @@ public class CreditLineService {
 		}
 	}
 	
-	public Double getDueAmount(LendingPaymentSchedule lendingPaymentSchedule) {
-		try {
-			Double positiveSum=0D;
-			Double negativeSum=0D;
-			List<LendingLedger> ledgerEntry=lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAscAmountAsc(lendingPaymentSchedule);
-			for(LendingLedger ledger:ledgerEntry){
-				if(!DateTimeUtil.getCurrentDayStartTime().equals(DateTimeUtil.getStartTimeFromDateTime(ledger.getDate()))) {
-					if(ledger.getAmount()<0) {
-						negativeSum+=ledger.getAmount();
-					}
-					else {
-						positiveSum+=ledger.getAmount();
-					}
-				}
-			}
-			return (negativeSum+positiveSum)>0D?0D:-1*(negativeSum+positiveSum);
-		}
-		catch(Exception e) {
-			logger.error("Error occured while calculating due amount",e);
-			return null;
-		}
-	}
+//	public Double getDueAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+//		try {
+//			Double positiveSum=0D;
+//			Double negativeSum=0D;
+//			List<LendingLedger> ledgerEntry=lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAscAmountAsc(lendingPaymentSchedule);
+//			for(LendingLedger ledger:ledgerEntry){
+//				if(!DateTimeUtil.getCurrentDayStartTime().equals(DateTimeUtil.getStartTimeFromDateTime(ledger.getDate()))) {
+//					if(ledger.getAmount()<0) {
+//						negativeSum+=ledger.getAmount();
+//					}
+//					else {
+//						positiveSum+=ledger.getAmount();
+//					}
+//				}
+//			}
+//			return (negativeSum+positiveSum)>0D?0D:-1*(negativeSum+positiveSum);
+//		}
+//		catch(Exception e) {
+//			logger.error("Error occured while calculating due amount",e);
+//			return null;
+//		}
+//	}
 	
 	public DailySettlementResponseDto getDailySettlementErrorResponse(String message) {
 		

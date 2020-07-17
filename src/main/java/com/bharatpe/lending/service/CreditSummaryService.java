@@ -145,11 +145,18 @@ public class CreditSummaryService {
 				transaction=new  SummaryResponseDTO.Transactions();
 				transaction.setMode("CREDIT");
 				String subType=entry.getValue().getAdjustmentMode();
+				
 				if(CreditConstants.SpendModeFrontEndFormat.get(subType)!=null)
 					transaction.setType(CreditConstants.SpendModeFrontEndFormat.get(subType));
-				else
+				else {
+					if(subType==null) {
+						subType="SETTLEMENT";
+					}
 					transaction.setType(subType);
-
+				}	
+				if (entry.getValue().getAmount()>0) {
+					transaction.setType("Repayment (" + transaction.getType() + ")");
+				}
 				transaction.setAmount(entry.getValue().getAmount());
 				transactionslist.add(transaction);
 				summary.setTransactionslist(transactionslist);
@@ -173,6 +180,9 @@ public class CreditSummaryService {
 			return null;
 		for(LendingLedger lendingLedger:lendingLedgerlist)
 		{
+			if(lendingLedger.getAdjustmentMode()!=null && lendingLedger.getAdjustmentMode().equalsIgnoreCase("UPI")) {
+				continue;
+			}
 			ans.put(getStartTimeFromDateTime(lendingLedger.getDate()), lendingLedger);
 		}
 		return ans;

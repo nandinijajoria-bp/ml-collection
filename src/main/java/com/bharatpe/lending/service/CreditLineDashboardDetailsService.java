@@ -228,8 +228,7 @@ public class CreditLineDashboardDetailsService {
 			if(lendingPaymentScheduleList!=null) {
 				for(LendingPaymentSchedule paymentSchedule:lendingPaymentScheduleList){
 					if(paymentSchedule.getEdiAmount()!=null && DateTimeUtil.getCurrentDayStartTime().compareTo(DateTimeUtil.getStartTimeFromDateTime(paymentSchedule.getCreatedAt()))!=0) {
-						Double dueAmount=creditLineService.getDueAmount(paymentSchedule);
-						ediAmount+=(dueAmount!=null?dueAmount:0D);
+						ediAmount+=paymentSchedule.getDueAmount();
 					}
 				}
 			}
