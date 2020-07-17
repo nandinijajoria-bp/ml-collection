@@ -593,6 +593,8 @@ public class CreditLineService {
 					createLPS(lendingTlDetails, merchant);
 					sendNotification(getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails), merchant);
 				}
+			}
+			if(!"FAILED".equalsIgnoreCase(bankTransferResponseDTO.getData().getPaymentStatus())) {
 				debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
 			}
 		} else {
