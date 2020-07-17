@@ -114,7 +114,7 @@ public class UploadDocumentCreditService {
 			return uploadDocumentResponse;
 		}
 
-		List<MerchantDocumentProof> merchantDocumentProofList = merchantDocumentProofDao.findAllByMerchantId(merchant.getId());
+		List<MerchantDocumentProof> merchantDocumentProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 		Boolean isUpdate = false;
 		if(merchantDocumentProofList.size() > 0) {
 			isUpdate = true;

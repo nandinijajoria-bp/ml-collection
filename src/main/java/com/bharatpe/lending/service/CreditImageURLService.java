@@ -92,7 +92,7 @@ Logger logger = LoggerFactory.getLogger(ImageURLService.class);
 	
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant,CreditApplication creditApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
-		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findAllByMerchantId(merchant.getId());
+		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 
 		for(MerchantDocumentProof documentsIdProof : documentsIdProofList) {
 			Map<String, Object> proof = new LinkedHashMap<>();

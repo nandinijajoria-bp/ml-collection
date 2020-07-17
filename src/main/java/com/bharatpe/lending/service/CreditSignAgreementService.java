@@ -137,7 +137,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 			return response;
 		}
 		
-		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findAllByMerchantId(merchant.getId());
+		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 		if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
 			return response;
 		}
@@ -295,7 +295,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 	}
 	
 	private void replicateDocumentsForNewApplication(CreditApplication prevApplication, CreditApplication newApplication, Merchant merchant, MetaDTO meta) {
-		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findAllByMerchantId(merchant.getId());
+		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), prevApplication.getId(), "LENDING");
 		for(MerchantDocumentProof documentsIdProof  : documentsIdProofList) {
 			MerchantDocumentProof toSaveDocuments = new MerchantDocumentProof();
 			toSaveDocuments.setMerchantId(merchant.getId());

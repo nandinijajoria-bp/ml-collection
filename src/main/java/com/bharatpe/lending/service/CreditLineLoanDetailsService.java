@@ -632,7 +632,7 @@ public class CreditLineLoanDetailsService {
 			
 		        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application,creditApplicationAddress);
 		        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application);
-		        List<DocumentDTO> documents = fetchDocuments(merchant);
+		        List<DocumentDTO> documents = fetchDocuments(merchant, application);
 		        
 		        loanApplicationDTO.setApplicationId(String.valueOf(application.getId()));
 		        loanApplicationDTO.setShopDetails(shopDetails);
@@ -799,14 +799,14 @@ public class CreditLineLoanDetailsService {
 		return false;
 		}
 	
-	private List<DocumentDTO> fetchDocuments(Merchant merchant) {
+	private List<DocumentDTO> fetchDocuments(Merchant merchant, CreditApplication creditApplication) {
 		
 		try {
 			
 			logger.info("Fetching documents for merchant {}",merchant.getId());
 			List<DocumentDTO> documents = new ArrayList<>();
 			
-			List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findAllByMerchantId(merchant.getId());
+			List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 			for(MerchantDocumentProof merchantIdProof : documentsIdProofList) {
 				DocumentDTO document = new DocumentDTO();
 				document.setId(merchantIdProof.getId());
