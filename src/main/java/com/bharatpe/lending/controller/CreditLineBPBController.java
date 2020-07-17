@@ -35,6 +35,7 @@ public class CreditLineBPBController {
 
     @RequestMapping(value="/create_txn", method = RequestMethod.POST, consumes="application/json", produces="application/json")
     public ResponseEntity<CreditSpendResponseDTO> spend(@RequestAttribute Merchant merchant, @RequestBody CreateTxnRequestDTO requestDTO) {
+        logger.info("Credit line create txn request: {}", requestDTO);
         try {
             return new ResponseEntity<>(creditLineBPBService.createTxn(merchant.getId(), requestDTO), HttpStatus.OK);
         } catch (Exception e) {
@@ -45,6 +46,7 @@ public class CreditLineBPBController {
 
     @RequestMapping(value="/deduct", method = RequestMethod.POST, consumes="application/json", produces="application/json")
     public ResponseEntity<CreditSpendVerifyResponseDTO> deduct(@RequestAttribute Merchant merchant, @RequestBody CreditDeductRequestDTO requestDTO) {
+        logger.info("Credit line deduct txn request: {}", requestDTO);
         try {
             return new ResponseEntity<>(creditLineBPBService.deductCL(merchant, requestDTO), HttpStatus.OK);
         } catch (Exception e) {

@@ -34,4 +34,13 @@ public class CreditDeductRequestDTO {
     public void setTenure(Integer tenure) {
         this.tenure = tenure;
     }
+
+    @Override
+    public String toString() {
+        return "CreditDeductRequestDTO{" +
+                "requestId=" + requestId +
+                ", loanType='" + loanType + '\'' +
+                ", tenure=" + tenure +
+                '}';
+    }
 }

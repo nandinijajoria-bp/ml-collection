@@ -70,4 +70,17 @@ public class CreateTxnRequestDTO {
     public void setIcon(String icon) {
         this.icon = icon;
     }
+
+    @Override
+    public String toString() {
+        return "CreateTxnRequestDTO{" +
+                "amount=" + amount +
+                ", mode='" + mode + '\'' +
+                ", orderId='" + orderId + '\'' +
+                ", narration1='" + narration1 + '\'' +
+                ", narration2='" + narration2 + '\'' +
+                ", narration3='" + narration3 + '\'' +
+                ", icon='" + icon + '\'' +
+                '}';
+    }
 }
