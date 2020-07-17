@@ -382,12 +382,14 @@ public class CreditLineLoanDetailsService {
 				response.getDetails().getLoanApplication().setStatusHeader("Final Step Remaining");
 				CreditAccount creditAccount=creditAccountDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 				if(creditAccount==null) {
-					return getErrorMessage("Credit account not found for approved loan");
-				}
-				else if(creditAccount.getStatus().equalsIgnoreCase("PAYMENT_PENDING")){
+					//return getErrorMessage("Credit account not found for approved loan");
 					response.getDetails().setAmount(500F);
 					response.getDetails().setAccountPresent(false);
 				}
+//				else if(creditAccount.getStatus().equalsIgnoreCase("PAYMENT_PENDING")){
+//					response.getDetails().setAmount(500F);
+//					response.getDetails().setAccountPresent(true);
+//				}
 				else {
 					response.getDetails().setAccountPresent(true);
 				}
