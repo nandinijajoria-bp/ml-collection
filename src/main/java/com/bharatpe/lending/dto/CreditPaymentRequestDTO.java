@@ -51,5 +51,15 @@ public class CreditPaymentRequestDTO {
 	public void setVpa(String vpa) {
 		this.vpa = vpa;
 	}
-    
+
+    @Override
+    public String toString() {
+        return "CreditPaymentRequestDTO{" +
+                "type=" + type +
+                ", source=" + source +
+                ", amount=" + amount +
+                ", otp='" + otp + '\'' +
+                ", vpa='" + vpa + '\'' +
+                '}';
+    }
 }

@@ -15,5 +15,11 @@ public class CreateCreditAccountRequestDto {
 	public void setApplicationId(Long applicationId) {
 		this.applicationId = applicationId;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "CreateCreditAccountRequestDto{" +
+				"applicationId=" + applicationId +
+				'}';
+	}
 }

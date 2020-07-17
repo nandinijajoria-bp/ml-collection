@@ -45,20 +45,20 @@ public class CreditLineController {
 	
 	@RequestMapping("create")
 	public ResponseEntity<ResponseDTO> createCreditLineAccount(@RequestAttribute Merchant merchant, @RequestBody CreateCreditAccountRequestDto requestDto){
-		
+		logger.info("create credit_account request : {}", requestDto);
 		return new ResponseEntity<>(creditLineService.createCreditLineAccount(requestDto, merchant),HttpStatus.OK);
 	}
 	
 	@RequestMapping(value = "/details", method = RequestMethod.GET)
 	public DashboardDetailsResponseDto getDashboardDetails(@RequestAttribute Merchant merchant) {
-		
+
 		return creditLineDashboardDetailsService.getDetailsForDashboard(merchant);
 		
 	}
 	
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<CreditLoanDetailsResponseDto> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
-
+		logger.info("loanDetails request : {}", requestDTO);
 		return new ResponseEntity<>(creditLineLoanDetailsService.getLoanDetails(merchant, requestDTO, clientIp), HttpStatus.OK);
 		
 	}
@@ -92,6 +92,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/spend/verify", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<CreditSpendVerifyResponseDTO> spendVerify(@RequestAttribute Merchant merchant, @RequestBody CreditSpendVerifyRequestDTO requestDTO) {
+		logger.info("spend verify request : {}", requestDTO);
 		try {
 			if (requestDTO.getOtp() == null || requestDTO.getRequestId() == null) {
 				return new ResponseEntity<>(new CreditSpendVerifyResponseDTO(false, "Invalid request"), HttpStatus.OK);
@@ -130,6 +131,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/spend", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<CreditSpendResponseDTO> spend(@RequestAttribute Merchant merchant, @RequestBody CreditSpendRequestDTO requestDTO) {
+		logger.info("spend request : {}", requestDTO);
 		try {
 			return new ResponseEntity<>(creditLineService.createSpend(merchant.getId(), requestDTO), HttpStatus.OK);
 		} catch (Exception e) {
@@ -140,6 +142,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/spend/initiate", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<CreditSpendResponseDTO> spendInitiate(@RequestAttribute Merchant merchant, @RequestBody SpendInitiateRequestDTO requestDTO) {
+		logger.info("spend initiate request : {}", requestDTO);
 		try {
 			return new ResponseEntity<>(creditLineService.initiateSpend(merchant, requestDTO), HttpStatus.OK);
 		} catch (Exception e) {
@@ -150,6 +153,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/getPaymentModes", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<ResponseDTO> getPaymentModes(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<CreditSpendRequestDTO> requestDTO) {
+		logger.info("getPaymentModes request : {}", requestDTO);
 		try {
 			return new ResponseEntity<>(creditPaymentService.getPaymentModes(requestDTO, token), HttpStatus.OK);
 		} catch (Exception e) {
@@ -160,6 +164,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/payment/verify", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<CreditSpendResponseDTO> verifyPayment(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<CreditSpendVerifyRequestDTO> requestDTO) {
+		logger.info("payment verify request : {}", requestDTO);
 		try {
 			return new ResponseEntity<>(creditPaymentService.verifyPayment(requestDTO, merchant, token), HttpStatus.OK);
 		} catch (Exception e) {
@@ -170,6 +175,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/payment/initiate", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<PaymentInitiateResponseDTO> initiatePayment(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<CreditPaymentRequestDTO> requestDTO) {
+		logger.info("payment initiate request : {}", requestDTO);
 		try {
 			return new ResponseEntity<>(creditPaymentService.initiatePayment(requestDTO, merchant, token), HttpStatus.OK);
 		} catch (Exception e) {
@@ -180,6 +186,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/payment/resendOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<PaymentInitiateResponseDTO> resendOTP(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<CreditSpendVerifyRequestDTO> requestDTO) {
+		logger.info("payment resend otp request : {}", requestDTO);
 		try {
 			return new ResponseEntity<>(creditPaymentService.resendOTP(requestDTO, merchant, token), HttpStatus.OK);
 		} catch (Exception e) {
@@ -190,6 +197,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/vpa/update", method = RequestMethod.POST, consumes="application/json")
 	public void vpaUpdate(@RequestBody VPAResponseDto request) {
+		logger.info("vpa update request : {}", request);
 		creditPaymentService.updatePaymentStatus(request);
 	}
 	
@@ -201,6 +209,7 @@ public class CreditLineController {
 	
 	@RequestMapping(value="/tnc", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public TncDto getTnc(@RequestAttribute Merchant merchant,@RequestBody TncRequestDto requestDto) {
+		logger.info("tnc request : {}", requestDto);
 		return tncService.getTnc(merchant, requestDto);
 	}
 }

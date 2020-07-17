@@ -28,4 +28,12 @@ public class CreditSpendRequestDTO {
     public void setMode(String mode) {
         this.mode = mode;
     }
+
+    @Override
+    public String toString() {
+        return "CreditSpendRequestDTO{" +
+                "amount=" + amount +
+                ", mode='" + mode + '\'' +
+                '}';
+    }
 }

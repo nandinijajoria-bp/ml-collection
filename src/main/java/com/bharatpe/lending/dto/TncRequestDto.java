@@ -37,5 +37,14 @@ public class TncRequestDto {
 	public void setType(String type) {
 		this.type = type;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "TncRequestDto{" +
+				"amount=" + amount +
+				", tenure=" + tenure +
+				", applicationId=" + applicationId +
+				", type='" + type + '\'' +
+				'}';
+	}
 }

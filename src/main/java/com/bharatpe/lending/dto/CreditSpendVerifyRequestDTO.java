@@ -23,4 +23,12 @@ public class CreditSpendVerifyRequestDTO {
     public void setOtp(String otp) {
         this.otp = otp;
     }
+
+    @Override
+    public String toString() {
+        return "CreditSpendVerifyRequestDTO{" +
+                "requestId=" + requestId +
+                ", otp='" + otp + '\'' +
+                '}';
+    }
 }

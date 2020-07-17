@@ -32,4 +32,13 @@ public class SpendInitiateRequestDTO {
     public void setTenure(Integer tenure) {
         this.tenure = tenure;
     }
+
+    @Override
+    public String toString() {
+        return "SpendInitiateRequestDTO{" +
+                "requestId=" + requestId +
+                ", loanType='" + loanType + '\'' +
+                ", tenure=" + tenure +
+                '}';
+    }
 }
