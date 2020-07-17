@@ -3,116 +3,93 @@ package com.bharatpe.lending.dto;
 import java.io.Serializable;
 
 public class BankTransferResponseDTO implements Serializable {
-    private String responseCode;
-    private String message;
-    private String status;
-    private PayoutResponse data;
+    private String paymentStatus;
+    private String bankReferenceNumber;
+    private String accountNumber;
+    private String beneficiaryName;
+    private String ifsc;
+    private Long payoutId;
+    private String orderId;
 
-    public String getResponseCode() {
-        return responseCode;
+    public BankTransferResponseDTO(String paymentStatus, String bankReferenceNumber, String accountNumber, String beneficiaryName, String ifsc, Long payoutId, String orderId) {
+        this.paymentStatus = paymentStatus;
+        this.bankReferenceNumber = bankReferenceNumber;
+        this.accountNumber = accountNumber;
+        this.beneficiaryName = beneficiaryName;
+        this.ifsc = ifsc;
+        this.payoutId = payoutId;
+        this.orderId = orderId;
     }
 
-    public void setResponseCode(String responseCode) {
-        this.responseCode = responseCode;
+    public BankTransferResponseDTO() {
     }
 
-    public String getMessage() {
-        return message;
+    public String getPaymentStatus() {
+        return paymentStatus;
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
     }
 
-    public String getStatus() {
-        return status;
+    public String getBankReferenceNumber() {
+        return bankReferenceNumber;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setBankReferenceNumber(String bankReferenceNumber) {
+        this.bankReferenceNumber = bankReferenceNumber;
     }
 
-    public PayoutResponse getData() {
-        return data;
+    public String getAccountNumber() {
+        return accountNumber;
     }
 
-    public void setData(PayoutResponse data) {
-        this.data = data;
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
     }
 
-    public static class PayoutResponse {
-        private String paymentStatus;
-        private String bankReferenceNumber;
-        private String accountNumber;
-        private String beneficiaryName;
-        private String ifsc;
-        private Long payoutId;
-        private Long orderId;
+    public String getBeneficiaryName() {
+        return beneficiaryName;
+    }
 
-        public PayoutResponse(String paymentStatus, String bankReferenceNumber, String accountNumber, String beneficiaryName, String ifsc, Long payoutId, Long orderId) {
-            this.paymentStatus = paymentStatus;
-            this.bankReferenceNumber = bankReferenceNumber;
-            this.accountNumber = accountNumber;
-            this.beneficiaryName = beneficiaryName;
-            this.ifsc = ifsc;
-            this.payoutId = payoutId;
-            this.orderId = orderId;
-        }
+    public void setBeneficiaryName(String beneficiaryName) {
+        this.beneficiaryName = beneficiaryName;
+    }
 
-        public String getPaymentStatus() {
-            return paymentStatus;
-        }
+    public String getIfsc() {
+        return ifsc;
+    }
 
-        public void setPaymentStatus(String paymentStatus) {
-            this.paymentStatus = paymentStatus;
-        }
+    public void setIfsc(String ifsc) {
+        this.ifsc = ifsc;
+    }
 
-        public String getBankReferenceNumber() {
-            return bankReferenceNumber;
-        }
+    public Long getPayoutId() {
+        return payoutId;
+    }
 
-        public void setBankReferenceNumber(String bankReferenceNumber) {
-            this.bankReferenceNumber = bankReferenceNumber;
-        }
+    public void setPayoutId(Long payoutId) {
+        this.payoutId = payoutId;
+    }
 
-        public String getAccountNumber() {
-            return accountNumber;
-        }
+    public String getOrderId() {
+        return orderId;
+    }
 
-        public void setAccountNumber(String accountNumber) {
-            this.accountNumber = accountNumber;
-        }
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
+    }
 
-        public String getBeneficiaryName() {
-            return beneficiaryName;
-        }
-
-        public void setBeneficiaryName(String beneficiaryName) {
-            this.beneficiaryName = beneficiaryName;
-        }
-
-        public String getIfsc() {
-            return ifsc;
-        }
-
-        public void setIfsc(String ifsc) {
-            this.ifsc = ifsc;
-        }
-
-        public Long getPayoutId() {
-            return payoutId;
-        }
-
-        public void setPayoutId(Long payoutId) {
-            this.payoutId = payoutId;
-        }
-
-        public Long getOrderId() {
-            return orderId;
-        }
-
-        public void setOrderId(Long orderId) {
-            this.orderId = orderId;
-        }
+    @Override
+    public String toString() {
+        return "BankTransferResponseDTO{" +
+                "paymentStatus='" + paymentStatus + '\'' +
+                ", bankReferenceNumber='" + bankReferenceNumber + '\'' +
+                ", accountNumber='" + accountNumber + '\'' +
+                ", beneficiaryName='" + beneficiaryName + '\'' +
+                ", ifsc='" + ifsc + '\'' +
+                ", payoutId=" + payoutId +
+                ", orderId=" + orderId +
+                '}';
     }
 }

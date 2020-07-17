@@ -573,18 +573,17 @@ public class CreditLineService {
 		if ("prod".equalsIgnoreCase(activeProfile)) {
 			bankTransferResponseDTO = callPayoutAPI(lendingClTransaction);
 		} else {
-			bankTransferResponseDTO = new BankTransferResponseDTO();
-			bankTransferResponseDTO.setData(new BankTransferResponseDTO.PayoutResponse("SUCCESS", "123", "xx-1234", "Khushal", "IOBA0001612", 123L, lendingClTransaction.getId()));
+			bankTransferResponseDTO = new BankTransferResponseDTO("SUCCESS", "123", "xx-1234", "Khushal", "IOBA0001612", 123L, lendingClTransaction.getId().toString());
 		}
 		if (bankTransferResponseDTO != null) {
-			lendingClTransaction.setStatus(bankTransferResponseDTO.getData().getPaymentStatus());
-			lendingClTransaction.setOrderId(bankTransferResponseDTO.getData().getPayoutId().toString());
-			lendingClTransaction.setBankReferenceId(bankTransferResponseDTO.getData().getBankReferenceNumber());
-			lendingClTransaction.setIfscCode(bankTransferResponseDTO.getData().getIfsc());
-			lendingClTransaction.setAccountNumber(bankTransferResponseDTO.getData().getAccountNumber());
-			lendingClTransaction.setBeneficiaryName(bankTransferResponseDTO.getData().getBeneficiaryName());
+			lendingClTransaction.setStatus(bankTransferResponseDTO.getPaymentStatus());
+			lendingClTransaction.setOrderId(bankTransferResponseDTO.getPayoutId().toString());
+			lendingClTransaction.setBankReferenceId(bankTransferResponseDTO.getBankReferenceNumber());
+			lendingClTransaction.setIfscCode(bankTransferResponseDTO.getIfsc());
+			lendingClTransaction.setAccountNumber(bankTransferResponseDTO.getAccountNumber());
+			lendingClTransaction.setBeneficiaryName(bankTransferResponseDTO.getBeneficiaryName());
 			lendingClTransactionDao.save(lendingClTransaction);
-			if(bankTransferResponseDTO.getData().getPaymentStatus().equalsIgnoreCase("SUCCESS")) {
+			if(bankTransferResponseDTO.getPaymentStatus().equalsIgnoreCase("SUCCESS")) {
 				if(lendingClTransaction.getType().equalsIgnoreCase("CL")) {
 					insertClLedger(lendingClTransaction);
 					sendNotification(getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount), merchant);
@@ -594,7 +593,7 @@ public class CreditLineService {
 					sendNotification(getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails), merchant);
 				}
 			}
-			if(!"FAILED".equalsIgnoreCase(bankTransferResponseDTO.getData().getPaymentStatus())) {
+			if(!"FAILED".equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
 			}
 		} else {
@@ -629,7 +628,7 @@ public class CreditLineService {
 	@SuppressWarnings("unchecked, rawtypes")
 	private BankTransferResponseDTO callPayoutAPI(LendingClTransaction lendingClTransaction) {
 		try {
-			InternalClient internalClient = internalClientDao.findByClientNameAndStatus("CREDIT_LINE", "ACTIVE");
+			InternalClient internalClient = internalClientDao.findByClientNameAndStatus("LENDING", "ACTIVE");
 			Map requestParams = new HashMap<>();
 			requestParams.put("merchantId", lendingClTransaction.getMerchantId());
 			if (lendingClTransaction.getMerchantStoreId() != null) {
@@ -648,14 +647,21 @@ public class CreditLineService {
 			HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
 			logger.info("payout request: {}", objectMapper.writeValueAsString(entity));
 			long startTime = System.currentTimeMillis();
-			ResponseEntity<BankTransferResponseDTO> response = restTemplate.postForEntity(requestUrl.encode().toUri(), entity, BankTransferResponseDTO.class);
+			ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
 			logger.info("Successful payout api result in {} ms", System.currentTimeMillis() - startTime);
-			if (response.getBody() != null && response.getBody().getData() != null && !lendingClTransaction.getId().equals(response.getBody().getData().getOrderId())) {
-				logger.error("Payout orderId mismatch for order:{}", lendingClTransaction.getId());
-				return null;
-			}
-			if (response.getBody() != null && "100".equalsIgnoreCase(response.getBody().getResponseCode())) {
-				return response.getBody();
+			logger.info("Payout response: {}", objectMapper.writeValueAsString(response.getBody()));
+			if (response.getBody() != null && "100".equalsIgnoreCase(((Map<String, Object>) response.getBody()).get("responseCode").toString())) {
+				logger.info("payout success for transaction:{}", lendingClTransaction.getId());
+				Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+				BankTransferResponseDTO bankTransferResponseDTO = new BankTransferResponseDTO();
+				bankTransferResponseDTO.setPaymentStatus(responseData.get("paymentStatus").toString());
+				bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber").toString());
+				bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
+				bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
+				bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());
+				bankTransferResponseDTO.setPayoutId((long)responseData.get("payoutId"));
+				bankTransferResponseDTO.setOrderId(responseData.get("orderId").toString());
+				return bankTransferResponseDTO;
 			}
 		} catch (Exception e) {
 			logger.error("Exception in payout api---", e);
