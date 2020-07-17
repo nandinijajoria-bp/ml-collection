@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +61,9 @@ public class CreditLineBillService {
 	
 	@Value("${aws.s3.bucket_bill}")
 	private String bucket;
+
+	@Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
 	
 	Logger logger=LoggerFactory.getLogger(CreditLineBillService.class);
 	
@@ -166,6 +171,7 @@ public class CreditLineBillService {
 	public BillDetailResponseDto fetchBillDetail(Merchant merchant,Long id) {
 		
 		try {
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			logger.info("Fetching bill details for bill {}",id);
 			CreditAccount creditAccount=null;
 			BillDetailResponseDto response=new BillDetailResponseDto();
@@ -202,7 +208,7 @@ public class CreditLineBillService {
 			response.setDueDate(creditAccountBill.getDueDate());
 			response.setInterestPayable(creditAccountBill.getInterestAmount());
 			response.setUsedLimit(creditAccountBill.getAmount()-creditAccountBill.getInterestAmount()-creditAccountBill.getPenalty());
-			response.setMerchantName(merchant.getMerchantName());
+			response.setMerchantName(merchantBankDetail.getBeneficiaryName());
 			response.setMinAmountDue(creditAccountBill.getMinimumAmountDue());
 			response.setTotalPayable(creditAccountBill.getAmount());
 			response.setMobile(merchant.getMobile());

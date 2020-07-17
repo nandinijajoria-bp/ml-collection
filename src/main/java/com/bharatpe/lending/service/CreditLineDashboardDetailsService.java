@@ -202,7 +202,7 @@ public class CreditLineDashboardDetailsService {
 					
 				}
 			 
-			 dashboardResponse.setMerchantName(merchant.getMerchantName());
+			 dashboardResponse.setMerchantName(merchantBankDetail.getBeneficiaryName());
 			 dashboardResponse.setMerchantBankName(merchantBankDetail.getBankName());
 			 dashboardResponse.setMerchantAccNo(merchantBankDetail.getAccountNumber());
 			 

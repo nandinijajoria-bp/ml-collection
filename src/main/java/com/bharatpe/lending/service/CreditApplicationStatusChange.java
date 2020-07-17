@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +69,9 @@ public class CreditApplicationStatusChange {
 	
 	@Autowired
 	CreditLineCategoriesDao creditLineCategoriesDao;
+
+	@Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
 	
 	public ResponseDTO changeApplicationStatus(CreditApplicationStatusUpdationRequestDto applicationStatus){
 		try {
@@ -123,9 +128,10 @@ public class CreditApplicationStatusChange {
 		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
 		if(merchantOptional!=null && merchantOptional.isPresent()) {
 			Merchant merchant=merchantOptional.get();
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
-			String message="Hi "+merchant.getMerchantName()+",\nYour BharatPe Loan application is rejected as it does not meet our criterion for assessment. You can apply again after 7 days";
+			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nYour BharatPe Loan application is rejected as it does not meet our criterion for assessment. You can apply again after 7 days";
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 			whatsappNotificationService.send(merchant, null, message, mobiles, null);
 		}

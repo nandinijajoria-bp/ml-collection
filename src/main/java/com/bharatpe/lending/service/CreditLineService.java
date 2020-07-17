@@ -602,16 +602,16 @@ public class CreditLineService {
 		}
 	}
 	private String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
-		
-		return "Hi "+merchant.getMerchantName()+",\n" + 
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
 				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+". More details: bharatpe.in/loan~ \"";
 		
 	}
 	
 	private String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
-		
-		return "Hi "+merchant.getMerchantName()+",\n" + 
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
 				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+
 				".\nDaily installment of Rs."+lendingTlDetails.getEdi()+" will be deducted from your QR Settlements. \n" + 
