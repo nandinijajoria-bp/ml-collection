@@ -20,6 +20,7 @@ import com.bharatpe.common.dao.AvailableLoanDao;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
+import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.AvailableLoan;
@@ -27,8 +28,12 @@ import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingCities;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.entities.MerchantSummarySnapshot;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
@@ -88,7 +93,15 @@ public class CreditApplicationService {
 
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
+	
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
   
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
+	
+	@Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
 
 	public CreditApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 		CreditApplicationResponseDTO creditApplicationResponse;
@@ -153,12 +166,14 @@ public class CreditApplicationService {
 			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
 			creditApplication = creditApplicationDao.save(creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
-			creditLineMerchantDao.save(creditLineMerchant);
+			creditLineMerchantDao.save(creditLineMerchant); 
 			createStatusAuditTrail(creditApplication);
 		}
 
 		logger.info("Loan Application saved : {}",creditApplication);
+		sendNotification(merchant,creditApplication);
 		return prepareAPIResponse(creditApplication);
+		
 	}
 
 	private CreditApplication updateApplication(CreditApplication creditApplication, CreditApplicationRequestDTO creditApplicationRequest) {
@@ -323,5 +338,27 @@ public class CreditApplicationService {
 		return new ResponseDTO(false, "Unable to send otp", null);
 	}
 
- 
+	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {
+		List<String> mobiles = new ArrayList<> ();
+		mobiles.add(merchant.getMobile());
+		String message=getNotificationContent(merchant, creditApplication);
+		if(message!=null) {
+			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+			whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		}
+	}
+	
+	public String getNotificationContent(Merchant merchant,CreditApplication creditApplication) {
+		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if(merchantBankDetail==null) {
+			logger.error("Bank detail not found for merchant {}",merchant.getId());
+			return null;
+		}
+		
+		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
+			      "Your loan application for INR " + creditApplication.getAmount().intValue() + " has been received successfully.\n" +
+			      "Your Application ID is " + creditApplication.getExternalLoanId() + ".";
+		
+		return message;
+	}
 }
