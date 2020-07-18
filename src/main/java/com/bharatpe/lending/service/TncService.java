@@ -82,16 +82,16 @@ public class TncService {
 				"            text-align: center;\n" + 
 				"        }\n" + 
 				"    </style>\n" + 
-				"    <p class=\"p2\">Credit Line ID: <span class=\"data-insert\">"+creditApplication.getExternalLoanId()+"</span></p>\n" + 
-				"    <p class=\"p0\">Credit Lime Amount (INR):  <span class=\"data-insert\">"+creditApplication.getAmount()+"</span></p>\n" + 
-				"    <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+merchant.getMobile()+"</span></p>\n" + 
-				"    <p class=\"p2\">Location: <span class=\"data-insert\">"+creditApplicationAddress.getCity()+"</span></p>\n" + 
-				"    <p class=\"p2\">Shop/Business Address: <span class=\"data-insert\">Shop no "+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+","+creditApplicationAddress.getCity()+","+creditApplicationAddress.getState()+","+creditApplicationAddress.getPincode()+"</span></p>\n" + 
-				"    <p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+creditApplicationAddress.getLandmark()+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+creditApplicationAddress.getPincode()+"</span></p>\n" + 
-				"    <p class=\"p2\">City: <span class=\"data-insert\"></span>"+creditApplicationAddress.getCity()+"<span>&nbsp;</span> State: <span class=\"data-insert\">"+creditApplicationAddress.getCity()+"</span></p>\n" + 
-				"    <p class=\"p3\">Email: <span class=\"data-insert\">"+creditApplication.getEmail()+"</span></p>\n" + 
+				"    <p class=\"p2\">Credit Line ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
+				"    <p class=\"p0\">Credit Lime Amount (INR):  <span class=\"data-insert\">"+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"</span></p>\n" + 
+				"    <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(merchant.getMobile()==null?"":merchant.getMobile())+"</span></p>\n" + 
+				"    <p class=\"p2\">Location: <span class=\"data-insert\">"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"</span></p>\n" + 
+				"    <p class=\"p2\">Shop/Business Address: <span class=\"data-insert\">"+(creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))+"</span></p>\n" + 
+				"    <p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getLandmark()==null?"":creditApplicationAddress.getLandmark())+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+(creditApplicationAddress.getPincode()==null?"":creditApplicationAddress.getPincode())+"</span></p>\n" + 
+				"    <p class=\"p2\">City: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"<span>&nbsp;</span> State: <span class=\"data-insert\">"+(creditApplicationAddress.getState()==null?"":creditApplicationAddress.getState())+"</span></p>\n" + 
+				"    <p class=\"p3\">Email: <span class=\"data-insert\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"</span></p>\n" + 
 				"    <p class=\"p4\">&nbsp;</p>\n" + 
-				"    <p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\"></span>"+creditApplication.getMobile()+"</p>\n" + 
+				"    <p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\"></span>"+(creditApplication.getMobile()==null?"":creditApplication.getMobile())+"</p>\n" + 
 				"    <p class=\"p4\">&nbsp;</p>\n" + 
 				"    <p class=\"p4\">&nbsp;</p>\n" + 
 				"   <p class=\"p5\"><strong>Declaration / Undertaking/Representation by Borrower</strong></p>\n" + 
@@ -558,55 +558,55 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">1&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Date of Agreement</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+creditApplication.getAgreementAt()+"</span></p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(creditApplication.getAgreementAt()==null?"":creditApplication.getAgreementAt())+"</span></p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">2&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Place of Agreement</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+creditApplicationAddress.getCity()+"</span> (Business address)</p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"</span></p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">3&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Credit Line Agreement No.</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+creditApplication.getExternalLoanId()+"</span></p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">4&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Name of Borrower</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+merchant.getBeneficiaryName()+"</span></p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(merchant.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchant.getBeneficiaryName())+"</span></p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">5&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Address of Borrower</p>\n" + 
 				"   <p class=\"p33\">&nbsp;</p>\n" + 
 				"   <p class=\"p31\">Email Address of Borrower</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+","+creditApplicationAddress.getCity()+","+creditApplicationAddress.getState()+","+creditApplicationAddress.getPincode()+"</span></p>\n" + 
-				"   <p class=\"p31\">"+creditApplication.getEmail()+"</p>\n" +
+				"   <p class=\"p32\"><span class=\"s5\">"+(creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))+"</span></p>\n" + 
+				"   <p class=\"p31\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"</p>\n" +
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">6&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Borrower&rsquo;s constitution</p>\n" + 
 				"   </td>\n" + 
@@ -618,7 +618,7 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">7&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Purpose of the Credit Facility/ Proposed utilization of the Credit Facility</p>\n" + 
 				"   </td>\n" + 
@@ -627,17 +627,17 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">8&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Amount of Line of Credit</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p34\"><span class=\"s5\">Rs. "+creditApplication.getAmount()+"</span></p>\n" + 
+				"   <p class=\"p34\"><span class=\"s5\">Rs. "+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"</span></p>\n" + 
 				"   <p class=\"p35\">&nbsp;</p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">9&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Availability Period/Term/Tenure</p>\n" + 
 				"   </td>\n" + 
@@ -646,17 +646,17 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">10&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Business of the Borrower</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\">[<span class=\"s5\">"+merchant.getBusinessCategory()+"</span>] (category)</p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"</span></p>\n" + 
 				"   <p class=\"p36\">&nbsp;</p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">11&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Penal Interest Rate</p>\n" + 
 				"   </td>\n" + 
@@ -667,7 +667,7 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">12&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Interest Rate</p>\n" + 
 				"   <ul class=\"ul1\">\n" + 
@@ -693,7 +693,7 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">13&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p33\">&nbsp;</p>\n" + 
 				"   </td>\n" + 
@@ -705,18 +705,18 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">14&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Non-refundable Processing Fees /</p>\n" + 
 				"   <p class=\"p31\">service charge</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\">[<span class=\"s5\">Nil</span>]</p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">Nil</span></p>\n" + 
 				"   <p class=\"p36\">&nbsp;</p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">15&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">PDC</p>\n" + 
 				"   </td>\n" + 
@@ -726,7 +726,7 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">16&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Due Date</p>\n" + 
 				"   </td>\n" + 
@@ -737,7 +737,7 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">17&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p37\">Mode of communication of changes in interest rates</p>\n" + 
 				"   </td>\n" + 
@@ -746,7 +746,7 @@ public class TncService {
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
-				"   <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"   <td class=\"td1\" valign=\"middle\">18&nbsp;</td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
 				"   <p class=\"p31\">Date on which annual outstanding balance statement will be issued</p>\n" + 
 				"   </td>\n" + 
@@ -773,7 +773,7 @@ public class TncService {
 				"   <p class=\"p5\"><strong>Processing Fee</strong></p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
-				"   <p class=\"p6\"><span class=\"s5\">Nil</span>%</p>\n" + 
+				"   <p class=\"p6\"><span class=\"s5\">Nil</span></p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
@@ -781,7 +781,7 @@ public class TncService {
 				"   <p class=\"p5\"><strong>Service Fee</strong></p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" valign=\"middle\">\n" + 
-				"   <p class=\"p6\"><span class=\"s5\">Nil</span>%</p>\n" + 
+				"   <p class=\"p6\"><span class=\"s5\">Nil</span></p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
@@ -838,22 +838,22 @@ public class TncService {
 				"            text-align: center;\n" + 
 				"        }\n" + 
 				"    </style>\n" + 
-				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+creditApplication.getExternalLoanId()+"</span></p>\n" + 
+				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
 				"   <p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
-				"   <p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> <span class=\"data-insert\">"+creditApplication.getAmount()+"</span></p>\n" + 
+				"   <p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> <span class=\"data-insert\">"+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"</span></p>\n" + 
 				"   <p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
 				"   <p class=\"p2\">Flat Rate of Interest (% per month)<span class=\"data-insert\">2</span></p>\n" + 
 				"   <p class=\"p2\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum)<span class=\"data-insert\">24</span></p>\n" + 
 				"   <p class=\"p2\">Amount of EDI <span class=\"data-insert\">"+getEdiAmount(requestDto.getTenure(), requestDto.getAmount())+"</span></p>\n" + 
-				"   <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+merchant.getMobile()+"</span></p>\n" + 
-				"   <p class=\"p2\">Location: <span class=\"data-insert\"></span>"+creditApplicationAddress.getCity()+"</p>\n" + 
+				"   <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(merchant.getMobile()==null?"":merchant.getMobile())+"</span></p>\n" + 
+				"   <p class=\"p2\">Location: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"</p>\n" + 
 				"   <p class=\"p2\">EDI Due Date &ndash; Everyday from Monday to Saturday from the successive day of disbursal</p>\n" + 
-				"   <p class=\"p2\">Shop/Business Address: <span class=\"data-insert\">Shop no "+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+"</span></p>\n" + 
-				"   <p class=\"p2\">Landmark: <span class=\"data-insert\">"+creditApplicationAddress.getLandmark()+"</span><span>&nbsp;</span> PIN: <span class=\"data-insert\">"+creditApplicationAddress.getPincode()+"</span></p>\n" + 
-				"   <p class=\"p2\">City: <span class=\"data-insert\">"+creditApplicationAddress.getCity()+"</span><span>&nbsp;</span> State: <span class=\"data-insert\">"+creditApplicationAddress.getState()+"</span></p>\n" + 
-				"   <p class=\"p3\">Email: <span class=\"data-insert\">"+creditApplication.getEmail()+"</span></p>\n" + 
+				"   <p class=\"p2\">Shop/Business Address: <span class=\"data-insert\">Shop no "+(creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))+"</span></p>\n" + 
+				"   <p class=\"p2\">Landmark: <span class=\"data-insert\">"+(creditApplicationAddress.getLandmark()==null?"":creditApplicationAddress.getLandmark())+"</span><span>&nbsp;</span> PIN: <span class=\"data-insert\">"+(creditApplicationAddress.getPincode()==null?"":creditApplicationAddress.getPincode())+"</span></p>\n" + 
+				"   <p class=\"p2\">City: <span class=\"data-insert\">"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"</span><span>&nbsp;</span> State: <span class=\"data-insert\">"+(creditApplicationAddress.getState()==null?"":creditApplicationAddress.getState())+"</span></p>\n" + 
+				"   <p class=\"p3\">Email: <span class=\"data-insert\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"</span></p>\n" + 
 				"   <p class=\"p4\">&nbsp;</p>\n" + 
-				"   <p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\">"+creditApplication.getMobile()+"</span></p>\n" + 
+				"   <p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\">"+(creditApplication.getMobile()==null?"":creditApplication.getMobile())+"</span></p>\n" + 
 				"   <p class=\"p4\">&nbsp;</p>\n" + 
 				"   <p class=\"p4\">&nbsp;</p>\n" + 
 				"    <p class=\"p5\"><strong>Declaration / Undertaking/Representation by Borrower</strong></p>\n" + 
@@ -1181,7 +1181,7 @@ public class TncService {
 				"    <p class=\"p25\">Place of Agreement</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+creditApplicationAddress.getCity()+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"&nbsp;</p>\n" + 
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1199,7 +1199,7 @@ public class TncService {
 				"    <p class=\"p25\">Name of Borrower</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+merchant.getBeneficiaryName()+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(merchant.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchant.getBeneficiaryName())+"&nbsp;</p>\n" + 
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1210,8 +1210,8 @@ public class TncService {
 				"    <p class=\"p25\">Email Address of Borrower</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+"&nbsp;</p>\n" + 
-				"    <p class=\"p20\">"+creditApplication.getEmail()+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"&nbsp;</p>\n" + 
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1258,7 +1258,7 @@ public class TncService {
 				"    <p class=\"p25\">Business of the Borrower</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+merchant.getBusinessCategory()+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"&nbsp;</p>\n" + 
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1296,7 +1296,7 @@ public class TncService {
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"    <td class=\"td1\" valign=\"middle\">13&nbsp;</td>\n" + 
 				"    <td class=\"td1\" valign=\"middle\">\n" + 
 				"    <p class=\"p32\">&nbsp;</p>\n" + 
 				"    </td>\n" + 
@@ -1308,7 +1308,7 @@ public class TncService {
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"    <td class=\"td1\" valign=\"middle\">14&nbsp;</td>\n" + 
 				"    <td class=\"td1\" valign=\"middle\">\n" + 
 				"    <p class=\"p25\">Non-refundable Processing Fees /</p>\n" + 
 				"    <p class=\"p25\">service charge</p>\n" + 
@@ -1447,20 +1447,20 @@ public class TncService {
 			return null;
 		}
 		String html="  <p class=\"p1\" style=\"text-align: center;\"><span class=\"s1\"><strong>Loan Details</strong></span></p>\n" + 
-				"<p class=\"p2\">Loan ID: <span class=\"data-insert\">"+creditApplication.getExternalLoanId()+"</span></p>\n" + 
+				"<p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
 				"<p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
-				"<p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> "+creditApplication.getAmount()+"<span class=\"data-insert\"></span></p>\n" + 
+				"<p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> "+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"<span class=\"data-insert\"></span></p>\n" + 
 				"<p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
 				"<p class=\"p2\">Flat Rate of Interest (% per month)<span class=\"data-insert\">2</span></p>\n" + 
 				"<p class=\"p2\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum)<span class=\"data-insert\">24</span></p>\n" + 
-				"<p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+creditApplication.getMobile()+"</span></p>\n" + 
-				"<p class=\"p2\">Location: <span class=\"data-insert\"></span>"+creditApplicationAddress.getCity()+"</p>\n" + 
-				"<p class=\"p2\">Shop/Business Address: <span class=\"data-insert\"></span>"+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+"</p>\n" + 
-				"<p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+creditApplicationAddress.getLandmark()+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+creditApplicationAddress.getPincode()+"</span></p>\n" + 
-				"<p class=\"p2\">City: <span class=\"data-insert\"></span>"+creditApplicationAddress.getCity()+"<span>&nbsp;</span> State: <span class=\"data-insert\">"+creditApplicationAddress.getState()+"</span></p>\n" + 
-				"<p class=\"p3\">Email: <span class=\"data-insert\">"+creditApplication.getEmail()+"</span></p>\n" + 
+				"<p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(creditApplication.getMobile()==null?"":creditApplication.getMobile())+"</span></p>\n" + 
+				"<p class=\"p2\">Location: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"</p>\n" + 
+				"<p class=\"p2\">Shop/Business Address: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))+"</p>\n" + 
+				"<p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getLandmark()==null?"":creditApplicationAddress.getLandmark())+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+(creditApplicationAddress.getPincode()==null?"":creditApplicationAddress.getPincode())+"</span></p>\n" + 
+				"<p class=\"p2\">City: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"<span>&nbsp;</span> State: <span class=\"data-insert\">"+(creditApplicationAddress.getState()==null?"":creditApplicationAddress.getState())+"</span></p>\n" + 
+				"<p class=\"p3\">Email: <span class=\"data-insert\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"</span></p>\n" + 
 				"<p class=\"p4\">&nbsp;</p>\n" + 
-				"<p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\">"+creditApplication.getMobile()+"</span></p>\n" + 
+				"<p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\">"+(creditApplication.getMobile()==null?"":creditApplication.getMobile())+"</span></p>\n" + 
 				"<p class=\"p4\">&nbsp;</p>\n" + 
 				"<p class=\"p4\">&nbsp;</p>\n" + 
 				"<p class=\"p5\"><strong>Declaration / Undertaking/Representation by Borrower</strong></p>\n" + 
@@ -1795,7 +1795,7 @@ public class TncService {
 				"<p class=\"p25\">Place of Agreement</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+creditApplicationAddress.getCity()+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"&nbsp;</p>\n" + 
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
@@ -1813,7 +1813,7 @@ public class TncService {
 				"<p class=\"p25\">Name of Borrower</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+merchant.getBeneficiaryName()+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(merchant.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchant.getBeneficiaryName())+"&nbsp;</p>\n" + 
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
@@ -1825,7 +1825,7 @@ public class TncService {
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
 				"<p class=\"p20\">"+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+"&nbsp;</p>\n" + 
-				"<p class=\"p20\">"+creditApplication.getEmail()+"&nbsp;</p>\n" +
+				"<p class=\"p20\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"&nbsp;</p>\n" +
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
@@ -1840,7 +1840,7 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">6&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">7&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Purpose of the Facility/ Proposed utilization of the Facility</p>\n" + 
 				"</td>\n" + 
@@ -1849,7 +1849,7 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">7&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">8&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Amount of Loan</p>\n" + 
 				"</td>\n" + 
@@ -1858,7 +1858,7 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">8&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">9&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Availability Period</p>\n" + 
 				"</td>\n" + 
@@ -1867,16 +1867,16 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">10&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Business of the Borrower</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+merchant.getBusinessCategory()+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"&nbsp;</p>\n" + 
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">11&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Penal Interest Rate</p>\n" + 
 				"</td>\n" + 
@@ -1886,7 +1886,7 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">12&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Interest Rate</p>\n" + 
 				"<ul class=\"ul1\">\n" + 
@@ -1912,7 +1912,7 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">13&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p32\">&nbsp;</p>\n" + 
 				"</td>\n" + 
@@ -1924,7 +1924,7 @@ public class TncService {
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">&nbsp;</td>\n" + 
+				"<td class=\"td1\" valign=\"middle\">14&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Non-refundable Processing Fees /</p>\n" + 
 				"<p class=\"p25\">service charge</p>\n" + 
@@ -1972,8 +1972,7 @@ public class TncService {
 				"<p class=\"p40\">Late payment Charges</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">NIL.\nThis can change in\n" + 
-				"future as per BharatPe Policy&nbsp;</p>\n" + 
+				"<p class=\"p20\">NIL\n&nbsp;</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p41\">Part Prepayment Charges</p>\n" + 
