@@ -70,6 +70,7 @@ public interface CreditConstants {
 		put("CASH_WITHDRAWAL", "Cash Withdrawal");
 		put("QR_SETTLEMENT", "QR Settlement");
 		put("INTEREST_ACCOUNT", "Interest Account");
+		put("FP", "Interest Account");
 		put("UPI", "UPI");
 		put("INSURANCE","Insurance");
 		put("CASH","Cash");
