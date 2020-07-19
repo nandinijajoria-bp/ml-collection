@@ -13,8 +13,8 @@ public class SpendModeWidget {
 	@JsonProperty(value = "BILL_PAYMENT")
 	private String billPayment="bharatpe://dynamic?key=bill-payment-prod&resultCode=true";
 	
-	@JsonProperty(value = "SHOPPING")
-	private String shopping="bharatpe://shopping";
+//	@JsonProperty(value = "SHOPPING")
+//	private String shopping="bharatpe://shopping";
 
 	public String getBankTransfer() {
 		return bankTransfer;
@@ -40,18 +40,18 @@ public class SpendModeWidget {
 		this.billPayment = billPayment;
 	}
 
-	public String getShopping() {
-		return shopping;
-	}
+//	public String getShopping() {
+//		return shopping;
+//	}
+//
+//	public void setShopping(String shopping) {
+//		this.shopping = shopping;
+//	}
 
-	public void setShopping(String shopping) {
-		this.shopping = shopping;
-	}
-
-	@Override
-	public String toString() {
-		return "SpendModeWidget [bankTransfer=" + bankTransfer + ", sendMoney=" + sendMoney + ", billPayment="
-				+ billPayment + ", shopping=" + shopping + "]";
-	}
+//	@Override
+//	public String toString() {
+//		return "SpendModeWidget [bankTransfer=" + bankTransfer + ", sendMoney=" + sendMoney + ", billPayment="
+//				+ billPayment + ", shopping=" + shopping + "]";
+//	}
 
 }
