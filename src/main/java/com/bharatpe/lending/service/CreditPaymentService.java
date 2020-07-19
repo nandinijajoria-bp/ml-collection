@@ -177,17 +177,30 @@ public class CreditPaymentService {
         try {
             String content = "[\n" +
                     "  {\n" +
-                    "    \"name\": \"Pay Using UPI\",\n" +
-                    "    \"type\": \"UPI\",\n" +
-                    "    \"fund_source\": \"UPI\",\n" +
-                    "    \"balance\": null,\n" +
-                    "    \"amount_limit\": 100000.0,\n" +
-                    "    \"description\": \"if any description\",\n" +
-                    "    \"offers\": \"if any offers\",\n" +
-                    "    \"auth_required\": false,\n" +
-                    "    \"enable\": true,\n" +
-                    "    \"is_default\": true\n" +
-                    "  }\n" +
+                    "            \"name\": \"Pay Using UPI\",\n" +
+                    "            \"type\": \"UPI\",\n" +
+                    "            \"fund_source\": \"UPI\",\n" +
+                    "            \"balance\": null,\n" +
+                    "            \"amount_limit\": 100000.0,\n" +
+                    "            \"description\": null,\n" +
+                    "            \"offers\": null,\n" +
+                    "            \"auth_type\": null,\n" +
+                    "            \"psps\": [\n" +
+                    "                \"com.google.android.apps.nbu.paisa.user\",\n" +
+                    "                \"net.one97.paytm\",\n" +
+                    "                \"in.org.npci.upiapp\",\n" +
+                    "                \"com.csam.icici.bank.imobile\",\n" +
+                    "                \"com.mobikwik_new\",\n" +
+                    "                \"com.myairtelapp\",\n" +
+                    "                \"com.phonepe.app\",\n" +
+                    "                \"com.olacabs.customer\"\n" +
+                    "            ],\n" +
+                    "            \"auth_required\": false,\n" +
+                    "            \"default\": false,\n" +
+                    "            \"enable\": true,\n" +
+                    "            \"initiate_sb\": false,\n" +
+                    "            \"sb_link\": null\n" +
+                    "        }\n" +
                     "]";
             paymentDetails = objectMapper.readValue(content, new TypeReference<List<PaymentDetailDto>>() {
             });
