@@ -4,8 +4,10 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.IfscDao;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.dao.MerchantFcmTokenDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.common.utils.AesEncryption;
@@ -124,6 +126,12 @@ public class CreditLineService {
 
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
+	
+	@Autowired
+	PushNotificationHandler pushNotificationHandler;
+	
+	@Autowired
+	MerchantFcmTokenDao merchantFcmTokenDao;
 
 	public ResponseDTO createCreditLineAccount(CreateCreditAccountRequestDto request, Merchant merchant){
 
@@ -203,6 +211,7 @@ public class CreditLineService {
 					creditLineMerchant.setCreditAccountId(creditAccount.getId());
 					creditLineMerchantDao.save(creditLineMerchant);
 					
+					sendActivationNotification(creditApplication, merchant);
 					return new ResponseDTO(true,"Successful",null);
 				}
 				else {
@@ -225,6 +234,23 @@ public class CreditLineService {
 			logger.error("Application id is absent in the request body");
 			return new ResponseDTO(false,"Application id missing from the request body", null);
 		}
+	}
+	
+	private void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
+		List<String> mobiles = new ArrayList<> ();
+		mobiles.add(merchant.getMobile());
+		String message="CONGRATULATIONS!\n\n" + 
+				"BharatPe Loan is Approved!\n" + 
+				"You have Rs."+creditApplication.getAmount().intValue()+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
+				"Click Here : bharatpe.in/loan~ for more details.\"";
+		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
+		
+		if(merchantFcmToken != null) {
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=loan");
+		}
+		
 	}
 
 	public CreditSpendResponseDTO getSpendDetails(Merchant merchant, Long requestId) {
