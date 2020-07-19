@@ -915,6 +915,8 @@ public class CreditPaymentService {
             CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
             updateBalances(creditAccount, lendingClTransaction);
             //TODO send success notification
+            Optional<Merchant> merchant = merchantDao.findById(creditAccount.getMerchantId());
+            merchant.ifPresent(value -> sendNotification(lendingClTransaction, creditAccount, value));
         }
     }
 
