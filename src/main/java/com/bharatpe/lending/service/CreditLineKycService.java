@@ -1,10 +1,13 @@
 package com.bharatpe.lending.service;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
+import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -54,6 +57,15 @@ public class CreditLineKycService {
  
 	@Value("${aws.s3.lending.ekyc.bucket}")
 	private String bucket;
+
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
+
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
+
+	@Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
 	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
@@ -154,6 +166,7 @@ public class CreditLineKycService {
 		creditApplicationTransitionDao.save(creditApplicationTransition);
 		map.put("success", true);
 		map.put("message", "address same");
+		sendNotification(merchant,creditApplication);
 		return map;
 	}
 
@@ -237,6 +250,28 @@ public class CreditLineKycService {
 		}
 		return base64EncodedString;
 		 
+	}
+
+	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {
+		List<String> mobiles = new ArrayList<>();
+		mobiles.add(merchant.getMobile());
+		String message=getNotificationContent(merchant, creditApplication);
+		if(message!=null) {
+			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+			whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		}
+	}
+
+	public String getNotificationContent(Merchant merchant,CreditApplication creditApplication) {
+		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if(merchantBankDetail==null) {
+			return null;
+		}
+		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
+				"Your loan application for INR " + creditApplication.getAmount().intValue() + " has been received successfully.\n" +
+				"Your Application ID is " + creditApplication.getExternalLoanId() + ".";
+
+		return message;
 	}
 
 }

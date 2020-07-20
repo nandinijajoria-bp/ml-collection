@@ -171,7 +171,7 @@ public class CreditApplicationService {
 		}
 
 		logger.info("Loan Application saved : {}",creditApplication);
-		sendNotification(merchant,creditApplication);
+		//sendNotification(merchant,creditApplication);
 		return prepareAPIResponse(creditApplication);
 		
 	}
