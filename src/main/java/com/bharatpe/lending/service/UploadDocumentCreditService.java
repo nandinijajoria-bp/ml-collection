@@ -230,7 +230,7 @@ public class UploadDocumentCreditService {
 	}
 	
 	private MerchantDocumentProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, CreditApplication creditApplication, MetaDTO meta) {
-		MerchantDocumentProof merchantDocumentProof = merchantDocumentProofDao.findByMerchantIdAndProofType(merchant.getId(),proofType);
+		MerchantDocumentProof merchantDocumentProof = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerTypeAndProofType(merchant.getId(), creditApplication.getId(), "LENDING",proofType);
 		if(merchantDocumentProof != null) {
 			merchantDocumentProof.setProofFrontSide(frontSide);
 			merchantDocumentProof.setProofBackSide(backSide); 
