@@ -337,7 +337,7 @@ public class CreditLineLoanHistoryService {
 							dueAmount=0D;
 					}
 				}
-				
+				settlementsList.sort((x,y)->y.getDate().compareTo(x.getDate()));
 				return settlementsList;
 			}
 			else {
