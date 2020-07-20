@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class CreditLimitWidget {
 	
 	private Double limit;
-	private Double usedLimit;
-	private Double availableLimit;
+	private Long usedLimit;
+	private Long availableLimit;
 	
 	public Double getLimit() {
 		return limit;
@@ -16,23 +16,22 @@ public class CreditLimitWidget {
 	public void setLimit(Double limit) {
 		this.limit = limit;
 	}
-	public Double getUsedLimit() {
+	public Long getUsedLimit() {
 		return usedLimit;
 	}
-	public void setUsedLimit(Double usedLimit) {
+	public void setUsedLimit(Long usedLimit) {
 		this.usedLimit = usedLimit;
 	}
-	public Double getAvailableLimit() {
+	public Long getAvailableLimit() {
 		return availableLimit;
 	}
-	public void setAvailableLimit(Double availableLimit) {
+	public void setAvailableLimit(Long availableLimit) {
 		this.availableLimit = availableLimit;
 	}
-	
 	@Override
 	public String toString() {
 		return "CreditLimitWidget [limit=" + limit + ", usedLimit=" + usedLimit + ", availableLimit=" + availableLimit
 				+ "]";
-	}	
+	}
 	
 }

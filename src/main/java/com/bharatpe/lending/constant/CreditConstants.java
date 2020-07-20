@@ -14,6 +14,8 @@ public interface CreditConstants {
 	String BP_BALANCE_CONFIRM_TXN_URL="/internal/bharatpe_balance/confirm";
 	String BP_BALANCE_RESEND_OTP_URL="/internal/bharatpe_balance/resend_otp";
 	String PAYOUT_URL = "http://payout-java.bharatpe.in/lending/payout";
+	String APP_NOTIFICATION_DEEPLINK="bharatpe://dynamic?key=credit-line";
+	String MESSAGE_NOTIFICATION_LINK="bharatpe.in/creditline";
 
 	enum SpendMode {
 		BANK_TRANSFER, SEND_MONEY, BILL_PAYMENT, ECOMMERCE, CASH_WITHDRAWAL, QR_SETTLEMENT, INTEREST_ACCOUNT, UPI

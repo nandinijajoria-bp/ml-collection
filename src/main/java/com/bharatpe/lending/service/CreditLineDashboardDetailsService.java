@@ -131,8 +131,8 @@ public class CreditLineDashboardDetailsService {
 			CreditLimitWidget creditLimitWidget=new CreditLimitWidget();
 			
 			creditLimitWidget.setLimit(creditAccount.getLimit());
-			creditLimitWidget.setAvailableLimit(creditAccount.getAvailableBalance());
-			creditLimitWidget.setUsedLimit(creditAccount.getUsedBalance());
+			creditLimitWidget.setAvailableLimit(Math.round(creditAccount.getAvailableBalance()));
+			creditLimitWidget.setUsedLimit(Math.round(creditAccount.getUsedBalance()));
 			
 			dashboardResponse.setCreditWidget(creditLimitWidget);
 			

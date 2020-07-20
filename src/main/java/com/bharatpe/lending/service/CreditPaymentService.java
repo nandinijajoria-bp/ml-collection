@@ -132,7 +132,16 @@ public class CreditPaymentService {
 
             HttpEntity<Object> entity = new HttpEntity<>(requestParams,headers);
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            ResponseEntity<Object> response=null;
+            int retry=0;
+            while(retry<3) {
+            	response= restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            	if(response.getBody()!=null) {
+            		break;
+            	}
+            	retry++;
+            }
+            
             logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
             if (response.getBody() != null) {
                 paymentDetails = objectMapper.readValue(objectMapper.writeValueAsString(((Map<String, Object>) response.getBody()).get("data")),
@@ -319,7 +328,7 @@ public class CreditPaymentService {
     
     public void sendNotification(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, Merchant merchant){
     	String message="Rs."+lendingClTransaction.getAmount()+" repayment of Bharatpe Loan is Successful.\n"+
-    					"Your Available Loan Balance is Rs." +creditAccount.getAvailableBalance()+".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: bharatpe.in/loan~";
+    					"Your Available Loan Balance is Rs." +creditAccount.getAvailableBalance()+".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
     	mobiles.add(merchant.getMobile());
     	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
@@ -823,7 +832,15 @@ public class CreditPaymentService {
             logger.info("payout internal request: {}", request);
 
             response.put("request", objectMapper.writeValueAsString(request));
-            VPARequestDto responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
+            int retryCount=0;
+            VPARequestDto responseObj=null;
+            while(retryCount<3) {
+            	responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
+            	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
+            		break;
+            	}
+            	retryCount++;
+            }
             response.put("response", responseObj);
             logger.info("payout response: {}, response time: {}", objectMapper.writeValueAsString(response), (System.currentTimeMillis() - startTime));
             return response;

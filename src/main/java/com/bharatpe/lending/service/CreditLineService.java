@@ -242,13 +242,13 @@ public class CreditLineService {
 		String message="CONGRATULATIONS!\n\n" + 
 				"BharatPe Loan is Approved!\n" + 
 				"You have Rs."+creditApplication.getAmount().intValue()+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
-				"Click Here : bharatpe.in/loan~ for more details.\"";
-		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+				"Click Here :  ";
+		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 		
 		if(merchantFcmToken != null) {
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=loan");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message+CreditConstants.APP_NOTIFICATION_DEEPLINK+" for more details.", "bharatpe://dynamic?key=credit-line");
 		}
 		
 	}
@@ -631,7 +631,7 @@ public class CreditLineService {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+". More details: bharatpe.in/loan~ \"";
+				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+". More details: ";
 		
 	}
 	
@@ -641,14 +641,14 @@ public class CreditLineService {
 				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
 				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+
 				".\nDaily installment of Rs."+lendingTlDetails.getEdi()+" will be deducted from your QR Settlements. \n" + 
-				"More details: bharatpe.in/loan~";
+				"More details: ";
 		
 	}
 	private void sendNotification(String message, Merchant merchant) {
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
-		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, mobiles, null);
 	}
 	
 	@SuppressWarnings("unchecked, rawtypes")

@@ -29,6 +29,7 @@ import com.bharatpe.lending.common.dao.LendingCaBalanceDetailDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.common.entity.CreditLineCategories;
+import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dto.CreditApplicationStatusUpdationRequestDto;
 import com.bharatpe.lending.dto.ResponseDTO;
 
@@ -113,13 +114,13 @@ public class CreditApplicationStatusChange {
 			String message="BharatPe Loan Approved. ACTIVATION PENDING!\n" + 
 					"You have Rs."+creditApplication.getAmount()+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
 					"Activate Now by collecting Rs.500 more from your customers through BharatPe QR Code \n" + 
-					"Check Status. bharatpe.in/loan~";
-			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, message, mobiles, null);
+					"Check Status. ";
+			smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
+			whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, mobiles, null);
 			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
 			
 			if(merchantFcmToken != null) {
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=loan");
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message+CreditConstants.APP_NOTIFICATION_DEEPLINK, "bharatpe://dynamic?key=credit-line");
 			}
 		}
 	}
