@@ -612,15 +612,15 @@ public class CreditLineService {
 			if(bankTransferResponseDTO.getPaymentStatus().equalsIgnoreCase("SUCCESS")) {
 				if(lendingClTransaction.getType().equalsIgnoreCase("CL")) {
 					insertClLedger(lendingClTransaction);
-					sendNotification(getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount), merchant);
 				}
 				else {
 					createLPS(lendingTlDetails, merchant);
-					sendNotification(getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails), merchant);
 				}
 			}
 			if(!"FAILED".equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
+				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount) : getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails);
+				sendNotification(message, merchant);
 			}
 		} else {
 			logger.error("Exception in bank transfer for account:{}", lendingClTransaction.getCreditAccountId());
