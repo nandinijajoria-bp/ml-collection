@@ -624,6 +624,8 @@ public class CreditPaymentService {
                     } else {
                         logger.info("New due amount:{} for loan:{} and account:{}", -paymentTL, lendingPaymentSchedule.getId(), creditAccount.getId());
                         lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() - paymentTL);
+                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
+                        lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
                     }
                     createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paymentTL, 0d, 0d, 0d, "CREDIT_LINE");
                     lendingPaymentScheduleDao.save(lendingPaymentSchedule);
