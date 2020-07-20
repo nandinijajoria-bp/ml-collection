@@ -806,7 +806,7 @@ public class CreditLineService {
 					continue;
 				}
 				Double dueAmount=loan.getDueAmount();
-				if(dueAmount == null || dueAmount==0D) {
+				if(dueAmount == null || dueAmount<=0D) {
 					continue;
 				}
 				totalAmount+=dueAmount;
