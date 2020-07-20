@@ -153,6 +153,15 @@ public class LoanDetailsService {
 			Integer pincode = null;
 			LendingCities lendingCity = null;
 			if (requestDTO.getPayload().getPanCard() != null) {
+				if (requestDTO.getPayload().getPincode() == null) {
+					logger.error("pincode bug for merchant:{}", merchant.getId());
+					emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
+					add("mihit@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId());
+					if (experian != null && experian.getPincode() != null) {
+						logger.info("setting pincode from experian");
+						requestDTO.getPayload().setPincode(experian.getPincode());
+					}
+				}
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
 				if (ExperianConstants.LOCKDOWN) {
