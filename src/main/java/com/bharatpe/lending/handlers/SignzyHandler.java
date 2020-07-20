@@ -229,7 +229,7 @@ public class SignzyHandler {
     	HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
      	
     	//logger.info("signzy KYC request : {}", request);
-    	 response = restTemplate.postForObject(SIGNZY_URL + CreditConstants.SIGNZY_FILEEXCHANGE_URL, request, String.class);
+    	 response = restTemplate.postForObject("https://persist.signzy.tech/api/base64", request, String.class);
       logger.info("signzy KYC response : {}", response);
       Instant end = Instant.now();
   		logger.info("Time Taken by signzy KYC API : {} miliseconds", Duration.between(start, end).toMillis());
