@@ -624,6 +624,7 @@ public class CreditPaymentService {
                     } else {
                         logger.info("New due amount:{} for loan:{} and account:{}", -paymentTL, lendingPaymentSchedule.getId(), creditAccount.getId());
                         lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() - paymentTL);
+                        lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() - paymentTL);
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
                     }
