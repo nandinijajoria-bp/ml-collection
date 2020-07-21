@@ -310,8 +310,8 @@ public class CreditLineLoanHistoryService {
 							ediPaid+=secondLedger.getAmount();
 						}
 						else {
-							negativeSum+=firstLedger.getAmount();
-							ediDue+=-1*firstLedger.getAmount();
+							negativeSum+=secondLedger.getAmount();
+							ediDue+=-1*secondLedger.getAmount();
 						}
 						i++;
 
