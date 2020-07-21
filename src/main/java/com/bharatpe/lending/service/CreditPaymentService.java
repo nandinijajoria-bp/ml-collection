@@ -523,6 +523,8 @@ public class CreditPaymentService {
                         lendingPaymentSchedule.setDueOtherCharges(remaining);
                         paidOtherCharges = (dueOtherCharges - remaining);
                         paymentTL += paidOtherCharges;
+                        lendingPaymentSchedule.setPaidOtherCharges(lendingPaymentSchedule.getPaidOtherCharges() + paidOtherCharges);
+                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paidOtherCharges);
                     }
                     if (remainingAmount > 0 && lendingPaymentSchedule.getDuePenalty() != null && lendingPaymentSchedule.getDuePenalty() > 0) {
                         logger.info("Adjusting due penalty for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
@@ -532,6 +534,8 @@ public class CreditPaymentService {
                         lendingPaymentSchedule.setDuePenalty(remaining);
                         paidPenalty = (duePenalty - remaining);
                         paymentTL += paidPenalty;
+                        lendingPaymentSchedule.setPaidPenalty(lendingPaymentSchedule.getPaidPenalty() + paidPenalty);
+                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paidPenalty);
                     }
                     if (remainingAmount > 0 && lendingPaymentSchedule.getDueInterest() != null && lendingPaymentSchedule.getDueInterest() > 0) {
                         logger.info("Adjusting due interest for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
@@ -541,6 +545,8 @@ public class CreditPaymentService {
                         lendingPaymentSchedule.setDueInterest(remaining);
                         paidInterest = (dueInterest - remaining);
                         paymentTL += paidInterest;
+                        lendingPaymentSchedule.setPaidInterest(lendingPaymentSchedule.getPaidInterest() + paidInterest);
+                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paidInterest);
                     }
                     if (remainingAmount > 0 && lendingPaymentSchedule.getDuePrinciple() != null && lendingPaymentSchedule.getDuePrinciple() > 0) {
                         logger.info("Adjusting due principle for loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());

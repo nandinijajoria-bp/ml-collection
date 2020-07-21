@@ -157,10 +157,10 @@ public class LoanDetailsService {
 					logger.error("pincode bug for merchant:{}", merchant.getId());
 					emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
 					add("mihit@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId());
-					if (experian != null && experian.getPincode() != null) {
-						logger.info("setting pincode from experian");
-						requestDTO.getPayload().setPincode(experian.getPincode());
-					}
+					LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();
+					response1.setSuccess(false);
+					response1.setMessage("Pincode not found");
+					return response1;
 				}
 				experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
