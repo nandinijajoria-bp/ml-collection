@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
+import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.enums.NotificationProvider;
@@ -26,9 +28,12 @@ import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
 import com.bharatpe.lending.common.dao.CreditLineCategoriesDao;
 import com.bharatpe.lending.common.dao.LendingCaBalanceDetailDao;
+import com.bharatpe.lending.common.entity.CreditAccount;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.common.entity.CreditLineCategories;
+import com.bharatpe.lending.common.entity.LendingCaBalanceDetail;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dto.CreditApplicationStatusUpdationRequestDto;
 import com.bharatpe.lending.dto.ResponseDTO;
@@ -157,9 +162,9 @@ public class CreditApplicationStatusChange {
 						sendApprovalNotification(creditApplication);
 					}
 					//creating credit account
-//					if(!createCreditAccount(creditApplication, applicationStatus.getMerchantId())){
-//						return false;
-//					}
+					if(!createCreditAccount(creditApplication, applicationStatus.getMerchantId())){
+						return false;
+					}
 				}
 				else {
 					logger.error("Invalid state {}",applicationStatus.getState());
@@ -232,64 +237,64 @@ public class CreditApplicationStatusChange {
 		return response;
 	}
 	
-//	public boolean createCreditAccount(CreditApplication creditApplication,Long merchantId){
-//		try {
-//			logger.info("Fetching segment detail from experian table");
-//			
-//			Experian experian= experianDao.getByMerchantId(merchantId);
-//			
-//			if(experian!=null && experian.getColor()!=null) {
-//				
-//				logger.info("Inserting new entry in credit_account table");
-//				
-//				CreditAccount creditAccount=new CreditAccount();
-//				
-//				creditAccount.setMerchantId(creditApplication.getMerchantId());
-//				creditAccount.setMerchantStoreId(creditApplication.getMerchantStoreId());
-//				creditAccount.setStatus("ACTIVE");
-//				creditAccount.setSegment(experian.getColor());
-//				creditAccount.setLimit(creditApplication.getAmount());
-//				creditAccount.setAvailableBalance(creditApplication.getAmount());
-//				creditAccount.setUsedBalance(0D);
-//				creditAccount.setPayableAmount(0D);
-//				creditAccount.setInterestDue(0D);
-//				creditAccount.setMinimumAmountDue(0D);
-//				creditAccount.setNextBillDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 20)));
-//				creditAccount.setDueDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 30)));
-//				creditAccount.setActivationDate(new Date());
-//				creditAccount.setCreatedAt(new Date());
-//				creditAccount.setUpdatedAt(new Date());
-//				
-//
-//				creditAccount = creditAccountDao.save(creditAccount);
-//
-//				LendingCaBalanceDetail lendingCaBalanceDetail = new LendingCaBalanceDetail();
-//				lendingCaBalanceDetail.setMerchantId(creditApplication.getMerchantId());
-//				lendingCaBalanceDetail.setMerchantStoreId(creditApplication.getMerchantStoreId());
-//				lendingCaBalanceDetail.setCreditAccountId(creditAccount.getId());
-//				lendingCaBalanceDetail.setAccountLimit(creditApplication.getAmount());
-//				lendingCaBalanceDetail.setAvailableBalance(creditApplication.getAmount());
-//				lendingCaBalanceDetail.setUsedBalance(0D);
-//				lendingCaBalanceDetail.setUsedBalanceCl(0D);
-//				lendingCaBalanceDetail.setUsedBalanceG1(0D);
-//				lendingCaBalanceDetail.setUsedBalanceG2(0D);
-//				lendingCaBalanceDetail.setUsedBalanceG3(0D);
-//				lendingCaBalanceDetail.setInterestDue(0D);
-//				lendingCaBalanceDetail.setCreatedAt(new Date());
-//				lendingCaBalanceDetail.setUpdatedAt(new Date());
-//				lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
-//
-//				return true;
-//		}
-//		else {
-//				logger.warn("Experian detail not found");
-//				return false;
-//			}
-//		}
-//		catch(Exception e) {
-//			logger.error("Error occured while creating credit account",e);
-//			return false;
-//		}
-//	}
+	public boolean createCreditAccount(CreditApplication creditApplication,Long merchantId){
+		try {
+			logger.info("Fetching segment detail from experian table");
+			
+			Experian experian= experianDao.getByMerchantId(merchantId);
+			
+			if(experian!=null && experian.getColor()!=null) {
+				
+				logger.info("Inserting new entry in credit_account table");
+				
+				CreditAccount creditAccount=new CreditAccount();
+				
+				creditAccount.setMerchantId(creditApplication.getMerchantId());
+				creditAccount.setMerchantStoreId(creditApplication.getMerchantStoreId());
+				creditAccount.setStatus("ACTIVE");
+				creditAccount.setSegment(experian.getColor());
+				creditAccount.setLimit(creditApplication.getAmount());
+				creditAccount.setAvailableBalance(creditApplication.getAmount());
+				creditAccount.setUsedBalance(0D);
+				creditAccount.setPayableAmount(0D);
+				creditAccount.setInterestDue(0D);
+				creditAccount.setMinimumAmountDue(0D);
+				creditAccount.setNextBillDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 20)));
+				creditAccount.setDueDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 30)));
+				creditAccount.setActivationDate(new Date());
+				creditAccount.setCreatedAt(new Date());
+				creditAccount.setUpdatedAt(new Date());
+				
+
+				creditAccount = creditAccountDao.save(creditAccount);
+
+				LendingCaBalanceDetail lendingCaBalanceDetail = new LendingCaBalanceDetail();
+				lendingCaBalanceDetail.setMerchantId(creditApplication.getMerchantId());
+				lendingCaBalanceDetail.setMerchantStoreId(creditApplication.getMerchantStoreId());
+				lendingCaBalanceDetail.setCreditAccountId(creditAccount.getId());
+				lendingCaBalanceDetail.setAccountLimit(creditApplication.getAmount());
+				lendingCaBalanceDetail.setAvailableBalance(creditApplication.getAmount());
+				lendingCaBalanceDetail.setUsedBalance(0D);
+				lendingCaBalanceDetail.setUsedBalanceCl(0D);
+				lendingCaBalanceDetail.setUsedBalanceG1(0D);
+				lendingCaBalanceDetail.setUsedBalanceG2(0D);
+				lendingCaBalanceDetail.setUsedBalanceG3(0D);
+				lendingCaBalanceDetail.setInterestDue(0D);
+				lendingCaBalanceDetail.setCreatedAt(new Date());
+				lendingCaBalanceDetail.setUpdatedAt(new Date());
+				lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
+
+				return true;
+		}
+		else {
+				logger.warn("Experian detail not found");
+				return false;
+			}
+		}
+		catch(Exception e) {
+			logger.error("Error occured while creating credit account",e);
+			return false;
+		}
+	}
 	
 }
