@@ -601,11 +601,11 @@ public class CreditLineLoanDetailsService {
 			}
 			response.getDetails().getLoanApplication().setStatusTitle("Verification Pending");
 			if(creditApplication.getStatus().equalsIgnoreCase("kyc")) {
-				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is "+creditApplication.getId()+". We will be verifying the documents submitted by you in the next 24-48 hours before approving your loan application.");
+				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is "+creditApplication.getExternalLoanId()+". We will be verifying the documents submitted by you in the next 24-48 hours before approving your loan application.");
 			}
 			else {
 				response.getDetails().getLoanApplication().setStatusTitle("Physical Verification Pending");
-				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is "+creditApplication.getId()+". Our agent will visit you within 3 days for document verification. Keep a copy of your PAN Card, Proof of Address, Cheque of Bank A/c ready for physical verification.");
+				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is "+creditApplication.getExternalLoanId()+". Our agent will visit you within 3 days for document verification. Keep a copy of your PAN Card, Proof of Address, Cheque of Bank A/c ready for physical verification.");
 			}
 			
 			
