@@ -37,9 +37,12 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class CreditLineService {
@@ -132,6 +135,11 @@ public class CreditLineService {
 	
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
+
+	@Autowired
+	LiquiloansService liquiloansService;
+
+	ExecutorService createLeadExecutor = Executors.newFixedThreadPool(1);
 
 	public ResponseDTO createCreditLineAccount(CreateCreditAccountRequestDto request, Merchant merchant){
 
@@ -482,6 +490,7 @@ public class CreditLineService {
 			Date tenativeLoanEndDate=getDateAfterNMonths(date,Integer.parseInt(lendingTlDetails.getTenure()));
 			lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
 			lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+			createLeadExecutor.submit(() -> liquiloansService.createLead(lendingPaymentSchedule, lendingTlDetails));
 		} catch (Exception e) {
 			logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingTlDetails.getLendingClTransaction().getId());
 		}
@@ -523,6 +532,9 @@ public class CreditLineService {
 		lendingTlDetails.setTotalPayableAmount(tl.getRepaymentAmount().doubleValue());
 		lendingTlDetails.setTenure(tenure+"");
 		lendingTlDetails.setPayableDays(tl.getEdiCount());
+		DateFormat df = new SimpleDateFormat("ddMMyy");
+		String loanId = "CL" + df.format(new Date()) + lendingClTransaction.getId();
+		lendingTlDetails.setExternalLoanId(loanId);
 		return lendingTlDetailsDao.save(lendingTlDetails);
 	}
 

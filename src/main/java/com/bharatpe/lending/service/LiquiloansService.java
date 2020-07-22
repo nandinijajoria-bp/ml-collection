@@ -11,10 +11,15 @@ import java.time.Instant;
 import java.util.*;
 
 
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
+import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.constant.LendingConstants;
 
 import org.slf4j.Logger;
@@ -30,24 +35,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.bharatpe.common.dao.ExternalGatewayDao;
-import com.bharatpe.common.dao.LendingPancardDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.DisbursalSettlement;
-import com.bharatpe.common.entities.ExternalGateway;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.entities.SettlementSchedule;
-import com.bharatpe.common.entities.Validate;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dao.DisbursalSettlementDao;
@@ -135,6 +130,34 @@ public class LiquiloansService {
     
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+	CreditApplicationDao creditApplicationDao;
+
+    @Autowired
+	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+
+    @Autowired
+	IfscDao ifscDao;
+
+    @Autowired
+	MerchantSummaryDao merchantSummaryDao;
+
+    @Autowired
+	ExperianDao experianDao;
+
+    @Autowired
+	CreditApplicationAddressDao creditApplicationAddressDao;
+
+    @Autowired
+	LiquiloansDirectDisbursalRawResponseDao liquiloansDirectDisbursalRawResponseDao;
+
+    @Autowired
+	LendingTlDetailsDao lendingTlDetailsDao;
+
+	private static String secretKey;
+
+	private static String SID;
     
     public LendingPancard fetchNameOnPancard(String pancardNumber, Long merchantId) {
         String name = null;
@@ -189,6 +212,18 @@ public class LiquiloansService {
 		logger.info("Fetching lending application for given liquiloan_loan_id:{} and bp_loan_id:{}", callbackRequestDto.getUrn(),callbackRequestDto.getLoanId());
 		liquiloansDirectDisbursalRawResponse.setApiName("APPROVELOAN");
 		liquiloansDirectDisbursalRawResponse.setRequest(callbackRequestDto.toString());
+		if (callbackRequestDto.getUrn().contains("CL")) {
+			//Credit line loan
+			LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByExternalLoanIdAndNbfcId(callbackRequestDto.getUrn(), callbackRequestDto.getLoanId());
+			if (lendingTlDetails == null) {
+				return new ResponseDTO(false,"loan application not found",null);
+			}
+			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingTlDetails.getMerchantId());
+			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingTlDetails.getId());
+			liquiloansDirectDisbursalRawResponse.setLoanId(lendingTlDetails.getExternalLoanId());
+			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingTlDetails.getNbfcId());
+			return new ResponseDTO(true,null,null);
+		}
 		try {
 			LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
 			if(lendingApplication==null) {
@@ -486,6 +521,10 @@ public class LiquiloansService {
     }
     
     public boolean updateDisbursalSettlementIdInLendingPaymentSchedule(String loanId, String urnId, Integer settlementId, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse){
+    	if (urnId.contains("CL")) {
+    		logger.info("Settlement for credit loan:{}", urnId);
+    		return true;
+		}
     	logger.info("Fetching lending application for the externa loan id {} and nbfc id {}",urnId,loanId);
     	try {
     	LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(urnId, loanId, "approved");
@@ -548,6 +587,201 @@ public class LiquiloansService {
 			return shortUrl;
 		}
 		return " ";
+	}
+
+	@SuppressWarnings(value = "unchecked")
+	public void createLead(LendingPaymentSchedule lendingPaymentSchedule, LendingTlDetails lendingTlDetails) {
+		try {
+			CreditApplication creditApplication = creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(lendingTlDetails.getMerchantId());
+			List<MerchantDocumentProofOcr> documents = merchantDocumentProofOcrDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingTlDetails.getMerchantId(), "ACTIVE");
+			List<Ifsc> ifscList = ifscDao.findByIfsc(merchantBankDetail.getIfscCode());
+			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingTlDetails.getMerchantId());
+			Experian experian = experianDao.getByMerchantId(lendingTlDetails.getMerchantId());
+			CreditApplicationAddress creditApplicationAddress = creditApplicationAddressDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
+			MerchantDocumentProofOcr pancard = null;
+			MerchantDocumentProofOcr poa = null;
+			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+			for (MerchantDocumentProofOcr document : documents) {
+				if ("pancard".equalsIgnoreCase(document.getProofType())) {
+					pancard = document;
+				} else {
+					poa = document;
+				}
+			}
+			if (pancard == null || poa == null) {
+				logger.info("pancard/poa not found for credit_application id :{}", creditApplication.getId());
+				return;
+			}
+			Map<String, Object> request = new LinkedHashMap<>();
+			request.put("SID", getSID());
+			request.put("urn", lendingTlDetails.getExternalLoanId());
+			request.put("loan_type", "PL");
+			request.put("amount", lendingPaymentSchedule.getLoanAmount().toString());
+			request.put("application_date", simpleDateFormat.format(lendingPaymentSchedule.getCreatedAt()));
+			Map<String, Object> schemeDetails = new LinkedHashMap<>();
+			schemeDetails.put("scheme_id", "0");
+			schemeDetails.put("installment_frequency", "Daily");
+			schemeDetails.put("installment_tenure", lendingTlDetails.getPayableDays().toString());
+			schemeDetails.put("processing_fees_value", "0");
+
+			schemeDetails.put("roi_percentage", Double.toString(lendingTlDetails.getInterestRate() * 12));
+			schemeDetails.put("installment_amount", lendingTlDetails.getEdi().toString());
+			schemeDetails.put("xirr", "22.2");
+			request.put("scheme_details", schemeDetails);
+			Map<String, Object> personalDetails = new LinkedHashMap<>();
+			personalDetails.put("pan", pancard.getProofNumber());
+			personalDetails.put("full_name", pancard.getName());
+			if ("male".equalsIgnoreCase(poa.getGender())) {
+				personalDetails.put("gender", "Male");
+			} else if ("female".equalsIgnoreCase(poa.getGender())) {
+				personalDetails.put("gender", "Female");
+			} else {
+				personalDetails.put("gender", "");
+			}
+			if (pancard.getDob() != null) {
+				personalDetails.put("dob", simpleDateFormat.format(new SimpleDateFormat("dd/MM/yyyy").parse(pancard.getDob())));
+			} else {
+				personalDetails.put("dob", "");
+			}
+			personalDetails.put("email", "lending@bharatpe.in");
+			personalDetails.put("contact_number", lendingPaymentSchedule.getMerchant().getMobile().substring(2));
+			personalDetails.put("aadhaar_number", poa.getProofNumber());
+			request.put("personal_details", personalDetails);
+			Map<String, Object> addressDetails = new LinkedHashMap<>();
+			addressDetails.put("full_address", poa.getAddress().replace("/"," "));
+			addressDetails.put("pincode", poa.getPincode());
+			addressDetails.put("city", poa.getCity());
+			addressDetails.put("state", poa.getState());
+			request.put("address_details", addressDetails);
+			Map<String, Object> bankingDetails = new LinkedHashMap<>();
+			bankingDetails.put("bank_name", ifscList.get(0).getBank());
+			bankingDetails.put("branch_name", ifscList.get(0).getBranch());
+			bankingDetails.put("ifsc", merchantBankDetail.getIfscCode());
+			bankingDetails.put("account_number", merchantBankDetail.getAccountNumber());
+			bankingDetails.put("account_holder_name", merchantBankDetail.getBeneficiaryName().trim());
+			bankingDetails.put("account_type", "Saving");
+			request.put("banking_details", bankingDetails);
+			Map<String, Object> incomeDetails = new LinkedHashMap<>();
+			incomeDetails.put("occupation", "SelfEmployed");
+			incomeDetails.put("name_of_company", lendingPaymentSchedule.getMerchant().getBusinessName().trim());
+			incomeDetails.put("monthly_income", merchantSummary.getTpv1Mon().toString());
+			request.put("income_details", incomeDetails);
+			Map<String, Object> kycDetails = new LinkedHashMap<>();
+			kycDetails.put("file_name", "test.zip");
+			kycDetails.put("document_path", "test.zip");
+			request.put("kyc_details", kycDetails);
+			Map<String, Object> udf1 = new LinkedHashMap<>();
+			udf1.put("state", creditApplicationAddress.getState());
+			udf1.put("city", creditApplicationAddress.getCity());
+			udf1.put("pin_code", creditApplicationAddress.getPincode());
+			request.put("UDF1", udf1);
+			Map<String, Object> udf2 = new LinkedHashMap<>();
+			udf2.put("type_of_poa", poa.getProofType());
+			udf2.put("poa_number", poa.getProofNumber());
+			udf2.put("shop_category", lendingPaymentSchedule.getMerchant().getBusinessCategory());
+			String businessAddress = creditApplicationAddress.getShopNumber() + " " + creditApplicationAddress.getStreetAddress() + " " + creditApplicationAddress.getArea() + " " + creditApplicationAddress.getCity() + " " + creditApplicationAddress.getState();
+			udf2.put("business_address", businessAddress.replace("/"," "));
+			request.put("UDF2", udf2);
+			Map<String, Object> udf3 = new LinkedHashMap<>();
+			udf3.put("lender", "LIQUILOANS");
+			udf3.put("loan_category", creditApplication.getLoanType());
+			udf3.put("repayment_type", "EDI");
+			udf3.put("is_ntc", "NO");
+			if (experian.getExperianScore() != null) {
+				double score = experian.getExperianScore() - experian.getBpScore();
+				udf3.put("customer_score", (int) score);
+			} else {
+				udf3.put("customer_score", experian.getBpScore().intValue());
+			}
+			udf3.put("bp_segment", experian.getColor());
+			request.put("UDF3", udf3);
+
+			try {
+				String checksumString = getChecksumString(request) + getSecretKey();
+				logger.info("Checksum String is {}", checksumString);
+				request.put("Checksum", hmacCalculator.calculateHMACHexEncoded(checksumString, getSecretKey()));
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON);
+				headers.setCacheControl(CacheControl.noCache());
+				String requestString = objectMapper.writeValueAsString(request);
+				logger.info("Request to liquiloans : {}", requestString);
+				LiquiloansDirectDisbursalRawResponse bean = new LiquiloansDirectDisbursalRawResponse();
+				bean.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+				bean.setApiName("CreateLeadV2");
+				bean.setApplicationId(lendingTlDetails.getId());
+				bean.setRequest(requestString);
+				bean.setLoanId(lendingTlDetails.getExternalLoanId());
+				bean.setStatus("PENDING");
+				bean = liquiloansDirectDisbursalRawResponseDao.save(bean);
+				HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
+				String responseString;
+				boolean isSuccess = false;
+				Map<String, Object> responseMap = null;
+				try {
+					long startTime = System.currentTimeMillis();
+					responseMap = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("liquiloans.createLead.api")), requestEntity, Map.class);
+					logger.info("Response from Liquiloans : {}", responseMap);
+					logger.info("Liquiloans create lead api response time : {}ms, response {}", System.currentTimeMillis() - startTime, responseMap);
+					responseString = objectMapper.writeValueAsString(responseMap);
+					isSuccess = true;
+				} catch (HttpClientErrorException e) {
+					logger.info("Response form Liquiloans : {}", e.getResponseBodyAsString());
+					responseString = e.getResponseBodyAsString();
+					logger.error("Error in api call in liquiloans create lead api for {}, {}", request, e);
+				} catch (Exception ex) {
+					responseString = ex.getMessage();
+					logger.error("Error in api call in liquiloans create lead api for {}, {}", request, ex);
+				}
+				if(isSuccess) {
+					if(responseMap != null && (responseMap.get("status") == null || !"true".equalsIgnoreCase(responseMap.get("status").toString()))) {
+						isSuccess = false;
+					}
+				}
+				if (isSuccess && responseMap != null && responseMap.get("data") != null) {
+					String nbfcId =  ((Map<String, Object>)responseMap.get("data")).get("loan_id").toString();
+					bean.setLiquiloanId(nbfcId);
+					lendingTlDetailsDao.updateNbfcId(lendingTlDetails.getId(), nbfcId);
+				}
+				bean.setResponse(responseString);
+				bean.setStatus(isSuccess ? "SUCCESS" : "FAILED");
+				liquiloansDirectDisbursalRawResponseDao.save(bean);
+			} catch (Exception e) {
+				logger.error("Exception in create lead api", e);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in create lead api for loan_id: {}", lendingTlDetails.getExternalLoanId());
+			logger.error("Exception---", e);
+		}
+	}
+
+	private String getSecretKey() {
+		if (secretKey == null) {
+			secretKey = env.getProperty("liquiloan.secret");
+		}
+		return secretKey;
+	}
+
+	private String getSID() {
+		if (SID == null) {
+			SID = env.getProperty("liquiloan.sid");
+		}
+		return SID;
+	}
+
+	private String getChecksumString(Map<String, Object> request) throws IOException {
+		Map<String, Object> map = new LinkedHashMap<>();
+		for (Map.Entry<String, Object> entry : request.entrySet()) {
+			if(request.get(entry.getKey()) == null) {
+				continue;
+			}
+			if(request.get(entry.getKey()) instanceof List || request.get(entry.getKey()) instanceof Map) {
+				map.put(entry.getKey(), objectMapper.writeValueAsString(request.get(entry.getKey())));
+			} else {
+				map.put(entry.getKey(), request.get(entry.getKey()));
+			}
+		}
+		return StringUtils.collectionToDelimitedString(map.values(), "||");
 	}
 
 
