@@ -581,7 +581,6 @@ public class CreditLineLoanDetailsService {
 			try {
 				//enach not success and not skipped and bankcode enachable and app version >= 237
 				if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
-					response.getDetails().getLoanApplication().setStatusHeader("Details Submitted");
 					if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 						response.getDetails().setEnach("bharatpe://enachdigio?platform=cl&resultCode=true");//set deep link for enach digio
 					} else {
@@ -591,7 +590,6 @@ public class CreditLineLoanDetailsService {
 			} catch (Exception e) {// exception due to undefined app version
 				logger.error("Exception while checking enach bank", e);
 				if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
-					response.getDetails().getLoanApplication().setStatusHeader("Details Submitted");
 					if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 						response.getDetails().setEnach("bharatpe://enachdigio?platform=cl&resultCode=true");//set deep link for enach digio
 					} else {
@@ -599,13 +597,23 @@ public class CreditLineLoanDetailsService {
 					}
 				}
 			}
-			response.getDetails().getLoanApplication().setStatusTitle("Verification Pending");
+			response.getDetails().getLoanApplication().setStatusHeader("Loan Applied Successfully");
+			if (response.getDetails().getEnach() == null && enachSuccess != null) {
+				response.getDetails().getLoanApplication().setStatusHeader("eNACH Registered Successfully");
+				response.getDetails().setEnach("success");
+				response.getDetails().getLoanApplication().setSelfVerification(false);
+			}
+			response.getDetails().getLoanApplication().setStatusTitle("Verification In Progress");
 			if(creditApplication.getStatus().equalsIgnoreCase("kyc")) {
-				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is "+creditApplication.getExternalLoanId()+". We will be verifying the documents submitted by you in the next 24-48 hours before approving your loan application.");
+				if (enachSuccess != null) {
+					response.getDetails().getLoanApplication().setStatusMessage("Net Banking/ Debit Card Linked successfully. Your Application ID is <b>"+creditApplication.getExternalLoanId()+"</b>. Your loan will be approved in the next 24 hours after document verification.");
+				} else {
+					response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is <b>" + creditApplication.getExternalLoanId() + "</b>. Your loan will be approved after document verification in the next 48-72 hours.");
+				}
 			}
 			else {
 				response.getDetails().getLoanApplication().setStatusTitle("Physical Verification Pending");
-				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is "+creditApplication.getExternalLoanId()+". Our agent will visit you within 3 days for document verification. Keep a copy of your PAN Card, Proof of Address, Cheque of Bank A/c ready for physical verification.");
+				response.getDetails().getLoanApplication().setStatusMessage("Your Application ID is <b>"+creditApplication.getExternalLoanId()+"</b>. Our agent will visit you within 3 days for document verification. Keep a copy of your PAN Card, Proof of Address <b>Aadhaar Card</b>, Cheque of Bank A/c ready for physical verification.");
 			}
 			
 			
