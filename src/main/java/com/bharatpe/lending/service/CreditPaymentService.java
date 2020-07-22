@@ -21,6 +21,8 @@ import com.bharatpe.lending.util.CreditUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -109,6 +111,12 @@ public class CreditPaymentService {
 
     @Value("${payment.service.host}")
     public String PAYMENT_HOST;
+    
+    @Value("${upiPayment.cancel.endpoint}")
+    public String CANCEL_PAYMENT_URL;
+    
+    @Value("${upiPayment.statusCheck.endpoint}")
+    public String UPI_PAYMENT_STATUS_CHECK_URL;
 
     @Autowired
     MerchantDao merchantDao;
@@ -979,5 +987,108 @@ public class CreditPaymentService {
             }
         }
         return mid;
+    }
+    
+    public PaymentCancellationResponseDto cancelUpiPayment(Long transactionId) {
+    	LendingClPayment lendingClPayment=lendingClPaymentDao.findByClTransactionId(transactionId);
+    	if(lendingClPayment==null) {
+    		logger.error("lendingClPayment detail not found for transaction id {}",transactionId);
+    		return new PaymentCancellationResponseDto(false,"Payment detail not found", null,null);
+    	}
+    	PaymentCancellationResponseDto responseDto= cancelPayment(transactionId.toString(), lendingClPayment);
+    	if(responseDto==null) {
+    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
+    	}
+    	return responseDto;
+    }
+    
+    public PaymentCancellationResponseDto cancelPayment(String orderId,LendingClPayment lendingClPayment) {
+	    logger.info("Start Fetching payment status for orderId {}", orderId);
+	    try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("orderId", orderId);
+            requestParams.put("mid", getMid());
+            //requestParams.put("txnId", lendingClPayment.getVpa());
+        
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("mid", getMid());
+            headers.set("hash", hash);
+            HttpEntity<Map> request = new HttpEntity<>(headers);
+            int retryCount=0;
+            String URL=UPI_PAYMENT_STATUS_CHECK_URL+"?orderId="+orderId+"&mid="+getMid();
+            logger.info("payout internal URL {} and request: {}", URL,request);
+            while(retryCount<3) {
+            	ResponseEntity<Object> responseObj=restTemplate.exchange(URL, HttpMethod.GET, request, Object.class);
+            	logger.info("UPI status response {}",objectMapper.writeValueAsString(responseObj.getBody()));
+            	if(responseObj!=null && responseObj.hasBody()) {
+            		
+            		if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("PENDING".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))) {
+            	    	
+            			if(cancelPayment(lendingClPayment)) {
+                		return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+            	    	}
+            	    	else {
+            	    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
+            	    	}
+            		}
+            		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("SUCCESS".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
+            			return new PaymentCancellationResponseDto(true,"",false,"SUCCESS");
+            		}
+            		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("CANCELLED".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
+            			return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+            		}
+            		else {
+            			return new PaymentCancellationResponseDto(true,"",false,"FAILED");
+            		}
+            	}
+            	retryCount++;
+            }
+            
+    	} catch (Exception ex) {
+	        logger.error("error processing txn for dynamic vpa, txn: {}, {}", orderId, ex);
+	    }
+        return null;
+    }
+    
+    public boolean cancelPayment(LendingClPayment lendingClPayment) {
+    	try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("orderId", lendingClPayment.getClTransactionId());
+            requestParams.put("txnId", lendingClPayment.getVpa());
+        
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("mid", getMid());
+            headers.set("hash", hash);
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+            logger.info("payout internal request: {}", request);
+            int retryCount=0;
+            UpiPaymentCancellationResponseDto responseObj=null;
+            while(retryCount<3) {
+            	responseObj = restTemplate.postForObject(CANCEL_PAYMENT_URL, request, UpiPaymentCancellationResponseDto.class);
+            	logger.info("UPI payment cancellation response {}",responseObj.toString());
+            	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
+            		if(responseObj.getPaymentStatus().equalsIgnoreCase("CANCELLED")) {
+            			return true;
+            		}
+            		else {
+            			return false;
+            		}
+            	}
+            	retryCount++;
+            }
+            
+    	}
+    	catch(Exception e) {
+    		logger.error("Error occured while cancelling order with transaction id {}",lendingClPayment.getClTransactionId());
+    	}
+    	return false;
     }
 }

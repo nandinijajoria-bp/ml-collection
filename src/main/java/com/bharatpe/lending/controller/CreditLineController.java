@@ -212,4 +212,20 @@ public class CreditLineController {
 		logger.info("tnc request : {}", requestDto);
 		return tncService.getTnc(merchant, requestDto);
 	}
+	
+	@RequestMapping(value="/payment/cancel", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public ResponseEntity<PaymentCancellationResponseDto> cancelPayment(@RequestBody UpiPaymentCancelRequestDto requestDto) {
+		logger.info("Cancelling payment order for : {}", requestDto.getTransactionId());
+		try {
+			if(requestDto.getTransactionId()!=null) {
+				return new ResponseEntity<>(creditPaymentService.cancelUpiPayment(requestDto.getTransactionId()), HttpStatus.OK);
+			}
+			else {
+				return new ResponseEntity<>(new PaymentCancellationResponseDto(false, "Transaction id missing in the request body",null,null), HttpStatus.OK);
+			}
+		} catch (Exception e) {
+			logger.error("Exception---", e);
+			return new ResponseEntity<>(new PaymentCancellationResponseDto(false, "Something went wrong",null,null), HttpStatus.OK);
+		}
+	}
 }
