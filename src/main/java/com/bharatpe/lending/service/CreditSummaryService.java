@@ -133,8 +133,10 @@ public class CreditSummaryService {
 			}
 
 		}
-		summary.setTransactionslist(transactionslist);
-		summarylist.add(summary);
+		if(summary!=null) {
+			summary.setTransactionslist(transactionslist);
+			summarylist.add(summary);
+		}
 
 		if(ledgerlist!=null&&ledgerlist.size()>0) {
 			for(Map.Entry<Date,LendingLedger> entry :ledgerlist.entrySet())
