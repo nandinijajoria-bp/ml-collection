@@ -1029,7 +1029,8 @@ public class CreditPaymentService {
             		if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("PENDING".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))) {
             	    	
             			if(cancelPayment(lendingClPayment)) {
-                		return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+            				changePaymentStatus(lendingClPayment);
+            				return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
             	    	}
             	    	else {
             	    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
@@ -1052,6 +1053,17 @@ public class CreditPaymentService {
 	        logger.error("error processing txn for dynamic vpa, txn: {}, {}", orderId, ex);
 	    }
         return null;
+    }
+    
+    public void changePaymentStatus(LendingClPayment lendingClPayment) {
+    	Optional<LendingClTransaction> lendingOptional=lendingClTransactionDao.findById(lendingClPayment.getClTransactionId());
+    	if(lendingOptional.isPresent()) {
+    		LendingClTransaction lendingClTransaction=lendingOptional.get();
+    		lendingClTransaction.setStatus("CANCELLED");
+    		lendingClTransactionDao.save(lendingClTransaction);
+    		lendingClPayment.setStatus("CANCELLED");
+    		lendingClPaymentDao.save(lendingClPayment);
+    	}
     }
     
     public boolean cancelPayment(LendingClPayment lendingClPayment) {
