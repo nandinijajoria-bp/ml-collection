@@ -840,7 +840,7 @@ public class TncService {
 				"    </style>\n" + 
 				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
 				"   <p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
-				"   <p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> <span class=\"data-insert\">"+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"</span></p>\n" + 
+				"   <p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> <span class=\"data-insert\">"+(requestDto.getAmount())+"</span></p>\n" + 
 				"   <p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
 				"   <p class=\"p2\">Flat Rate of Interest (% per month)<span class=\"data-insert\">2</span></p>\n" + 
 				"   <p class=\"p2\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum)<span class=\"data-insert\">24</span></p>\n" + 
@@ -1240,7 +1240,7 @@ public class TncService {
 				"    <p class=\"p25\">Amount of Loan</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p29\">"+creditApplication.getAmount()+"&nbsp;</p>\n" + 
+				"    <p class=\"p29\">"+requestDto.getAmount()+"&nbsp;</p>\n" + 
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1258,7 +1258,7 @@ public class TncService {
 				"    <p class=\"p25\">Business of the Borrower</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"&nbsp;</p>\n" + 
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1449,7 +1449,7 @@ public class TncService {
 		String html="  <p class=\"p1\" style=\"text-align: center;\"><span class=\"s1\"><strong>Loan Details</strong></span></p>\n" + 
 				"<p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
 				"<p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
-				"<p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> "+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"<span class=\"data-insert\"></span></p>\n" + 
+				"<p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> "+(requestDto.getAmount())+"<span class=\"data-insert\"></span></p>\n" + 
 				"<p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
 				"<p class=\"p2\">Flat Rate of Interest (% per month)<span class=\"data-insert\">2</span></p>\n" + 
 				"<p class=\"p2\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum)<span class=\"data-insert\">24</span></p>\n" + 
