@@ -582,7 +582,7 @@ public class CreditPaymentService {
                     lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                     if (paymentTL > 0) {
                         insertPaymentBreakup(lendingClTransaction, paymentTL, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name());
-                        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paidPrinciple, paidInterest, paidOtherCharges, paidPenalty, "CREDIT_LINE");
+                        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paidPrinciple, paidInterest, paidOtherCharges, paidPenalty, "CREDIT_LINE", lendingClTransaction.getSubType());
                     }
                 }
             }
@@ -642,7 +642,7 @@ public class CreditPaymentService {
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
                     }
-                    createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paymentTL, 0d, 0d, 0d, "CREDIT_LINE");
+                    createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paymentTL, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType());
                     lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                     if (paymentTL > 0) {
                         insertPaymentBreakup(lendingClTransaction, paymentTL, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name());
@@ -668,7 +668,7 @@ public class CreditPaymentService {
         }
     }
 
-    public void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description) {
+    public void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
         if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
@@ -683,7 +683,7 @@ public class CreditPaymentService {
         lendingLedger.setPenalty(penalty);
         lendingLedger.setPrinciple(principle);
         lendingLedger.setDescription(description);
-        lendingLedger.setAdjustmentMode("UPI");
+        lendingLedger.setAdjustmentMode(adjustmentMode);
         lendingLedgerDao.save(lendingLedger);
     }
 

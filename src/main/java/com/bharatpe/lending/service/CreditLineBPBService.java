@@ -1,11 +1,18 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.enums.Status;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.CreditUtil;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class CreditLineBPBService {
@@ -40,6 +50,18 @@ public class CreditLineBPBService {
     @Autowired
     LendingClTransactionDao lendingClTransactionDao;
 
+    @Autowired
+    LendingTlDetailsDao lendingTlDetailsDao;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
+    LendingClLedgerDao lendingClLedgerDao;
+
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
 
@@ -61,25 +83,7 @@ public class CreditLineBPBService {
             logger.info("Invalid client name for merchant:{}", merchant.getId());
             return new CheckBalanceResponseDTO(false, "Invalid client");
         }
-        //String group = CreditConstants.SpendGroup.get(client);
         double balance = creditAccount.getAvailableBalance();
-//        switch (group) {
-//            case "G1": {
-//                Double limit = lendingCaBalanceDetail.getAccountLimit() * creditLineCategories.getMaxCreditLimit() * creditLineCategories.getG1Limit();
-//                balance = limit - lendingCaBalanceDetail.getUsedBalanceG1();
-//                break;
-//            }
-//            case "G2": {
-//                Double limit = lendingCaBalanceDetail.getAccountLimit() * creditLineCategories.getMaxCreditLimit() * creditLineCategories.getG2Limit();
-//                balance = limit - lendingCaBalanceDetail.getUsedBalanceG2();
-//                break;
-//            }
-//            case "G3": {
-//                Double limit = lendingCaBalanceDetail.getAccountLimit() * creditLineCategories.getMaxCreditLimit() * creditLineCategories.getG3Limit();
-//                balance = limit - lendingCaBalanceDetail.getUsedBalanceG3();
-//                break;
-//            }
-//        }
         return new CheckBalanceResponseDTO(Double.valueOf(df.format(creditAccount.getLimit())), Double.valueOf(df.format(balance)));
     }
 
@@ -181,11 +185,150 @@ public class CreditLineBPBService {
         return responseDTO;
     }
 
-    public CreditSpendVerifyResponseDTO checkStatus(String orderId, String client, Merchant merchant) {
-        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByMerchantIdAndSubTypeAndOrderId(merchant.getId(), client, orderId);
+    public CreditSpendVerifyResponseDTO checkStatus(String orderId) {
+        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByOrderId(orderId);
         if (lendingClTransaction == null) {
             return new CreditSpendVerifyResponseDTO(false, "orderId not found for this client");
         }
         return new CreditSpendVerifyResponseDTO(lendingClTransaction.getId(), Double.valueOf(df.format(lendingClTransaction.getAmount())), lendingClTransaction.getCreatedAt(), lendingClTransaction.getStatus());
+    }
+
+    @Transactional
+    public CreditSpendVerifyResponseDTO refund(CreditRefundRequestDTO requestDTO) {
+        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByOrderId(requestDTO.getOrderId());
+        if (lendingClTransaction == null || !CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(lendingClTransaction.getStatus())) {
+            return new CreditSpendVerifyResponseDTO(false, "transaction not found");
+        }
+        if ("TL".equalsIgnoreCase(lendingClTransaction.getType()) && requestDTO.getAmount() < lendingClTransaction.getAmount()) {
+            return new CreditSpendVerifyResponseDTO(false, "Partial refund not supported for TL");
+        }
+        List<LendingClTransaction> refunds = lendingClTransactionDao.findByCreditAccountIdAndParentId(lendingClTransaction.getCreditAccountId(), lendingClTransaction.getId());
+        double remainingRefund = lendingClTransaction.getAmount();
+        for (LendingClTransaction refund : refunds) {
+            remainingRefund -= refund.getAmount();
+        }
+        if (requestDTO.getAmount() > remainingRefund) {
+            return new CreditSpendVerifyResponseDTO(false, "Refund amount more than transaction amount");
+        }
+        if ("TL".equalsIgnoreCase(lendingClTransaction.getType())) {
+            return refundTL(lendingClTransaction, requestDTO.getAmount());
+        } else {
+            return refundCL(lendingClTransaction, requestDTO.getAmount());
+        }
+    }
+
+    private CreditSpendVerifyResponseDTO refundTL(LendingClTransaction lendingClTransaction, Double amount) {
+        LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
+        if (lendingTlDetails == null) {
+            logger.error("lending tl details not found for transaction:{}", lendingClTransaction.getId());
+            return new CreditSpendVerifyResponseDTO(false, "Loan details not found for this transaction");
+        }
+        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByTlDetailsIdAndCreditLoanAndStatus(lendingTlDetails.getId(), true, "ACTIVE");
+        if (lendingPaymentSchedule == null) {
+            logger.error("no active loan found for transaction:{}", lendingClTransaction.getId());
+            return new CreditSpendVerifyResponseDTO(false, "No Active Loan found for this transaction");
+        }
+        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + amount);
+        lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + amount);
+        lendingPaymentSchedule.setStatus("CLOSED");
+        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+        //TODO need to refund paid edi
+        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
+        LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
+        creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + amount);
+        creditAccount.setUsedBalance(creditAccount.getUsedBalance() - amount);
+        lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + amount);
+        lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - amount);
+        creditAccountDao.save(creditAccount);
+        lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
+        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), amount, amount);
+        createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        return new CreditSpendVerifyResponseDTO(true, null);
+    }
+
+    private CreditSpendVerifyResponseDTO refundCL(LendingClTransaction lendingClTransaction, Double amount) {
+        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
+        LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
+        double refundAmount = amount;
+        CreditLineCategories creditLineCategories = creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditAccount.getSegment());
+        double interest = LoanUtil.getDateDiffInDays(lendingClTransaction.getCreatedAt(), new Date()) * amount * creditLineCategories.getClInterestRate();
+        if (interest > 0) {
+            creditAccount.setInterestDue(creditAccount.getInterestDue() - interest);
+            lendingCaBalanceDetail.setInterestDue(lendingCaBalanceDetail.getInterestDue() - interest);
+            refundAmount += interest;
+            createRefundTransaction(lendingClTransaction, interest, CreditConstants.PaymentType.INTEREST_ROLLBACK.name());
+        }
+        creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + refundAmount);
+        creditAccount.setUsedBalance(creditAccount.getUsedBalance() - refundAmount);
+        lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + refundAmount);
+        lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - refundAmount);
+        if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
+            double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);
+            double usedG2 = lendingCaBalanceDetail.getUsedBalanceG2() - ((lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);
+            double usedG3 = lendingCaBalanceDetail.getUsedBalanceG3() - ((lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);
+            lendingCaBalanceDetail.setUsedBalanceG1(usedG1);
+            lendingCaBalanceDetail.setUsedBalanceG2(usedG2);
+            lendingCaBalanceDetail.setUsedBalanceG3(usedG3);
+            lendingCaBalanceDetail.setUsedBalanceCl(usedG1 + usedG2 + usedG3);
+        }
+        creditAccountDao.save(creditAccount);
+        lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
+        insertClLedger(lendingClTransaction, refundAmount, amount, refundAmount - amount);
+        createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        return new CreditSpendVerifyResponseDTO(true, null);
+    }
+
+    private void createRefundTransaction(LendingClTransaction transaction, Double amount, String type) {
+        LendingClTransaction lendingClTransaction = new LendingClTransaction();
+        lendingClTransaction.setCreditAccountId(transaction.getCreditAccountId());
+        lendingClTransaction.setMerchantId(transaction.getMerchantId());
+        lendingClTransaction.setMerchantStoreId(transaction.getMerchantStoreId());
+        lendingClTransaction.setStatus(CreditConstants.PaymentStatus.SUCCESS.name());
+        lendingClTransaction.setAmount(amount);
+        lendingClTransaction.setMode("CREDIT");
+        lendingClTransaction.setType(type);
+        lendingClTransaction.setSubType(transaction.getSubType());
+        lendingClTransaction.setParentId(transaction.getId());
+        lendingClTransactionDao.save(lendingClTransaction);
+    }
+
+    private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle) {
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+        if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
+            lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+        }
+        lendingLedger.setLendingPaymentSchedule(lendingPaymentSchedule);
+        lendingLedger.setDate(date);
+        lendingLedger.setTxnType(txnType);
+        lendingLedger.setAmount(amount);
+        lendingLedger.setInterest(0.0);
+        lendingLedger.setOtherCharges(0.0);
+        lendingLedger.setPenalty(0.0);
+        lendingLedger.setPrinciple(principle);
+        lendingLedger.setDescription("CREDIT_LINE");
+        lendingLedger.setAdjustmentMode(CreditConstants.PaymentType.REFUND.name());
+        lendingLedgerDao.save(lendingLedger);
+    }
+
+    private void insertClLedger(LendingClTransaction lendingClTransaction, Double amount, Double principle, Double interest) {
+        LendingClLedger lendingClLedger = new LendingClLedger();
+        lendingClLedger.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClLedger.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
+        lendingClLedger.setClTransactionId(lendingClTransaction.getId());
+        lendingClLedger.setTransactionType(CreditConstants.PaymentType.REFUND.name());
+        lendingClLedger.setAmount(amount);
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
+        try {
+            lendingClLedger.setDate(format.parse(format.format(new Date())));
+        } catch (ParseException e) {
+            lendingClLedger.setDate(new Date());
+            logger.error("Exception---", e);
+        }
+        lendingClLedger.setPrinciple(principle);
+        lendingClLedger.setInterest(interest);
+        lendingClLedger.setOtherCharges(0D);
+        lendingClLedger.setPenalty(0D);
+        lendingClLedgerDao.save(lendingClLedger);
     }
 }

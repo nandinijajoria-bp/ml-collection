@@ -56,9 +56,21 @@ public class CreditLineBPBController {
     }
 
     @RequestMapping(value="/check_status", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<CreditSpendVerifyResponseDTO> checkStatus(@RequestAttribute Merchant merchant, @RequestParam String orderId, @RequestHeader(name = "client") String client) {
+    public ResponseEntity<CreditSpendVerifyResponseDTO> checkStatus(@RequestParam String orderId) {
+        logger.info("Credit line check status request: {}", orderId);
         try {
-            return new ResponseEntity<>(creditLineBPBService.checkStatus(orderId, client, merchant), HttpStatus.OK);
+            return new ResponseEntity<>(creditLineBPBService.checkStatus(orderId), HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Exception---", e);
+            return new ResponseEntity<>(new CreditSpendVerifyResponseDTO(false, "Something went wrong"), HttpStatus.OK);
+        }
+    }
+
+    @RequestMapping(value="/refund", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+    public ResponseEntity<CreditSpendVerifyResponseDTO> refund(@RequestBody CreditRefundRequestDTO requestDTO) {
+        logger.info("Credit line refund txn request: {}", requestDTO);
+        try {
+            return new ResponseEntity<>(creditLineBPBService.refund(requestDTO), HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception---", e);
             return new ResponseEntity<>(new CreditSpendVerifyResponseDTO(false, "Something went wrong"), HttpStatus.OK);

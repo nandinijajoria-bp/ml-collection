@@ -58,7 +58,7 @@ public  class CreditUtil {
 		shopDetails.put("pincode", creditApplicationAddress.getPincode());
 		shopDetails.put("city", creditApplicationAddress.getCity());
 		shopDetails.put("state", creditApplicationAddress.getState());
-		shopDetails.put("alternate_mobile", application.getAlternateMobile());
+		shopDetails.put("alternative_contact", application.getAlternateMobile());
 		return shopDetails;
 	}
 
