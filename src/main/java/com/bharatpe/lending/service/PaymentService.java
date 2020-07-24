@@ -252,7 +252,7 @@ public class PaymentService {
 				if(balance > 0) { // Paid amount is greater than due interest
 					paidInterestAmount = activeLoan.getDueInterest();
 					paidPrincipalAmount = balance;
-					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + activeLoan.getDuePrinciple());
+					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
 					activeLoan.setDueInterest(0D);
 					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
 					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + balance);
