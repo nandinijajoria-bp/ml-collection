@@ -331,11 +331,11 @@ public class LoanDetailsService {
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". The amount will reflect in your bank account within <b>10 days</b> after Lockdown ends.");
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Approved");
-						loanApplicationDTO.setStatusTitle("Loan Transfer Initiated");
+						loanApplicationDTO.setStatusTitle("Loan Approved");
 						if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
 							loanApplicationDTO.setStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
 						} else {
-							loanApplicationDTO.setStatusMessage("The amount will reflect in your bank account within 48 hours.");
+							loanApplicationDTO.setStatusMessage("The amount will reflect in your Bank A/c in the next 7-10 days. Keep transacting on BharatPe QR to get money in your Account faster.");
 						}
 					}
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
@@ -917,11 +917,11 @@ public class LoanDetailsService {
 				}
 			} else {
 				history.setLoanStatusHeader("Loan Approved");
-				history.setLoanStatusTitle("Loan Transfer Initiated");
+				history.setLoanStatusTitle("Loan Approved");
 				if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
 					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
 				} else {
-					history.setLoanStatusMessage("The amount will reflect in your bank account within 48 hours.");
+					history.setLoanStatusMessage("The amount will reflect in your Bank A/c in the next 7-10 days. Keep transacting on BharatPe QR to get money in your Account faster.");
 				}
 			}
 			history.setRepaid(0D);
