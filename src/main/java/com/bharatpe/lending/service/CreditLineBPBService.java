@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
@@ -26,6 +27,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class CreditLineBPBService {
@@ -61,6 +63,9 @@ public class CreditLineBPBService {
 
     @Autowired
     LendingClLedgerDao lendingClLedgerDao;
+
+    @Autowired
+    MerchantDao merchantDao;
 
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
@@ -145,12 +150,16 @@ public class CreditLineBPBService {
         transaction.setStatus(CreditConstants.PaymentStatus.SUCCESS.name());
         lendingClTransactionDao.save(transaction);
         creditLineService.debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
+        String message;
         if ("CL".equals(paymentRequest.getLoanType())) {
             creditLineService.insertClLedger(transaction);
+            message = creditLineService.getFlexibileNotificationMessage(transaction, merchant, creditAccount);
         } else {
             LendingTlDetails lendingTlDetails = creditLineService.insertTlDetails(transaction, paymentRequest.getTenure());
             creditLineService.createLPS(lendingTlDetails, merchant);
+            message = creditLineService.getFixedNotificationMessage(transaction, merchant, creditAccount, lendingTlDetails);
         }
+        creditLineService.sendNotification(message, merchant);
         return createSpendVerifyResponse(transaction, creditAccount);
     }
 
@@ -210,14 +219,15 @@ public class CreditLineBPBService {
         if (requestDTO.getAmount() > remainingRefund) {
             return new CreditSpendVerifyResponseDTO(false, "Refund amount more than transaction amount");
         }
+        Optional<Merchant> merchantOptional = merchantDao.findById(lendingClTransaction.getMerchantId());
         if ("TL".equalsIgnoreCase(lendingClTransaction.getType())) {
-            return refundTL(lendingClTransaction, requestDTO.getAmount());
+            return refundTL(lendingClTransaction, requestDTO.getAmount(), merchantOptional.get());
         } else {
-            return refundCL(lendingClTransaction, requestDTO.getAmount());
+            return refundCL(lendingClTransaction, requestDTO.getAmount(), merchantOptional.get());
         }
     }
 
-    private CreditSpendVerifyResponseDTO refundTL(LendingClTransaction lendingClTransaction, Double amount) {
+    private CreditSpendVerifyResponseDTO refundTL(LendingClTransaction lendingClTransaction, Double amount, Merchant merchant) {
         LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
         if (lendingTlDetails == null) {
             logger.error("lending tl details not found for transaction:{}", lendingClTransaction.getId());
@@ -243,10 +253,14 @@ public class CreditLineBPBService {
         lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
         createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), amount, amount);
         createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        String message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
+                + CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType()) +
+                " transaction.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
+        creditLineService.sendNotification(message, merchant);
         return new CreditSpendVerifyResponseDTO(true, null);
     }
 
-    private CreditSpendVerifyResponseDTO refundCL(LendingClTransaction lendingClTransaction, Double amount) {
+    private CreditSpendVerifyResponseDTO refundCL(LendingClTransaction lendingClTransaction, Double amount, Merchant merchant) {
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
         LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
         double refundAmount = amount;
@@ -275,6 +289,17 @@ public class CreditLineBPBService {
         lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
         insertClLedger(lendingClTransaction, refundAmount, amount, refundAmount - amount);
         createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        String message;
+        if (interest > 0) {
+            message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
+                    + CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType()) +
+                    " transaction.\nIn addition, charges of Rs."+interest+" are also reversed.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
+        } else {
+            message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
+                    + CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType()) +
+                    " transaction.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
+        }
+        creditLineService.sendNotification(message, merchant);
         return new CreditSpendVerifyResponseDTO(true, null);
     }
 

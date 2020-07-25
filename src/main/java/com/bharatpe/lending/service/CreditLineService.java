@@ -639,28 +639,28 @@ public class CreditLineService {
 			lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
 		}
 	}
-	private String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
+	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+". More details: ";
+				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
 	
-	private String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
+	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
 				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+
 				".\nDaily installment of Rs."+lendingTlDetails.getEdi()+" will be deducted from your QR Settlements. \n" + 
-				"More details: ";
+				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
-	private void sendNotification(String message, Merchant merchant) {
+	public void sendNotification(String message, Merchant merchant) {
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
-		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, mobiles, null);
+		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message, mobiles, null);
 	}
 	
 	@SuppressWarnings("unchecked, rawtypes")
