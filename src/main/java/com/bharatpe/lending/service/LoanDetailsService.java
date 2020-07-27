@@ -152,11 +152,21 @@ public class LoanDetailsService {
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 			Integer pincode = null;
 			LendingCities lendingCity = null;
+			if (experian != null && experian.getPincode() == null) {
+				logger.error("pincode bug, deleting experian entry for merchant:{}", merchant.getId());
+				emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
+					add("mihit@bharatpe.com");add("anubhav.mathur@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId() + ", mid:" + merchant.getMid());
+				experianDao.deleteByMerchantId(merchant.getId());
+				LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();
+				response1.setSuccess(false);
+				response1.setMessage("Pincode not found");
+				return response1;
+			}
 			if (requestDTO.getPayload().getPanCard() != null) {
 				if (requestDTO.getPayload().getPincode() == null) {
 					logger.error("pincode bug for merchant:{}", merchant.getId());
 					emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
-					add("mihit@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId());
+						add("mihit@bharatpe.com");add("anubhav.mathur@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId() + ", mid:" + merchant.getMid());
 					LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();
 					response1.setSuccess(false);
 					response1.setMessage("Pincode not found");
