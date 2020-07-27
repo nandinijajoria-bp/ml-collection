@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,7 @@ import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.AppliedApplicationNotificationDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -36,6 +39,9 @@ public class RedisNotificationService {
 	
 	@Autowired
 	PushNotificationHandler pushNotificationHandler;
+	
+	@Autowired
+	LendingApplicationDao lendingApplicationDao;
 	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
 		try {
@@ -70,7 +76,13 @@ public class RedisNotificationService {
 	    try {
 	    	logger.info("Notification content received from kafka {}",notificationDto);
 			AppliedApplicationNotificationDto applicationNotificationDto=objectMapper.readValue(notificationDto, AppliedApplicationNotificationDto.class);
-			sendPushNotification(applicationNotificationDto);	
+			Optional<LendingApplication> lendingApplicationOptional=lendingApplicationDao.findById(applicationNotificationDto.getApplicationId());
+			if(lendingApplicationOptional.isPresent()) {
+				LendingApplication lendingApplication=lendingApplicationOptional.get();
+				if(lendingApplication.getAgreementAt()==null) {
+					sendPushNotification(applicationNotificationDto);
+				}	
+			}	
 		} catch (Exception e) {
 			logger.error("Error occured while sending push notification ",e);
 		}
