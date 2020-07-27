@@ -38,6 +38,7 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.text.DateFormat;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -138,6 +139,8 @@ public class CreditLineService {
 
 	@Autowired
 	LiquiloansService liquiloansService;
+	
+	private final DecimalFormat df = new DecimalFormat("#.##");
 
 	ExecutorService createLeadExecutor = Executors.newFixedThreadPool(1);
 
@@ -249,7 +252,7 @@ public class CreditLineService {
 		mobiles.add(merchant.getMobile());
 		String message="CONGRATULATIONS!\n\n" + 
 				"BharatPe Loan is Approved!\n" + 
-				"You have Rs."+Math.round(creditApplication.getAmount() * 100.0) / 100.0+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
+				"You have Rs."+Double.valueOf(df.format(creditApplication.getAmount()))+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
 				"Click Here :  ";
 		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
 		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
@@ -642,17 +645,17 @@ public class CreditLineService {
 	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Math.round(lendingClTransaction.getAmount() * 100.0) / 100.0+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+Math.round(creditAccount.getAvailableBalance() * 100.0) / 100.0 +". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
 	
 	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Math.round(lendingClTransaction.getAmount() * 100.0) / 100.0 +" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+Math.round(creditAccount.getAvailableBalance() * 100.0) / 100.0 +
-				".\nDaily installment of Rs."+Math.round(lendingTlDetails.getEdi() * 100.0) / 100.0  +" will be deducted from your QR Settlements. \n" + 
+				"Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+
+				".\nDaily installment of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your QR Settlements. \n" + 
 				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}

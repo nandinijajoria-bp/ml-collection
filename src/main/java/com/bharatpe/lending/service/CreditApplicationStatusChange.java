@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -79,6 +80,8 @@ public class CreditApplicationStatusChange {
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 	
+	private final DecimalFormat df = new DecimalFormat("#.##");
+	
 	public ResponseDTO changeApplicationStatus(CreditApplicationStatusUpdationRequestDto applicationStatus){
 		try {
 			logger.info("updating application status for application id {}",applicationStatus.getApplicationId());
@@ -117,7 +120,7 @@ public class CreditApplicationStatusChange {
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
 			String message="BharatPe Loan Approved. ACTIVATION PENDING!\n" + 
-					"You have Rs."+Math.round(creditApplication.getAmount() * 100.0) / 100.0+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
+					"You have Rs."+Double.valueOf(df.format(creditApplication.getAmount()))+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
 					"Activate Now by collecting Rs.500 more from your customers through BharatPe QR Code \n" + 
 					"Check Status. ";
 			smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
