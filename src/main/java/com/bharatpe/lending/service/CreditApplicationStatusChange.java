@@ -117,7 +117,7 @@ public class CreditApplicationStatusChange {
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
 			String message="BharatPe Loan Approved. ACTIVATION PENDING!\n" + 
-					"You have Rs."+creditApplication.getAmount()+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
+					"You have Rs."+Math.round(creditApplication.getAmount() * 100.0) / 100.0+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
 					"Activate Now by collecting Rs.500 more from your customers through BharatPe QR Code \n" + 
 					"Check Status. ";
 			smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);

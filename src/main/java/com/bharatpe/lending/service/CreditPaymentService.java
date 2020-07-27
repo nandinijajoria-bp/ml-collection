@@ -335,8 +335,8 @@ public class CreditPaymentService {
     }
     
     public void sendNotification(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, Merchant merchant){
-    	String message="Rs."+lendingClTransaction.getAmount()+" repayment of Bharatpe Loan is Successful.\n"+
-    					"Your Available Loan Balance is Rs." +creditAccount.getAvailableBalance()+".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
+    	String message="Rs."+Math.round(lendingClTransaction.getAmount() * 100.0) / 100.0 +" repayment of Bharatpe Loan is Successful.\n"+
+    					"Your Available Loan Balance is Rs." +Math.round(creditAccount.getAvailableBalance() * 100.0) / 100.0 +".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
     	mobiles.add(merchant.getMobile());
     	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);

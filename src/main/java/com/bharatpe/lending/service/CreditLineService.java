@@ -249,7 +249,7 @@ public class CreditLineService {
 		mobiles.add(merchant.getMobile());
 		String message="CONGRATULATIONS!\n\n" + 
 				"BharatPe Loan is Approved!\n" + 
-				"You have Rs."+creditApplication.getAmount().intValue()+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
+				"You have Rs."+Math.round(creditApplication.getAmount() * 100.0) / 100.0+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
 				"Click Here :  ";
 		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
 		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
@@ -642,17 +642,17 @@ public class CreditLineService {
 	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
+				"Rs."+Math.round(lendingClTransaction.getAmount() * 100.0) / 100.0+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+				"Your Available Loan Balance is Rs."+Math.round(creditAccount.getAvailableBalance() * 100.0) / 100.0 +". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
 	
 	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+lendingClTransaction.getAmount()+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+creditAccount.getAvailableBalance()+
-				".\nDaily installment of Rs."+lendingTlDetails.getEdi()+" will be deducted from your QR Settlements. \n" + 
+				"Rs."+Math.round(lendingClTransaction.getAmount() * 100.0) / 100.0 +" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+				"Your Available Loan Balance is Rs."+Math.round(creditAccount.getAvailableBalance() * 100.0) / 100.0 +
+				".\nDaily installment of Rs."+Math.round(lendingTlDetails.getEdi() * 100.0) / 100.0  +" will be deducted from your QR Settlements. \n" + 
 				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
