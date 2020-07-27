@@ -338,7 +338,7 @@ public class CreditPaymentService {
     }
     
     public void sendNotification(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, Merchant merchant){
-    	String message="Rs."+Math.round(lendingClTransaction.getAmount() * 100.0) / 100.0 +" repayment of Bharatpe Loan is Successful.\n"+
+    	String message="Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment of Bharatpe Loan is Successful.\n"+
     					"Your Available Loan Balance is Rs." +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
     	mobiles.add(merchant.getMobile());

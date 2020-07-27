@@ -653,7 +653,7 @@ public class CreditLineService {
 	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
 				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+
 				".\nDaily installment of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your QR Settlements. \n" + 
 				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
