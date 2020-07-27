@@ -1275,40 +1275,15 @@ public class TncService {
 				"    <td class=\"td1\" valign=\"middle\">\n" + 
 				"    <p class=\"p25\">Interest Rate</p>\n" + 
 				"    <ul class=\"ul1\">\n" + 
-				"    <li class=\"li6\">Interest chargeable (In case of Floating Rate Loans)</li>\n" + 
-				"    <li class=\"li6\">Interest chargeable (In case of Fixed</li>\n" + 
+				"    <li class=\"li6\">Interest chargeable (In case of Fixed/Monthly Loans)</li>\n"+
 				"    </ul>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" valign=\"middle\">\n" + 
 				"    <p class=\"p20\">2% per month&nbsp;</p>\n" + 
-				"    </td>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">&nbsp;</p>\n" + 
-				"    </td>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">\n" + 
-				"    <p class=\"p30\">Fixed</p>\n" + 
-				"    </td>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">&nbsp;</p>\n" + 
-				"    </td>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">\n" + 
-				"    <p class=\"p31\">Variable</p>\n" + 
-				"    </td>\n" + 
+				"    </td>\n" +  
 				"    </tr>\n" + 
-				"    <tr>\n" + 
+				"    <tr>\n" +
 				"    <td class=\"td1\" valign=\"middle\">13&nbsp;</td>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">\n" + 
-				"    <p class=\"p32\">&nbsp;</p>\n" + 
-				"    </td>\n" + 
-				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p33\">&nbsp;</p>\n" + 
-				"    <p class=\"p34\">(a) ..........% (MCLR/........... +&hellip;&hellip;&hellip;)</p>\n" + 
-				"    <p class=\"p20\">&nbsp;</p>\n" + 
-				"    <p class=\"p34\">(b) %</p>\n" + 
-				"    </td>\n" + 
-				"    </tr>\n" + 
-				"    <tr>\n" + 
-				"    <td class=\"td1\" valign=\"middle\">14&nbsp;</td>\n" + 
 				"    <td class=\"td1\" valign=\"middle\">\n" + 
 				"    <p class=\"p25\">Non-refundable Processing Fees /</p>\n" + 
 				"    <p class=\"p25\">service charge</p>\n" + 
@@ -1891,40 +1866,18 @@ public class TncService {
 				"<p class=\"p25\">Interest Rate</p>\n" + 
 				"<ul class=\"ul1\">\n" + 
 				"<li class=\"li6\">Interest chargeable (In case of Floating Rate Loans)</li>\n" + 
-				"<li class=\"li6\">Interest chargeable (In case of Fixed</li>\n" + 
+				"<li class=\"li6\">Interest chargeable (In case of Fixed Rate Loans)</li>\n" + 
 				"</ul>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">(a) 2% per month\n" + 
-				"(b) 0.1% per day&nbsp;</p>\n" + 
-				"</td>\n" + 
-				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">&nbsp;</p>\n" + 
-				"</td>\n" + 
-				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p30\">Fixed</p>\n" + 
-				"</td>\n" + 
-				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">&nbsp;</p>\n" + 
-				"</td>\n" + 
-				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p31\">Variable</p>\n" + 
-				"</td>\n" + 
+				"<ul class=\"ul1\">\n" + 
+				"<li class=\"li6\">2% per month</li>\n" + 
+				"<li class=\"li6\">0.1% per day</li>\n" + 
+				"</ul>\n" +
+				"</td>\n" +
 				"</tr>\n" + 
 				"<tr>\n" + 
 				"<td class=\"td1\" valign=\"middle\">13&nbsp;</td>\n" + 
-				"<td class=\"td1\" valign=\"middle\">\n" + 
-				"<p class=\"p32\">&nbsp;</p>\n" + 
-				"</td>\n" + 
-				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p33\">&nbsp;</p>\n" + 
-				"<p class=\"p34\">(a) ..........% (MCLR/........... +&hellip;&hellip;&hellip;)</p>\n" + 
-				"<p class=\"p20\">&nbsp;</p>\n" + 
-				"<p class=\"p34\">(b) %</p>\n" + 
-				"</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td class=\"td1\" valign=\"middle\">14&nbsp;</td>\n" + 
 				"<td class=\"td1\" valign=\"middle\">\n" + 
 				"<p class=\"p25\">Non-refundable Processing Fees /</p>\n" + 
 				"<p class=\"p25\">service charge</p>\n" + 
