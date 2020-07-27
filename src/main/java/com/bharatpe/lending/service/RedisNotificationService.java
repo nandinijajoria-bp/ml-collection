@@ -50,11 +50,11 @@ public class RedisNotificationService {
 			String messageString1day=objectMapper.writeValueAsString(notificationDto);
 			delayedMessagePublisher.publish("application_applied", "partitionKey", messageString1day, "applied_application_1day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 1));
 			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
-					"Get Rs.<Loan Amount> in your <Bank Name> A/c  Now & Grow your Business.");
+					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
 			String messageString3day=objectMapper.writeValueAsString(notificationDto);
 			delayedMessagePublisher.publish("application_applied", "partitionKey", messageString3day,"applied_application_3day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 3));
 			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
-					"Get Rs.<Loan Amount> in your <Bank Name> A/c  Now & Grow your Business.");
+					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
 			String messageString5day=objectMapper.writeValueAsString(notificationDto);
 			delayedMessagePublisher.publish("application_applied", "partitionKey", messageString5day, "applied_application_5day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 5));
 		} catch (Exception e) {
