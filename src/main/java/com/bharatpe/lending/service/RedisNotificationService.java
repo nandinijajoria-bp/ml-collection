@@ -34,15 +34,6 @@ public class RedisNotificationService {
 	
 	Logger logger=LoggerFactory.getLogger(RedisNotificationService.class);
 	
-	@Autowired
-	MerchantFcmTokenDao merchantFcmTokenDao;
-	
-	@Autowired
-	PushNotificationHandler pushNotificationHandler;
-	
-	@Autowired
-	LendingApplicationDao lendingApplicationDao;
-	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
 		try {
 			AppliedApplicationNotificationDto notificationDto=new AppliedApplicationNotificationDto();
@@ -70,30 +61,5 @@ public class RedisNotificationService {
 			logger.error("Error occured while sending notification {}",e);
 		}
 	}
-	
-	@KafkaListener(topics = "application_applied")
-	public void listenForAppliedApplication(String notificationDto) {
-	    try {
-	    	logger.info("Notification content received from kafka {}",notificationDto);
-			AppliedApplicationNotificationDto applicationNotificationDto=objectMapper.readValue(notificationDto, AppliedApplicationNotificationDto.class);
-			Optional<LendingApplication> lendingApplicationOptional=lendingApplicationDao.findById(applicationNotificationDto.getApplicationId());
-			if(lendingApplicationOptional.isPresent()) {
-				LendingApplication lendingApplication=lendingApplicationOptional.get();
-				if(lendingApplication.getAgreementAt()==null) {
-					sendPushNotification(applicationNotificationDto);
-				}	
-			}	
-		} catch (Exception e) {
-			logger.error("Error occured while sending push notification ",e);
-		}
-	}
-	
-	public void sendPushNotification(AppliedApplicationNotificationDto notificationDto) {
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(notificationDto.getMerchantId());
-		if(merchantFcmToken != null) {
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), notificationDto.getMessage(), "bharatpe://dynamic?key=credit-line");
-		}
-	}
-	
 	
 }
