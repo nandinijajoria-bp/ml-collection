@@ -42,7 +42,7 @@ public class RedisNotificationService {
 			notificationDto.setMessage("Transfer Rs."+lendingApplication.getLoanAmount()+" to your "+bankName+" A/c Now!\n" + 
 					"Just 2 minutes to complete your loan application");
 			String messageString30min=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", "notifyPartitionKey"+merchantId, messageString30min, "applied_application_30min_"+lendingApplication.getId(), 30*60);
+			delayedMessagePublisher.publish("lending_notify", "notifyPartitionKey"+merchantId, messageString30min, "applied_application_30min_"+lendingApplication.getId(), 60);
 			notificationDto.setMessage("Just 2 minutes away from Rs."+lendingApplication.getLoanAmount()+" Loan \n" + 
 					"Complete application now and get money in your "+bankName+" A/c");
 			String messageString1day=objectMapper.writeValueAsString(notificationDto);
@@ -74,19 +74,19 @@ public class RedisNotificationService {
 				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is ready to be transferred to your "+bankName+" A/c\n" + 
 						"Quick Disbursal. Pay only Rs."+highestLoan.getEdi()+" Daily Instalment\n");
 				String messageString30min=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString30min, "eligible_30_min_"+merchantId, 10*60);
+				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString30min, "eligible_30_min_"+merchantId, 60);
 				
 				notificationDto.setMessage("Transfer Rs. "+highestLoan.getAmount()+" to your "+bankName+" A/c Now\n" + 
 						"Pay only Rs. "+highestLoan.getEdi()+" Daily from your QR Settlement");
 				String messageString1Day=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString1Day, "applied_application_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
+				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString1Day, "eligible_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
 				
 				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is waiting to be transferred to your "+bankName+" A/c\n" + 
 						"Pay only Rs. "+highestLoan.getEdi()+". Daily from your QR Settlement.");
 				String messageString3days=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString3days, "applied_application_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
+				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString3days, "eligible_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
 				//message of day 3 and day 5 are same
-				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString3days, "applied_application_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));	
+				delayedMessagePublisher.publish("lending_notify", "eligiblePartitionKey"+merchantId, messageString3days, "eligible_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));	
 			}
 		}
 		catch(Exception e) {
