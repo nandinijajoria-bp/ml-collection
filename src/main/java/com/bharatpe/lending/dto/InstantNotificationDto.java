@@ -1,9 +1,10 @@
 package com.bharatpe.lending.dto;
 
-public class AppliedApplicationNotificationDto {
+public class InstantNotificationDto {
 	
 	private Long merchantId;
 	private Long applicationId;
+	private String messageCategory;
 	private String message;
 	
 	public Long getMerchantId() {
@@ -24,10 +25,16 @@ public class AppliedApplicationNotificationDto {
 	public void setMessage(String message) {
 		this.message = message;
 	}
+	public String getMessageCategory() {
+		return messageCategory;
+	}
+	public void setMessageCategory(String messageCategory) {
+		this.messageCategory = messageCategory;
+	}
 	@Override
 	public String toString() {
 		return "AppliedApplicationNotificationDto [merchantId=" + merchantId + ", applicationId=" + applicationId
-				+ ", message=" + message + "]";
+				+ ", messageCategory=" + messageCategory + ", message=" + message + "]";
 	}
 	
 }

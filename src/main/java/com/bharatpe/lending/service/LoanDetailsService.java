@@ -124,6 +124,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
+	
+	@Autowired
+	RedisNotificationService redisNotificationService;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -500,6 +503,8 @@ public class LoanDetailsService {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
 					try {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
+						//send instant notification
+						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
