@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.InternalClientDao;
+import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.*;
@@ -51,9 +52,6 @@ public class CreditPaymentService {
 
     @Autowired
     ObjectMapper objectMapper;
-
-    @Autowired
-    GupShupOTPHandler gupShupOTPHandler;
 
     @Autowired
     CreditAccountDao creditAccountDao;
@@ -120,6 +118,9 @@ public class CreditPaymentService {
 
     @Autowired
     MerchantDao merchantDao;
+
+    @Autowired
+    LendingEDIScheduleDao lendingEDIScheduleDao;
 
     private static String secret;
 
@@ -627,24 +628,57 @@ public class CreditPaymentService {
             double paidPrinciple = 0d;
             for (LendingPaymentSchedule lendingPaymentSchedule : termLoanList) {
                 if (remainingAmount > 0) {
-                    double paymentTL = remainingAmount * 1/termLoanList.size();
-                    paidPrinciple += paymentTL;
-                    remainingAmount = remainingAmount - paymentTL < 0 ? 0 : remainingAmount - paymentTL;
-                    if ((lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() + lendingPaymentSchedule.getDueInterest()) <= paymentTL) {
-                        logger.info("Closing loan:{} and account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                    double paymentTL = 0d;
+                    if ((lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() + lendingPaymentSchedule.getDueInterest()) <= remainingAmount) {
+                        logger.info("Closing loan:{} for account:{}", lendingPaymentSchedule.getId(), creditAccount.getId());
+                        paymentTL = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() + lendingPaymentSchedule.getDueInterest());
+                        paidPrinciple += paymentTL;
+                        remainingAmount = remainingAmount - paymentTL < 0 ? 0 : remainingAmount - paymentTL;
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
                         lendingPaymentSchedule.setStatus("CLOSED");
                     } else {
-                        logger.info("New due amount:{} for loan:{} and account:{}", -paymentTL, lendingPaymentSchedule.getId(), creditAccount.getId());
-                        lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() - paymentTL);
-                        lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() - paymentTL);
-                        lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
-                        lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
+                        List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
+                        if (ediSchedules == null || ediSchedules.isEmpty()) {
+                            logger.error("Edi Schedule not found for loan id:{}", lendingPaymentSchedule.getId());
+                            continue;
+                        }
+                        ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
+                        int ediPaidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+                        double principleAdjusted = 0d;
+                        double interestAdjusted = 0d;
+                        int ediCount = 0;
+                        for (LendingEDISchedule ediSchedule : ediSchedules) {
+                            if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
+                                continue;
+                            }
+                            principleAdjusted += ediSchedule.getPrinciple();
+                            interestAdjusted += ediSchedule.getInterest();
+                            ediCount++;
+                            if (principleAdjusted >= remainingAmount) {
+                                double extraAmount = principleAdjusted - remainingAmount;
+                                if (extraAmount > 0) {
+                                    LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
+                                    lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
+                                    lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
+                                    lendingEDIScheduleDao.save(lastSchedule);
+                                }
+                                break;
+                            }
+                        }
+                        if (principleAdjusted > 0) {
+                            paymentTL = principleAdjusted;
+                            paidPrinciple += paymentTL;
+                            remainingAmount = remainingAmount - paymentTL < 0 ? 0 : remainingAmount - paymentTL;
+                            lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() - ediCount);
+                            lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paymentTL);
+                            lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paymentTL);
+                            lendingPaymentSchedule.setTotalPayableAmount(lendingPaymentSchedule.getTotalPayableAmount() - interestAdjusted);
+                        }
                     }
-                    createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paymentTL, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType());
-                    lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                     if (paymentTL > 0) {
+                        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), paymentTL, paymentTL, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType());
+                        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                         insertPaymentBreakup(lendingClTransaction, paymentTL, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name());
                     }
                 }

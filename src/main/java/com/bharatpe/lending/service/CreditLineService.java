@@ -286,7 +286,8 @@ public class CreditLineService {
 		else {
 			creditSpendResponseDTO.setAvailableCl(CreditUtil.getAvailableClForSpecificMode(lendingCaBalanceDetail, creditLineCategories, requestDTO.getMode()));
 		}
-		if (CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, requestDTO.getAmount())) {
+		List<LendingTlDetails> todayLoans = lendingTlDetailsDao.findByMerchantIdAndDateBetween(merchant.getId(), DateTimeUtil.getCurrentDayStartTime(), DateTimeUtil.getEndTimeFromDateTime(new Date()));
+		if (CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, requestDTO.getAmount(), todayLoans)) {
 			creditSpendResponseDTO.setTl(fetchTl(requestDTO.getAmount()));
 		}
 		//send endpoint for client
@@ -376,8 +377,9 @@ public class CreditLineService {
 		}
 		LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(merchant.getId(), creditAccount.getId());
 		CreditLineCategories creditLineCategories = creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditAccount.getSegment());
+		List<LendingTlDetails> todayLoans = lendingTlDetailsDao.findByMerchantIdAndDateBetween(merchant.getId(), DateTimeUtil.getCurrentDayStartTime(), DateTimeUtil.getEndTimeFromDateTime(new Date()));
 		boolean sufficientBalance = "CL".equals(paymentRequest.getLoanType()) ? CreditUtil.isSufficientCLBalance(lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), creditLineCategories)
-				: CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue());
+				: CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), todayLoans);
 		if (!sufficientBalance) {
 			return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
 		}
@@ -489,8 +491,10 @@ public class CreditLineService {
 			lendingPaymentSchedule.setNextEdiDate(lendingPaymentSchedule.getStartDate());
 			Date tenativeLoanEndDate=getDateAfterNMonths(date,Integer.parseInt(lendingTlDetails.getTenure()));
 			lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
-			lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-			//createLeadExecutor.submit(() -> liquiloansService.createLead(lendingPaymentSchedule, lendingTlDetails));
+			lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+			liquiloansService.createEdiSchedule(lendingPaymentSchedule);
+			LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
+			createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
 		} catch (Exception e) {
 			logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingTlDetails.getLendingClTransaction().getId());
 		}
