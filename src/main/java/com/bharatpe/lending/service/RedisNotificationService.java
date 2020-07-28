@@ -32,6 +32,7 @@ public class RedisNotificationService {
 	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
 		try {
+			logger.info("Pushing notification of application applied but not confirmend for merchant {} and application {}",merchantId,lendingApplication);
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(lendingApplication.getId());
 			notificationDto.setMerchantId(merchantId);
@@ -61,6 +62,7 @@ public class RedisNotificationService {
 	
 	public void sendNotificationForSeenOffer(Long merchantId, List<LoanEligibilityDTO> eligibleLoan) {
 		try {
+			logger.info("Pushing notification of seen offer for merchant {}",merchantId);
 			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
 				LoanEligibilityDTO highestLoan=eligibleLoan.get(0);
 				InstantNotificationDto notificationDto=new InstantNotificationDto();
