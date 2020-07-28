@@ -37,6 +37,7 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 import com.bharatpe.common.enums.NotificationProvider;
 
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -125,6 +126,8 @@ public class CreditPaymentService {
     private static String secret;
 
     private static String mid;
+    
+    private final DecimalFormat df = new DecimalFormat("#.##");
 
     public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
         List<PaymentDetailDto> paymentDetails = new ArrayList<>();
@@ -336,8 +339,8 @@ public class CreditPaymentService {
     }
     
     public void sendNotification(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, Merchant merchant){
-    	String message="Rs."+lendingClTransaction.getAmount()+" repayment of Bharatpe Loan is Successful.\n"+
-    					"Your Available Loan Balance is Rs." +creditAccount.getAvailableBalance()+".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
+    	String message="Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment of Bharatpe Loan is Successful.\n"+
+    					"Your Available Loan Balance is Rs." +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
     	mobiles.add(merchant.getMobile());
     	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
