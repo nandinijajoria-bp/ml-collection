@@ -3,12 +3,16 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 import com.bharatpe.common.dao.*;
@@ -22,6 +26,8 @@ import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.constant.LendingConstants;
 
+import com.bharatpe.lending.handlers.LiquiloansHandler;
+import com.bharatpe.lending.util.Finance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,6 +161,17 @@ public class LiquiloansService {
     @Autowired
 	LendingTlDetailsDao lendingTlDetailsDao;
 
+    @Autowired
+	MerchantStoreDao merchantStoreDao;
+
+    @Autowired
+	LendingEDIScheduleDao lendingEDIScheduleDao;
+
+    @Autowired
+	LiquiloansHandler liquiloansHandler;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(5);
+
 	private static String secretKey;
 
 	private static String SID;
@@ -218,10 +235,19 @@ public class LiquiloansService {
 			if (lendingTlDetails == null) {
 				return new ResponseDTO(false,"loan application not found",null);
 			}
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByTlDetailsIdAndCreditLoanAndStatus(lendingTlDetails.getId(), true, "ACTIVE");
+			if (lendingPaymentSchedule == null) {
+				return new ResponseDTO(false,"lending payment schedule not found",null);
+			}
+			List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
+			if (ediSchedules == null || ediSchedules.isEmpty()) {
+				return new ResponseDTO(false,"lending edi schedule not found",null);
+			}
 			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingTlDetails.getMerchantId());
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingTlDetails.getId());
 			liquiloansDirectDisbursalRawResponse.setLoanId(lendingTlDetails.getExternalLoanId());
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingTlDetails.getNbfcId());
+			executorService.submit(() -> liquiloansHandler.notifyEDISchedule(lendingPaymentSchedule,ediSchedules, lendingTlDetails));
 			return new ResponseDTO(true,null,null);
 		}
 		try {
@@ -782,6 +808,149 @@ public class LiquiloansService {
 			}
 		}
 		return StringUtils.collectionToDelimitedString(map.values(), "||");
+	}
+
+	public void createEdiSchedule(LendingPaymentSchedule paymentSchedule) {
+		try {
+			List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
+			if (scheduleList != null && !scheduleList.isEmpty()) {
+				logger.info("EDI schedule already exist for Loan ID {}.", paymentSchedule.getId());
+				return;
+			}
+			logger.info("Creating EDI schedule for Loan ID {}.", paymentSchedule.getId());
+			int installmentNo = 1;
+			int ediCount = paymentSchedule.getEdiCount();
+			Double openingBalance = paymentSchedule.getLoanAmount();
+			String construct = paymentSchedule.getLoanConstruct();
+			double totalInterest = 0D;
+			Double totalPrincipal = 0D;
+			List<LendingEDISchedule> ediSchedules = new ArrayList<>();
+			double procFee = paymentSchedule.getLoanApplication() == null ? 0D : paymentSchedule.getLoanApplication().getProcessingFee();
+			MerchantStore store = paymentSchedule.getMerchantStoreId() == null ? null : merchantStoreDao.findById(paymentSchedule.getMerchantStoreId()).get();
+			if(procFee > 0D) {
+				ediSchedules.add(createProcFeeSchedule(paymentSchedule, store));
+			}
+			if("CONSTRUCT_2".equals(construct) || "CONSTRUCT_3".equals(construct)) {
+				if("CONSTRUCT_3".equals(construct)) {
+					int ioInstallmentNo = 1;
+					Calendar cal = Calendar.getInstance();
+					cal.setTime(paymentSchedule.getInterestOnlyStartDate());
+					while(ioInstallmentNo <= paymentSchedule.getInterestOnlyEdiCount()) {
+						if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+							cal.add(Calendar.DAY_OF_MONTH, 1);
+							continue;
+						} else {
+							LendingEDISchedule currentSchedule = new LendingEDISchedule();
+							currentSchedule.setConstruct(construct);
+							currentSchedule.setDate(cal.getTime());
+							currentSchedule.setEdiType("Principal Morat");
+							currentSchedule.setInstallmentNumber(installmentNo);
+							currentSchedule.setOpeningBalance(openingBalance);
+							currentSchedule.setInterest(paymentSchedule.getInterestOnlyEdiAmount());
+							currentSchedule.setPrinciple(0D);
+							currentSchedule.setProcessingFee(0D);
+							currentSchedule.setTotalEdi(paymentSchedule.getInterestOnlyEdiAmount().intValue());
+							currentSchedule.setOtherCharges(0D);
+							currentSchedule.setMerchant(paymentSchedule.getMerchant());
+							currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+							currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+							currentSchedule.setMerchantStore(store);
+							ediSchedules.add(currentSchedule);
+
+							totalInterest = totalInterest + paymentSchedule.getInterestOnlyEdiAmount();
+
+							installmentNo++;
+							ioInstallmentNo++;
+
+							cal.add(Calendar.DAY_OF_MONTH, 1);
+						}
+					}
+				}
+			}
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(paymentSchedule.getStartDate());
+			Double reducingInterestRateDaily = Finance.rate(ediCount, paymentSchedule.getEdiAmount().intValue(), paymentSchedule.getLoanAmount());
+			int normalEdIinstallmentNo = 1;
+			while (normalEdIinstallmentNo <= ediCount) {
+				if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+					cal.add(Calendar.DAY_OF_MONTH, 1);
+					continue;
+				} else {
+					Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * paymentSchedule.getLoanAmount()));
+					double interest = round(paymentSchedule.getEdiAmount().intValue() - principal);
+					if(normalEdIinstallmentNo == ediCount) {
+						if(!paymentSchedule.getLoanAmount().equals(totalPrincipal + principal)) {
+							double diff = paymentSchedule.getLoanAmount() - (totalPrincipal + principal);
+							principal = round(paymentSchedule.getLoanAmount() - totalPrincipal);
+							interest = round(interest - diff);
+						}
+					}
+					totalPrincipal = totalPrincipal + principal;
+					totalInterest = totalInterest + interest;
+					LendingEDISchedule currentSchedule = new LendingEDISchedule();
+					currentSchedule.setConstruct(construct);
+					currentSchedule.setDate(cal.getTime());
+					currentSchedule.setEdiType("Regular");
+					currentSchedule.setInstallmentNumber(installmentNo);
+					currentSchedule.setOpeningBalance(round(openingBalance));
+					currentSchedule.setInterest(interest);
+					currentSchedule.setPrinciple(principal);
+					currentSchedule.setProcessingFee(0D);
+					currentSchedule.setTotalEdi(paymentSchedule.getEdiAmount().intValue());
+					currentSchedule.setOtherCharges(0D);
+					currentSchedule.setMerchant(paymentSchedule.getMerchant());
+					currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+					currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+					currentSchedule.setMerchantStore(store);
+					ediSchedules.add(currentSchedule);
+					openingBalance = openingBalance - principal;
+					installmentNo++;
+					normalEdIinstallmentNo++;
+					cal.add(Calendar.DAY_OF_MONTH, 1);
+				}
+			}
+
+			lendingEDIScheduleDao.saveAll(ediSchedules);
+			paymentSchedule.setInterest(totalInterest);
+			paymentSchedule.setOtherCharges(0D);
+			paymentSchedule.setTentativeClosingDate(cal.getTime());
+			lendingPaymentScheduleDao.save(paymentSchedule);
+		} catch(Exception ex) {
+			logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
+		}
+	}
+
+	private LendingEDISchedule createProcFeeSchedule(LendingPaymentSchedule paymentSchedule, MerchantStore store) {
+		Double procFee = paymentSchedule.getLoanApplication().getProcessingFee();
+		Calendar cal = Calendar.getInstance();
+		if(paymentSchedule.getInterestOnlyStartDate() != null) {
+			cal.setTime(paymentSchedule.getInterestOnlyStartDate());
+		} else {
+			cal.setTime(paymentSchedule.getStartDate());
+		}
+		cal.add(Calendar.DAY_OF_MONTH, -1);
+		LendingEDISchedule schedule = new LendingEDISchedule();
+		schedule.setConstruct(paymentSchedule.getLoanConstruct());
+		schedule.setDate(cal.getTime());
+		schedule.setEdiType("");
+		schedule.setInstallmentNumber(0);
+		schedule.setInterest(0D);
+		schedule.setOpeningBalance(paymentSchedule.getLoanAmount());
+		schedule.setPrinciple(0D);
+		schedule.setOtherCharges(0D);
+		schedule.setProcessingFee(procFee);
+		schedule.setTotalEdi(procFee.intValue());
+		schedule.setMerchant(paymentSchedule.getMerchant());
+		schedule.setLoanApplication(paymentSchedule.getLoanApplication());
+		schedule.setLendingPaymentSchedule(paymentSchedule);
+		schedule.setMerchantStore(store);
+		return schedule;
+	}
+
+	private static double round(double value) {
+		BigDecimal bd = BigDecimal.valueOf(value);
+		bd = bd.setScale(2, RoundingMode.HALF_UP);
+		return bd.doubleValue();
 	}
 
 

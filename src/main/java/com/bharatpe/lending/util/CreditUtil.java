@@ -69,8 +69,11 @@ public  class CreditUtil {
 		return creditAccount.getAvailableBalance() >= amount && lendingCaBalanceDetail.getAvailableBalance() >= amount;
 	}
 
-	public static boolean isSufficientTLBalance(CreditAccount creditAccount, LendingCaBalanceDetail lendingCaBalanceDetail, Integer amount) {
+	public static boolean isSufficientTLBalance(CreditAccount creditAccount, LendingCaBalanceDetail lendingCaBalanceDetail, Integer amount, List<LendingTlDetails> todayLoans) {
 		if (creditAccount == null || lendingCaBalanceDetail == null || amount < 1000) {
+			return false;
+		}
+		if (todayLoans != null && !todayLoans.isEmpty()) {
 			return false;
 		}
 		return creditAccount.getAvailableBalance() >= amount && lendingCaBalanceDetail.getAvailableBalance() >= amount;
