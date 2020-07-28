@@ -656,7 +656,7 @@ public class LiquiloansService {
 			schemeDetails.put("xirr", "22.2");
 			request.put("scheme_details", schemeDetails);
 			Map<String, Object> personalDetails = new LinkedHashMap<>();
-			personalDetails.put("pan", "ashpv6052h");//pancard.getProofNumber()
+			personalDetails.put("pan", pancard.getProofNumber());
 			personalDetails.put("full_name", pancard.getName());
 			if ("male".equalsIgnoreCase(poa.getGender())) {
 				personalDetails.put("gender", "Male");
@@ -671,7 +671,7 @@ public class LiquiloansService {
 				personalDetails.put("dob", "");
 			}
 			personalDetails.put("email", "lending@bharatpe.in");
-			personalDetails.put("contact_number", "9999999999");//lendingPaymentSchedule.getMerchant().getMobile().substring(2)
+			personalDetails.put("contact_number", lendingPaymentSchedule.getMerchant().getMobile().substring(2));
 			personalDetails.put("aadhaar_number", poa.getProofNumber());
 			request.put("personal_details", personalDetails);
 			Map<String, Object> addressDetails = new LinkedHashMap<>();
