@@ -172,10 +172,13 @@ public class LoanDetailsService {
 					response1.setMessage("Pincode not found");
 					return response1;
 				}
-				experianDao.deleteByMerchantId(merchant.getId());
+				//experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
-				if (ExperianConstants.LOCKDOWN) {
-					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) ? merchantSummaryLending.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+				if (experian != null) {
+					experian.setPancardNumber(requestDTO.getPayload().getPanCard());
+					experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
+					experian.setPincode(requestDTO.getPayload().getPincode());
+					experianDao.save(experian);
 				} else {
 					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				}
@@ -220,13 +223,13 @@ public class LoanDetailsService {
 				return response;
 			}
 			if (EXPERIAN_ENABLED) {
-				if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) < 30) {
+				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 					rejected = true;
 					rejectReason = experian.getReason();
-				} else if (experian != null && experian.getRejected() && LoanUtil.getDateDiffInDays(experian.getCreatedAt(), new Date()) >= 30) {
+				} else if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) >= 30) {
 					experian.setRejected(false);
 					experian.setReason(null);
-					experian.setCreatedAt(new Date());
+					experian.setRejectedDate(null);
 					experianDao.save(experian);
 				}
 			} else {

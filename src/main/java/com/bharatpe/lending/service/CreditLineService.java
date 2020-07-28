@@ -496,8 +496,8 @@ public class CreditLineService {
 			lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
 			lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 			liquiloansService.createEdiSchedule(lendingPaymentSchedule);
-			LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
-			createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
+//			LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
+//			createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
 		} catch (Exception e) {
 			logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingTlDetails.getLendingClTransaction().getId());
 		}
