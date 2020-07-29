@@ -150,7 +150,7 @@ public class CreditLineBPBService {
         transaction.setType(paymentRequest.getLoanType());
         transaction.setStatus(CreditConstants.PaymentStatus.SUCCESS.name());
         lendingClTransactionDao.save(transaction);
-        creditLineService.debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
+        creditLineService.debitCLBalance(creditAccount, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
         String message;
         if ("CL".equals(paymentRequest.getLoanType())) {
             creditLineService.insertClLedger(transaction);
