@@ -80,6 +80,9 @@ public class CreditApplicationStatusChange {
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 	
+	@Autowired
+	CreditLineService creditLineService;
+	
 	private final DecimalFormat df = new DecimalFormat("#.##");
 	
 	public ResponseDTO changeApplicationStatus(CreditApplicationStatusUpdationRequestDto applicationStatus){
@@ -263,7 +266,7 @@ public class CreditApplicationStatusChange {
 				creditAccount.setInterestDue(0D);
 				creditAccount.setMinimumAmountDue(0D);
 				creditAccount.setNextBillDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 20)));
-				creditAccount.setDueDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 30)));
+				creditAccount.setDueDate(DateTimeUtil.getStartTimeFromDateTime(DateTimeUtil.addDays(new Date(), 29)));
 				creditAccount.setActivationDate(new Date());
 				creditAccount.setCreatedAt(new Date());
 				creditAccount.setUpdatedAt(new Date());
@@ -286,7 +289,12 @@ public class CreditApplicationStatusChange {
 				lendingCaBalanceDetail.setCreatedAt(new Date());
 				lendingCaBalanceDetail.setUpdatedAt(new Date());
 				lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
-
+				
+				Optional<Merchant> merchantOptional=merchantDao.findById(merchantId);
+				if(merchantOptional.isPresent()) {
+					creditLineService.sendActivationNotification(creditApplication, merchantOptional.get());
+				}
+				
 				return true;
 		}
 		else {
