@@ -72,17 +72,17 @@ public class LiquiloanController {
 		return new ResponseEntity<>(responseDTO,HttpStatus.OK);
 	}
 
-	@RequestMapping(value="create_lead",method=RequestMethod.GET)
-	public ResponseEntity<ResponseDTO> createLead(@RequestParam Long loanId){
-		Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId);
-		if (!lendingPaymentSchedule.isPresent()) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-		Optional<LendingTlDetails> lendingTlDetails = lendingTlDetailsDao.findById(lendingPaymentSchedule.get().getTlDetailsId());
-		if (!lendingTlDetails.isPresent() || lendingTlDetails.get().getNbfcId() != null) {
-			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		}
-		liquilaonService.createLead(lendingPaymentSchedule.get(), lendingTlDetails.get());
-		return new ResponseEntity<>(HttpStatus.OK);
-	}
+//	@RequestMapping(value="create_lead",method=RequestMethod.GET)
+//	public ResponseEntity<ResponseDTO> createLead(@RequestParam Long loanId){
+//		Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId);
+//		if (!lendingPaymentSchedule.isPresent()) {
+//			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+//		}
+//		Optional<LendingTlDetails> lendingTlDetails = lendingTlDetailsDao.findById(lendingPaymentSchedule.get().getTlDetailsId());
+//		if (!lendingTlDetails.isPresent() || lendingTlDetails.get().getNbfcId() != null) {
+//			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+//		}
+//		liquilaonService.createLead(lendingPaymentSchedule.get(), lendingTlDetails.get());
+//		return new ResponseEntity<>(HttpStatus.OK);
+//	}
 }
