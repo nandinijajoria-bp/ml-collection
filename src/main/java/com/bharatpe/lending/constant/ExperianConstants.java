@@ -23,6 +23,7 @@ public interface ExperianConstants {
     String FRAUD = "FRAUD";
     String OVERDUE = "OVERDUE";
     String LOW_TPV = "LOW_TPV";
+    String VINTAGE = "VINTAGE";
     String CATEGORY_RED = "CATEGORY_RED";
     String DEROG_ACCOUNT_STATUS = "Loan default / partial settlement";
     String DEROG_DPD_LAST_3_MONTHS = "Late repayment (5+ days) in last 3 months";
