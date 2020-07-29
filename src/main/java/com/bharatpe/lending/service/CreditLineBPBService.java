@@ -271,7 +271,7 @@ public class CreditLineBPBService {
             creditAccount.setInterestDue(creditAccount.getInterestDue() - interest);
             lendingCaBalanceDetail.setInterestDue(lendingCaBalanceDetail.getInterestDue() - interest);
             refundAmount += interest;
-            createRefundTransaction(lendingClTransaction, interest, CreditConstants.PaymentType.INTEREST_ROLLBACK.name());
+            //createRefundTransaction(lendingClTransaction, interest, CreditConstants.PaymentType.INTEREST_ROLLBACK.name());
         }
         creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + refundAmount);
         creditAccount.setUsedBalance(creditAccount.getUsedBalance() - refundAmount);

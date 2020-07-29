@@ -25,6 +25,7 @@ public interface CreditConstants {
 	}
 
 	enum PaymentStatus {
+		INIT,
 		PENDING,
 		SUCCESS,
 		FAILED
