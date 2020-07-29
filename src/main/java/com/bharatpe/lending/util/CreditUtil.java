@@ -73,9 +73,9 @@ public  class CreditUtil {
 		if (creditAccount == null || lendingCaBalanceDetail == null || amount < 1000) {
 			return false;
 		}
-		if (todayLoans != null && !todayLoans.isEmpty()) {
-			return false;
-		}
+//		if (todayLoans != null && !todayLoans.isEmpty()) {
+//			return false;
+//		}
 		return creditAccount.getAvailableBalance() >= amount && lendingCaBalanceDetail.getAvailableBalance() >= amount;
 	}
 
