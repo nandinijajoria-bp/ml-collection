@@ -104,6 +104,9 @@ public class LoanEligibleService {
     @Autowired
     EligibleLoanAuditDao eligibleLoanAuditDao;
 
+    @Autowired
+    PaymentTransactionNewDao paymentTransactionNewDao;
+
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore;
         double tpvLast30Days;
@@ -208,6 +211,17 @@ public class LoanEligibleService {
                 experian.setReason(ExperianConstants.LOW_BP_SCORE);
                 experianDao.save(experian);
                 return new ArrayList<>();
+            }
+            if (!isZomato && !yellowPincode && !prebook) {
+                PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
+                if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 90) {
+                    logger.info("Vintage less than 3 months, so rejecting merchant: {}", merchant.getId());
+                    experian.setCategory("1N");
+                    experian.setColor(ExperianConstants.COLOR.RED.name());
+                    experian.setReason(ExperianConstants.VINTAGE);
+                    experianDao.save(experian);
+                    return new ArrayList<>();
+                }
             }
         }
         
