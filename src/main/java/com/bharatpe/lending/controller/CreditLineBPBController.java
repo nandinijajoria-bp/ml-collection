@@ -56,7 +56,7 @@ public class CreditLineBPBController {
     }
 
     @RequestMapping(value="/check_status", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<CreditSpendVerifyResponseDTO> checkStatus(@RequestParam String orderId) {
+    public ResponseEntity<CreditSpendVerifyResponseDTO> checkStatus(@RequestParam Long orderId) {
         logger.info("Credit line check status request: {}", orderId);
         try {
             return new ResponseEntity<>(creditLineBPBService.checkStatus(orderId), HttpStatus.OK);
