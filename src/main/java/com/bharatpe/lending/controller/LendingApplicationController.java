@@ -110,7 +110,7 @@ public class LendingApplicationController {
 	public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("cancelApplication request : {}",commonAPIRequest);
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-
+		String reason = commonAPIRequest.getPayload().get("reason") != null ? commonAPIRequest.getPayload().get("reason").toString() : null;
 		if(applicationId == null || applicationId <=0) {
 			logger.info("CancelApplicationService invalid applicationId");
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
@@ -119,7 +119,7 @@ public class LendingApplicationController {
 			return resp;
 		}
 
-		Object resp = cancelApplicationService.cancelApplication(merchant, applicationId);
+		Object resp = cancelApplicationService.cancelApplication(merchant, applicationId, reason);
 
 		logger.info("cancelApplication response : {}", resp);
 		return resp;

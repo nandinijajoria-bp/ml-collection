@@ -28,7 +28,7 @@ public class CancelApplicationService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId) {
+	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId, String reason) {
 		Map<String, Boolean> resp = new HashMap<> ();
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
 
@@ -38,6 +38,7 @@ public class CancelApplicationService {
 			return resp;
 		}
 		lendingApplication.setStatus("deleted");
+		lendingApplication.setResponseCode(reason);
 		lendingApplicationDao.save(lendingApplication);
 
 		logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
