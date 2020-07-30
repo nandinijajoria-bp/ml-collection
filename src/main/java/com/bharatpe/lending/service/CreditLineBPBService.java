@@ -67,6 +67,9 @@ public class CreditLineBPBService {
     @Autowired
     MerchantDao merchantDao;
 
+    @Autowired
+    CreditLineTransaction creditLineTransaction;
+
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
 
@@ -116,7 +119,6 @@ public class CreditLineBPBService {
         return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
     }
 
-    @Transactional
     public CreditSpendVerifyResponseDTO deductCL(Merchant merchant, CreditDeductRequestDTO requestDTO) {
         if (requestDTO.getRequestId() == null || (!"TL".equals(requestDTO.getLoanType()) && !"CL".equals(requestDTO.getLoanType()))) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid request");
@@ -147,20 +149,14 @@ public class CreditLineBPBService {
         if (!sufficientBalance) {
             return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
         }
-        transaction.setType(paymentRequest.getLoanType());
-        transaction.setStatus(CreditConstants.PaymentStatus.SUCCESS.name());
-        lendingClTransactionDao.save(transaction);
-        creditLineService.debitCLBalance(creditAccount, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
-        String message;
-        if ("CL".equals(paymentRequest.getLoanType())) {
-            creditLineService.insertClLedger(transaction);
-            message = creditLineService.getFlexibileNotificationMessage(transaction, merchant, creditAccount);
-        } else {
-            LendingTlDetails lendingTlDetails = creditLineService.insertTlDetails(transaction, paymentRequest.getTenure());
-            creditLineService.createLPS(lendingTlDetails, merchant);
-            message = creditLineService.getFixedNotificationMessage(transaction, merchant, creditAccount, lendingTlDetails);
+        creditLineTransaction.debitBPB(creditAccount, transaction, paymentRequest.getLoanType(), paymentRequest.getTenure(), merchant);
+        //send debit notification
+        try {
+            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(transaction, merchant, creditAccount) : creditLineService.getFixedNotificationMessage(transaction, merchant, creditAccount);
+            creditLineService.sendNotification(message, merchant);
+        } catch (Exception e) {
+            logger.error("Unable to send debit notification", e);
         }
-        creditLineService.sendNotification(message, merchant);
         return createSpendVerifyResponse(transaction, creditAccount);
     }
 

@@ -665,6 +665,7 @@ public class CreditPaymentService {
                                     lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
                                     lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
                                     lendingEDIScheduleDao.save(lastSchedule);
+                                    principleAdjusted -= extraAmount;
                                 }
                                 break;
                             }

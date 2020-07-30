@@ -50,7 +50,7 @@ public class CreditLineTransaction {
     @Autowired
     LiquiloansService liquiloansService;
 
-    public LendingClTransaction initializeClTransaction(CreditAccount creditAccount, Double amount, String loanType, String spendMode, Long requestId) {
+    public LendingClTransaction createTxnAndDebit(CreditAccount creditAccount, Double amount, String loanType, String spendMode, Long requestId, Integer tenure) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), amount, spendMode);
         LendingClTransaction lendingClTransaction = new LendingClTransaction();
         lendingClTransaction.setCreditAccountId(creditAccount.getId());
@@ -62,57 +62,91 @@ public class CreditLineTransaction {
         lendingClTransaction.setType(loanType);
         lendingClTransaction.setSubType(spendMode);
         lendingClTransaction.setRequestId(requestId);
-        return lendingClTransactionDao.save(lendingClTransaction);
+        lendingClTransaction = lendingClTransactionDao.save(lendingClTransaction);
+        debitCLBalance(creditAccount, amount, spendMode, loanType);
+        if ("CL".equals(loanType)) {
+            insertClLedger(lendingClTransaction, CreditConstants.PaymentType.CL.name(), -lendingClTransaction.getAmount(), -lendingClTransaction.getAmount(), 0D, 0D, 0D);
+        } else {
+            insertTlDetails(lendingClTransaction, tenure);
+        }
+        return lendingClTransaction;
     }
 
-    public void debitCLBalance(CreditAccount creditAccount, Integer amount, String spendMode, String loanType) {
+    public void debitBPB(CreditAccount creditAccount, LendingClTransaction lendingClTransaction, String type, Integer tenure, Merchant merchant){
+        lendingClTransactionDao.updateStatusAndType(CreditConstants.PaymentStatus.SUCCESS.name(), type, lendingClTransaction.getId());
+        debitCLBalance(creditAccount, lendingClTransaction.getAmount(), lendingClTransaction.getSubType(), type);
+        if ("CL".equals(type)) {
+            insertClLedger(lendingClTransaction, CreditConstants.PaymentType.CL.name(), -lendingClTransaction.getAmount(), -lendingClTransaction.getAmount(), 0D, 0D, 0D);
+        } else {
+            insertTlDetails(lendingClTransaction, tenure);
+            createLPS(merchant, lendingClTransaction);
+        }
+    }
+
+    public void rollbackTxn(LendingClTransaction lendingClTransaction) {
+        creditCLBalance(lendingClTransaction.getCreditAccountId(), lendingClTransaction.getAmount(), lendingClTransaction.getSubType(), lendingClTransaction.getType());
+        if ("CL".equals(lendingClTransaction.getType())) {
+            insertClLedger(lendingClTransaction, CreditConstants.PaymentType.ROLLBACK.name(), lendingClTransaction.getAmount(), lendingClTransaction.getAmount(), 0D, 0D, 0D);
+        } else {
+            lendingTlDetailsDao.deleteByTransactionId(lendingClTransaction.getId());
+        }
+        lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.FAILED.name(), lendingClTransaction.getId());
+    }
+
+    public void debitCLBalance(CreditAccount creditAccount, Double amount, String spendMode, String loanType) {
         logger.info("Credit line debit for account:{}, amount:{}, mode:{}", creditAccount.getId(), amount, spendMode);
         creditAccountDao.debitBalance(creditAccount.getId(), amount);
-        Integer usedBalanceCl = 0;
-        Integer usedBalanceG1 = 0;
-        Integer usedBalanceG2 = 0;
-        Integer usedBalanceG3 = 0;
+        Double usedBalanceCl = 0D;
+        Double usedBalanceG1 = 0D;
+        Double usedBalanceG2 = 0D;
+        Double usedBalanceG3 = 0D;
         if ("CL".equals(loanType)) {
             usedBalanceCl = amount;
             String group = CreditConstants.SpendGroup.get(spendMode);
             switch (group) {
                 case "G1": {
                     usedBalanceG1 = amount;
+                    break;
                 }
                 case "G2": {
                     usedBalanceG2 = amount;
+                    break;
                 }
                 case "G3": {
                     usedBalanceG3 = amount;
+                    break;
                 }
             }
         }
         lendingCaBalanceDetailDao.debitBalance(creditAccount.getId(), amount, usedBalanceCl, usedBalanceG1, usedBalanceG2, usedBalanceG3);
     }
 
-    public void creditCLBalance(CreditAccount creditAccount, Integer amount, String spendMode, String loanType) {
-        logger.info("Credit line credit for account:{}, amount:{}, mode:{}", creditAccount.getId(), amount, spendMode);
-        creditAccountDao.creditBalance(creditAccount.getId(), amount);
-        Integer usedBalanceCl = 0;
-        Integer usedBalanceG1 = 0;
-        Integer usedBalanceG2 = 0;
-        Integer usedBalanceG3 = 0;
+    public void creditCLBalance(Long creditAccountId, Double amount, String spendMode, String loanType) {
+        logger.info("Credit line credit for account:{}, amount:{}, mode:{}", creditAccountId, amount, spendMode);
+        creditAccountDao.creditBalance(creditAccountId, amount);
+        Double usedBalanceCl = 0D;
+        Double usedBalanceG1 = 0D;
+        Double usedBalanceG2 = 0D;
+        Double usedBalanceG3 = 0D;
         if ("CL".equals(loanType)) {
             usedBalanceCl = amount;
             String group = CreditConstants.SpendGroup.get(spendMode);
             switch (group) {
                 case "G1": {
                     usedBalanceG1 = amount;
+                    break;
                 }
                 case "G2": {
                     usedBalanceG2 = amount;
+                    break;
                 }
                 case "G3": {
                     usedBalanceG3 = amount;
+                    break;
                 }
             }
         }
-        lendingCaBalanceDetailDao.creditBalance(creditAccount.getId(), amount, usedBalanceCl, usedBalanceG1, usedBalanceG2, usedBalanceG3);
+        lendingCaBalanceDetailDao.creditBalance(creditAccountId, amount, usedBalanceCl, usedBalanceG1, usedBalanceG2, usedBalanceG3);
     }
 
     public void insertClLedger(LendingClTransaction lendingClTransaction, String type, Double amount, Double principle, Double interest, Double penalty, Double otherCharges) {
@@ -172,8 +206,9 @@ public class CreditLineTransaction {
         return new CreditSpendResponseDTO.TL(edi, tenure, 2D, 0, amount, interestAmount, repayment, ediCount);
     }
 
-    public void createLPS(LendingTlDetails lendingTlDetails, Merchant merchant) {
+    public void createLPS(Merchant merchant, LendingClTransaction lendingClTransaction) {
         try {
+            LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
             LendingPaymentSchedule lendingPaymentSchedule = new LendingPaymentSchedule();
             logger.info("Populating data into lending_payment_schedule table for merchant: {}", merchant.getId());
             lendingPaymentSchedule.setCreditLoan(true);
@@ -225,7 +260,7 @@ public class CreditLineTransaction {
 //            LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
 //            createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
         } catch (Exception e) {
-            logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingTlDetails.getLendingClTransaction().getId());
+            logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingClTransaction.getId());
         }
     }
 
