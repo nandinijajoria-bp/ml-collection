@@ -88,8 +88,6 @@ public class CreditLineTransaction {
         creditCLBalance(lendingClTransaction.getCreditAccountId(), lendingClTransaction.getAmount(), lendingClTransaction.getSubType(), lendingClTransaction.getType());
         if ("CL".equals(lendingClTransaction.getType())) {
             insertClLedger(lendingClTransaction, CreditConstants.PaymentType.ROLLBACK.name(), lendingClTransaction.getAmount(), lendingClTransaction.getAmount(), 0D, 0D, 0D);
-        } else {
-            lendingTlDetailsDao.deleteByTransactionId(lendingClTransaction.getId());
         }
         lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.FAILED.name(), lendingClTransaction.getId());
     }
