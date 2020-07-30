@@ -244,9 +244,10 @@ public class CreditLineBPBService {
         //TODO need to refund paid edi
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
         LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
-        creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + amount);
+        double updatedBalance = (creditAccount.getAvailableBalance() + amount) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + amount;
+        creditAccount.setAvailableBalance(updatedBalance);
         creditAccount.setUsedBalance(creditAccount.getUsedBalance() - amount);
-        lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + amount);
+        lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
         lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - amount);
         creditAccountDao.save(creditAccount);
         lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
@@ -271,9 +272,10 @@ public class CreditLineBPBService {
             refundAmount += interest;
             //createRefundTransaction(lendingClTransaction, interest, CreditConstants.PaymentType.INTEREST_ROLLBACK.name());
         }
-        creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + refundAmount);
+        double updatedBalance = (creditAccount.getAvailableBalance() + refundAmount) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + refundAmount;
+        creditAccount.setAvailableBalance(updatedBalance);
         creditAccount.setUsedBalance(creditAccount.getUsedBalance() - refundAmount);
-        lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + refundAmount);
+        lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
         lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - refundAmount);
         if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
             double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);

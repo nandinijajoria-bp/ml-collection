@@ -490,9 +490,10 @@ public class CreditPaymentService {
                 clPrinciple += principlePaid;
                 creditAccountBill.setPaidPrinciple(creditAccountBill.getPaidPrinciple() + principlePaid);
                 //adjust account balance principle
-                creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + principlePaid);
+                double updatedBalance = (creditAccount.getAvailableBalance() + principlePaid) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + principlePaid;
+                creditAccount.setAvailableBalance(updatedBalance);
                 creditAccount.setUsedBalance(creditAccount.getUsedBalance() - principlePaid);
-                lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + principlePaid);
+                lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
                 lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - principlePaid);
                 if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
                     double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
@@ -571,9 +572,10 @@ public class CreditPaymentService {
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paidPrinciple);
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paidPrinciple);
                         //adjust account balance principle
-                        creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + paidPrinciple);
+                        double updatedBalance = (creditAccount.getAvailableBalance() + paidPrinciple) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + paidPrinciple;
+                        creditAccount.setAvailableBalance(updatedBalance);
                         creditAccount.setUsedBalance(creditAccount.getUsedBalance() - paidPrinciple);
-                        lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + paidPrinciple);
+                        lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
                         lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - paidPrinciple);
                     }
                     double dueOtherCharges = lendingPaymentSchedule.getDueOtherCharges() != null ? lendingPaymentSchedule.getDueOtherCharges() : 0d;
@@ -609,9 +611,10 @@ public class CreditPaymentService {
             double clPaid = (lendingCaBalanceDetail.getUsedBalanceCl() - remaining);
             paymentCL += clPaid;
             clPrinciple += clPaid;
-            creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + clPaid);
+            double updatedBalance = (creditAccount.getAvailableBalance() + clPaid) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + clPaid;
+            creditAccount.setAvailableBalance(updatedBalance);
             creditAccount.setUsedBalance(creditAccount.getUsedBalance() - clPaid);
-            lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + clPaid);
+            lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
             lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - clPaid);
             if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
                 double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
@@ -688,9 +691,10 @@ public class CreditPaymentService {
                 }
             }
             if (paidPrinciple > 0) {
-                creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() + paidPrinciple);
+                double updatedBalance = (creditAccount.getAvailableBalance() + paidPrinciple) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + paidPrinciple;
+                creditAccount.setAvailableBalance(updatedBalance);
                 creditAccount.setUsedBalance(creditAccount.getUsedBalance() - paidPrinciple);
-                lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() + paidPrinciple);
+                lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
                 lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - paidPrinciple);
             }
         }
