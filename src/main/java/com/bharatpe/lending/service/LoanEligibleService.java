@@ -101,6 +101,12 @@ public class LoanEligibleService {
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
 
+    @Autowired
+    EligibleLoanAuditDao eligibleLoanAuditDao;
+
+    @Autowired
+    PaymentTransactionNewDao paymentTransactionNewDao;
+
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore;
         double tpvLast30Days;
@@ -206,6 +212,17 @@ public class LoanEligibleService {
                 experianDao.save(experian);
                 return new ArrayList<>();
             }
+            if (!isZomato && !yellowPincode && !prebook) {
+                PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
+                if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 90) {
+                    logger.info("Vintage less than 3 months, so rejecting merchant: {}", merchant.getId());
+                    experian.setCategory("1N");
+                    experian.setColor(ExperianConstants.COLOR.RED.name());
+                    experian.setReason(ExperianConstants.VINTAGE);
+                    experianDao.save(experian);
+                    return new ArrayList<>();
+                }
+            }
         }
         
         try {
@@ -301,6 +318,7 @@ public class LoanEligibleService {
             if (!isRepeatLoanNoDerog && unsecuredLoanCount > 3) {
                 logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchant.getId());
                 experian.setRejected(true);
+                experian.setRejectedDate(new Date());
                 experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
                 experianDao.save(experian);
                 return true;
@@ -310,6 +328,7 @@ public class LoanEligibleService {
         if (!isRepeatLoanNoDerog && checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)) {
             logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
             experianDao.save(experian);
             return true;
@@ -318,6 +337,7 @@ public class LoanEligibleService {
         if (!isRepeatLoanNoDerog && checkLoanEnquiriesInLast3Months(experianResponse)) {
             logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
             experianDao.save(experian);
             return true;
@@ -606,6 +626,7 @@ public class LoanEligibleService {
         logger.info("saving eligible loan for merchant: {}", merchantId);
         EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType));
         logger.info("eligible loan for merchant: {} is-- {}", merchantId, eligibleLoan.toString());
+        eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
 
@@ -803,6 +824,7 @@ public class LoanEligibleService {
         if (jsonNode.get("Account_Status") != null && derogAccountStatus.contains(jsonNode.get("Account_Status").asInt())){
             logger.info("Derog Account Status check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_ACCOUNT_STATUS);
             experianDao.save(experian);
             return true;
@@ -811,6 +833,7 @@ public class LoanEligibleService {
         if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 3)){
             logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_3_MONTHS);
             experianDao.save(experian);
             return true;
@@ -819,6 +842,7 @@ public class LoanEligibleService {
         if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 6)){
             logger.info("Derog DPD Last 6 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_6_MONTHS);
             experianDao.save(experian);
             return true;
@@ -827,6 +851,7 @@ public class LoanEligibleService {
         if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12)){
             logger.info("Derog DPD Last 12 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_12_MONTHS);
             experianDao.save(experian);
             return true;
@@ -835,6 +860,7 @@ public class LoanEligibleService {
         if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24)){
             logger.info("Derog DPD Last 24 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experian.setReason(ExperianConstants.DEROG_DPD_LAST_24_MONTHS);
             experianDao.save(experian);
             return true;

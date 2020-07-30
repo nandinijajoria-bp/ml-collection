@@ -200,7 +200,7 @@ public class CreditLineService {
 					creditAccount.setCreatedAt(new Date());
 					creditAccount.setUpdatedAt(new Date());
 					creditAccount.setNextBillDate(DateTimeUtil.addDays(new Date(), 20));
-					creditAccount.setDueDate(DateTimeUtil.addDays(new Date(), 30));
+					creditAccount.setDueDate(DateTimeUtil.addDays(new Date(), 29));
 					
 					creditAccount = creditAccountDao.save(creditAccount);
 
@@ -250,7 +250,7 @@ public class CreditLineService {
 		}
 	}
 	
-	private void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
+	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		String message="CONGRATULATIONS!\n\n" + 

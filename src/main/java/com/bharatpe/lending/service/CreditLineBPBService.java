@@ -191,20 +191,22 @@ public class CreditLineBPBService {
         return responseDTO;
     }
 
-    public CreditSpendVerifyResponseDTO checkStatus(String orderId) {
-        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByOrderId(orderId);
-        if (lendingClTransaction == null) {
+    public CreditSpendVerifyResponseDTO checkStatus(Long orderId) {
+        Optional<LendingClTransaction> lendingClTransactionOptional = lendingClTransactionDao.findById(orderId);
+        if (!lendingClTransactionOptional.isPresent()) {
             return new CreditSpendVerifyResponseDTO(false, "orderId not found for this client");
         }
+        LendingClTransaction lendingClTransaction = lendingClTransactionOptional.get();
         return new CreditSpendVerifyResponseDTO(lendingClTransaction.getId(), Double.valueOf(df.format(lendingClTransaction.getAmount())), lendingClTransaction.getCreatedAt(), lendingClTransaction.getStatus());
     }
 
     @Transactional
     public CreditSpendVerifyResponseDTO refund(CreditRefundRequestDTO requestDTO) {
-        LendingClTransaction lendingClTransaction = lendingClTransactionDao.findByOrderId(requestDTO.getOrderId());
-        if (lendingClTransaction == null || !CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(lendingClTransaction.getStatus())) {
+        Optional<LendingClTransaction> lendingClTransactionOptional = lendingClTransactionDao.findById(requestDTO.getOrderId());
+        if (!lendingClTransactionOptional.isPresent() || !CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(lendingClTransactionOptional.get().getStatus())) {
             return new CreditSpendVerifyResponseDTO(false, "transaction not found");
         }
+        LendingClTransaction lendingClTransaction = lendingClTransactionOptional.get();
         if ("TL".equalsIgnoreCase(lendingClTransaction.getType()) && requestDTO.getAmount() < lendingClTransaction.getAmount()) {
             return new CreditSpendVerifyResponseDTO(false, "Partial refund not supported for TL");
         }

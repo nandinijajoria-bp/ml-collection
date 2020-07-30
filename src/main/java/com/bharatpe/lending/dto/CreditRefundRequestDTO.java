@@ -7,14 +7,14 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CreditRefundRequestDTO {
-    private String orderId;
+    private Long orderId;
     private Double amount;
 
-    public String getOrderId() {
+    public Long getOrderId() {
         return orderId;
     }
 
-    public void setOrderId(String orderId) {
+    public void setOrderId(Long orderId) {
         this.orderId = orderId;
     }
 
