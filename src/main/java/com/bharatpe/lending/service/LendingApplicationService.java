@@ -71,6 +71,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
+	
+	@Autowired
+	RedisNotificationService redisNotificationService;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
@@ -124,7 +127,7 @@ public class LendingApplicationService {
 			}
 			createStatusAuditTrail(lendingApplication);
 		}
-
+		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
 		logger.info("Loan Application saved : {}",lendingApplication);
 		return prepareAPIResponse(lendingApplication);
 	}
