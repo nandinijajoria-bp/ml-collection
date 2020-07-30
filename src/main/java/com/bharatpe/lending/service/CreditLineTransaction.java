@@ -84,6 +84,7 @@ public class CreditLineTransaction {
     }
 
     public void rollbackTxn(LendingClTransaction lendingClTransaction) {
+        logger.info("Rollback transaction:{}", lendingClTransaction.getId());
         creditCLBalance(lendingClTransaction.getCreditAccountId(), lendingClTransaction.getAmount(), lendingClTransaction.getSubType(), lendingClTransaction.getType());
         if ("CL".equals(lendingClTransaction.getType())) {
             insertClLedger(lendingClTransaction, CreditConstants.PaymentType.ROLLBACK.name(), lendingClTransaction.getAmount(), lendingClTransaction.getAmount(), 0D, 0D, 0D);
