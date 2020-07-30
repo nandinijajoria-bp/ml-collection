@@ -25,9 +25,6 @@ public class RedisNotificationService {
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 	
-	@Autowired
-	ObjectMapper objectMapper;
-	
 	Logger logger=LoggerFactory.getLogger(RedisNotificationService.class);
 	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
@@ -42,21 +39,21 @@ public class RedisNotificationService {
 			notificationDto.setMessage("Transfer Rs."+lendingApplication.getLoanAmount()+" to your "+bankName+" A/c Now!\n" + 
 					"Just 2 minutes to complete your loan application");
 			//String messageString30min=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "applied_application_30min_"+lendingApplication.getId(), 15*60);
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_30min_"+lendingApplication.getId(), 15*60);
 			notificationDto.setMessage("Just 2 minutes away from Rs."+lendingApplication.getLoanAmount()+" Loan \n" + 
 					"Complete application now and get money in your "+bankName+" A/c");
 			//String messageString1day=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "applied_application_1day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 1));
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_1day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 1));
 			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
 					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
 			//String messageString3day=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto,"applied_application_3day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 3));
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,"applied_application_3day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 3));
 			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
 					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
 			//String messageString5day=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "applied_application_5day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 5));
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 5));
 		} catch (Exception e) {
-			logger.error("Error occured while sending notification {}",e);
+			logger.error("Error occured while sending notification",e);
 		}
 	}
 	
@@ -74,23 +71,23 @@ public class RedisNotificationService {
 				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is ready to be transferred to your "+bankName+" A/c\n" + 
 						"Quick Disbursal. Pay only Rs."+highestLoan.getEdi()+" Daily Instalment\n");
 				//String messageString30min=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "eligible_30_min_"+merchantId, 5*60);
+				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_"+merchantId, 5*60);
 				
 				notificationDto.setMessage("Transfer Rs. "+highestLoan.getAmount()+" to your "+bankName+" A/c Now\n" + 
 						"Pay only Rs. "+highestLoan.getEdi()+" Daily from your QR Settlement");
 				//String messageString1Day=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "eligible_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
+				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
 				
 				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is waiting to be transferred to your "+bankName+" A/c\n" + 
 						"Pay only Rs. "+highestLoan.getEdi()+". Daily from your QR Settlement.");
 				//String messageString3days=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "eligible_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
+				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
 				//message of day 3 and day 5 are same
-				delayedMessagePublisher.publish("lending_notify", merchantId, notificationDto, "eligible_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));	
+				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));
 			}
 		}
 		catch(Exception e) {
-			logger.error("Error occured while sending notification {}",e);
+			logger.error("Error occured while sending notification",e);
 		}
 	}
 }
