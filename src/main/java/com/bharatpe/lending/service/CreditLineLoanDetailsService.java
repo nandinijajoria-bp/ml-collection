@@ -352,10 +352,12 @@ public class CreditLineLoanDetailsService {
 	}
 	
 	private LoanEligibilityDTO getMaxLoanAmount(List<LoanEligibilityDTO> loanEligibilityDTOs) {
-		
+		List<Integer> eligibleTenure = Arrays.asList(1,3,6);
 		LoanEligibilityDTO maxLoan=loanEligibilityDTOs.get(0);
 		for(LoanEligibilityDTO loanEligibilityDto : loanEligibilityDTOs) {
-			maxLoan=loanEligibilityDto.getAmount()>maxLoan.getAmount()?loanEligibilityDto:maxLoan;
+			if (eligibleTenure.contains(loanEligibilityDto.getPrincipleEdiTenure())) {
+				maxLoan = loanEligibilityDto.getAmount() > maxLoan.getAmount() ? loanEligibilityDto : maxLoan;
+			}
 		}
 		
 		return maxLoan;

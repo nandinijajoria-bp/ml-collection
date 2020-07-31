@@ -138,14 +138,12 @@ public class CreditLineService {
 	MerchantFcmTokenDao merchantFcmTokenDao;
 
 	@Autowired
-	LiquiloansService liquiloansService;
-
-	@Autowired
 	CreditLineTransaction creditLineTransaction;
+
+	@Value("${cl.deeplink}")
+	private String clDeeplink;
 	
 	private final DecimalFormat df = new DecimalFormat("#.##");
-
-	ExecutorService createLeadExecutor = Executors.newFixedThreadPool(1);
 
 	public ResponseDTO createCreditLineAccount(CreateCreditAccountRequestDto request, Merchant merchant){
 
@@ -314,11 +312,11 @@ public class CreditLineService {
 				String narration2 = "XX-" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4) + " (" + ifscList.get(0).getBank() + ")";
 				String narration3 = "Branch - " + ifscList.get(0).getBranch();
 				String icon = bankList.getImageUrl();
-				creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, narration1, narration2, narration3, icon, merchant.getMobile()));
+				creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, narration1, narration2, narration3, icon, merchant.getMobile().substring(2)));
 			}
 		} else if (transaction != null) {
 			String narrationHeading = transaction.getSubType().equalsIgnoreCase("SEND_MONEY") ? "Sent to the following Mobile No:" : "Bill paid for:";
-			creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, transaction.getNarration1(), transaction.getNarration2(), transaction.getNarration3(), transaction.getIcon(), merchant.getMobile()));
+			creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, transaction.getNarration1(), transaction.getNarration2(), transaction.getNarration3(), transaction.getIcon(), merchant.getMobile().substring(2)));
 		}
 		return creditSpendResponseDTO;
 	}
@@ -344,14 +342,14 @@ public class CreditLineService {
 			tlList.add(calculateTL(amount, 1));
 			tlList.add(calculateTL(amount, 3));
 			tlList.add(calculateTL(amount, 6));
-			tlList.add(calculateTL(amount, 9));
-			tlList.add(calculateTL(amount, 12));
+//			tlList.add(calculateTL(amount, 9));
+//			tlList.add(calculateTL(amount, 12));
 		} else {
 			tlList.add(calculateTL(amount, 3));
 			tlList.add(calculateTL(amount, 6));
-			tlList.add(calculateTL(amount, 9));
-			tlList.add(calculateTL(amount, 12));
-			tlList.add(calculateTL(amount, 15));
+//			tlList.add(calculateTL(amount, 9));
+//			tlList.add(calculateTL(amount, 12));
+//			tlList.add(calculateTL(amount, 15));
 		}
 		tlList.sort(Comparator.comparingInt(CreditSpendResponseDTO.TL::getEdiAmount));
 		return tlList;
@@ -573,7 +571,6 @@ public class CreditLineService {
 		return errorResponse;
 	}
 
-	@Transactional
 	public CreditSpendResponseDTO createSpend(Long merchantId, CreditSpendRequestDTO creditSpendRequestDTO) {
 		if (!validateSpendDetailRequest(creditSpendRequestDTO)) {
 			return new CreditSpendResponseDTO(false, "Invalid request");
@@ -586,17 +583,11 @@ public class CreditLineService {
 		if (!CreditUtil.isSufficientBalance(creditAccount, lendingCaBalanceDetail, creditSpendRequestDTO.getAmount())) {
 			return new CreditSpendResponseDTO(false, "Insufficient Balance");
 		}
-		LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.save(new LendingClTransactionRequest(merchantId, creditAccount.getId(), creditSpendRequestDTO.getMode(), creditSpendRequestDTO.getAmount().doubleValue()));
-		String deeplink;
-		if ("prod".equalsIgnoreCase(activeProfile)) {
-			deeplink = "bharatpe://dynamic?key=credit-line&wroute=order&wid=" + paymentRequest.getId();
-		} else {
-			deeplink = "bharatpe://dynamic?key=credit-line-dev&wroute=order&wid=" + paymentRequest.getId();
-		}
+		LendingClTransactionRequest paymentRequest = creditLineTransaction.createTxnRequest(creditAccount, creditSpendRequestDTO.getMode(), creditSpendRequestDTO.getAmount().doubleValue());
+		String deeplink = clDeeplink + "&wroute=order&wid=" + paymentRequest.getId();
 		return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
 	}
 
-	@Transactional
 	public CreditSpendResponseDTO initiateSpend(Merchant merchant, SpendInitiateRequestDTO requestDTO) {
 		if (requestDTO.getRequestId() == null || (!"TL".equals(requestDTO.getLoanType()) && !"CL".equals(requestDTO.getLoanType()))) {
 			return new CreditSpendResponseDTO(false, "Invalid request");
@@ -608,9 +599,7 @@ public class CreditLineService {
 		if (paymentRequest == null) {
 			return new CreditSpendResponseDTO(false, "Invalid Payment request_id");
 		}
-		paymentRequest.setLoanType(requestDTO.getLoanType());
-		paymentRequest.setTenure(requestDTO.getTenure());
-		lendingClTransactionRequestDao.save(paymentRequest);
+		lendingClTransactionRequestDao.updateLoanTypeAndTenure(requestDTO.getLoanType(), requestDTO.getTenure(), paymentRequest.getId());
 		String message = "Your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans is %code%. NEVER SHARE THIS OTP WITH ANYONE. 0Yhrllzku5k";
 		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
 		if (otp) {

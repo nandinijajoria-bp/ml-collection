@@ -170,4 +170,39 @@ public  class CreditUtil {
 		}
 		return payableAmount;
 	}
+
+	public double getPayablePrinciple(CreditAccount creditAccount) {
+		LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
+		if (lendingCaBalanceDetail == null) {
+			return 0;
+		}
+		double payableAmount = lendingCaBalanceDetail.getUsedBalanceCl();
+		List<LendingPaymentSchedule> lendingPaymentSchedules = lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
+		if (!lendingPaymentSchedules.isEmpty()) {
+			for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentSchedules) {
+				if (lendingPaymentSchedule.getLoanAmount() != null && lendingPaymentSchedule.getPaidPrinciple() != null) {
+					payableAmount += lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple();
+				}
+			}
+		}
+		return payableAmount;
+	}
+
+	public double getPayableInterest(CreditAccount creditAccount) {
+		double payableAmount = creditAccount.getInterestDue();
+		CreditAccountBill unpaidBill = creditAccountBillDao.getLastUnpaidBill(creditAccount.getId(), creditAccount.getMerchantId());
+		if (unpaidBill != null) {
+			payableAmount += (unpaidBill.getInterestAmount() - unpaidBill.getPaidInterest());
+			payableAmount += (unpaidBill.getPenalty() - unpaidBill.getPaidPenalty());
+		}
+		List<LendingPaymentSchedule> lendingPaymentSchedules = lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
+		if (!lendingPaymentSchedules.isEmpty()) {
+			for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentSchedules) {
+				if (lendingPaymentSchedule.getDueInterest() != null && lendingPaymentSchedule.getDueInterest() > 0) {
+					payableAmount += lendingPaymentSchedule.getDueInterest();
+				}
+			}
+		}
+		return payableAmount;
+	}
 }

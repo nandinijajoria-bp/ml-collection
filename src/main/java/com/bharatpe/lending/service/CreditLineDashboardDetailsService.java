@@ -154,6 +154,8 @@ public class CreditLineDashboardDetailsService {
 			repaymentWidget.setEdiAmount(ediAmount>=0?ediAmount:0D);
 			repaymentWidget.setMinDueAmount(creditAccount.getMinimumAmountDue());
 			repaymentWidget.setPayableAmount(creditUtil.getPayableAmount(creditAccount));
+			repaymentWidget.setPayablePrinciple(creditUtil.getPayablePrinciple(creditAccount));
+			repaymentWidget.setPayableInterest(creditUtil.getPayableInterest(creditAccount));
 			CreditAccountBill bill=creditAccountBillDao.findTop1ByAccountIdOrderByIdDesc(creditAccount.getId());
 			if(bill!=null && !bill.getBillPaid()) {
 				repaymentWidget.setDueDate(bill.getDueDate());

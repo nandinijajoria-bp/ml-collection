@@ -70,8 +70,8 @@ public class CreditLineBPBService {
     @Autowired
     CreditLineTransaction creditLineTransaction;
 
-    @Value("${spring.profiles.active:dev}")
-    private String activeProfile;
+    @Value("${cl.deeplink}")
+    private String clDeeplink;
 
     private final DecimalFormat df = new DecimalFormat("#.##");
 
@@ -110,12 +110,7 @@ public class CreditLineBPBService {
         }
         LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.save(new LendingClTransactionRequest(merchantId, creditAccount.getId(), requestDTO.getMode(), requestDTO.getAmount()));
         insertClTransaction(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), requestDTO, CreditConstants.PaymentStatus.PENDING.name(), paymentRequest.getId());
-        String deeplink;
-        if ("prod".equalsIgnoreCase(activeProfile)) {
-            deeplink = "bharatpe://dynamic?key=credit-line&wroute=order&wid=" + paymentRequest.getId();
-        } else {
-            deeplink = "bharatpe://dynamic?key=credit-line-dev&wroute=order&wid=" + paymentRequest.getId();
-        }
+        String deeplink = clDeeplink + "&wroute=order&wid=" + paymentRequest.getId();
         return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
     }
 
@@ -157,7 +152,7 @@ public class CreditLineBPBService {
         } catch (Exception e) {
             logger.error("Unable to send debit notification", e);
         }
-        return createSpendVerifyResponse(transaction, creditAccount);
+        return createSpendVerifyResponse(transaction);
     }
 
     private void insertClTransaction(CreditAccount creditAccount, Double amount, String loanType, String spendMode, CreateTxnRequestDTO requestDTO, String status, Long requestId) {
@@ -181,7 +176,12 @@ public class CreditLineBPBService {
         lendingClTransactionDao.save(lendingClTransaction);
     }
 
-    private CreditSpendVerifyResponseDTO createSpendVerifyResponse(LendingClTransaction lendingClTransaction, CreditAccount creditAccount) {
+    private CreditSpendVerifyResponseDTO createSpendVerifyResponse(LendingClTransaction lendingClTransaction) {
+        Optional<LendingClTransaction> lendingClTransactionOptional = lendingClTransactionDao.findById(lendingClTransaction.getId());
+        if (lendingClTransactionOptional.isPresent()) {
+            lendingClTransaction = lendingClTransactionOptional.get();
+        }
+        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
         CreditSpendVerifyResponseDTO responseDTO = new CreditSpendVerifyResponseDTO();
         responseDTO.setTransactionId(lendingClTransaction.getId());
         responseDTO.setAmount(Double.valueOf(df.format(lendingClTransaction.getAmount())));

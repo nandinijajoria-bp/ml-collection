@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class RepaymentWidget {
 	
 	private Double payableAmount=0D;
+	private Double payablePrinciple=0D;
+	private Double payableInterest=0D;
 	private Date billDate;
 	private Double minDueAmount=0D;
 	private Double ediAmount=0D;
@@ -51,5 +53,20 @@ public class RepaymentWidget {
 	public void setBillId(Long billId) {
 		this.billId = billId;
 	}
-	
+
+	public Double getPayablePrinciple() {
+		return payablePrinciple;
+	}
+
+	public void setPayablePrinciple(Double payablePrinciple) {
+		this.payablePrinciple = payablePrinciple;
+	}
+
+	public Double getPayableInterest() {
+		return payableInterest;
+	}
+
+	public void setPayableInterest(Double payableInterest) {
+		this.payableInterest = payableInterest;
+	}
 }

@@ -3,10 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.CreditAccount;
-import com.bharatpe.lending.common.entity.LendingClLedger;
-import com.bharatpe.lending.common.entity.LendingClTransaction;
-import com.bharatpe.lending.common.entity.LendingTlDetails;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.BankTransferResponseDTO;
@@ -51,6 +48,9 @@ public class CreditLineTransaction {
     @Autowired
     LiquiloansService liquiloansService;
 
+    @Autowired
+    LendingClTransactionRequestDao lendingClTransactionRequestDao;
+
     public LendingClTransaction createTxnAndDebit(CreditAccount creditAccount, Double amount, String loanType, String spendMode, Long requestId, Integer tenure) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), amount, spendMode);
         LendingClTransaction lendingClTransaction = new LendingClTransaction();
@@ -71,6 +71,10 @@ public class CreditLineTransaction {
             insertTlDetails(lendingClTransaction, tenure);
         }
         return lendingClTransaction;
+    }
+
+    public LendingClTransactionRequest createTxnRequest(CreditAccount creditAccount, String mode, Double amount) {
+        return lendingClTransactionRequestDao.save(new LendingClTransactionRequest(creditAccount.getMerchantId(), creditAccount.getId(), mode, amount));
     }
 
     public void updateTransaction(BankTransferResponseDTO bankTransferResponseDTO, LendingClTransaction lendingClTransaction, Merchant merchant) {
