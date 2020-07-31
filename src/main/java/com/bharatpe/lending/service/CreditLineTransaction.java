@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.entity.LendingClTransaction;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.BankTransferResponseDTO;
 import com.bharatpe.lending.dto.CreditSpendResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -70,6 +71,19 @@ public class CreditLineTransaction {
             insertTlDetails(lendingClTransaction, tenure);
         }
         return lendingClTransaction;
+    }
+
+    public void updateTransaction(BankTransferResponseDTO bankTransferResponseDTO, LendingClTransaction lendingClTransaction, Merchant merchant) {
+        lendingClTransaction.setStatus(bankTransferResponseDTO.getPaymentStatus());
+        lendingClTransaction.setOrderId(bankTransferResponseDTO.getPayoutId().toString());
+        lendingClTransaction.setBankReferenceId(bankTransferResponseDTO.getBankReferenceNumber());
+        lendingClTransaction.setIfscCode(bankTransferResponseDTO.getIfsc());
+        lendingClTransaction.setAccountNumber(bankTransferResponseDTO.getAccountNumber());
+        lendingClTransaction.setBeneficiaryName(bankTransferResponseDTO.getBeneficiaryName());
+        lendingClTransactionDao.save(lendingClTransaction);
+        if(bankTransferResponseDTO.getPaymentStatus().equalsIgnoreCase("SUCCESS") && lendingClTransaction.getType().equalsIgnoreCase("TL")) {
+            createLPS(merchant, lendingClTransaction);
+        }
     }
 
     public void debitBPB(CreditAccount creditAccount, LendingClTransaction lendingClTransaction, String type, Integer tenure, Merchant merchant){

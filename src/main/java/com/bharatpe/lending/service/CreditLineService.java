@@ -373,9 +373,9 @@ public class CreditLineService {
 		if (!validateSpendVerifyRequest(paymentRequest)) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid request");
 		}
-		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
-			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
-		}
+//		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
+//			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
+//		}
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		if (creditAccount == null) {
 			return new CreditSpendVerifyResponseDTO(false, "Credit Account does not exist");
@@ -446,11 +446,7 @@ public class CreditLineService {
 				creditLineTransaction.rollbackTxn(lendingClTransaction);
 				return;
 			}
-			lendingClTransactionDao.updateTransaction(bankTransferResponseDTO.getPaymentStatus(), bankTransferResponseDTO.getPayoutId().toString(),
-					bankTransferResponseDTO.getBankReferenceNumber(), bankTransferResponseDTO.getIfsc(), bankTransferResponseDTO.getAccountNumber(), bankTransferResponseDTO.getBeneficiaryName(), lendingClTransaction.getId());
-			if(bankTransferResponseDTO.getPaymentStatus().equalsIgnoreCase("SUCCESS") && lendingClTransaction.getType().equalsIgnoreCase("TL")) {
-				creditLineTransaction.createLPS(merchant, lendingClTransaction);
-			}
+			creditLineTransaction.updateTransaction(bankTransferResponseDTO, lendingClTransaction, merchant);
 			//send debit notification
 			try {
 				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount) : getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount);
