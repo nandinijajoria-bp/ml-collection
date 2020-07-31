@@ -373,9 +373,9 @@ public class CreditLineService {
 		if (!validateSpendVerifyRequest(paymentRequest)) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid request");
 		}
-//		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
-//			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
-//		}
+		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
+			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
+		}
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		if (creditAccount == null) {
 			return new CreditSpendVerifyResponseDTO(false, "Credit Account does not exist");
@@ -390,15 +390,16 @@ public class CreditLineService {
 		}
 		LendingClTransaction lendingClTransaction = creditLineTransaction.createTxnAndDebit(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), paymentRequest.getId(), paymentRequest.getTenure());
 		try {
-			payout(lendingClTransaction,merchant,creditAccount);
+			payout(lendingClTransaction,merchant);
 		} catch (Exception e) {
 			logger.error("Exception in bank transfer---", e);
 			creditLineTransaction.rollbackTxn(lendingClTransaction);
 		}
-		return createSpendVerifyResponse(lendingClTransaction, creditAccount);
+		return createSpendVerifyResponse(lendingClTransaction);
 	}
 
-	private CreditSpendVerifyResponseDTO createSpendVerifyResponse(LendingClTransaction lendingClTransaction, CreditAccount creditAccount) {
+	private CreditSpendVerifyResponseDTO createSpendVerifyResponse(LendingClTransaction lendingClTransaction) {
+		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
 		CreditSpendVerifyResponseDTO responseDTO = new CreditSpendVerifyResponseDTO();
 		responseDTO.setTransactionId(lendingClTransaction.getId());
 		responseDTO.setAmount(lendingClTransaction.getAmount());
@@ -434,7 +435,7 @@ public class CreditLineService {
 		return true;
 	}
 
-	private void payout(LendingClTransaction lendingClTransaction, Merchant merchant, CreditAccount creditAccount) {
+	private void payout(LendingClTransaction lendingClTransaction, Merchant merchant) {
 		BankTransferResponseDTO bankTransferResponseDTO;
 		if ("prod".equalsIgnoreCase(activeProfile)) {
 			bankTransferResponseDTO = callPayoutAPI(lendingClTransaction);
@@ -449,7 +450,7 @@ public class CreditLineService {
 			creditLineTransaction.updateTransaction(bankTransferResponseDTO, lendingClTransaction, merchant);
 			//send debit notification
 			try {
-				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount) : getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount);
+				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant) : getFixedNotificationMessage(lendingClTransaction, merchant);
 				sendNotification(message, merchant);
 			} catch (Exception e) {
 				logger.error("Unable to send debit notification", e);
@@ -460,15 +461,17 @@ public class CreditLineService {
 		}
 	}
 
-	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
+	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
 				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
 	
-	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
+	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
+		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +

@@ -152,7 +152,7 @@ public class CreditLineBPBService {
         creditLineTransaction.debitBPB(creditAccount, transaction, paymentRequest.getLoanType(), paymentRequest.getTenure(), merchant);
         //send debit notification
         try {
-            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(transaction, merchant, creditAccount) : creditLineService.getFixedNotificationMessage(transaction, merchant, creditAccount);
+            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(transaction, merchant) : creditLineService.getFixedNotificationMessage(transaction, merchant);
             creditLineService.sendNotification(message, merchant);
         } catch (Exception e) {
             logger.error("Unable to send debit notification", e);
