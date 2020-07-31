@@ -139,6 +139,9 @@ public class CreditLineService {
 
 	@Autowired
 	LiquiloansService liquiloansService;
+
+	@Autowired
+	CreditLineTransaction creditLineTransaction;
 	
 	private final DecimalFormat df = new DecimalFormat("#.##");
 
@@ -362,7 +365,6 @@ public class CreditLineService {
 		return new CreditSpendResponseDTO.TL(edi, tenure, 2D, 0, amount, interestAmount, repayment, ediCount);
 	}
 
-	@Transactional
 	public CreditSpendVerifyResponseDTO verifySpend(Merchant merchant, CreditSpendVerifyRequestDTO requestDTO) {
 		LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.findByIdAndMerchantId(requestDTO.getRequestId(), merchant.getId());
 		if (paymentRequest == null) {
@@ -371,9 +373,9 @@ public class CreditLineService {
 		if (!validateSpendVerifyRequest(paymentRequest)) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid request");
 		}
-		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
-			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
-		}
+//		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
+//			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
+//		}
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		if (creditAccount == null) {
 			return new CreditSpendVerifyResponseDTO(false, "Credit Account does not exist");
@@ -386,172 +388,12 @@ public class CreditLineService {
 		if (!sufficientBalance) {
 			return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
 		}
-		LendingClTransaction lendingClTransaction = insertClTransaction(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), paymentRequest.getId());
-		if ("CL".equals(paymentRequest.getLoanType())) {
-			return transferCL(lendingClTransaction, creditAccount,merchant, paymentRequest, lendingCaBalanceDetail);
-		} else {
-			return transferTL(lendingClTransaction, paymentRequest.getTenure(), creditAccount, merchant, paymentRequest, lendingCaBalanceDetail);
-		}
-	}
-
-	public void debitCLBalance(CreditAccount creditAccount, LendingCaBalanceDetail lendingCaBalanceDetail, Integer amount, String spendMode, String loanType) {
-		creditAccount.setAvailableBalance(creditAccount.getAvailableBalance() - amount);
-		creditAccount.setUsedBalance(creditAccount.getUsedBalance() + amount);
-		creditAccount.setPayableAmount(creditUtil.getPayableAmount(creditAccount) + amount);
-		creditAccountDao.save(creditAccount);
-		lendingCaBalanceDetail.setAvailableBalance(lendingCaBalanceDetail.getAvailableBalance() - amount);
-		lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() + amount);
-		if ("CL".equals(loanType)) {
-			lendingCaBalanceDetail.setUsedBalanceCl(lendingCaBalanceDetail.getUsedBalanceCl() + amount);
-			String group = CreditConstants.SpendGroup.get(spendMode);
-			switch (group) {
-				case "G1": {
-					lendingCaBalanceDetail.setUsedBalanceG1(lendingCaBalanceDetail.getUsedBalanceG1() + amount);break;
-				}
-				case "G2": {
-					lendingCaBalanceDetail.setUsedBalanceG2(lendingCaBalanceDetail.getUsedBalanceG2() + amount);break;
-				}
-				case "G3": {
-					lendingCaBalanceDetail.setUsedBalanceG3(lendingCaBalanceDetail.getUsedBalanceG3() + amount);break;
-				}
-			}
-		}
-		lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
-	}
-
-	private LendingClTransaction insertClTransaction(CreditAccount creditAccount, Double amount, String loanType, String spendMode, Long requestId) {
-		LendingClTransaction lendingClTransaction = new LendingClTransaction();
-		lendingClTransaction.setCreditAccountId(creditAccount.getId());
-		lendingClTransaction.setMerchantId(creditAccount.getMerchantId());
-		lendingClTransaction.setMerchantStoreId(creditAccount.getMerchantStoreId());
-		lendingClTransaction.setStatus(CreditConstants.PaymentStatus.PENDING.name());
-		lendingClTransaction.setAmount(amount);
-		lendingClTransaction.setMode("DEBIT");
-		lendingClTransaction.setType(loanType);
-		lendingClTransaction.setSubType(spendMode);
-		lendingClTransaction.setRequestId(requestId);
-		return lendingClTransactionDao.save(lendingClTransaction);
-	}
-
-	private CreditSpendVerifyResponseDTO transferTL(LendingClTransaction lendingClTransaction, Integer tenure, CreditAccount creditAccount, Merchant merchant, LendingClTransactionRequest paymentRequest, LendingCaBalanceDetail lendingCaBalanceDetail) {
-		LendingTlDetails lendingTlDetails = insertTlDetails(lendingClTransaction, tenure);
-		//createLPS(lendingTlDetails, merchant);
-		//disburse using rakshit api
+		LendingClTransaction lendingClTransaction = creditLineTransaction.createTxnAndDebit(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), paymentRequest.getId(), paymentRequest.getTenure());
 		try {
-			payout(lendingClTransaction,merchant,creditAccount,lendingTlDetails, paymentRequest, lendingCaBalanceDetail);
+			payout(lendingClTransaction,merchant,creditAccount);
 		} catch (Exception e) {
 			logger.error("Exception in bank transfer---", e);
-		}
-		//call liquiloan create lead api async
-		return createSpendVerifyResponse(lendingClTransaction, creditAccount);
-	}
-
-	public void createLPS(LendingTlDetails lendingTlDetails, Merchant merchant) {
-		try {
-			LendingPaymentSchedule lendingPaymentSchedule = new LendingPaymentSchedule();
-			logger.info("Popualting data into lending_payment_schedule table for merchant: {}", merchant.getId());
-			lendingPaymentSchedule.setCreditLoan(true);
-			lendingPaymentSchedule.setLoanType("CREDIT_LINE");
-			lendingPaymentSchedule.setMerchant(merchant);
-			lendingPaymentSchedule.setLoanAmount(lendingTlDetails.getAmount());
-			lendingPaymentSchedule.setMobile(merchant.getMobile());
-			lendingPaymentSchedule.setEdiAmount(lendingTlDetails.getEdi());
-			lendingPaymentSchedule.setStatus("ACTIVE");
-			lendingPaymentSchedule.setNbfc("LIQUILOANS");
-			lendingPaymentSchedule.setEdiCount(lendingTlDetails.getPayableDays());
-			lendingPaymentSchedule.setOverdueEdiCount(0);
-			lendingPaymentSchedule.setDueAmount(0D);
-			lendingPaymentSchedule.setDueOtherCharges(0D);
-			lendingPaymentSchedule.setDuePenalty(0D);
-			lendingPaymentSchedule.setDueInterest(0D);
-			lendingPaymentSchedule.setDuePrinciple(0D);
-			lendingPaymentSchedule.setIncentiveAmount(0D);
-			lendingPaymentSchedule.setEdiRemainingCount(lendingTlDetails.getPayableDays());
-			lendingPaymentSchedule.setOverdueAmount(0D);
-			lendingPaymentSchedule.setPaidAmount(0D);
-			lendingPaymentSchedule.setPaidPrinciple(0D);
-			lendingPaymentSchedule.setPaidInterest(0D);
-			lendingPaymentSchedule.setPaidPenalty(0D);
-			lendingPaymentSchedule.setPaidOtherCharges(0D);
-			lendingPaymentSchedule.setTotalCashbackAmount(0D);
-			lendingPaymentSchedule.setTotalPayableAmount(lendingTlDetails.getTotalPayableAmount());
-			lendingPaymentSchedule.setTlDetailsId(lendingTlDetails.getId());
-			lendingPaymentSchedule.setCreatedAt(new Date());
-			lendingPaymentSchedule.setUpdatedAt(new Date());
-			lendingPaymentSchedule.setLoanConstruct("CONSTRUCT_1");
-			Date date = new Date();
-			SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
-			//getting tommorow's date
-			Date tomorrow = new Date(date.getTime() + (1000 * 60 * 60 * 24));
-			//checking if next day is Sunday or not because we don't cut edi on Sunday
-			Calendar calendar = Calendar.getInstance();
-			calendar.setTime(tomorrow);
-			if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-				tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
-			}
-			tomorrow = format.parse(format.format(tomorrow));
-			lendingPaymentSchedule.setStartDate(tomorrow);
-			lendingPaymentSchedule.setNextEdiDate(lendingPaymentSchedule.getStartDate());
-			Date tenativeLoanEndDate=getDateAfterNMonths(date,Integer.parseInt(lendingTlDetails.getTenure()));
-			lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
-			lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-			liquiloansService.createEdiSchedule(lendingPaymentSchedule);
-//			LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
-//			createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
-		} catch (Exception e) {
-			logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingTlDetails.getLendingClTransaction().getId());
-		}
-	}
-
-	private Date getDateAfterNMonths(Date startDate, int month){
-		try {
-			logger.info("Getting date after {} month",month);
-			Calendar myCal = Calendar.getInstance();
-			myCal.setTime(startDate);
-			myCal.add(Calendar.MONTH, +month);
-			Date tentativeEndDate = myCal.getTime();
-			SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd 00:00:00");
-			return format.parse(format.format(tentativeEndDate));
-		}
-		catch(Exception e){
-			logger.error("Error occured while catculating date post N month",e);
-			return null;
-		}
-	}
-
-	public LendingTlDetails insertTlDetails(LendingClTransaction lendingClTransaction, Integer tenure) {
-		CreditSpendResponseDTO.TL tl = calculateTL(lendingClTransaction.getAmount().intValue(), tenure);
-		LendingTlDetails lendingTlDetails = new LendingTlDetails();
-		lendingTlDetails.setMerchantId(lendingClTransaction.getMerchantId());
-		lendingTlDetails.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
-		lendingTlDetails.setLendingClTransaction(lendingClTransaction);
-		lendingTlDetails.setAmount(lendingClTransaction.getAmount());
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
-		try {
-			lendingTlDetails.setDate(format.parse(format.format(new Date())));
-		} catch (ParseException e) {
-			lendingTlDetails.setDate(new Date());
-			logger.error("Exception---", e);
-		}
-		lendingTlDetails.setProcessingFee(tl.getProcessingFee().doubleValue());
-		lendingTlDetails.setEdi(tl.getEdiAmount().doubleValue());
-		lendingTlDetails.setInterestRate(tl.getInterestRate());
-		lendingTlDetails.setTotalPayableAmount(tl.getRepaymentAmount().doubleValue());
-		lendingTlDetails.setTenure(tenure+"");
-		lendingTlDetails.setPayableDays(tl.getEdiCount());
-		DateFormat df = new SimpleDateFormat("ddMMyy");
-		String loanId = "CL" + df.format(new Date()) + lendingClTransaction.getId();
-		lendingTlDetails.setExternalLoanId(loanId);
-		return lendingTlDetailsDao.save(lendingTlDetails);
-	}
-
-	private CreditSpendVerifyResponseDTO transferCL(LendingClTransaction lendingClTransaction, CreditAccount creditAccount,Merchant merchant, LendingClTransactionRequest paymentRequest, LendingCaBalanceDetail lendingCaBalanceDetail) {
-		//insertClLedger(lendingClTransaction);
-		//disburse using rakshit api
-		try {
-			payout(lendingClTransaction,merchant,creditAccount,null, paymentRequest, lendingCaBalanceDetail);
-		} catch (Exception e) {
-			logger.error("Exception in bank transfer---", e);
+			creditLineTransaction.rollbackTxn(lendingClTransaction);
 		}
 		return createSpendVerifyResponse(lendingClTransaction, creditAccount);
 	}
@@ -579,27 +421,6 @@ public class CreditLineService {
 		return responseDTO;
 	}
 
-	public void insertClLedger(LendingClTransaction lendingClTransaction) {
-		LendingClLedger lendingClLedger = new LendingClLedger();
-		lendingClLedger.setMerchantId(lendingClTransaction.getMerchantId());
-		lendingClLedger.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
-		lendingClLedger.setClTransactionId(lendingClTransaction.getId());
-		lendingClLedger.setTransactionType("CL");
-		lendingClLedger.setAmount(-lendingClTransaction.getAmount());
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
-		try {
-			lendingClLedger.setDate(format.parse(format.format(new Date())));
-		} catch (ParseException e) {
-			lendingClLedger.setDate(new Date());
-			logger.error("Exception---", e);
-		}
-		lendingClLedger.setPrinciple(lendingClTransaction.getAmount());
-		lendingClLedger.setInterest(0D);
-		lendingClLedger.setOtherCharges(0D);
-		lendingClLedger.setPenalty(0D);
-		lendingClLedgerDao.save(lendingClLedger);
-	}
-
 	private boolean validateSpendVerifyRequest(LendingClTransactionRequest requestDTO) {
 		if (requestDTO.getAmount() == null || requestDTO.getAmount() <=0 || requestDTO.getMode() == null || requestDTO.getLoanType() == null) {
 			return false;
@@ -613,7 +434,7 @@ public class CreditLineService {
 		return true;
 	}
 
-	private void payout(LendingClTransaction lendingClTransaction,Merchant merchant, CreditAccount creditAccount,LendingTlDetails lendingTlDetails, LendingClTransactionRequest paymentRequest, LendingCaBalanceDetail lendingCaBalanceDetail) {
+	private void payout(LendingClTransaction lendingClTransaction, Merchant merchant, CreditAccount creditAccount) {
 		BankTransferResponseDTO bankTransferResponseDTO;
 		if ("prod".equalsIgnoreCase(activeProfile)) {
 			bankTransferResponseDTO = callPayoutAPI(lendingClTransaction);
@@ -621,31 +442,24 @@ public class CreditLineService {
 			bankTransferResponseDTO = new BankTransferResponseDTO("SUCCESS", "123", "xx-1234", "Khushal", "IOBA0001612", 123L, lendingClTransaction.getId().toString());
 		}
 		if (bankTransferResponseDTO != null) {
-			lendingClTransaction.setStatus(bankTransferResponseDTO.getPaymentStatus());
-			lendingClTransaction.setOrderId(bankTransferResponseDTO.getPayoutId().toString());
-			lendingClTransaction.setBankReferenceId(bankTransferResponseDTO.getBankReferenceNumber());
-			lendingClTransaction.setIfscCode(bankTransferResponseDTO.getIfsc());
-			lendingClTransaction.setAccountNumber(bankTransferResponseDTO.getAccountNumber());
-			lendingClTransaction.setBeneficiaryName(bankTransferResponseDTO.getBeneficiaryName());
-			lendingClTransactionDao.save(lendingClTransaction);
-			if(bankTransferResponseDTO.getPaymentStatus().equalsIgnoreCase("SUCCESS")) {
-				if(lendingClTransaction.getType().equalsIgnoreCase("CL")) {
-					insertClLedger(lendingClTransaction);
-				}
-				else {
-					createLPS(lendingTlDetails, merchant);
-				}
+			if("FAILED".equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
+				creditLineTransaction.rollbackTxn(lendingClTransaction);
+				return;
 			}
-			if(!"FAILED".equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
-				debitCLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), paymentRequest.getLoanType());
-				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount) : getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount, lendingTlDetails);
+			creditLineTransaction.updateTransaction(bankTransferResponseDTO, lendingClTransaction, merchant);
+			//send debit notification
+			try {
+				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant, creditAccount) : getFixedNotificationMessage(lendingClTransaction, merchant, creditAccount);
 				sendNotification(message, merchant);
+			} catch (Exception e) {
+				logger.error("Unable to send debit notification", e);
 			}
 		} else {
 			logger.error("Exception in bank transfer for account:{}", lendingClTransaction.getCreditAccountId());
-			lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
+			lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.PENDING.name(), lendingClTransaction.getId());
 		}
 	}
+
 	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
@@ -654,7 +468,8 @@ public class CreditLineService {
 		
 	}
 	
-	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount,LendingTlDetails lendingTlDetails) {
+	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant,CreditAccount creditAccount) {
+		LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
@@ -793,7 +608,7 @@ public class CreditLineService {
 		paymentRequest.setLoanType(requestDTO.getLoanType());
 		paymentRequest.setTenure(requestDTO.getTenure());
 		lendingClTransactionRequestDao.save(paymentRequest);
-		String message = "Your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans is %code%. NEVER SHARE THIS OTP WITH ANYONE.";
+		String message = "Your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans is %code%. NEVER SHARE THIS OTP WITH ANYONE. 0Yhrllzku5k";
 		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
 		if (otp) {
 			CreditSpendResponseDTO responseDTO = new CreditSpendResponseDTO();
