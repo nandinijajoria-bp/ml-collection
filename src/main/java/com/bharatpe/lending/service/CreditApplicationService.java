@@ -164,6 +164,7 @@ public class CreditApplicationService {
 			creditApplicationDao.save(creditApplication);
 		 //createMerchantSummarySnapshot(merchant, creditApplication, summary);
 			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
+			creditApplication.setLender("LIQUILOANS");
 			creditApplication = creditApplicationDao.save(creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
 			creditLineMerchantDao.save(creditLineMerchant); 

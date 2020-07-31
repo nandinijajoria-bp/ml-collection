@@ -84,6 +84,10 @@ public class TopupLoanEligibleService {
 
     public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
+        if (true) {
+            logger.info("topup loan closed");
+            return new ArrayList<>();
+        }
         double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0d;
         LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
         if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {

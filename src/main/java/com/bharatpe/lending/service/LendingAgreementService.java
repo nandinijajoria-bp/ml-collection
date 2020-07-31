@@ -59,7 +59,7 @@ public class LendingAgreementService {
 //			id = (long) 4;
 //		} else {
 			id = (long) 3;
-			lenderText = "BharatPe is the processing partner for this loan. <br /> Loan is in books of BharatPe Partner NBFCs and will be disbursed from their account.";
+			lenderText = "BharatPe is the referral partner for the loan.";
 //		}
 		
 		Optional<LendingNbfscs> optionalObj = lendingNbfscsDao.findById(id);
