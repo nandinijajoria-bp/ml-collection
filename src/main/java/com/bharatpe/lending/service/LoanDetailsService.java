@@ -475,6 +475,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setRejected(rejected);
 				loanDetailsDTO.setRejectReason(rejectReason);
 				loanDetailsDTO.setPanCard(panCard);
+				loanDetailsDTO.setPincode(pincode);
 				loanDetailsDTO.setEnach(enach);
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
