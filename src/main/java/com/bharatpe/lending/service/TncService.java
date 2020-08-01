@@ -869,13 +869,15 @@ public class TncService {
 				"    <p class=\"p9\">&nbsp;</p>\n" + 
 				"    <p class=\"p10\">&nbsp;</p>\n" + 
 				"    <p class=\"p11\">This <strong>Loan Agreement</strong> (&ldquo;<strong>Agreement</strong>&rdquo;) is made and executed at the place mentioned in <strong>Schedule I</strong> (<em>Terms of the Facility</em>) and on the date mentioned in <strong>Schedule I</strong> (<em>Terms of the Facility</em>) by and between:</p>\n" + 
-				"    <p class=\"p11\">The lenders as arranged by NDX P2P Private Limited, a non-banking finance company, having its registered office at 012, Lachiram Plaza, C Wing, GAKV Marg, Goregaon East, Mumbai 400063 (hereinafter referred to as the &ldquo;<strong>Lender</strong>&rdquo; which expression shall, unless repugnant to the context or meaning thereof, be deemed to mean and include its successor(s) and permitted assign(s)) of the One Part;</p>\n" + 
+				"    <p class=\"p11\">HINDON MERCANTILE LIMITED, a non-banking finance company, having its registered office at Unit No 307, Third Floor Plot\n" +
+				"No. H-1 Garg Tower, NSP, Pitampura Delhi (hereinafter referred to as the &ldquo;<strong>Lender</strong>&rdquo; which expression shall, unless repugnant to the context or meaning thereof, be deemed to mean and include its successor(s) and permitted assign(s)) of the One Part;</p>\n" +
 				"    <p class=\"p11\"><strong>AND</strong></p>\n" + 
 				"    <p class=\"p11\"><strong><em>[Details from the Schedule I]</em></strong>, hereto as the borrower and co-borrower (if any) (wherever the context so requires) (hereinafter referred to as the &ldquo;<strong>Borrower</strong>&rdquo; which expression shall, unless repugnant to the context or meaning thereof, be deemed to mean and include his/her/their heir(s), successor(s), legal representative(s), executor(s), administrator(s) and permitted assign(s)) of the Other Part.</p>\n" + 
 				"    <p class=\"p11\">The Lender and the Borrower are hereinafter collectively referred to as the &ldquo;<strong>Parties</strong>&rdquo; and each individually as the &ldquo;<strong>Party</strong>&rdquo;.</p>\n" + 
 				"    <p class=\"p11\"><strong>WHEREAS</strong>:</p>\n" + 
 				"    <ul class=\"ul1\">\n" + 
-				"    <li class=\"li11\">The Lender is a non-banking financing company, registered with the Reserve Bank of India, having registration no. [N-13.02280], and is <em>inter alia</em> engaged in the business of advancing loans and other financial facilities.</li>\n" + 
+				"    <li class=\"li11\">The Lender is a non-banking financing company, registered with the Reserve Bank of India, having registration no. B-14-00518],\n" +
+				"and is <em>inter alia</em> engaged in the business of advancing loans and other financial facilities.</li>\n" +
 				"    <li class=\"li11\">The Borrower has approached the Lender and has requested for grant of loan facility for the purpose of <strong><em>as mentioned in Schedule I </em></strong>and in reliance on the acceptance of the terms, conditions, assurances, representations and warranties of the Borrower, the Lender has agreed to grant loan facility to the Borrower, subject to the terms and conditions contained in this Agreement.</li>\n" + 
 				"    <li class=\"li11\">The Parties hereto are now desirous of <em>inter alia</em> entering into this Agreement to set out the terms and conditions in relation to the Facility.</li>\n" + 
 				"    </ul>\n" + 
