@@ -289,7 +289,7 @@ public class CreditLineBPBService {
         creditAccountDao.save(creditAccount);
         lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
         insertClLedger(lendingClTransaction, refundAmount, amount, refundAmount - amount);
-        createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        createRefundTransaction(lendingClTransaction, refundAmount, CreditConstants.PaymentType.REFUND.name());
         String message;
         if (interest > 0) {
             message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
