@@ -1064,30 +1064,36 @@ public class CreditPaymentService {
             String URL=UPI_PAYMENT_STATUS_CHECK_URL+"?orderId="+orderId+"&mid="+getMid();
             logger.info("payout internal URL {} and request: {}", URL,request);
             while(retryCount<3) {
-            	ResponseEntity<Object> responseObj=restTemplate.exchange(URL, HttpMethod.GET, request, Object.class);
-            	logger.info("UPI status response {}",objectMapper.writeValueAsString(responseObj.getBody()));
-            	if(responseObj!=null && responseObj.hasBody()) {
-            		
-            		if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("PENDING".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))) {
-            	    	
-            			if(cancelPayment(lendingClPayment)) {
-            				changePaymentStatus(lendingClPayment);
-            				return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
-            	    	}
-            	    	else {
-            	    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
-            	    	}
-            		}
-            		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("SUCCESS".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
-            			return new PaymentCancellationResponseDto(true,"",false,"SUCCESS");
-            		}
-            		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("CANCELLED".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
-            			return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
-            		}
-            		else {
-            			return new PaymentCancellationResponseDto(true,"",false,"FAILED");
-            		}
+            	try {
+            		ResponseEntity<Object> responseObj=restTemplate.exchange(URL, HttpMethod.GET, request, Object.class);
+                	logger.info("UPI status response {}",objectMapper.writeValueAsString(responseObj.getBody()));
+                	if(responseObj!=null && responseObj.hasBody()) {
+                		
+                		if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("PENDING".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))) {
+                	    	
+                			if(cancelPayment(lendingClPayment)) {
+                				changePaymentStatus(lendingClPayment);
+                				return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+                	    	}
+                	    	else {
+                	    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
+                	    	}
+                		}
+                		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("SUCCESS".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
+                			return new PaymentCancellationResponseDto(true,"",false,"SUCCESS");
+                		}
+                		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("CANCELLED".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
+                			return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+                		}
+                		else {
+                			return new PaymentCancellationResponseDto(true,"",false,"FAILED");
+                		}
+                	}
             	}
+            	catch(Exception e) {
+            		logger.error("error processing txn for dynamic vpa, txn: {}, {}", orderId, e);
+            	}
+            	
             	retryCount++;
             }
             
@@ -1126,16 +1132,22 @@ public class CreditPaymentService {
             int retryCount=0;
             UpiPaymentCancellationResponseDto responseObj=null;
             while(retryCount<3) {
-            	responseObj = restTemplate.postForObject(CANCEL_PAYMENT_URL, request, UpiPaymentCancellationResponseDto.class);
-            	logger.info("UPI payment cancellation response {}",responseObj.toString());
-            	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
-            		if(responseObj.getPaymentStatus().equalsIgnoreCase("CANCELLED")) {
-            			return true;
-            		}
-            		else {
-            			return false;
-            		}
-            	}
+            	try {
+            		responseObj = restTemplate.postForObject(CANCEL_PAYMENT_URL, request, UpiPaymentCancellationResponseDto.class);
+                	logger.info("UPI payment cancellation response {}",responseObj.toString());
+                	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
+                		if(responseObj.getPaymentStatus().equalsIgnoreCase("CANCELLED")) {
+                			return true;
+                		}
+                		else {
+                			return false;
+                		}
+                	}
+                	break;
+                }
+                catch(Exception e){
+                	logger.error("Error occured while cancelling order with transaction id {}",lendingClPayment.getClTransactionId());
+                }
             	retryCount++;
             }
             
