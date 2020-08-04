@@ -134,10 +134,6 @@ public class CreditLineBPBService {
         if (paymentRequest == null || !"PENDING".equalsIgnoreCase(paymentRequest.getStatus())) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid Payment request_id");
         }
-        int expireRequest = lendingClTransactionRequestDao.expireRequest(paymentRequest.getId(), merchant.getId());
-        if (expireRequest != 1) {
-            return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
-        }
         paymentRequest.setLoanType(requestDTO.getLoanType());
         paymentRequest.setTenure(requestDTO.getTenure());
         paymentRequest = creditLineTransaction.saveTxnRequest(paymentRequest);
@@ -148,6 +144,10 @@ public class CreditLineBPBService {
                 : CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), null);
         if (!sufficientBalance) {
             return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
+        }
+        int expireRequest = lendingClTransactionRequestDao.expireRequest(paymentRequest.getId(), merchant.getId());
+        if (expireRequest != 1) {
+            return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
         }
         //Starting transaction
         LendingClTransaction lendingClTransaction = creditLineTransaction.createTxnAndDebit(creditAccount, paymentRequest, CreditConstants.PaymentStatus.SUCCESS);
