@@ -301,7 +301,6 @@ public class CreditLineService {
 			creditSpendResponseDTO.setVerifyEndpoint(lendingDeeplink.getVerifyEndpoint());
 		}
 		creditSpendResponseDTO.setClient(paymentRequest.getMode());
-		LendingClTransaction transaction = lendingClTransactionDao.findByCreditAccountIdAndRequestId(creditAccount.getId(), paymentRequest.getId());
 		if(paymentRequest.getMode().equalsIgnoreCase("BANK_TRANSFER")) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			List<Ifsc> ifscList = ifscDao.findByIfsc(merchantBankDetail.getIfscCode());
@@ -314,9 +313,9 @@ public class CreditLineService {
 				String icon = bankList.getImageUrl();
 				creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, narration1, narration2, narration3, icon, merchant.getMobile().substring(2)));
 			}
-		} else if (transaction != null) {
-			String narrationHeading = transaction.getSubType().equalsIgnoreCase("SEND_MONEY") ? "Sent to the following Mobile No:" : "Bill paid for:";
-			creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, transaction.getNarration1(), transaction.getNarration2(), transaction.getNarration3(), transaction.getIcon(), merchant.getMobile().substring(2)));
+		} else if (paymentRequest.getNarration1() != null) {
+			String narrationHeading = paymentRequest.getMode().equalsIgnoreCase("SEND_MONEY") ? "Sent to the following Mobile No:" : "Bill paid for:";
+			creditSpendResponseDTO.setDetails(new CreditSpendResponseDTO.Narration(narrationHeading, paymentRequest.getNarration1(), paymentRequest.getNarration2(), paymentRequest.getNarration3(), paymentRequest.getIcon(), merchant.getMobile().substring(2)));
 		}
 		return creditSpendResponseDTO;
 	}
