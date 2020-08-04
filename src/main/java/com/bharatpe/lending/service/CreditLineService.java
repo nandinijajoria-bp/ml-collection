@@ -694,9 +694,9 @@ public class CreditLineService {
 //			totalMad+=20D;
 //			totalAmount+=20D;
 			//end of code
-			dailySettlementResponseDto.setTotalMad(totalMad);
-			dailySettlementResponseDto.setTotalEdi(totalEdi);
-			dailySettlementResponseDto.setTotalAmount(totalAmount);
+			dailySettlementResponseDto.setTotalMad(Math.round(totalMad*100.0)/100.0);//round of to 2 decimal place
+			dailySettlementResponseDto.setTotalEdi(Math.round(totalEdi*100.0)/100.0);
+			dailySettlementResponseDto.setTotalAmount(Math.round(totalAmount*100.0)/100.0);
 			dailySettlementResponseDto.setRepayments(repaymentList);
 			return dailySettlementResponseDto;
 		}
