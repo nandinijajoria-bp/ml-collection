@@ -161,14 +161,9 @@ public class VerifyOTPService {
 		lendingApplication.setLongitude(meta.getLongitude());
 		lendingApplication.setIp(meta.getIp());
 		lendingApplication.setExternalLoanId(loanId);
-		if (enachSuccess != null) {
-			if (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
-				lendingApplication.setNachType("EXTERNAL");
-				lendingApplication.setNachLender("LIQUILOANS");
-			} else {
-				lendingApplication.setNachType("ENACH");
-				lendingApplication.setNachLender("BHARATPE");
-			}
+		if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
+			lendingApplication.setNachType("ENACH");
+			lendingApplication.setNachLender("BHARATPE");
 			lendingApplication.setNachReferenceNumber(enachSuccess.getMid());
 			lendingApplication.setNachStatus("APPROVED");
 		}
