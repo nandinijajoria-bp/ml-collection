@@ -388,12 +388,24 @@ public class CreditPaymentService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", objectMapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            result.put("response", objectMapper.writeValueAsString(response.getBody()));
-            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
-            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
-            logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
-            return result;
+            int retryCount=0;
+            while(retryCount<3) {
+            	try {
+            		ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    result.put("response", objectMapper.writeValueAsString(response.getBody()));
+                    logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+                    if(response.getBody()!=null) {
+                    	result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                    } 
+            	}
+            	catch(Exception e) {
+            		logger.error("Error occured while sending otp",e);
+            	}
+            	retryCount++;
+            }
+            
         } catch (HttpClientErrorException e) {
             result.put("success", Boolean.FALSE);
             logger.error("Error resend otp for BP Balance info---", e);
@@ -753,16 +765,25 @@ public class CreditPaymentService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", objectMapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            result.put("response", objectMapper.writeValueAsString(response.getBody()));
-            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
-            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
-            Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-            result.put("otp_flow", responseData.get("otp_flow"));
-            result.put("auth_mode", responseData.get("auth_mode"));
-            result.put("bp_txn_id", responseData.get("bp_txn_id"));
-            logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
-            return result;
+            int retryCount=0;
+            while(retryCount<3) {
+            	
+            	ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+            	if(response.getBody()!=null) {
+            		result.put("response", objectMapper.writeValueAsString(response.getBody()));
+                    logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+                    result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                    Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+                    result.put("otp_flow", responseData.get("otp_flow"));
+                    result.put("auth_mode", responseData.get("auth_mode"));
+                    result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                    logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                    return result;
+            	}  
+            	
+            	retryCount++;
+            }
+            
         } catch (HttpClientErrorException e) {
             result.put("success", Boolean.FALSE);
             logger.error("Error Starting txn for BP Balance info---", e);
@@ -853,16 +874,29 @@ public class CreditPaymentService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", objectMapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            result.put("response", objectMapper.writeValueAsString(response.getBody()));
-            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
-            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
-            Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-            result.put("order_id", responseData.get("order_id"));
-            result.put("amount", responseData.get("amount"));
-            result.put("status", responseData.get("status"));
-            logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
-            return result;
+            int retryCount=0;
+            while(retryCount<3) {
+            	try {
+            		ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                	if(response.getBody()!=null) {
+                		result.put("response", objectMapper.writeValueAsString(response.getBody()));
+                        logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+                        result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+                        result.put("order_id", responseData.get("order_id"));
+                        result.put("amount", responseData.get("amount"));
+                        result.put("status", responseData.get("status"));
+                        logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                	}
+            	}
+            	catch(Exception e) {
+            		logger.error("Error occured while verifying txn",e);
+            	}
+            	
+            	retryCount++;
+            }
+            
         } catch (HttpClientErrorException e) {
             result.put("success", Boolean.FALSE);
             logger.error("Error Verifying txn for BP Balance info---", e);
