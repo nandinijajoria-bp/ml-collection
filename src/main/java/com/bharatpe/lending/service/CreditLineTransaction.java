@@ -50,13 +50,13 @@ public class CreditLineTransaction {
     @Autowired
     LendingClTransactionRequestDao lendingClTransactionRequestDao;
 
-    public LendingClTransaction createTxnAndDebit(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest, CreditConstants.PaymentStatus txnStatus) {
+    public LendingClTransaction createTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
         LendingClTransaction lendingClTransaction = new LendingClTransaction();
         lendingClTransaction.setCreditAccountId(creditAccount.getId());
         lendingClTransaction.setMerchantId(creditAccount.getMerchantId());
         lendingClTransaction.setMerchantStoreId(creditAccount.getMerchantStoreId());
-        lendingClTransaction.setStatus(txnStatus.name());
+        lendingClTransaction.setStatus(CreditConstants.PaymentStatus.INIT.name());
         lendingClTransaction.setAmount(paymentRequest.getAmount());
         lendingClTransaction.setMode("DEBIT");
         lendingClTransaction.setType(paymentRequest.getLoanType());
@@ -67,18 +67,28 @@ public class CreditLineTransaction {
         lendingClTransaction.setNarration2(paymentRequest.getNarration2());
         lendingClTransaction.setNarration3(paymentRequest.getNarration3());
         lendingClTransaction.setIcon(paymentRequest.getIcon());
+        return saveTxn(lendingClTransaction);
+    }
+
+    public void debitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest, LendingClTransaction lendingClTransaction) {
+        logger.info("Credit line debit for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
+        lendingClTransaction.setStatus(CreditConstants.PaymentStatus.PENDING.name());
         LendingClLedger lendingClLedger = createClLedger(lendingClTransaction, paymentRequest.getLoanType(), -lendingClTransaction.getAmount(), -lendingClTransaction.getAmount(), 0D, 0D, 0D);
         LendingTlDetails lendingTlDetails = null;
         if ("TL".equals(paymentRequest.getLoanType())) {
             lendingTlDetails = createTlDetails(lendingClTransaction, paymentRequest.getTenure());
         }
         debitCLBalance(creditAccount, paymentRequest.getAmount(), paymentRequest.getMode(), paymentRequest.getLoanType(), lendingClTransaction, lendingClLedger, lendingTlDetails);
-        return lendingClTransaction;
     }
 
     @Transactional
     public LendingClTransactionRequest saveTxnRequest(LendingClTransactionRequest lendingClTransactionRequest) {
         return lendingClTransactionRequestDao.save(lendingClTransactionRequest);
+    }
+
+    @Transactional
+    public LendingClTransaction saveTxn(LendingClTransaction lendingClTransaction) {
+        return lendingClTransactionDao.save(lendingClTransaction);
     }
 
     @Transactional

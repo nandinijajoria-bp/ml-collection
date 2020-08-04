@@ -391,7 +391,8 @@ public class CreditLineService {
 			return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
 		}
 		//Starting transaction
-		LendingClTransaction lendingClTransaction = creditLineTransaction.createTxnAndDebit(creditAccount, paymentRequest, CreditConstants.PaymentStatus.PENDING);
+		LendingClTransaction lendingClTransaction = creditLineTransaction.createTxn(creditAccount, paymentRequest);
+		creditLineTransaction.debitTxn(creditAccount, paymentRequest, lendingClTransaction);
 		try {
 			payout(lendingClTransaction,merchant);
 		} catch (Exception e) {
