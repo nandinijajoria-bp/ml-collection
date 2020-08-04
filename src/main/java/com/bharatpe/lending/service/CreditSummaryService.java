@@ -2,7 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.util.ArrayList;
 import java.util.Calendar;
-
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -257,6 +257,8 @@ public class CreditSummaryService {
 			summary.setTransactionslist(transactionMap.get(date));
 			response.getSummarylist().add(summary);
 		}
+		response.getSummarylist().sort(Comparator.comparing(Summary::getDate).reversed());
+
 		return response;
 	}
 	
