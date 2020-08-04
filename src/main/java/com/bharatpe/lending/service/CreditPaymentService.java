@@ -147,10 +147,16 @@ public class CreditPaymentService {
             ResponseEntity<Object> response=null;
             int retry=0;
             while(retry<3) {
-            	response= restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            	if(response.getBody()!=null) {
-            		break;
+            	try {
+            		response= restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                	if(response.getBody()!=null) {
+                		break;
+                	}
             	}
+            	catch(Exception e) {
+            		logger.error("Error occured while fetching payment mode",e);
+            	}
+            	
             	retry++;
             }
             
@@ -894,10 +900,16 @@ public class CreditPaymentService {
             int retryCount=0;
             VPARequestDto responseObj=null;
             while(retryCount<3) {
-            	responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
-            	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
-            		break;
+            	try {
+            		responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
+                	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
+                		break;
+                	}
             	}
+            	catch(Exception ex) {
+            		logger.error("error processing txn for dynamic vpa, txn: {}, {}", txn_id, ex);
+            	}
+            	
             	retryCount++;
             }
             response.put("response", responseObj);
