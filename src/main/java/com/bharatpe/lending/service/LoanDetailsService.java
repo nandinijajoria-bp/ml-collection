@@ -488,6 +488,10 @@ public class LoanDetailsService {
 			if ((pincode != null && lendingCity == null && redCity != null) || (lendingCity != null && lendingCity.getCategoriesAllowed() != null && !lendingCity.getCategoriesAllowed().contains(merchant.getBusinessCategory()))) {
 				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
+				if (experian != null) {
+					experian.setReason(ExperianConstants.OGL);
+					experianDao.save(experian);
+				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());

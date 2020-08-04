@@ -123,6 +123,9 @@ public class CreditPaymentService {
     @Autowired
     LendingEDIScheduleDao lendingEDIScheduleDao;
 
+    @Autowired
+    CreditLineTransaction creditLineTransaction;
+
     private static String secret;
 
     private static String mid;
@@ -231,7 +234,6 @@ public class CreditPaymentService {
         return paymentDetails;
     }
 
-    @Transactional
     public PaymentInitiateResponseDTO initiatePayment(RequestDTO<CreditPaymentRequestDTO> requestDTO, Merchant merchant, String token) throws JsonProcessingException {
         CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
         if (creditAccount == null) {
@@ -240,7 +242,7 @@ public class CreditPaymentService {
         if (requestDTO.getPayload().getAmount() > creditUtil.getPayableAmount(creditAccount)) {
             return new PaymentInitiateResponseDTO(false, "Amount more than total payable amount");
         }
-        LendingClTransaction lendingClTransaction = insertClTransaction(creditAccount, requestDTO.getPayload().getAmount(), requestDTO.getPayload().getSource().name());
+        LendingClTransaction lendingClTransaction = creditLineTransaction.createCreditTxn(creditAccount, requestDTO.getPayload().getAmount(), requestDTO.getPayload().getSource().name());
         String upiString = null;
         String request = null;
         String response = null;
@@ -248,6 +250,7 @@ public class CreditPaymentService {
         Boolean otpFlow = null;
         String authMode = null;
         boolean paymentSuccess = false;
+        String orderId = null;
         if (requestDTO.getPayload().getType().equals(CreditConstants.PaymentMode.BPB)) {
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
             Map<String, Object> result = initiateTxn(requestDTO, lendingClTransaction.getId(), token, merchantBankDetail.getBeneficiaryName(), requestDTO.getPayload().getSource().name());
@@ -257,12 +260,11 @@ public class CreditPaymentService {
                 authMode = (String) result.get("auth_mode");
                 request = (String) result.get("request");
                 response = (String) result.get("response");
-                lendingClTransaction.setOrderId(result.get("bp_txn_id").toString());
-                lendingClTransactionDao.save(lendingClTransaction);
+                orderId = result.get("bp_txn_id").toString();
                 paymentSuccess = true;
             }
         } else { //UPI
-        	Map<String, Object> paymentResponse=null;
+        	Map<String, Object> paymentResponse;
         	if(requestDTO.getPayload().getAmount()>2000) {
         		if(requestDTO.getPayload().getVpa()==null) {
         			return new PaymentInitiateResponseDTO(false, "VPA missing");
@@ -284,14 +286,16 @@ public class CreditPaymentService {
             }
         }
         if (paymentSuccess) {
-            LendingClPayment lendingClPayment = insertClPayment(lendingClTransaction, request, response, merchant.getMid(), vpa, requestDTO.getPayload().getSource().name(), requestDTO.getPayload().getType().name());
+            lendingClTransaction.setStatus(CreditConstants.PaymentStatus.PENDING.name());
+            lendingClTransaction.setOrderId(orderId);
+            LendingClPayment lendingClPayment = creditLineTransaction.insertClPayment(lendingClTransaction, request, response, merchant.getMid(), vpa, requestDTO.getPayload().getSource().name(), requestDTO.getPayload().getType().name());
             lendingClTransaction.setRequestId(lendingClPayment.getId());
-            lendingClTransactionDao.save(lendingClTransaction);
+            creditLineTransaction.saveTxn(lendingClTransaction);
             return new PaymentInitiateResponseDTO(lendingClTransaction.getId(), upiString, otpFlow, authMode);
         } else {
             logger.error("Payment Failed for Txn Id : {}", lendingClTransaction.getId());
             lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
-            lendingClTransactionDao.save(lendingClTransaction);
+            creditLineTransaction.saveTxn(lendingClTransaction);
             return new PaymentInitiateResponseDTO(false, "Payment Failed");
         }
     }
@@ -907,36 +911,6 @@ public class CreditPaymentService {
             logger.error("error processing txn for dynamic vpa, txn: {}, {}", txn_id, ex);
         }
         return null;
-    }
-
-    private LendingClPayment insertClPayment(LendingClTransaction lendingClTransaction, String request, String response, String mid, String vpa, String source, String mode) {
-        LendingClPayment lendingClPayment = new LendingClPayment();
-        lendingClPayment.setMerchantId(lendingClTransaction.getMerchantId());
-        lendingClPayment.setCreditAccountId(lendingClTransaction.getCreditAccountId());
-        lendingClPayment.setAmount(lendingClTransaction.getAmount());
-        lendingClPayment.setRequest(request);
-        lendingClPayment.setResponse(response);
-        lendingClPayment.setStatus(lendingClTransaction.getStatus());
-        lendingClPayment.setTxnRefNo(lendingClTransaction.getOrderId());
-        lendingClPayment.setClTransactionId(lendingClTransaction.getId());
-        lendingClPayment.setMid(mid);
-        lendingClPayment.setVpa(vpa);
-        lendingClPayment.setSource(source);
-        lendingClPayment.setMode(mode);
-        return lendingClPaymentDao.save(lendingClPayment);
-    }
-
-    private LendingClTransaction insertClTransaction(CreditAccount creditAccount, Double amount, String spendMode) {
-        LendingClTransaction lendingClTransaction = new LendingClTransaction();
-        lendingClTransaction.setCreditAccountId(creditAccount.getId());
-        lendingClTransaction.setMerchantId(creditAccount.getMerchantId());
-        lendingClTransaction.setMerchantStoreId(creditAccount.getMerchantStoreId());
-        lendingClTransaction.setStatus(CreditConstants.PaymentStatus.PENDING.name());
-        lendingClTransaction.setAmount(amount);
-        lendingClTransaction.setMode("CREDIT");
-        lendingClTransaction.setType(CreditConstants.PaymentType.PAYMENT.name());
-        lendingClTransaction.setSubType(spendMode);
-        return lendingClTransactionDao.save(lendingClTransaction);
     }
 
     private void insertClLedger(LendingClTransaction lendingClTransaction, Double amount, Double principle, Double penalty, Double interest, Double otherCharges) {

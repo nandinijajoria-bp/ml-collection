@@ -50,7 +50,10 @@ public class CreditLineTransaction {
     @Autowired
     LendingClTransactionRequestDao lendingClTransactionRequestDao;
 
-    public LendingClTransaction createTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
+    @Autowired
+    LendingClPaymentDao lendingClPaymentDao;
+
+    public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
         LendingClTransaction lendingClTransaction = new LendingClTransaction();
         lendingClTransaction.setCreditAccountId(creditAccount.getId());
@@ -67,6 +70,19 @@ public class CreditLineTransaction {
         lendingClTransaction.setNarration2(paymentRequest.getNarration2());
         lendingClTransaction.setNarration3(paymentRequest.getNarration3());
         lendingClTransaction.setIcon(paymentRequest.getIcon());
+        return saveTxn(lendingClTransaction);
+    }
+
+    public LendingClTransaction createCreditTxn(CreditAccount creditAccount, Double amount, String spendMode) {
+        LendingClTransaction lendingClTransaction = new LendingClTransaction();
+        lendingClTransaction.setCreditAccountId(creditAccount.getId());
+        lendingClTransaction.setMerchantId(creditAccount.getMerchantId());
+        lendingClTransaction.setMerchantStoreId(creditAccount.getMerchantStoreId());
+        lendingClTransaction.setStatus(CreditConstants.PaymentStatus.INIT.name());
+        lendingClTransaction.setAmount(amount);
+        lendingClTransaction.setMode("CREDIT");
+        lendingClTransaction.setType(CreditConstants.PaymentType.PAYMENT.name());
+        lendingClTransaction.setSubType(spendMode);
         return saveTxn(lendingClTransaction);
     }
 
@@ -89,16 +105,6 @@ public class CreditLineTransaction {
     @Transactional
     public LendingClTransaction saveTxn(LendingClTransaction lendingClTransaction) {
         return lendingClTransactionDao.save(lendingClTransaction);
-    }
-
-    @Transactional
-    public void updateTransactionDetails(BankTransferResponseDTO bankTransferResponseDTO, LendingClTransaction lendingClTransaction) {
-        lendingClTransaction.setOrderId(bankTransferResponseDTO.getPayoutId().toString());
-        lendingClTransaction.setBankReferenceId(bankTransferResponseDTO.getBankReferenceNumber());
-        lendingClTransaction.setIfscCode(bankTransferResponseDTO.getIfsc());
-        lendingClTransaction.setAccountNumber(bankTransferResponseDTO.getAccountNumber());
-        lendingClTransaction.setBeneficiaryName(bankTransferResponseDTO.getBeneficiaryName());
-        lendingClTransactionDao.save(lendingClTransaction);
     }
 
     @Transactional
@@ -312,6 +318,28 @@ public class CreditLineTransaction {
             logger.error("Error occured while catculating date post N month",e);
             return null;
         }
+    }
+
+    public LendingClPayment insertClPayment(LendingClTransaction lendingClTransaction, String request, String response, String mid, String vpa, String source, String mode) {
+        LendingClPayment lendingClPayment = new LendingClPayment();
+        lendingClPayment.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClPayment.setCreditAccountId(lendingClTransaction.getCreditAccountId());
+        lendingClPayment.setAmount(lendingClTransaction.getAmount());
+        lendingClPayment.setRequest(request);
+        lendingClPayment.setResponse(response);
+        lendingClPayment.setStatus(lendingClTransaction.getStatus());
+        lendingClPayment.setTxnRefNo(lendingClTransaction.getOrderId());
+        lendingClPayment.setClTransactionId(lendingClTransaction.getId());
+        lendingClPayment.setMid(mid);
+        lendingClPayment.setVpa(vpa);
+        lendingClPayment.setSource(source);
+        lendingClPayment.setMode(mode);
+        return updateCLPayment(lendingClPayment);
+    }
+
+    @Transactional
+    public LendingClPayment updateCLPayment(LendingClPayment lendingClPayment) {
+        return lendingClPaymentDao.save(lendingClPayment);
     }
 
 }

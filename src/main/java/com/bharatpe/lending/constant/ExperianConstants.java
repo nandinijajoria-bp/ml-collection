@@ -17,7 +17,7 @@ public interface ExperianConstants {
     String AUTHENTICATE_MOBILE_URL = "https://consumer.experian.in:8443/ECV-P2/content/authenticateDeliveryData.action";
     String CLIENT_NAME = "BHARATPE_EM";
     String VOUCHER_CODE = "BharatPe214K2";
-
+    String CREDIT_LINE_CATEGORY = "CREDIT_LINE_CATEGORY";
     String INVALID_PANCARD = "INVALID_PANCARD";
     String LOW_BP_SCORE = "LOW_BP_SCORE";
     String FRAUD = "FRAUD";
@@ -25,6 +25,7 @@ public interface ExperianConstants {
     String LOW_TPV = "LOW_TPV";
     String VINTAGE = "VINTAGE";
     String CATEGORY_RED = "CATEGORY_RED";
+    String OGL = "OGL";
     String DEROG_ACCOUNT_STATUS = "Loan default / partial settlement";
     String DEROG_DPD_LAST_3_MONTHS = "Late repayment (5+ days) in last 3 months";
     String DEROG_DPD_LAST_6_MONTHS = "Late repayment (30+ days) in last 6 months";

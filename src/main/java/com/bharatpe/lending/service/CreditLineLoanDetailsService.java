@@ -298,7 +298,9 @@ public class CreditLineLoanDetailsService {
 			if(!checkEligibility(experian)){
 				response.getDetails().setEligible(false);
 				response.getDetails().setTempClosed("INELIGIBLE");
-				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "INELIGIBLE"));
+				experian.setReason(ExperianConstants.CREDIT_LINE_CATEGORY);
+				experianDao.save(experian);
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "CREDIT_LINE_CATEGORY"));
 				return response;
 			}
 			

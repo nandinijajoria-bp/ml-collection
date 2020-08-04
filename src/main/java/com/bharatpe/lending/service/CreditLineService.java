@@ -390,7 +390,7 @@ public class CreditLineService {
 			return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
 		}
 		//Starting transaction
-		LendingClTransaction lendingClTransaction = creditLineTransaction.createTxn(creditAccount, paymentRequest);
+		LendingClTransaction lendingClTransaction = creditLineTransaction.createDebitTxn(creditAccount, paymentRequest);
 		creditLineTransaction.debitTxn(creditAccount, paymentRequest, lendingClTransaction);
 		try {
 			payout(lendingClTransaction,merchant);
@@ -446,7 +446,12 @@ public class CreditLineService {
 			bankTransferResponseDTO = new BankTransferResponseDTO("SUCCESS", "123", "xx-1234", "Khushal", "IOBA0001612", 123L, lendingClTransaction.getId().toString());
 		}
 		if (bankTransferResponseDTO != null) {
-			creditLineTransaction.updateTransactionDetails(bankTransferResponseDTO, lendingClTransaction);
+			lendingClTransaction.setOrderId(bankTransferResponseDTO.getPayoutId().toString());
+			lendingClTransaction.setBankReferenceId(bankTransferResponseDTO.getBankReferenceNumber());
+			lendingClTransaction.setIfscCode(bankTransferResponseDTO.getIfsc());
+			lendingClTransaction.setAccountNumber(bankTransferResponseDTO.getAccountNumber());
+			lendingClTransaction.setBeneficiaryName(bankTransferResponseDTO.getBeneficiaryName());
+			creditLineTransaction.saveTxn(lendingClTransaction);
 			if(CreditConstants.PaymentStatus.FAILED.name().equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				creditLineTransaction.rollbackTxn(lendingClTransaction);
 				return;
@@ -465,7 +470,6 @@ public class CreditLineService {
 			}
 		} else {
 			logger.error("Exception in bank transfer for account:{}", lendingClTransaction.getCreditAccountId());
-			lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.PENDING.name(), lendingClTransaction.getId());
 		}
 	}
 
@@ -622,7 +626,7 @@ public class CreditLineService {
 			return new CreditSpendResponseDTO(false, "Insufficient Balance");
 		}
 		lendingClTransactionRequestDao.updateLoanTypeAndTenure(requestDTO.getLoanType(), requestDTO.getTenure(), paymentRequest.getId());
-		String message = "Your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans is %code%. NEVER SHARE THIS OTP WITH ANYONE. yltNeplA2JJ";
+		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. yltNeplA2JJ";
 		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
 		if (otp) {
 			CreditSpendResponseDTO responseDTO = new CreditSpendResponseDTO();

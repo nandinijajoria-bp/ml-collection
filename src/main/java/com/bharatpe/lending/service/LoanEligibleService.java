@@ -137,7 +137,7 @@ public class LoanEligibleService {
         boolean repeatedLoan = loanCount > 0;
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         if(lendingType.equalsIgnoreCase("CREDITLINE")) {
-        	if (lendingPancard == null && bpScore > 15D) {// get data from liquiloans
+        	if (lendingPancard == null && bpScore > 12D) {// get data from liquiloans
                 try {
                     lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
                 } catch (Exception e) {
@@ -187,8 +187,8 @@ public class LoanEligibleService {
             return new ArrayList<>();
         }
         if(lendingType.equalsIgnoreCase("CREDITLINE")) {
-        	if (bpScore <= 15D) {
-                logger.info("BP Score less than 15, so rejecting merchant: {}", merchant.getId());
+        	if (bpScore <= 12D) {
+                logger.info("BP Score less than 12, so rejecting merchant: {}", merchant.getId());
                 experian.setCategory("1N");
                 experian.setColor(ExperianConstants.COLOR.RED.name());
                 experian.setReason(ExperianConstants.LOW_BP_SCORE);

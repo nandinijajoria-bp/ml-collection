@@ -150,7 +150,7 @@ public class CreditLineBPBService {
             return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
         }
         //Starting transaction
-        LendingClTransaction lendingClTransaction = creditLineTransaction.createTxn(creditAccount, paymentRequest);
+        LendingClTransaction lendingClTransaction = creditLineTransaction.createDebitTxn(creditAccount, paymentRequest);
         creditLineTransaction.debitTxn(creditAccount, paymentRequest, lendingClTransaction);
         creditLineTransaction.updateTxnStatus(lendingClTransaction, CreditConstants.PaymentStatus.SUCCESS);
         if (lendingClTransaction.getType().equalsIgnoreCase("TL")) {
