@@ -95,7 +95,6 @@ public class CreditLineBPBService {
         return new CheckBalanceResponseDTO(Double.valueOf(df.format(creditAccount.getLimit())), Double.valueOf(df.format(balance)));
     }
 
-    @Transactional
     public CreditSpendResponseDTO createTxn(Long merchantId, CreateTxnRequestDTO requestDTO) {
         if (requestDTO.getAmount() == null || requestDTO.getMode() == null || !CreditConstants.validSpendMode(requestDTO.getMode())) {
             return new CreditSpendResponseDTO(false, "Invalid request");
@@ -108,8 +107,14 @@ public class CreditLineBPBService {
         if (!CreditUtil.isSufficientBalance(creditAccount, lendingCaBalanceDetail, requestDTO.getAmount().intValue())) {
             return new CreditSpendResponseDTO(false, "Insufficient Balance");
         }
-        LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.save(new LendingClTransactionRequest(merchantId, creditAccount.getId(), requestDTO.getMode(), requestDTO.getAmount()));
-        insertClTransaction(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), requestDTO, CreditConstants.PaymentStatus.PENDING.name(), paymentRequest.getId());
+        LendingClTransactionRequest paymentRequest = new LendingClTransactionRequest(merchantId, creditAccount.getId(), requestDTO.getMode(), requestDTO.getAmount());
+        paymentRequest.setOrderId(requestDTO.getOrderId());
+        paymentRequest.setNarration1(requestDTO.getNarration1());
+        paymentRequest.setNarration2(requestDTO.getNarration2());
+        paymentRequest.setNarration3(requestDTO.getNarration3());
+        paymentRequest.setIcon(requestDTO.getIcon());
+        paymentRequest = creditLineTransaction.saveTxnRequest(paymentRequest);
+        //insertClTransaction(creditAccount, paymentRequest.getAmount(), paymentRequest.getLoanType(), paymentRequest.getMode(), requestDTO, CreditConstants.PaymentStatus.PENDING.name(), paymentRequest.getId());
         String deeplink = clDeeplink + "&wroute=order&wid=" + paymentRequest.getId();
         return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
     }
@@ -118,7 +123,7 @@ public class CreditLineBPBService {
         if (requestDTO.getRequestId() == null || (!"TL".equals(requestDTO.getLoanType()) && !"CL".equals(requestDTO.getLoanType()))) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid request");
         }
-        if ("TL".equals(requestDTO.getLoanType()) && (requestDTO.getTenure() == null || !Arrays.asList(1,3,6,9,12,15).contains(requestDTO.getTenure()))) {
+        if ("TL".equals(requestDTO.getLoanType()) && (requestDTO.getTenure() == null || !Arrays.asList(1,3,6).contains(requestDTO.getTenure()))) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid request");
         }
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
@@ -126,33 +131,37 @@ public class CreditLineBPBService {
             return new CreditSpendVerifyResponseDTO(false, "Credit Account does not exist");
         }
         LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.findByIdAndMerchantId(requestDTO.getRequestId(),merchant.getId());
-        if (paymentRequest == null) {
+        if (paymentRequest == null || !"PENDING".equalsIgnoreCase(paymentRequest.getStatus())) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid Payment request_id");
         }
-        LendingClTransaction transaction = lendingClTransactionDao.findByCreditAccountIdAndRequestId(creditAccount.getId(), paymentRequest.getId());
-        if (transaction == null) {
-            return new CreditSpendVerifyResponseDTO(false, "transaction not found");
+        int expireRequest = lendingClTransactionRequestDao.expireRequest(paymentRequest.getId(), merchant.getId());
+        if (expireRequest != 1) {
+            return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
         }
         paymentRequest.setLoanType(requestDTO.getLoanType());
         paymentRequest.setTenure(requestDTO.getTenure());
-        lendingClTransactionRequestDao.save(paymentRequest);
+        paymentRequest = creditLineTransaction.saveTxnRequest(paymentRequest);
         LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(merchant.getId(), creditAccount.getId());
         CreditLineCategories creditLineCategories = creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditAccount.getSegment());
-        List<LendingTlDetails> todayLoans = lendingTlDetailsDao.findByMerchantIdAndDateBetween(merchant.getId(), DateTimeUtil.getCurrentDayStartTime(), DateTimeUtil.getEndTimeFromDateTime(new Date()));
+        //List<LendingTlDetails> todayLoans = lendingTlDetailsDao.findByMerchantIdAndDateBetween(merchant.getId(), DateTimeUtil.getCurrentDayStartTime(), DateTimeUtil.getEndTimeFromDateTime(new Date()));
         boolean sufficientBalance = "CL".equals(paymentRequest.getLoanType()) ? CreditUtil.isSufficientCLBalance(lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), creditLineCategories)
-                : CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), todayLoans);
+                : CreditUtil.isSufficientTLBalance(creditAccount, lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), null);
         if (!sufficientBalance) {
             return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
         }
-        creditLineTransaction.debitBPB(creditAccount, transaction, paymentRequest.getLoanType(), paymentRequest.getTenure(), merchant);
+        //Starting transaction
+        LendingClTransaction lendingClTransaction = creditLineTransaction.createTxnAndDebit(creditAccount, paymentRequest, CreditConstants.PaymentStatus.SUCCESS);
+        if (lendingClTransaction.getType().equalsIgnoreCase("TL")) {
+            creditLineTransaction.createLPS(merchant, lendingClTransaction);
+        }
         //send debit notification
         try {
-            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(transaction, merchant) : creditLineService.getFixedNotificationMessage(transaction, merchant);
+            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(lendingClTransaction, merchant) : creditLineService.getFixedNotificationMessage(lendingClTransaction, merchant);
             creditLineService.sendNotification(message, merchant);
         } catch (Exception e) {
             logger.error("Unable to send debit notification", e);
         }
-        return createSpendVerifyResponse(transaction);
+        return createSpendVerifyResponse(lendingClTransaction);
     }
 
     private void insertClTransaction(CreditAccount creditAccount, Double amount, String loanType, String spendMode, CreateTxnRequestDTO requestDTO, String status, Long requestId) {
