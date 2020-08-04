@@ -518,22 +518,33 @@ public class CreditLineService {
 			HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
 			logger.info("payout request: {}", objectMapper.writeValueAsString(entity));
 			long startTime = System.currentTimeMillis();
-			ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
 			logger.info("Successful payout api result in {} ms", System.currentTimeMillis() - startTime);
-			logger.info("Payout response: {}", objectMapper.writeValueAsString(response.getBody()));
-			if (response.getBody() != null && "100".equalsIgnoreCase(((Map<String, Object>) response.getBody()).get("responseCode").toString())) {
-				logger.info("payout success for transaction:{}", lendingClTransaction.getId());
-				Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-				BankTransferResponseDTO bankTransferResponseDTO = new BankTransferResponseDTO();
-				bankTransferResponseDTO.setPaymentStatus(responseData.get("paymentStatus").toString());
-				bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber").toString());
-				bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
-				bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
-				bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());
-				bankTransferResponseDTO.setPayoutId(((Number)responseData.get("payoutId")).longValue());
-				bankTransferResponseDTO.setOrderId(responseData.get("orderId").toString());
-				return bankTransferResponseDTO;
+			int retryCount=0;
+			while(retryCount<3) {
+				try {
+					ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+					logger.info("Payout response: {}", objectMapper.writeValueAsString(response.getBody()));
+					if (response.getBody() != null && "100".equalsIgnoreCase(((Map<String, Object>) response.getBody()).get("responseCode").toString())) {
+						logger.info("payout success for transaction:{}", lendingClTransaction.getId());
+						Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+						BankTransferResponseDTO bankTransferResponseDTO = new BankTransferResponseDTO();
+						bankTransferResponseDTO.setPaymentStatus(responseData.get("paymentStatus").toString());
+						bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber").toString());
+						bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
+						bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
+						bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());
+						bankTransferResponseDTO.setPayoutId(((Number)responseData.get("payoutId")).longValue());
+						bankTransferResponseDTO.setOrderId(responseData.get("orderId").toString());
+						return bankTransferResponseDTO;
+					}
+				}
+				catch(Exception e) {
+					logger.error("Error occured while calling Payout API",e);
+				}
+				retryCount++;
 			}
+			
+			
 		} catch (Exception e) {
 			logger.error("Exception in payout api---", e);
 		}
