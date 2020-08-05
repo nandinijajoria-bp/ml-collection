@@ -838,7 +838,7 @@ public class TncService {
 				"            text-align: center;\n" + 
 				"        }\n" + 
 				"    </style>\n" + 
-				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
+				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplicationAddress!=null?(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId()):"")+"</span></p>\n" + 
 				"   <p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
 				"   <p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> <span class=\"data-insert\">"+(requestDto.getAmount())+"</span></p>\n" + 
 				"   <p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
@@ -1431,10 +1431,10 @@ public class TncService {
 				"<p class=\"p2\">Flat Rate of Interest (% per month)<span class=\"data-insert\">2</span></p>\n" + 
 				"<p class=\"p2\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum)<span class=\"data-insert\">24</span></p>\n" + 
 				"<p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(creditApplication.getMobile()==null?"":creditApplication.getMobile())+"</span></p>\n" + 
-				"<p class=\"p2\">Location: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"</p>\n" + 
-				"<p class=\"p2\">Shop/Business Address: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))+"</p>\n" + 
-				"<p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getLandmark()==null?"":creditApplicationAddress.getLandmark())+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+(creditApplicationAddress.getPincode()==null?"":creditApplicationAddress.getPincode())+"</span></p>\n" + 
-				"<p class=\"p2\">City: <span class=\"data-insert\"></span>"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"<span>&nbsp;</span> State: <span class=\"data-insert\">"+(creditApplicationAddress.getState()==null?"":creditApplicationAddress.getState())+"</span></p>\n" + 
+				"<p class=\"p2\">Location: <span class=\"data-insert\"></span>"+(creditApplicationAddress!=null?(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity()):"")+"</p>\n" + 
+				"<p class=\"p2\">Shop/Business Address: <span class=\"data-insert\"></span>"+(creditApplicationAddress!=null?((creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))):"")+"</p>\n" + 
+				"<p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+(creditApplicationAddress!=null?(creditApplicationAddress.getLandmark()==null?"":creditApplicationAddress.getLandmark()):"")+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+(creditApplicationAddress!=null?(creditApplicationAddress.getPincode()==null?"":creditApplicationAddress.getPincode()):"")+"</span></p>\n" + 
+				"<p class=\"p2\">City: <span class=\"data-insert\"></span>"+(creditApplicationAddress!=null?(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity()):"")+"<span>&nbsp;</span> State: <span class=\"data-insert\">"+(creditApplicationAddress!=null?(creditApplicationAddress.getState()==null?"":creditApplicationAddress.getState()):"")+"</span></p>\n" + 
 				"<p class=\"p3\">Email: <span class=\"data-insert\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"</span></p>\n" + 
 				"<p class=\"p4\">&nbsp;</p>\n" + 
 				"<p class=\"p3\">Shop/ Business Phone Number: <span class=\"data-insert\">"+(creditApplication.getMobile()==null?"":creditApplication.getMobile())+"</span></p>\n" + 
@@ -1772,7 +1772,7 @@ public class TncService {
 				"<p class=\"p25\">Place of Agreement</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity())+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(creditApplicationAddress!=null?(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity()):"")+"&nbsp;</p>\n" + 
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
@@ -1801,7 +1801,7 @@ public class TncService {
 				"<p class=\"p25\">Email Address of Borrower</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(creditApplicationAddress!=null?(creditApplicationAddress.getShopNumber()+","+creditApplicationAddress.getStreetAddress()+","+creditApplicationAddress.getArea()):"")+"&nbsp;</p>\n" + 
 				"<p class=\"p20\">"+(creditApplication.getEmail()==null?"":creditApplication.getEmail())+"&nbsp;</p>\n" +
 				"</td>\n" + 
 				"</tr>\n" + 
