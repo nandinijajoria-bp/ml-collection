@@ -643,7 +643,8 @@ public class CreditLineService {
 			return new CreditSpendResponseDTO(false, "Insufficient Balance");
 		}
 		lendingClTransactionRequestDao.updateLoanTypeAndTenure(requestDTO.getLoanType(), requestDTO.getTenure(), paymentRequest.getId());
-		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. yltNeplA2JJ";
+		String hash = requestDTO.getAppHash() != null ? requestDTO.getAppHash() : "";
+		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
 		if (otp) {
 			CreditSpendResponseDTO responseDTO = new CreditSpendResponseDTO();
