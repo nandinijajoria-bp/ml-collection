@@ -258,8 +258,7 @@ public class CreditPaymentService {
         boolean paymentSuccess = false;
         String orderId = null;
         if (requestDTO.getPayload().getType().equals(CreditConstants.PaymentMode.BPB)) {
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-            Map<String, Object> result = initiateTxn(requestDTO, lendingClTransaction.getId(), token, merchantBankDetail.getBeneficiaryName(), requestDTO.getPayload().getSource().name());
+            Map<String, Object> result = initiateTxn(requestDTO, lendingClTransaction.getId(), token, "BharatPe Loans", requestDTO.getPayload().getSource().name());
             Boolean success = (Boolean) result.get("success");
             if (success) {
                 otpFlow = (Boolean) result.get("otp_flow");
