@@ -251,10 +251,7 @@ public class CreditLineService {
 	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
-		String message="CONGRATULATIONS!\n\n" + 
-				"BharatPe Loan is Approved!\n" + 
-				"You have Rs."+Double.valueOf(df.format(creditApplication.getAmount()))+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
-				"Click Here :  ";
+		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n" +"Click Here : ";
 		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
 		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());

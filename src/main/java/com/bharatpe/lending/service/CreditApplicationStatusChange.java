@@ -143,7 +143,7 @@ public class CreditApplicationStatusChange {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
-			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nYour BharatPe Loan application is rejected as it does not meet our criterion for assessment. You can apply again after 7 days";
+			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nAs per your submitted documents and credit history, we are unable to activate BharatPe Loan Balance at this point. Please call at 088825 55444 to learn how to improve your eligibility. Transact more on BharatPe QR over next 1 month and then re-apply.";
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 			whatsappNotificationService.send(merchant, null, message, mobiles, null);
 		}
