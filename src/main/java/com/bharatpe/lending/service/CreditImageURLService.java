@@ -62,7 +62,7 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 			result.put("success", false);
 			return result;
 		}
-		Boolean eKycDone=isEkycDone(merchant);
+		Boolean eKycDone=isEkycDone(merchant, creditApplication.getId());
 		if(eKycDone==null){
 			result.put("success", false);
 			return result;
@@ -76,9 +76,9 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		return result;
 	}
 	
-	public Boolean isEkycDone(Merchant merchant) {
+	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
 		try{
-			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
+			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
 			if(lendingEkyc!=null){
 				return true;
 			}
