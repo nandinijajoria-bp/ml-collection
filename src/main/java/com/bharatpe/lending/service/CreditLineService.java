@@ -417,7 +417,7 @@ public class CreditLineService {
 			if (!ifscList.isEmpty()) {
 				BankList bankList = bankListDao.findByBankCode(ifscList.get(0).getBankCode());
 				responseDTO.setNarration1("Mr " + lendingClTransaction.getBeneficiaryName());
-				responseDTO.setNarration2(lendingClTransaction.getAccountNumber() + " (" + ifscList.get(0).getBank() + ")");
+				responseDTO.setNarration2("XX-" + lendingClTransaction.getAccountNumber().substring(lendingClTransaction.getAccountNumber().length()-4) + " (" + ifscList.get(0).getBank() + ")");
 				responseDTO.setNarration3("Branch - " + ifscList.get(0).getBranch());
 				responseDTO.setIcon(bankList.getImageUrl());
 			}
