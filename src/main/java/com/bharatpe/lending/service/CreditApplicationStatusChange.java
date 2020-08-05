@@ -155,14 +155,20 @@ public class CreditApplicationStatusChange {
 			if(applicationStatus.getStatus().equalsIgnoreCase("rejected")){
 				sendRejectionNotification(creditApplication);
 				creditApplication.setStatus("rejected");
-				
+				if(applicationStatus.getState().equalsIgnoreCase("kyc")){
+					creditApplication.setManualKyc("REJECTED");
+				} else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
+					creditApplication.setPhysicalVerificationStatus("REJECTED");
+				}
 			}
 			else if(applicationStatus.getStatus().equalsIgnoreCase("approved")) {
 				if(applicationStatus.getState().equalsIgnoreCase("kyc")){
 					creditApplication.setStatus("cpv");
+					creditApplication.setManualKyc("APPROVED");
 				}	
 				else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
 					creditApplication.setStatus("approved");
+					creditApplication.setPhysicalVerificationStatus("APPROVED");
 					CreditLineCategories creditLineCategories=creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditApplication.getCategory());
 					if(creditLineCategories!=null && creditLineCategories.getActivationFee()!=0) {
 						sendApprovalNotification(creditApplication);
@@ -176,8 +182,13 @@ public class CreditApplicationStatusChange {
 					logger.error("Invalid state {}",applicationStatus.getState());
 					return false;
 				}
-			}
-			else {
+			} else if(applicationStatus.getStatus().equalsIgnoreCase("pending")) {
+				if(applicationStatus.getState().equalsIgnoreCase("kyc")){
+					creditApplication.setManualKyc("PENDING");
+				} else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
+					creditApplication.setPhysicalVerificationStatus("PENDING");
+				}
+			} else {
 				logger.error("Invalid status "+applicationStatus.getStatus());
 				return false;
 			}

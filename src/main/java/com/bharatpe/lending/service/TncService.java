@@ -3,6 +3,8 @@ package com.bharatpe.lending.service;
 import java.util.Date;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,8 @@ import com.bharatpe.lending.util.LoanUtil;
 
 @Service
 public class TncService {
+
+	Logger logger = LoggerFactory.getLogger(TncService.class);
 	
 	@Autowired
 	CreditApplicationDao creditApplicationDao;

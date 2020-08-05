@@ -31,7 +31,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 @Service
 public class CreditImageURLService {
 
-Logger logger = LoggerFactory.getLogger(ImageURLService.class);
+Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 	
 	@Autowired
 	MerchantDocumentProofDao merchantDocumentProofDao;
