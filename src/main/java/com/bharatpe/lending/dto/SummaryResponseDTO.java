@@ -3,6 +3,8 @@ package com.bharatpe.lending.dto;
 import java.util.Date;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public class SummaryResponseDTO {
 	
 	private Boolean success=true;
@@ -16,6 +18,12 @@ public class SummaryResponseDTO {
 		this.success = success;
 		this.message = message;
 	}
+
+	public SummaryResponseDTO() {
+		super();
+	}
+
+
 
 	public Boolean getSuccess() {
 		return success;
@@ -107,7 +115,8 @@ public static class Summary
 	  
 	  
   }
-	
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class Transactions
   {	
 	  private Date date;
