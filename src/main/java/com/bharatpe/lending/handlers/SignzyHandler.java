@@ -137,9 +137,11 @@ public class SignzyHandler {
         Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
        String accessTokenSnoop =(String)responseMap.get("accessToken");
        String itemId =(String)responseMap.get("id");
-		
-		return docsDatabySnoop(itemId,accessTokenSnoop);
-		
+
+		Map<String,String> res = docsDatabySnoop(itemId,accessTokenSnoop);
+		res.put("identity_id", itemId);
+		res.put("access_token", accessTokenSnoop);
+		return res;
 	}
 	
 	public  Map<String,String> docsDatabySnoop(String itemId,String accessTokenSnoop)

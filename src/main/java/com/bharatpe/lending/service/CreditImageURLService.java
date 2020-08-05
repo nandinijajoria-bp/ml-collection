@@ -31,7 +31,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 @Service
 public class CreditImageURLService {
 
-Logger logger = LoggerFactory.getLogger(ImageURLService.class);
+Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 	
 	@Autowired
 	MerchantDocumentProofDao merchantDocumentProofDao;
@@ -62,7 +62,7 @@ Logger logger = LoggerFactory.getLogger(ImageURLService.class);
 			result.put("success", false);
 			return result;
 		}
-		Boolean eKycDone=isEkycDone(merchant);
+		Boolean eKycDone=isEkycDone(merchant, creditApplication.getId());
 		if(eKycDone==null){
 			result.put("success", false);
 			return result;
@@ -76,9 +76,9 @@ Logger logger = LoggerFactory.getLogger(ImageURLService.class);
 		return result;
 	}
 	
-	public Boolean isEkycDone(Merchant merchant) {
+	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
 		try{
-			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
+			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
 			if(lendingEkyc!=null){
 				return true;
 			}

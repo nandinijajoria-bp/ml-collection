@@ -187,6 +187,7 @@ public class LoanEligibleService {
             return new ArrayList<>();
         }
         if(lendingType.equalsIgnoreCase("CREDITLINE")) {
+            isEligibleForConstruct2And3 = false;
         	if (bpScore <= 12D) {
                 logger.info("BP Score less than 12, so rejecting merchant: {}", merchant.getId());
                 experian.setCategory("1N");

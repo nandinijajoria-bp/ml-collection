@@ -24,9 +24,6 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 public class S3BucketHandler {
 	private Logger logger = LoggerFactory.getLogger(S3BucketHandler.class);
 	
-	@Value("${aws.s3.bucket}")
-	private String bucket;
-	
 	@Value("${aws.s3.credentials.accessKey}")
     private String accessKey;
 
@@ -78,7 +75,7 @@ public class S3BucketHandler {
 	
 	public String getTemporaryPublicURL(String key, String bucket) throws FileNotFoundException {
 	    try {
-	    	logger.info("Getting temp URL for keu: {}", key);
+	    	logger.info("Getting temp URL for key: {} from bucket:{}", key, bucket);
 			Instant start = Instant.now();
 	    	AmazonS3 s3client = createS3BucketConnection();
 			String tempUrl = s3client.generatePresignedUrl(bucket, key, new DateTime().plusMinutes(15).toDate()).toString();

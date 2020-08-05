@@ -2,12 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
@@ -354,6 +349,7 @@ public class CreditLineLoanDetailsService {
 	}
 	
 	private LoanEligibilityDTO getMaxLoanAmount(List<LoanEligibilityDTO> loanEligibilityDTOs) {
+		loanEligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount));
 		List<Integer> eligibleTenure = Arrays.asList(1,3,6);
 		LoanEligibilityDTO maxLoan=loanEligibilityDTOs.get(0);
 		for(LoanEligibilityDTO loanEligibilityDto : loanEligibilityDTOs) {
@@ -517,7 +513,7 @@ public class CreditLineLoanDetailsService {
 //		}
 //	}
 	
-	public Boolean isEkycDone(Merchant merchant) {
+	/*public Boolean isEkycDone(Merchant merchant) {
 		try{
 			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
 			if(lendingEkyc!=null){
@@ -529,7 +525,7 @@ public class CreditLineLoanDetailsService {
 			logger.error("Error occured while checking for ekyc status",e);
 			return null;
 		}
-	}
+	}*/
 	
 	private CreditLoanDetailsResponseDto responseForLoanPendingForVerification(CreditApplication creditApplication,RequestDTO<IneligibleRequestDTO> requestDTO,Merchant merchant, CreditLoanDetailsResponseDto response) {
 		try {

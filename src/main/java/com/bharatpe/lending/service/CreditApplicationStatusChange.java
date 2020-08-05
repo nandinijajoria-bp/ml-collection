@@ -95,7 +95,7 @@ public class CreditApplicationStatusChange {
 				if(creditApplication==null) {
 					return getErrorMessage("Application not found for the given merchant and application id");
 				}
-				if(changeCreditApplicationStatus(creditApplication, applicationStatus) && insertUpdatedStatusInTransitionTable(applicationStatus)){
+				if(changeCreditApplicationStatus(creditApplication, applicationStatus)){
 					response.setSuccess(true);
 					response.setMessage("");
 					return response;
@@ -143,7 +143,7 @@ public class CreditApplicationStatusChange {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
-			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nYour BharatPe Loan application is rejected as it does not meet our criterion for assessment. You can apply again after 7 days";
+			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nAs per your submitted documents and credit history, we are unable to activate BharatPe Loan Balance at this point. Please call at 088825 55444 to learn how to improve your eligibility. Transact more on BharatPe QR over next 1 month and then re-apply.";
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 			whatsappNotificationService.send(merchant, null, message, mobiles, null);
 		}
@@ -155,14 +155,20 @@ public class CreditApplicationStatusChange {
 			if(applicationStatus.getStatus().equalsIgnoreCase("rejected")){
 				sendRejectionNotification(creditApplication);
 				creditApplication.setStatus("rejected");
-				
+				if(applicationStatus.getState().equalsIgnoreCase("kyc")){
+					creditApplication.setManualKyc("REJECTED");
+				} else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
+					creditApplication.setPhysicalVerificationStatus("REJECTED");
+				}
 			}
 			else if(applicationStatus.getStatus().equalsIgnoreCase("approved")) {
 				if(applicationStatus.getState().equalsIgnoreCase("kyc")){
 					creditApplication.setStatus("cpv");
+					creditApplication.setManualKyc("APPROVED");
 				}	
 				else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
 					creditApplication.setStatus("approved");
+					creditApplication.setPhysicalVerificationStatus("APPROVED");
 					CreditLineCategories creditLineCategories=creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditApplication.getCategory());
 					if(creditLineCategories!=null && creditLineCategories.getActivationFee()!=0) {
 						sendApprovalNotification(creditApplication);
@@ -176,8 +182,13 @@ public class CreditApplicationStatusChange {
 					logger.error("Invalid state {}",applicationStatus.getState());
 					return false;
 				}
-			}
-			else {
+			} else if(applicationStatus.getStatus().equalsIgnoreCase("pending")) {
+				if(applicationStatus.getState().equalsIgnoreCase("kyc")){
+					creditApplication.setManualKyc("PENDING");
+				} else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
+					creditApplication.setPhysicalVerificationStatus("PENDING");
+				}
+			} else {
 				logger.error("Invalid status "+applicationStatus.getStatus());
 				return false;
 			}
