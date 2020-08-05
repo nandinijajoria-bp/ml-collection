@@ -95,7 +95,7 @@ public class CreditApplicationStatusChange {
 				if(creditApplication==null) {
 					return getErrorMessage("Application not found for the given merchant and application id");
 				}
-				if(changeCreditApplicationStatus(creditApplication, applicationStatus) && insertUpdatedStatusInTransitionTable(applicationStatus)){
+				if(changeCreditApplicationStatus(creditApplication, applicationStatus)){
 					response.setSuccess(true);
 					response.setMessage("");
 					return response;
