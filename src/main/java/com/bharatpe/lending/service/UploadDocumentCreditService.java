@@ -91,7 +91,7 @@ public class UploadDocumentCreditService {
 	 @Autowired
 	 DocumentsIdProofDao  documentsIdProofDao;
 
-	@Value("${aws.s3.bucket}")
+	@Value("${aws.s3.creditline.bucket}")
 	private String bucket;
 
 	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<CreditUploadDocumentRequestDTO> requestDTO) {
