@@ -45,7 +45,7 @@ Logger logger = LoggerFactory.getLogger(ImageURLService.class);
 	@Autowired
 	LendingEkycDao lendingEkycDao;
 
-	@Value("${aws.s3.bucket}")
+	@Value("${aws.s3.creditline.bucket}")
 	private String bucket;
 	
 	public Map<String, Object> fetchAndWrapResult(Merchant merchant, CommonAPIRequest commonAPIRequest) {
