@@ -327,7 +327,7 @@ public class CreditLineLoanHistoryService {
 						settlement.setMode("QR deduction");
 					}
 					else {
-						settlement.setMode(firstLedger.getAdjustmentMode());
+						settlement.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(firstLedger.getAdjustmentMode(),firstLedger.getAdjustmentMode()));
 					}
 					settlementsList.add(settlement);
 					if((positiveSum+negativeSum)<0) {

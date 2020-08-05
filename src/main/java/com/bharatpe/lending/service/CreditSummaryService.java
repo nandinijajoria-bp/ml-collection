@@ -274,7 +274,7 @@ public class CreditSummaryService {
 				if(ledger.getAmount()>=0 && (ledger.getDescription()==null || !ledger.getDescription().equalsIgnoreCase("CREDIT_LINE"))) {
 					Transactions transaction=new Transactions();
 					transaction.setAmount(ledger.getAmount());
-					transaction.setType("Repayment (" + ledger.getAdjustmentMode() + ")");
+					transaction.setType("Repayment (" + CreditConstants.SpendModeFrontEndFormat.getOrDefault(ledger.getAdjustmentMode(),ledger.getAdjustmentMode())+ ")");
 					transaction.setMode("CREDIT");
 					transaction.setDate(DateTimeUtil.getStartTimeFromDateTime(ledger.getDate()));
 					transactionList.add(transaction);
