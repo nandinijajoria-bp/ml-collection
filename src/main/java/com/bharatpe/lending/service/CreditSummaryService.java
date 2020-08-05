@@ -274,8 +274,8 @@ public class CreditSummaryService {
 				if(ledger.getAmount()>=0 && (ledger.getDescription()==null || !ledger.getDescription().equalsIgnoreCase("CREDIT_LINE"))) {
 					Transactions transaction=new Transactions();
 					transaction.setAmount(ledger.getAmount());
-					transaction.setMode("Repayment (" + ledger.getAdjustmentMode() + ")");
-					transaction.setType("CREDIT");
+					transaction.setType("Repayment (" + ledger.getAdjustmentMode() + ")");
+					transaction.setMode("CREDIT");
 					transaction.setDate(DateTimeUtil.getStartTimeFromDateTime(ledger.getDate()));
 					transactionList.add(transaction);
 				}
@@ -296,12 +296,12 @@ public class CreditSummaryService {
 				Transactions transaction=new Transactions();
 				transaction.setAmount(clTransaction.getAmount());
 				if(clTransaction.getMode().equalsIgnoreCase("CREDIT")) {
-					transaction.setMode("Repayment (" + CreditConstants.SpendModeFrontEndFormat.getOrDefault(clTransaction.getSubType() , clTransaction.getSubType())+ ")");
+					transaction.setType("Repayment (" + CreditConstants.SpendModeFrontEndFormat.getOrDefault(clTransaction.getSubType() , clTransaction.getSubType())+ ")");
 				}
 				else {
-					transaction.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(clTransaction.getSubType() , clTransaction.getSubType()));
+					transaction.setType(CreditConstants.SpendModeFrontEndFormat.getOrDefault(clTransaction.getSubType() , clTransaction.getSubType()));
 				}
-				transaction.setType(clTransaction.getMode());
+				transaction.setMode(clTransaction.getMode());
 				transaction.setDate(DateTimeUtil.getStartTimeFromDateTime(clTransaction.getCreatedAt()));
 				transactionList.add(transaction);
 			}
