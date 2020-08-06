@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -88,6 +89,28 @@ public class RedisNotificationService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while sending notification",e);
+		}
+	}
+	
+	public void sendEligibleNotificationForCreditLine(Merchant merchant, List<LoanEligibilityDTO> eligibleLoan) {
+		try {
+			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
+				logger.info("Sending eligible notification for merchant {}",merchant);
+				LoanEligibilityDTO highestLoan=eligibleLoan.get(0);
+				InstantNotificationDto notificationDto=new InstantNotificationDto();
+				notificationDto.setMerchantId(merchant.getId());
+				notificationDto.setMessageCategory("CREDIT_LINE_ELIGIBLE");
+				String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
+						"You are pre - approved for business loan up to Rs."+highestLoan.getAmount()+" from BharatPe. Enjoy repayment flexibility along with interest rate as low as 0.1% per day. \n" + 
+						"Get Now: ";
+				notificationDto.setMessage(message);
+				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
+				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_4day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 4));
+				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_6day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 6));
+			}
+		}
+		catch(Exception e) {
+			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);
 		}
 	}
 }
