@@ -12,6 +12,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
+import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dto.InstantNotificationDto;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
@@ -111,6 +112,26 @@ public class RedisNotificationService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);
+		}
+	}
+	
+	public void sendDraftNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
+		try {
+			logger.info("Sending notification for application in draft state got merchant {}",merchant);
+			InstantNotificationDto notificationDto=new InstantNotificationDto();
+			notificationDto.setApplicationId(creditApplication.getId());
+			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMessageCategory("CREDIT_LINE_APPLIED_APPLICATION");
+			String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
+					"You are 1 step away from activating your Rs."+creditApplication.getAmount()+" BharatPe Loan Balance. Pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility. \n" + 
+					"Get Now: ";
+			notificationDto.setMessage(message);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_4day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 4));
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_6day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 6));
+		}
+		catch(Exception e) {
+			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);		
 		}
 	}
 }
