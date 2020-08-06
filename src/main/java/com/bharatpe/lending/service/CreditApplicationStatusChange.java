@@ -9,6 +9,8 @@ import java.util.Optional;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,16 +26,6 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.lending.common.dao.CreditAccountDao;
-import com.bharatpe.lending.common.dao.CreditApplicationDao;
-import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
-import com.bharatpe.lending.common.dao.CreditLineCategoriesDao;
-import com.bharatpe.lending.common.dao.LendingCaBalanceDetailDao;
-import com.bharatpe.lending.common.entity.CreditAccount;
-import com.bharatpe.lending.common.entity.CreditApplication;
-import com.bharatpe.lending.common.entity.CreditApplicationTransition;
-import com.bharatpe.lending.common.entity.CreditLineCategories;
-import com.bharatpe.lending.common.entity.LendingCaBalanceDetail;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dto.CreditApplicationStatusUpdationRequestDto;
@@ -169,6 +161,7 @@ public class CreditApplicationStatusChange {
 				else if(applicationStatus.getState().equalsIgnoreCase("cpv")) {
 					creditApplication.setStatus("approved");
 					creditApplication.setPhysicalVerificationStatus("APPROVED");
+					creditApplication.setManualKyc("APPROVED");
 					CreditLineCategories creditLineCategories=creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditApplication.getCategory());
 					if(creditLineCategories!=null && creditLineCategories.getActivationFee()!=0) {
 						sendApprovalNotification(creditApplication);
@@ -177,6 +170,7 @@ public class CreditApplicationStatusChange {
 					if(!createCreditAccount(creditApplication, applicationStatus.getMerchantId())){
 						return false;
 					}
+					creditApplication.setAccountCreated(true);
 				}
 				else {
 					logger.error("Invalid state {}",applicationStatus.getState());
