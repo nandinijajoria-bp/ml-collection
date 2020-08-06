@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class CreditSpendVerifyRequestDTO {
     private Long requestId;
     private String otp;
+    private String appHash;
 
     public Long getRequestId() {
         return requestId;
@@ -22,6 +23,14 @@ public class CreditSpendVerifyRequestDTO {
 
     public void setOtp(String otp) {
         this.otp = otp;
+    }
+
+    public String getAppHash() {
+        return appHash;
+    }
+
+    public void setAppHash(String appHash) {
+        this.appHash = appHash;
     }
 
     @Override

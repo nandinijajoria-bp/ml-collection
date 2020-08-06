@@ -831,6 +831,9 @@ public class CreditPaymentService {
         params.put("install_id", requestDTO.getSimInfo().getInstallId());
         params.put("device_id", requestDTO.getSimInfo().getDeviceId());
         params.put("sims", sims);
+        if (requestDTO.getPayload().getAppHash() != null) {
+            params.put("app_hash", requestDTO.getPayload().getAppHash());
+        }
         requestParams.put("common_params", commonParams);
         requestParams.put("params", params);
         return requestParams;
@@ -854,6 +857,9 @@ public class CreditPaymentService {
         commonParams.put("device_info", deviceInfo);
         if (requestDTO.getPayload().getOtp() != null) {
             params.put("otp", requestDTO.getPayload().getOtp());
+        }
+        if (requestDTO.getPayload().getAppHash() != null) {
+            params.put("app_hash", requestDTO.getPayload().getAppHash());
         }
         params.put("order_id", requestDTO.getPayload().getRequestId());
         requestParams.put("common_params", commonParams);

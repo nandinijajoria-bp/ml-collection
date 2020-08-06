@@ -11,6 +11,7 @@ public class CreditPaymentRequestDTO {
     private Double amount;
     private String otp;
     private String vpa;
+    private String appHash;
 
     public CreditConstants.PaymentMode getType() {
         return type;
@@ -51,6 +52,14 @@ public class CreditPaymentRequestDTO {
 	public void setVpa(String vpa) {
 		this.vpa = vpa;
 	}
+
+    public String getAppHash() {
+        return appHash;
+    }
+
+    public void setAppHash(String appHash) {
+        this.appHash = appHash;
+    }
 
     @Override
     public String toString() {
