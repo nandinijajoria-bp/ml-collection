@@ -150,10 +150,16 @@ public class CreditPaymentService {
             ResponseEntity<Object> response=null;
             int retry=0;
             while(retry<3) {
-            	response= restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            	if(response.getBody()!=null) {
-            		break;
+            	try {
+            		response= restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                	if(response.getBody()!=null) {
+                		break;
+                	}
             	}
+            	catch(Exception e) {
+            		logger.error("Error occured while fetching payment mode",e);
+            	}
+            	
             	retry++;
             }
             
@@ -253,8 +259,7 @@ public class CreditPaymentService {
         String orderId = null;
         String mid = null;
         if (requestDTO.getPayload().getType().equals(CreditConstants.PaymentMode.BPB)) {
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-            Map<String, Object> result = initiateTxn(requestDTO, lendingClTransaction.getId(), token, merchantBankDetail.getBeneficiaryName(), requestDTO.getPayload().getSource().name());
+            Map<String, Object> result = initiateTxn(requestDTO, lendingClTransaction.getId(), token, "BharatPe Loans", requestDTO.getPayload().getSource().name());
             Boolean success = (Boolean) result.get("success");
             if (success) {
                 otpFlow = (Boolean) result.get("otp_flow");
@@ -387,12 +392,24 @@ public class CreditPaymentService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", objectMapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            result.put("response", objectMapper.writeValueAsString(response.getBody()));
-            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
-            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
-            logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
-            return result;
+            int retryCount=0;
+            while(retryCount<3) {
+            	try {
+            		ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    result.put("response", objectMapper.writeValueAsString(response.getBody()));
+                    logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+                    if(response.getBody()!=null) {
+                    	result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                    } 
+            	}
+            	catch(Exception e) {
+            		logger.error("Error occured while sending otp",e);
+            	}
+            	retryCount++;
+            }
+            
         } catch (HttpClientErrorException e) {
             result.put("success", Boolean.FALSE);
             logger.error("Error resend otp for BP Balance info---", e);
@@ -717,16 +734,27 @@ public class CreditPaymentService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", objectMapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            result.put("response", objectMapper.writeValueAsString(response.getBody()));
-            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
-            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
-            Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-            result.put("otp_flow", responseData.get("otp_flow"));
-            result.put("auth_mode", responseData.get("auth_mode"));
-            result.put("bp_txn_id", responseData.get("bp_txn_id"));
-            logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
-            return result;
+            int retryCount=0;
+            while(retryCount<3) {
+            	try {
+                    ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    if (response.getBody() != null) {
+                        result.put("response", objectMapper.writeValueAsString(response.getBody()));
+                        logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+                        result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+                        result.put("otp_flow", responseData.get("otp_flow"));
+                        result.put("auth_mode", responseData.get("auth_mode"));
+                        result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                        logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                    }
+                } catch (Exception e) {
+                    logger.error("Error Starting txn for BP Balance info---", e);
+                }
+            	retryCount++;
+            }
+            
         } catch (HttpClientErrorException e) {
             result.put("success", Boolean.FALSE);
             logger.error("Error Starting txn for BP Balance info---", e);
@@ -772,6 +800,9 @@ public class CreditPaymentService {
         params.put("install_id", requestDTO.getSimInfo().getInstallId());
         params.put("device_id", requestDTO.getSimInfo().getDeviceId());
         params.put("sims", sims);
+        if (requestDTO.getPayload().getAppHash() != null) {
+            params.put("app_hash", requestDTO.getPayload().getAppHash());
+        }
         requestParams.put("common_params", commonParams);
         requestParams.put("params", params);
         return requestParams;
@@ -795,6 +826,9 @@ public class CreditPaymentService {
         commonParams.put("device_info", deviceInfo);
         if (requestDTO.getPayload().getOtp() != null) {
             params.put("otp", requestDTO.getPayload().getOtp());
+        }
+        if (requestDTO.getPayload().getAppHash() != null) {
+            params.put("app_hash", requestDTO.getPayload().getAppHash());
         }
         params.put("order_id", requestDTO.getPayload().getRequestId());
         if (requestDTO.getPayload().getAppHash() != null) {
@@ -823,16 +857,29 @@ public class CreditPaymentService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", objectMapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
-            result.put("response", objectMapper.writeValueAsString(response.getBody()));
-            logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
-            result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
-            Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-            result.put("order_id", responseData.get("order_id"));
-            result.put("amount", responseData.get("amount"));
-            result.put("status", responseData.get("status"));
-            logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
-            return result;
+            int retryCount=0;
+            while(retryCount<3) {
+            	try {
+            		ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                	if(response.getBody()!=null) {
+                		result.put("response", objectMapper.writeValueAsString(response.getBody()));
+                        logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
+                        result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+                        result.put("order_id", responseData.get("order_id"));
+                        result.put("amount", responseData.get("amount"));
+                        result.put("status", responseData.get("status"));
+                        logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                	}
+            	}
+            	catch(Exception e) {
+            		logger.error("Error occured while verifying txn",e);
+            	}
+            	
+            	retryCount++;
+            }
+            
         } catch (HttpClientErrorException e) {
             result.put("success", Boolean.FALSE);
             logger.error("Error Verifying txn for BP Balance info---", e);
@@ -870,10 +917,16 @@ public class CreditPaymentService {
             int retryCount=0;
             VPARequestDto responseObj=null;
             while(retryCount<3) {
-            	responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
-            	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
-            		break;
+            	try {
+            		responseObj = restTemplate.postForObject(DYNAMIC_VPA_HOST, request, VPARequestDto.class);
+                	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
+                		break;
+                	}
             	}
+            	catch(Exception ex) {
+            		logger.error("error processing txn for dynamic vpa, txn: {}, {}", txn_id, ex);
+            	}
+            	
             	retryCount++;
             }
             response.put("response", responseObj);
@@ -1009,30 +1062,36 @@ public class CreditPaymentService {
             String URL=UPI_PAYMENT_STATUS_CHECK_URL+"?orderId="+orderId+"&mid="+getMid();
             logger.info("payout internal URL {} and request: {}", URL,request);
             while(retryCount<3) {
-            	ResponseEntity<Object> responseObj=restTemplate.exchange(URL, HttpMethod.GET, request, Object.class);
-            	logger.info("UPI status response {}",objectMapper.writeValueAsString(responseObj.getBody()));
-            	if(responseObj!=null && responseObj.hasBody()) {
-            		
-            		if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("PENDING".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))) {
-            	    	
-            			if(cancelPayment(lendingClPayment)) {
-            				changePaymentStatus(lendingClPayment);
-            				return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
-            	    	}
-            	    	else {
-            	    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
-            	    	}
-            		}
-            		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("SUCCESS".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
-            			return new PaymentCancellationResponseDto(true,"",false,"SUCCESS");
-            		}
-            		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("CANCELLED".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
-            			return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
-            		}
-            		else {
-            			return new PaymentCancellationResponseDto(true,"",false,"FAILED");
-            		}
+            	try {
+            		ResponseEntity<Object> responseObj=restTemplate.exchange(URL, HttpMethod.GET, request, Object.class);
+                	logger.info("UPI status response {}",objectMapper.writeValueAsString(responseObj.getBody()));
+                	if(responseObj!=null && responseObj.hasBody()) {
+                		
+                		if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("PENDING".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))) {
+                	    	
+                			if(cancelPayment(lendingClPayment)) {
+                				changePaymentStatus(lendingClPayment);
+                				return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+                	    	}
+                	    	else {
+                	    		return new PaymentCancellationResponseDto(false,"Cancellation failed",null,null);
+                	    	}
+                		}
+                		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("SUCCESS".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
+                			return new PaymentCancellationResponseDto(true,"",false,"SUCCESS");
+                		}
+                		else if("100".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("responseCode").toString()) && ("CANCELLED".equalsIgnoreCase(((Map<String, Object>) responseObj.getBody()).get("paymentStatus").toString()))){
+                			return new PaymentCancellationResponseDto(true,"",true,"CANCELLED");
+                		}
+                		else {
+                			return new PaymentCancellationResponseDto(true,"",false,"FAILED");
+                		}
+                	}
             	}
+            	catch(Exception e) {
+            		logger.error("error processing txn for dynamic vpa, txn: {}, {}", orderId, e);
+            	}
+            	
             	retryCount++;
             }
             
@@ -1071,16 +1130,22 @@ public class CreditPaymentService {
             int retryCount=0;
             UpiPaymentCancellationResponseDto responseObj=null;
             while(retryCount<3) {
-            	responseObj = restTemplate.postForObject(CANCEL_PAYMENT_URL, request, UpiPaymentCancellationResponseDto.class);
-            	logger.info("UPI payment cancellation response {}",responseObj.toString());
-            	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
-            		if(responseObj.getPaymentStatus().equalsIgnoreCase("CANCELLED")) {
-            			return true;
-            		}
-            		else {
-            			return false;
-            		}
-            	}
+            	try {
+            		responseObj = restTemplate.postForObject(CANCEL_PAYMENT_URL, request, UpiPaymentCancellationResponseDto.class);
+                	logger.info("UPI payment cancellation response {}",responseObj.toString());
+                	if(responseObj!=null && responseObj.getResponseCode().equalsIgnoreCase("100")) {
+                		if(responseObj.getPaymentStatus().equalsIgnoreCase("CANCELLED")) {
+                			return true;
+                		}
+                		else {
+                			return false;
+                		}
+                	}
+                	break;
+                }
+                catch(Exception e){
+                	logger.error("Error occured while cancelling order with transaction id {}",lendingClPayment.getClTransactionId());
+                }
             	retryCount++;
             }
             

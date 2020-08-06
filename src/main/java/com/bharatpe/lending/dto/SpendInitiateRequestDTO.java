@@ -8,6 +8,7 @@ public class SpendInitiateRequestDTO {
     private Long requestId;
     private String loanType;
     private Integer tenure;
+    private String appHash;
 
     public Long getRequestId() {
         return requestId;
@@ -31,6 +32,14 @@ public class SpendInitiateRequestDTO {
 
     public void setTenure(Integer tenure) {
         this.tenure = tenure;
+    }
+
+    public String getAppHash() {
+        return appHash;
+    }
+
+    public void setAppHash(String appHash) {
+        this.appHash = appHash;
     }
 
     @Override

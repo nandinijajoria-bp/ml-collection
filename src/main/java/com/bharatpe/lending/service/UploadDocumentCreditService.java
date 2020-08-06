@@ -91,7 +91,7 @@ public class UploadDocumentCreditService {
 	 @Autowired
 	 DocumentsIdProofDao  documentsIdProofDao;
 
-	@Value("${aws.s3.bucket}")
+	@Value("${aws.s3.creditline.bucket}")
 	private String bucket;
 
 	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<CreditUploadDocumentRequestDTO> requestDTO) {
@@ -281,8 +281,8 @@ public class UploadDocumentCreditService {
 					}
 					String accessToken   = (rootNode != null) ? rootNode.path("accessToken").textValue() : null;
 					String id   = (rootNode != null) ? rootNode.path("id").textValue() : null;
-					merchantDocumentProof.setAccesstoken(accessToken);
-					merchantDocumentProof.setIdentityId(id);
+					merchantDocumentProof.setAccesstoken(res.get("access_token"));
+					merchantDocumentProof.setIdentityId(res.get("identity_id"));
 					merchantDocumentProofDao.save(merchantDocumentProof);
 					MerchantDocumentProofOcr merchantDocumentProofOcr = processAndSaveKycResponse(response,request, proofType, merchantDocumentProof, merchant);
 					if(proofType.equals("pancard")) {

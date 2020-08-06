@@ -267,10 +267,12 @@ public class CreditLineKycService {
 		if(merchantBankDetail==null) {
 			return null;
 		}
+//		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
+//				"Your loan application for INR " + creditApplication.getAmount().intValue() + " has been received successfully.\n" +
+//				"Your Application ID is " + creditApplication.getExternalLoanId() + ".";
+		
 		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
-				"Your loan application for INR " + creditApplication.getAmount().intValue() + " has been received successfully.\n" +
-				"Your Application ID is " + creditApplication.getExternalLoanId() + ".";
-
+				"Your Application (ID - "+creditApplication.getExternalLoanId()+") for Rs. " + creditApplication.getAmount().intValue() + "BharatPe Loan Balance has been registered successfully. Application is under review and limit will be activated within 48 hours";
 		return message;
 	}
 

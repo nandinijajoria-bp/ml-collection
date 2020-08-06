@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.entity.CreditLineMerchant;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,12 +34,6 @@ import com.bharatpe.common.entities.MerchantSummarySnapshot;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
-import com.bharatpe.lending.common.dao.CreditApplicationDao;
-import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
-import com.bharatpe.lending.common.entity.CreditApplication;
-import com.bharatpe.lending.common.entity.CreditApplicationAddress;
-import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.dto.CreditApplicationRequestDTO;
 import com.bharatpe.lending.dto.CreditApplicationResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
@@ -102,6 +96,9 @@ public class CreditApplicationService {
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
+
+	@Autowired
+	CreditApplicationReasonDao creditApplicationReasonDao;
 
 	public CreditApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 		CreditApplicationResponseDTO creditApplicationResponse;
@@ -169,6 +166,10 @@ public class CreditApplicationService {
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
 			creditLineMerchantDao.save(creditLineMerchant); 
 			createStatusAuditTrail(creditApplication);
+			CreditApplicationReason creditApplicationReason = new CreditApplicationReason();
+			creditApplicationReason.setMerchantId(merchantId);
+			creditApplicationReason.setApplicationId(creditApplication.getId());
+			creditApplicationReasonDao.save(creditApplicationReason);
 		}
 
 		logger.info("Loan Application saved : {}",creditApplication);
@@ -357,8 +358,7 @@ public class CreditApplicationService {
 		}
 		
 		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
-			      "Your loan application for INR " + creditApplication.getAmount().intValue() + " has been received successfully.\n" +
-			      "Your Application ID is " + creditApplication.getExternalLoanId() + ".";
+				"Your Application (ID - "+creditApplication.getExternalLoanId()+") for Rs. " + creditApplication.getAmount().intValue() + "BharatPe Loan Balance has been registered successfully. Application is under review and limit will be activated within 48 hours";
 		
 		return message;
 	}

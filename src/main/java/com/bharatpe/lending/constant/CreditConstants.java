@@ -76,6 +76,8 @@ public interface CreditConstants {
 		put("INTEREST_ACCOUNT", "Interest Account");
 		put("FP", "Interest Account");
 		put("UPI", "UPI");
+		put("upi", "UPI");
+		put("Upi", "UPI");
 		put("INSURANCE","Insurance");
 		put("CASH","Cash");
 		put("INTEREST","Interest");

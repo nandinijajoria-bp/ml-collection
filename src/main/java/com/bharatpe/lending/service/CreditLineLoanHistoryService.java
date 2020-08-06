@@ -170,12 +170,13 @@ public class CreditLineLoanHistoryService {
 						loan.setSpendMode(lendingTlDetails.getLendingClTransaction().getSubType());
 					}
 					loan.setTenure(getTenure(lendingPaymentSchedule.getEdiCount()));
-					if(lendingPaymentSchedule.getInterestOnlyStartDate()!=null) {
-						loan.setDate(lendingPaymentSchedule.getInterestOnlyStartDate());
-					}
-					else {
-						loan.setDate(lendingPaymentSchedule.getStartDate());
-					}
+//					if(lendingPaymentSchedule.getInterestOnlyStartDate()!=null) {
+//						loan.setDate(lendingPaymentSchedule.getInterestOnlyStartDate());
+//					}
+//					else {
+//						loan.setDate(lendingPaymentSchedule.getStartDate());
+//					}
+					loan.setDate(lendingPaymentSchedule.getCreatedAt());
 					loanList.add(loan);
 					
 				}
@@ -327,7 +328,7 @@ public class CreditLineLoanHistoryService {
 						settlement.setMode("QR deduction");
 					}
 					else {
-						settlement.setMode(firstLedger.getAdjustmentMode());
+						settlement.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(firstLedger.getAdjustmentMode(),firstLedger.getAdjustmentMode()));
 					}
 					settlementsList.add(settlement);
 					if((positiveSum+negativeSum)<0) {

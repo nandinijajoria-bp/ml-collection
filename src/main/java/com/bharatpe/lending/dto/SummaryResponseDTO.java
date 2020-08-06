@@ -3,15 +3,27 @@ package com.bharatpe.lending.dto;
 import java.util.Date;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public class SummaryResponseDTO {
 	
-	private Boolean success;
+	private Boolean success=true;
 	
 	private String message;
 	
 	private Double avaliableAmount;
-	
-   
+
+	public SummaryResponseDTO(Boolean success, String message) {
+		super();
+		this.success = success;
+		this.message = message;
+	}
+
+	public SummaryResponseDTO() {
+		super();
+	}
+
+
 
 	public Boolean getSuccess() {
 		return success;
@@ -103,9 +115,11 @@ public static class Summary
 	  
 	  
   }
-	
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class Transactions
-  {
+  {	
+	  private Date date;
 	  private String type;
 	  private String mode;
 	  private Double amount;
@@ -127,11 +141,16 @@ public static class Summary
 	public void setAmount(Double amount) {
 		this.amount = amount;
 	}
+	public Date getDate() {
+		return date;
+	}
+	public void setDate(Date date) {
+		this.date = date;
+	}
 	@Override
 	public String toString() {
-		return "Transactions [type=" + type + ", mode=" + mode + ", amount=" + amount + "]";
-	}
-	  
+		return "Transactions [date=" + date + ", type=" + type + ", mode=" + mode + ", amount=" + amount + "]";
+	} 
 	  
   }
 

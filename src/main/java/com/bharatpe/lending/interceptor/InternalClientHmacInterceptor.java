@@ -4,6 +4,7 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.Status;
+import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dto.Response;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -36,6 +37,9 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
     @Autowired
     Environment env;
 
+    @Autowired
+    AesEncryption aesEncryption;
+
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         logger.info("Pre handle Interceptor of Hmac Interceptor for {}",request);
@@ -63,7 +67,9 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
                 sendFailureResponse(response, ResponseCode.INVALID_DATA);
                 return false;
             }
-
+            logger.info("secret key:{}", aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = hmacCalculator.calculateHmac(payload, aesEncryption.decrypt(internalClient.getSecret()));
+            logger.info("hash:{}", hash);
             if(hmacCalculator.validateClient(payload, internalClient, hmac)) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and client {}", hmac, clientName);
                 return true;

@@ -251,10 +251,7 @@ public class CreditLineService {
 	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
-		String message="CONGRATULATIONS!\n\n" + 
-				"BharatPe Loan is Approved!\n" + 
-				"You have Rs."+Double.valueOf(df.format(creditApplication.getAmount()))+" available to Spend for Bank transfers (Transfering to Own A/c), Sending money (to any other Bank A/c, UPI or Mobile), Paying Bills, Shopping etc.\n\n" + 
-				"Click Here :  ";
+		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n" +"Click Here : ";
 		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
 		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
@@ -417,7 +414,7 @@ public class CreditLineService {
 			if (!ifscList.isEmpty()) {
 				BankList bankList = bankListDao.findByBankCode(ifscList.get(0).getBankCode());
 				responseDTO.setNarration1("Mr " + lendingClTransaction.getBeneficiaryName());
-				responseDTO.setNarration2(lendingClTransaction.getAccountNumber() + " (" + ifscList.get(0).getBank() + ")");
+				responseDTO.setNarration2("XX-" + lendingClTransaction.getAccountNumber().substring(lendingClTransaction.getAccountNumber().length()-4) + " (" + ifscList.get(0).getBank() + ")");
 				responseDTO.setNarration3("Branch - " + ifscList.get(0).getBranch());
 				responseDTO.setIcon(bankList.getImageUrl());
 			}
@@ -476,21 +473,30 @@ public class CreditLineService {
 	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
+//		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
+//				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+//				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
+		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
+				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 	}
 	
 	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		
+//		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
+//				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+//				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+
+//				".\nDaily installment of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your QR Settlements. \n" + 
+//				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
+		
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
-				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+
-				".\nDaily installment of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your QR Settlements. \n" + 
-				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
+				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"EDI of Rs. "+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next <3> months for "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
+				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
 	public void sendNotification(String message, Merchant merchant) {
@@ -522,22 +528,33 @@ public class CreditLineService {
 			HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
 			logger.info("payout request: {}", objectMapper.writeValueAsString(entity));
 			long startTime = System.currentTimeMillis();
-			ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
 			logger.info("Successful payout api result in {} ms", System.currentTimeMillis() - startTime);
-			logger.info("Payout response: {}", objectMapper.writeValueAsString(response.getBody()));
-			if (response.getBody() != null && "100".equalsIgnoreCase(((Map<String, Object>) response.getBody()).get("responseCode").toString())) {
-				logger.info("payout success for transaction:{}", lendingClTransaction.getId());
-				Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-				BankTransferResponseDTO bankTransferResponseDTO = new BankTransferResponseDTO();
-				bankTransferResponseDTO.setPaymentStatus(responseData.get("paymentStatus").toString());
-				bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber").toString());
-				bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
-				bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
-				bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());
-				bankTransferResponseDTO.setPayoutId(((Number)responseData.get("payoutId")).longValue());
-				bankTransferResponseDTO.setOrderId(responseData.get("orderId").toString());
-				return bankTransferResponseDTO;
+			int retryCount=0;
+			while(retryCount<3) {
+				try {
+					ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+					logger.info("Payout response: {}", objectMapper.writeValueAsString(response.getBody()));
+					if (response.getBody() != null && "100".equalsIgnoreCase(((Map<String, Object>) response.getBody()).get("responseCode").toString())) {
+						logger.info("payout success for transaction:{}", lendingClTransaction.getId());
+						Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+						BankTransferResponseDTO bankTransferResponseDTO = new BankTransferResponseDTO();
+						bankTransferResponseDTO.setPaymentStatus(responseData.get("paymentStatus").toString());
+						bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber").toString());
+						bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
+						bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
+						bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());
+						bankTransferResponseDTO.setPayoutId(((Number)responseData.get("payoutId")).longValue());
+						bankTransferResponseDTO.setOrderId(responseData.get("orderId").toString());
+						return bankTransferResponseDTO;
+					}
+				}
+				catch(Exception e) {
+					logger.error("Error occured while calling Payout API",e);
+				}
+				retryCount++;
 			}
+			
+			
 		} catch (Exception e) {
 			logger.error("Exception in payout api---", e);
 		}
@@ -626,7 +643,8 @@ public class CreditLineService {
 			return new CreditSpendResponseDTO(false, "Insufficient Balance");
 		}
 		lendingClTransactionRequestDao.updateLoanTypeAndTenure(requestDTO.getLoanType(), requestDTO.getTenure(), paymentRequest.getId());
-		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. yltNeplA2JJ";
+		String hash = requestDTO.getAppHash() != null ? requestDTO.getAppHash() : "yltNeplA2JJ";
+		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
 		if (otp) {
 			CreditSpendResponseDTO responseDTO = new CreditSpendResponseDTO();
@@ -698,9 +716,9 @@ public class CreditLineService {
 //			totalMad+=20D;
 //			totalAmount+=20D;
 			//end of code
-			dailySettlementResponseDto.setTotalMad(totalMad);
-			dailySettlementResponseDto.setTotalEdi(totalEdi);
-			dailySettlementResponseDto.setTotalAmount(totalAmount);
+			dailySettlementResponseDto.setTotalMad(Math.round(totalMad*100.0)/100.0);//round of to 2 decimal place
+			dailySettlementResponseDto.setTotalEdi(Math.round(totalEdi*100.0)/100.0);
+			dailySettlementResponseDto.setTotalAmount(Math.round(totalAmount*100.0)/100.0);
 			dailySettlementResponseDto.setRepayments(repaymentList);
 			return dailySettlementResponseDto;
 		}
