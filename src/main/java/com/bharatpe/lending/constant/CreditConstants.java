@@ -28,7 +28,8 @@ public interface CreditConstants {
 		INIT,
 		PENDING,
 		SUCCESS,
-		FAILED
+		FAILED,
+		CALLBACK_RECEIVED
 	}
 
 	enum PaymentSource {

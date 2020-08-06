@@ -95,18 +95,18 @@ public class CreditLineKycService {
 		return creditLineKycResponseDto;
 	}
 
-	public Boolean isEkycDone(Merchant merchant) {
-		try{
-			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
-			if(lendingEkyc!=null){
-				return true;
-			}
-			return false;
-		}
-		catch(Exception e) {
-			return null;
-		}
-	}
+//	public Boolean isEkycDone(Merchant merchant) {
+//		try{
+//			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
+//			if(lendingEkyc!=null){
+//				return true;
+//			}
+//			return false;
+//		}
+//		catch(Exception e) {
+//			return null;
+//		}
+//	}
 
 	public   Object verifyAddress(Merchant merchant,RequestDTO< EkycManualRequestDTO> requestDTO) {
 

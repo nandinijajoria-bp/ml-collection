@@ -517,19 +517,19 @@ public class CreditLineLoanDetailsService {
 //		}
 //	}
 	
-	public Boolean isEkycDone(Merchant merchant) {
-		try{
-			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
-			if(lendingEkyc!=null){
-				return true;
-			}
-			return false;
-		}
-		catch(Exception e) {
-			logger.error("Error occured while checking for ekyc status",e);
-			return null;
-		}
-	}
+//	public Boolean isEkycDone(Merchant merchant) {
+//		try{
+//			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId());
+//			if(lendingEkyc!=null){
+//				return true;
+//			}
+//			return false;
+//		}
+//		catch(Exception e) {
+//			logger.error("Error occured while checking for ekyc status",e);
+//			return null;
+//		}
+//	}
 	
 	private CreditLoanDetailsResponseDto responseForLoanPendingForVerification(CreditApplication creditApplication,RequestDTO<IneligibleRequestDTO> requestDTO,Merchant merchant, CreditLoanDetailsResponseDto response) {
 		try {

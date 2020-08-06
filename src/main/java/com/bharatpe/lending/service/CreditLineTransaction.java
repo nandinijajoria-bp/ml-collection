@@ -8,6 +8,7 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.BankTransferResponseDTO;
 import com.bharatpe.lending.dto.CreditSpendResponseDTO;
+import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class CreditLineTransaction {
@@ -52,6 +54,12 @@ public class CreditLineTransaction {
 
     @Autowired
     LendingClPaymentDao lendingClPaymentDao;
+
+    @Autowired
+    CreditAccountBillDao creditAccountBillDao;
+
+    @Autowired
+    LendingClPaymentBreakupDao lendingClPaymentBreakupDao;
 
     public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
@@ -342,4 +350,45 @@ public class CreditLineTransaction {
         return lendingClPaymentDao.save(lendingClPayment);
     }
 
+    @Transactional
+    public void creditRepayment(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, LendingCaBalanceDetail lendingCaBalanceDetail, CreditAccountBill creditAccountBill, List<LendingClLedger> lendingClLedgers, List<LendingClPaymentBreakup> lendingClPaymentBreakups, Double principle, Double interest, Double clPrinciple) {
+        logger.info("Repayment for account:{}, amount:{}", creditAccount.getId(), principle);
+        if (creditAccountBill != null) {
+            creditAccountBillDao.save(creditAccountBill);
+            creditAccountDao.updateMAD(creditAccount.getId(), creditAccountBill.getMinimumAmountDue());
+            if (creditAccountBill.getMinimumAmountDue() == 0D) {
+                logger.info("closing all bills for account:{}", creditAccount.getId());
+                creditAccountBillDao.closeAllBills(creditAccount.getId(), creditAccount.getMerchantId(), creditAccountBill.getPaidAmount(), new Date());
+                creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
+            }
+        }
+        creditAccountDao.creditBalance(creditAccount.getId(), principle);
+        lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.SUCCESS.name(), lendingClTransaction.getId());
+        lendingClLedgerDao.saveAll(lendingClLedgers);
+        lendingClPaymentBreakupDao.saveAll(lendingClPaymentBreakups);
+        Double usedBalanceCl = 0D;
+        double usedBalanceG1 = 0d;
+        double usedBalanceG2 = 0d;
+        double usedBalanceG3 = 0d;
+        if (clPrinciple > 0) {
+            usedBalanceCl = clPrinciple;
+            usedBalanceG1 = (lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
+            usedBalanceG2 = (lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
+            usedBalanceG3 = (lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
+        }
+        lendingCaBalanceDetailDao.creditBalance(lendingClTransaction.getCreditAccountId(), principle, usedBalanceCl, usedBalanceG1, usedBalanceG2, usedBalanceG3);
+        creditAccountDao.creditInterest(creditAccount.getId(), interest);
+        lendingCaBalanceDetailDao.creditInterest(creditAccount.getId(), interest);
+    }
+
+    public LendingClPaymentBreakup createPaymentBreakup(LendingClTransaction lendingClTransaction, Double amount, Long loanId, String type) {
+        LendingClPaymentBreakup lendingClPaymentBreakup = new LendingClPaymentBreakup();
+        lendingClPaymentBreakup.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClPaymentBreakup.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
+        lendingClPaymentBreakup.setLendingClTransaction(lendingClTransaction);
+        lendingClPaymentBreakup.setPaymentType(type);
+        lendingClPaymentBreakup.setLoanId(loanId);
+        lendingClPaymentBreakup.setAmount(amount);
+        return lendingClPaymentBreakup;
+    }
 }
