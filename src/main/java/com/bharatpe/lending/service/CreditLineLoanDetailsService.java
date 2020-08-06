@@ -349,7 +349,7 @@ public class CreditLineLoanDetailsService {
 	}
 	
 	private LoanEligibilityDTO getMaxLoanAmount(List<LoanEligibilityDTO> loanEligibilityDTOs) {
-		loanEligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount));
+		loanEligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getPrincipleEdiTenure));
 		List<Integer> eligibleTenure = Arrays.asList(1,3,6);
 		LoanEligibilityDTO maxLoan=loanEligibilityDTOs.get(0);
 		for(LoanEligibilityDTO loanEligibilityDto : loanEligibilityDTOs) {
