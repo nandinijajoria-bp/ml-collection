@@ -200,7 +200,6 @@ public class CreditENachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
         LendingClEnach lendingClEnach = lendingClEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         if (lendingClEnach == null) {
             responseDTO.setResponse(false);
@@ -222,15 +221,14 @@ public class CreditENachService {
                 responseDTO.setMessage("Loan Application not found");
                 return responseDTO;
             }
-            CreditApplicationNach creditApplicationNach =creditApplicationNachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+            CreditApplicationNach creditApplicationNach = new CreditApplicationNach();
+            creditApplicationNach.setMerchantId(merchant.getId());
+            creditApplicationNach.setApplicationId(creditApplication.getId());
             creditApplicationNach.setNachType("ENACH");
             creditApplicationNach.setNachLender("BHARATPE");
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
-            
-
             creditApplicationNachDao.save(creditApplicationNach);
-           creditApplicationDao.save(creditApplication);
         }
         return responseDTO;
     }
