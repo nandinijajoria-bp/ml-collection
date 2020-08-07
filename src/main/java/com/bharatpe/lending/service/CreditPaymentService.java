@@ -423,9 +423,7 @@ public class CreditPaymentService {
     private void updateBalances(CreditAccount creditAccount, LendingClTransaction lendingClTransaction) {
         logger.info("Repayment for amount:{} for account:{}", lendingClTransaction.getAmount(), creditAccount.getId());
         LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
-        double amountPaid = lendingClTransaction.getAmount();
         double remainingAmount = lendingClTransaction.getAmount();
-//        creditAccount.setPayableAmount(creditUtil.getPayableAmount(creditAccount) - amountPaid);
         CreditAccountBill creditAccountBill = creditAccountBillDao.getLastUnpaidBill(creditAccount.getId(), creditAccount.getMerchantId());
         double paymentCL = 0d;
         double clPenalty = 0d;
@@ -437,8 +435,11 @@ public class CreditPaymentService {
         double tlInterest = 0d;
         double tlPrinciple = 0d;
         double tlOtherCharges = 0d;
+        double newMAD = creditAccount.getMinimumAmountDue();
         List<LendingClLedger> lendingClLedgerList = new ArrayList<>();
         List<LendingClPaymentBreakup> lendingClPaymentBreakups = new ArrayList<>();
+        Map<Long, LendingPaymentSchedule> lendingPaymentScheduleMap = new LinkedHashMap<>();
+        List<LendingLedger> lendingLedgers = new ArrayList<>();
         //Clear unpaid bill balances
         if (creditAccountBill != null) {
             logger.info("Adjusting Bill:{} for account:{}", creditAccountBill.getId(), creditAccount.getId());
@@ -469,32 +470,10 @@ public class CreditPaymentService {
                 paymentCL += principlePaid;
                 clPrinciple += principlePaid;
                 creditAccountBill.setPaidPrinciple(creditAccountBill.getPaidPrinciple() + principlePaid);
-                //adjust account balance principle
-//                double updatedBalance = (creditAccount.getAvailableBalance() + principlePaid) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + principlePaid;
-//                creditAccount.setAvailableBalance(updatedBalance);
-//                creditAccount.setUsedBalance(creditAccount.getUsedBalance() - principlePaid);
-//                lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
-//                lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - principlePaid);
-//                if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
-//                    double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
-//                    double usedG2 = lendingCaBalanceDetail.getUsedBalanceG2() - ((lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
-//                    double usedG3 = lendingCaBalanceDetail.getUsedBalanceG3() - ((lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * principlePaid);
-//                    lendingCaBalanceDetail.setUsedBalanceG1(usedG1);
-//                    lendingCaBalanceDetail.setUsedBalanceG2(usedG2);
-//                    lendingCaBalanceDetail.setUsedBalanceG3(usedG3);
-//                    lendingCaBalanceDetail.setUsedBalanceCl(usedG1 + usedG2 + usedG3);
-//                }
             }
-            double newMAD = (creditAccountBill.getPenalty() - creditAccountBill.getPaidPenalty()) + (creditAccountBill.getInterestAmount() - creditAccountBill.getPaidInterest()) + (creditAccountBill.getPrincipleAmount() - creditAccountBill.getPaidPrinciple());
+            newMAD = (creditAccountBill.getPenalty() - creditAccountBill.getPaidPenalty()) + (creditAccountBill.getInterestAmount() - creditAccountBill.getPaidInterest()) + (creditAccountBill.getPrincipleAmount() - creditAccountBill.getPaidPrinciple());
             logger.info("New MAD:{} for account:{}", newMAD, creditAccount.getId());
-//            creditAccount.setMinimumAmountDue(newMAD);
             creditAccountBill.setPaidAmount(creditAccountBill.getPaidPrinciple() + creditAccountBill.getPaidInterest() + creditAccountBill.getPaidPenalty());
-            //creditAccountBillDao.save(creditAccountBill);
-//            if (newMAD == 0d) {
-//                logger.info("closing all bills for account:{}", creditAccount.getId());
-//                creditAccountBillDao.closeAllBills(creditAccount.getId(), creditAccount.getMerchantId(), creditAccountBill.getPaidAmount(), new Date());
-//                creditAccount.setStatus(CreditConstants.AccountStatus.ACTIVE.name());
-//            }
         }
         //"ClearTerm loan EDIs O/s"
         if (remainingAmount > 0) {
@@ -502,6 +481,7 @@ public class CreditPaymentService {
             List<LendingPaymentSchedule> termLoanList=lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
             termLoanList.sort(Comparator.comparing(LendingPaymentSchedule::getId));
             for (LendingPaymentSchedule lendingPaymentSchedule : termLoanList) {
+                lendingPaymentScheduleMap.put(lendingPaymentSchedule.getId(), lendingPaymentSchedule);
                 if (lendingPaymentSchedule.getDueAmount() != null && lendingPaymentSchedule.getDueAmount() > 0) {
                     double totalPaid = 0d;
                     double paidOtherCharges = 0d;
@@ -559,12 +539,6 @@ public class CreditPaymentService {
                         paymentTL += paidPrinciple;
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + paidPrinciple);
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + paidPrinciple);
-                        //adjust account balance principle
-//                        double updatedBalance = (creditAccount.getAvailableBalance() + paidPrinciple) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + paidPrinciple;
-//                        creditAccount.setAvailableBalance(updatedBalance);
-//                        creditAccount.setUsedBalance(creditAccount.getUsedBalance() - paidPrinciple);
-//                        lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
-//                        lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - paidPrinciple);
                     }
                     double dueOtherCharges = lendingPaymentSchedule.getDueOtherCharges() != null ? lendingPaymentSchedule.getDueOtherCharges() : 0d;
                     double duePenalty = lendingPaymentSchedule.getDuePenalty() != null ? lendingPaymentSchedule.getDuePenalty() : 0d;
@@ -573,10 +547,9 @@ public class CreditPaymentService {
                     double newDueAmount = dueOtherCharges + duePenalty + dueInterest + duePrinciple;
                     logger.info("New due amount:{} for loan:{} and account:{}", newDueAmount, lendingPaymentSchedule.getId(), creditAccount.getId());
                     lendingPaymentSchedule.setDueAmount(newDueAmount);
-                    lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                     if (totalPaid > 0) {
                         lendingClPaymentBreakups.add(creditLineTransaction.createPaymentBreakup(lendingClTransaction, totalPaid, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name()));
-                        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), totalPaid, paidPrinciple, paidInterest, paidOtherCharges, paidPenalty, "CREDIT_LINE", lendingClTransaction.getSubType());
+                        lendingLedgers.add(createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), totalPaid, paidPrinciple, paidInterest, paidOtherCharges, paidPenalty, "CREDIT_LINE", lendingClTransaction.getSubType()));
                     }
                 }
             }
@@ -590,8 +563,6 @@ public class CreditPaymentService {
             paymentCL += (creditAccount.getInterestDue() - remaining);
             clInterest += (creditAccount.getInterestDue() - remaining);
             adjustedInterest += (creditAccount.getInterestDue() - remaining);
-//            creditAccount.setInterestDue(remaining);
-//            lendingCaBalanceDetail.setInterestDue(remaining);
         }
         //"Clear Remaining CL Principal o/s"
         if (remainingAmount > 0) {
@@ -601,27 +572,11 @@ public class CreditPaymentService {
             double clPaid = (lendingCaBalanceDetail.getUsedBalanceCl() - remaining);
             paymentCL += clPaid;
             clPrinciple += clPaid;
-//            double updatedBalance = (creditAccount.getAvailableBalance() + clPaid) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + clPaid;
-//            creditAccount.setAvailableBalance(updatedBalance);
-//            creditAccount.setUsedBalance(creditAccount.getUsedBalance() - clPaid);
-//            lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
-//            lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - clPaid);
-//            if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
-//                double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
-//                double usedG2 = lendingCaBalanceDetail.getUsedBalanceG2() - ((lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
-//                double usedG3 = lendingCaBalanceDetail.getUsedBalanceG3() - ((lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPaid);
-//                lendingCaBalanceDetail.setUsedBalanceG1(usedG1);
-//                lendingCaBalanceDetail.setUsedBalanceG2(usedG2);
-//                lendingCaBalanceDetail.setUsedBalanceG3(usedG3);
-//                lendingCaBalanceDetail.setUsedBalanceCl(usedG1 + usedG2 + usedG3);
-//            }
         }
         //"Clear Term loan Principle"
         if (remainingAmount > 0) {
             logger.info("Adjusting principle tl for account:{}", creditAccount.getId());
-            List<LendingPaymentSchedule> termLoanList=lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(creditAccount.getMerchantId(), "ACTIVE", true);
-            termLoanList.sort(Comparator.comparing(LendingPaymentSchedule::getId));
-            for (LendingPaymentSchedule lendingPaymentSchedule : termLoanList) {
+            for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleMap.values()) {
                 if (remainingAmount > 0) {
                     double totalPaid = 0d;
                     if ((lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() + lendingPaymentSchedule.getDueInterest()) <= remainingAmount) {
@@ -675,29 +630,21 @@ public class CreditPaymentService {
                         }
                     }
                     if (totalPaid > 0) {
-                        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), totalPaid, totalPaid, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType());
-                        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+                        lendingLedgers.add(createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), totalPaid, totalPaid, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType()));
                         lendingClPaymentBreakups.add(creditLineTransaction.createPaymentBreakup(lendingClTransaction, totalPaid, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name()));
                     }
                 }
             }
-//            if (paidPrinciple > 0) {
-//                double updatedBalance = (creditAccount.getAvailableBalance() + paidPrinciple) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + paidPrinciple;
-//                creditAccount.setAvailableBalance(updatedBalance);
-//                creditAccount.setUsedBalance(creditAccount.getUsedBalance() - paidPrinciple);
-//                lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
-//                lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - paidPrinciple);
-//            }
         }
         if (paymentCL > 0) {
             lendingClPaymentBreakups.add(creditLineTransaction.createPaymentBreakup(lendingClTransaction, paymentCL, null, CreditConstants.PaymentType.CL.name()));
         }
         lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.CL.name(), paymentCL, clPrinciple, clInterest, clPenalty, clOtherCharges));
         lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.TL.name(), paymentTL, tlPrinciple, tlInterest, tlPenalty, tlOtherCharges));
-        creditLineTransaction.creditRepayment(lendingClTransaction, creditAccount, lendingCaBalanceDetail, creditAccountBill, lendingClLedgerList, lendingClPaymentBreakups, clPrinciple + tlPrinciple, adjustedInterest, clPrinciple);
+        creditLineTransaction.creditRepayment(lendingClTransaction, creditAccount, lendingCaBalanceDetail, creditAccountBill, lendingClLedgerList, lendingClPaymentBreakups, lendingPaymentScheduleMap.values(), lendingLedgers, clPrinciple + tlPrinciple, adjustedInterest, clPrinciple, newMAD);
     }
 
-    public void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
+    public LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
         if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
@@ -713,7 +660,7 @@ public class CreditPaymentService {
         lendingLedger.setPrinciple(principle);
         lendingLedger.setDescription(description);
         lendingLedger.setAdjustmentMode(adjustmentMode);
-        lendingLedgerDao.save(lendingLedger);
+        return lendingLedger;
     }
 
     private Map<String, Object> initiateTxn(RequestDTO<CreditPaymentRequestDTO> requestDTO, Long txnId, String token, String beneficiaryName, String paymentSource) {

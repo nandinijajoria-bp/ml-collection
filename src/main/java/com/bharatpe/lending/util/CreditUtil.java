@@ -34,13 +34,6 @@ public  class CreditUtil {
 	@Autowired
 	CreditAccountBillDao creditAccountBillDao;
 
-	@Autowired
-	CreditAccountDao creditAccountDao;
-
-	 
-	 
-	 
-
 	public  Map<String, Object> prepareSelectedLoanForClient(CreditApplication application) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
 		 
