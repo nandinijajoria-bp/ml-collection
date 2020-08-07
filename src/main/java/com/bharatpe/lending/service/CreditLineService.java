@@ -583,6 +583,9 @@ public class CreditLineService {
 				}	
 				
 				repayment.setStatus(transaction.getStatus());
+				Map<String,Double> partition=getClAndTlPartOfPayment(transaction);
+				repayment.setClAmount(partition.getOrDefault("CL", 0D));
+				repayment.setTlAmount(partition.getOrDefault("TL", 0D));
 				repaymentList.add(repayment);
 			}
 			response.setRepayments(repaymentList);
@@ -592,6 +595,20 @@ public class CreditLineService {
 			logger.error("Error occured while fetching repayment history",e);
 			return getErrorResponseForRepaymentHistory("Error occured while fetching repayment history");
 		}
+	}
+	
+	public Map<String,Double> getClAndTlPartOfPayment(LendingClTransaction lendingClTransaction){
+		Map<String,Double> breakUpMap=new HashMap<String, Double>();
+		List<LendingClLedger> lendingClLedgers=lendingClLedgerDao.findByClTransactionId(lendingClTransaction.getId());
+		for(LendingClLedger ledger:lendingClLedgers) {
+			if(ledger.getTransactionType().equalsIgnoreCase("CL")) {
+				breakUpMap.put("CL",ledger.getAmount());
+			}
+			else if(ledger.getTransactionType().equalsIgnoreCase("TL")) {
+				breakUpMap.put("TL",ledger.getAmount());
+			}
+		}
+		return breakUpMap;
 	}
 	
 	public CreditLineRepaymentHistoryResponseDto getErrorResponseForRepaymentHistory(String message) {
