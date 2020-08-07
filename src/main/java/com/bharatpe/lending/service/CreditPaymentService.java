@@ -638,9 +638,11 @@ public class CreditPaymentService {
         }
         if (paymentCL > 0) {
             lendingClPaymentBreakups.add(creditLineTransaction.createPaymentBreakup(lendingClTransaction, paymentCL, null, CreditConstants.PaymentType.CL.name()));
+            lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.CL.name(), paymentCL, clPrinciple, clInterest, clPenalty, clOtherCharges));
         }
-        lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.CL.name(), paymentCL, clPrinciple, clInterest, clPenalty, clOtherCharges));
-        lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.TL.name(), paymentTL, tlPrinciple, tlInterest, tlPenalty, tlOtherCharges));
+        if (paymentTL > 0) {
+            lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.TL.name(), paymentTL, tlPrinciple, tlInterest, tlPenalty, tlOtherCharges));
+        }
         creditLineTransaction.creditRepayment(lendingClTransaction, creditAccount, lendingCaBalanceDetail, creditAccountBill, lendingClLedgerList, lendingClPaymentBreakups, lendingPaymentScheduleMap.values(), lendingLedgers, clPrinciple + tlPrinciple, adjustedInterest, clPrinciple, newMAD);
     }
 

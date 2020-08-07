@@ -375,10 +375,18 @@ public class CreditLineTransaction {
         }
         creditAccountDao.creditBalance(creditAccount.getId(), principle);
         lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.SUCCESS.name(), lendingClTransaction.getId());
-        lendingClLedgerDao.saveAll(lendingClLedgers);
-        lendingClPaymentBreakupDao.saveAll(lendingClPaymentBreakups);
-        lendingPaymentScheduleDao.saveAll(lendingPaymentSchedules);
-        lendingLedgerDao.saveAll(lendingLedgers);
+        if (!lendingClLedgers.isEmpty()) {
+            lendingClLedgerDao.saveAll(lendingClLedgers);
+        }
+        if (!lendingClPaymentBreakups.isEmpty()) {
+            lendingClPaymentBreakupDao.saveAll(lendingClPaymentBreakups);
+        }
+        if (!lendingPaymentSchedules.isEmpty()) {
+            lendingPaymentScheduleDao.saveAll(lendingPaymentSchedules);
+        }
+        if (!lendingLedgers.isEmpty()) {
+            lendingLedgerDao.saveAll(lendingLedgers);
+        }
         Double usedBalanceCl = 0D;
         double usedBalanceG1 = 0d;
         double usedBalanceG2 = 0d;
@@ -390,8 +398,10 @@ public class CreditLineTransaction {
             usedBalanceG3 = (lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
         }
         lendingCaBalanceDetailDao.creditBalance(lendingClTransaction.getCreditAccountId(), principle, usedBalanceCl, usedBalanceG1, usedBalanceG2, usedBalanceG3);
-        creditAccountDao.creditInterest(creditAccount.getId(), interest);
-        lendingCaBalanceDetailDao.creditInterest(creditAccount.getId(), interest);
+        if (interest > 0) {
+            creditAccountDao.creditInterest(creditAccount.getId(), interest);
+            lendingCaBalanceDetailDao.creditInterest(creditAccount.getId(), interest);
+        }
     }
 
     public LendingClPaymentBreakup createPaymentBreakup(LendingClTransaction lendingClTransaction, Double amount, Long loanId, String type) {
