@@ -5,7 +5,9 @@ import java.util.*;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.dao.MerchantFcmTokenDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
@@ -69,6 +72,12 @@ public class CreditLineKycService {
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
+	
+	@Autowired
+	MerchantFcmTokenDao merchantFcmTokenDao;
+	
+	@Autowired
+	PushNotificationHandler pushNotificationHandler;
 	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
@@ -263,6 +272,11 @@ public class CreditLineKycService {
 		if(message!=null) {
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 			whatsappNotificationService.send(merchant, null, message, mobiles, null);
+			
+			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());			
+			if(merchantFcmToken != null) {
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
+			}
 		}
 	}
 

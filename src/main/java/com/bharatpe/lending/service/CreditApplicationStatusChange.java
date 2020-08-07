@@ -120,10 +120,9 @@ public class CreditApplicationStatusChange {
 					"Check Status. ";
 			smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
 			whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, mobiles, null);
-			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
-			
+			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 			if(merchantFcmToken != null) {
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message+CreditConstants.APP_NOTIFICATION_DEEPLINK, "bharatpe://dynamic?key=credit-line");
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
 			}
 		}
 	}

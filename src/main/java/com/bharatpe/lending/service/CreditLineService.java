@@ -251,13 +251,12 @@ public class CreditLineService {
 	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
-		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n" +"Click Here : ";
-		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
-		
+		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+		smsServiceHandler.sendSMS(mobiles, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
+		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 		if(merchantFcmToken != null) {
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message+CreditConstants.APP_NOTIFICATION_DEEPLINK+" for more details.", "bharatpe://dynamic?key=credit-line");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
 		}
 		
 	}
