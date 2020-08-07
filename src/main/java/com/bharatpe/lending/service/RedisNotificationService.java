@@ -134,4 +134,22 @@ public class RedisNotificationService {
 			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);		
 		}
 	}
+	
+	public void sendEnachNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
+		try {
+			logger.info("Sending enach notification got merchant {}",merchant);
+			InstantNotificationDto notificationDto=new InstantNotificationDto();
+			notificationDto.setApplicationId(creditApplication.getId());
+			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMessageCategory("CREDIT_LINE_ENACH");
+			String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
+					"Instantly Activate Loans Balance by Registering eNACH.\nClick Here: ";
+			notificationDto.setMessage(message);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "enach_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 1));
+			
+		}
+		catch(Exception e) {
+			logger.error("Error occured while sending redis based enach notification for merchant {}",merchant,e);
+		}
+	}
 }
