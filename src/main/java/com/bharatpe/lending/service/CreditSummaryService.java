@@ -17,8 +17,10 @@ import org.springframework.stereotype.Service;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditAccountDao;
+import com.bharatpe.lending.common.dao.LendingClLedgerDao;
 import com.bharatpe.lending.common.dao.LendingClTransactionDao;
 import com.bharatpe.lending.common.entity.CreditAccount;
+import com.bharatpe.lending.common.entity.LendingClLedger;
 import com.bharatpe.lending.common.entity.LendingClTransaction;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
@@ -40,6 +42,9 @@ public class CreditSummaryService {
 	CreditAccountDao creditAccountDao;
 
 	Logger logger=LoggerFactory.getLogger(CreditSummaryService.class);
+	
+	@Autowired
+	LendingClLedgerDao lendingClLedgerDao;
 
 //	@SuppressWarnings("deprecation")
 //	public SummaryResponseDTO getSummary(Merchant merchant) {
@@ -304,6 +309,9 @@ public class CreditSummaryService {
 				}
 				transaction.setMode(clTransaction.getMode());
 				transaction.setDate(DateTimeUtil.getStartTimeFromDateTime(clTransaction.getCreatedAt()));
+				Map<String,Double> breakUp=getClAndTlPartOfPayment(clTransaction);
+				transaction.setTlAmount(breakUp.getOrDefault("TL", 0D));
+				transaction.setClAmount(breakUp.getOrDefault("CL", 0D));
 				transactionList.add(transaction);
 			}
 			return transactionList;
@@ -312,6 +320,20 @@ public class CreditSummaryService {
 			logger.error("Error occured while fetching transactions from lending_cl_transaction ",e);
 			return null;
 		}
+	}
+	
+	public Map<String,Double> getClAndTlPartOfPayment(LendingClTransaction lendingClTransaction){
+		Map<String,Double> breakUpMap=new HashMap<String, Double>();
+		List<LendingClLedger> lendingClLedgers=lendingClLedgerDao.findByClTransactionId(lendingClTransaction.getId());
+		for(LendingClLedger ledger:lendingClLedgers) {
+			if(ledger.getTransactionType().equalsIgnoreCase("CL")) {
+				breakUpMap.put("CL",ledger.getAmount());
+			}
+			else if(ledger.getTransactionType().equalsIgnoreCase("TL")) {
+				breakUpMap.put("TL",ledger.getAmount());
+			}
+		}
+		return breakUpMap;
 	}
 
 }

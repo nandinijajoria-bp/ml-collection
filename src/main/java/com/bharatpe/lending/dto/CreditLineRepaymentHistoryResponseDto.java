@@ -15,6 +15,8 @@ public class CreditLineRepaymentHistoryResponseDto {
 		private Long id;
 		private Date date;
 		private Double amount;
+		private Double clAmount;
+		private Double tlAmount;
 		private String mode;
 		private String status;
 		
@@ -48,7 +50,18 @@ public class CreditLineRepaymentHistoryResponseDto {
 		public void setStatus(String status) {
 			this.status = status;
 		}
-		
+		public Double getClAmount() {
+			return clAmount;
+		}
+		public void setClAmount(Double clAmount) {
+			this.clAmount = clAmount;
+		}
+		public Double getTlAmount() {
+			return tlAmount;
+		}
+		public void setTlAmount(Double tlAmount) {
+			this.tlAmount = tlAmount;
+		}	
 	}
 	
 	public Boolean getSuccess() {

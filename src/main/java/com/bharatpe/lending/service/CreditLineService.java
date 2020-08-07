@@ -251,13 +251,12 @@ public class CreditLineService {
 	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
-		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n" +"Click Here : ";
-		smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
-		
+		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+		smsServiceHandler.sendSMS(mobiles, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
+		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 		if(merchantFcmToken != null) {
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message+CreditConstants.APP_NOTIFICATION_DEEPLINK+" for more details.", "bharatpe://dynamic?key=credit-line");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
 		}
 		
 	}
@@ -583,6 +582,9 @@ public class CreditLineService {
 				}	
 				
 				repayment.setStatus(transaction.getStatus());
+				Map<String,Double> partition=getClAndTlPartOfPayment(transaction);
+				repayment.setClAmount(partition.getOrDefault("CL", 0D));
+				repayment.setTlAmount(partition.getOrDefault("TL", 0D));
 				repaymentList.add(repayment);
 			}
 			response.setRepayments(repaymentList);
@@ -592,6 +594,20 @@ public class CreditLineService {
 			logger.error("Error occured while fetching repayment history",e);
 			return getErrorResponseForRepaymentHistory("Error occured while fetching repayment history");
 		}
+	}
+	
+	public Map<String,Double> getClAndTlPartOfPayment(LendingClTransaction lendingClTransaction){
+		Map<String,Double> breakUpMap=new HashMap<String, Double>();
+		List<LendingClLedger> lendingClLedgers=lendingClLedgerDao.findByClTransactionId(lendingClTransaction.getId());
+		for(LendingClLedger ledger:lendingClLedgers) {
+			if(ledger.getTransactionType().equalsIgnoreCase("CL")) {
+				breakUpMap.put("CL",ledger.getAmount());
+			}
+			else if(ledger.getTransactionType().equalsIgnoreCase("TL")) {
+				breakUpMap.put("TL",ledger.getAmount());
+			}
+		}
+		return breakUpMap;
 	}
 	
 	public CreditLineRepaymentHistoryResponseDto getErrorResponseForRepaymentHistory(String message) {

@@ -123,6 +123,8 @@ public static class Summary
 	  private String type;
 	  private String mode;
 	  private Double amount;
+	  private Double clAmount;
+	  private Double tlAmount;
 	public String getType() {
 		return type;
 	}
@@ -147,10 +149,23 @@ public static class Summary
 	public void setDate(Date date) {
 		this.date = date;
 	}
+	public Double getClAmount() {
+		return clAmount;
+	}
+	public void setClAmount(Double clAmount) {
+		this.clAmount = clAmount;
+	}
+	public Double getTlAmount() {
+		return tlAmount;
+	}
+	public void setTlAmount(Double tlAmount) {
+		this.tlAmount = tlAmount;
+	}
 	@Override
 	public String toString() {
-		return "Transactions [date=" + date + ", type=" + type + ", mode=" + mode + ", amount=" + amount + "]";
-	} 
+		return "Transactions [date=" + date + ", type=" + type + ", mode=" + mode + ", amount=" + amount + ", clAmount="
+				+ clAmount + ", tlAmount=" + tlAmount + "]";
+	}
 	  
   }
 
