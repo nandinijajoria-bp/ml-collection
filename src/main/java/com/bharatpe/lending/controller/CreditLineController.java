@@ -196,9 +196,9 @@ public class CreditLineController {
 	}
 
 	@RequestMapping(value="/vpa/update", method = RequestMethod.POST, consumes="application/json")
-	public void vpaUpdate(@RequestBody VPAResponseDto request, @RequestAttribute String mid) {
+	public void vpaUpdate(@RequestBody VPAResponseDto request) {
 		logger.info("vpa update request : {}", request);
-		creditPaymentService.updatePaymentStatus(request, mid);
+		creditPaymentService.updatePaymentStatus(request);
 	}
 	
 	@RequestMapping(value="/summary", method = RequestMethod.GET, consumes="application/json", produces="application/json")

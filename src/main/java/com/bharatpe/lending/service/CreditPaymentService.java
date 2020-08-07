@@ -906,12 +906,12 @@ public class CreditPaymentService {
         lendingClLedgerDao.save(lendingClLedger);
     }
 
-    public void updatePaymentStatus(VPAResponseDto responseDto, String mid) {
+    public void updatePaymentStatus(VPAResponseDto responseDto) {
         logger.info("Received request to update Payment Status : {}", responseDto);
-        if (!mid.equals(getMid())) {
-            logger.error("Invalid mid in vpa callback");
-            return;
-        }
+//        if (!mid.equals(getMid())) {
+//            logger.error("Invalid mid in vpa callback");
+//            return;
+//        }
         Optional<LendingClTransaction> lendingClTransactionOptional;
         CreditConstants.PaymentStatus status;
         try {
