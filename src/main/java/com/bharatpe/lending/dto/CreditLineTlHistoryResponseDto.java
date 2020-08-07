@@ -18,6 +18,7 @@ public class CreditLineTlHistoryResponseDto {
 	private Double repaymentAmount;
 	private Double interestRate;
 	private Date ediStartDate;
+	private String status;
 	private List<IndividualSettlement> schedule;
 	
 	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
@@ -142,5 +143,12 @@ public class CreditLineTlHistoryResponseDto {
 	public void setEdiStartDate(Date ediStartDate) {
 		this.ediStartDate = ediStartDate;
 	}
-	
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
 }

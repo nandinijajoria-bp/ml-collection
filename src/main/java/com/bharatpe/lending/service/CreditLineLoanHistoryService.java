@@ -240,6 +240,7 @@ public class CreditLineLoanHistoryService {
 				creditLineTlHistoryResponseDto.setLoanAmount(lendingPaymentSchedule.getLoanAmount());
 				creditLineTlHistoryResponseDto.setTenure(getTenure(lendingPaymentSchedule.getEdiCount()));
 				creditLineTlHistoryResponseDto.setRepaid(lendingPaymentSchedule.getPaidAmount());
+				creditLineTlHistoryResponseDto.setStatus(lendingPaymentSchedule.getStatus());
 				if(lendingPaymentSchedule.getStatus().equalsIgnoreCase("CLOSED")) {
 					creditLineTlHistoryResponseDto.setRepaymentAmount(0D);
 				}
