@@ -67,6 +67,9 @@ public class CreditLineKycService {
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 	
+	@Autowired
+	RedisNotificationService redisNotificationService;
+	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
 		CreditLineKycResponseDto creditLineKycResponseDto =new CreditLineKycResponseDto();
@@ -167,6 +170,7 @@ public class CreditLineKycService {
 		map.put("success", true);
 		map.put("message", "address same");
 		sendNotification(merchant,creditApplication);
+		redisNotificationService.sendEnachNotificationForCreditLine(merchant, creditApplication);
 		return map;
 	}
 
