@@ -96,6 +96,9 @@ public class CreditApplicationService {
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
+	
+	@Autowired
+	RedisNotificationService redisNotificationService;
 
 	@Autowired
 	CreditApplicationReasonDao creditApplicationReasonDao;
@@ -173,6 +176,7 @@ public class CreditApplicationService {
 		}
 
 		logger.info("Loan Application saved : {}",creditApplication);
+		redisNotificationService.sendDraftNotificationForCreditLine(merchant, creditApplication);
 		//sendNotification(merchant,creditApplication);
 		return prepareAPIResponse(creditApplication);
 		
