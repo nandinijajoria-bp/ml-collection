@@ -949,6 +949,7 @@ public class CreditPaymentService {
         lendingClTransaction.setBankReferenceId(responseDto.getBankReferenceNumber());
         lendingClTransaction.setNarration1(responseDto.getCustomerName());
         lendingClTransaction.setNarration2(responseDto.getTransactionMessage());
+        lendingClTransactionDao.save(lendingClTransaction);
         if (CreditConstants.PaymentStatus.FAILED.equals(status) || !(responseDto.getAmount().equals(lendingClTransaction.getAmount()))) {
             lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
             creditLineTransaction.saveTxn(lendingClTransaction);
