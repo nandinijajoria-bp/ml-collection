@@ -133,6 +133,9 @@ public class CreditLineLoanDetailsService {
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
 	
+	@Autowired
+	RedisNotificationService redisNotificationService;
+	
 	public CreditLoanDetailsResponseDto getLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp){
 		
 		try {
@@ -256,6 +259,8 @@ public class CreditLineLoanDetailsService {
 				//merchantSummery field was populated in populateExperianDetailsInExperianTable function which is called before this function
 				
 				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(),null, false,"CREDITLINE", false));
+				//send notification
+				redisNotificationService.sendEligibleNotificationForCreditLine(merchant, loanEligibilityDTOs);
 				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 			} catch (Exception e) {
 				logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
