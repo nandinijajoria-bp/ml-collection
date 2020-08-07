@@ -1,13 +1,17 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.BankTransferResponseDTO;
 import com.bharatpe.lending.dto.CreditSpendResponseDTO;
+import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
+import java.util.*;
 
 @Service
 public class CreditLineTransaction {
@@ -52,6 +55,18 @@ public class CreditLineTransaction {
 
     @Autowired
     LendingClPaymentDao lendingClPaymentDao;
+
+    @Autowired
+    CreditAccountBillDao creditAccountBillDao;
+
+    @Autowired
+    LendingClPaymentBreakupDao lendingClPaymentBreakupDao;
+
+    @Autowired
+    LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
+    EmailHandler emailHandler;
 
     public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
@@ -342,4 +357,95 @@ public class CreditLineTransaction {
         return lendingClPaymentDao.save(lendingClPayment);
     }
 
+    @Transactional
+    public void creditRepayment(LendingClTransaction lendingClTransaction, CreditAccount creditAccount, LendingCaBalanceDetail lendingCaBalanceDetail, CreditAccountBill creditAccountBill, List<LendingClLedger> lendingClLedgers, List<LendingClPaymentBreakup> lendingClPaymentBreakups, Collection<LendingPaymentSchedule> lendingPaymentSchedules, List<LendingLedger> lendingLedgers, Double principle, Double interest, Double clPrinciple, double newMAD) {
+        logger.info("Repayment for account:{}, amount:{}", creditAccount.getId(), principle);
+        if (creditAccount.getAvailableBalance() + principle > creditAccount.getLimit()) {
+            logger.error("Payable amount more than credit limit for merchant:{}, txn:{}", creditAccount.getMerchantId(), lendingClTransaction.getId());
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");add("rajat.jain@bharatpe.com");}}, "Repayment more than credit limit", "Merchant id:" + creditAccount.getMerchantId() + "\nTransaction id:" + lendingClTransaction.getId());
+        }
+        if (creditAccountBill != null) {
+            creditAccountBillDao.save(creditAccountBill);
+            creditAccountDao.updateMAD(creditAccount.getId(), newMAD);
+            if (newMAD == 0D) {
+                logger.info("closing all bills for account:{}", creditAccount.getId());
+                creditAccountBillDao.closeAllBills(creditAccount.getId(), creditAccount.getMerchantId(), creditAccountBill.getPaidAmount(), new Date());
+                creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
+            }
+        }
+        creditAccountDao.creditBalance(creditAccount.getId(), principle);
+        lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.SUCCESS.name(), lendingClTransaction.getId());
+        if (!lendingClLedgers.isEmpty()) {
+            lendingClLedgerDao.saveAll(lendingClLedgers);
+        }
+        if (!lendingClPaymentBreakups.isEmpty()) {
+            lendingClPaymentBreakupDao.saveAll(lendingClPaymentBreakups);
+        }
+        if (!lendingPaymentSchedules.isEmpty()) {
+            lendingPaymentScheduleDao.saveAll(lendingPaymentSchedules);
+        }
+        if (!lendingLedgers.isEmpty()) {
+            lendingLedgerDao.saveAll(lendingLedgers);
+        }
+        Double usedBalanceCl = 0D;
+        double usedBalanceG1 = 0d;
+        double usedBalanceG2 = 0d;
+        double usedBalanceG3 = 0d;
+        if (clPrinciple > 0) {
+            usedBalanceCl = clPrinciple;
+            usedBalanceG1 = (lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
+            usedBalanceG2 = (lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
+            usedBalanceG3 = (lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
+        }
+        lendingCaBalanceDetailDao.creditBalance(lendingClTransaction.getCreditAccountId(), principle, usedBalanceCl, usedBalanceG1, usedBalanceG2, usedBalanceG3);
+        if (interest > 0) {
+            creditAccountDao.creditInterest(creditAccount.getId(), interest);
+            lendingCaBalanceDetailDao.creditInterest(creditAccount.getId(), interest);
+        }
+    }
+
+    public LendingClPaymentBreakup createPaymentBreakup(LendingClTransaction lendingClTransaction, Double amount, Long loanId, String type) {
+        LendingClPaymentBreakup lendingClPaymentBreakup = new LendingClPaymentBreakup();
+        lendingClPaymentBreakup.setMerchantId(lendingClTransaction.getMerchantId());
+        lendingClPaymentBreakup.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
+        lendingClPaymentBreakup.setLendingClTransaction(lendingClTransaction);
+        lendingClPaymentBreakup.setPaymentType(type);
+        lendingClPaymentBreakup.setLoanId(loanId);
+        lendingClPaymentBreakup.setAmount(amount);
+        return lendingClPaymentBreakup;
+    }
+
+    @Transactional
+    public void refundTL(LendingPaymentSchedule lendingPaymentSchedule, CreditAccount creditAccount, Double amount, LendingLedger lendingLedger, LendingClTransaction lendingClTransaction, LendingClLedger lendingClLedger){
+        if (creditAccount.getAvailableBalance() + amount > creditAccount.getLimit()) {
+            logger.error("Refund amount more than credit limit for merchant:{}", creditAccount.getMerchantId());
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");add("rajat.jain@bharatpe.com");}}, "Refund more than credit limit", "Merchant id:" + creditAccount.getMerchantId());
+        }
+        lendingClLedgerDao.save(lendingClLedger);
+        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+        lendingLedgerDao.save(lendingLedger);
+        creditAccountDao.creditBalance(creditAccount.getId(), amount);
+        lendingCaBalanceDetailDao.creditBalance(lendingClTransaction.getCreditAccountId(), amount, 0D, 0D, 0D, 0D);
+        lendingClTransactionDao.save(lendingClTransaction);
+    }
+
+    @Transactional
+    public void refundCL(CreditAccount creditAccount, LendingCaBalanceDetail lendingCaBalanceDetail, Double amount, Double interest, LendingClTransaction lendingClTransaction, LendingClLedger lendingClLedger){
+        if (creditAccount.getAvailableBalance() + amount > creditAccount.getLimit()) {
+            logger.error("Refund amount more than credit limit for merchant:{}", creditAccount.getMerchantId());
+            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");add("rajat.jain@bharatpe.com");}}, "Refund more than credit limit", "Merchant id:" + creditAccount.getMerchantId());
+        }
+        double usedBalanceG1 = (lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * amount;
+        double usedBalanceG2 = (lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * amount;
+        double usedBalanceG3 = (lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * amount;
+        lendingCaBalanceDetailDao.creditBalance(lendingClTransaction.getCreditAccountId(), amount, amount, usedBalanceG1, usedBalanceG2, usedBalanceG3);
+        lendingClLedgerDao.save(lendingClLedger);
+        creditAccountDao.creditBalance(creditAccount.getId(), amount);
+        lendingCaBalanceDetailDao.creditBalance(lendingClTransaction.getCreditAccountId(), amount, 0D, 0D, 0D, 0D);
+        lendingClTransactionDao.save(lendingClTransaction);
+        if (interest > 0) {
+            creditAccountDao.creditInterest(creditAccount.getId(), interest);
+            lendingCaBalanceDetailDao.creditInterest(creditAccount.getId(), interest);
+        }
+    }
 }

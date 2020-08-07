@@ -388,6 +388,7 @@ public class LiquiloansService {
     			lendingPaymentSchedule.setInterestOnlyStartDate(tomorrow);		
     			lendingPaymentSchedule.setInterestOnlyEdiAmount(lendingApplication.getIoEdi());
     			lendingPaymentSchedule.setInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
+    			lendingPaymentSchedule.setRemainingInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
     		}
     		else {
     			logger.error("Wrong construct type found for applicationId: {}", lendingApplication.getId());

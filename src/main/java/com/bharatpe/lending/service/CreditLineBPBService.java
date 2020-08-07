@@ -59,12 +59,6 @@ public class CreditLineBPBService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    LendingLedgerDao lendingLedgerDao;
-
-    @Autowired
-    LendingClLedgerDao lendingClLedgerDao;
-
-    @Autowired
     MerchantDao merchantDao;
 
     @Autowired
@@ -211,7 +205,6 @@ public class CreditLineBPBService {
         return new CreditSpendVerifyResponseDTO(lendingClTransaction.getId(), Double.valueOf(df.format(lendingClTransaction.getAmount())), lendingClTransaction.getCreatedAt(), lendingClTransaction.getStatus());
     }
 
-    @Transactional
     public CreditSpendVerifyResponseDTO refund(CreditRefundRequestDTO requestDTO) {
         Optional<LendingClTransaction> lendingClTransactionOptional = lendingClTransactionDao.findById(requestDTO.getOrderId());
         if (!lendingClTransactionOptional.isPresent() || !CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(lendingClTransactionOptional.get().getStatus())) {
@@ -251,22 +244,15 @@ public class CreditLineBPBService {
         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + amount);
         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + amount);
         lendingPaymentSchedule.setStatus("CLOSED");
-        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
         //TODO need to refund paid edi
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
-        LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
-        double updatedBalance = (creditAccount.getAvailableBalance() + amount) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + amount;
-        creditAccount.setAvailableBalance(updatedBalance);
-        creditAccount.setUsedBalance(creditAccount.getUsedBalance() - amount);
-        lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
-        lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - amount);
-        creditAccountDao.save(creditAccount);
-        lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
-        createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), amount, amount);
-        createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        LendingLedger lendingLedger = createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), amount, amount);
+        LendingClTransaction refundTransaction = createRefundTransaction(lendingClTransaction, amount, CreditConstants.PaymentType.REFUND.name());
+        LendingClLedger lendingClLedger = createClLedger(lendingClTransaction, amount, amount, 0D, CreditConstants.PaymentType.TL.name());
+        creditLineTransaction.refundTL(lendingPaymentSchedule, creditAccount, amount, lendingLedger, refundTransaction, lendingClLedger);
         String message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
                 + CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType()) +
-                " transaction.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
+                " transaction.\n\nYour updated BharatPe Loans Balance is Rs." + (creditAccount.getAvailableBalance() + amount) + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
         creditLineService.sendNotification(message, merchant);
         return new CreditSpendVerifyResponseDTO(true, null);
     }
@@ -277,45 +263,25 @@ public class CreditLineBPBService {
         double refundAmount = amount;
         CreditLineCategories creditLineCategories = creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditAccount.getSegment());
         double interest = LoanUtil.getDateDiffInDays(lendingClTransaction.getCreatedAt(), new Date()) * amount * creditLineCategories.getClInterestRate();
-        if (interest > 0) {
-            creditAccount.setInterestDue(creditAccount.getInterestDue() - interest);
-            lendingCaBalanceDetail.setInterestDue(lendingCaBalanceDetail.getInterestDue() - interest);
-            refundAmount += interest;
-            //createRefundTransaction(lendingClTransaction, interest, CreditConstants.PaymentType.INTEREST_ROLLBACK.name());
-        }
-        double updatedBalance = (creditAccount.getAvailableBalance() + refundAmount) >= creditAccount.getLimit() ? creditAccount.getLimit() : creditAccount.getAvailableBalance() + refundAmount;
-        creditAccount.setAvailableBalance(updatedBalance);
-        creditAccount.setUsedBalance(creditAccount.getUsedBalance() - refundAmount);
-        lendingCaBalanceDetail.setAvailableBalance(updatedBalance);
-        lendingCaBalanceDetail.setUsedBalance(lendingCaBalanceDetail.getUsedBalance() - refundAmount);
-        if (lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
-            double usedG1 = lendingCaBalanceDetail.getUsedBalanceG1() - ((lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);
-            double usedG2 = lendingCaBalanceDetail.getUsedBalanceG2() - ((lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);
-            double usedG3 = lendingCaBalanceDetail.getUsedBalanceG3() - ((lendingCaBalanceDetail.getUsedBalanceG3()/lendingCaBalanceDetail.getUsedBalanceCl()) * refundAmount);
-            lendingCaBalanceDetail.setUsedBalanceG1(usedG1);
-            lendingCaBalanceDetail.setUsedBalanceG2(usedG2);
-            lendingCaBalanceDetail.setUsedBalanceG3(usedG3);
-            lendingCaBalanceDetail.setUsedBalanceCl(usedG1 + usedG2 + usedG3);
-        }
-        creditAccountDao.save(creditAccount);
-        lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
-        insertClLedger(lendingClTransaction, refundAmount, amount, refundAmount - amount);
-        createRefundTransaction(lendingClTransaction, refundAmount, CreditConstants.PaymentType.REFUND.name());
+        refundAmount += interest;
+        LendingClLedger lendingClLedger = createClLedger(lendingClTransaction, refundAmount, amount, refundAmount - amount, CreditConstants.PaymentType.CL.name());
+        LendingClTransaction refundTransaction = createRefundTransaction(lendingClTransaction, refundAmount, CreditConstants.PaymentType.REFUND.name());
+        creditLineTransaction.refundCL(creditAccount, lendingCaBalanceDetail, refundAmount, interest, refundTransaction, lendingClLedger);
         String message;
         if (interest > 0) {
             message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
                     + CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType()) +
-                    " transaction.\nIn addition, charges of Rs."+interest+" are also reversed.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
+                    " transaction.\nIn addition, charges of Rs."+interest+" are also reversed.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + refundAmount + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
         } else {
             message = "We have refunded Rs." + amount + " towards your BharatPe Loans Balance on account of failed "
                     + CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType()) +
-                    " transaction.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
+                    " transaction.\n\nYour updated BharatPe Loans Balance is Rs." + creditAccount.getAvailableBalance() + refundAmount + ". Use it for Bank transfers, Paying Bills, Sending money, Shopping etc.\nClick Here: " + CreditConstants.MESSAGE_NOTIFICATION_LINK + " for more details.";
         }
         creditLineService.sendNotification(message, merchant);
         return new CreditSpendVerifyResponseDTO(true, null);
     }
 
-    private void createRefundTransaction(LendingClTransaction transaction, Double amount, String type) {
+    private LendingClTransaction createRefundTransaction(LendingClTransaction transaction, Double amount, String type) {
         LendingClTransaction lendingClTransaction = new LendingClTransaction();
         lendingClTransaction.setCreditAccountId(transaction.getCreditAccountId());
         lendingClTransaction.setMerchantId(transaction.getMerchantId());
@@ -326,10 +292,10 @@ public class CreditLineBPBService {
         lendingClTransaction.setType(type);
         lendingClTransaction.setSubType(transaction.getSubType());
         lendingClTransaction.setParentId(transaction.getId());
-        lendingClTransactionDao.save(lendingClTransaction);
+        return lendingClTransaction;
     }
 
-    private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle) {
+    private LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle) {
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
         if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
@@ -345,15 +311,15 @@ public class CreditLineBPBService {
         lendingLedger.setPrinciple(principle);
         lendingLedger.setDescription("CREDIT_LINE");
         lendingLedger.setAdjustmentMode(CreditConstants.PaymentType.REFUND.name());
-        lendingLedgerDao.save(lendingLedger);
+        return lendingLedger;
     }
 
-    private void insertClLedger(LendingClTransaction lendingClTransaction, Double amount, Double principle, Double interest) {
+    private LendingClLedger createClLedger(LendingClTransaction lendingClTransaction, Double amount, Double principle, Double interest, String type) {
         LendingClLedger lendingClLedger = new LendingClLedger();
         lendingClLedger.setMerchantId(lendingClTransaction.getMerchantId());
         lendingClLedger.setMerchantStoreId(lendingClTransaction.getMerchantStoreId());
         lendingClLedger.setClTransactionId(lendingClTransaction.getId());
-        lendingClLedger.setTransactionType(CreditConstants.PaymentType.REFUND.name());
+        lendingClLedger.setTransactionType(type);
         lendingClLedger.setAmount(amount);
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
         try {
@@ -366,6 +332,6 @@ public class CreditLineBPBService {
         lendingClLedger.setInterest(interest);
         lendingClLedger.setOtherCharges(0D);
         lendingClLedger.setPenalty(0D);
-        lendingClLedgerDao.save(lendingClLedger);
+        return lendingClLedger;
     }
 }

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.CreditAccountBillDao;
+import com.bharatpe.lending.common.dao.CreditAccountDao;
 import com.bharatpe.lending.common.dao.LendingCaBalanceDetailDao;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.CreditConstants;
@@ -32,10 +33,6 @@ public  class CreditUtil {
 
 	@Autowired
 	CreditAccountBillDao creditAccountBillDao;
-
-	 
-	 
-	 
 
 	public  Map<String, Object> prepareSelectedLoanForClient(CreditApplication application) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
