@@ -842,7 +842,7 @@ public class TncService {
 				"            text-align: center;\n" + 
 				"        }\n" + 
 				"    </style>\n" + 
-				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplicationAddress!=null?(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId()):"")+"</span></p>\n" + 
+				"   <p class=\"p2\">Loan ID: <span class=\"data-insert\">"+"To be generated"+"</span></p>\n" + 
 				"   <p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
 				"   <p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> <span class=\"data-insert\">"+(requestDto.getAmount())+"</span></p>\n" + 
 				"   <p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
@@ -1428,7 +1428,7 @@ public class TncService {
 //			return null;
 //		}
 		String html="  <p class=\"p1\" style=\"text-align: center;\"><span class=\"s1\"><strong>Loan Details</strong></span></p>\n" + 
-				"<p class=\"p2\">Loan ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
+				"<p class=\"p2\">Loan ID: <span class=\"data-insert\">"+"To be generated"+"</span></p>\n" + 
 				"<p class=\"p0\">Date:  <span class=\"data-insert\">"+new Date()+"</span></p>\n" + 
 				"<p class=\"p2\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span> "+(requestDto.getAmount())+"<span class=\"data-insert\"></span></p>\n" + 
 				"<p class=\"p2\">Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span><span class=\"data-insert\">"+requestDto.getTenure()+"</span></p>\n" + 
