@@ -152,4 +152,21 @@ public class RedisNotificationService {
 			logger.error("Error occured while sending redis based enach notification for merchant {}",merchant,e);
 		}
 	}
+	
+	public void sendPromotionalNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
+		try {
+			logger.info("Sending promotional notification got merchant {}",merchant);
+			InstantNotificationDto notificationDto=new InstantNotificationDto();
+			notificationDto.setApplicationId(creditApplication.getId());
+			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMessageCategory("CREDIT_LINE_PROMOTIONAL");
+			String message="Hi, "+merchant.getBeneficiaryName()+",\n" + 
+					"BharatPe Loan Balance of "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+			notificationDto.setMessage(message);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
+		}
+		catch(Exception e) {
+			
+		}
+	}
 }

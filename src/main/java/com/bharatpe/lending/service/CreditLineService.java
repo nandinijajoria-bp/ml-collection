@@ -144,6 +144,9 @@ public class CreditLineService {
 	private String clDeeplink;
 	
 	private final DecimalFormat df = new DecimalFormat("#.##");
+	
+	@Autowired
+	RedisNotificationService redisNotificationService;
 
 	public ResponseDTO createCreditLineAccount(CreateCreditAccountRequestDto request, Merchant merchant){
 
@@ -224,6 +227,7 @@ public class CreditLineService {
 					creditLineMerchantDao.save(creditLineMerchant);
 					
 					sendActivationNotification(creditApplication, merchant);
+					redisNotificationService.sendPromotionalNotificationForCreditLine(merchant, creditApplication);
 					return new ResponseDTO(true,"Successful",null);
 				}
 				else {
