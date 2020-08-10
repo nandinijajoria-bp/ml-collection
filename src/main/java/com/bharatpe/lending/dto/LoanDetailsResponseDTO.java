@@ -8,7 +8,7 @@ public class LoanDetailsResponseDTO {
 	
 	private boolean success;
 	private String message;
-	private String deeplink="bharatpe://dynamic?key=loan";
+	private String deeplink;
 	private LoanDetailsDTO details;
 	
 	public String getDeeplink() {

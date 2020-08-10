@@ -899,7 +899,7 @@ private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant me
 	
 	public boolean isMerchantFromCreditLine(Merchant merchant) {
 		CreditLineMerchant creditLineMerchant=creditLineMerchantDao.findByMerchantId(merchant.getId());
-		return creditLineMerchant==null?false:true;
+		return creditLineMerchant != null;
 	}
 	
 	}

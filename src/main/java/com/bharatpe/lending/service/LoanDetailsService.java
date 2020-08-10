@@ -1088,7 +1088,7 @@ public class LoanDetailsService {
 	}
 	
 	public boolean isMerchantFromCreditLine(Merchant merchant) {
-		CreditLineMerchant creditLineMerchant=creditLineMerchantDao.findByMerchantId(merchant.getId());
-		return creditLineMerchant==null?false:true;
+		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
+		return creditLineMerchant != null;
 	}
 }
