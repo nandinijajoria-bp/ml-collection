@@ -59,6 +59,9 @@ public class MerchantDetailsService {
            module=merchantDetailsDTO.getModule();
         else
            module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
@@ -77,10 +80,10 @@ public class MerchantDetailsService {
         lendingCpvDetails.setState(merchantDetailsDTO.getPersonalDetails().getState());
         lendingCpvDetails.setCity(merchantDetailsDTO.getPersonalDetails().getCity());
         lendingCpvDetails.setLandmark(merchantDetailsDTO.getPersonalDetails().getLandmark());
-        if(merchantDetailsDTO.getModule()!=null)
-        	 lendingCpvDetails.setModule(merchantDetailsDTO.getModule());
-        else
-        	 lendingCpvDetails.setModule(MODULE);
+        lendingCpvDetails.setModule(module);
+        if (module.equalsIgnoreCase("CREDITLINE")) {
+            lendingCpvDetails.setSource("CREDITLINE");
+        }
        lendingCpvDetailsDao.save(lendingCpvDetails);
         return merchantDetailsDTO;
     }
@@ -91,6 +94,9 @@ public class MerchantDetailsService {
           module=merchantDetailsDTO.getModule();
           else
          module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
@@ -101,13 +107,13 @@ public class MerchantDetailsService {
         }
         lendingCpvDetails.setMerchantId(merchant.getId());
         lendingCpvDetails.setApplicationId(merchantDetailsDTO.getApplicationId());
-        if(merchantDetailsDTO.getModule()!=null)
-      	  lendingCpvDetails.setModule(merchantDetailsDTO.getModule());
-        else
-      	  lendingCpvDetails.setModule(MODULE);
+        lendingCpvDetails.setModule(module);
         lendingCpvDetails.setBusinessType(merchantDetailsDTO.getShopDetails().getBusinessType());
         lendingCpvDetails.setOwnership(merchantDetailsDTO.getShopDetails().getShopOwnership());
         lendingCpvDetails.setShopName(merchantDetailsDTO.getShopDetails().getShopName());
+        if (module.equalsIgnoreCase("CREDITLINE")) {
+            lendingCpvDetails.setSource("CREDITLINE");
+        }
         lendingCpvDetailsDao.save(lendingCpvDetails);
         getShopDetailsImages(merchantDetailsDTO, lendingCpvDetails);
         return merchantDetailsDTO;
@@ -159,6 +165,9 @@ public class MerchantDetailsService {
           module=merchantDetailsDTO.getModule();
          else
           module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(),module);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
@@ -169,12 +178,12 @@ public class MerchantDetailsService {
         }
         lendingCpvDetails.setMerchantId(merchant.getId());
         lendingCpvDetails.setApplicationId(merchantDetailsDTO.getApplicationId());
-        if(merchantDetailsDTO.getModule()!=null)
-      	  lendingCpvDetails.setModule(merchantDetailsDTO.getModule());
-        else
-      	  lendingCpvDetails.setModule(MODULE);
+        lendingCpvDetails.setModule(module);
         lendingCpvDetails.setBusinessStartedAt(merchantDetailsDTO.getBusinessDetails().getBusinessStartDate());
         lendingCpvDetails.setDailySales(merchantDetailsDTO.getBusinessDetails().getDailySales());
+        if (module.equalsIgnoreCase("CREDITLINE")) {
+            lendingCpvDetails.setSource("CREDITLINE");
+        }
         lendingCpvDetailsDao.save(lendingCpvDetails);
         getBusinessDetailsImages(merchantDetailsDTO, lendingCpvDetails);
         return merchantDetailsDTO;
@@ -226,6 +235,9 @@ public class MerchantDetailsService {
             module=uploadImageDTO.getModule();
           else
          	module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(uploadImageDTO.getApplicationId(),module);
         if (lendingCpvDetails == null) {
             logger.info("lending cpv details not found for merchant: {}, for application: {}", merchant.getId(), uploadImageDTO.getApplicationId());
@@ -286,6 +298,9 @@ public class MerchantDetailsService {
            module=uploadImageDTO.getModule();
          else
          	module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, module);
         if (lendingCpvDetails == null) {
             logger.info("lending cpv details not found for merchant: {}, for application: {}", merchant.getId(), applicationId);
@@ -304,13 +319,15 @@ public class MerchantDetailsService {
     public MerchantDetailsDTO getMerchantDetails(Long applicationId,String module) {
     	if(module==null)
            module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
         LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId,module);
         if (lendingCpvDetails == null) {
             return new MerchantDetailsDTO();
         }
         MerchantDetailsDTO merchantDetailsDTO = new MerchantDetailsDTO();
-       if(module.equals("CREDIT-LINE"))
-    	   merchantDetailsDTO.setModule(module); 
+        merchantDetailsDTO.setModule(module);
         merchantDetailsDTO.setApplicationId(applicationId);
         setPersonalDetails(lendingCpvDetails, merchantDetailsDTO);
         setShopDetails(lendingCpvDetails, merchantDetailsDTO);

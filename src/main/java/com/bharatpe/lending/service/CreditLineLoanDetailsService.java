@@ -590,9 +590,9 @@ public class CreditLineLoanDetailsService {
 				}
 			}
 			response.getDetails().getLoanApplication().setStatusHeader("Loan Applied Successfully");
+			response.getDetails().getLoanApplication().setSelfVerification(false);
 			if (response.getDetails().getEnach() == null && enachSuccess != null) {
 				response.getDetails().setEnach("success");
-				response.getDetails().getLoanApplication().setSelfVerification(false);
 			}
 			response.getDetails().getLoanApplication().setStatusTitle("Verification In Progress");
 			if(creditApplication.getStatus().equalsIgnoreCase("kyc")) {
