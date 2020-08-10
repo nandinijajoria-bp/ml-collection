@@ -143,6 +143,9 @@ public class CreditLineLoanDetailsService {
 			Experian experian=null;
 			
 			CreditLoanDetailsResponseDto response=new CreditLoanDetailsResponseDto();
+			if(!isMerchantFromCreditLine(merchant)) {
+				response.setDeeplink("bharatpe://dynamic?key=loan");
+			}
 			MerchantSummary merchantSummary=null;
 			
 			CreditApplication creditApplication=null;
@@ -892,6 +895,11 @@ private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant me
 		
 		return errorResponse;
 		
+	}
+	
+	public boolean isMerchantFromCreditLine(Merchant merchant) {
+		CreditLineMerchant creditLineMerchant=creditLineMerchantDao.findByMerchantId(merchant.getId());
+		return creditLineMerchant != null;
 	}
 	
 	}
