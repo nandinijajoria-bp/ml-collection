@@ -213,16 +213,16 @@ public class LoanEligibleService {
                 experianDao.save(experian);
                 return new ArrayList<>();
             }
-            if (!isZomato && !yellowPincode && !prebook) {
-                PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
-                if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 90) {
-                    logger.info("Vintage less than 3 months, so rejecting merchant: {}", merchant.getId());
-                    experian.setCategory("1N");
-                    experian.setColor(ExperianConstants.COLOR.RED.name());
-                    experian.setReason(ExperianConstants.VINTAGE);
-                    experianDao.save(experian);
-                    return new ArrayList<>();
-                }
+        }
+        if (!isZomato && !yellowPincode && !prebook) {
+            PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
+            if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 90) {
+                logger.info("Vintage less than 3 months, so rejecting merchant: {}", merchant.getId());
+                experian.setCategory("1N");
+                experian.setColor(ExperianConstants.COLOR.RED.name());
+                experian.setReason(ExperianConstants.VINTAGE);
+                experianDao.save(experian);
+                return new ArrayList<>();
             }
         }
         
