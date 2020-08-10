@@ -227,7 +227,7 @@ public class CreditLineService {
 					creditLineMerchantDao.save(creditLineMerchant);
 					
 					sendActivationNotification(creditApplication, merchant);
-					redisNotificationService.sendPromotionalNotificationForCreditLine(merchant, creditApplication);
+					redisNotificationService.sendPromotionalNotificationForCreditLine(merchant,creditAccount);
 					return new ResponseDTO(true,"Successful",null);
 				}
 				else {
@@ -498,7 +498,7 @@ public class CreditLineService {
 		
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
-				"EDI of Rs. "+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next <3> months for "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
+				"EDI of Rs. "+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getTenure()+" months for "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
