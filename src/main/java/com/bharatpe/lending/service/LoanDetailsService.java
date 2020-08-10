@@ -6,7 +6,9 @@ import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
+import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingPartnerOffers;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
@@ -127,11 +129,17 @@ public class LoanDetailsService {
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
+	
+	@Autowired
+	CreditLineMerchantDao creditLineMerchantDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
+			if(isMerchantFromCreditLine(merchant)) {
+				response.setDeeplink("bharatpe://dynamic?key=credit-line");
+			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 			MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 			List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartnerAndMobile(merchant.getId(), "ZOMATO", merchant.getMobile());
@@ -1077,5 +1085,10 @@ public class LoanDetailsService {
 		SettlementResponseDTO settlementResponseDTO = new SettlementResponseDTO();
 		settlementResponseDTO.setSettlement(settlementList);
 		return settlementResponseDTO;
+	}
+	
+	public boolean isMerchantFromCreditLine(Merchant merchant) {
+		CreditLineMerchant creditLineMerchant=creditLineMerchantDao.findByMerchantId(merchant.getId());
+		return creditLineMerchant==null?false:true;
 	}
 }
