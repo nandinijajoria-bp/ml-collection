@@ -656,7 +656,7 @@ public class CreditPaymentService {
         	mobiles.add(merchant.getMobile());
         	String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
         			"We have closed Rs."+lendingClTransaction.getAmount()+" Loan post repayment made by you.\n" + 
-        			"Your available loans balance is Rs."+creditAccount.getAvailableBalance()+". Click here: bharatpe.in/creditline to spend on Bank transfers, Sending money, Bill Payments and more.\n" + 
+        			"Your available loans balance is Rs."+creditAccount.getAvailableBalance()+". Spend on Bank transfers, Sending money, Bill Payments and more.\n" + 
         			"Click Here: bharatpe.in/creditline for more details.";
         	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
     		whatsappNotificationService.send(merchant, null, message, mobiles, null);	
