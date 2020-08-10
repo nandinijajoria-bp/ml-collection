@@ -588,6 +588,8 @@ public class CreditPaymentService {
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + totalPaid);
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + totalPaid);
                         lendingPaymentSchedule.setStatus("CLOSED");
+                        //sending closure of daily loan notification
+                        sendClosureNotification(lendingClTransaction, creditAccount);
                     } else {
                         List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
                         if (ediSchedules == null || ediSchedules.isEmpty()) {
@@ -645,7 +647,22 @@ public class CreditPaymentService {
         }
         creditLineTransaction.creditRepayment(lendingClTransaction, creditAccount, lendingCaBalanceDetail, creditAccountBill, lendingClLedgerList, lendingClPaymentBreakups, lendingPaymentScheduleMap.values(), lendingLedgers, clPrinciple + tlPrinciple, adjustedInterest, clPrinciple, newMAD);
     }
-
+    
+    public void sendClosureNotification(LendingClTransaction lendingClTransaction,CreditAccount creditAccount) {
+    	Optional<Merchant> merchantOptional=merchantDao.findById(creditAccount.getMerchantId());
+    	if(merchantOptional.isPresent()) {
+    		Merchant merchant=merchantOptional.get();
+    		List<String> mobiles=new LinkedList<>();
+        	mobiles.add(merchant.getMobile());
+        	String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
+        			"We have closed Rs."+lendingClTransaction.getAmount()+" Loan post repayment made by you.\n" + 
+        			"Your available loans balance is Rs."+creditAccount.getAvailableBalance()+". Click here: bharatpe.in/creditline to spend on Bank transfers, Sending money, Bill Payments and more.\n" + 
+        			"Click Here: bharatpe.in/creditline for more details.";
+        	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+    		whatsappNotificationService.send(merchant, null, message, mobiles, null);	
+    	}	
+    }
+    
     public LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());

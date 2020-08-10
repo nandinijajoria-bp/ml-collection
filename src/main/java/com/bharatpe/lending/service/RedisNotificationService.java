@@ -167,6 +167,7 @@ public class RedisNotificationService {
 			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
 		}
 		catch(Exception e) {
+			logger.error("Error occured while sending redis based promotional notification for merchant {}",merchant,e);
 			
 		}
 	}
