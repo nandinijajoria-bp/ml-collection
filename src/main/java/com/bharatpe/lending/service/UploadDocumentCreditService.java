@@ -119,6 +119,13 @@ public class UploadDocumentCreditService {
 		if(merchantDocumentProofList.size() > 0) {
 			isUpdate = true;
 		}
+		for (MerchantDocumentProof merchantDocumentProof : merchantDocumentProofList) {
+			if (!merchantDocumentProof.getProofType().equalsIgnoreCase("selfie") && !merchantDocumentProof.getProofType().equalsIgnoreCase("pancard")) {
+				merchantDocumentProof.setStatus("DELETED");
+				merchantDocumentProofDao.save(merchantDocumentProof);
+			}
+		}
+
 		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdate, merchant, creditApplication, requestDTO.getMeta(), uploadDocumentResponse);
 
 		if(documentList.size() > 0) {
