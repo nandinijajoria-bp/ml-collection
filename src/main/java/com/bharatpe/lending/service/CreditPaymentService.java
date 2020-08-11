@@ -125,6 +125,9 @@ public class CreditPaymentService {
 
     @Autowired
     CreditLineTransaction creditLineTransaction;
+    
+    @Autowired
+    CreditLineService creditLineService;
 
     private static String secret;
 
@@ -335,6 +338,7 @@ public class CreditPaymentService {
             }
             if (CreditConstants.PaymentStatus.FAILED.name().equals(paymentStatus) || !transactionId.equals(lendingClTransaction.getId()) || !lendingClTransaction.getAmount().equals(paymentAmount)) {
                 lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.FAILED.name(), lendingClTransaction.getId());
+                creditLineService.sendFiledTransNotification(lendingClTransaction, merchant);
             } else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
                 updateBalances(creditAccount, lendingClTransaction);
                 sendNotification(lendingClTransaction, merchant);
@@ -970,12 +974,20 @@ public class CreditPaymentService {
         if (CreditConstants.PaymentStatus.FAILED.equals(status) || !(responseDto.getAmount().equals(lendingClTransaction.getAmount()))) {
             lendingClTransaction.setStatus(CreditConstants.PaymentStatus.FAILED.name());
             creditLineTransaction.saveTxn(lendingClTransaction);
+            sendFiledNotification(lendingClTransaction);
         } else if (CreditConstants.PaymentStatus.SUCCESS.equals(status)) {
             CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
             updateBalances(creditAccount, lendingClTransaction);
             Optional<Merchant> merchant = merchantDao.findById(creditAccount.getMerchantId());
             merchant.ifPresent(value -> sendNotification(lendingClTransaction, value));
         }
+    }
+    
+    private void sendFiledNotification(LendingClTransaction lendingClTransaction) {
+    	Optional<Merchant> merchantOptional=merchantDao.findById(lendingClTransaction.getMerchantId());
+    	if(merchantOptional.isPresent()) {
+    		creditLineService.sendFiledTransNotification(lendingClTransaction, merchantOptional.get());
+    	}
     }
 
     private String getSecret() {

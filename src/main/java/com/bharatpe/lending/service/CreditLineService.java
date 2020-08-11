@@ -454,6 +454,7 @@ public class CreditLineService {
 			creditLineTransaction.saveTxn(lendingClTransaction);
 			if(CreditConstants.PaymentStatus.FAILED.name().equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				creditLineTransaction.rollbackTxn(lendingClTransaction);
+				sendFiledTransNotification(lendingClTransaction,merchant);
 				return;
 			} else if (CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				creditLineTransaction.updateTxnStatus(lendingClTransaction, CreditConstants.PaymentStatus.SUCCESS);
@@ -503,6 +504,16 @@ public class CreditLineService {
 		
 	}
 	public void sendNotification(String message, Merchant merchant) {
+		List<String> mobiles=new LinkedList<>();
+		mobiles.add(merchant.getMobile());
+		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+	}
+	
+	public void sendFiledTransNotification(LendingClTransaction lendingClTransaction, Merchant merchant) {
+		String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
+				"Your Loans Balance transaction of Rs."+lendingClTransaction.getAmount()+" has Failed. Please try again after some time.\n" + 
+				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.";
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
