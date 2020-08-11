@@ -139,6 +139,9 @@ public class LoanDetailsService {
 		try {
 			if(isMerchantFromCreditLine(merchant)) {
 				response.setDeeplink("bharatpe://dynamic?key=credit-line");
+				response.setSuccess(true);
+				response.setMessage("Credit line merchant");
+				return response;
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 			MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());

@@ -145,6 +145,10 @@ public class CreditLineLoanDetailsService {
 			CreditLoanDetailsResponseDto response=new CreditLoanDetailsResponseDto();
 			if(!isMerchantFromCreditLine(merchant)) {
 				response.setDeeplink("bharatpe://dynamic?key=loan");
+				response.setSuccess(true);
+				response.setMessage("Loan Merchant");
+				response.setDetails(null);
+				return response;
 			}
 			MerchantSummary merchantSummary=null;
 			
