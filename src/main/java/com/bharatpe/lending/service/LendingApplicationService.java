@@ -95,29 +95,30 @@ public class LendingApplicationService {
 		}else {
 			List<EligibleLoan> eligibleLoans = new ArrayList<>();
 			List<AvailableLoan> availableLoan = new ArrayList<>();
-			if (EXPERIAN_ENABLED) {
-				eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
-					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
-					lendingApplicationResponse = new LendingApplicationResponseDTO();
-					lendingApplicationResponse.setSuccess(false);
-					return lendingApplicationResponse;
-				}
-			} else {
-				availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-				if(availableLoan == null || availableLoan.isEmpty()) {
-					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
-					lendingApplicationResponse = new LendingApplicationResponseDTO();
-					lendingApplicationResponse.setSuccess(false);
-					return lendingApplicationResponse;
-				}
-			}
+//			if (EXPERIAN_ENABLED) {
+//				eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+//				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+//					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
+//					lendingApplicationResponse = new LendingApplicationResponseDTO();
+//					lendingApplicationResponse.setSuccess(false);
+//					return lendingApplicationResponse;
+//				}
+//			} else {
+//				availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+//				if(availableLoan == null || availableLoan.isEmpty()) {
+//					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
+//					lendingApplicationResponse = new LendingApplicationResponseDTO();
+//					lendingApplicationResponse.setSuccess(false);
+//					return lendingApplicationResponse;
+//				}
+//			}
 			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if (EXPERIAN_ENABLED) {
-				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
+			//	lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
 			} else {
 				lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
 			}
+			lendingApplication=new LendingApplication();
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
@@ -1061,9 +1062,10 @@ public class LendingApplicationService {
 				"<p><strong>LOAN AGREEMENT</strong></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
 				"<p><strong>Loan Details&nbsp;</strong></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Loan ID: &nbsp;&nbsp;"+detail.getOrDefault("Loan ID", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> <span style=\"font-weight: 400;\">Date: &nbsp;&nbsp;&nbsp;&nbsp; 28-Jun-2020 </span> <span style=\"font-weight: 400;\">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Loan Amount (INR):&nbsp;&nbsp; 75,000</span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\">Loan ID: &nbsp;&nbsp;"+detail.getOrDefault("Loan ID", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> <span style=\"font-weight: 400;\">Date: &nbsp;&nbsp;&nbsp;&nbsp; "+DateTimeUtil.getDate(new Date())+" </span> <span style=\"font-weight: 400;\">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Loan Amount (INR):&nbsp;&nbsp; "+detail.getOrDefault("Loan Amount", "")+"</span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Tenure (Months): "+detail.getOrDefault("Tenure", "")+" Months&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"&nbsp;</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\">"+detail.getOrDefault("EDI Count", "")+" -> Rs"+detail.getOrDefault("Amount of EDI", "")+" each = Rs. "+((detail.get("EDI Count")!=null && detail.get("Amount of EDI")!=null)?(Double.valueOf(detail.get("EDI Count"))*Double.valueOf(detail.get("Amount of EDI"))):"")+"&nbsp;</span></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per month):&nbsp;&nbsp; 2.00 &nbsp;&nbsp;&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per annum):&nbsp;&nbsp; 24</span></p>\n" + 
@@ -1072,7 +1074,7 @@ public class LendingApplicationService {
 				"<p><span style=\"font-weight: 400;\">Location:&nbsp;&nbsp; "+detail.getOrDefault("Location", "")+"&nbsp;</span></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
 				"<p><span style=\"font-weight: 400;\">EDI Due Date - Every day from Monday to Saturday from the successive day of disbursal</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Shop/Business Address:&nbsp;&nbsp;"+detail.getOrDefault("Shop/Business Address", "")+" &nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Landmark:&nbsp;&nbsp;"+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">PIN:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; City:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+"&nbsp; </span> <span style=\"font-weight: 400;\">Email:"+detail.getOrDefault("Name of the Borrower", "")+"</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Shop/Business Address:&nbsp;&nbsp;"+detail.getOrDefault("Shop/Business Address", "")+" &nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Landmark:&nbsp;&nbsp;"+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">PIN:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; City:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+"&nbsp; </span> <span style=\"font-weight: 400;\">Email:"+detail.getOrDefault("Email", "")+"</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\"><br /><br /></span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Banking Details: The complete Loan Amount shall be credited to the &lsquo;Borrowers Authorised Bank Account&rsquo; as defined in the Agreement and as specified below&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Bank Name:"+detail.getOrDefault("Bank Name", "")+"&nbsp;</span></p>\n" + 
