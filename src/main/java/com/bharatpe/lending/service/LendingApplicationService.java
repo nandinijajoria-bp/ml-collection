@@ -95,30 +95,29 @@ public class LendingApplicationService {
 		}else {
 			List<EligibleLoan> eligibleLoans = new ArrayList<>();
 			List<AvailableLoan> availableLoan = new ArrayList<>();
-//			if (EXPERIAN_ENABLED) {
-//				eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-//				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
-//					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
-//					lendingApplicationResponse = new LendingApplicationResponseDTO();
-//					lendingApplicationResponse.setSuccess(false);
-//					return lendingApplicationResponse;
-//				}
-//			} else {
-//				availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-//				if(availableLoan == null || availableLoan.isEmpty()) {
-//					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
-//					lendingApplicationResponse = new LendingApplicationResponseDTO();
-//					lendingApplicationResponse.setSuccess(false);
-//					return lendingApplicationResponse;
-//				}
-//			}
+			if (EXPERIAN_ENABLED) {
+				eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
+					lendingApplicationResponse = new LendingApplicationResponseDTO();
+					lendingApplicationResponse.setSuccess(false);
+					return lendingApplicationResponse;
+				}
+			} else {
+				availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+				if(availableLoan == null || availableLoan.isEmpty()) {
+					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
+					lendingApplicationResponse = new LendingApplicationResponseDTO();
+					lendingApplicationResponse.setSuccess(false);
+					return lendingApplicationResponse;
+				}
+			}
 			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if (EXPERIAN_ENABLED) {
-			//	lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
+				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
 			} else {
 				lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
 			}
-			lendingApplication=new LendingApplication();
 			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
