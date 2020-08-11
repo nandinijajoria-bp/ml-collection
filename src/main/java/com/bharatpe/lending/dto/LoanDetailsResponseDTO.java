@@ -8,7 +8,16 @@ public class LoanDetailsResponseDTO {
 	
 	private boolean success;
 	private String message;
+	private String deeplink;
 	private LoanDetailsDTO details;
+	
+	public String getDeeplink() {
+		return deeplink;
+	}
+
+	public void setDeeplink(String deeplink) {
+		this.deeplink = deeplink;
+	}
 
 	public String getMessage() {
 		return message;

@@ -12,6 +12,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
+import com.bharatpe.lending.common.entity.CreditAccount;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dto.InstantNotificationDto;
@@ -150,6 +151,24 @@ public class RedisNotificationService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while sending redis based enach notification for merchant {}",merchant,e);
+		}
+	}
+	
+	public void sendPromotionalNotificationForCreditLine(Merchant merchant, CreditAccount creditAccount) {
+		try {
+			logger.info("Sending promotional notification got merchant {}",merchant);
+			InstantNotificationDto notificationDto=new InstantNotificationDto();
+			notificationDto.setApplicationId(creditAccount.getId());
+			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMessageCategory("CREDIT_LINE_PROMOTIONAL");
+			String message="Hi, "+merchant.getBeneficiaryName()+",\n" + 
+					"BharatPe Loan Balance of "+creditAccount.getLimit()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+			notificationDto.setMessage(message);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
+		}
+		catch(Exception e) {
+			logger.error("Error occured while sending redis based promotional notification for merchant {}",merchant,e);
+			
 		}
 	}
 }
