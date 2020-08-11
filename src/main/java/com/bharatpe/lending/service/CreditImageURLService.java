@@ -67,6 +67,7 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 			result.put("success", false);
 			return result;
 		}
+		result.put("allow_route", allowRoute(creditApplication, merchant, eKycDone));
 		result.put("isEKYC",eKycDone);
 		logger.info("Application: {}", creditApplication);
 		List<Map<String, Object>> data = fetchImageUrl(merchant, creditApplication, commonAPIRequest);
@@ -74,6 +75,23 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		result.put("success", true);
 		
 		return result;
+	}
+
+	private boolean allowRoute(CreditApplication creditApplication, Merchant merchant, Boolean isEkycDone) {
+		boolean selfie = false;
+		boolean pancard = false;
+		boolean poa = false;
+		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
+		for (MerchantDocumentProof merchantDocumentProof : documentsIdProofList) {
+			if (merchantDocumentProof.getProofType().equalsIgnoreCase("selfie")) {
+				selfie = true;
+			} else if (merchantDocumentProof.getProofType().equalsIgnoreCase("pancard")) {
+				pancard = true;
+			} else {
+				poa = true;
+			}
+		}
+		return selfie && pancard && (isEkycDone || poa);
 	}
 	
 	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
