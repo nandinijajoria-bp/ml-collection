@@ -4,8 +4,10 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.entity.ExperianRawResponse;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +64,9 @@ public class ExperianService {
 
     @Autowired
     EmailHandler emailHandler;
+    
+    @Autowired
+    ExperianRawResponseDao experianRawResponseDao;
 
     public ResponseDTO updateDetails(ExperianDetailsDTO experianDetailsDTO, Long merchantId, String contact) {
         Experian experian = experianDao.getByMerchantId(merchantId);
@@ -122,6 +127,7 @@ public class ExperianService {
             Long a = DateTime.now().getMillis();
             logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, body.toString());
             String response = restTemplate.postForObject(ExperianConstants.LONG_API_URL, request, String.class);
+            insertExperianCallRecord(response, ExperianConstants.LONG_API_URL, request.toString(), merchantId, null, panCard, contact);
             Long b = DateTime.now().getMillis();
             logger.info("ExperianV2 long API response time---" + (b-a) + "ms");
             JsonNode jsonNode = objectMapper.readTree(response);
@@ -189,6 +195,7 @@ public class ExperianService {
         Long a = DateTime.now().getMillis();
         logger.info("ExperianV2 mobile API request for merchant: {} is {}", merchantId, body.toString());
         String response = restTemplate.postForObject(ExperianConstants.MASKED_MOBILE_URL, request, String.class);
+        insertExperianCallRecord(response, ExperianConstants.MASKED_MOBILE_URL, request.toString(), merchantId, null, null, null);
         Long b = DateTime.now().getMillis();
         logger.info("ExperianV2 mobile API response time---" + (b-a) + "ms");
         try {
@@ -266,6 +273,7 @@ public class ExperianService {
             Long a = DateTime.now().getMillis();
             logger.info("ExperianV2 authenticate API request for merchant: {} is {}", merchantId, body.toString());
             String response = restTemplate.postForObject(ExperianConstants.AUTHENTICATE_MOBILE_URL, request, String.class);
+            insertExperianCallRecord(response, ExperianConstants.AUTHENTICATE_MOBILE_URL, request.toString(), merchantId, null, null, mobile);
             Long b = DateTime.now().getMillis();
             logger.info("ExperianV2 authenticate API response time---" + (b-a) + "ms");
             try {
@@ -290,4 +298,22 @@ public class ExperianService {
 
         }
     }
+	
+	public void insertExperianCallRecord(String response,String url,String request,Long merchantId,Double bpScore, String pancard, String mobile) {
+		try {
+			logger.info("Inserting experian call detail into ExperianRawResponse");
+			
+			ExperianRawResponse experianRawResponse=new ExperianRawResponse();
+			experianRawResponse.setBpScore(bpScore);
+			experianRawResponse.setMerchantId(merchantId);
+			experianRawResponse.setMobile(mobile);
+			experianRawResponse.setPancard(pancard);
+			experianRawResponse.setUrlName(url);
+			experianRawResponseDao.save(experianRawResponse);
+		}
+		catch(Exception e){
+			logger.error("Error occured while inserting experian call details",e);
+		}
+		
+	}
 }

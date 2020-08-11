@@ -106,6 +106,9 @@ public class LoanEligibleService {
 
     @Autowired
     PaymentTransactionNewDao paymentTransactionNewDao;
+    
+    @Autowired
+    ExperianService experianService;
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore;
@@ -1054,6 +1057,7 @@ public class LoanEligibleService {
         Long a = DateTime.now().getMillis();
         logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
         String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
+        experianService.insertExperianCallRecord(response, ExperianConstants.SHORT_API_URL, request.toString(), merchantId, bpScore, panCard, contact);
         Long b = DateTime.now().getMillis();
         logger.info("Experian API response time---" + (b-a) + "ms");
         try {
