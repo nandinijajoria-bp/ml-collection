@@ -324,7 +324,7 @@ public class LendingApplicationService {
 		String html;
 		String lender=detail.get("Lender");
 		if(lender.equalsIgnoreCase("LDC")) {
-			html="";
+			html=getLdcTnc(detail);
 		}
 		else {
 			html ="<p><br /><br /><br /></p>\n" +
@@ -1112,10 +1112,10 @@ public class LendingApplicationService {
 				"<li><span style=\"font-weight: 400;\"> Lender on the platform understands that it will make upto 12% interest on the loan</span></li>\n" + 
 				"</ol>\n" + 
 				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Application Name:"+detail.getOrDefault("Name of the Borrower", "")+"</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Platform:"+detail.getOrDefault("Name of the Borrower", "")+"</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\">Application Name:</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\">Platform:Android</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">IP Address:"+detail.getOrDefault("IP Address", "")+"</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Mobile Number for eSign:"+detail.getOrDefault("Name of the Borrower", "")+"</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\">Mobile Number for eSign:</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Timestamp:"+new Date()+"&nbsp;</span></p>\n" + 
 				"</body>\n" + 
 				"</html>";
