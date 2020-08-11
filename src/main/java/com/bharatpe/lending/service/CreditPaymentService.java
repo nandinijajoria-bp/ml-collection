@@ -860,7 +860,7 @@ public class CreditPaymentService {
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
             long startTime = System.currentTimeMillis();
-            logger.info("payout internal request: {}", request);
+            logger.info("create vpa internal request: {}", request);
 
             response.put("request", objectMapper.writeValueAsString(request));
             int retryCount=0;
@@ -879,7 +879,7 @@ public class CreditPaymentService {
             	retryCount++;
             }
             response.put("response", responseObj);
-            logger.info("payout response: {}, response time: {}", objectMapper.writeValueAsString(response), (System.currentTimeMillis() - startTime));
+            logger.info("create vpa response: {}, response time: {}", objectMapper.writeValueAsString(response), (System.currentTimeMillis() - startTime));
             return response;
         } catch (Exception ex) {
             logger.error("error processing txn for dynamic vpa, txn: {}, {}", txn_id, ex);
@@ -1014,7 +1014,7 @@ public class CreditPaymentService {
             HttpEntity<Map> request = new HttpEntity<>(headers);
             int retryCount=0;
             String URL=UPI_PAYMENT_STATUS_CHECK_URL+"?orderId="+orderId+"&mid="+getMid();
-            logger.info("payout internal URL {} and request: {}", URL,request);
+            logger.info("upi check status internal URL {} and request: {}", URL,request);
             while(retryCount<3) {
             	try {
             		ResponseEntity<Object> responseObj=restTemplate.exchange(URL, HttpMethod.GET, request, Object.class);
@@ -1080,7 +1080,7 @@ public class CreditPaymentService {
             headers.set("mid", getMid());
             headers.set("hash", hash);
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
-            logger.info("payout internal request: {}", request);
+            logger.info("cancel upi internal request: {}", request);
             int retryCount=0;
             UpiPaymentCancellationResponseDto responseObj=null;
             while(retryCount<3) {
