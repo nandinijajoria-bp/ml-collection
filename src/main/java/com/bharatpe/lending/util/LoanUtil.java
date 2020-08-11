@@ -53,7 +53,9 @@ public class LoanUtil {
 		selectedLoan.setRepayment(application.getRepayment().intValue());
 		selectedLoan.setDisbursementAmount((application.getLoanAmount().intValue() - application.getProcessingFee().intValue()));
 		selectedLoan.setInterestAmount(application.getRepayment().intValue() - application.getLoanAmount().intValue());
-		selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
+		if (lendingCategories != null) {
+			selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
+		}
 		
 		return selectedLoan;
 	}
