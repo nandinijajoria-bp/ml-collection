@@ -73,6 +73,9 @@ public class CreditApplicationStatusChange {
 	MerchantBankDetailDao merchantBankDetailDao;
 	
 	@Autowired
+	RedisNotificationService redisNotificationService;
+	
+	@Autowired
 	CreditLineService creditLineService;
 	
 	private final DecimalFormat df = new DecimalFormat("#.##");
@@ -107,25 +110,25 @@ public class CreditApplicationStatusChange {
 		}
 	}
 	
-	private void sendApprovalNotification(CreditApplication  creditApplication) {
-		
-		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
-		if(merchantOptional!=null && merchantOptional.isPresent()) {
-			Merchant merchant=merchantOptional.get();
-			List<String> mobiles = new ArrayList<> ();
-			mobiles.add(merchant.getMobile());
-			String message="BharatPe Loan Approved. ACTIVATION PENDING!\n" + 
-					"You have Rs."+Double.valueOf(df.format(creditApplication.getAmount()))+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
-					"Activate Now by collecting Rs.500 more from your customers through BharatPe QR Code \n" + 
-					"Check Status. ";
-			smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, mobiles, null);
-			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
-			if(merchantFcmToken != null) {
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
-			}
-		}
-	}
+//	private void sendApprovalNotification(CreditApplication  creditApplication) {
+//		
+//		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
+//		if(merchantOptional!=null && merchantOptional.isPresent()) {
+//			Merchant merchant=merchantOptional.get();
+//			List<String> mobiles = new ArrayList<> ();
+//			mobiles.add(merchant.getMobile());
+//			String message="BharatPe Loan Approved. ACTIVATION PENDING!\n" + 
+//					"You have Rs."+Double.valueOf(df.format(creditApplication.getAmount()))+" Loan Approved, which you can use for Bank transfers, Sending money, Paying Bills, Shopping etc.\n" + 
+//					"Activate Now by collecting Rs.500 more from your customers through BharatPe QR Code \n" + 
+//					"Check Status. ";
+//			smsServiceHandler.sendSMS(mobiles, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, NotificationProvider.SMS.GUPSHUP);
+//			whatsappNotificationService.send(merchant, null, message+CreditConstants.MESSAGE_NOTIFICATION_LINK, mobiles, null);
+//			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
+//			if(merchantFcmToken != null) {
+//				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
+//			}
+//		}
+//	}
 	
 	private void sendRejectionNotification(CreditApplication  creditApplication) {
 		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
@@ -161,10 +164,6 @@ public class CreditApplicationStatusChange {
 					creditApplication.setStatus("approved");
 					creditApplication.setPhysicalVerificationStatus("APPROVED");
 					creditApplication.setManualKyc("APPROVED");
-					CreditLineCategories creditLineCategories=creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditApplication.getCategory());
-					if(creditLineCategories!=null && creditLineCategories.getActivationFee()!=0) {
-						sendApprovalNotification(creditApplication);
-					}
 					//creating credit account
 					if(!createCreditAccount(creditApplication, applicationStatus.getMerchantId())){
 						return false;
@@ -297,8 +296,8 @@ public class CreditApplicationStatusChange {
 				Optional<Merchant> merchantOptional=merchantDao.findById(merchantId);
 				if(merchantOptional.isPresent()) {
 					creditLineService.sendActivationNotification(creditApplication, merchantOptional.get());
+					redisNotificationService.sendPromotionalNotificationForCreditLine(merchantOptional.get(),creditAccount);
 				}
-				
 				return true;
 		}
 		else {

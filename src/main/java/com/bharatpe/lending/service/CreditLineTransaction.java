@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
@@ -67,6 +68,12 @@ public class CreditLineTransaction {
 
     @Autowired
     EmailHandler emailHandler;
+    
+    @Autowired
+    RedisNotificationService redisNotificationService;
+    
+    @Autowired
+    MerchantDao merchantDao;
 
     public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
@@ -370,6 +377,8 @@ public class CreditLineTransaction {
             if (newMAD == 0D) {
                 logger.info("closing all bills for account:{}", creditAccount.getId());
                 creditAccountBillDao.closeAllBills(creditAccount.getId(), creditAccount.getMerchantId(), creditAccountBill.getPaidAmount(), new Date());
+                //restarting promotional notifications
+                startPromotionalNotification(creditAccount);
                 creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
             }
         }
@@ -414,7 +423,14 @@ public class CreditLineTransaction {
         lendingClPaymentBreakup.setAmount(amount);
         return lendingClPaymentBreakup;
     }
-
+    
+    private void startPromotionalNotification(CreditAccount creditAccount) {
+    	Optional<Merchant> merchOptional=merchantDao.findById(creditAccount.getMerchantId());
+    	if(merchOptional.isPresent()) {
+    		redisNotificationService.sendPromotionalNotificationForCreditLine(merchOptional.get(), creditAccount);
+    	}
+    }
+    
     @Transactional
     public void refundTL(LendingPaymentSchedule lendingPaymentSchedule, CreditAccount creditAccount, Double amount, LendingLedger lendingLedger, LendingClTransaction lendingClTransaction, LendingClLedger lendingClLedger){
         if (creditAccount.getAvailableBalance() + amount > creditAccount.getLimit()) {
