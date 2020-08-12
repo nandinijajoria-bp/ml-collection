@@ -75,6 +75,9 @@ public class LendingApplicationService {
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
+	
+	@Autowired
+	ExperianDao experianDao;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
@@ -978,6 +981,7 @@ public class LendingApplicationService {
 			detail.put("Email", lendingApplication.getEmail() != null ? lendingApplication.getEmail() : "");
 			detail.put("EDI Count", lendingApplication.getPayableDays().toString());
 			detail.put("Lender",lendingApplication.getLender());
+			detail.put("Pancard", getPanCard(merchant));
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
 				detail.put("Bank Name", merchantBankDetail.getBankName());
@@ -993,6 +997,11 @@ public class LendingApplicationService {
 			logger.error("Error occured while fetching details",e);
 			return null;
 		}
+	}
+	
+	private String getPanCard(Merchant merchant) {
+		Experian experian=experianDao.getByMerchantId(merchant.getId());
+		return experian.getPancardNumber();
 	}
 	
 	private String getLdcTnc(Map<String,String> detail) {
@@ -1042,127 +1051,123 @@ public class LendingApplicationService {
 				"</ul>\n" + 
 				"<p class=\"p7\">&nbsp;</p>"+
 				"<p><br /><br /><br /></p>\n" + 
-				"<p><strong>Loan Sanction Letter</strong></p>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">This sanction letter includes the Most Important Terms and Conditions (MITC).</span></p>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<table>\n" + 
-				"<tbody>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Name of the Borrower</span></p>\n" + 
-				"</td>\n" + 
-				"<td>"+detail.getOrDefault("Name of the Borrower", "")+"&nbsp;</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Loan Amount (in INR)</span></p>\n" + 
-				"</td>\n" + 
-				"<td>"+detail.getOrDefault("Loan Amount", "")+"&nbsp;</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Tenure (in Months)</span></p>\n" + 
-				"</td>\n" + 
-				"<td>"+detail.getOrDefault("Tenure", "")+"&nbsp;</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Rate of Interest (per annum)</span></p>\n" + 
-				"</td>\n" +
-				"<td>"+(detail.get("Interest")!=null?Double.valueOf(detail.get("Interest"))*12:"")+"&nbsp;</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Penal Interest (per annum)</span></p>\n" + 
-				"</td>\n" + 
-				"<td>"+detail.getOrDefault("Penal Interest", "")+"&nbsp;</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Security</span></p>\n" + 
-				"</td>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Unsecured</span></p>\n" + 
-				"</td>\n" + 
-				"</tr>\n" + 
-				"<tr>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">Co-Applicant Details</span></p>\n" + 
-				"</td>\n" + 
-				"<td>\n" + 
-				"<p><span style=\"font-weight: 400;\">NA</span></p>\n" + 
-				"</td>\n" + 
-				"</tr>\n" + 
-				"</tbody>\n" + 
-				"</table>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Please note that this is an indicative offer letter and should not be binding upon the lender or the borrower. The</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">loan is funded through NDX P2P Private Limited (&ldquo;LiquiLoans&rdquo;) by way of lenders on its platform and sourced</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">by BharatPe, which is sourcing partner of LiquiLoans.</span></p>\n" + 
-				"<p><br /><br /><br /></p>\n" + 
-				"<p><strong>LOAN AGREEMENT</strong></p>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><strong>Loan Details&nbsp;</strong></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Loan ID: &nbsp;&nbsp;"+detail.getOrDefault("Loan ID", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> <span style=\"font-weight: 400;\">Date: &nbsp;&nbsp;&nbsp;&nbsp; "+DateTimeUtil.getDate(new Date())+" </span> <span style=\"font-weight: 400;\">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Loan Amount (INR):&nbsp;&nbsp; "+detail.getOrDefault("Loan Amount", "")+"</span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Tenure (Months): "+detail.getOrDefault("Tenure", "")+" Months&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">"+detail.getOrDefault("EDI Count", "")+" -> Rs"+detail.getOrDefault("Amount of EDI", "")+" each = Rs. "+((detail.get("EDI Count")!=null && detail.get("Amount of EDI")!=null)?(Double.valueOf(detail.get("EDI Count"))*Double.valueOf(detail.get("Amount of EDI"))):"")+"&nbsp;</span></p>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per month):&nbsp;&nbsp; 2 &nbsp;&nbsp;&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per annum):&nbsp;&nbsp; 24</span></p>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Registered Mobile Number:&nbsp;&nbsp; "+detail.getOrDefault("Registered Mobile Number", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Location:&nbsp;&nbsp; "+detail.getOrDefault("Location", "")+"&nbsp;</span></p>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">EDI Due Date - Every day from Monday to Saturday from the successive day of disbursal</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Shop/Business Address:&nbsp;&nbsp;"+detail.getOrDefault("Shop/Business Address", "")+" &nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Landmark:&nbsp;&nbsp;"+detail.getOrDefault("Landmark", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">PIN:&nbsp;&nbsp; "+detail.getOrDefault("PIN", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; City:&nbsp;&nbsp; "+detail.getOrDefault("City", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;&nbsp; "+detail.getOrDefault("State", "")+"&nbsp; </span> <span style=\"font-weight: 400;\">Email:"+detail.getOrDefault("Email", "")+"</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\"><br /><br /></span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Banking Details: The complete Loan Amount shall be credited to the &lsquo;Borrowers Authorised Bank Account&rsquo; as defined in the Agreement and as specified below&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Bank Name:"+detail.getOrDefault("Bank Name", "")+"&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Account No. "+detail.getOrDefault("Account No", "")+"&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Account Type: "+detail.getOrDefault("Account Type", "")+"</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">IFSC Code: "+detail.getOrDefault("IFSC Code", "")+"&nbsp;</span></p>\n" + 
-				"<p><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">This Loan Agreement is made&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">BETWEEN lenders (as detailed in annexure) arranged by NDX P2P Private Limited (&ldquo;LiquiLoans&rdquo;), a P2P NBFC platform registered with RBI, hereinafter referred to as &ldquo;Lender&rdquo;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">AND</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">The Borrower, material particulars whereof are described and set out above, of the OTHER PART. The Lender and Borrower are hereinafter collectively referred to as &lsquo;Parties&rsquo; and individually as &lsquo;Party&rsquo;.&nbsp;</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">WHEREAS:</span></p>\n" + 
-				"<ol>\n" + 
-				"<li><span style=\"font-weight: 400;\"> The Lender through LiquiLoans is desirous of providing loans/credit facilities to various customers.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> BharatPe is engaged in the business of, inter alia, providing aggregator services to Merchant(s)/ User(s) by offering a single unified QR code to the Merchant/User for accepting push payments through third party UPI apps / net-banking.</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> The Borrower has requested the Lender to grant the Loan to the Borrower and the Lender, relying upon the representations made and information provided by the Borrower, has agreed to grant the Loan to the Borrower, on the terms and conditions mutually agreed and contained in this Agreement and in other Loan Documents, upto the maximum principal amount as mentioned above, in its sole and absolute discretion.</span></li>\n" + 
-				"</ol>\n" + 
-				"<p><strong>NOW, THEREFORE</strong><span style=\"font-weight: 400;\">, in consideration of the foregoing and other good and valid consideration, the receipt and adequacy of which is expressly acknowledged, the Parties hereby agree as follows: Declaration / Undertaking/Representation&nbsp;</span></p>\n" + 
-				"<ol>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We hereby apply for a finance facility from lenders on LiquiLoans platform in partnership with Resilient Innovation Private Limited (&ldquo;BharatPe&rdquo;) as stated in this Application Form and declare that all the particulars, information and details provided in this Application Form and the documents submitted by me/us are true, correct, complete and up-to-date in all respects and that I/We have not withheld any material information.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We have read and understood the fees and charges applicable to the finance facility (ies) that I/We may avail from time to time and confirm that no insolvency proceedings or suits for recovery of outstanding dues, monies or property (ies) and/or any criminal proceedings have been initiated and / or are pending against me / us.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We declare that I/We have not received any request for or made any payment in cash, bearer&rsquo;s cheques or of any other kind in connection with this Application Form from/to any person.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We hereby authorize LIQUILOANS/BharatPe to exchange or share information and details relating to my application to its group companies or any third party, as may be required or deemed fit, for the purpose of processing this loan application and/or related offerings or other products / services that I/We may apply for from time to time.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> By submitting this application, I/We hereby expressly authorize LIQUILOANS/BharatPe to send me communications regarding loans, insurance and other products from LIQUILOANS/BharatPe, its group companies and / or third parties through telephone calls / SMSs / emails / post etc. including but not limited to promotional communications. I/We confirm that I shall not challenge receipt of such communications by me as unsolicited communication, defined under&nbsp;</span></li>\n" + 
-				"</ol>\n" + 
-				"<p><br /><br /><br /></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">TRAI Regulations on Unsolicited Commercial Communications. I/We understand that I/ We can at any time opt not to receive any telecommunication by registering under the Do Not Call Registry.</span></p>\n" + 
-				"<ol start=\"6\">\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We understand and acknowledge that LIQUILOANS has the absolute discretion, without assigning any reasons to reject my application and that LIQUILOANS/BharatPe is not answerable / liable to me, in any manner whatsoever, for rejecting my application.&nbsp;&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> That LIQUILOANS shall have the right to make disclosure of any information relating to me/us including personal information, details in relation to Loan, defaults, security, etc to the Credit Information Bureau of India (CIBIL) and/or any other governmental/regulatory/statutory or private agency / entity, credit bureau, RBI, the Bank's other branches/ subsidiaries / affiliates / rating agencies, service providers, other banks / financial institutions, any third parties, any assignes/potential assignees or transferees, who may need, process and publish the information in such manner and through such medium as it may be deemed necessary by the publisher/ Bank/ RBI, including publishing the name as part of willful defaulter's list from time to time, as also use for KYC information verification, credit risk analysis, or for other related purposes.</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I / We agrees and accept that LIQUILOANS/BharatPe may in its sole discretion, by its self or through authorised persons, advocate, agencies, bureau, etc. verify any information given, check credit references, employment details and obtain credit reports to determine creditworthiness from time to time.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> That the funds shall be used for the purpose for which loan has been applied and will not be used for speculative or antisocial purpose.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We, hereby confirm that I contacted LIQUILOANS/BharatPe for my requirement of personal loan and no representative has emphasized me directly / indirectly to take the loan.&nbsp;</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I/We here by confirm having read and understood the Master Terms and Conditions applicable to Personal Loans</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I authorize BharatPe / LIQUILOANS to evaluate my transaction history on the BharatPe platform in order to check my eligibility for the loan.</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> I hereby authorize BharatPe to Credit the Loan amount to the settlement &lsquo;Bank Account&rsquo; mentioned above and also deduct money from the settlement it is performing as part of BharatPe services and credit it to LIQUILOANS to facilitate the repayment of loan</span></li>\n" + 
-				"<li><span style=\"font-weight: 400;\"> Lender on the platform understands that it will make upto 12% interest on the loan</span></li>\n" + 
-				"</ol>\n" + 
-				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Application Name:</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Platform:Android</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">IP Address:"+detail.getOrDefault("IP Address", "")+"</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Mobile Number for eSign:</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Timestamp:"+new Date()+"&nbsp;</span></p>\n" + 
-				"</body>\n" + 
-				"</html>";
+				
+				"\n" + 
+				"   <p class=\"p1\" style=\"text-align: center;\"><span class=\"s1\"><strong>Loan Details</strong></span></p>\n" + 
+				"    <p>Loan ID: "+detail.getOrDefault("Loan ID", "")+"<b></b> <br /> Date: "+DateTimeUtil.getDate(new Date())+"<b></b><br />Loan Amount (INR):"+detail.getOrDefault("Loan Amount", "")+"<b></b> <br /> Tenure (Months): "+detail.getOrDefault("Tenure", "")+"<b></b> <br />Flat Rate of Interest (% per month): 2 <b></b> <br />Flat Rate of Interest (% per annum): 24<b></b><br />Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"<b></b><br />BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"<b></b><br /> Location: "+detail.getOrDefault("Location", "")+"<b></b><br />EDI Due Date &ndash; Everyday from Monday to Saturday from the successive day of disbursal<br />Shop/Business Address: "+detail.getOrDefault("Shop/Business Address", "")+"<b></b><br />Landmark: "+detail.getOrDefault("Landmark", "")+"<b></b> PIN: "+detail.getOrDefault("PIN", "")+"<b></b><br /> City: "+detail.getOrDefault("City", "")+"<b></b><br /> State: "+detail.getOrDefault("State", "")+"<b></b><br /><br />Email: "+detail.getOrDefault("Email", "")+"<b></b><br /></p>\n" + 
+				"    <p>Shop/ Business Phone Number: "+detail.getOrDefault("Registered Mobile Number", "")+"<b></b></p>\n" + 
+				"    <br />\n" + 
+				"    <p class=\"p1\" style=\"text-align: center;\"><span class=\"s1\"><strong>LOAN AGREEMENT</strong></span></p>\n" + 
+				"    <p><br />This Loan Agreement (the \"Agreement\") is executed at Mumbai on "+DateTimeUtil.getDate(new Date())+"</p>\n" + 
+				"    <p>BETWEEN</p>\n" + 
+				"    <p>The lender(s) arranged by Innofin Solutions Private Limited (\"LenDenClub\"), a P2P NBFC platform registered with RBI, hereinafter referred to as \"Lender\" and collectively referred to as the \"Lenders\" which expression shall, unless repugnant to the context thereof, mean and include their respective successors, legal representatives, heirs and permitted assigns),electronically agrees to this agreement, of the First Part</p>\n" + 
+				"    <p>AND</p>\n" + 
+				"    <p>Innofin Solutions Private Limited, a company incorporated under the provisions of the Companies Act, 2013 with corporate identity number [U74999MH2015PTC266499] having NBFC registration number as &lt;NBFC Registration number&gt; (hereinafter referred to as \"LenDenClub\" , which expression shall, unless excluded by or repugnant to the context or meaning thereof, include its successors and permitted assigns) of the Second Part;</p>\n" + 
+				"    <p>AND</p>\n" + 
+				"    <p>"+detail.getOrDefault("Name of the Borrower", "")+" having PAN No. "+detail.getOrDefault("Pancard", "")+", and "+detail.getOrDefault("Shop/Business Address", "")+", hereinafter referred to as \"the Borrower\" (which expression unless it be repugnant to the context or meaning thereof be deemed to mean and include his/her legal representative, assignee and administrator) of the Third Part.</p>\n" + 
+				"    <p>The Lender, Borrower and the LenDenClub are, wherever the context so requires, hereinafter collectively referred to as the 'Parties' and individually as 'Party'.</p>\n" + 
+				"    <p>&bull; WHEREAS, the Lender and the Borrower have come across each other for lending and borrowing unsecured loans through the LenDenClub having website as www.lendenclub.com;</p>\n" + 
+				"    <p>&bull; The Borrower is desirous of availing a loan of an aggregate amount of INR "+detail.getOrDefault("Loan Amount", "")+" (\"Loan Amount\") from the Lender</p>\n" + 
+				"    <p><br /> &bull; At the request of the Borrower and relying on representations and warranties, and covenants undertaken by the Borrower and subject to the terms and conditions contained herein, each of the individuals and/or institutions captured under Lender Group &lt;Lender Group Id&gt; hereby agrees to lend their proportion of the Loan Amount to the Borrower as captured in the information technology system of LenDenClub and the Borrower agrees to borrow from the Lender Group &lt;Lender Group Id&gt; the Loan Amount.</p>\n" + 
+				"    <p>&bull; WHEREAS, Lender desires for the LenDenClub,to mobilize the repayment amounts received from the Borrower and provided other services as detailed in this agreement and LenDenClub desires to provide such services, in accordance with the terms and conditions set forth in this Agreement.</p>\n" + 
+				"    <p>NOW, IN CONSIDERATION OF THE MUTUAL UNDERSTANDING AND OBLIGATIONS SET OUT IN THIS LOAN AGREEMENT, THE SUFFICIENCY OF WHICH IS HEREBY ACKNOWLEDGED, THE ABOVE PARTIES, INTENDING TO BE LEGALLY BOUND, AGREES AS FOLLOWS: -</p>\n" + 
+				"    <p>&bull; DEFINITIONS AND INTERPRETATIONS</p>\n" + 
+				"    <p>In this Loan Agreement, unless the context otherwise requires: (a) headings are for convenience only and shall not affect interpretation, (b) where a word or phrase is defined, other parts of speech and grammatical forms of that word or phrase shall have corresponding meanings, (c) words denoting any gender shall include all genders, (d) references to days, months and years are to calendar days, calendar months and calendar years respectively and (e) \"including\" and \"inter alia\" shall be deemed to be followed by \"without limitation\" or \"but not limited to\".</p>\n" + 
+				"    <p>&bull; DISBURSEMENT</p>\n" + 
+				"    <p>The Lender hereby agrees that platform can transfer respective Loan Amount to the Borrower. The date of disbursal of the loan shall be the Loan Date (\"Loan Date\"). In case, the borrower has availed a loan to purchase a product/service, the borrower has electronically authorised LenDenClub to transfer the Loan Amount to the person/entity/institution/business which has provided a product/services to the Borrower. The details of the bank account, where the Loan Amount has been transferred, after due authorisation of the Borrower is (\"Borrower's Bank Account\") as under:--</p>\n" + 
+				"    <p>Bank Account<br />"+detail.getOrDefault("Account No", "")+"</p>\n" + 
+				"    <p><br />Account Holder Name<br />"+detail.getOrDefault("Name of the Borrower", "")+"</p>\n" + 
+				"    <p><br />Type of Account<br />CURRENT</p>\n" + 
+				"    <p><br />Bank Name<br />"+detail.getOrDefault("Bank Name", "")+"</p>\n" + 
+				"    <p><br />IFSC Code<br />"+detail.getOrDefault("IFSC Code", "")+"</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>3. RATE OF INTEREST</p>\n" + 
+				"    <p>The borrower pays "+detail.getOrDefault("Rate of Interest", "")+" % per month. Rate of Interest on this loan. Borrower pays EMI as per clause no. 6.</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&bull; RATE OF DEFAULT INTEREST &amp; DELAY CHARGES</p>\n" + 
+				"    <p>&bull; The Borrower do hereby agrees and confirms that in addition to the aforesaid Penal Interest, the Borrower shall be liable to pay delay charges as mentioned in Annexure 1<br /> &bull; The Borrower do hereby agree and confirms that the Lender's right to recover Penal Interest and Delay Charges shall be without prejudice to Lender's other rights available as per this Loan Agreement.<br /> &bull; The Borrower do hereby agree and confirms that his/her obligations to pay Penal Interest and Delay Charges shall not entitle the Borrower to set up the defense that no event of default as mentioned hereunder has occurred.<br />page 2.</p>\n" + 
+				"    <p>&bull; DUE DATE OF FIRST &amp; SUBSEQUENT INSTALLMENTS</p>\n" + 
+				"    <p>The Parties do hereby agree and confirm that the first installment shall become due and payable by the Borrower to the Lender from successive date of the loan disbursal. All subsequent installments shall become due and payable on a daily basis, from Monday to Saturday, as equated daily installments (EDI) till the repayment of Interest and Principal.</p>\n" + 
+				"    <p>&bull; LOAN REPAYMENT SCHEDULE</p>\n" + 
+				"    <p>The Borrower do hereby covenants with the Lender(s) to repay to the Lender(s) the Loan Amount as equated daily installments (EDIs) with interest payable in "+detail.getOrDefault("Email", "")+" installments, in the following manner:</p>\n" + 
+				"    <p>"+detail.getOrDefault("EDI Count", "")+" -> Rs."+detail.getOrDefault("Amount of EDI", "")+" each=Rs."+((detail.get("Email")!=null && detail.get("Email")!=null)?Double.valueOf(detail.get("EDI Count")) * Double.valueOf(detail.get("Amount of EDI")):"")+"</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p><br /> &bull; MODE OF REPAYMENT OF LOAN</p>\n" + 
+				"    <p>&bull; The Borrower do hereby covenants with the Lender that for the purpose of repayment of the Loan Amount together with Interest and if applicable, Default Interest and Delay Charges, thereon by way of EDIs in the manner provided in Clause 6 above. <br /> &bull; The Borrower hereby authorizes LenDenClub to disburse the Loan amount to the Bank Account mentioned in Clause 2 <br /> &bull; The Borrower hereby further authorizes to LenDenClub or its appointed agent to deduct money against due and payable EDIs from the Borrower's daily QR codes based settlement and credit it to LenDenClub repayment escrow account to facilitate the repayment of loan.<br /> &bull; The borrower agrees to provide National Automated Clearing House Mandate (\"NACH Mandate\") for the tenure of loan covering all the installments, in favour of the Lender or any other person or entity duly authorized by the Lender in this behalf or by handing over postdated duly signed cheques to LenDenClub for repayment of a loan instalment to the Lender. <br /> &bull; The Borrower do hereby further covenants that without prior written consent of the Lender, the Borrower shall not close that bank account from which the NACH Mandate has been facilitated or from which the cheques has been issued, without prior intimation to Lender and making alternate arrangement for the payment of the balance Installments. Any instruction for closure of account without the consent of the Lender shall be deemed to be an event of default and consequence as setout in Clause 8 shall ensue.</p>\n" + 
+				"    <p>page 3.</p>\n" + 
+				"    <p><br /> &bull; EVENTS OF DEFAULTS</p>\n" + 
+				"    <p>8.1. The occurrence of the following events shall be an \"Event of Default\":</p>\n" + 
+				"    <p>&bull; The Borrower fails to repay 10 ninety consecutive EDIs the due dates;<br /> &bull; The Borrower has given instruction to the bank to the close the Borrower's Bank Account without the prior written of the Lender.<br /> &bull; The Borrower commits breach of any terms and conditions set out in this Loan Agreement; and/or<br /> &bull; If any attachment, distress execution or any other such process is initiated against the Borrower; and/or<br /> &bull; If the Borrower ceases or threatens to cease or carry on his/her business or profession or employment.</p>\n" + 
+				"    <p>8.2. Upon occurrence of an Event of Default, notwithstanding any elsewhere contained in this Loan Agreement, the outstanding amount (including the Interest, Default Interest and Delay Charges) as on the date of Event of Default shall immediately become due and payable and the Lender shall be entitled to take all steps /actions available to him under law/equity or otherwise to recover the amount.</p>\n" + 
+				"    <p>&bull; APPROPRIATION OF PAYMENTS</p>\n" + 
+				"    <p>The Borrower hereby agrees and confirms that any payment made by him/her to the Lender under and/or in terms of this Loan Agreement shall be appropriated in the following manner:-</p>\n" + 
+				"    <p>Firstly, towards the costs, fees, expenses and other charges, if any, which the Lender may have to incur for the recovery of amounts payable by the Borrower under this Loan Agreement;</p>\n" + 
+				"    <p>Secondly, towards the payment of Default Interest and Delay Charges, due and payable under this Loan Agreement;</p>\n" + 
+				"    <p>Thirdly, towards the payment of Interest, due and payable on the Loan Amount;</p>\n" + 
+				"    <p>Lastly, towards the payment of installment of the Principal Loan Amount.</p>\n" + 
+				"    <p>&bull; PREPAYMENT OF LOAN</p>\n" + 
+				"    <p>The Lender hereby agrees and confirms that the Borrower shall have the option to repay in full or part before the due dates of any or all of the EDIs installments, which may be outstanding at that point of time, provided that the Borrower shall remain liable to pay the interest on the Loan Amount outstanding till the date of payment.<br />The lender hereby agrees and confirms that the borrower shall have the option to prepay the loan in full or part at anytime.</p>\n" + 
+				"    <p>&bull; SCOPE OF SERVICES OF LenDenClub</p>\n" + 
+				"    <p>Each of the Lender has electronically authorized the LenDenClub to undertake the following activities on its behalf:</p>\n" + 
+				"    <p>&bull; To facilitate mobilization of repayment amounts received from the Borrower account to Lender account;<br /> &bull; To initiate legal action against the Borrower in case of default in payment or non- payment by the Borrower for more than 30 days as and when need arises and on such fees as may be mutually agreed between the Collection LenDenClub and the Lender.</p>\n" + 
+				"    <p>For avoidance of doubt, it is hereby clarified that the services provided by the LenDenClub under this Agreement are limited to point (a) and point (b) above, and under no circumstances LenDenClub will be responsible for collection of money and/or towards payment of any EDI or delay or penal charges on behalf of Borrower. The Lender and Borrower agree, understand and acknowledge that payment of any EDI or delay or penal charges is always the sole responsibility of the Borrower.</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&bull; REPRESENTATIONS AND WARRANTIES OF THE BORROWER</p>\n" + 
+				"    <p>The Borrower do hereby represents and warrants as under:</p>\n" + 
+				"    <p>&bull; All information which has been given by Borrower to the Lender with respect to himself is true and accurate in all respects.<br /> &bull; That the Borrower shall utilized the Loan Amount for the purpose of ADVANCE SALARY and for no other purpose;<br /> &bull; That there are no any circumstances of whatsoever nature that would render the transaction contemplated by this Loan Agreement, void or voidable at the option of the Borrower, under the provisions of any Law in force in India;<br /> &bull; That the Borrower is not a party to any litigation of a material character and that the Borrower is not aware of any fact likely to give rise to any litigation or to any material claims against the Borrower;<br /> &bull; that there is no action, suit proceeding, order or investigation pending and/or continuing or to the knowledge of the Borrower initiated by or against the Borrower before any Court of Law;</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>&bull; REPRESENTATIONS AND WARRANTIES OF THE LENDER</p>\n" + 
+				"    <p>The Lender do hereby represents and warrants as under:<br /> &bull; That the Lender has adequate legal capacity to enter into this Loan Agreement and perform his or her obligations hereunder.<br /> &bull; That the Lender is not restricted to enter into this Loan Agreement by any Law or any other Loan Agreement;<br /> &bull; That this Loan Agreement and all documents required to be executed under and/or in relation to this Loan Agreement constitute and will constitute valid and binding obligations of the Lender enforceable in accordance with law.</p>\n" + 
+				"    <p>&bull; POWERS CONFERRED BY THE BORROWER IN FAVOUR OF THE LENDER</p>\n" + 
+				"    <p>The Borrower hereby irrevocably empowers and appoints the Lender to exercise any rights mentioned in this Loan Agreement and/or exercisable by the Lender on behalf of the Borrower and also to act and represent the Borrower in such of the acts expressed to be necessary for the purpose of carrying out the terms and conditions of this Loan Agreement and to represent the Borrower before all authorities including the Borrower's employer, banker, etc. and the Borrower undertakes to furnish all such information, statements, documents and the papers to be submitted or furnished or to be filed before any authority.</p>\n" + 
+				"    <p>&bull; COVENANTS AND UNDERTAKINGS OF THE BORROWER</p>\n" + 
+				"    <p>The Borrower do hereby agree, covenants and undertakes as under<br /> &bull; That the Borrower shall pay and bear all expenses including stamp Duty and registration charges on actual basis and other charges and expenses which may be incurred in preparation of this Loan Agreement and/or any other related or incidental documents as may be required to be executed in future in connection with the disbursal of the loan to the Borrower by the Lender.<br /> &bull; That in case, if the Lender incurs any legal or other charges or expenses for the recovery of any part of the Loan Amount together with Interest, Default Interest and Delay Charges, then in that event the Borrower shall also be liable to pay the amounts paid by the Lender for such purposes along with interest on such amounts at the rate of Default Interest mentioned hereinabove, from the date of receipt of demand notice by the Borrower.<br /> &bull; That the statement of account forward by the Lender or by any other person or entity duly authorized by the Lender in that behalf to the Borrower, shall be accepted by the Borrower as the conclusive proof of the correctness of the Lender's claim due and payable by the Borrower on that particular date.<br /> &bull; That the Lender as well as the LenDenClub shall be entitled to disclose and furnish to any of the Credit Information Agencies duly authorized by the RBI in that behalf, all such data and information describing the manner in which the Borrower is performing his/her obligations arising under this Loan Agreement and the Borrower shall not be entitled to raise any objection/s in respect thereof.<br /> &bull; That the data and the information so disclosed and furnished by the Lender as well as by the LenDenClub to any of the Credit Information Agencies may be used or processed by such Agencies in the manner as they may deem fit and proper to test the creditworthiness of the Borrower;<br /> &bull; That the rights, powers and remedies given to the Lender by this Loan Agreement shall be in addition to all rights, powers and remedies given to the Lender by virtue of any other statute or rule of law.<br /> &bull; That the Lender at his/her absolute discretion may at any point of time set-off any of the obligation/s and/or the part of the obligation/s of the Borrower arising under this Loan Agreement.<br /> &bull; That at the absolute discretion of the Lender, the Lender shall be entitled to enforce this Loan Agreement himself/herself personally or through any other person or entity duly authorized in writing by the Lender in that behalf and in that event all the covenants and undertakings given by the Borrower to the Lender shall be deemed to have been duly given by the Borrower to such other person or entity who is duly authorized in writing by the Lender;<br /> &bull; That the Borrower shall comply with all covenants, terms, conditions stipulated in this Loan Agreement and shall fully indemnify and keep indemnified the Lender from and against all actions, proceedings, liabilities, claims, demands, loses, damages, costs, charges and expenses whatsoever in respect of or in relation to or arising out all obligations and liabilities of the Borrower under this Loan Agreement.</p>\n" + 
+				"    <p>&bull; JOINT COVENANTS OF THE LENDER &amp; THE BORROWER</p>\n" + 
+				"    <p>&bull; The Parties do hereby covenants with each other that LenDenClub has only facilitated their virtual meeting and as such the LenDenClub is not obliged under this Loan Agreement. The Loan Agreement has been executed on a principal to principal basis between the two Parties. However, it is clarified that in case if the need so arises, any of the Parties may approach the LenDenClub and duly authorize the LenDenClub in writing to take necessary steps for the full and faithful compliance of this Loan Agreement by the other party and in such an event, the defaulting party shall not be entitled to take any objections in respect thereof.<br /> &bull; That the information, representations and warranties furnished by the Parties from time to time on the website of LenDenClub and as mentioned in this Loan Agreement are true and correct and as such no part of the information, representations and warranties furnished by the Parties are incorrect.<br /> &bull; That the Parties have read and understood all the terms and conditions, privacy policy and other material available on the website of LenDenClub and do hereby covenant and undertake to unconditionally abide by the same, without raising any defense of whatsoever nature in respect thereof.</p>\n" + 
+				"    <p><br />17. INDEMNITY<br />Without prejudice to and in addition to other provisions contained in the Financing Documents, the Borrower hereby agrees to indemnify the Lender/LenDenClub and its directors, officers, representatives and agents against any losses, liabilities, claims, damages or the like (including, without limitation, reasonable attorneys' fees and expenses) which may be sustained or incurred by any of them as a result of, or in connection with, or arising out of:<br /> &bull; the Borrower failing to comply with the provisions of any Financing Documents and applicable Laws; and / or the occurrence of any Event of Default; and / or<br /> &bull; levy by any Government Authority of any charge, Taxes or penalty in connection with regularising or perfecting any of the Financing Documents as may be required under applicable Law at any time during the currency of the Facility, or getting any of the Financing Documents admitted into evidence, or relying on any Financing Documents for proving any claim; and/or<br /> &bull; the exercise of any of the rights by the Lender under this Agreement and any of the Financing Documents; and/or<br /> &bull; any of the representations and warranties of the Borrower under the Financing Documents are found to be false or untrue or incorrect on a future date.</p>\n" + 
+				"    <p>page 5.</p>\n" + 
+				"    <p>18. PROVISIONS REGARDING TERMINATION/CANCELLATION OF THIS LOAN AGREEMENT<br />Notwithstanding anything contained in this Loan Agreement, the Lender may at his/her option and without necessity of any demand or notice to the Borrower, all of which are hereby expressly waived off by the Borrower, terminate this Loan Agreement upon happening of any of the following events and thereupon all the amounts due and outstanding by the Borrower to the Lender on such day shall at once become due and payable by the Borrower to the Lender, irrespective of any agreed maturity date:<br /> &bull; If the Borrower makes default in payment of ten installments, due and payable to the Lender;<br /> &bull; If any event or circumstances has occurred or may arise which is prejudicial to or impairs or imperils or depreciates or jeopardizes or is likely to prejudice, imperil or depreciate or jeopardize any of the rights of the Lender arising under this Loan Agreement;<br /> &bull; If any information furnished or representations made by the Borrower is found to be false, incorrect or incomplete in material particulars; and<br /> &bull; If the Borrower is continuously, for a period of 15 days not traceable and/or not responding to the communications made by the Lender and/or the LenDenClub.</p>\n" + 
+				"    <p>19. ALTERATION OR MODIFICATION</p>\n" + 
+				"    <p><br />The Parties shall be at liberty to mutually amend or alter or modify any of the terms and conditions of this Loan Agreement and in particular to defer, postpone or revise the repayment of the Loan Amount, Interest, Penal Interest and Delay Charges and/or any other monies which may become due and payable by the Borrower to the Lender, including any increase or decrease in the rate of interest. However, it is clarified that all such amendment, alteration or modification must be writing and duly signed by both the Parties.</p>\n" + 
+				"    <p>20. WAIVER</p>\n" + 
+				"    <p>Any forbearance or failure or delay by the Lender in exercising any right, power or remedy hereunder shall not be deemed to be waiver of such right, power or remedy and any single or partial exercise of any right, power or remedy hereunder shall not preclude the further exercise thereof and every right, power and remedy of the Lender shall continue to be in full force and effect until such right, power and remedy is specifically waived by an instrument in writing executed by the Lender.</p>\n" + 
+				"    <p>21. SEVERABILITY</p>\n" + 
+				"    <p>If any provision or any part thereof of this Loan Agreement is determined to be illegal, invalid or unenforceable for any reason, such illegality, invalidity or unenforceability shall attach only to such provision or the applicable part of such provision and the remaining part of such provision and all other provisions of this Loan Agreement shall continue to remain in full force and effect.</p>\n" + 
+				"    <p>22. GOVERNING LAW/JURISDICTION</p>\n" + 
+				"    <p>This Loan Agreement shall be governed by and construed in accordance with the Laws of Maharashtra, India and any dispute between the Parties relating to or arising out of this Loan Agreement shall be subject to the exclusive jurisdiction of Courts at Mumbai, India.</p>\n" + 
+				"    <p>23. ENTIRE UNDERSTANDING</p>\n" + 
+				"    <p>This Loan Agreement constitutes the whole Agreement between the Parties and supersedes any previous arrangement between the Parties in relation to the matters dealt with in this Loan Agreement, provided that this clause shall not exclude any liability for (or remedy in respect of) fraudulent misrepresentation.</p>\n" + 
+				"    <p>24. SURVIVAL</p>\n" + 
+				"    <p>The Clauses of this Agreement which by their nature survive termination shall survive the expiry or termination of this Agreement.</p>\n" + 
+				"    <p>25. TIME IS THE ESSENCE</p>\n" + 
+				"    <p>The Parties hereby agree that time is the essence with respect to all dates and periods mentioned in this Loan Agreement (as may be modified/extended wherever permitted under this Loan Agreement), for performance of their respective obligations under this Loan Agreement.</p>\n" + 
+				"    <p>26. NOTICES</p>\n" + 
+				"    <p>Any notice or demand to be given under this Loan Agreement shall be in writing; and shall be deemed to have been duly given if sent by email or by a courier service or registered A. D. or personally delivered. Each notice or demand shall be addressed to the other Parties at the address mentioned above and a notice or demand so given or made shall be deemed to be given or made on the day it was so left or; as the case may be, two business days following date on which it was so posted and shall be effectual notwithstanding that the same may be returned undelivered and notwithstanding the Borrower's change of address.</p>\n" + 
+				"    <p>THE PARTIES HERETO HAVE EXECUTED THESE PRESENTS ON THE DAY, MONTH AND YEAR FIRST HEREINABOVE WRITTEN. ELECTRONICALLY SIGNED by,</p>\n" + 
+				"    <p>Borrower:"+detail.getOrDefault("Name of the Borrower", "")+"</p>\n" + 
+				"    <p>Date:"+detail.getOrDefault("Email", "")+"</p>\n" + 
+				"    <p>Location:"+detail.getOrDefault("Location", "")+"</p>\n" + 
+				"    <p>IP:"+detail.getOrDefault("IP Address", "")+"</p>\n" + 
+				"    <p>Lender(s):"+detail.getOrDefault("Lender", "")+"</p>\n" + 
+				"    <p>LenderGroup ID:</p>\n" + 
+				"    <p>Date: "+DateTimeUtil.getDate(new Date())+"</p>\n" + 
+				"    <p>Agreed by LenDenClub on behalf of Lender(s) based on Electronic Authorization given by Lender(s)</p>\n" + 
+				"    <p>LenDenClub: Innofin Solutions Pvt. Ltd</p>\n" + 
+				"    <p><br />Date: "+DateTimeUtil.getDate(new Date())+"</p>\n" + 
+				"    <p>Annexure 1 : Charges applicable to user</p>\n" + 
+				"    <p><br />Details of the charges applicable in case &lt;Borrower Name&gt; would be as following:</p>\n" + 
+				"    <p>Type of Charges<br />Applicable charge<br />Delay Charges <br />0 %<br />Penal Interest Charge<br />0 %</p>\n" + 
+				"    <p><br />Applicable Charges will be divided among Lenders and the LenDenClub.</p>\n" + 
+				"    <p>In addition to the above charges, Borrower will also be liable to pay visiting charges to the LenDenClub if any of the LenDenClub representative visits Borrower's home or office to collect EMI or when Borrower is not contactable through his registered email address or mobile number.</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>Charges conveyed &amp; accepted by:</p>\n" + 
+				"    <p>&nbsp;</p>\n" + 
+				"    <p>Borrower</p>\n" + 
+				"    <p>"+DateTimeUtil.getDate(new Date())+"</p>";
 		
 		return html;
 	}
