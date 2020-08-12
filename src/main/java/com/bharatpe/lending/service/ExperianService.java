@@ -318,6 +318,8 @@ public class ExperianService {
 			experianRawResponse.setMobile(mobile);
 			experianRawResponse.setPancard(pancard);
 			experianRawResponse.setUrlName(url);
+			experianRawResponse.setRequest(request);
+			experianRawResponse.setResponse(response);
 			experianRawResponseDao.save(experianRawResponse);
 		}
 		catch(Exception e){
