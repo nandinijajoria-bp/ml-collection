@@ -1084,7 +1084,7 @@ public class LendingApplicationService {
 				"    <p>&nbsp;</p>\n" + 
 				"    <p>&nbsp;</p>\n" + 
 				"    <p>3. RATE OF INTEREST</p>\n" + 
-				"    <p>The borrower pays "+detail.getOrDefault("Rate of Interest", "")+" % per month. Rate of Interest on this loan. Borrower pays EMI as per clause no. 6.</p>\n" + 
+				"    <p>The borrower pays "+detail.getOrDefault("Interest", "")+" % per month. Rate of Interest on this loan. Borrower pays EMI as per clause no. 6.</p>\n" + 
 				"    <p>&nbsp;</p>\n" + 
 				"    <p>&bull; RATE OF DEFAULT INTEREST &amp; DELAY CHARGES</p>\n" + 
 				"    <p>&bull; The Borrower do hereby agrees and confirms that in addition to the aforesaid Penal Interest, the Borrower shall be liable to pay delay charges as mentioned in Annexure 1<br /> &bull; The Borrower do hereby agree and confirms that the Lender's right to recover Penal Interest and Delay Charges shall be without prejudice to Lender's other rights available as per this Loan Agreement.<br /> &bull; The Borrower do hereby agree and confirms that his/her obligations to pay Penal Interest and Delay Charges shall not entitle the Borrower to set up the defense that no event of default as mentioned hereunder has occurred.<br />page 2.</p>\n" + 
@@ -1166,7 +1166,7 @@ public class LendingApplicationService {
 				"    <p>&nbsp;</p>\n" + 
 				"    <p>Charges conveyed &amp; accepted by:</p>\n" + 
 				"    <p>&nbsp;</p>\n" + 
-				"    <p>Borrower</p>\n" + 
+				"    <p>"+detail.getOrDefault("Name of the Borrower", "")+"</p>\n" + 
 				"    <p>"+DateTimeUtil.getDate(new Date())+"</p>";
 		
 		return html;
