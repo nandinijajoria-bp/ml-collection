@@ -292,6 +292,7 @@ public class CreditLineLoanHistoryService {
 				Double negativeSum=0D;
 				Double dueAmount=0D;
 				for(int i=0;i<ledgerList.size();i++) {
+					String mode=null;
 					LendingLedger firstLedger=ledgerList.get(i);
 					double ediDue=0f;
 					double ediPaid=0f;
@@ -299,6 +300,7 @@ public class CreditLineLoanHistoryService {
 					if(firstLedger.getAmount()>0){
 						positiveSum+=firstLedger.getAmount();
 						ediPaid+=firstLedger.getAmount();
+						mode=firstLedger.getAdjustmentMode();
 					}
 					else {
 						negativeSum+=firstLedger.getAmount();
@@ -311,6 +313,7 @@ public class CreditLineLoanHistoryService {
 						if(secondLedger.getAmount()>0){
 							positiveSum+=secondLedger.getAmount();
 							ediPaid+=secondLedger.getAmount();
+							mode=secondLedger.getAdjustmentMode();
 						}
 						else {
 							negativeSum+=secondLedger.getAmount();
@@ -323,14 +326,14 @@ public class CreditLineLoanHistoryService {
 					settlement.setDate(firstLedger.getDate());
 					settlement.setEdiPaid(ediPaid);
 					settlement.setEdiDue(ediDue+dueAmount);
-					if(firstLedger.getAdjustmentMode()==null) {
+					if(mode==null) {
 						settlement.setMode("Settlement");
 					}
-					else if(firstLedger.getAdjustmentMode().equals("SETTLEMENT")){
+					else if(mode.equals("SETTLEMENT")){
 						settlement.setMode("QR deduction");
 					}
 					else {
-						settlement.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(firstLedger.getAdjustmentMode(),firstLedger.getAdjustmentMode()));
+						settlement.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(mode,mode));
 					}
 					settlementsList.add(settlement);
 					if((positiveSum+negativeSum)<0) {
