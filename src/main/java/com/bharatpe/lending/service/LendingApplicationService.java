@@ -323,7 +323,7 @@ public class LendingApplicationService {
 		}
 		String html;
 		String lender=detail.get("Lender");
-		if(lender.equalsIgnoreCase("LDC")) {
+		if(lender!=null && lender.equalsIgnoreCase("LDC")) {
 			html=getLdcTnc(detail);
 		}
 		else {
@@ -1000,15 +1000,15 @@ public class LendingApplicationService {
 				"<body>\n" + 
 				"<p class=\"p1\"><span class=\"s1\"><strong>Necessary Loan Details/Master TnCs</strong></span></p>\n" + 
 				"<p class=\"p2\">&nbsp;</p>\n" + 
-				"<p class=\"p3\">Loan ID: "+detail.getOrDefault("Loan ID", "")+" Date:"+DateTimeUtil.getDate(new Date())+"</p>\n" + 
-				"<p class=\"p3\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span>"+detail.getOrDefault("Loan Amount", "")+" Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span>"+detail.getOrDefault("Tenure", "")+"</p>\n" + 
+				"<p class=\"p3\">Loan ID: "+detail.getOrDefault("Loan ID", "")+"  Date:"+DateTimeUtil.getDate(new Date())+"</p>\n" + 
+				"<p class=\"p3\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp;</span>"+detail.getOrDefault("Loan Amount", "")+"   Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span>"+detail.getOrDefault("Tenure", "")+"</p>\n" + 
 				"<p class=\"p3\">Flat Rate of Interest (% per month) 2</p>\n" + 
 				"<p class=\"p3\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum) 24</p>\n" + 
 				"<p class=\"p3\">Amount of EDI "+detail.getOrDefault("Amount of EDI", "")+"</p>\n" + 
-				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"Location: "+detail.getOrDefault("Location", "")+"</p>\n" + 
+				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"		Location: "+detail.getOrDefault("Location", "")+"</p>\n" + 
 				"<p class=\"p3\">EDI Due Date &ndash; Everyday from Monday to Saturday from the successive day of disbursal</p>\n" + 
 				"<p class=\"p3\">Shop/Business Address:"+detail.getOrDefault("Shop/Business Address", "")+"</p>\n" + 
-				"<p class=\"p3\">Landmark: "+detail.getOrDefault("Landmark", "")+" PIN: "+detail.getOrDefault("PIN", "")+"City: "+detail.getOrDefault("City", "")+" State: "+detail.getOrDefault("State", "")+"</p>\n" + 
+				"<p class=\"p3\">Landmark: "+detail.getOrDefault("Landmark", "")+"  PIN: "+detail.getOrDefault("PIN", "")+"  City: "+detail.getOrDefault("City", "")+"  State: "+detail.getOrDefault("State", "")+"</p>\n" + 
 				"<p class=\"p4\">Email: "+detail.getOrDefault("Email", "")+"</p>\n" + 
 				"<p class=\"p5\">&nbsp;</p>\n" + 
 				"<p class=\"p4\">Shop/ Business Phone Number:"+detail.getOrDefault("Registered Mobile Number", "")+"</p>\n" + 
@@ -1109,14 +1109,14 @@ public class LendingApplicationService {
 				"<p><span style=\"font-weight: 400;\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">"+detail.getOrDefault("EDI Count", "")+" -> Rs"+detail.getOrDefault("Amount of EDI", "")+" each = Rs. "+((detail.get("EDI Count")!=null && detail.get("Amount of EDI")!=null)?(Double.valueOf(detail.get("EDI Count"))*Double.valueOf(detail.get("Amount of EDI"))):"")+"&nbsp;</span></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
-				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per month):&nbsp;&nbsp; 2.00 &nbsp;&nbsp;&nbsp;</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per month):&nbsp;&nbsp; 2 &nbsp;&nbsp;&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Flat Rate of Interest (% per annum):&nbsp;&nbsp; 24</span></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Registered Mobile Number:&nbsp;&nbsp; "+detail.getOrDefault("Registered Mobile Number", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Location:&nbsp;&nbsp; "+detail.getOrDefault("Location", "")+"&nbsp;</span></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
 				"<p><span style=\"font-weight: 400;\">EDI Due Date - Every day from Monday to Saturday from the successive day of disbursal</span></p>\n" + 
-				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Shop/Business Address:&nbsp;&nbsp;"+detail.getOrDefault("Shop/Business Address", "")+" &nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Landmark:&nbsp;&nbsp;"+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">PIN:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; City:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;&nbsp; "+detail.getOrDefault("Name of the Borrower", "")+"&nbsp; </span> <span style=\"font-weight: 400;\">Email:"+detail.getOrDefault("Email", "")+"</span></p>\n" + 
+				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Shop/Business Address:&nbsp;&nbsp;"+detail.getOrDefault("Shop/Business Address", "")+" &nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Landmark:&nbsp;&nbsp;"+detail.getOrDefault("Landmark", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">PIN:&nbsp;&nbsp; "+detail.getOrDefault("PIN", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; City:&nbsp;&nbsp; "+detail.getOrDefault("City", "")+" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;&nbsp; "+detail.getOrDefault("State", "")+"&nbsp; </span> <span style=\"font-weight: 400;\">Email:"+detail.getOrDefault("Email", "")+"</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\"><br /><br /></span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\">Banking Details: The complete Loan Amount shall be credited to the &lsquo;Borrowers Authorised Bank Account&rsquo; as defined in the Agreement and as specified below&nbsp;</span></p>\n" + 
 				"<p><span style=\"font-weight: 400;\"><br /></span><span style=\"font-weight: 400;\">Bank Name:"+detail.getOrDefault("Bank Name", "")+"&nbsp;</span></p>\n" + 
