@@ -942,7 +942,6 @@ public class LendingApplicationService {
 				logger.error("Lending application not found for id {}",applicationId);
 				return null;
 			}
-			detail.put("Name of the Borrower",merchant.getBeneficiaryName());
 			detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
 			detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
 			detail.put("Rate of Interest", Double.toString(lendingApplication.getInterestRate() * 12));
@@ -963,6 +962,7 @@ public class LendingApplicationService {
 			detail.put("EDI Count", lendingApplication.getPayableDays().toString());
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
+				detail.put("Name of the Borrower",merchantBankDetail.getBeneficiaryName());
 				detail.put("Bank Name", merchantBankDetail.getBankName());
 				detail.put("Account No", merchantBankDetail.getAccountNumber());
 				detail.put("Account Type", merchantBankDetail.getAccType());
