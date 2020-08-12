@@ -37,6 +37,6 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	
 	List<LendingPaymentSchedule> findByMerchant(Merchant merchant);
 	
-	@Query(value="select count(*) from lending_application where created_at between :startDate and :endDate", nativeQuery = true)
-	Long getLendingApplicationCountBetweenDate(Date startDate,Date endDate);
+	@Query(value="select count(*) from lending_application where created_at between :startDate and :endDate and lender='LDC'", nativeQuery = true)
+	Long getLDCApplicationCountBetweenDate(Date startDate,Date endDate);
 }

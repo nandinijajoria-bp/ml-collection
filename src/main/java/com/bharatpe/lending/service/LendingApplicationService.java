@@ -122,7 +122,7 @@ public class LendingApplicationService {
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			if(isLdc()){
+			if(isLdc(lendingApplication)){
 				lendingApplication.setLender("LDC");
 			}
 			else {
@@ -139,9 +139,9 @@ public class LendingApplicationService {
 		return prepareAPIResponse(lendingApplication);
 	}
 	
-	private boolean isLdc() {
-		Long todayApplicationCount=lendingApplicationDao.getLendingApplicationCountBetweenDate(DateTimeUtil.getStartTimeFromDateTime(new Date()), DateTimeUtil.getEndTimeFromDateTime(new Date()));
-		return todayApplicationCount>25?false:true;
+	private boolean isLdc(LendingApplication lendingApplication) {
+		Long todayApplicationCount = lendingApplicationDao.getLDCApplicationCountBetweenDate(DateTimeUtil.getStartTimeFromDateTime(new Date()), DateTimeUtil.getEndTimeFromDateTime(new Date()));
+		return todayApplicationCount < 25 && lendingApplication.getTenureInMonths() != 15;
 	}
 
 	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequest) {
