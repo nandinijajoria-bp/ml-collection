@@ -14,6 +14,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1057,7 +1058,11 @@ public class LoanEligibleService {
         Long a = DateTime.now().getMillis();
         logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
         String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
-        experianService.insertExperianCallRecord(response, ExperianConstants.SHORT_API_URL, request.toString(), merchantId, bpScore, panCard, contact);
+        try {
+			experianService.insertExperianCallRecord(response, ExperianConstants.SHORT_API_URL, objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
+		} catch (Exception e) {
+			logger.error("Error occured while inserting experian call record",e);
+		}
         Long b = DateTime.now().getMillis();
         logger.info("Experian API response time---" + (b-a) + "ms");
         try {
