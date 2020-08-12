@@ -6,7 +6,7 @@ import javax.persistence.Table;
 import com.bharatpe.lending.common.entity.BaseEntity;
 
 @Entity
-@Table(name = "merchant_nach_raw_response")
+@Table(name = "merchant_raw_response")
 public class ExperianRawResponse extends BaseEntity{
 	
 	public Double bpScore;
