@@ -998,6 +998,49 @@ public class LendingApplicationService {
 	private String getLdcTnc(Map<String,String> detail) {
 		String html="<html>\n" + 
 				"<body>\n" + 
+				"<p class=\"p1\"><span class=\"s1\"><strong>Necessary Loan Details/Master TnCs</strong></span></p>\n" + 
+				"<p class=\"p2\">&nbsp;</p>\n" + 
+				"<p class=\"p3\">Loan ID: "+detail.getOrDefault("Loan ID", "")+" Date:"+DateTimeUtil.getDate(new Date())+"</p>\n" + 
+				"<p class=\"p3\">Loan Amount (INR):<span class=\"Apple-converted-space\">&nbsp; </span>"+detail.getOrDefault("Loan Amount", "")+" Tenure (Months):<span class=\"Apple-converted-space\">&nbsp; &nbsp; </span>"+detail.getOrDefault("Tenure", "")+"</p>\n" + 
+				"<p class=\"p3\">Flat Rate of Interest (% per month) 2</p>\n" + 
+				"<p class=\"p3\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum) 24</p>\n" + 
+				"<p class=\"p3\">Amount of EDI "+detail.getOrDefault("Amount of EDI", "")+"</p>\n" + 
+				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"Location: "+detail.getOrDefault("Location", "")+"</p>\n" + 
+				"<p class=\"p3\">EDI Due Date &ndash; Everyday from Monday to Saturday from the successive day of disbursal</p>\n" + 
+				"<p class=\"p3\">Shop/Business Address:"+detail.getOrDefault("Shop/Business Address", "")+"</p>\n" + 
+				"<p class=\"p3\">Landmark: "+detail.getOrDefault("Landmark", "")+" PIN: "+detail.getOrDefault("PIN", "")+"City: "+detail.getOrDefault("City", "")+" State: "+detail.getOrDefault("State", "")+"</p>\n" + 
+				"<p class=\"p4\">Email: "+detail.getOrDefault("Email", "")+"</p>\n" + 
+				"<p class=\"p5\">&nbsp;</p>\n" + 
+				"<p class=\"p4\">Shop/ Business Phone Number:"+detail.getOrDefault("Registered Mobile Number", "")+"</p>\n" + 
+				"<p class=\"p5\">&nbsp;</p>\n" + 
+				"<p class=\"p5\">&nbsp;</p>\n" + 
+				"<p class=\"p6\"><strong>Declaration / Undertaking/Representation by Borrower:</strong></p>\n" + 
+				"<p class=\"p7\">&nbsp;</p>\n" + 
+				"<ul class=\"ul1\">\n" + 
+				"<li class=\"li8\">I/We hereby apply for a finance facility through Resilient Innovation Private Limited (&ldquo;BharatPe&rdquo;), which is Lender&rsquo;s collection agent and for such other services as agreed between the Lender and BharatPe, from time to time and in terms of Loan Agreement, declare that all the particulars, information and details provided and other documents submitted by me/us are true, correct, complete and up-to-date in all respects and that I/We have not withheld any material information. All outstanding balances including principal, interest, charges etc. shall be payable/paid as may be directed &amp; advised by Lender/BharatPe.</li>\n" + 
+				"<li class=\"li8\">I/We undertake to remit all Outstanding Amounts to the Lender on the respective Due Date. Further I agree to the Lender&rsquo;s its right to call upon me/us to pay the whole or part of the outstanding amount at any time in the event of a default under any financing document.</li>\n" + 
+				"<li class=\"li8\">I/We hereby authorize Lender/BharatPe to exchange or share information and details relating to my application to its group companies or any third party, as may be required or deemed fit, for the purpose of processing this loan application and/or related offerings or other products / services that I/We may apply for from time to time.</li>\n" + 
+				"<li class=\"li8\">By submitting this application, I/We hereby expressly authorize Lender/BharatPe to send me communications regarding loans, insurance and other products from Lender/BharatPe, its group<span class=\"Apple-converted-space\">&nbsp; </span>companies and / or third parties through telephone calls / SMSs / emails / post etc. including but not limited to promotional, transactional communications. I/We confirm that I shall not challenge receipt of such communications by me as unsolicited communication, defined under TRAI Regulations on Unsolicited Commercial Communications.</li>\n" + 
+				"<li class=\"li8\">I authorize Lender/BharatPe to evaluate my transaction history on the BharatPe platform in order to check my eligibility for the loan and understand and acknowledge that Lender/BharatPe has the absolute discretion, without assigning any reasons to reject my application and that Lender/BharatPe is not answerable / liable to me, in any manner whatsoever,<span class=\"Apple-converted-space\">&nbsp; </span>for<span class=\"Apple-converted-space\">&nbsp; </span>rejecting<span class=\"Apple-converted-space\">&nbsp; </span>my application.</li>\n" + 
+				"<li class=\"li9\">I / We agrees and accept that Lender/BharatPe may in its sole discretion, by its self or through authorised persons, advocate, agencies, bureau, etc. verify any information given, check credit references, employment details and obtain credit reports to determine creditworthiness from time to time.</li>\n" + 
+				"<li class=\"li9\">I/We further confirms and/or undertakes that the Facility shall not be utilized for the following:</li>\n" + 
+				"<ul class=\"ul1\">\n" + 
+				"<li class=\"li9\">Subscription to or purchase of shares/debentures;</li>\n" + 
+				"<li class=\"li9\">Extending unsecured loans to subsidiary company/ associates or for making inter corporate deposits;</li>\n" + 
+				"<li class=\"li9\">Any speculative purposes or any anti-social purpose or any unlawful purpose.</li>\n" + 
+				"</ul>\n" + 
+				"</ul>\n" + 
+				"<p class=\"p10\">&nbsp;</p>\n" + 
+				"<ul class=\"ul1\">\n" + 
+				"<li class=\"li9\">I/We hereby represents and warrants to the Lender on a continuing basis that:</li>\n" + 
+				"<ul class=\"ul1\">\n" + 
+				"<li class=\"li9\">has complied with all the applicable Laws and is not a party to any litigation, arbitration or administrative or regulatory proceedings or investigations of a material character and is not aware, to the best of its knowledge and belief, of any facts likely to give rise to such litigation, arbitration or administrative or regulatory proceedings or investigations or to material claims against me/us.</li>\n" + 
+				"<li class=\"li9\">is fully aware of the KYC Policy of the Lender and RBI and confirms that the information/clarification/documents/signage provided by it on its identity, address, authorised signatory, board resolution, PAN and all other material facts are true and correct and the transaction, etc. are <em>bonafide </em>and as per Law. I/we further confirms that it has disclosed all facts/information as are required to be disclosed for the adherence and compliance of the provisions related to the KYC Policy. The Lender reserve the right to recall the Facility or close the account in case the required documents are not provided by me/us to the Lender.</li>\n" + 
+				"</ul>\n" + 
+				"<li class=\"li11\">The <span class=\"s2\">Lender</span>/BharatPe shall, without notice to or without any consent me/us, be absolutely entitled and have full right, power and authority to make disclosure of any information including personal information, details in relation to documents, Loan, defaults, security, obligations, to the Credit Information Bureau of India (CIBIL) and/or any other governmental/regulatory/statutory or private agency/entity, credit bureau, RBI, the Lender&rsquo;s other branches/ subsidiaries / affiliates / rating agencies, service providers, other Lenders / financial institutions, any third parties, any assignees/potential assignees or transferees, who may need the information and may process the information, publish in such manner and through such medium as may be deemed necessary by the publisher/ Lender/ RBI, including publishing the name as part of willful defaulter&rsquo;s list from time to time, as also use for KYC information verification, credit risk analysis, or<span class=\"Apple-converted-space\">&nbsp; </span>for other related purposes.</li>\n" + 
+				"<li class=\"li11\">I/we have informed the Lender about all loans/finances/advances availed by me/us from other banks/financial institutions/third parties to the Lender.</li>\n" + 
+				"</ul>\n" + 
+				"<p class=\"p7\">&nbsp;</p>"+
 				"<p><br /><br /><br /></p>\n" + 
 				"<p><strong>Loan Sanction Letter</strong></p>\n" + 
 				"<p>&nbsp;</p>\n" + 
