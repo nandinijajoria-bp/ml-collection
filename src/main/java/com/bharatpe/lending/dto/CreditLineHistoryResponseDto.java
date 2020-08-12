@@ -40,6 +40,8 @@ public class CreditLineHistoryResponseDto {
 			
 			private String icon;
 
+			private String status;
+
 			public Long getId() {
 				return id;
 			}
@@ -96,7 +98,14 @@ public class CreditLineHistoryResponseDto {
 				this.icon = icon;
 			}
 
+		public String getStatus() {
+			return status;
 		}
+
+		public void setStatus(String status) {
+			this.status = status;
+		}
+	}
 
 	public Boolean getSuccess() {
 		return success;

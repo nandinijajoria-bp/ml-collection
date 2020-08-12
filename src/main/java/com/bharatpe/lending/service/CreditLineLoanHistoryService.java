@@ -177,6 +177,7 @@ public class CreditLineLoanHistoryService {
 //						loan.setDate(lendingPaymentSchedule.getStartDate());
 //					}
 					loan.setDate(lendingPaymentSchedule.getCreatedAt());
+					loan.setStatus(lendingPaymentSchedule.getStatus());
 					loanList.add(loan);
 					
 				}

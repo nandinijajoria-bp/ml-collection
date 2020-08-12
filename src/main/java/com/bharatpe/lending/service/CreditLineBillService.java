@@ -150,6 +150,8 @@ public class CreditLineBillService {
 				bill.setPaidDate(creditAccountBill.getBillPaidDate());
 				bill.setState("PAID");
 				bill.setGeneratedDate(creditAccountBill.getBillDate());
+				bill.setBillCycleStartDate(creditAccountBill.getBillStartDate());
+				bill.setBillCycleEndDate(creditAccountBill.getBillEndDate());
 				paidBills.add(bill);
 			}
 			return paidBills;
