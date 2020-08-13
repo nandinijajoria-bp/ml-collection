@@ -1059,7 +1059,7 @@ public class LoanEligibleService {
         logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
         String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
         try {
-			experianService.insertExperianCallRecord(response, ExperianConstants.SHORT_API_URL, objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
+			experianService.insertExperianCallRecord(response, "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
 		} catch (Exception e) {
 			logger.error("Error occured while inserting experian call record",e);
 		}

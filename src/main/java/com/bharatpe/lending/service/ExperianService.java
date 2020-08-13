@@ -3,13 +3,12 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
+import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.entity.ExperianRawResponse;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.DateTime;
@@ -128,7 +127,7 @@ public class ExperianService {
             Long a = DateTime.now().getMillis();
             logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, body.toString());
             String response = restTemplate.postForObject(ExperianConstants.LONG_API_URL, request, String.class);
-            insertExperianCallRecord(response, ExperianConstants.LONG_API_URL, objectMapper.writeValueAsString(request), merchantId, null, panCard, contact);
+            insertExperianCallRecord(response, "LONG_API_URL", objectMapper.writeValueAsString(request), merchantId, null, panCard, contact);
             Long b = DateTime.now().getMillis();
             logger.info("ExperianV2 long API response time---" + (b-a) + "ms");
             JsonNode jsonNode = objectMapper.readTree(response);
@@ -197,7 +196,7 @@ public class ExperianService {
         logger.info("ExperianV2 mobile API request for merchant: {} is {}", merchantId, body.toString());
         String response = restTemplate.postForObject(ExperianConstants.MASKED_MOBILE_URL, request, String.class);
         try {
-			insertExperianCallRecord(response, ExperianConstants.MASKED_MOBILE_URL, objectMapper.writeValueAsString(request), merchantId, null, null, null);
+			insertExperianCallRecord(response, "MASKED_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, null);
 		} catch (Exception e) {
 			logger.error("Error occured while inserting experian call record",e);
 		}
@@ -279,7 +278,7 @@ public class ExperianService {
             logger.info("ExperianV2 authenticate API request for merchant: {} is {}", merchantId, body.toString());
             String response = restTemplate.postForObject(ExperianConstants.AUTHENTICATE_MOBILE_URL, request, String.class);
             try {
-				insertExperianCallRecord(response, ExperianConstants.AUTHENTICATE_MOBILE_URL, objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
+				insertExperianCallRecord(response, "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
 			}  catch (Exception e) {
 				logger.error("Error occured while inserting experian call record",e);
 			}
@@ -308,16 +307,15 @@ public class ExperianService {
         }
     }
 	
-	public void insertExperianCallRecord(String response,String url,String request,Long merchantId,Double bpScore, String pancard, String mobile) {
+	public void insertExperianCallRecord(String response,String apiName,String request,Long merchantId,Double bpScore, String pancard, String mobile) {
 		try {
 			logger.info("Inserting experian call detail into ExperianRawResponse");
-			
 			ExperianRawResponse experianRawResponse=new ExperianRawResponse();
 			experianRawResponse.setBpScore(bpScore);
 			experianRawResponse.setMerchantId(merchantId);
 			experianRawResponse.setMobile(mobile);
 			experianRawResponse.setPancard(pancard);
-			experianRawResponse.setUrlName(url);
+			experianRawResponse.setApiName(apiName);
 			experianRawResponse.setRequest(request);
 			experianRawResponse.setResponse(response);
 			experianRawResponseDao.save(experianRawResponse);
@@ -325,6 +323,5 @@ public class ExperianService {
 		catch(Exception e){
 			logger.error("Error occured while inserting experian call details",e);
 		}
-		
 	}
 }
