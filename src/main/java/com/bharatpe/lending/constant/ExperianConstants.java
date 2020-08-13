@@ -20,6 +20,8 @@ public interface ExperianConstants {
     String CREDIT_LINE_CATEGORY = "CREDIT_LINE_CATEGORY";
     String INVALID_PANCARD = "INVALID_PANCARD";
     String LOW_BP_SCORE = "LOW_BP_SCORE";
+    String ENACH="ENACH";
+    String BUSINESS_CATEGORY="BUSINESS_CATEGORY";
     String FRAUD = "FRAUD";
     String OVERDUE = "OVERDUE";
     String LOW_TPV = "LOW_TPV";
