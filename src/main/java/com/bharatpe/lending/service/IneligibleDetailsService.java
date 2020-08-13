@@ -208,7 +208,7 @@ public class IneligibleDetailsService {
     
     private Boolean isRejectedBecauseOfFraud(Merchant merchant,IneligibleAPIResponseDto response) {
     	Experian experian=experianDao.getByMerchantId(merchant.getId());
-    	if(experian!=null && experian.getRejected() && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)) {
+    	if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)) {
     		return true;
     	}
     	else if(experian!=null && experian.getRejected() && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
