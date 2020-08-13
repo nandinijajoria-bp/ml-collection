@@ -275,7 +275,7 @@ public class CreditLineKycService {
 			
 			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());			
 			if(merchantFcmToken != null) {
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=credit-line");
 			}
 		}
 	}

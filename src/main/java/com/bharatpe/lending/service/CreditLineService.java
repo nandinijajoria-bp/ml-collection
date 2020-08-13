@@ -260,7 +260,7 @@ public class CreditLineService {
 		whatsappNotificationService.send(merchant, null, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 		if(merchantFcmToken != null) {
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=credit-line");
 		}
 		
 	}
