@@ -635,6 +635,10 @@ public class LoanDetailsService {
 		boolean ntc = loanEligibleService.isNTC(experian);
 		if (bankCode == null) {
 			logger.info("Non enachable bank code, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.ENACH);
+			experianDao.save(experian);
 			return new ArrayList<>();
 		}
 		if ((ntc && merchantSummary.getBpScore() < 15) || (!ntc && merchantSummary.getBpScore() < 13)) {
@@ -647,16 +651,28 @@ public class LoanDetailsService {
 		}
 		if (merchant.getBusinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBusinessCategory())) {
 			logger.info("F&B category, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.BUSINESS_CATEGORY);
+			experianDao.save(experian);
 			return new ArrayList<>();
 		}
 		PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
 		if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 90) {
 			logger.info("Vintage less than 3 months, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.VINTAGE);
+			experianDao.save(experian);
 			return new ArrayList<>();
 		}
 		List<LendingCategories> categories = lendingCategoryDao.findByBureau("OGL");
 		if (categories.isEmpty()) {
 			logger.info("No OGL lending category found, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.OGL);
+			experianDao.save(experian);
 			return new ArrayList<>();
 		}
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
