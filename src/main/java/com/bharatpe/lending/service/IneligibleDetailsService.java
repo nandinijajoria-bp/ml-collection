@@ -181,9 +181,10 @@ public class IneligibleDetailsService {
     
     private Map<String,String> getTransactionDetailsFromPaymentTable(Merchant merchant){
     	Map<String,String> transactionMap=new HashMap<>();
-    	Long count=paymentTransactionNewDao.getCountByMerchantId(merchant.getId());
+    	Object[] transactionDetail=paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
+    	Long count=(Long)transactionDetail[1];
     	transactionMap.put("count", count==null?"":count.toString());
-    	BigDecimal transactionAmount=(BigDecimal)paymentTransactionNewDao.getAmountByMerchant(merchant.getId());
+    	BigDecimal transactionAmount=(BigDecimal)transactionDetail[0];
     	transactionMap.put("amount", transactionAmount==null?"":transactionAmount.toPlainString());
     	return transactionMap;
     }
