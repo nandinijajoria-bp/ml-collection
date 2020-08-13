@@ -1058,21 +1058,26 @@ public class LoanEligibleService {
         Long a = DateTime.now().getMillis();
         logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
         String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
-        try {
-			experianService.insertExperianCallRecord(response, "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
-		} catch (Exception e) {
-			logger.error("Error occured while inserting experian call record",e);
-		}
         Long b = DateTime.now().getMillis();
         logger.info("Experian API response time---" + (b-a) + "ms");
         try {
             JsonNode jsonNode = objectMapper.readTree(response);
             if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
+                try {
+                    experianService.insertExperianCallRecord(null, "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
+                } catch (Exception e) {
+                    logger.error("Error occured while inserting experian call record",e);
+                }
                 return null;
             }
             String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").textValue().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
             //String xmlResponse = new String(Files.readAllBytes(Paths.get("/Users/admin/codebase/Lending/src/main/resources/experian_sample.txt")));
             JSONObject jsonObject = XML.toJSONObject(xmlResponse);
+            try {
+                experianService.insertExperianCallRecord(objectMapper.readTree(jsonObject.toString()).toString(), "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
+            } catch (Exception e) {
+                logger.error("Error occured while inserting experian call record",e);
+            }
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
             emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");

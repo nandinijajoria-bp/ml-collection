@@ -127,20 +127,22 @@ public class ExperianService {
             Long a = DateTime.now().getMillis();
             logger.info("ExperianV2 long API request for merchant: {} is {}", merchantId, body.toString());
             String response = restTemplate.postForObject(ExperianConstants.LONG_API_URL, request, String.class);
-            insertExperianCallRecord(response, "LONG_API_URL", objectMapper.writeValueAsString(request), merchantId, null, panCard, contact);
             Long b = DateTime.now().getMillis();
             logger.info("ExperianV2 long API response time---" + (b-a) + "ms");
             JsonNode jsonNode = objectMapper.readTree(response);
             if (jsonNode == null) {
+                insertExperianCallRecord(null, "LONG_API_URL", objectMapper.writeValueAsString(request), merchantId, null, panCard, contact);
                 return null;
             }
             if (!jsonNode.get("showHtmlReportForCreditReport").isNull()) {
                 String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").textValue().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
                 JSONObject jsonObject = XML.toJSONObject(xmlResponse);
                 logger.info("Successfully found experian report for merchant: {}", merchantId);
+                insertExperianCallRecord(objectMapper.readTree(jsonObject.toString()).toString(), "LONG_API_URL", objectMapper.writeValueAsString(request), merchantId, null, panCard, contact);
                 return objectMapper.readTree(jsonObject.toString());
             } else if (!jsonNode.get("errorString").isNull() && jsonNode.get("errorString").textValue().contains("Validation Failed")) {
                 logger.info("Validation Failed for merchant: {}", merchantId);
+                insertExperianCallRecord(null, "LONG_API_URL", objectMapper.writeValueAsString(request), merchantId, null, panCard, contact);
                 String stageOneId = jsonNode.get("stageOneId_").textValue();
                 String stageTwoId = jsonNode.get("stageTwoId_").textValue();
                 experianDetails.setStageOneId(stageOneId);
@@ -277,11 +279,6 @@ public class ExperianService {
             Long a = DateTime.now().getMillis();
             logger.info("ExperianV2 authenticate API request for merchant: {} is {}", merchantId, body.toString());
             String response = restTemplate.postForObject(ExperianConstants.AUTHENTICATE_MOBILE_URL, request, String.class);
-            try {
-				insertExperianCallRecord(response, "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
-			}  catch (Exception e) {
-				logger.error("Error occured while inserting experian call record",e);
-			}
             Long b = DateTime.now().getMillis();
             logger.info("ExperianV2 authenticate API response time---" + (b-a) + "ms");
             try {
@@ -294,8 +291,10 @@ public class ExperianService {
                     experian.setResponse(experianResponse.toString());
                     experianDao.save(experian);
                     experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                    insertExperianCallRecord(experianResponse.toString(), "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
                     logger.info("Successfully found experian report for merchant: {}", merchantId);
                 } else {
+                    insertExperianCallRecord(null, "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
                     logger.info("Experian Report not found for merchant: {} with mobile: {}", merchantId, mobile);
                 }
             } catch (IOException e) {
