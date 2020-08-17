@@ -11,11 +11,11 @@ public class IneligibleAPIResponseDto {
 	private Boolean success=true;
 	private String message="";
 	private Date registrationDate;
-	private String paymentCount;
-	private String paymentAmount;
+	private Integer paymentCount = 0;
+	private Integer paymentAmount = 0;
 	private Boolean newMerchant=false;
-	private Boolean amountSucces;
-	private Boolean countSucces;
+	private Boolean amountSuccess = false;
+	private Boolean countSuccess;
 	private Boolean enach=false;
 	
 	public IneligibleAPIResponseDto() {
@@ -26,57 +26,75 @@ public class IneligibleAPIResponseDto {
 		this.success = success;
 		this.message = message;
 	}
+
 	public Boolean getSuccess() {
 		return success;
 	}
+
 	public void setSuccess(Boolean success) {
 		this.success = success;
 	}
+
 	public String getMessage() {
 		return message;
 	}
+
 	public void setMessage(String message) {
 		this.message = message;
 	}
+
 	public Date getRegistrationDate() {
 		return registrationDate;
 	}
+
 	public void setRegistrationDate(Date registrationDate) {
 		this.registrationDate = registrationDate;
 	}
-	public String getPaymentCount() {
+
+	public Integer getPaymentCount() {
 		return paymentCount;
 	}
-	public void setPaymentCount(String paymentCount) {
+
+	public void setPaymentCount(Integer paymentCount) {
 		this.paymentCount = paymentCount;
 	}
-	public String getPaymentAmount() {
+
+	public Integer getPaymentAmount() {
 		return paymentAmount;
 	}
-	public void setPaymentAmount(String paymentAmount) {
+
+	public void setPaymentAmount(Integer paymentAmount) {
 		this.paymentAmount = paymentAmount;
 	}
+
 	public Boolean getNewMerchant() {
 		return newMerchant;
 	}
+
 	public void setNewMerchant(Boolean newMerchant) {
 		this.newMerchant = newMerchant;
 	}
-	public Boolean getAmountSucces() {
-		return amountSucces;
+
+	public Boolean getAmountSuccess() {
+		return amountSuccess;
 	}
-	public void setAmountSucces(Boolean amountSucces) {
-		this.amountSucces = amountSucces;
+
+	public void setAmountSuccess(Boolean amountSuccess) {
+		this.amountSuccess = amountSuccess;
 	}
-	public Boolean getCountSucces() {
-		return countSucces;
+
+	public Boolean getCountSuccess() {
+		return countSuccess;
 	}
-	public void setCountSucces(Boolean countSucces) {
-		this.countSucces = countSucces;
+
+	public void setCountSuccess(Boolean countSuccess) {
+		this.countSuccess = countSuccess;
 	}
+
 	public Boolean getEnach() {
 		return enach;
 	}
+
 	public void setEnach(Boolean enach) {
 		this.enach = enach;
 	}

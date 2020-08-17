@@ -50,8 +50,8 @@ public class IneligibleController {
         return resp;
     }
     
-    @RequestMapping(value="/ineligibleDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public IneligibleAPIResponseDto getIneligibleDetails(@RequestAttribute Merchant merchant, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
-    	return ineligibleDetailsService.getIneligibleDetails(merchant, requestDTO.getPayload());
+    @RequestMapping(value="/ineligibleDetails", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+    public IneligibleAPIResponseDto getIneligibleDetails(@RequestAttribute Merchant merchant) {
+    	return ineligibleDetailsService.getIneligibleDetails(merchant);
     }
 }

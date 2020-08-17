@@ -132,42 +132,39 @@ public class IneligibleDetailsService {
         return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, 0,  currentTxnCount, currentTxnValue, (int)totalTxnRequired, totalAmountRequired, panCard));
     }
     
-    public IneligibleAPIResponseDto getIneligibleDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
+    public IneligibleAPIResponseDto getIneligibleDetails(Merchant merchant) {
     	try {
-    		IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
+            MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
+            IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
     		Date onboardDate=getMerchantOnboardDate(merchant);
-    		Map<String, String> transactionDetail=getTransactionDetails(merchant);
-    		
+    		Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
     		response.setRegistrationDate(onboardDate);
-    		response.setPaymentAmount(transactionDetail.getOrDefault("amount", ""));
-    		response.setPaymentCount(transactionDetail.getOrDefault("count", ""));
-    		if(response.getPaymentCount().equalsIgnoreCase("0")) {
+    		if (transactionDetail != null) {
+                response.setPaymentAmount(transactionDetail.getOrDefault("amount", 0));
+                response.setPaymentCount(transactionDetail.getOrDefault("count", 0));
+            }
+    		if(response.getPaymentCount() == 0) {
     			response.setNewMerchant(true);
     		}
-    		if(isRejectedBecauseOfFraud(merchant,response)) {
-    			response.setCountSucces(false);
-    			response.setAmountSucces(false);
-    		}
-    		else {
-    			response.setCountSucces(true);
-    			response.setAmountSucces(false);
-    		}
-    		
-    		return response;
+            response.setCountSuccess(merchantSummary.getUniqueCustomer1mon() >= 15);
+            Experian experian=experianDao.getByMerchantId(merchant.getId());
+            if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
+                response.setEnach(true);
+            }
+            return response;
     	}
     	catch(Exception e) {
     		logger.error("Error occured while fetching ineligiblity details",e);
-    		return new IneligibleAPIResponseDto(false, "Error occured while fetching ineligible detail");
+    		return new IneligibleAPIResponseDto(false, "Something went wrong");
     	}
     }
     
-    private Map<String,String> getTransactionDetails(Merchant merchant){
+    private Map<String,Integer> getTransactionDetails(Merchant merchant, MerchantSummary merchantSummary){
     	try {
-    		MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
     		if(merchantSummary!=null && merchantSummary.getDailyTxnAmount()!=null && merchantSummary.getDailyTxnCount()!=null) {
-    			Map<String,String> transactionDetails=new HashMap<>();
-    			transactionDetails.put("count", merchantSummary.getDailyTxnCount().toString());
-    			transactionDetails.put("amount", merchantSummary.getDailyTxnAmount().toString());
+    			Map<String,Integer> transactionDetails=new HashMap<>();
+    			transactionDetails.put("count", merchantSummary.getDailyTxnCount());
+    			transactionDetails.put("amount", merchantSummary.getDailyTxnAmount().intValue());
     			return transactionDetails;
     		}
     		else {
@@ -180,13 +177,13 @@ public class IneligibleDetailsService {
     	return null;
     }
     
-    private Map<String,String> getTransactionDetailsFromPaymentTable(Merchant merchant){
-    	Map<String,String> transactionMap=new HashMap<>();
-    	Object[] transactionDetail=(Object[])paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
-    	BigInteger count=(BigInteger)transactionDetail[1];
-    	transactionMap.put("count", count==null?"":count.toString());
-    	BigDecimal transactionAmount=(BigDecimal)transactionDetail[0];
-    	transactionMap.put("amount", transactionAmount==null?"":transactionAmount.toPlainString());
+    private Map<String,Integer> getTransactionDetailsFromPaymentTable(Merchant merchant){
+    	Map<String,Integer> transactionMap=new HashMap<>();
+    	Object[] transactionDetail = (Object[])paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
+        BigInteger transactionAmount = (BigInteger) transactionDetail[0];
+    	BigInteger count = (BigInteger) transactionDetail[1];
+    	transactionMap.put("count", count == null ? 0 : count.intValue());
+    	transactionMap.put("amount", transactionAmount == null ? 0 : transactionAmount.intValue());
     	return transactionMap;
     }
     
@@ -204,16 +201,5 @@ public class IneligibleDetailsService {
     		logger.error("Error occured while fetching merchant onboard date",e);
     	}
     	return null;
-    }
-    
-    private Boolean isRejectedBecauseOfFraud(Merchant merchant,IneligibleAPIResponseDto response) {
-    	Experian experian=experianDao.getByMerchantId(merchant.getId());
-    	if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)) {
-    		return true;
-    	}
-    	else if(experian!=null && experian.getRejected() && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
-    		response.setEnach(true);
-    	}
-    	return false;
     }
 }
