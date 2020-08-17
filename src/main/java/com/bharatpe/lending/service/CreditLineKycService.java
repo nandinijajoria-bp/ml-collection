@@ -10,6 +10,9 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -78,6 +81,11 @@ public class CreditLineKycService {
 	
 	@Autowired
 	PushNotificationHandler pushNotificationHandler;
+	
+	Logger logger=LoggerFactory.getLogger(CreditLineKycService.class);
+	
+	@Autowired
+	ObjectMapper objectMapper;
 	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
@@ -233,6 +241,8 @@ public class CreditLineKycService {
 		lendingEkyc.setStatus(eKycRequestDTO.getStatus());
 		lendingEkyc.setStatusMessage(eKycRequestDTO.getStatusMessage());
 		lendingEkyc.setResponse(eKycRequestDTO.getResponse());
+		lendingEkyc.setModule("CREDIT_LINE");
+		lendingEkyc.setMaskedAadhar(getMaskedAadhar(eKycRequestDTO.getResponse()));
 		String response=eKycRequestDTO.getResponse();
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode=null;
@@ -255,6 +265,25 @@ public class CreditLineKycService {
 		return map;
 
 	}
+	
+	public String getMaskedAadhar(String response) {
+		try {
+			if(response!=null && response.length()>0) {
+				Map<String,Object> responseMap=objectMapper.readValue(response, Map.class);
+				if(responseMap!=null && responseMap.containsKey("referenceId")) {
+					String aadhar=responseMap.get("referenceId").toString();
+					if(aadhar.length()>4) {
+						return aadhar.substring(0,4);
+					}
+				}
+			}
+		}
+		catch(Exception e) {
+			logger.error("Error occured while getting masked aadhar ",e);
+		}
+		return null;
+	}
+	
 	public String processBase64String(String base64EncodedString) {
 		base64EncodedString.replace(' ', '+');
 		if(base64EncodedString.contains("base64,")) {
