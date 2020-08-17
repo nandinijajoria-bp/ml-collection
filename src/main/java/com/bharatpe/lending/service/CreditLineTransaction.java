@@ -383,6 +383,18 @@ public class CreditLineTransaction {
                 creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
             }
         }
+        if (creditAccount.getStatus().equalsIgnoreCase(CreditConstants.AccountStatus.BLOCKED.name())) {
+            boolean dpd = false;
+            for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentSchedules) {
+                if (getDPD(lendingPaymentSchedule) >= 7) {
+                    dpd = true;
+                }
+            }
+            if (!dpd) {
+                logger.info("Activating credit account:{}", creditAccount.getId());
+                creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
+            }
+        }
         creditAccountDao.creditBalance(creditAccount.getId(), principle);
         lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.SUCCESS.name(), lendingClTransaction.getId());
         if (!lendingClLedgers.isEmpty()) {
@@ -464,5 +476,12 @@ public class CreditLineTransaction {
             creditAccountDao.creditInterest(creditAccount.getId(), interest);
             lendingCaBalanceDetailDao.creditInterest(creditAccount.getId(), interest);
         }
+    }
+
+    private int getDPD(LendingPaymentSchedule lendingPaymentSchedule) {
+        if (lendingPaymentSchedule == null || lendingPaymentSchedule.getDueAmount() == null) {
+            return 0;
+        }
+        return (int) (lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount());
     }
 }
