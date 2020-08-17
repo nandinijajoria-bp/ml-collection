@@ -151,21 +151,13 @@ public class CreditApplicationService {
 					return creditApplicationResponse;
 				}
 			}
-	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
+//	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if (EXPERIAN_ENABLED) {
 				creditApplication = createApplication(merchant, eligibleLoans.get(0), creditApplicationRequest);
 			} else {
 				creditApplication = createApplication(merchant, availableLoan.get(0), creditApplicationRequest);
 			}
-			creditApplication.setLatitude(Double.valueOf(requestDTO.getMeta().getLatitude()));
-			creditApplication.setLongitude(Double.valueOf(requestDTO.getMeta().getLongitude()));
-			creditApplication.setIp(requestDTO.getMeta().getIp());
-			  //creditApplication.setTotalLoansCount(summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			creditApplicationDao.save(creditApplication);
 		 //createMerchantSummarySnapshot(merchant, creditApplication, summary);
-			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
-			creditApplication.setLender("LIQUILOANS");
-			creditApplication = creditApplicationDao.save(creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
 			creditLineMerchantDao.save(creditLineMerchant); 
 			createStatusAuditTrail(creditApplication);
@@ -209,7 +201,8 @@ public class CreditApplicationService {
 		creditApplication.setPancardNumber(experian.getPancardNumber());
 		creditApplication.setDisbursalAmount(eligibleLoan.getAmount());
 		creditApplication.setStatus("draft");
-		 
+		creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
+		creditApplication.setLender("LIQUILOANS");
 		creditApplication.setMerchantId(merchant.getId());
 		//creditApplication.setMerchantStoreId(merchant.getStoreId());
 		creditApplication.setAmount(eligibleLoan.getAmount());
