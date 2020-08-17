@@ -102,6 +102,9 @@ public class CreditApplicationService {
 
 	@Autowired
 	CreditApplicationReasonDao creditApplicationReasonDao;
+	
+	@Autowired
+	ExperianSnapshotDao experianSnapshotDao;
 
 	public CreditApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 		CreditApplicationResponseDTO creditApplicationResponse;
@@ -151,13 +154,14 @@ public class CreditApplicationService {
 					return creditApplicationResponse;
 				}
 			}
-//	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
+	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if (EXPERIAN_ENABLED) {
 				creditApplication = createApplication(merchant, eligibleLoans.get(0), creditApplicationRequest);
 			} else {
 				creditApplication = createApplication(merchant, availableLoan.get(0), creditApplicationRequest);
 			}
-		 //createMerchantSummarySnapshot(merchant, creditApplication, summary);
+			createMerchantSummarySnapshot(merchant, creditApplication, summary);
+			createExperianSnapshot(merchant, creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
 			creditLineMerchantDao.save(creditLineMerchant); 
 			createStatusAuditTrail(creditApplication);
@@ -173,6 +177,37 @@ public class CreditApplicationService {
 		return prepareAPIResponse(creditApplication);
 		
 	}
+	
+	private void createExperianSnapshot(Merchant merchant,CreditApplication creditApplication) {
+		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		if(experian!=null) {
+			ExperianSnapshot experianSnapshot=new ExperianSnapshot();
+			experianSnapshot.setMerchantId(experian.getMerchantId());
+			experianSnapshot.setIp(experian.getIp());
+			experianSnapshot.setLatitude(experian.getLatitude());
+			experianSnapshot.setLongitude(experian.getLongitude());
+			experianSnapshot.setResponse(experian.getResponse());
+			experianSnapshot.setMerchantName(experian.getMerchantName());
+			experianSnapshot.setEmail(experian.getEmail());
+			experianSnapshot.setRejected(experian.getRejected());
+			experianSnapshot.setReason(experian.getReason());
+			experianSnapshot.setRequestedLoanAmount(experian.getRequestedLoanAmount());
+			experianSnapshot.setPancardNumber(experian.getPancardNumber());
+			experianSnapshot.setTnc(experian.getTnc());
+			experianSnapshot.setBpScore(experian.getBpScore());
+			experianSnapshot.setExperianScore(experian.getExperianScore());
+			experianSnapshot.setCategory(experian.getCategory());
+			experianSnapshot.setColor(experian.getColor());
+			experianSnapshot.setRetryCount(experian.getRetryCount());
+			experianSnapshot.setSkip(experian.isSkip());
+			experianSnapshot.setPincode(experian.getPincode());
+			experianSnapshot.setApplicationId(creditApplication.getId());
+
+			experianSnapshotDao.save(experianSnapshot);
+
+		}
+	}
+
 
 	private CreditApplication updateApplication(CreditApplication creditApplication, CreditApplicationRequestDTO creditApplicationRequest) {
 		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(),creditApplication.getId());
