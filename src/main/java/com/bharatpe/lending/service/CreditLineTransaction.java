@@ -314,6 +314,7 @@ public class CreditLineTransaction {
             lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
             lendingPaymentSchedule = insertLPS(lendingPaymentSchedule);
             liquiloansService.createEdiSchedule(lendingPaymentSchedule);
+            liquiloansService.changeDeductionFromInstantToDaily(merchant);
 //            LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
 //            createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
         } catch (Exception e) {

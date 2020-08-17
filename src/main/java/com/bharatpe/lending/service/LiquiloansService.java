@@ -426,7 +426,7 @@ public class LiquiloansService {
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
     
-    private void changeDeductionFromInstantToDaily(Merchant merchant) {
+    public void changeDeductionFromInstantToDaily(Merchant merchant) {
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
     		merchant.setSettlementType("DAILY");
     		merchant.setKycType("LEVEL2");
