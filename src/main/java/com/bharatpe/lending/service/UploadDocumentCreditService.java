@@ -239,6 +239,7 @@ public class UploadDocumentCreditService {
 	private MerchantDocumentProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, CreditApplication creditApplication, MetaDTO meta) {
 		MerchantDocumentProof merchantDocumentProof = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerTypeAndProofType(merchant.getId(), creditApplication.getId(), "LENDING",proofType);
 		if(merchantDocumentProof != null) {
+			merchantDocumentProof.setStatus("PENDING");
 			merchantDocumentProof.setProofFrontSide(frontSide);
 			merchantDocumentProof.setProofBackSide(backSide); 
 			merchantDocumentProofDao.save(merchantDocumentProof);
