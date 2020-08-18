@@ -27,8 +27,18 @@ public class CreditLineTlHistoryResponseDto {
 		private Date date;
 		private Double ediPaid;
 		private Double ediDue;
-		private String mode;
+		private String mode;		
 		
+		public IndividualSettlement() {
+		}
+		
+		public IndividualSettlement(Date date, Double ediPaid, Double ediDue, String mode) {
+			super();
+			this.date = date;
+			this.ediPaid = ediPaid;
+			this.ediDue = ediDue;
+			this.mode = mode;
+		}
 		public Date getDate() {
 			return date;
 		}
