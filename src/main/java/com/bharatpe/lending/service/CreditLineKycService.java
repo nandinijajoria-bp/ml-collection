@@ -315,7 +315,7 @@ public class CreditLineKycService {
 		merchantDocumentProofOcr.setProofNumber(lendingEkyc.getMaskedAadhar());
 		merchantDocumentProofOcr.setName(lendingEkyc.getName());
 		merchantDocumentProofOcr.setProvider("INVOID");
-		merchantDocumentProofOcr.setState("APPROVED");
+		merchantDocumentProofOcr.setStatus("APPROVED");
 		merchantDocumentProofOcr.setIsVerified(true);
 		merchantDocumentProofOcr.setDocumentId(merchantDocumentProof.getId());
 		merchantDocumentProofOcr.setPincode(lendingEkyc.getPincode());
