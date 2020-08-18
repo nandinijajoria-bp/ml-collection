@@ -677,7 +677,7 @@ public class LoanDetailsService {
 		}
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
 		for (LendingCategories category : categories) {
-			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC"))) {
+			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
 				eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(category, 0, null, experian.getMerchantId(), experian.getId(), category.getMaxTpvAmount(), experian.getColor(), "2", "OGL", false));
 			}
 		}
@@ -700,7 +700,7 @@ public class LoanDetailsService {
 				continue;
 			}
 			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingPartnerOffer.getCategory());
-			if (lendingCategories == null) {
+			if (lendingCategories == null || !lendingCategories.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
 				logger.error("Invalid Zomato category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
 				continue;
 			}
