@@ -340,6 +340,8 @@ public class CreditLineLoanHistoryService {
 						dueAmount=-1*(positiveSum+negativeSum);		
 					}
 					else {
+							positiveSum=0D;
+							negativeSum=0D;
 							dueAmount=0D;
 					}
 				}
