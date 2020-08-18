@@ -180,7 +180,7 @@ public class IneligibleDetailsService {
     private Map<String,Integer> getTransactionDetailsFromPaymentTable(Merchant merchant){
     	Map<String,Integer> transactionMap=new HashMap<>();
     	Object[] transactionDetail = (Object[])paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
-        BigInteger transactionAmount = (BigInteger) transactionDetail[0];
+        BigDecimal transactionAmount = (BigDecimal) transactionDetail[0];
     	BigInteger count = (BigInteger) transactionDetail[1];
     	transactionMap.put("count", count == null ? 0 : count.intValue());
     	transactionMap.put("amount", transactionAmount == null ? 0 : transactionAmount.intValue());
