@@ -19,24 +19,27 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingManualKycDao;
+import com.bharatpe.lending.common.dao.MerchantDocumentProofDao;
+import com.bharatpe.lending.common.dao.MerchantDocumentProofOcrDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
-import com.bharatpe.lending.common.entity.CreditApplicationAddress;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingManualKyc;
+import com.bharatpe.lending.common.entity.MerchantDocumentProof;
+import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.CreditLineKycResponseDto;
 import com.bharatpe.lending.dto.EKycRequestDTO;
 import com.bharatpe.lending.dto.EkycManualRequestDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -86,6 +89,16 @@ public class CreditLineKycService {
 	
 	@Autowired
 	ObjectMapper objectMapper;
+	
+	@Autowired
+	LendingApplicationDao lendingApplicationDao;
+	
+	@Autowired
+	MerchantDocumentProofDao merchantDocumentProofDao;
+	
+	@Autowired
+	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+	
 	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
@@ -220,14 +233,23 @@ public class CreditLineKycService {
 			map.put("message", "invalid mid");
 			return map;
 		}
+		Long applicationId=null;
 		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-		if(creditApplication==null)
-		{    map.put("success", false);
-			map.put("message", "credit application not found");
-			return map;
+		if(creditApplication==null || !creditApplication.getStatus().equalsIgnoreCase("draft"))
+		{   
+			LendingApplication lendingApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+			if(lendingApplication==null) {
+				map.put("success", false);
+				map.put("message", "Application not found");
+				return map;	
+			}
+			applicationId=lendingApplication.getId();
+		}
+		else {
+			applicationId=creditApplication.getId();
 		}
 		LendingEkyc lendingEkyc=new LendingEkyc();
-		lendingEkyc.setApplicationId(creditApplication.getId());
+		lendingEkyc.setApplicationId(applicationId);
 		lendingEkyc.setMerchantId(merchant.getId());;
 		lendingEkyc.setmId(eKycRequestDTO.getmId());
 		lendingEkyc.setAddress(eKycRequestDTO.getAddress());
@@ -260,10 +282,49 @@ public class CreditLineKycService {
 		String imagePath=s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
 		lendingEkyc.setImagePath(imagePath); 
 		lendingEkycDao.save(lendingEkyc);
+		MerchantDocumentProof merchantDocumentProof=insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
+		insertInMerchantDocumentProofOcr(merchant, lendingEkyc, applicationId, merchantDocumentProof);
 		map.put("success", true);
 		map.put("message", "ekyc created successfully");
 		return map;
 
+	}
+	
+	private MerchantDocumentProof insertInMerchantDocumentProof(Merchant merchant, LendingEkyc lendingEkyc,Long applicationId) {
+		
+		MerchantDocumentProof merchantDocumentProof=new MerchantDocumentProof();
+		merchantDocumentProof.setMerchantId(merchant.getId());
+		merchantDocumentProof.setProofType("eAadhar");
+		merchantDocumentProof.setProofNumber(lendingEkyc.getMaskedAadhar());
+		merchantDocumentProof.setOwnerId(applicationId);
+		merchantDocumentProof.setOwnerType("LENDING");
+		merchantDocumentProof.setStatus("APPROVED");
+		merchantDocumentProof.setApprovedDate(new Date());
+		merchantDocumentProof.setIsVerified(true);
+		merchantDocumentProof.setProvider("INVOID");
+		
+		merchantDocumentProofDao.save(merchantDocumentProof);
+		return merchantDocumentProof;
+	}
+	
+	private void insertInMerchantDocumentProofOcr(Merchant merchant, LendingEkyc lendingEkyc,Long applicationId,MerchantDocumentProof merchantDocumentProof) {
+		
+		MerchantDocumentProofOcr merchantDocumentProofOcr=new MerchantDocumentProofOcr();
+		merchantDocumentProofOcr.setMerchantId(merchant.getId());
+		merchantDocumentProofOcr.setProofType("eAadhar");
+		merchantDocumentProofOcr.setProofNumber(lendingEkyc.getMaskedAadhar());
+		merchantDocumentProofOcr.setName(lendingEkyc.getName());
+		merchantDocumentProofOcr.setProvider("INVOID");
+		merchantDocumentProofOcr.setStatus("APPROVED");
+		merchantDocumentProofOcr.setIsVerified(true);
+		merchantDocumentProofOcr.setDocumentId(merchantDocumentProof.getId());
+		merchantDocumentProofOcr.setPincode(lendingEkyc.getPincode());
+		merchantDocumentProofOcr.setGender(lendingEkyc.getGender());
+		merchantDocumentProofOcr.setDob(lendingEkyc.getDob());
+		merchantDocumentProofOcr.setAddress(lendingEkyc.getAddress());
+		merchantDocumentProofOcr.setCity(lendingEkyc.getCity());
+		merchantDocumentProofOcr.setState(lendingEkyc.getState());
+		merchantDocumentProofOcrDao.save(merchantDocumentProofOcr);
 	}
 	
 	public String getMaskedAadhar(String response) {

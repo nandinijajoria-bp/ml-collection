@@ -295,12 +295,11 @@ public class CreditLineLoanHistoryService {
 					String mode=null;
 					LendingLedger firstLedger=ledgerList.get(i);
 					double ediDue=0f;
-					double ediPaid=0f;
-					
+					//double ediPaid=0f;
+					List<IndividualSettlement> localSettlementList=new LinkedList<>();
 					if(firstLedger.getAmount()>0){
+						localSettlementList.add(new IndividualSettlement(firstLedger.getDate(),firstLedger.getAmount(),null,getMode(firstLedger.getAdjustmentMode())));
 						positiveSum+=firstLedger.getAmount();
-						ediPaid+=firstLedger.getAmount();
-						mode=firstLedger.getAdjustmentMode();
 					}
 					else {
 						negativeSum+=firstLedger.getAmount();
@@ -311,9 +310,8 @@ public class CreditLineLoanHistoryService {
 
 						LendingLedger secondLedger=ledgerList.get(i+1);
 						if(secondLedger.getAmount()>0){
+							localSettlementList.add(new IndividualSettlement(secondLedger.getDate(),secondLedger.getAmount(),null,getMode(secondLedger.getAdjustmentMode())));
 							positiveSum+=secondLedger.getAmount();
-							ediPaid+=secondLedger.getAmount();
-							mode=secondLedger.getAdjustmentMode();
 						}
 						else {
 							negativeSum+=secondLedger.getAmount();
@@ -322,24 +320,18 @@ public class CreditLineLoanHistoryService {
 						i++;
 
 					}
-					IndividualSettlement settlement=new IndividualSettlement();
-					settlement.setDate(firstLedger.getDate());
-					settlement.setEdiPaid(ediPaid);
-					settlement.setEdiDue(ediDue+dueAmount);
-					if(mode==null) {
-						settlement.setMode("Settlement");
+					Double negativeAmount=ediDue+dueAmount;
+					localSettlementList.forEach(settlemet->settlemet.setEdiDue(negativeAmount));
+					if(localSettlementList.isEmpty()) {
+						localSettlementList.add(new IndividualSettlement(firstLedger.getDate(),0D,negativeAmount,"Settlement"));
 					}
-					else if(mode.equals("SETTLEMENT")){
-						settlement.setMode("QR deduction");
-					}
-					else {
-						settlement.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(mode,mode));
-					}
-					settlementsList.add(settlement);
+					settlementsList.addAll(localSettlementList);
 					if((positiveSum+negativeSum)<0) {
 						dueAmount=-1*(positiveSum+negativeSum);		
 					}
 					else {
+							positiveSum=0D;
+							negativeSum=0D;
 							dueAmount=0D;
 					}
 				}
@@ -355,7 +347,18 @@ public class CreditLineLoanHistoryService {
 			return null;
 		}
 	}
-
+	
+	public String getMode(String mode) {
+		if(mode==null) {
+			return "Settlement";
+		}
+		else if(mode.equals("SETTLEMENT")){
+			return "QR deduction";
+		}
+		else {
+			return CreditConstants.SpendModeFrontEndFormat.getOrDefault(mode,mode);
+		}
+	}
 	
 	public Double getPastAvailableLimit(LendingClTransaction lendingClTransaction){
 		try {

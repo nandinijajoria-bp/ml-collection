@@ -595,8 +595,12 @@ public class CreditLineService {
 				else {
 					repayment.setMode(transaction.getSubType());
 				}	
-				
-				repayment.setStatus(transaction.getStatus());
+				if(transaction.getStatus().equalsIgnoreCase("CANCELLED")) {
+					repayment.setStatus("FAILED");
+				}
+				else {
+					repayment.setStatus(transaction.getStatus());
+				}
 				Map<String,Double> partition=getClAndTlPartOfPayment(transaction);
 				repayment.setClAmount(partition.getOrDefault("CL", 0D));
 				repayment.setTlAmount(partition.getOrDefault("TL", 0D));
@@ -714,7 +718,7 @@ public class CreditLineService {
 				totalEdi+=dueAmount;
 				DailyRepayment repayment=new DailyRepayment();
 				repayment.setRepaymentAmount(dueAmount);
-				repayment.setDate(loan.getStartDate());
+				repayment.setDate(loan.getCreatedAt());
 				repayment.setLoanAmount(loan.getLoanAmount());
 				Optional<LendingTlDetails> lendingTlDetailsOptional=lendingTlDetailsDao.findById(loan.getTlDetailsId());
 				if(lendingTlDetailsOptional!=null && lendingTlDetailsOptional.isPresent()){
