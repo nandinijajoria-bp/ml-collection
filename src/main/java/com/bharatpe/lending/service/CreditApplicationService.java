@@ -320,7 +320,7 @@ public class CreditApplicationService {
 			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
 			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchant.getId());
 
-			// snapshot.setApplication(application);
+			snapshot.setApplication(application.getId());
 			snapshot.setMerchant(merchant);
 			snapshot.setLastTransactionDate(summary.getLastTransactionDate());
 			snapshot.setTotalTxnCount(summary.getDailyTxnCount());
