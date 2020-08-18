@@ -318,7 +318,12 @@ public class CreditLineKycService {
 		merchantDocumentProofOcr.setState("APPROVED");
 		merchantDocumentProofOcr.setIsVerified(true);
 		merchantDocumentProofOcr.setDocumentId(merchantDocumentProof.getId());
-		
+		merchantDocumentProofOcr.setPincode(lendingEkyc.getPincode());
+		merchantDocumentProofOcr.setGender(lendingEkyc.getGender());
+		merchantDocumentProofOcr.setDob(lendingEkyc.getDob());
+		merchantDocumentProofOcr.setAddress(lendingEkyc.getAddress());
+		merchantDocumentProofOcr.setCity(lendingEkyc.getCity());
+		merchantDocumentProofOcr.setState(lendingEkyc.getState());
 		merchantDocumentProofOcrDao.save(merchantDocumentProofOcr);
 	}
 	
