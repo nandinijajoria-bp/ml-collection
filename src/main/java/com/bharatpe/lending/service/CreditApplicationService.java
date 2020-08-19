@@ -341,6 +341,8 @@ public class CreditApplicationService {
 			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
 			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
 			snapshot.setBpScore(summary.getBpScore());
+			snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
+			snapshot.setFraudCustomer(summary.getFraudCustomer());
 
 			merchantSummarySnapshotDao.save(snapshot);
 		} catch(Exception ex) {
