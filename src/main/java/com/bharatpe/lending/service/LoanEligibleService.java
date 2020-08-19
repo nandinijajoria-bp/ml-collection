@@ -376,7 +376,7 @@ public class LoanEligibleService {
                 try {
                     long startTime = System.currentTimeMillis();
                     int retry=0;
-                    Map response;
+                    Map response = null;
                     while (retry < 3) {
                         try {
                             response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
