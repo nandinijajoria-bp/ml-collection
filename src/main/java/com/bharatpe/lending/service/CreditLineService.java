@@ -823,7 +823,7 @@ public class CreditLineService {
 				response.setAvailableBalance(creditDayEndBalance.getAvailableBalance());
 			}
 			if(creditDayEndBalance==null){
-				CreditAccount creditAccount=creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+				CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
 				response.setAvailableBalance(creditAccount.getAvailableBalance());	
 			}
 			response.setAmount(lendingClTransaction.getAmount());
