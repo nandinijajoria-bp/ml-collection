@@ -84,6 +84,9 @@ public class CreditLineTransaction {
     @Autowired
     WhatsappNotificationService whatsappNotificationService;
 
+    @Autowired
+    LendingPullPaymentDao lendingPullPaymentDao;
+
     public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
         LendingClTransaction lendingClTransaction = new LendingClTransaction();
@@ -390,6 +393,11 @@ public class CreditLineTransaction {
                 //restarting promotional notifications
                 startPromotionalNotification(creditAccount);
                 creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
+            }
+            LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findByMerchantId(creditAccount.getMerchantId());
+            if (lendingPullPayment != null) {
+                lendingPullPayment.setDueAmount(newMAD);
+                lendingPullPaymentDao.save(lendingPullPayment);
             }
         }
         if (creditAccount.getStatus().equalsIgnoreCase(CreditConstants.AccountStatus.BLOCKED.name())) {
