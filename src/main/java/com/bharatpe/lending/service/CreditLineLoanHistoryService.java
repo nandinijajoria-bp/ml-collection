@@ -75,9 +75,9 @@ public class CreditLineLoanHistoryService {
 		   	
 			if(merchant!=null && merchant.getId()!=null) {
 				
-				CreditAccount creditAccount=creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+				CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
 				if(creditAccount==null) {
-					return getErrorResponse("No active credit account found");
+					return getErrorResponse("No credit account found");
 				}
 				
 				creditLineHistoryResponseDto.setAvailableBalance(creditAccount.getAvailableBalance());
