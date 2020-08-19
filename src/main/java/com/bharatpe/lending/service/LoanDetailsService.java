@@ -285,9 +285,7 @@ public class LoanDetailsService {
 							}
 						}
 						if (!showTarget) {
-							lendingPrebookTarget.setTargetAchieveDate(new Date());
-							lendingPrebookTarget.setTargetAchieved(true);
-							lendingPrebookTargetDao.save(lendingPrebookTarget);
+							lendingPrebookTargetDao.updateTargetAchieved(lendingPrebookTarget.getMerchantId(), new Date());
 						}
 					}
 				}
