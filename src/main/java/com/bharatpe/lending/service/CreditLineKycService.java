@@ -302,7 +302,7 @@ public class CreditLineKycService {
 		merchantDocumentProof.setApprovedDate(new Date());
 		merchantDocumentProof.setIsVerified(true);
 		merchantDocumentProof.setProvider("INVOID");
-		
+		merchantDocumentProof.setProofFrontSide(lendingEkyc.getImagePath());
 		merchantDocumentProofDao.save(merchantDocumentProof);
 		return merchantDocumentProof;
 	}
