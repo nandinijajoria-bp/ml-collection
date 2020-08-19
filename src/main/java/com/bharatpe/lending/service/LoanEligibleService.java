@@ -375,7 +375,19 @@ public class LoanEligibleService {
                 HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
                 try {
                     long startTime = System.currentTimeMillis();
-                    Map response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
+                    int retry=0;
+                    Map response;
+                    while (retry < 3) {
+                        try {
+                            response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
+                            if (response != null) {
+                                break;
+                            }
+                        } catch (Exception e) {
+                            logger.error("Exception in liquiloans pancard api---", e);
+                        }
+                        retry++;
+                    }
                     logger.info("Liquloans PAN validation API response: {}, response time: {}ms", response, (System.currentTimeMillis() - startTime));
                     if (response != null && response.containsKey("status")) {
                         apiResponse= response.toString();
