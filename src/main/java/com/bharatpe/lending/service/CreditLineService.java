@@ -622,7 +622,7 @@ public class CreditLineService {
 			if(ledger.getTransactionType().equalsIgnoreCase("CL")) {
 				breakUpMap.put("CL",ledger.getAmount());
 			}
-			else if(ledger.getTransactionType().equalsIgnoreCase("TL")) {
+			else if(ledger.getTransactionType().equalsIgnoreCase("TL") || ledger.getTransactionType().equalsIgnoreCase("EDI")) {
 				breakUpMap.put("TL",ledger.getAmount());
 			}
 		}
