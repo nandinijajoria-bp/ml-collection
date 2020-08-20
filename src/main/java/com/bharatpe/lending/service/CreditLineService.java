@@ -482,7 +482,7 @@ public class CreditLineService {
 //				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
 				"Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 	}
 	
@@ -498,8 +498,8 @@ public class CreditLineService {
 //				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
-				"EDI of Rs. "+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getTenure()+" months for "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"EDI of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
@@ -507,7 +507,7 @@ public class CreditLineService {
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		whatsappNotificationService.send(merchant, null, message+" for more details.", mobiles, null);
 	}
 	
 	public void sendFiledTransNotification(LendingClTransaction lendingClTransaction, Merchant merchant) {
