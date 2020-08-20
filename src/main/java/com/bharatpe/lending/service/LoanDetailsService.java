@@ -301,7 +301,7 @@ public class LoanDetailsService {
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			String bankCode = null;
 			try {
-				if (requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") &&  Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
+				if (requestDTO.getMeta() != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") &&  Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
 					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 				} else {
 					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
