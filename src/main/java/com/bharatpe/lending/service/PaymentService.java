@@ -76,7 +76,7 @@ public class PaymentService {
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 			
 			if(activeLoan == null) {
-				logger.error("No active loan found for merchant id {}", merchant.getId());
+				logger.info("No active loan found for merchant id {}", merchant.getId());
 				return new PaymentDetailsResponseDTO("No active loan found.");
 			}
 			
@@ -108,7 +108,7 @@ public class PaymentService {
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 			
 			if(activeLoan == null) {
-				logger.error("No active loan found for merchant id {}", merchant.getId());
+				logger.info("No active loan found for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			

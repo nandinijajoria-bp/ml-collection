@@ -111,7 +111,7 @@ public class CreditApplicationService {
 		CreditApplication creditApplication;
 		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
 		if (creditLineMerchant == null) {
-			logger.error("Merchant:{} not applicable for credit line", merchant.getId());
+			logger.info("Merchant:{} not applicable for credit line", merchant.getId());
 			creditApplicationResponse = new CreditApplicationResponseDTO();
 			creditApplicationResponse.setSuccess(false);
 			return creditApplicationResponse;

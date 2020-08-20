@@ -806,7 +806,7 @@ public class LoanEligibleService {
                 try {
                     min = formatter.parseDateTime(jsonNode.get("Open_Date").toString()).isBefore(min) ? formatter.parseDateTime(jsonNode.get("Open_Date").toString()) : min;
                 } catch (Exception e) {
-                    logger.error("Invalid Open_Date");
+                    logger.info("Invalid Open_Date");
                 }
             }
             return Months.monthsBetween(min, DateTime.now()).getMonths();
@@ -815,7 +815,7 @@ public class LoanEligibleService {
             try {
                 min = formatter.parseDateTime(jsonNode.get("Open_Date").toString()).isBefore(min) ? formatter.parseDateTime(jsonNode.get("Open_Date").toString()) : min;
             } catch (Exception e) {
-                logger.error("Invalid Open_Date");
+                logger.info("Invalid Open_Date");
             }
             return Months.monthsBetween(min, DateTime.now()).getMonths();
         }
