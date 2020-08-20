@@ -125,6 +125,9 @@ public class CreditPaymentService {
     private static String mid;
     
     private final DecimalFormat df = new DecimalFormat("#.##");
+    
+    @Autowired
+    MerchantBankDetailDao merchantBankDetailDao;
 
     public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
         List<PaymentDetailDto> paymentDetails = new ArrayList<>();
@@ -344,12 +347,21 @@ public class CreditPaymentService {
     public void sendNotification(LendingClTransaction lendingClTransaction){
         Optional<Merchant> merchant = merchantDao.findById(lendingClTransaction.getMerchantId());
         CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getId());
-    	String message="Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment of Bharatpe Loan is Successful.\n"+
-    					"Your Available Loan Balance is Rs." +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
+    	String message="Hi "+getBenefecieryName(merchant.get())+",\nRs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment towards outstanding Bharatpe Loan is successful.\n"+
+    					"Available Loan Balance now is Rs. " +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +"\n.Click Here:: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
     	mobiles.add(merchant.get().getMobile());
     	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant.get(), null, message, mobiles, null);
+		whatsappNotificationService.send(merchant.get(), null, message+" for more details.", mobiles, null);
+    }
+    
+    public String getBenefecieryName(Merchant merchant) {
+    	
+    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+    	if(merchantBankDetail!=null) {
+    		return merchantBankDetail.getBeneficiaryName();
+    	}
+    	return "";
     }
     
     public PaymentInitiateResponseDTO resendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, Merchant merchant, String token) {
