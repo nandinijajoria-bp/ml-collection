@@ -160,6 +160,8 @@ public class CreditApplicationService {
 			} else {
 				creditApplication = createApplication(merchant, availableLoan.get(0), creditApplicationRequest);
 			}
+			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
+			creditApplicationDao.save(creditApplication);
 			createMerchantSummarySnapshot(merchant, creditApplication, summary);
 			createExperianSnapshot(merchant, creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
@@ -236,7 +238,6 @@ public class CreditApplicationService {
 		creditApplication.setPancardNumber(experian.getPancardNumber());
 		creditApplication.setDisbursalAmount(eligibleLoan.getAmount());
 		creditApplication.setStatus("draft");
-		creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
 		creditApplication.setLender("LIQUILOANS");
 		creditApplication.setMerchantId(merchant.getId());
 		//creditApplication.setMerchantStoreId(merchant.getStoreId());
