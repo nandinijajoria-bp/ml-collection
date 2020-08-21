@@ -422,7 +422,7 @@ public class CreditLineTransaction {
         }
         if (!lendingPaymentSchedules.isEmpty()) {
             for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentSchedules) {
-                if (lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount() == 0) {
+                if (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() == 0) {
                     lendingPaymentSchedule.setStatus("CLOSED");
                     sendClosureNotification(lendingPaymentSchedule);
                 }
