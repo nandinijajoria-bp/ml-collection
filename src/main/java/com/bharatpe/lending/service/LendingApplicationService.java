@@ -1048,9 +1048,10 @@ public class LendingApplicationService {
 				"<p class=\"p3\">Flat Rate of Interest (% per month): 2</p>\n" +
 				"<p class=\"p3\">Flat Rate of Interest (% per annum): 24</p>\n" +
 				"<p class=\"p3\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"</p>\n" +
-				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"		Location: "+detail.getOrDefault("Location", "")+"</p>\n" + 
-				"<p class=\"p3\">EDI Due Date &ndash; Everyday from Monday to Saturday from the successive day of disbursal</p>\n" + 
-				"<p class=\"p3\">Shop/Business Address: "+detail.getOrDefault("Shop/Business Address", "")+"</p>\n" +
+				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"</p>\n" +
+				"<p class=\"p3\">Location: "+detail.getOrDefault("Location", "")+"</p>\n" +
+				"<p class=\"p3\">EDI Due Date: Everyday from Monday to Saturday from the successive day of disbursal</p>\n" +
+				"<p class=\"p3\">Business Address: "+detail.getOrDefault("Shop/Business Address", "")+"</p>\n" +
 				"<p class=\"p3\">Landmark: "+detail.getOrDefault("Landmark", "")+"  PIN: "+detail.getOrDefault("PIN", "")+"  City: "+detail.getOrDefault("City", "")+"  State: "+detail.getOrDefault("State", "")+"</p>\n" +
 				"<p class=\"p4\">Shop/ Business Phone Number: "+detail.getOrDefault("Registered Mobile Number", "")+"</p>\n" +
 				"<p class=\"p5\">&nbsp;</p>\n" + 
