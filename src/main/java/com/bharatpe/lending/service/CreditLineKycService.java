@@ -266,12 +266,13 @@ public class CreditLineKycService {
 		lendingEkyc.setModule("CREDIT_LINE");
 		lendingEkyc.setMaskedAadhar(getMaskedAadhar(eKycRequestDTO.getResponse()));
 		String response=eKycRequestDTO.getResponse();
-		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode=null;
-		try {
-			rootNode = mapper.readTree(response);
-		} catch (IOException e1) {
-			e1.printStackTrace();
+		if (response != null) {
+			try {
+				rootNode = objectMapper.readTree(response);
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
 		}
 		JsonNode uidData = (rootNode != null) ? rootNode.path("UidData") : null;
 		if(uidData==null)
