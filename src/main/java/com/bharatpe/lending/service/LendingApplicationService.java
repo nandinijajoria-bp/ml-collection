@@ -125,12 +125,7 @@ public class LendingApplicationService {
 			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			lendingApplication.setIp(requestDTO.getMeta().getIp());
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			if(isLdc(lendingApplication)){
-				lendingApplication.setLender("LDC");
-			}
-			else {
-				lendingApplication.setLender("HINDON");
-			}		
+			lendingApplication.setLender("LDC");
 			lendingApplicationDao.save(lendingApplication);
 			if (summary != null) {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
@@ -253,7 +248,7 @@ public class LendingApplicationService {
 			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
 			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchant.getId());
 			
-			snapshot.setApplication(application);
+			snapshot.setApplication(application.getId());
 			snapshot.setMerchant(merchant);
 			snapshot.setLastTransactionDate(summary.getLastTransactionDate());
 			snapshot.setTotalTxnCount(summary.getDailyTxnCount());
