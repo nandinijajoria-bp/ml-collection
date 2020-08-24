@@ -120,7 +120,7 @@ public class UploadDocumentCreditService {
 			isUpdate = true;
 		}
 		for (MerchantDocumentProof merchantDocumentProof : merchantDocumentProofList) {
-			if (!merchantDocumentProof.getProofType().equalsIgnoreCase("selfie") && !merchantDocumentProof.getProofType().equalsIgnoreCase("pancard")) {
+			if (!merchantDocumentProof.getProofType().equalsIgnoreCase("selfie") && !merchantDocumentProof.getProofType().equalsIgnoreCase("pancard") && !merchantDocumentProof.getProofType().equalsIgnoreCase("eAadhar")) {
 				merchantDocumentProof.setStatus("DELETED");
 				merchantDocumentProofDao.save(merchantDocumentProof);
 			}
@@ -239,6 +239,7 @@ public class UploadDocumentCreditService {
 	private MerchantDocumentProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, CreditApplication creditApplication, MetaDTO meta) {
 		MerchantDocumentProof merchantDocumentProof = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerTypeAndProofType(merchant.getId(), creditApplication.getId(), "LENDING",proofType);
 		if(merchantDocumentProof != null) {
+			merchantDocumentProof.setStatus("PENDING");
 			merchantDocumentProof.setProofFrontSide(frontSide);
 			merchantDocumentProof.setProofBackSide(backSide); 
 			merchantDocumentProofDao.save(merchantDocumentProof);

@@ -2,6 +2,9 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.ExperianSnapshotDao;
+import com.bharatpe.lending.common.entity.CreditApplication;
+import com.bharatpe.lending.common.entity.ExperianSnapshot;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -79,6 +82,9 @@ public class LendingApplicationService {
 	@Autowired
 	ExperianDao experianDao;
 
+	@Autowired
+	ExperianSnapshotDao experianSnapshotDao;
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
@@ -121,15 +127,18 @@ public class LendingApplicationService {
 			} else {
 				lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
 			}
-			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
-			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
-			lendingApplication.setIp(requestDTO.getMeta().getIp());
+			if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
+				lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
+				lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
+				lendingApplication.setIp(requestDTO.getMeta().getIp());
+			}
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
 			lendingApplication.setLender("LDC");
 			lendingApplicationDao.save(lendingApplication);
 			if (summary != null) {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			}
+			createExperianSnapshot(merchant, lendingApplication);
 			createStatusAuditTrail(lendingApplication);
 		}
 		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
@@ -142,6 +151,36 @@ public class LendingApplicationService {
 		return todayApplicationCount < 25 && lendingApplication.getTenureInMonths() != 15;
 	}
 
+	private void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
+		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		if(experian!=null) {
+			ExperianSnapshot experianSnapshot=new ExperianSnapshot();
+			experianSnapshot.setMerchantId(experian.getMerchantId());
+			experianSnapshot.setIp(experian.getIp());
+			experianSnapshot.setLatitude(experian.getLatitude());
+			experianSnapshot.setLongitude(experian.getLongitude());
+			experianSnapshot.setResponse(experian.getResponse());
+			experianSnapshot.setMerchantName(experian.getMerchantName());
+			experianSnapshot.setEmail(experian.getEmail());
+			experianSnapshot.setRejected(experian.getRejected());
+			experianSnapshot.setReason(experian.getReason());
+			experianSnapshot.setRequestedLoanAmount(experian.getRequestedLoanAmount());
+			experianSnapshot.setPancardNumber(experian.getPancardNumber());
+			experianSnapshot.setTnc(experian.getTnc());
+			experianSnapshot.setBpScore(experian.getBpScore());
+			experianSnapshot.setExperianScore(experian.getExperianScore());
+			experianSnapshot.setCategory(experian.getCategory());
+			experianSnapshot.setColor(experian.getColor());
+			experianSnapshot.setRetryCount(experian.getRetryCount());
+			experianSnapshot.setSkip(experian.isSkip());
+			experianSnapshot.setPincode(experian.getPincode());
+			experianSnapshot.setApplicationId(lendingApplication.getId());
+
+			experianSnapshotDao.save(experianSnapshot);
+>>>>>>> c46d0b15c118a4f55b479f6cd4ce1f2d194b5dac
+
+		}
+	}
 	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequest) {
 		lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
 		lendingApplication.setShopNumber(lendingApplicationRequest.getShopNumber());

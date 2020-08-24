@@ -113,6 +113,9 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 
 		for(MerchantDocumentProof documentsIdProof : documentsIdProofList) {
+			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
+				continue;
+			}
 			Map<String, Object> proof = new LinkedHashMap<>();
 			proof.put("proof_type",documentsIdProof.getProofType());
 			 proof.put("single_page_document",1);

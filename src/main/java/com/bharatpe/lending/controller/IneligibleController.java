@@ -2,6 +2,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
@@ -28,17 +29,17 @@ public class IneligibleController {
     @Autowired
     NotifyEligibleService notifyEligibleService;
 
-    @RequestMapping(value="/ineligibleDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<IneligibleResponseDTO> ineligibleDetails(@RequestAttribute Merchant merchant, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
-        try {
-            IneligibleResponseDTO ineligibleResponseDTO = ineligibleDetailsService.fetchIneligibleLoanDetails(merchant, requestDTO.getPayload());
-            logger.debug("ineligibleDetails response : {}", ineligibleResponseDTO);
-            return new ResponseEntity<>(ineligibleResponseDTO, HttpStatus.OK);
-        } catch (Exception e) {
-            logger.error("Exception while fetching Ineligible Loan Details", e);
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+  //  @RequestMapping(value="/ineligibleDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+//    public ResponseEntity<IneligibleResponseDTO> ineligibleDetails(@RequestAttribute Merchant merchant, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
+//        try {
+//            IneligibleResponseDTO ineligibleResponseDTO = ineligibleDetailsService.fetchIneligibleLoanDetails(merchant, requestDTO.getPayload());
+//            logger.debug("ineligibleDetails response : {}", ineligibleResponseDTO);
+//            return new ResponseEntity<>(ineligibleResponseDTO, HttpStatus.OK);
+//        } catch (Exception e) {
+//            logger.error("Exception while fetching Ineligible Loan Details", e);
+//            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+//        }
+//    }
 
     @RequestMapping(value="/notifyEligible", method = RequestMethod.GET, produces="application/json")
     public Object notifyEligible(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestParam String type) {
@@ -47,5 +48,10 @@ public class IneligibleController {
 
         logger.info("notifyEligible response : {}", response);
         return resp;
+    }
+    
+    @RequestMapping(value="/ineligibleDetails", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+    public IneligibleAPIResponseDto getIneligibleDetails(@RequestAttribute Merchant merchant) {
+    	return ineligibleDetailsService.getIneligibleDetails(merchant);
     }
 }

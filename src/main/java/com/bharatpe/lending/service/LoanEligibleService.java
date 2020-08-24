@@ -6,6 +6,8 @@ import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
+import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -14,6 +16,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -106,6 +109,12 @@ public class LoanEligibleService {
 
     @Autowired
     PaymentTransactionNewDao paymentTransactionNewDao;
+    
+    @Autowired
+    ExperianService experianService;
+
+    @Autowired
+    ExperianRawResponseDao experianRawResponseDao;
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore;
@@ -135,31 +144,10 @@ public class LoanEligibleService {
         
         int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
         boolean repeatedLoan = loanCount > 0;
-        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
-        if(lendingType.equalsIgnoreCase("CREDITLINE")) {
-        	if (lendingPancard == null && bpScore > 12D) {// get data from liquiloans
-                try {
-                    lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
-                } catch (Exception e) {
-                    logger.error("Exception in Liquiloans API---", e);
-                }
-            }
-        }
-        else {
-        	if (lendingPancard == null && bpScore > 10D) {// get data from liquiloans
-                try {
-                    lendingPancard = fetchNameFromLiquiloans(experian.getPancardNumber(), merchant.getId());
-                } catch (Exception e) {
-                    logger.error("Exception in Liquiloans API---", e);
-                }
-            }
-        }
-
         if (skip) {
             experian.setSkip(true);
             experianDao.save(experian);
         }
-        JsonNode experianResponse;
         boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
         boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
         LendingApplication lendingApplication = null;
@@ -225,16 +213,16 @@ public class LoanEligibleService {
                 return new ArrayList<>();
             }
         }
-        
+        JsonNode experianResponse = null;
         try {
+            ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
             ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
             if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
                 experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
-            } else {
+            } else if (experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                 } catch (ResourceAccessException e) {
-                    experianResponse = null;
                     logger.error("Experian not responding---", e);
                     if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
                         logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
@@ -387,7 +375,19 @@ public class LoanEligibleService {
                 HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
                 try {
                     long startTime = System.currentTimeMillis();
-                    Map response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
+                    int retry=0;
+                    Map response = null;
+                    while (retry < 3) {
+                        try {
+                            response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
+                            if (response != null) {
+                                break;
+                            }
+                        } catch (Exception e) {
+                            logger.info("Exception in liquiloans pancard api---", e);
+                        }
+                        retry++;
+                    }
                     logger.info("Liquloans PAN validation API response: {}, response time: {}ms", response, (System.currentTimeMillis() - startTime));
                     if (response != null && response.containsKey("status")) {
                         apiResponse= response.toString();
@@ -806,7 +806,7 @@ public class LoanEligibleService {
                 try {
                     min = formatter.parseDateTime(jsonNode.get("Open_Date").toString()).isBefore(min) ? formatter.parseDateTime(jsonNode.get("Open_Date").toString()) : min;
                 } catch (Exception e) {
-                    logger.error("Invalid Open_Date");
+                    logger.info("Invalid Open_Date");
                 }
             }
             return Months.monthsBetween(min, DateTime.now()).getMonths();
@@ -815,7 +815,7 @@ public class LoanEligibleService {
             try {
                 min = formatter.parseDateTime(jsonNode.get("Open_Date").toString()).isBefore(min) ? formatter.parseDateTime(jsonNode.get("Open_Date").toString()) : min;
             } catch (Exception e) {
-                logger.error("Invalid Open_Date");
+                logger.info("Invalid Open_Date");
             }
             return Months.monthsBetween(min, DateTime.now()).getMonths();
         }
@@ -1059,11 +1059,21 @@ public class LoanEligibleService {
         try {
             JsonNode jsonNode = objectMapper.readTree(response);
             if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
+                try {
+                    experianService.insertExperianCallRecord(null, "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
+                } catch (Exception e) {
+                    logger.error("Error occured while inserting experian call record",e);
+                }
                 return null;
             }
             String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").textValue().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
             //String xmlResponse = new String(Files.readAllBytes(Paths.get("/Users/admin/codebase/Lending/src/main/resources/experian_sample.txt")));
             JSONObject jsonObject = XML.toJSONObject(xmlResponse);
+            try {
+                experianService.insertExperianCallRecord(objectMapper.readTree(jsonObject.toString()).toString(), "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
+            } catch (Exception e) {
+                logger.error("Error occured while inserting experian call record",e);
+            }
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
             emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");

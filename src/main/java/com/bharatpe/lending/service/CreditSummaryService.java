@@ -280,7 +280,7 @@ public class CreditSummaryService {
 					Transactions transaction=new Transactions();
 					transaction.setAmount(ledger.getAmount());
 					transaction.setType("Repayment (" + CreditConstants.SpendModeFrontEndFormat.getOrDefault(ledger.getAdjustmentMode(),ledger.getAdjustmentMode())+ ")");
-
+					transaction.setTlAmount(ledger.getAmount());
 					transaction.setMode("CREDIT");
 					transaction.setDate(DateTimeUtil.getStartTimeFromDateTime(ledger.getDate()));
 					transactionList.add(transaction);
@@ -329,7 +329,7 @@ public class CreditSummaryService {
 			if(ledger.getTransactionType().equalsIgnoreCase("CL")) {
 				breakUpMap.put("CL",ledger.getAmount());
 			}
-			else if(ledger.getTransactionType().equalsIgnoreCase("TL")) {
+			else if(ledger.getTransactionType().equalsIgnoreCase("TL") || ledger.getTransactionType().equalsIgnoreCase("EDI")) {
 				breakUpMap.put("TL",ledger.getAmount());
 			}
 		}

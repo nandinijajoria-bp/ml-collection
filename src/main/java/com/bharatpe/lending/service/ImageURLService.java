@@ -12,6 +12,8 @@ import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,9 @@ public class ImageURLService {
 
 	@Autowired
 	S3BucketHandler s3BucketHandler;
+	
+	@Autowired
+	LendingEkycDao lendingEkycDao;
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
@@ -59,10 +64,30 @@ public class ImageURLService {
 		}
 
 		logger.info("Application: {}", lendingApplication);
+		Boolean ekycDone=isEkycDone(merchant, lendingApplication.getId());
+		if(ekycDone==null){
+			result.put("success", false);
+			return result;
+		}
+		result.put("isEKYC",ekycDone);
 		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
 		result.put("proofs", data);
 		result.put("success", data.size() > 0 ? true : false);
 		return result;
+	}
+	
+	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
+		try{
+			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
+			if(lendingEkyc!=null){
+				return true;
+			}
+			return false;
+		}
+		catch(Exception e) {
+			logger.error("Error occured while checking for ekyc status",e);
+			return null;
+		}
 	}
 	
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {

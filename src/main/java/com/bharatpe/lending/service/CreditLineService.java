@@ -260,7 +260,7 @@ public class CreditLineService {
 		whatsappNotificationService.send(merchant, null, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 		if(merchantFcmToken != null) {
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "bharatpe://dynamic?key=credit-line");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=credit-line");
 		}
 		
 	}
@@ -482,7 +482,7 @@ public class CreditLineService {
 //				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
 				"Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 	}
 	
@@ -498,8 +498,8 @@ public class CreditLineService {
 //				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs. "+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
-				"EDI of Rs. "+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getTenure()+" months for "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"EDI of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 		
 	}
@@ -507,7 +507,7 @@ public class CreditLineService {
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		whatsappNotificationService.send(merchant, null, message+" for more details.", mobiles, null);
 	}
 	
 	public void sendFiledTransNotification(LendingClTransaction lendingClTransaction, Merchant merchant) {
@@ -595,8 +595,12 @@ public class CreditLineService {
 				else {
 					repayment.setMode(transaction.getSubType());
 				}	
-				
-				repayment.setStatus(transaction.getStatus());
+				if(transaction.getStatus().equalsIgnoreCase("CANCELLED")) {
+					repayment.setStatus("FAILED");
+				}
+				else {
+					repayment.setStatus(transaction.getStatus());
+				}
 				Map<String,Double> partition=getClAndTlPartOfPayment(transaction);
 				repayment.setClAmount(partition.getOrDefault("CL", 0D));
 				repayment.setTlAmount(partition.getOrDefault("TL", 0D));
@@ -618,7 +622,7 @@ public class CreditLineService {
 			if(ledger.getTransactionType().equalsIgnoreCase("CL")) {
 				breakUpMap.put("CL",ledger.getAmount());
 			}
-			else if(ledger.getTransactionType().equalsIgnoreCase("TL")) {
+			else if(ledger.getTransactionType().equalsIgnoreCase("TL") || ledger.getTransactionType().equalsIgnoreCase("EDI")) {
 				breakUpMap.put("TL",ledger.getAmount());
 			}
 		}
@@ -714,7 +718,7 @@ public class CreditLineService {
 				totalEdi+=dueAmount;
 				DailyRepayment repayment=new DailyRepayment();
 				repayment.setRepaymentAmount(dueAmount);
-				repayment.setDate(loan.getStartDate());
+				repayment.setDate(loan.getCreatedAt());
 				repayment.setLoanAmount(loan.getLoanAmount());
 				Optional<LendingTlDetails> lendingTlDetailsOptional=lendingTlDetailsDao.findById(loan.getTlDetailsId());
 				if(lendingTlDetailsOptional!=null && lendingTlDetailsOptional.isPresent()){
@@ -819,7 +823,7 @@ public class CreditLineService {
 				response.setAvailableBalance(creditDayEndBalance.getAvailableBalance());
 			}
 			if(creditDayEndBalance==null){
-				CreditAccount creditAccount=creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+				CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
 				response.setAvailableBalance(creditAccount.getAvailableBalance());	
 			}
 			response.setAmount(lendingClTransaction.getAmount());

@@ -351,12 +351,12 @@ public class VerifyOTPService {
 				mobiles.add(merchant.getMobile());
 			}
 			String pushContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "homepage.html");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "dynamic?key=loan");
 			if (isPaymentBank(merchant, merchantBankDetail)) {
 				String pushNotification = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
 						"\n" +
 						"We have received your Loan Application of Rs." + loanAmount.intValue() + ".Our lending partners do not support disbursal in Payment Banks. Please change your registered account with us to a non-payment bank to get Rs." + loanAmount.intValue() + " NOW!";
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushNotification, "bharatpe://dynamic?key=change-acc");
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushNotification, "dynamic?key=change-acc");
 				String sms = "Dear "+merchantBankDetail.getBeneficiaryName()+",\nYour loan application for Rs."+loanAmount.intValue()+" has been successfully received.. Our lending partners do not support disbursal to Payment Banks.\nPlease change your registered account with us to a Non-payment bank to get the amount now.\nClick here: https://bharatpe.in/acchange to change bank.";
 				boolean smsSent = smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
 				whatsappNotificationService.send(merchant, null, sms, mobiles, null);

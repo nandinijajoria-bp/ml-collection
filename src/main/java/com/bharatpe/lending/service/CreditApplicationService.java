@@ -102,13 +102,16 @@ public class CreditApplicationService {
 
 	@Autowired
 	CreditApplicationReasonDao creditApplicationReasonDao;
+	
+	@Autowired
+	ExperianSnapshotDao experianSnapshotDao;
 
 	public CreditApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 		CreditApplicationResponseDTO creditApplicationResponse;
 		CreditApplication creditApplication;
 		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
 		if (creditLineMerchant == null) {
-			logger.error("Merchant:{} not applicable for credit line", merchant.getId());
+			logger.info("Merchant:{} not applicable for credit line", merchant.getId());
 			creditApplicationResponse = new CreditApplicationResponseDTO();
 			creditApplicationResponse.setSuccess(false);
 			return creditApplicationResponse;
@@ -157,15 +160,10 @@ public class CreditApplicationService {
 			} else {
 				creditApplication = createApplication(merchant, availableLoan.get(0), creditApplicationRequest);
 			}
-			creditApplication.setLatitude(Double.valueOf(requestDTO.getMeta().getLatitude()));
-			creditApplication.setLongitude(Double.valueOf(requestDTO.getMeta().getLongitude()));
-			creditApplication.setIp(requestDTO.getMeta().getIp());
-			  //creditApplication.setTotalLoansCount(summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			creditApplicationDao.save(creditApplication);
-		 //createMerchantSummarySnapshot(merchant, creditApplication, summary);
 			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
-			creditApplication.setLender("LIQUILOANS");
-			creditApplication = creditApplicationDao.save(creditApplication);
+			creditApplicationDao.save(creditApplication);
+			createMerchantSummarySnapshot(merchant, creditApplication, summary);
+			createExperianSnapshot(merchant, creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
 			creditLineMerchantDao.save(creditLineMerchant); 
 			createStatusAuditTrail(creditApplication);
@@ -181,6 +179,37 @@ public class CreditApplicationService {
 		return prepareAPIResponse(creditApplication);
 		
 	}
+	
+	private void createExperianSnapshot(Merchant merchant,CreditApplication creditApplication) {
+		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		if(experian!=null) {
+			ExperianSnapshot experianSnapshot=new ExperianSnapshot();
+			experianSnapshot.setMerchantId(experian.getMerchantId());
+			experianSnapshot.setIp(experian.getIp());
+			experianSnapshot.setLatitude(experian.getLatitude());
+			experianSnapshot.setLongitude(experian.getLongitude());
+			experianSnapshot.setResponse(experian.getResponse());
+			experianSnapshot.setMerchantName(experian.getMerchantName());
+			experianSnapshot.setEmail(experian.getEmail());
+			experianSnapshot.setRejected(experian.getRejected());
+			experianSnapshot.setReason(experian.getReason());
+			experianSnapshot.setRequestedLoanAmount(experian.getRequestedLoanAmount());
+			experianSnapshot.setPancardNumber(experian.getPancardNumber());
+			experianSnapshot.setTnc(experian.getTnc());
+			experianSnapshot.setBpScore(experian.getBpScore());
+			experianSnapshot.setExperianScore(experian.getExperianScore());
+			experianSnapshot.setCategory(experian.getCategory());
+			experianSnapshot.setColor(experian.getColor());
+			experianSnapshot.setRetryCount(experian.getRetryCount());
+			experianSnapshot.setSkip(experian.isSkip());
+			experianSnapshot.setPincode(experian.getPincode());
+			experianSnapshot.setApplicationId(creditApplication.getId());
+
+			experianSnapshotDao.save(experianSnapshot);
+
+		}
+	}
+
 
 	private CreditApplication updateApplication(CreditApplication creditApplication, CreditApplicationRequestDTO creditApplicationRequest) {
 		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(),creditApplication.getId());
@@ -209,7 +238,7 @@ public class CreditApplicationService {
 		creditApplication.setPancardNumber(experian.getPancardNumber());
 		creditApplication.setDisbursalAmount(eligibleLoan.getAmount());
 		creditApplication.setStatus("draft");
-		 
+		creditApplication.setLender("LIQUILOANS");
 		creditApplication.setMerchantId(merchant.getId());
 		//creditApplication.setMerchantStoreId(merchant.getStoreId());
 		creditApplication.setAmount(eligibleLoan.getAmount());
@@ -292,7 +321,7 @@ public class CreditApplicationService {
 			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
 			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchant.getId());
 
-			// snapshot.setApplication(application);
+			snapshot.setApplication(application.getId());
 			snapshot.setMerchant(merchant);
 			snapshot.setLastTransactionDate(summary.getLastTransactionDate());
 			snapshot.setTotalTxnCount(summary.getDailyTxnCount());
@@ -313,6 +342,8 @@ public class CreditApplicationService {
 			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
 			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
 			snapshot.setBpScore(summary.getBpScore());
+			snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
+			snapshot.setFraudCustomer(summary.getFraudCustomer());
 
 			merchantSummarySnapshotDao.save(snapshot);
 		} catch(Exception ex) {

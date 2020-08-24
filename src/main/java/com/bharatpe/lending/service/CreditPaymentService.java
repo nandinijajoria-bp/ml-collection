@@ -73,9 +73,6 @@ public class CreditPaymentService {
     AesEncryption aesEncryption;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
     LendingClPaymentDao lendingClPaymentDao;
 
     @Autowired
@@ -88,14 +85,8 @@ public class CreditPaymentService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    LendingClPaymentBreakupDao lendingClPaymentBreakupDao;
-
-    @Autowired
     CreditUtil creditUtil;
 
-    @Autowired
-    LendingLedgerDao lendingLedgerDao;
-    
     @Autowired
     SmsServiceHandler smsServiceHandler;
     
@@ -134,6 +125,9 @@ public class CreditPaymentService {
     private static String mid;
     
     private final DecimalFormat df = new DecimalFormat("#.##");
+    
+    @Autowired
+    MerchantBankDetailDao merchantBankDetailDao;
 
     public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
         List<PaymentDetailDto> paymentDetails = new ArrayList<>();
@@ -341,7 +335,6 @@ public class CreditPaymentService {
                 creditLineService.sendFiledTransNotification(lendingClTransaction, merchant);
             } else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
                 updateBalances(creditAccount, lendingClTransaction);
-                sendNotification(lendingClTransaction, merchant);
             }
             return new CreditSpendResponseDTO(true, "success");
         } else {
@@ -351,14 +344,24 @@ public class CreditPaymentService {
         return new CreditSpendResponseDTO(false, "Payment verification Failed");
     }
     
-    public void sendNotification(LendingClTransaction lendingClTransaction, Merchant merchant){
-        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
-    	String message="Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment of Bharatpe Loan is Successful.\n"+
-    					"Your Available Loan Balance is Rs." +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +".\nUse it for Bank transfers, Sending money, Bill Payments and more.More details: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
+    public void sendNotification(LendingClTransaction lendingClTransaction){
+        Optional<Merchant> merchant = merchantDao.findById(lendingClTransaction.getMerchantId());
+        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getId());
+    	String message="Hi "+getBenefecieryName(merchant.get())+",\nRs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment towards outstanding Bharatpe Loan is successful.\n"+
+    					"Available Loan Balance now is Rs. " +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +"\n.Click Here:: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
-    	mobiles.add(merchant.getMobile());
+    	mobiles.add(merchant.get().getMobile());
     	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		whatsappNotificationService.send(merchant.get(), null, message+" for more details.", mobiles, null);
+    }
+    
+    public String getBenefecieryName(Merchant merchant) {
+    	
+    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+    	if(merchantBankDetail!=null) {
+    		return merchantBankDetail.getBeneficiaryName();
+    	}
+    	return "";
     }
     
     public PaymentInitiateResponseDTO resendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, Merchant merchant, String token) {
@@ -591,9 +594,6 @@ public class CreditPaymentService {
                         remainingAmount = remainingAmount - totalPaid < 0 ? 0 : remainingAmount - totalPaid;
                         lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + totalPaid);
                         lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + totalPaid);
-                        lendingPaymentSchedule.setStatus("CLOSED");
-                        //sending closure of daily loan notification
-                        sendClosureNotification(lendingClTransaction, creditAccount);
                     } else {
                         List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
                         if (ediSchedules == null || ediSchedules.isEmpty()) {
@@ -650,21 +650,7 @@ public class CreditPaymentService {
             lendingClLedgerList.add(creditLineTransaction.createClLedger(lendingClTransaction, CreditConstants.PaymentType.TL.name(), paymentTL, tlPrinciple, tlInterest, tlPenalty, tlOtherCharges));
         }
         creditLineTransaction.creditRepayment(lendingClTransaction, creditAccount, lendingCaBalanceDetail, creditAccountBill, lendingClLedgerList, lendingClPaymentBreakups, lendingPaymentScheduleMap.values(), lendingLedgers, clPrinciple + tlPrinciple, adjustedInterest, clPrinciple, newMAD);
-    }
-    
-    public void sendClosureNotification(LendingClTransaction lendingClTransaction,CreditAccount creditAccount) {
-    	Optional<Merchant> merchantOptional=merchantDao.findById(creditAccount.getMerchantId());
-    	if(merchantOptional.isPresent()) {
-    		Merchant merchant=merchantOptional.get();
-    		List<String> mobiles=new LinkedList<>();
-        	mobiles.add(merchant.getMobile());
-        	String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
-        			"We have closed Rs."+lendingClTransaction.getAmount()+" Loan post repayment made by you.\n" + 
-        			"Your available loans balance is Rs."+creditAccount.getAvailableBalance()+". Spend on Bank transfers, Sending money, Bill Payments and more.\n" + 
-        			"Click Here: bharatpe.in/creditline for more details.";
-        	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-    		whatsappNotificationService.send(merchant, null, message, mobiles, null);	
-    	}	
+        sendNotification(lendingClTransaction);
     }
     
     public LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
@@ -978,8 +964,6 @@ public class CreditPaymentService {
         } else if (CreditConstants.PaymentStatus.SUCCESS.equals(status)) {
             CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
             updateBalances(creditAccount, lendingClTransaction);
-            Optional<Merchant> merchant = merchantDao.findById(creditAccount.getMerchantId());
-            merchant.ifPresent(value -> sendNotification(lendingClTransaction, value));
         }
     }
     

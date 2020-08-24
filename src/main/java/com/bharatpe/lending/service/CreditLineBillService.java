@@ -70,9 +70,9 @@ public class CreditLineBillService {
 	public CreditLineBillResponseDto fetchBills(Merchant merchant) {
 		try {
 			CreditLineBillResponseDto response=new CreditLineBillResponseDto();
-			CreditAccount creditAccount=creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+			CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
 			if(creditAccount==null){
-				return getErrorResponseForBill("No active account found");
+				return getErrorResponseForBill("No account found");
 			}
 			List<Bill> bills=new LinkedList<>();
 			
@@ -150,6 +150,8 @@ public class CreditLineBillService {
 				bill.setPaidDate(creditAccountBill.getBillPaidDate());
 				bill.setState("PAID");
 				bill.setGeneratedDate(creditAccountBill.getBillDate());
+				bill.setBillCycleStartDate(creditAccountBill.getBillStartDate());
+				bill.setBillCycleEndDate(creditAccountBill.getBillEndDate());
 				paidBills.add(bill);
 			}
 			return paidBills;

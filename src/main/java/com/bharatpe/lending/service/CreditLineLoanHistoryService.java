@@ -75,9 +75,9 @@ public class CreditLineLoanHistoryService {
 		   	
 			if(merchant!=null && merchant.getId()!=null) {
 				
-				CreditAccount creditAccount=creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+				CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
 				if(creditAccount==null) {
-					return getErrorResponse("No active credit account found");
+					return getErrorResponse("No credit account found");
 				}
 				
 				creditLineHistoryResponseDto.setAvailableBalance(creditAccount.getAvailableBalance());
@@ -177,6 +177,7 @@ public class CreditLineLoanHistoryService {
 //						loan.setDate(lendingPaymentSchedule.getStartDate());
 //					}
 					loan.setDate(lendingPaymentSchedule.getCreatedAt());
+					loan.setStatus(lendingPaymentSchedule.getStatus());
 					loanList.add(loan);
 					
 				}
@@ -291,13 +292,14 @@ public class CreditLineLoanHistoryService {
 				Double negativeSum=0D;
 				Double dueAmount=0D;
 				for(int i=0;i<ledgerList.size();i++) {
+					String mode=null;
 					LendingLedger firstLedger=ledgerList.get(i);
 					double ediDue=0f;
-					double ediPaid=0f;
-					
+					//double ediPaid=0f;
+					List<IndividualSettlement> localSettlementList=new LinkedList<>();
 					if(firstLedger.getAmount()>0){
+						localSettlementList.add(new IndividualSettlement(firstLedger.getDate(),firstLedger.getAmount(),null,getMode(firstLedger.getAdjustmentMode())));
 						positiveSum+=firstLedger.getAmount();
-						ediPaid+=firstLedger.getAmount();
 					}
 					else {
 						negativeSum+=firstLedger.getAmount();
@@ -308,8 +310,8 @@ public class CreditLineLoanHistoryService {
 
 						LendingLedger secondLedger=ledgerList.get(i+1);
 						if(secondLedger.getAmount()>0){
+							localSettlementList.add(new IndividualSettlement(secondLedger.getDate(),secondLedger.getAmount(),null,getMode(secondLedger.getAdjustmentMode())));
 							positiveSum+=secondLedger.getAmount();
-							ediPaid+=secondLedger.getAmount();
 						}
 						else {
 							negativeSum+=secondLedger.getAmount();
@@ -318,24 +320,18 @@ public class CreditLineLoanHistoryService {
 						i++;
 
 					}
-					IndividualSettlement settlement=new IndividualSettlement();
-					settlement.setDate(firstLedger.getDate());
-					settlement.setEdiPaid(ediPaid);
-					settlement.setEdiDue(ediDue+dueAmount);
-					if(firstLedger.getAdjustmentMode()==null) {
-						settlement.setMode("Settlement");
+					Double negativeAmount=ediDue+dueAmount;
+					localSettlementList.forEach(settlemet->settlemet.setEdiDue(negativeAmount));
+					if(localSettlementList.isEmpty()) {
+						localSettlementList.add(new IndividualSettlement(firstLedger.getDate(),0D,negativeAmount,"Settlement"));
 					}
-					else if(firstLedger.getAdjustmentMode().equals("SETTLEMENT")){
-						settlement.setMode("QR deduction");
-					}
-					else {
-						settlement.setMode(CreditConstants.SpendModeFrontEndFormat.getOrDefault(firstLedger.getAdjustmentMode(),firstLedger.getAdjustmentMode()));
-					}
-					settlementsList.add(settlement);
+					settlementsList.addAll(localSettlementList);
 					if((positiveSum+negativeSum)<0) {
 						dueAmount=-1*(positiveSum+negativeSum);		
 					}
 					else {
+							positiveSum=0D;
+							negativeSum=0D;
 							dueAmount=0D;
 					}
 				}
@@ -351,7 +347,18 @@ public class CreditLineLoanHistoryService {
 			return null;
 		}
 	}
-
+	
+	public String getMode(String mode) {
+		if(mode==null) {
+			return "Settlement";
+		}
+		else if(mode.equals("SETTLEMENT")){
+			return "QR deduction";
+		}
+		else {
+			return CreditConstants.SpendModeFrontEndFormat.getOrDefault(mode,mode);
+		}
+	}
 	
 	public Double getPastAvailableLimit(LendingClTransaction lendingClTransaction){
 		try {
