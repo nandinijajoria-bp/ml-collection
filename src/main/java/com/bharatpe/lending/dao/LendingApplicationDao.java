@@ -9,6 +9,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 
 @Repository
@@ -35,4 +36,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	LendingApplication findByExternalLoanIdNbfcIdAndStatus(String externalLoanId, String nbfcId,String status);
 	
 	List<LendingPaymentSchedule> findByMerchant(Merchant merchant);
+	
+	@Query(value="select count(*) from lending_application where created_at between :startDate and :endDate and lender='LDC'", nativeQuery = true)
+	Long getLDCApplicationCountBetweenDate(Date startDate,Date endDate);
 }
