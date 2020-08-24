@@ -384,7 +384,7 @@ public class LoanEligibleService {
                                 break;
                             }
                         } catch (Exception e) {
-                            logger.error("Exception in liquiloans pancard api---", e);
+                            logger.info("Exception in liquiloans pancard api---", e);
                         }
                         retry++;
                     }

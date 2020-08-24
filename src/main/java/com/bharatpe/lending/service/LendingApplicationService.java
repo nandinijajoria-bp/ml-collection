@@ -127,9 +127,11 @@ public class LendingApplicationService {
 			} else {
 				lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
 			}
-			lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
-			lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
-			lendingApplication.setIp(requestDTO.getMeta().getIp());
+			if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
+				lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
+				lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
+				lendingApplication.setIp(requestDTO.getMeta().getIp());
+			}
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
 			lendingApplication.setLender("HINDON");
 			lendingApplicationDao.save(lendingApplication);
