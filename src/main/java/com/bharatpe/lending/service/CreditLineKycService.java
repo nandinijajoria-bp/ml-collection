@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import java.io.IOException;
 import java.util.*;
 
+import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantFcmToken;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
+import com.bharatpe.common.entities.DocKycDetails;
+import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
@@ -98,6 +101,9 @@ public class CreditLineKycService {
 	
 	@Autowired
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+	
+	@Autowired
+	DocumentsIdProofDao documentsIdProofDao;
 	
 	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
@@ -219,7 +225,7 @@ public class CreditLineKycService {
 	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
 		Map<String,Object>map=new HashMap<>();
 
-
+		String module="CREDIT_LINE";
 		EKycRequestDTO eKycRequestDTO=requestDTO.getPayload();
 		if(eKycRequestDTO==null)
 		{
@@ -235,15 +241,17 @@ public class CreditLineKycService {
 		}
 		Long applicationId=null;
 		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		LendingApplication lendingApplication=null;
 		if(creditApplication==null || !creditApplication.getStatus().equalsIgnoreCase("draft"))
 		{   
-			LendingApplication lendingApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+			lendingApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 			if(lendingApplication==null) {
 				map.put("success", false);
 				map.put("message", "Application not found");
 				return map;	
 			}
 			applicationId=lendingApplication.getId();
+			module="LENDING";
 		}
 		else {
 			applicationId=creditApplication.getId();
@@ -263,7 +271,7 @@ public class CreditLineKycService {
 		lendingEkyc.setStatus(eKycRequestDTO.getStatus());
 		lendingEkyc.setStatusMessage(eKycRequestDTO.getStatusMessage());
 		lendingEkyc.setResponse(eKycRequestDTO.getResponse());
-		lendingEkyc.setModule("CREDIT_LINE");
+		lendingEkyc.setModule(module);
 		lendingEkyc.setMaskedAadhar(getMaskedAadhar(eKycRequestDTO.getResponse()));
 		String response=eKycRequestDTO.getResponse();
 		JsonNode rootNode=null;
@@ -283,8 +291,14 @@ public class CreditLineKycService {
 		String imagePath=s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
 		lendingEkyc.setImagePath(imagePath); 
 		lendingEkycDao.save(lendingEkyc);
-		MerchantDocumentProof merchantDocumentProof=insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
-		insertInMerchantDocumentProofOcr(merchant, lendingEkyc, applicationId, merchantDocumentProof);
+		if(module.equalsIgnoreCase("CREDIT_LINE")) {
+			MerchantDocumentProof merchantDocumentProof=insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
+			insertInMerchantDocumentProofOcr(merchant, lendingEkyc, applicationId, merchantDocumentProof);
+		}
+		else {
+			DocumentsIdProof documentIdProof=insertIntoDocumentIdProof(merchant, lendingEkyc, lendingApplication);
+			DocKycDetails docKycDetails=insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
+		}
 		map.put("success", true);
 		map.put("message", "ekyc created successfully");
 		return map;
@@ -383,6 +397,30 @@ public class CreditLineKycService {
 		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
 				"Your Application (ID - "+creditApplication.getExternalLoanId()+") for Rs. " + creditApplication.getAmount().intValue() + "BharatPe Loan Balance has been registered successfully. Application is under review and limit will be activated within 48 hours";
 		return message;
+	}
+	
+	private DocumentsIdProof insertIntoDocumentIdProof(Merchant merchant, LendingEkyc lendingEkyc,LendingApplication lendingApplication) {
+		
+		DocumentsIdProof documentsIdProof=new DocumentsIdProof();
+		documentsIdProof.setMerchant(merchant);
+		documentsIdProof.setProofType("eAadhar");
+		documentsIdProof.setStatus("APPROVED");
+		documentsIdProof.setLendingApplication(lendingApplication);
+		documentsIdProof.setLatitude(lendingApplication.getLatitude());
+		documentsIdProof.setProofFrontSide(lendingEkyc.getImagePath());
+		documentsIdProof.setIp(lendingApplication.getIp());
+		documentsIdProof.setLatitude(lendingApplication.getLatitude());
+		documentsIdProof.setLongitude(lendingApplication.getLongitude());
+		documentsIdProofDao.save(documentsIdProof);
+		
+		return documentsIdProof;
+		
+	}
+	
+	private void insertIntoDocKycDetails(Merchant merchant,LendingEkyc lendingEkyc,LendingApplication lendingApplication,DocumentsIdProof documentIdProof) {
+		
+		DocKycDetails docKycDetails=new DocKycDetails();
+		
 	}
 
 }
