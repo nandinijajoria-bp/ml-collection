@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import java.io.IOException;
 import java.util.*;
 
+import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.MerchantBankDetail;
@@ -105,6 +106,8 @@ public class CreditLineKycService {
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
 	
+	@Autowired
+	DocKycDetailsDao docKycDetailsDao;
 	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
@@ -297,7 +300,7 @@ public class CreditLineKycService {
 		}
 		else {
 			DocumentsIdProof documentIdProof=insertIntoDocumentIdProof(merchant, lendingEkyc, lendingApplication);
-			DocKycDetails docKycDetails=insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
+			insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
 		}
 		map.put("success", true);
 		map.put("message", "ekyc created successfully");
@@ -420,7 +423,20 @@ public class CreditLineKycService {
 	private void insertIntoDocKycDetails(Merchant merchant,LendingEkyc lendingEkyc,LendingApplication lendingApplication,DocumentsIdProof documentIdProof) {
 		
 		DocKycDetails docKycDetails=new DocKycDetails();
-		
+		docKycDetails.setMerchant(merchant);
+		docKycDetails.setDocType("eAadhar");
+		docKycDetails.setAddress(lendingEkyc.getAddress());
+		docKycDetails.setCity(lendingEkyc.getCity());
+		docKycDetails.setDob(lendingEkyc.getDob());
+		docKycDetails.setDocumentsIdProof(documentIdProof);
+		docKycDetails.setPincode(lendingEkyc.getPincode()!=null?Integer.valueOf(lendingEkyc.getPincode()):null);
+		docKycDetails.setState(lendingEkyc.getState());
+		docKycDetails.setGender(lendingEkyc.getGender());
+		docKycDetails.setStatus("APPROVED");
+		docKycDetails.setPersonName(lendingEkyc.getName());
+		docKycDetails.setResponse(lendingEkyc.getResponse());
+		docKycDetails.setModule("LENDING");
+		docKycDetailsDao.save(docKycDetails);
 	}
 
 }
