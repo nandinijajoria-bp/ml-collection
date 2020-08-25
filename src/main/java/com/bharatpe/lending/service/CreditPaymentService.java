@@ -346,7 +346,7 @@ public class CreditPaymentService {
     
     public void sendNotification(LendingClTransaction lendingClTransaction){
         Optional<Merchant> merchant = merchantDao.findById(lendingClTransaction.getMerchantId());
-        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getId());
+        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
     	String message="Hi "+getBenefecieryName(merchant.get())+",\nRs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment towards outstanding Bharatpe Loan is successful.\n"+
     					"Available Loan Balance now is Rs. " +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +"\n.Click Here:: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
