@@ -133,7 +133,12 @@ public class LendingApplicationService {
 				lendingApplication.setIp(requestDTO.getMeta().getIp());
 			}
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			lendingApplication.setLender("LDC");
+			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO")) {
+				lendingApplication.setLender("HINDON");
+			}
+			else {
+				lendingApplication.setLender("LDC");
+			}
 			lendingApplicationDao.save(lendingApplication);
 			if (summary != null) {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
