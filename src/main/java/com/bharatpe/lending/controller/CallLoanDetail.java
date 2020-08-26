@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +26,10 @@ public class CallLoanDetail {
 	LoanDetailsService loanDetailsService;
 	
 	public void callLoanDetail() {
-		List<Long> merchantIdList=experianDao.getMerchantList();
-		Iterable<Merchant> merchantList=merchantDao.findAllById(merchantIdList);
+		List<Integer> merchantIdList=experianDao.getMerchantList();//query returns integer in merchant_id
+		List<Long> merchantIdList2=new LinkedList<Long>();
+		merchantIdList.forEach(id->merchantIdList2.add((long)id));
+		Iterable<Merchant> merchantList=merchantDao.findAllById(merchantIdList2);
 		merchantList.forEach(merchant->callLoanDetailFunction(merchant));
 	}
 	
