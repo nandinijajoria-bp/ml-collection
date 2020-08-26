@@ -115,6 +115,9 @@ public class ImageURLService {
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
 
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
+			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
+				continue;
+			}
 			Map<String, Object> proof = new LinkedHashMap<>();
 			proof.put("proof_type",documentsIdProof.getProofType());
 			proof.put("single_page_document",documentsIdProof.getSinglePage() == 1 ? true : false);
