@@ -531,7 +531,7 @@ public class LoanEligibleService {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
         }
         if (!isZomato && !"OGL".equalsIgnoreCase(loanType)) {
-            if (color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000) {
+            if (color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType)) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
             } else if (breakup.getLoanAmount() < 10000) {
