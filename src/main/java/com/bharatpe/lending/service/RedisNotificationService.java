@@ -162,7 +162,7 @@ public class RedisNotificationService {
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("CREDIT_LINE_PROMOTIONAL");
 			String message="Hi, "+merchant.getBeneficiaryName()+",\n" + 
-					"BharatPe Loan Balance of "+creditAccount.getLimit()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+					"BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
 			notificationDto.setMessage(message);
 			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
 		}
