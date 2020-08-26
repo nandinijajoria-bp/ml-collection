@@ -145,6 +145,7 @@ public class LoanEligibleService {
         if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
             experian.setReason(null);
         }
+        //base checks
         if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
             logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
             return new ArrayList<>();
@@ -510,12 +511,7 @@ public class LoanEligibleService {
     }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato) {
-        Double percentage;
-        if (ExperianConstants.LOCKDOWN && !isZomato) {
-            percentage = set.equalsIgnoreCase("1") ? (lendingCategories.getMultiplier() - 0.1) : lendingCategories.getMultiplier();
-        } else {
-            percentage = lendingCategories.getMultiplier();
-        }
+        Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
@@ -534,15 +530,7 @@ public class LoanEligibleService {
         } else {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
         }
-        if (ExperianConstants.LOCKDOWN && !isZomato) {
-            if (set.equalsIgnoreCase("1") && breakup.getLoanAmount() < 20000) {
-                logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
-                return null;
-            } else if (breakup.getLoanAmount() < 10000) {
-                logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
-                return null;
-            }
-        } else if (!isZomato && !"OGL".equalsIgnoreCase(loanType)){
+        if (!isZomato && !"OGL".equalsIgnoreCase(loanType)) {
             if (color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
@@ -1105,7 +1093,7 @@ public class LoanEligibleService {
                 experianDao.save(experian);
                 return false;
             }
-            if (yellowPincode && bpScore < 13) {
+            if (yellowPincode && bpScore < 12) {
                 logger.info("BP Score less than 10, so rejecting merchant: {}", merchant.getId());
                 experian.setCategory("1N");
                 experian.setColor(ExperianConstants.COLOR.RED.name());
