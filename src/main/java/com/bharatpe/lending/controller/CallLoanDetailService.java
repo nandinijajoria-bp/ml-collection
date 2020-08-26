@@ -14,7 +14,7 @@ import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.LoanDetailsService;
 
 @Service
-public class CallLoanDetail {
+public class CallLoanDetailService {
 	
 	@Autowired
 	ExperianDao experianDao;

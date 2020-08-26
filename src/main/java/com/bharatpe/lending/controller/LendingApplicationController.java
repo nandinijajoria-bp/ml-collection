@@ -48,7 +48,7 @@ public class LendingApplicationController {
 	CancelApplicationService cancelApplicationService;
 	
 	@Autowired
-	CallLoanDetail callLoanDetail;
+	CallLoanDetailService callLoanDetailService;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -140,6 +140,6 @@ public class LendingApplicationController {
 	
 	@RequestMapping(value = "/callLoanDetail", method = RequestMethod.GET)
 	public void callLoanDetails() {
-		callLoanDetail.callLoanDetail();
+		callLoanDetailService.callLoanDetail();
 	}
 }
