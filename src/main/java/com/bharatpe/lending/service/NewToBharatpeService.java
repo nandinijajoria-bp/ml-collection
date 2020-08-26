@@ -181,7 +181,7 @@ public class NewToBharatpeService {
 	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS){
 		try {
 			logger.info("Calculating ntb loan for merchant:{}", experian.getMerchantId());
-			double netFreeIncomePercent = (lendingBBS.getNetFreeIncome() / lendingBBS.getIncome()) * 100;
+			double netFreeIncomePercent = lendingBBS.getIncome() > 0 ? (lendingBBS.getNetFreeIncome() / lendingBBS.getIncome()) * 100 : 0d;
 			if(netFreeIncomePercent < 10.0D) {
 				logger.info("NFI less than 10%, rejecting merchant:{}", merchant.getId());
 				experian.setCategory("1N");
