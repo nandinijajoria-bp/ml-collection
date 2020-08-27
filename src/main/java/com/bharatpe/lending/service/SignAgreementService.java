@@ -177,7 +177,7 @@ public class SignAgreementService {
 		if (EXPERIAN_ENABLED) {
 			
 			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
-				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
+				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
 			int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
@@ -216,7 +216,7 @@ public class SignAgreementService {
 			AvailableLoan selectedAvailableLoan = null;
 			
 			if(!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
-				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
+				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
 			

@@ -89,4 +89,40 @@ public interface CreditConstants {
 		 
 		
 	}};
+
+	Map<String,Double> EMI=new HashMap<String,Double>() {{
+		put("AL",0.025D);
+		put("PL",0.035D);
+		put("HL",0.01D);
+		put("BL",0.05D);
+		put("CC",0.05D);
+		put("TW",0.02D);
+		put("CD",0.03D);
+		put("GL",0.02D);
+		put("Other",0.03D);
+	}};
+
+	Map<String,Double> DBI=new HashMap<String,Double>() {{
+		put("AL",0.65D);
+		put("PL",0.55D);
+		put("HL",0.65D);
+		put("BL",0.55D);
+		put("CC",0.70D);
+		put("TW",0.75D);
+		put("CD",0.75D);
+		put("GL",1D);
+		put("Other",0.55D);
+	}};
+
+	Map<String,Double> OTHER_INCOME=new HashMap<String,Double>() {{
+		put("HL",30000D);
+		put("AL",20000D);
+		put("PL",20000D);
+		put("BL",20000D);
+		put("CC",20000D);
+		put("TW",15000D);
+		put("CD",10000D);
+		put("GL",10000D);
+		put("Other",10000D);
+	}};
 }

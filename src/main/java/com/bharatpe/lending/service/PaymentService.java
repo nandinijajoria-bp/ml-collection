@@ -126,7 +126,7 @@ public class PaymentService {
 			}
 			
 			if(amount < 1 || amount > 99999) {
-				logger.error("Amount not between 1-99999 for merchant id {}", merchant.getId());
+				logger.info("Amount not between 1-99999 for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("Amount shoule be between 1-99999.");
 			}
 			

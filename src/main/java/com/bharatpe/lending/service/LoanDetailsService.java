@@ -133,6 +133,9 @@ public class LoanDetailsService {
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
 
+	@Autowired
+	NewToBharatpeService newToBharatpeService;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -234,6 +237,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
+				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				return response;
 			}
 			if (EXPERIAN_ENABLED) {
@@ -387,6 +391,9 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
+					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && enachSuccess == null) {
+						skipEnatch = false;
+					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					if (enach != null) {
@@ -500,6 +507,7 @@ public class LoanDetailsService {
 				if (experian != null) {
 					experian.setReason(ExperianConstants.OGL);
 					experianDao.save(experian);
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -532,7 +540,6 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
 						//send instant notification
 						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
-						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -551,18 +558,33 @@ public class LoanDetailsService {
 							maskedMobiles = experian.getMaskedMobiles();
 						}
 					}
+					//fetching Zomato loans
 					if (isZomato && !rejected) {
 						loanEligibilityDTOs.clear();
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
-					if (!isZomato && !rejected && experian.getReason() == null && lendingCity == null && redCity == null) {
+					//fetching OGL loans
+					if (yellowPincode && !rejected && experian.getReason() == null) {
 						logger.info("Yellow pincode found for merchant:{}", merchant.getId());
 						loanEligibilityDTOs.clear();
 						eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
 						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
 					}
-				} else if (!EXPERIAN_ENABLED && merchantSummary != null) {
-					loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
+					//fetching NTB loans
+					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null && merchant.getId().equals(1141505L)) {
+						experian.setReason(null);
+						experianDao.save(experian);
+						if (bankCode == null) {
+							logger.info("Non enachable bank code, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+							experian.setCategory("1N");
+							experian.setColor(ExperianConstants.COLOR.RED.name());
+							experian.setReason(ExperianConstants.ENACH);
+							experianDao.save(experian);
+						} else {
+							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian));
+						}
+					}
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				}
 //			}
 			boolean ogl = false;

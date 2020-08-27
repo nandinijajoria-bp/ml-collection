@@ -146,7 +146,7 @@ public class IneligibleDetailsService {
     		if(response.getPaymentCount() == 0) {
     			response.setNewMerchant(true);
     		}
-            response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() >= 15);
+            response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null &&  merchantSummary.getUniqueCustomer1mon() >= 15);
             Experian experian=experianDao.getByMerchantId(merchant.getId());
             if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(true);
