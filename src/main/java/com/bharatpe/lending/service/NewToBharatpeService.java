@@ -71,7 +71,7 @@ public class NewToBharatpeService {
 
     public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian) {
 		logger.info("Fetching NTB loans for merchant:{}", experian.getMerchantId());
-        if (experian.getResponse() == null || experian.getBpScore() > 10d) {
+        if (experian.getResponse() == null) {
             logger.info("Merchant:{} not eligible for BBS", merchant.getId());
             return new ArrayList<>();
         }
@@ -192,6 +192,7 @@ public class NewToBharatpeService {
 			}
 			double extraPercent = netFreeIncomePercent - 10D;
 			double amountToServe = lendingBBS.getIncome() * (extraPercent/100);
+			logger.info("amount to serve:{} for merchant:{}", amountToServe, merchant.getId());
 			String category = getCategory(merchant, extraPercent);
 			logger.info("Category:{} found for merchant:{}", category, merchant.getId());
 			if(category==null) {
