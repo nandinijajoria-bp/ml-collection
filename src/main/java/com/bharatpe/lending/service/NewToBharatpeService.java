@@ -214,7 +214,7 @@ public class NewToBharatpeService {
 	}
 
 	private List<LoanEligibilityDTO> getEligibleLoans(Merchant merchant,String category, Double amountToServe,Experian experian){
-		List<LendingCategories> lendingCategories=lendingCategoryDao.findByCategory(category);
+		List<LendingCategories> lendingCategories=lendingCategoryDao.getByMasterCategoryForConstruct1(category);
 		if(lendingCategories==null || lendingCategories.isEmpty()) {
 			logger.error("No active lending category found for merchant: {}", merchant.getId());
 			return new ArrayList<>();
