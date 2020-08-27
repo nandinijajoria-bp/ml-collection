@@ -237,6 +237,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
+				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				return response;
 			}
 			if (EXPERIAN_ENABLED) {
@@ -508,6 +509,7 @@ public class LoanDetailsService {
 				if (experian != null) {
 					experian.setReason(ExperianConstants.OGL);
 					experianDao.save(experian);
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -540,7 +542,6 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
 						//send instant notification
 						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
-						experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -573,6 +574,8 @@ public class LoanDetailsService {
 					}
 					//fetching NTB loans
 					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null) {
+						experian.setReason(null);
+						experianDao.save(experian);
 						if (bankCode == null) {
 							logger.info("Non enachable bank code, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 							experian.setCategory("1N");
@@ -583,6 +586,7 @@ public class LoanDetailsService {
 							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian));
 						}
 					}
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 				}
 //			}
 			boolean ogl = false;
