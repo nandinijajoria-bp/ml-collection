@@ -564,7 +564,7 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
 					//fetching OGL loans
-					if (yellowPincode && !rejected && experian.getReason() == null) {
+					if (yellowPincode && !rejected && experian.getReason() == null && merchantSummary.getBpScore() != null) {
 						logger.info("Yellow pincode found for merchant:{}", merchant.getId());
 						loanEligibilityDTOs.clear();
 						eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
