@@ -573,7 +573,7 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
 					}
 					//fetching NTB loans
-					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null) {
+					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null && merchant.getId().equals(1141505L)) {
 						experian.setReason(null);
 						experianDao.save(experian);
 						if (bankCode == null) {
