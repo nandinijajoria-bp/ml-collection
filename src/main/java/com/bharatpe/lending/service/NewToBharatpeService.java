@@ -283,6 +283,7 @@ public class NewToBharatpeService {
 			boolean isLoanClosedWithinAYear=isLoanClosedWithinOneYear(loan);
 			String loanType=getLoanType(loanTypeNumber);
 			if(loanAmount>10000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
+				logger.info("loanType:{}, accountType:{}, loanAmount:{}", loanType, loanTypeNumber, loanAmount);
 				switch (loanType) {
 					case "AL":{
 						if(!isLoanClosedWithinAYear) {
@@ -357,6 +358,7 @@ public class NewToBharatpeService {
 					}
 					break;
 				}
+				logger.info("income:{}, debt:{}", income, debt);
 			}
 		}
 		debtAndIncome.put("debt", debt);
