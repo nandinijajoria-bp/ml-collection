@@ -473,7 +473,7 @@ public class LiquiloansService {
 					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
 		}
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
+			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
 		} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
