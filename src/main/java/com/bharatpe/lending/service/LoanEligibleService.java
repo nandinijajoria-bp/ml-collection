@@ -145,12 +145,6 @@ public class LoanEligibleService {
         if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
             experian.setReason(null);
         }
-        //base checks
-        if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
-            logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
-            return new ArrayList<>();
-        }
-
         JsonNode experianResponse = null;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
@@ -207,6 +201,11 @@ public class LoanEligibleService {
                     logger.info("Exception while checking derog for merchant: {}", merchant.getId());
                     logger.error("Exception---", e);
                 }
+                //base checks
+                if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
+                    logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
+                    return new ArrayList<>();
+                }
                 return fetchBureauEligibleLoan(experianResponse, merchant.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays, lendingApplication);
             }
         } catch (ResourceAccessException e) {
@@ -220,6 +219,11 @@ public class LoanEligibleService {
         }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
+        //base checks
+        if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
+            logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
+            return new ArrayList<>();
+        }
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication);
     }
 
@@ -523,7 +527,7 @@ public class LoanEligibleService {
         int ioEdiDays = lendingCategories.getIoEdiDays();
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
-            prevLoanAmount = Math.min(prevLoanAmount, 700000);
+            prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
@@ -554,7 +558,7 @@ public class LoanEligibleService {
         ediDays = getEdiDays(tenure);
         edi = (avgTpv * percentage);
         repayment = (int)Math.round(ediDays * edi);
-        loanAmount = roundDown(Math.min(repayment / (1 + (interest/100)*tenure), maxAmount));// round down
+        loanAmount = Math.min(roundUp(repayment / (1 + (interest/100)*tenure)), maxAmount);// round down
         edi = Math.ceil((loanAmount * (1 + (interest/100)*tenure)) / ediDays);
         disbursementAmount = (int)loanAmount - processingFee;
         ioEdi = ioPayableDays > 0 ? Math.ceil((loanAmount * (interest / 100)) / ioPayableDays) : 0;
@@ -566,13 +570,13 @@ public class LoanEligibleService {
                 ioTenure, principleEdiTenure, repayment, disbursementAmount, type, (int)loanAmount, interest);
     }
 
-    private double roundDown(double loanAmount) {
+    private double roundUp(double loanAmount) {
         if (loanAmount < 20000) {
-            return loanAmount - (loanAmount % 1000);
+            return loanAmount - (loanAmount % 1000) + 1000;
         } else if (loanAmount < 100000) {
-            return loanAmount - (loanAmount % 5000);
+            return loanAmount - (loanAmount % 5000) + 1000;
         } else {
-            return loanAmount - (loanAmount % 10000);
+            return loanAmount - (loanAmount % 10000) + 1000;
         }
     }
 

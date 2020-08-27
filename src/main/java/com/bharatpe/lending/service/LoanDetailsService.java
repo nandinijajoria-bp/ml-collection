@@ -392,6 +392,9 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
+					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && enachSuccess == null) {
+						skipEnatch = false;
+					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					if (enach != null) {
@@ -569,7 +572,7 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
 					}
 					//fetching NTB loans
-					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getBpScore() <= 10D && experian.getResponse() != null) {
+					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null) {
 						if (bankCode == null) {
 							logger.info("Non enachable bank code, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 							experian.setCategory("1N");
