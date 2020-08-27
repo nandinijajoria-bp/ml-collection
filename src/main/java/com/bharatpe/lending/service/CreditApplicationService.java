@@ -111,7 +111,7 @@ public class CreditApplicationService {
 		CreditApplication creditApplication;
 		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
 		if (creditLineMerchant == null) {
-			logger.error("Merchant:{} not applicable for credit line", merchant.getId());
+			logger.info("Merchant:{} not applicable for credit line", merchant.getId());
 			creditApplicationResponse = new CreditApplicationResponseDTO();
 			creditApplicationResponse.setSuccess(false);
 			return creditApplicationResponse;
@@ -160,6 +160,8 @@ public class CreditApplicationService {
 			} else {
 				creditApplication = createApplication(merchant, availableLoan.get(0), creditApplicationRequest);
 			}
+			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
+			creditApplicationDao.save(creditApplication);
 			createMerchantSummarySnapshot(merchant, creditApplication, summary);
 			createExperianSnapshot(merchant, creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
@@ -236,7 +238,6 @@ public class CreditApplicationService {
 		creditApplication.setPancardNumber(experian.getPancardNumber());
 		creditApplication.setDisbursalAmount(eligibleLoan.getAmount());
 		creditApplication.setStatus("draft");
-		creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
 		creditApplication.setLender("LIQUILOANS");
 		creditApplication.setMerchantId(merchant.getId());
 		//creditApplication.setMerchantStoreId(merchant.getStoreId());
@@ -341,6 +342,8 @@ public class CreditApplicationService {
 			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
 			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
 			snapshot.setBpScore(summary.getBpScore());
+			snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
+			snapshot.setFraudCustomer(summary.getFraudCustomer());
 
 			merchantSummarySnapshotDao.save(snapshot);
 		} catch(Exception ex) {

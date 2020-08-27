@@ -57,7 +57,7 @@ public class PincodeVerificationServices {
 			logger.info("Fetching city details from table pincode_citystate_mapping for the pincode {}", pincode);
 			PincodeCityStateMapping cityDetails = pincodeCityStateMappingDao.findByPincode(pincode);
 			if (cityDetails == null) {
-				logger.error("No entry found for the pincode {}", pincode);
+				logger.info("No entry found for the pincode {}", pincode);
 				return pincodeVerify;
 			}
 			pincodeVerify.setCity(cityDetails.getCity());

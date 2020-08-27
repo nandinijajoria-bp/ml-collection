@@ -289,9 +289,7 @@ public class LoanDetailsService {
 							}
 						}
 						if (!showTarget) {
-							lendingPrebookTarget.setTargetAchieveDate(new Date());
-							lendingPrebookTarget.setTargetAchieved(true);
-							lendingPrebookTargetDao.save(lendingPrebookTarget);
+							lendingPrebookTargetDao.updateTargetAchieved(lendingPrebookTarget.getMerchantId(), new Date());
 						}
 					}
 				}
@@ -307,7 +305,7 @@ public class LoanDetailsService {
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			String bankCode = null;
 			try {
-				if (requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
+				if (requestDTO.getMeta() != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") &&  Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
 					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 				} else {
 					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
@@ -348,7 +346,7 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+					if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 						if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 							enach = "bharatpe://enachdigio";//set deep link for enach digio
 						} else {
@@ -372,7 +370,7 @@ public class LoanDetailsService {
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					try {
 						//enach not success and not skipped and bankcode enachable and app version >= 237
-						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
@@ -446,7 +444,7 @@ public class LoanDetailsService {
 						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
 						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
 						LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
@@ -699,7 +697,7 @@ public class LoanDetailsService {
 		}
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
 		for (LendingCategories category : categories) {
-			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC"))) {
+			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
 				eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(category, 0, null, experian.getMerchantId(), experian.getId(), category.getMaxTpvAmount(), experian.getColor(), "2", "OGL", false));
 			}
 		}
@@ -722,7 +720,7 @@ public class LoanDetailsService {
 				continue;
 			}
 			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingPartnerOffer.getCategory());
-			if (lendingCategories == null) {
+			if (lendingCategories == null || !lendingCategories.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
 				logger.error("Invalid Zomato category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
 				continue;
 			}

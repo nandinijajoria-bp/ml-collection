@@ -48,7 +48,7 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
 
         try{
             if (StringUtils.isEmpty(hmac) || StringUtils.isEmpty(clientName)) {
-                logger.error("hmac or mid Value is Blank or Empty for request {}", request);
+                logger.info("hmac or mid Value is Blank or Empty for request {}", request);
                 sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
                 return false;
             }

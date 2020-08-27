@@ -66,7 +66,7 @@ import com.bharatpe.lending.service.VerifyOTPService;
 		@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	    public CreditApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 
-	        if(!creditApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
+	        if(requestDTO.getPayload().getPincode() != null && !creditApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
 	            logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
 	            CreditApplicationResponseDTO creditApplicationResponse=new CreditApplicationResponseDTO();
  	         creditApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);

@@ -263,7 +263,12 @@ public class SignAgreementService {
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-		newApplication.setLender("HINDON");
+		if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO")) {
+			newApplication.setLender("HINDON");
+		}
+		else {
+			newApplication.setLender("LDC");
+		}
 		lendingApplicationDao.save(newApplication);
 
 		if(newApplication.getId() != null) {

@@ -4,7 +4,10 @@ import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.CreditConstants;
@@ -74,6 +77,15 @@ public class CreditLineTransaction {
     
     @Autowired
     MerchantDao merchantDao;
+
+    @Autowired
+    SmsServiceHandler smsServiceHandler;
+
+    @Autowired
+    WhatsappNotificationService whatsappNotificationService;
+
+    @Autowired
+    LendingPullPaymentDao lendingPullPaymentDao;
 
     public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
@@ -382,6 +394,11 @@ public class CreditLineTransaction {
                 startPromotionalNotification(creditAccount);
                 creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
             }
+            LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findByMerchantId(creditAccount.getMerchantId());
+            if (lendingPullPayment != null) {
+                lendingPullPayment.setDueAmount(newMAD);
+                lendingPullPaymentDao.save(lendingPullPayment);
+            }
         }
         if (creditAccount.getStatus().equalsIgnoreCase(CreditConstants.AccountStatus.BLOCKED.name())) {
             boolean dpd = false;
@@ -404,6 +421,12 @@ public class CreditLineTransaction {
             lendingClPaymentBreakupDao.saveAll(lendingClPaymentBreakups);
         }
         if (!lendingPaymentSchedules.isEmpty()) {
+            for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentSchedules) {
+                if (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple() == 0) {
+                    lendingPaymentSchedule.setStatus("CLOSED");
+                    sendClosureNotification(lendingPaymentSchedule);
+                }
+            }
             lendingPaymentScheduleDao.saveAll(lendingPaymentSchedules);
         }
         if (!lendingLedgers.isEmpty()) {
@@ -483,5 +506,21 @@ public class CreditLineTransaction {
             return 0;
         }
         return (int) (lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount());
+    }
+
+    public void sendClosureNotification(LendingPaymentSchedule lendingPaymentSchedule) {
+        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId());
+        Optional<Merchant> merchantOptional=merchantDao.findById(creditAccount.getMerchantId());
+        if(merchantOptional.isPresent()) {
+            Merchant merchant=merchantOptional.get();
+            List<String> mobiles=new LinkedList<>();
+            mobiles.add(merchant.getMobile());
+            String message="Hi "+merchant.getBeneficiaryName()+",\n" +
+                    "We have closed Rs."+lendingPaymentSchedule.getLoanAmount()+" Loan post repayment made by you.\n" +
+                    "Your available loans balance is Rs."+creditAccount.getAvailableBalance()+". Spend on Bank transfers, Sending money, Bill Payments and more.\n" +
+                    "Click Here: bharatpe.in/creditline for more details.";
+            smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+            whatsappNotificationService.send(merchant, null, message, mobiles, null);
+        }
     }
 }

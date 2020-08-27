@@ -115,7 +115,9 @@ public class LoanUtil {
 			shopDetails.setStreetAddress(creditApplicationAddress.getStreetAddress());
 			shopDetails.setArea(creditApplicationAddress.getArea());
 			shopDetails.setLandmark(creditApplicationAddress.getLandmark());
-			shopDetails.setPincode(creditApplicationAddress.getPincode().toString());
+			if (creditApplicationAddress.getPincode() != null) {
+				shopDetails.setPincode(creditApplicationAddress.getPincode().toString());
+			}
 			shopDetails.setCity(creditApplicationAddress.getCity());
 			shopDetails.setState(creditApplicationAddress.getState());
 			shopDetails.setAlternateContact(application.getAlternateMobile());
