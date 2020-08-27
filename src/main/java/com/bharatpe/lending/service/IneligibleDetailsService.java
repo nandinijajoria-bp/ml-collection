@@ -146,7 +146,7 @@ public class IneligibleDetailsService {
     		if(response.getPaymentCount() == 0) {
     			response.setNewMerchant(true);
     		}
-            response.setCountSuccess(merchantSummary.getUniqueCustomer1mon() >= 15);
+            response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null &&  merchantSummary.getUniqueCustomer1mon() >= 15);
             Experian experian=experianDao.getByMerchantId(merchant.getId());
             if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(true);
@@ -180,7 +180,7 @@ public class IneligibleDetailsService {
     private Map<String,Integer> getTransactionDetailsFromPaymentTable(Merchant merchant){
     	Map<String,Integer> transactionMap=new HashMap<>();
     	Object[] transactionDetail = (Object[])paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
-        BigInteger transactionAmount = (BigInteger) transactionDetail[0];
+        BigDecimal transactionAmount = (BigDecimal) transactionDetail[0];
     	BigInteger count = (BigInteger) transactionDetail[1];
     	transactionMap.put("count", count == null ? 0 : count.intValue());
     	transactionMap.put("amount", transactionAmount == null ? 0 : transactionAmount.intValue());
