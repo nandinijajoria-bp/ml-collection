@@ -171,4 +171,21 @@ public class RedisNotificationService {
 			
 		}
 	}
+	
+	public void sendPendingEnachNotification(Merchant merchant, LendingApplication lendingApplication) {
+		try {
+			logger.info("Sending pending enach notification for merchant {}",merchant);
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");
+		    String message = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nRegister eNACH and get Rs." + lendingApplication.getLoanAmount() + " Loan in your " + merchantBankDetail.getBankName() + " A/c Now!";
+		    InstantNotificationDto notificationDto=new InstantNotificationDto();
+			notificationDto.setApplicationId(lendingApplication.getId());
+			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMessageCategory("LENDING_PENDING_ENACH");
+			notificationDto.setMessage(message);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "pending_enach_"+merchant.getId().toString(), 15*60);
+		}
+		catch(Exception e ) {
+			logger.error("Error occured while sending redis based pending enach notification for merchant {}",merchant,e);
+		}
+	}
 }
