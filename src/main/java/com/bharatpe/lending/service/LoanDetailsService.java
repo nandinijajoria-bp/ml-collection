@@ -583,7 +583,7 @@ public class LoanDetailsService {
 							experian.setReason(ExperianConstants.ENACH);
 							experianDao.save(experian);
 						} else {
-							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian));
+							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));
 						}
 					}
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
@@ -700,7 +700,7 @@ public class LoanDetailsService {
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
 		for (LendingCategories category : categories) {
 			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-				eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(category, 0, null, experian.getMerchantId(), experian.getId(), category.getMaxTpvAmount(), experian.getColor(), "2", "OGL", false));
+				eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(category, 0, null, experian.getMerchantId(), experian.getId(), category.getMaxTpvAmount(), experian.getColor(), "2", "OGL", false, false));
 			}
 		}
 		if (!eligibilityDTOS.isEmpty()) {
@@ -730,7 +730,7 @@ public class LoanDetailsService {
 				logger.error("Invalid Zomato NTC category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
 				continue;
 			}
-			eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingPartnerOffer.getLoanAmount(), experian.getColor(), "2", "ZOMATO", true));
+			eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingPartnerOffer.getLoanAmount(), experian.getColor(), "2", "ZOMATO", true, false));
 			categorySeen.add(lendingPartnerOffer.getCategory());
 		}
 		if (!eligibilityDTOS.isEmpty()) {

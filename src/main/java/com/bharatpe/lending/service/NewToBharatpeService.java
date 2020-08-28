@@ -69,7 +69,7 @@ public class NewToBharatpeService {
     private static final double CREDIT_HISTORY_WEIGHT = 0.1;
     private static final double BBS_MULTIPLIER = 300;
 
-    public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian) {
+    public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian, boolean yellowPincode) {
 		logger.info("Fetching NTB loans for merchant:{}", experian.getMerchantId());
         if (experian.getResponse() == null) {
             logger.info("Merchant:{} not eligible for BBS", merchant.getId());
@@ -89,7 +89,7 @@ public class NewToBharatpeService {
 				experianDao.save(experian);
 				return new ArrayList<>();
 			}
-			return getBBSLoans(merchant, experian, lendingBBS);
+			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode);
         } catch (Exception e) {
             logger.error("Exception in BBS---", e);
             return new ArrayList<>();
@@ -181,7 +181,7 @@ public class NewToBharatpeService {
         return lendingBBS;
     }
 
-	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS){
+	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS, boolean yellowPincode){
 		try {
 			logger.info("Calculating ntb loan for merchant:{}", experian.getMerchantId());
 			double netFreeIncomePercent = lendingBBS.getIncome() > 0 ? (lendingBBS.getNetFreeIncome() / lendingBBS.getIncome()) * 100 : 0d;
@@ -205,7 +205,7 @@ public class NewToBharatpeService {
 			experian.setCategory(category);
 			experian.setColor(ExperianConstants.COLOR_TO_CATEGORY.get(category));
 			experianDao.save(experian);
-			return getEligibleLoans(merchant, category, amountToServe, experian);
+			return getEligibleLoans(merchant, category, amountToServe, experian, yellowPincode);
 		}
 		catch(Exception e) {
 			logger.error("Error occurred while fetching loan for BBS",e);
@@ -213,7 +213,7 @@ public class NewToBharatpeService {
 		return new ArrayList<>();
 	}
 
-	private List<LoanEligibilityDTO> getEligibleLoans(Merchant merchant,String category, Double amountToServe,Experian experian){
+	private List<LoanEligibilityDTO> getEligibleLoans(Merchant merchant,String category, Double amountToServe,Experian experian, boolean yellowPincode){
 		List<LendingCategories> lendingCategories=lendingCategoryDao.getByMasterCategoryForConstruct1(category);
 		if(lendingCategories==null || lendingCategories.isEmpty()) {
 			logger.error("No active lending category found for merchant: {}", merchant.getId());
@@ -224,7 +224,7 @@ public class NewToBharatpeService {
 		logger.info("Deleting eligible loans for merchant: {}", merchant.getId());
 		eligibleLoanDao.deleteByMerchantId(merchant.getId());
 		for (LendingCategories lendingCategory : lendingCategories) {
-			LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), (amountToServe * lendingCategory.getTenureMonths()), experian.getColor(), "2", loanType, false);
+			LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), (amountToServe * lendingCategory.getTenureMonths()), experian.getColor(), "2", loanType, false, yellowPincode);
 			if (loanEligibilityDTO != null) {
 				loanEligibilityDTOList.add(loanEligibilityDTO);
 			} else {
@@ -235,7 +235,7 @@ public class NewToBharatpeService {
 			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
 			for (LendingCategories lendingCategory : lendingCategories) {
 				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
-					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false);
+					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
 					if (loanEligibilityDTO != null) {
 						loanEligibilityDTOList.add(loanEligibilityDTO);
 					} else {

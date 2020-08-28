@@ -457,7 +457,7 @@ public class LoanEligibleService {
             List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
             for (LendingCategories lendingCategory : lendingCategories) {
                 if (lendingCategory.getLoanConstruct() != null && lendingCategory.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false);
+                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, false);
                     if (loanEligibilityDTO != null) {
                         loanEligibilityDTOList.add(loanEligibilityDTO);
                     } else {
@@ -469,7 +469,7 @@ public class LoanEligibleService {
             if (lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
                 List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(lendingApplication.getCategory());
                 if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty() && lendingCategoriesList.get(0).getLoanConstruct() != null && lendingCategoriesList.get(0).getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategoriesList.get(0), 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false);
+                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategoriesList.get(0), 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, false);
                     if (loanEligibilityDTO != null) {
                         logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
                         loanEligibilityDTOList.add(loanEligibilityDTO);
@@ -531,7 +531,7 @@ public class LoanEligibleService {
         return "S4A";
     }
 
-    public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato) {
+    public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
         Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
@@ -544,7 +544,11 @@ public class LoanEligibleService {
         int ioEdiDays = lendingCategories.getIoEdiDays();
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
-            prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
+            if (yellowPincode && "NTB".equalsIgnoreCase(loanType)) {
+                prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
+            } else {
+                prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
+            }
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);

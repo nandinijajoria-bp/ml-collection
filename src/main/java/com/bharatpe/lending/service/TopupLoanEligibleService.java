@@ -187,7 +187,7 @@ public class TopupLoanEligibleService {
             //lendingCategories.setInterestRate(1.75D);//fixed for topup loan
             Long experianId = experian != null ? experian.getId() : 0L;
             eligibleLoanDao.deleteByMerchantId(merchant.getId());
-            LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false);
+            LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false, false);
             double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
             if (loanEligibilityDTO != null) {
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
