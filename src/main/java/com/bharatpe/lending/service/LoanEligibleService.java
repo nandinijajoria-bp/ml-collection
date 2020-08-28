@@ -354,6 +354,10 @@ public class LoanEligibleService {
             logger.error("Exception while fetching name from liquiloans for merchant: {}", merchantId);
             logger.error("Exception---", e);
         }
+        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+        if (lendingPancard != null) {
+            return lendingPancard;
+        }
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
 
