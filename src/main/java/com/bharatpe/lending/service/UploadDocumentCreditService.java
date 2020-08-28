@@ -146,7 +146,7 @@ public class UploadDocumentCreditService {
 				continue;
 			}
 			
-			if(document.getProof() != null && document.getProof().isEmpty()) {
+			if(document.getProof() == null || document.getProof().isEmpty()) {
 				logger.error("Empty Documents");
 			}
 			
