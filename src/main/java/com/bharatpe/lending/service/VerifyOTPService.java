@@ -21,6 +21,7 @@ import com.bharatpe.lending.util.LoanCalculationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -112,6 +113,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
+	
+	@Autowired
+	KafkaTemplate<String, Map<String, Long>> kafkaTemplate;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -245,10 +249,18 @@ public class VerifyOTPService {
 // 		} else {
 // 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 // 		}
-		
+		sendDetailsForVerification(merchant,lendingApplication);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
+	}
+	
+	public void sendDetailsForVerification(Merchant merchant, LendingApplication lendingApplication) {
+		Map<String,Long> detailMap=new HashMap<String, Long>(){{
+			put("merchantId", merchant.getId());
+			put("applicationId",lendingApplication.getId());
+		}};
+		kafkaTemplate.send("verifyKycDetails",detailMap);
 	}
 
 	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {
