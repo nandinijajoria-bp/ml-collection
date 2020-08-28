@@ -277,6 +277,9 @@ public class NewToBharatpeService {
 		double debt=0D;
 		Double otherIncome=0D;
 		for(JsonNode loan:loanDetails) {
+			if (loan.get("Account_Type") == null) {
+				continue;
+			}
 			int loanTypeNumber=loan.get("Account_Type").asInt();
 			double loanAmount=getLoanAmount(loan);
 			boolean isLoanClosed=isLoanClosed(loan);
@@ -372,6 +375,12 @@ public class NewToBharatpeService {
 		double debt=0D;
 		double income=0D;
 		Double otherIncome=0D;
+		if (loan.get("Account_Type") == null) {
+			debtAndIncome.put("debt", debt);
+			debtAndIncome.put("income", income);
+			debtAndIncome.put("otherIncome", otherIncome);
+			return debtAndIncome;
+		}
 		int loanTypeNumber=loan.get("Account_Type").asInt();
 		double loanAmount=getLoanAmount(loan);
 		boolean isLoanClosed=isLoanClosed(loan);
