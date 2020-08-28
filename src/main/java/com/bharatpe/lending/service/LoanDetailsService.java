@@ -237,7 +237,9 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
-				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+				if (experian != null) {
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+				}
 				return response;
 			}
 			if (EXPERIAN_ENABLED) {
