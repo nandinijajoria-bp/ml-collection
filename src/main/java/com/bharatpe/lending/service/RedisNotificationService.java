@@ -182,7 +182,7 @@ public class RedisNotificationService {
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("LENDING_PENDING_ENACH");
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "enach_"+merchant.getId().toString(), 15*60);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "pending_enach_"+merchant.getId().toString(), 15*60);
 		}
 		catch(Exception e ) {
 			logger.error("Error occured while sending redis based pending enach notification for merchant {}",merchant,e);
