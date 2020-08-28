@@ -260,7 +260,7 @@ public class VerifyOTPService {
 			put("merchantId", merchant.getId());
 			put("applicationId",lendingApplication.getId());
 		}};
-		kafkaTemplate.send("verifyKycDetails",detailMap);
+		kafkaTemplate.send("verify_kyc_details",detailMap);
 	}
 
 	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {
