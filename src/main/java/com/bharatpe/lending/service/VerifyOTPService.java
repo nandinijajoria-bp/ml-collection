@@ -115,7 +115,7 @@ public class VerifyOTPService {
 	RedisNotificationService redisNotificationService;
 	
 	@Autowired
-	KafkaTemplate<String, Map<String, Long>> kafkaTemplate;
+	KafkaTemplate<String, Object> kafkaTemplate;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -249,18 +249,24 @@ public class VerifyOTPService {
 // 		} else {
 // 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 // 		}
-		sendDetailsForVerification(merchant,lendingApplication);
+		sendDetailsForKycVerification(merchant,lendingApplication);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
 	
-	public void sendDetailsForVerification(Merchant merchant, LendingApplication lendingApplication) {
-		Map<String,Long> detailMap=new HashMap<String, Long>(){{
-			put("merchantId", merchant.getId());
-			put("applicationId",lendingApplication.getId());
-		}};
-		kafkaTemplate.send("verify_kyc_details",detailMap);
+	public void sendDetailsForKycVerification(Merchant merchant, LendingApplication lendingApplication) {
+		try {
+			Map<String,Long> detailMap=new HashMap<String, Long>(){{
+				put("merchantId", merchant.getId());
+				put("applicationId",lendingApplication.getId());
+			}};
+			kafkaTemplate.send("verify_kyc_details",detailMap);
+			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
+		}
+		catch(Exception e) {
+			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+		}
 	}
 
 	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {
