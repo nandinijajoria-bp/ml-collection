@@ -3,8 +3,12 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.ExperianSnapshotDao;
+import com.bharatpe.lending.common.dao.LendingBBSDao;
+import com.bharatpe.lending.common.dao.LendingBBSSnapshotDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.ExperianSnapshot;
+import com.bharatpe.lending.common.entity.LendingBBS;
+import com.bharatpe.lending.common.entity.LendingBBSSnapshot;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -85,6 +89,19 @@ public class LendingApplicationService {
 	@Autowired
 	ExperianSnapshotDao experianSnapshotDao;
 
+	@Autowired
+	LendingBBSDao lendingBBSDao;
+
+	@Autowired
+	LendingBBSSnapshotDao lendingBBSSnapshotDao;
+
+	@Autowired
+	MerchantScoreDao merchantScoreDao;
+
+	@Autowired
+	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
+
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
@@ -144,6 +161,10 @@ public class LendingApplicationService {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			}
 			createExperianSnapshot(merchant, lendingApplication);
+			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				createBBSSnapshot(lendingApplication);
+			}
+			createMerchantScoreSnapshot(lendingApplication);
 			createStatusAuditTrail(lendingApplication);
 		}
 		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
@@ -154,6 +175,24 @@ public class LendingApplicationService {
 	private boolean isLdc(LendingApplication lendingApplication) {
 		Long todayApplicationCount = lendingApplicationDao.getLDCApplicationCountBetweenDate(DateTimeUtil.getStartTimeFromDateTime(new Date()), DateTimeUtil.getEndTimeFromDateTime(new Date()));
 		return todayApplicationCount < 25 && lendingApplication.getTenureInMonths() != 15;
+	}
+
+	public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+		MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchant().getId());
+		if (merchantScore != null) {
+			MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
+			merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
+			merchantScoreSnapshotDao.save(merchantScoreSnapshot);
+		}
+	}
+
+	public void createBBSSnapshot(LendingApplication lendingApplication) {
+		LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchant().getId());
+		if (lendingBBS != null) {
+			LendingBBSSnapshot lendingBBSSnapshot = LendingBBSSnapshot.createObject(lendingBBS);
+			lendingBBSSnapshot.setApplicationId(lendingApplication.getId());
+			lendingBBSSnapshotDao.save(lendingBBSSnapshot);
+		}
 	}
 
 	private void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
