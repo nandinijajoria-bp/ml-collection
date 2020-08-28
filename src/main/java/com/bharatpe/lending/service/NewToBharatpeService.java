@@ -196,7 +196,7 @@ public class NewToBharatpeService {
 			double extraPercent = netFreeIncomePercent - 10D;
 			double amountToServe = lendingBBS.getIncome() * (extraPercent/100);
 			logger.info("amount to serve:{} for merchant:{}", amountToServe, merchant.getId());
-			String category = getCategory(merchant, extraPercent);
+			String category = getCategory(extraPercent, lendingBBS);
 			logger.info("Category:{} found for merchant:{}", category, merchant.getId());
 			if(category==null) {
 				logger.error("No category found for merchant {}",merchant);
@@ -248,8 +248,7 @@ public class NewToBharatpeService {
 		return loanEligibilityDTOList;
 	}
 
-	private String getCategory(Merchant merchant, Double nfiToServeCurrentLoanPercent) {
-		LendingBBS lendingBBS=lendingBBSDao.findByMerchantId(merchant.getId());
+	private String getCategory(Double nfiToServeCurrentLoanPercent, LendingBBS lendingBBS) {
 		if(lendingBBS!=null) {
 			double bbs=lendingBBS.getBbs();
 			if(nfiToServeCurrentLoanPercent<20D) {
