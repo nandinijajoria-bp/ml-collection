@@ -145,11 +145,6 @@ public class LoanEligibleService {
         if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
             experian.setReason(null);
         }
-        //base checks
-        if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
-            logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
-            return new ArrayList<>();
-        }
         JsonNode experianResponse = null;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
