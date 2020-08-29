@@ -541,8 +541,6 @@ public class LoanDetailsService {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
 					try {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
-						//send instant notification
-						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -588,6 +586,8 @@ public class LoanDetailsService {
 						}
 					}
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					//send instant notification
+					redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 				}
 //			}
 			boolean ogl = false;
