@@ -313,7 +313,8 @@ public class LoanDetailsService {
 					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
 				}
 			} catch (Exception e) {
-				logger.error("Exception while checking enach bank code:", e);
+				logger.info("Exception while checking enach bank code:", e);
+				bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 			}
 			if(lendingApplication != null) {
 				LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
@@ -380,7 +381,7 @@ public class LoanDetailsService {
 							}
 						}
 					} catch (Exception e) {// exception due to undefined app version
-						logger.error("Exception while checking enach bank", e);
+						logger.info("Exception while checking enach bank", e);
 						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio

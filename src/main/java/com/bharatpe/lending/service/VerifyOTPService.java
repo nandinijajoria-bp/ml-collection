@@ -160,9 +160,11 @@ public class VerifyOTPService {
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
 		lendingApplication.setAgreementAt(new Date());
 		lendingApplication.setAgreement(1);
-		lendingApplication.setLatitude(meta.getLatitude());
-		lendingApplication.setLongitude(meta.getLongitude());
-		lendingApplication.setIp(meta.getIp());
+		if (meta != null && meta.getLatitude() != null && !meta.getLatitude().equalsIgnoreCase("undefined")) {
+			lendingApplication.setLatitude(meta.getLatitude());
+			lendingApplication.setLongitude(meta.getLongitude());
+			lendingApplication.setIp(meta.getIp());
+		}
 		lendingApplication.setExternalLoanId(loanId);
 		if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
 			lendingApplication.setNachType("ENACH");
