@@ -78,6 +78,9 @@ public class SignAgreementService {
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
 
+	@Autowired
+	RedisNotificationService redisNotificationService;
+
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -298,6 +301,7 @@ public class SignAgreementService {
 				lendingApplicationService.createBBSSnapshot(newApplication);
 			}
 			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
+			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), newApplication);
 		}
 		return response;
 	}
