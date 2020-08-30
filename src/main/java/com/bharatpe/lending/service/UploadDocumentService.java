@@ -115,7 +115,7 @@ public class UploadDocumentService {
 				continue;
 			}
 			
-			if(document.getProof() == null || document.getProof().isEmpty()) {
+			if(document.getProof() == null || document.getProof().isEmpty() || document.getProof().get(0) == null) {
 				logger.error("Empty Documents");
 			}
 			
