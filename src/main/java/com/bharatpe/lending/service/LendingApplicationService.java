@@ -15,11 +15,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPrebookTargetDao;
-import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
-import com.bharatpe.lending.dto.LendingApplicationResponseDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.dto.TncDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -27,17 +23,13 @@ import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -100,6 +92,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
+
+	@Autowired
+	KafkaTemplate<String, Object> kafkaTemplate;
 
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -1243,5 +1238,19 @@ public class LendingApplicationService {
 				"    <p>"+DateTimeUtil.getDate(new Date())+"</p>";
 		
 		return html;
+	}
+
+	public void publishKafka(CreateTxnRequestDTO requestDTO, Long merchantId) {
+		try {
+			logger.info("Publishing to kafka:{}", requestDTO);
+			Map<String, Object> payloadMap =new HashMap<>();
+			payloadMap.put("merchant_id", merchantId);
+			payloadMap.put("amount", requestDTO.getAmount());
+			payloadMap.put("order_id", requestDTO.getOrderId());
+			kafkaTemplate.send("lending_pull_payment", merchantId.toString(), payloadMap);
+		}
+		catch(Exception e){
+			logger.error("Error publishing to kafka ", e);
+		}
 	}
 }

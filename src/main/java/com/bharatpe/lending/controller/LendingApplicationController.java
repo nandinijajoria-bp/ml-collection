@@ -142,4 +142,10 @@ public class LendingApplicationController {
 	public void callLoanDetails() {
 		callLoanDetailService.callLoanDetail();
 	}
+
+	@RequestMapping(value="/kafka/publish", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public ResponseEntity publish(@RequestBody CreateTxnRequestDTO requestDTO, @RequestAttribute Merchant merchant) {
+		lendingApplicationService.publishKafka(requestDTO, merchant.getId());
+		return new ResponseEntity(HttpStatus.OK);
+	}
 }
