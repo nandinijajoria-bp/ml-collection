@@ -706,6 +706,7 @@ public class LoanDetailsService {
 		}
 		if (!eligibilityDTOS.isEmpty()) {
 			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "OGL");
 		}
 		return eligibilityDTOS;
 	}
@@ -736,6 +737,7 @@ public class LoanDetailsService {
 		}
 		if (!eligibilityDTOS.isEmpty()) {
 			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).thenComparing(LoanEligibilityDTO::getPrincipleEdiTenure).reversed());
+			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "ZOMATO");
 		}
 		return eligibilityDTOS;
 	}

@@ -478,6 +478,9 @@ public class LoanEligibleService {
                     }
                 }
             }
+            if (!loanEligibilityDTOList.isEmpty()) {
+                experianDao.updateEligibleAmount(experianId, loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "REGULAR");
+            }
             return loanEligibilityDTOList;
         }
     }
