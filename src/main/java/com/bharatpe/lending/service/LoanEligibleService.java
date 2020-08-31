@@ -215,6 +215,8 @@ public class LoanEligibleService {
             experianDao.save(experian);
             emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
         } catch (Exception e) {
+            experian.setRetryCount(experian.getRetryCount() + 1);
+            experianDao.save(experian);
             logger.error("Exception while fetching experian details---", e);
         }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
@@ -477,6 +479,9 @@ public class LoanEligibleService {
                         logger.info("loan offer is null for merchant: {}", merchantId);
                     }
                 }
+            }
+            if (!loanEligibilityDTOList.isEmpty()) {
+                experianDao.updateEligibleAmount(experianId, loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "REGULAR");
             }
             return loanEligibilityDTOList;
         }
