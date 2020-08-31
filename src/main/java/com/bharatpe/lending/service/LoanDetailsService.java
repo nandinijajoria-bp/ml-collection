@@ -508,6 +508,9 @@ public class LoanDetailsService {
 				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				if (experian != null) {
+					experian.setEligibleAmount(null);
+					experian.setEligibleTenure(null);
+					experian.setLoanType(null);
 					experian.setReason(ExperianConstants.OGL);
 					experianDao.save(experian);
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
@@ -584,6 +587,12 @@ public class LoanDetailsService {
 						} else {
 							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));
 						}
+					}
+					if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
+						experian.setEligibleAmount(null);
+						experian.setEligibleTenure(null);
+						experian.setLoanType(null);
+						experianDao.save(experian);
 					}
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					//send instant notification
