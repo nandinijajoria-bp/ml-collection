@@ -215,6 +215,8 @@ public class LoanEligibleService {
             experianDao.save(experian);
             emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
         } catch (Exception e) {
+            experian.setRetryCount(experian.getRetryCount() + 1);
+            experianDao.save(experian);
             logger.error("Exception while fetching experian details---", e);
         }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
