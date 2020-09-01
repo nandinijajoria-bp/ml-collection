@@ -57,6 +57,7 @@ public class CallLoanDetailService {
 			RequestDTO<IneligibleRequestDTO> requestDTO = new RequestDTO<>();
 			requestDTO.setPayload(new IneligibleRequestDTO());
 			requestDTO.getPayload().setSkip(false);
+			logger.info("Calling loan details for merchant:{}", merchant.getId());
 			loanDetailsService.fetchLoanDetails(merchant, requestDTO, null);
 		} catch (Exception e) {
 			logger.error("Exception---", e);
