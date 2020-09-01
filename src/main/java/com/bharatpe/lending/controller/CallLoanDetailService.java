@@ -2,6 +2,8 @@ package com.bharatpe.lending.controller;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,7 @@ public class CallLoanDetailService {
 		long offset = 0;
 		boolean lastBatchProcessed = false;
 		logger.info("Loan Details Script Started");
+		ExecutorService executorService = Executors.newFixedThreadPool(10);
 		while (!lastBatchProcessed) {
 			try {
 				List<Integer> merchantIdList = experianDao.getMerchantList(offset);//query returns integer in merchant_id
@@ -44,7 +47,9 @@ public class CallLoanDetailService {
 				List<Long> merchantIdList2 = new LinkedList<>();
 				merchantIdList.forEach(id -> merchantIdList2.add((long) id));
 				Iterable<Merchant> merchantList = merchantDao.findAllById(merchantIdList2);
-				merchantList.forEach(this::callLoanDetailFunction);
+				for (Merchant merchant : merchantList) {
+					executorService.submit(() -> callLoanDetailFunction(merchant));
+				}
 			} catch (Exception e) {
 				logger.error("Exception---", e);
 			}
