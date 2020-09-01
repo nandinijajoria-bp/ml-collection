@@ -434,7 +434,7 @@ public class CreditLineKycService {
 		docKycDetails.setGender(lendingEkyc.getGender());
 		docKycDetails.setStatus("APPROVED");
 		docKycDetails.setPersonName(lendingEkyc.getName());
-		docKycDetails.setResponse(lendingEkyc.getResponse());
+//		docKycDetails.setResponse(lendingEkyc.getResponse());
 		docKycDetails.setModule("LENDING");
 		docKycDetailsDao.save(docKycDetails);
 	}
