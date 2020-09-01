@@ -26,11 +26,11 @@ public class CallLoanDetailService {
 	LoanDetailsService loanDetailsService;
 	
 	public void callLoanDetail() {
-		List<Integer> merchantIdList=experianDao.getMerchantList();//query returns integer in merchant_id
-		List<Long> merchantIdList2=new LinkedList<Long>();
-		merchantIdList.forEach(id->merchantIdList2.add((long)id));
+//		List<Integer> merchantIdList=experianDao.getMerchantList();//query returns integer in merchant_id
+		List<Long> merchantIdList2=new LinkedList<Long>(){{add(3612680L);}};
+//		merchantIdList.forEach(id->merchantIdList2.add((long)id));
 		Iterable<Merchant> merchantList=merchantDao.findAllById(merchantIdList2);
-		merchantList.forEach(merchant->callLoanDetailFunction(merchant));
+		merchantList.forEach(this::callLoanDetailFunction);
 	}
 	
 	public void callLoanDetailFunction(Merchant merchant) {
