@@ -260,6 +260,7 @@ public class VerifyOTPService {
 			Map<String,Long> detailMap=new HashMap<String, Long>(){{
 				put("merchantId", merchant.getId());
 				put("applicationId",lendingApplication.getId());
+				put("isCreditLine",0L);
 			}};
 			kafkaTemplate.send("verify_kyc_details",detailMap);
 			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
