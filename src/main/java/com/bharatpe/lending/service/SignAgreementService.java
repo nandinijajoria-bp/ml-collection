@@ -260,9 +260,9 @@ public class SignAgreementService {
 			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
 		}
-		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()))
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
-		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()))
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());

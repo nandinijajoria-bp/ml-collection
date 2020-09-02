@@ -198,9 +198,11 @@ public class UploadDocumentService {
 			documentsIdProof.setProofFrontSide(frontSide);
 			documentsIdProof.setProofBackSide(backSide);
 			documentsIdProof.setSinglePage(singlePageDocument);
-			documentsIdProof.setLatitude(meta.getLatitude());
-			documentsIdProof.setLongitude(meta.getLongitude());
-			documentsIdProof.setIp(meta.getIp());
+			if (meta != null && meta.getLatitude() != null && !meta.getLatitude().trim().equalsIgnoreCase("") && !meta.getLatitude().trim().equalsIgnoreCase("undefined")) {
+				documentsIdProof.setLatitude(meta.getLatitude());
+				documentsIdProof.setLongitude(meta.getLongitude());
+				documentsIdProof.setIp(meta.getIp());
+			}
 			documentsIdProofdao.save(documentsIdProof);
 		} else {
 			documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
