@@ -13,6 +13,7 @@ import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -433,7 +434,7 @@ public class CreditLineKycService {
 		docKycDetails.setState(lendingEkyc.getState());
 		docKycDetails.setGender(lendingEkyc.getGender());
 		docKycDetails.setStatus("APPROVED");
-		docKycDetails.setPersonName(lendingEkyc.getName());
+		docKycDetails.setPersonName(StringUtils.substring(lendingEkyc.getName(), 0, 30));
 //		docKycDetails.setResponse(lendingEkyc.getResponse());
 		docKycDetails.setModule("LENDING");
 		docKycDetailsDao.save(docKycDetails);

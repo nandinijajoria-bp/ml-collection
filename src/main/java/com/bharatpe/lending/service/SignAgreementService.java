@@ -266,7 +266,7 @@ public class SignAgreementService {
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-		if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO")) {
+		if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 			newApplication.setLender("HINDON");
 		}
 		else {

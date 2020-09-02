@@ -145,7 +145,7 @@ public class LendingApplicationService {
 				lendingApplication.setIp(requestDTO.getMeta().getIp());
 			}
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO")) {
+			if(lendingApplication.getLoanAmount() >= 500000 || (lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 				lendingApplication.setLender("HINDON");
 			}
 			else {
