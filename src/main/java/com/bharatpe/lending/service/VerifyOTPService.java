@@ -233,21 +233,7 @@ public class VerifyOTPService {
 		lendingAuditTrial.setType("APP_STATUS");
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
-
-		String bankCode = null;
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-		if (merchantBankDetail != null && meta.getAppVersion() != null && Integer.parseInt(meta.getAppVersion()) >= 238) {
-			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
-		} else if (merchantBankDetail != null){
-			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
-		}
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-// 		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
-// 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
-// 		} else {
-// 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-// 		}
-		
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
