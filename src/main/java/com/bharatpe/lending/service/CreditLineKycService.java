@@ -227,6 +227,7 @@ public class CreditLineKycService {
 	}
 
 	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
+		logger.info("Ekyc response: {}", requestDTO.getPayload());
 		Map<String,Object>map=new HashMap<>();
 
 		String module="CREDIT_LINE";
@@ -237,8 +238,9 @@ public class CreditLineKycService {
 			map.put("message", "empty request");
 			return map;
 		}
-		else if(eKycRequestDTO.getmId().equals(""))
+		else if(eKycRequestDTO.getmId() == null || eKycRequestDTO.getmId().equals(""))
 		{
+			logger.error("MID not present in ekyc response for merchant:{}", merchant.getId());
 			map.put("success", false);
 			map.put("message", "invalid mid");
 			return map;
