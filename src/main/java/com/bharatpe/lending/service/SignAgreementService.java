@@ -78,6 +78,9 @@ public class SignAgreementService {
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
 
+	@Autowired
+	RedisNotificationService redisNotificationService;
+
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -257,13 +260,13 @@ public class SignAgreementService {
 			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
 		}
-		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()))
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
-		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()))
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-		if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO")) {
+		if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 			newApplication.setLender("HINDON");
 		}
 		else {
@@ -294,6 +297,11 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			
 			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				lendingApplicationService.createBBSSnapshot(newApplication);
+			}
+			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
+			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), newApplication);
 		}
 		return response;
 	}
@@ -315,8 +323,10 @@ public class SignAgreementService {
 				}
 			}
 			toSaveDocuments.setSinglePage(singleProofDoc);
-			toSaveDocuments.setLatitude(meta.getLatitude());
-			toSaveDocuments.setLongitude(meta.getLongitude());
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLongitude(meta.getLongitude());
 			toSaveDocuments.setIp(meta.getIp());
 			documentsIdProofDao.save(toSaveDocuments);
 

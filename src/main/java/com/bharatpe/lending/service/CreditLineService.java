@@ -553,7 +553,7 @@ public class CreditLineService {
 						Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
 						BankTransferResponseDTO bankTransferResponseDTO = new BankTransferResponseDTO();
 						bankTransferResponseDTO.setPaymentStatus(responseData.get("paymentStatus").toString());
-						bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber").toString());
+						bankTransferResponseDTO.setBankReferenceNumber(responseData.get("bankReferenceNumber") != null ? responseData.get("bankReferenceNumber").toString() : null);
 						bankTransferResponseDTO.setAccountNumber(responseData.get("accountNumber").toString());
 						bankTransferResponseDTO.setBeneficiaryName(responseData.get("beneficiaryName").toString());
 						bankTransferResponseDTO.setIfsc(responseData.get("ifsc").toString());

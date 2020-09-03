@@ -3,19 +3,19 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.ExperianSnapshotDao;
+import com.bharatpe.lending.common.dao.LendingBBSDao;
+import com.bharatpe.lending.common.dao.LendingBBSSnapshotDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.ExperianSnapshot;
+import com.bharatpe.lending.common.entity.LendingBBS;
+import com.bharatpe.lending.common.entity.LendingBBSSnapshot;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPrebookTargetDao;
-import com.bharatpe.lending.dto.LendingApplicationRequestDTO;
-import com.bharatpe.lending.dto.LendingApplicationResponseDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.dto.TncDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -23,17 +23,13 @@ import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -85,6 +81,22 @@ public class LendingApplicationService {
 	@Autowired
 	ExperianSnapshotDao experianSnapshotDao;
 
+	@Autowired
+	LendingBBSDao lendingBBSDao;
+
+	@Autowired
+	LendingBBSSnapshotDao lendingBBSSnapshotDao;
+
+	@Autowired
+	MerchantScoreDao merchantScoreDao;
+
+	@Autowired
+	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
+
+	@Autowired
+	KafkaTemplate<String, Object> kafkaTemplate;
+
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse;
 		LendingApplication lendingApplication;
@@ -133,7 +145,7 @@ public class LendingApplicationService {
 				lendingApplication.setIp(requestDTO.getMeta().getIp());
 			}
 			lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO")) {
+			if(lendingApplication.getLoanAmount() >= 500000 || (lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 				lendingApplication.setLender("HINDON");
 			}
 			else {
@@ -144,6 +156,10 @@ public class LendingApplicationService {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			}
 			createExperianSnapshot(merchant, lendingApplication);
+			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				createBBSSnapshot(lendingApplication);
+			}
+			createMerchantScoreSnapshot(lendingApplication);
 			createStatusAuditTrail(lendingApplication);
 		}
 		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
@@ -154,6 +170,24 @@ public class LendingApplicationService {
 	private boolean isLdc(LendingApplication lendingApplication) {
 		Long todayApplicationCount = lendingApplicationDao.getLDCApplicationCountBetweenDate(DateTimeUtil.getStartTimeFromDateTime(new Date()), DateTimeUtil.getEndTimeFromDateTime(new Date()));
 		return todayApplicationCount < 25 && lendingApplication.getTenureInMonths() != 15;
+	}
+
+	public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+		MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchant().getId());
+		if (merchantScore != null) {
+			MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
+			merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
+			merchantScoreSnapshotDao.save(merchantScoreSnapshot);
+		}
+	}
+
+	public void createBBSSnapshot(LendingApplication lendingApplication) {
+		LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchant().getId());
+		if (lendingBBS != null) {
+			LendingBBSSnapshot lendingBBSSnapshot = LendingBBSSnapshot.createObject(lendingBBS);
+			lendingBBSSnapshot.setApplicationId(lendingApplication.getId());
+			lendingBBSSnapshotDao.save(lendingBBSSnapshot);
+		}
 	}
 
 	private void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
@@ -1204,5 +1238,19 @@ public class LendingApplicationService {
 				"    <p>"+DateTimeUtil.getDate(new Date())+"</p>";
 		
 		return html;
+	}
+
+	public void publishKafka(CreateTxnRequestDTO requestDTO, Long merchantId) {
+		try {
+			logger.info("Publishing to kafka:{}", requestDTO);
+			Map<String, Object> payloadMap =new HashMap<>();
+			payloadMap.put("merchant_id", merchantId);
+			payloadMap.put("amount", requestDTO.getAmount());
+			payloadMap.put("order_id", requestDTO.getOrderId());
+			kafkaTemplate.send("lending_pull_payment", merchantId.toString(), payloadMap);
+		}
+		catch(Exception e){
+			logger.error("Error publishing to kafka ", e);
+		}
 	}
 }

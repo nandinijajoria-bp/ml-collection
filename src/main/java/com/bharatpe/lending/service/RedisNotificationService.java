@@ -102,8 +102,7 @@ public class RedisNotificationService {
 				InstantNotificationDto notificationDto=new InstantNotificationDto();
 				notificationDto.setMerchantId(merchant.getId());
 				notificationDto.setMessageCategory("CREDIT_LINE_ELIGIBLE");
-				String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
-						"You are pre - approved for business loan up to Rs."+highestLoan.getAmount()+" from BharatPe. Enjoy repayment flexibility along with interest rate as low as 0.1% per day. \n" + 
+				String message = "You are pre - approved for business loan up to Rs."+highestLoan.getAmount()+" from BharatPe. Enjoy repayment flexibility along with interest rate as low as 0.1% per day. \n" +
 						"Get Now: ";
 				notificationDto.setMessage(message);
 				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
@@ -123,8 +122,7 @@ public class RedisNotificationService {
 			notificationDto.setApplicationId(creditApplication.getId());
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("CREDIT_LINE_APPLIED_APPLICATION");
-			String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
-					"You are 1 step away from activating your Rs."+creditApplication.getAmount()+" BharatPe Loan Balance. Pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility. \n" + 
+			String message= "You are 1 step away from activating your Rs."+creditApplication.getAmount()+" BharatPe Loan Balance. Pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility. \n" +
 					"Get Now: ";
 			notificationDto.setMessage(message);
 			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
@@ -143,8 +141,7 @@ public class RedisNotificationService {
 			notificationDto.setApplicationId(creditApplication.getId());
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("CREDIT_LINE_ENACH");
-			String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
-					"Instantly Activate Loans Balance by Registering eNACH.\nClick Here: ";
+			String message= "Instantly Activate Loans Balance by Registering eNACH.\nClick Here: ";
 			notificationDto.setMessage(message);
 			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "enach_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 1));
 			
@@ -161,8 +158,7 @@ public class RedisNotificationService {
 			notificationDto.setApplicationId(creditAccount.getId());
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("CREDIT_LINE_PROMOTIONAL");
-			String message="Hi, "+merchant.getBeneficiaryName()+",\n" + 
-					"BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+			String message= "BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
 			notificationDto.setMessage(message);
 			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
 		}
@@ -176,7 +172,7 @@ public class RedisNotificationService {
 		try {
 			logger.info("Sending pending enach notification for merchant {}",merchant);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");
-		    String message = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nRegister eNACH and get Rs." + lendingApplication.getLoanAmount() + " Loan in your " + merchantBankDetail.getBankName() + " A/c Now!";
+		    String message = "Register eNACH and get Rs." + lendingApplication.getLoanAmount() + " Loan in your " + merchantBankDetail.getBankName() + " A/c Now!";
 		    InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(lendingApplication.getId());
 			notificationDto.setMerchantId(merchant.getId());

@@ -126,7 +126,22 @@ public class EKycRequestDTO {
 	public void setState(String state) {
 		this.state = state;
 	}
- 
- 
-	
+
+	@Override
+	public String toString() {
+		return "EKycRequestDTO{" +
+				"mId='" + mId + '\'' +
+				", status=" + status +
+				", statusMessage='" + statusMessage + '\'' +
+				", gender='" + gender + '\'' +
+				", dob='" + dob + '\'' +
+				", name='" + name + '\'' +
+				", address='" + address + '\'' +
+				", city='" + city + '\'' +
+				", pincode='" + pincode + '\'' +
+				", country='" + country + '\'' +
+				", response='" + response + '\'' +
+				", state='" + state + '\'' +
+				'}';
+	}
 }

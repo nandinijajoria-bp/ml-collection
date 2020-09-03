@@ -66,7 +66,7 @@ public class MerchantDetailsService {
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             lendingCpvDetails.setLatitude(Double.parseDouble(lat));
             lendingCpvDetails.setLongitude(Double.parseDouble(lng));
         }
@@ -101,7 +101,7 @@ public class MerchantDetailsService {
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             lendingCpvDetails.setLatitude(Double.parseDouble(lat));
             lendingCpvDetails.setLongitude(Double.parseDouble(lng));
         }
@@ -172,7 +172,7 @@ public class MerchantDetailsService {
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             lendingCpvDetails.setLatitude(Double.parseDouble(lat));
             lendingCpvDetails.setLongitude(Double.parseDouble(lng));
         }
@@ -269,7 +269,7 @@ public class MerchantDetailsService {
         }
         double latitude = 0D;
         double longitude = 0D;
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             latitude = Double.parseDouble(lat);
             longitude = Double.parseDouble(lng);
         }

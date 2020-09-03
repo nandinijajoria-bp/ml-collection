@@ -13,6 +13,7 @@ import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -226,6 +227,7 @@ public class CreditLineKycService {
 	}
 
 	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
+		logger.info("Ekyc response: {}", requestDTO.getPayload());
 		Map<String,Object>map=new HashMap<>();
 
 		String module="CREDIT_LINE";
@@ -236,12 +238,13 @@ public class CreditLineKycService {
 			map.put("message", "empty request");
 			return map;
 		}
-		else if(eKycRequestDTO.getmId().equals(""))
-		{
-			map.put("success", false);
-			map.put("message", "invalid mid");
-			return map;
-		}
+//		else if(eKycRequestDTO.getmId() == null || eKycRequestDTO.getmId().equals(""))
+//		{
+//			logger.error("MID not present in ekyc response for merchant:{}", merchant.getId());
+//			map.put("success", false);
+//			map.put("message", "invalid mid");
+//			return map;
+//		}
 		Long applicationId=null;
 		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 		LendingApplication lendingApplication=null;
@@ -286,21 +289,22 @@ public class CreditLineKycService {
 			}
 		}
 		JsonNode uidData = (rootNode != null) ? rootNode.path("UidData") : null;
-		if(uidData==null)
-			return map;
-		String pht=uidData.path("Pht").textValue();
-		String  base64Encoded = processBase64String(pht);
-		String fileName = merchant.getId() + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
-		String imagePath=s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
-		lendingEkyc.setImagePath(imagePath); 
-		lendingEkycDao.save(lendingEkyc);
-		if(module.equalsIgnoreCase("CREDIT_LINE")) {
-			MerchantDocumentProof merchantDocumentProof=insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
-			insertInMerchantDocumentProofOcr(merchant, lendingEkyc, applicationId, merchantDocumentProof);
+		if(uidData != null) {
+			String pht = uidData.path("Pht").textValue();
+			String base64Encoded = processBase64String(pht);
+			String fileName = merchant.getId() + "" + ((int) (Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			String imagePath = s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
+			lendingEkyc.setImagePath(imagePath);
+			lendingEkycDao.save(lendingEkyc);
 		}
-		else {
-			DocumentsIdProof documentIdProof=insertIntoDocumentIdProof(merchant, lendingEkyc, lendingApplication);
-			insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
+		if (lendingEkyc.getStatus() != null && lendingEkyc.getStatus()) {
+			if (module.equalsIgnoreCase("CREDIT_LINE")) {
+				MerchantDocumentProof merchantDocumentProof = insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
+				insertInMerchantDocumentProofOcr(merchant, lendingEkyc, applicationId, merchantDocumentProof);
+			} else {
+				DocumentsIdProof documentIdProof = insertIntoDocumentIdProof(merchant, lendingEkyc, lendingApplication);
+				insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
+			}
 		}
 		map.put("success", true);
 		map.put("message", "ekyc created successfully");
@@ -433,8 +437,8 @@ public class CreditLineKycService {
 		docKycDetails.setState(lendingEkyc.getState());
 		docKycDetails.setGender(lendingEkyc.getGender());
 		docKycDetails.setStatus("APPROVED");
-		docKycDetails.setPersonName(lendingEkyc.getName());
-		docKycDetails.setResponse(lendingEkyc.getResponse());
+		docKycDetails.setPersonName(StringUtils.substring(lendingEkyc.getName(), 0, 30));
+//		docKycDetails.setResponse(lendingEkyc.getResponse());
 		docKycDetails.setModule("LENDING");
 		docKycDetailsDao.save(docKycDetails);
 	}
