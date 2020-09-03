@@ -313,7 +313,8 @@ public class LoanDetailsService {
 					bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
 				}
 			} catch (Exception e) {
-				logger.error("Exception while checking enach bank code:", e);
+				logger.info("Exception while checking enach bank code:", e);
+				bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 			}
 			if(lendingApplication != null) {
 				LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
@@ -372,7 +373,7 @@ public class LoanDetailsService {
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					try {
 						//enach not success and not skipped and bankcode enachable and app version >= 237
-						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
+						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null && requestDTO.getMeta() != null && requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 237) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
 							} else {
@@ -380,7 +381,7 @@ public class LoanDetailsService {
 							}
 						}
 					} catch (Exception e) {// exception due to undefined app version
-						logger.error("Exception while checking enach bank", e);
+						logger.info("Exception while checking enach bank", e);
 						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
 							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
 								enach = "bharatpe://enachdigio";//set deep link for enach digio
@@ -507,6 +508,9 @@ public class LoanDetailsService {
 				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				if (experian != null) {
+					experian.setEligibleAmount(null);
+					experian.setEligibleTenure(null);
+					experian.setLoanType(null);
 					experian.setReason(ExperianConstants.OGL);
 					experianDao.save(experian);
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
@@ -540,8 +544,6 @@ public class LoanDetailsService {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
 					try {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
-						//send instant notification
-						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -573,7 +575,7 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
 					}
 					//fetching NTB loans
-					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null) {
+					if (!rejected && loanEligibilityDTOs.isEmpty()) {
 						experian.setReason(null);
 						experianDao.save(experian);
 						if (bankCode == null) {
@@ -582,11 +584,25 @@ public class LoanDetailsService {
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.ENACH);
 							experianDao.save(experian);
+						} else if (experian.getResponse() == null) {
+							logger.info("NTC merchant, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+							experian.setCategory("1N");
+							experian.setColor(ExperianConstants.COLOR.RED.name());
+							experian.setReason(ExperianConstants.NTC);
+							experianDao.save(experian);
 						} else {
 							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));
 						}
 					}
+					if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
+						experian.setEligibleAmount(null);
+						experian.setEligibleTenure(null);
+						experian.setLoanType(null);
+						experianDao.save(experian);
+					}
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					//send instant notification
+					redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 				}
 //			}
 			boolean ogl = false;
@@ -705,6 +721,7 @@ public class LoanDetailsService {
 		}
 		if (!eligibilityDTOS.isEmpty()) {
 			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "OGL");
 		}
 		return eligibilityDTOS;
 	}
@@ -735,6 +752,7 @@ public class LoanDetailsService {
 		}
 		if (!eligibilityDTOS.isEmpty()) {
 			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).thenComparing(LoanEligibilityDTO::getPrincipleEdiTenure).reversed());
+			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "ZOMATO");
 		}
 		return eligibilityDTOS;
 	}

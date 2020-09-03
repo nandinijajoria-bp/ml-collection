@@ -215,6 +215,8 @@ public class LoanEligibleService {
             experianDao.save(experian);
             emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
         } catch (Exception e) {
+            experian.setRetryCount(experian.getRetryCount() + 1);
+            experianDao.save(experian);
             logger.error("Exception while fetching experian details---", e);
         }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
@@ -478,6 +480,9 @@ public class LoanEligibleService {
                     }
                 }
             }
+            if (!loanEligibilityDTOList.isEmpty()) {
+                experianDao.updateEligibleAmount(experianId, loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "REGULAR");
+            }
             return loanEligibilityDTOList;
         }
     }
@@ -543,7 +548,7 @@ public class LoanEligibleService {
         int ioEdiDays = lendingCategories.getIoEdiDays();
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
-            if (yellowPincode && "NTB".equalsIgnoreCase(loanType)) {
+            if ("NTB".equalsIgnoreCase(loanType)) {
                 prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
             } else {
                 prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
@@ -592,11 +597,11 @@ public class LoanEligibleService {
 
     private double roundUp(double loanAmount) {
         if (loanAmount < 20000) {
-            return loanAmount - (loanAmount % 1000) + 1000;
+            return (Math.ceil(loanAmount / 1000.0) * 1000);
         } else if (loanAmount < 100000) {
-            return loanAmount - (loanAmount % 5000) + 1000;
+            return (Math.ceil(loanAmount / 5000.0) * 5000);
         } else {
-            return loanAmount - (loanAmount % 10000) + 1000;
+            return (Math.ceil(loanAmount / 10000.0) * 10000);
         }
     }
 

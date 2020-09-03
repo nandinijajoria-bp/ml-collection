@@ -394,7 +394,7 @@ public class CreditLineTransaction {
                 startPromotionalNotification(creditAccount);
                 creditAccountDao.updateStatus(creditAccount.getId(), CreditConstants.AccountStatus.ACTIVE.name());
             }
-            LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findByMerchantId(creditAccount.getMerchantId());
+            LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findByMerchantIdAndMode(creditAccount.getMerchantId(), "SETTLEMENT");
             if (lendingPullPayment != null) {
                 lendingPullPayment.setDueAmount(newMAD);
                 lendingPullPaymentDao.save(lendingPullPayment);

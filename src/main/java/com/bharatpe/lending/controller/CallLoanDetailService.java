@@ -2,7 +2,11 @@ package com.bharatpe.lending.controller;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +19,8 @@ import com.bharatpe.lending.service.LoanDetailsService;
 
 @Service
 public class CallLoanDetailService {
+
+	private final Logger logger = LoggerFactory.getLogger(CallLoanDetailService.class);
 	
 	@Autowired
 	ExperianDao experianDao;
@@ -26,18 +32,41 @@ public class CallLoanDetailService {
 	LoanDetailsService loanDetailsService;
 	
 	public void callLoanDetail() {
-		List<Integer> merchantIdList=experianDao.getMerchantList();//query returns integer in merchant_id
-		List<Long> merchantIdList2=new LinkedList<Long>();
-		merchantIdList.forEach(id->merchantIdList2.add((long)id));
-		Iterable<Merchant> merchantList=merchantDao.findAllById(merchantIdList2);
-		merchantList.forEach(merchant->callLoanDetailFunction(merchant));
+		long offset = 0;
+		boolean lastBatchProcessed = false;
+		logger.info("Loan Details Script Started");
+		ExecutorService executorService = Executors.newFixedThreadPool(10);
+		while (!lastBatchProcessed) {
+			try {
+				List<Integer> merchantIdList = experianDao.getMerchantList(offset);//query returns integer in merchant_id
+				logger.info("Processing loan details batch starting at offset: {}", offset);
+				offset += 1000;
+				if (merchantIdList.size() < 1000) {
+					lastBatchProcessed = true;
+				}
+				List<Long> merchantIdList2 = new LinkedList<>();
+				merchantIdList.forEach(id -> merchantIdList2.add((long) id));
+				Iterable<Merchant> merchantList = merchantDao.findAllById(merchantIdList2);
+				for (Merchant merchant : merchantList) {
+					executorService.submit(() -> callLoanDetailFunction(merchant));
+				}
+			} catch (Exception e) {
+				logger.error("Exception---", e);
+			}
+		}
+		logger.info("Loan Details Script Ended");
 	}
 	
 	public void callLoanDetailFunction(Merchant merchant) {
-		RequestDTO<IneligibleRequestDTO> requestDTO=new RequestDTO<>();
-		requestDTO.setPayload(new IneligibleRequestDTO());
-		requestDTO.getPayload().setSkip(false);
-		loanDetailsService.fetchLoanDetails(merchant, requestDTO, null);
+		try {
+			RequestDTO<IneligibleRequestDTO> requestDTO = new RequestDTO<>();
+			requestDTO.setPayload(new IneligibleRequestDTO());
+			requestDTO.getPayload().setSkip(false);
+			logger.info("Calling loan details for merchant:{}", merchant.getId());
+			loanDetailsService.fetchLoanDetails(merchant, requestDTO, null);
+		} catch (Exception e) {
+			logger.error("Exception---", e);
+		}
 	}
 }
 

@@ -164,9 +164,11 @@ public class VerifyOTPService {
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
 		lendingApplication.setAgreementAt(new Date());
 		lendingApplication.setAgreement(1);
-		lendingApplication.setLatitude(meta.getLatitude());
-		lendingApplication.setLongitude(meta.getLongitude());
-		lendingApplication.setIp(meta.getIp());
+		if (meta != null && meta.getLatitude() != null && !meta.getLatitude().equalsIgnoreCase("undefined")) {
+			lendingApplication.setLatitude(meta.getLatitude());
+			lendingApplication.setLongitude(meta.getLongitude());
+			lendingApplication.setIp(meta.getIp());
+		}
 		lendingApplication.setExternalLoanId(loanId);
 		if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
 			lendingApplication.setNachType("ENACH");
@@ -235,20 +237,7 @@ public class VerifyOTPService {
 		lendingAuditTrial.setType("APP_STATUS");
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
-
-		String bankCode = null;
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-		if (merchantBankDetail != null && meta.getAppVersion() != null && Integer.parseInt(meta.getAppVersion()) >= 238) {
-			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
-		} else if (merchantBankDetail != null){
-			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
-		}
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-// 		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
-// 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
-// 		} else {
-// 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-// 		}
 		sendDetailsForKycVerification(merchant,lendingApplication);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);

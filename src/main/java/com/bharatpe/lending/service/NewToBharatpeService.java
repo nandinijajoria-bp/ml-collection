@@ -245,6 +245,9 @@ public class NewToBharatpeService {
 			}
 		}
 		loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+		if (!loanEligibilityDTOList.isEmpty()) {
+			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
+		}
 		return loanEligibilityDTOList;
 	}
 
