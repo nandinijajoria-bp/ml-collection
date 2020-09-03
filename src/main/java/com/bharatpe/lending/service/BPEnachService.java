@@ -222,6 +222,7 @@ public class BPEnachService {
         request.put("nachAmount", lendingEnach.getAmount());
         request.put("ownerId", lendingEnach.getApplicationId());
         request.put("nachType", "ENACH");
+        request.put("status", "APPROVED");
         request.put("applicantName", merchantBankDetail.getBeneficiaryName());
         request.put("nachMode", "ADHO");
         request.put("identifier", lendingEnach.getIdentifier());
