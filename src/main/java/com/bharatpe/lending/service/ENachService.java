@@ -29,6 +29,8 @@ import org.springframework.web.client.RestTemplate;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class ENachService {
@@ -70,6 +72,11 @@ public class ENachService {
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;
+
+    @Autowired
+    BPEnachService bpEnachService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -220,6 +227,7 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
+            executorService.submit(() -> bpEnachService.registerNach(lendingEnach));
         }
         return responseDTO;
     }
