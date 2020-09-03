@@ -218,7 +218,7 @@ public class PaymentService {
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
  			
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			Double paidInterestAmount = 0D;
@@ -237,7 +237,7 @@ public class PaymentService {
 				
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
 				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
-				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + paidPrincipalAmount);
+				activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
 
 				activeLoan.setDueAmount(0D);
 				activeLoan.setDueInterest(0D);
@@ -255,7 +255,7 @@ public class PaymentService {
 					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
 					activeLoan.setDueInterest(0D);
 					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
-					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + balance);
+					activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + balance);
 				} else {
 					paidInterestAmount = request.getAmount();
 					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
