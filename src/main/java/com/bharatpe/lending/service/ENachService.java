@@ -230,13 +230,13 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
-            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach, requestDTO.getTransactionIdentifier()), merchant.getId()));
+            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId()));
         }
         return responseDTO;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private Map createNachRegReq(LendingEnach lendingEnach, Long transactionIdentifier) {
+    private Map createNachRegReq(LendingEnach lendingEnach) {
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingEnach.getMerchantId(), "ACTIVE");
         Map request = new HashMap();
         request.put("merchantId", lendingEnach.getMerchantId());
@@ -257,7 +257,7 @@ public class ENachService {
         request.put("identifier", lendingEnach.getIdentifier());
         request.put("mendateId", lendingEnach.getMandateId());
         request.put("bankResponse", lendingEnach.getResponse());
-        request.put("txn_identifier", transactionIdentifier);
+        request.put("txn_identifier", lendingEnach.getId());
         return request;
     }
 

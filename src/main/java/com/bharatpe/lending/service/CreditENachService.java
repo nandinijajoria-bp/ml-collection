@@ -239,13 +239,13 @@ public class CreditENachService {
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
             creditApplicationNachDao.save(creditApplicationNach);
-            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingClEnach, requestDTO.getTransactionIdentifier()), merchant.getId()));
+            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingClEnach), merchant.getId()));
         }
         return responseDTO;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private Map createNachRegReq(LendingClEnach lendingClEnach, Long transactionIdentifier) {
+    private Map createNachRegReq(LendingClEnach lendingClEnach) {
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClEnach.getMerchantId(), "ACTIVE");
         Map request = new HashMap();
         request.put("merchantId", lendingClEnach.getMerchantId());
@@ -266,7 +266,7 @@ public class CreditENachService {
         request.put("identifier", lendingClEnach.getIdentifier());
         request.put("mendateId", lendingClEnach.getMandateId());
         request.put("bankResponse", lendingClEnach.getResponse());
-        request.put("txn_identifier", transactionIdentifier);
+        request.put("txn_identifier", lendingClEnach.getId());
         return request;
     }
 
