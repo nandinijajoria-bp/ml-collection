@@ -223,7 +223,8 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
-            verifyOTPService.sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
         }
         return responseDTO;
     }

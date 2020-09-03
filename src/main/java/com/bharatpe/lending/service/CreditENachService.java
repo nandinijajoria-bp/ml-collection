@@ -232,7 +232,8 @@ public class CreditENachService {
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
             creditApplicationNachDao.save(creditApplicationNach);
-            verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
         }
         return responseDTO;
     }
