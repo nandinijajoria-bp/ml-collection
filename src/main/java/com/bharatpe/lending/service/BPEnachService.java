@@ -27,6 +27,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -211,12 +212,13 @@ public class BPEnachService {
         }
     }
 
-    private Map createNachRegReq(LendingEnach lendingEnach) {
+    private Map createNachRegReq(LendingEnach lendingEnach) throws ParseException {
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingEnach.getMerchantId(), "ACTIVE");
         Map request = new HashMap();
         request.put("merchantId", lendingEnach.getMerchantId());
         request.put("referenceNumber", lendingEnach.getMid());
-        request.put("startDate", lendingEnach.getMandateDate());
+        Date startDate = new SimpleDateFormat("dd-MM-yyyy").parse(lendingEnach.getMandateDate());
+        request.put("startDate", new SimpleDateFormat("yyyy-MM-dd").format(startDate));
         request.put("nachAmount", lendingEnach.getAmount());
         request.put("ownerId", lendingEnach.getApplicationId());
         request.put("nachType", "ENACH");
