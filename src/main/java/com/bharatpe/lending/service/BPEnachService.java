@@ -211,24 +211,6 @@ public class BPEnachService {
         }
     }
 
-    private Map createNachRegReq(LendingEnach lendingEnach) throws ParseException {
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingEnach.getMerchantId(), "ACTIVE");
-        Map request = new HashMap();
-        request.put("merchantId", lendingEnach.getMerchantId());
-        request.put("referenceNumber", lendingEnach.getMid());
-        Date startDate = new SimpleDateFormat("dd-MM-yyyy").parse(lendingEnach.getMandateDate());
-        request.put("startDate", new SimpleDateFormat("yyyy-MM-dd").format(startDate));
-        request.put("nachAmount", lendingEnach.getAmount());
-        request.put("ownerId", lendingEnach.getApplicationId());
-        request.put("nachType", "ENACH");
-        request.put("status", "APPROVED");
-        request.put("applicantName", merchantBankDetail.getBeneficiaryName());
-        request.put("nachMode", "ADHO");
-        request.put("identifier", lendingEnach.getIdentifier());
-        request.put("mendateId", lendingEnach.getMandateId());
-        return request;
-    }
-
     private String getSecret() {
         if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
             InternalClient client = internalClientDao.findByClientName(CLIENT_NAME);
