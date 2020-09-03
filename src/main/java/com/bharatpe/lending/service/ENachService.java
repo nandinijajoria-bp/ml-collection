@@ -26,9 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -227,9 +230,35 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
-            executorService.submit(() -> bpEnachService.registerNach(lendingEnach));
+            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach, requestDTO.getTransactionIdentifier()), merchant.getId()));
         }
         return responseDTO;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private Map createNachRegReq(LendingEnach lendingEnach, Long transactionIdentifier) {
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingEnach.getMerchantId(), "ACTIVE");
+        Map request = new HashMap();
+        request.put("merchantId", lendingEnach.getMerchantId());
+        request.put("referenceNumber", lendingEnach.getMid());
+        Date startDate = new Date();
+        try {
+            startDate = new SimpleDateFormat("dd-MM-yyyy").parse(lendingEnach.getMandateDate());
+        } catch (ParseException e) {
+            logger.error("Exception while parsing date", e);
+        }
+        request.put("startDate", new SimpleDateFormat("yyyy-MM-dd").format(startDate));
+        request.put("nachAmount", lendingEnach.getAmount());
+        request.put("ownerId", lendingEnach.getApplicationId());
+        request.put("nachType", "ENACH");
+        request.put("status", "APPROVED");
+        request.put("applicantName", merchantBankDetail.getBeneficiaryName());
+        request.put("nachMode", "ADHO");
+        request.put("identifier", lendingEnach.getIdentifier());
+        request.put("mendateId", lendingEnach.getMandateId());
+        request.put("bankResponse", lendingEnach.getResponse());
+        request.put("txn_identifier", transactionIdentifier);
+        return request;
     }
 
     //changing skip status to true

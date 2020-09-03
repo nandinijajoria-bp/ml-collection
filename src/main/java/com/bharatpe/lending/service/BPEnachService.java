@@ -188,10 +188,9 @@ public class BPEnachService {
         return branch;
     }
 
-    public void registerNach(LendingEnach lendingEnach) {
-        logger.info("Registering Nach for merchant:{}", lendingEnach.getMerchantId());
+    public void registerNach(Map requestParams, Long merchantId) {
+        logger.info("Registering Nach for merchant:{}", merchantId);
         try {
-            Map requestParams = createNachRegReq(lendingEnach);
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -203,9 +202,9 @@ public class BPEnachService {
             logger.info("URL: {} request: {} ", BPNACH_REGISTER_URL, objectMapper.writeValueAsString(request));
             ResponseEntity<Object> response = restTemplate.exchange(BPNACH_REGISTER_URL, HttpMethod.POST, request, Object.class);
             if (response.getStatusCode().equals(HttpStatus.OK) && "200".equalsIgnoreCase((objectMapper.convertValue(response.getBody(), Map.class)).get("statusCode").toString())) {
-                logger.info("Nach register successful for merchant:{}", lendingEnach.getMerchantId());
+                logger.info("Nach register successful for merchant:{}", merchantId);
             } else {
-                logger.info("Nach register Failed for merchant:{}", lendingEnach.getMerchantId());
+                logger.info("Nach register Failed for merchant:{}", merchantId);
             }
         } catch (Exception e) {
             logger.error("Exception in nach register api---", e);
