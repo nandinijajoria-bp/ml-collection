@@ -266,7 +266,7 @@ public class CreditENachService {
         request.put("identifier", lendingClEnach.getIdentifier());
         request.put("mendateId", lendingClEnach.getMandateId());
         request.put("bankResponse", lendingClEnach.getResponse());
-        request.put("txn_identifier", lendingClEnach.getId());
+        request.put("txnIdentifier", lendingClEnach.getId());
         return request;
     }
 

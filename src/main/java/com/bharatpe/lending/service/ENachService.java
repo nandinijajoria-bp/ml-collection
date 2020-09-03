@@ -257,7 +257,7 @@ public class ENachService {
         request.put("identifier", lendingEnach.getIdentifier());
         request.put("mendateId", lendingEnach.getMandateId());
         request.put("bankResponse", lendingEnach.getResponse());
-        request.put("txn_identifier", lendingEnach.getId());
+        request.put("txnIdentifier", lendingEnach.getId());
         return request;
     }
 
