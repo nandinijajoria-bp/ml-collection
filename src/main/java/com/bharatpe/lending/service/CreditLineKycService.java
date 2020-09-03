@@ -110,6 +110,9 @@ public class CreditLineKycService {
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
 	
+	@Autowired
+	VerifyOTPService verifyOTPService;
+	
 	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
 
 		CreditLineKycResponseDto creditLineKycResponseDto =new CreditLineKycResponseDto();
@@ -211,6 +214,7 @@ public class CreditLineKycService {
 		map.put("message", "address same");
 		sendNotification(merchant,creditApplication);
 		redisNotificationService.sendEnachNotificationForCreditLine(merchant, creditApplication);
+		verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
 		return map;
 	}
 

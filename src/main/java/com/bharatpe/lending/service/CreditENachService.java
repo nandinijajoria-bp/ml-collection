@@ -86,6 +86,9 @@ public class CreditENachService {
 
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
+    
+    @Autowired
+    VerifyOTPService verifyOTPService;
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -229,6 +232,7 @@ public class CreditENachService {
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
             creditApplicationNachDao.save(creditApplicationNach);
+            verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
         }
         return responseDTO;
     }

@@ -238,18 +238,18 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		sendDetailsForKycVerification(merchant,lendingApplication);
+		sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
 	
-	public void sendDetailsForKycVerification(Merchant merchant, LendingApplication lendingApplication) {
+	public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
 		try {
 			Map<String,Long> detailMap=new HashMap<String, Long>(){{
-				put("merchantId", merchant.getId());
-				put("applicationId",lendingApplication.getId());
-				put("isCreditLine",0L);
+				put("merchantId", merchantId);
+				put("applicationId",applicationId);
+				put("isCreditLine",isCreditLine?1L:0L);
 			}};
 			kafkaTemplate.send("verify_kyc_details",detailMap);
 			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
