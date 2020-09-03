@@ -70,6 +70,9 @@ public class ENachService {
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;
+    
+    @Autowired
+    VerifyOTPService verifyOTPService;
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -200,7 +203,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender("BHARATPE");
-            lendingApplication.setNachStatus("APPROVED");
+            lendingApplication.setNachStatus("APPROVED");  
             lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
 //            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 //                List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
@@ -220,6 +223,8 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
         }
         return responseDTO;
     }
