@@ -1,8 +1,11 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.utils.AesEncryption;
+import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.Constants.BPEnachConstant;
 import com.bharatpe.lending.common.dao.IfscNewDao;
 import com.bharatpe.lending.common.entity.BpEnachSkip;
@@ -20,14 +23,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class BPEnachService {
 
     @Autowired
@@ -55,6 +63,22 @@ public class BPEnachService {
 
     @Autowired
     IfscNewDao ifscNewDao;
+
+    @Value("${bpnach.register.endpoint}")
+    public String BPNACH_REGISTER_URL;
+
+    @Autowired
+    AesEncryption aesEncryption;
+
+    @Autowired
+    InternalClientDao internalClientDao;
+
+    @Autowired
+    HmacCalculator hmacCalculator;
+
+    private static String clientSecret;
+
+    private final String CLIENT_NAME = "LENDING";
 
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
@@ -162,6 +186,39 @@ public class BPEnachService {
             branch = bankList.get(0).getBranch();
         }
         return branch;
+    }
+
+    public void registerNach(Map requestParams, Long merchantId) {
+        logger.info("Registering Nach for merchant:{}", merchantId);
+        try {
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("clientName", CLIENT_NAME);
+
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+            logger.info("URL: {} request: {} ", BPNACH_REGISTER_URL, objectMapper.writeValueAsString(request));
+            ResponseEntity<Object> response = restTemplate.exchange(BPNACH_REGISTER_URL, HttpMethod.POST, request, Object.class);
+            if (response.getStatusCode().equals(HttpStatus.OK) && "200".equalsIgnoreCase((objectMapper.convertValue(response.getBody(), Map.class)).get("statusCode").toString())) {
+                logger.info("Nach register successful for merchant:{}", merchantId);
+            } else {
+                logger.info("Nach register Failed for merchant:{}", merchantId);
+            }
+        } catch (Exception e) {
+            logger.error("Exception in nach register api---", e);
+        }
+    }
+
+    private String getSecret() {
+        if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
+            InternalClient client = internalClientDao.findByClientName(CLIENT_NAME);
+            if (client != null) {
+                clientSecret = aesEncryption.decrypt(client.getSecret());
+            }
+        }
+        return clientSecret;
     }
 }
 

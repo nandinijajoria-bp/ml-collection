@@ -39,9 +39,14 @@ import com.bharatpe.lending.dto.ResponseDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +94,11 @@ public class CreditENachService {
     
     @Autowired
     VerifyOTPService verifyOTPService;
+
+    @Autowired
+    BPEnachService bpEnachService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -232,10 +242,38 @@ public class CreditENachService {
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
             creditApplicationNachDao.save(creditApplicationNach);
-            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
-                verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) {
+                executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingClEnach), merchant.getId()));
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(), creditApplication.getId(), true);
+            }
         }
         return responseDTO;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private Map createNachRegReq(LendingClEnach lendingClEnach) {
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClEnach.getMerchantId(), "ACTIVE");
+        Map request = new HashMap();
+        request.put("merchantId", lendingClEnach.getMerchantId());
+        request.put("referenceNumber", lendingClEnach.getmId());
+        Date startDate = new Date();
+        try {
+            startDate = new SimpleDateFormat("dd-MM-yyyy").parse(lendingClEnach.getMandateDate());
+        } catch (ParseException e) {
+            logger.error("Exception while parsing date", e);
+        }
+        request.put("startDate", new SimpleDateFormat("yyyy-MM-dd").format(startDate));
+        request.put("nachAmount", lendingClEnach.getAmount());
+        request.put("ownerId", lendingClEnach.getApplicationId());
+        request.put("nachType", "ENACH");
+        request.put("status", "APPROVED");
+        request.put("applicantName", merchantBankDetail.getBeneficiaryName());
+        request.put("nachMode", "ADHO");
+        request.put("identifier", lendingClEnach.getIdentifier());
+        request.put("mendateId", lendingClEnach.getMandateId());
+        request.put("bankResponse", lendingClEnach.getResponse());
+        request.put("txnIdentifier", lendingClEnach.getId());
+        return request;
     }
 
     //changing skip status to true
