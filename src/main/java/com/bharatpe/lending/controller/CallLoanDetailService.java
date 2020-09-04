@@ -213,7 +213,7 @@ public class CallLoanDetailService {
 		}
 		List<String> monthYear = new ArrayList<>();
 		Calendar c = Calendar.getInstance();
-		if (dateReported != null) {
+		if (dateReported != null && LoanUtil.getDateDiffInDays(dateReported, reportDate) <= months * 30) {
 			c.setTime(dateReported);
 		} else {
 			c.setTime(reportDate);
