@@ -108,7 +108,7 @@ public class NewToBharatpeService {
         Date minOpenDate = reportDate;
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()) {
             JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            delinquencyCount6mon += checkDPDLastXmonths(caisAccountDetails, 6);
+            delinquencyCount6mon += checkDPDLastXmonths(caisAccountDetails, 6, reportDate);
             loanSanctioned3mon += loanSanctioned3mon(caisAccountDetails, reportDate);
             unsecuredLoanCount6mon += unsecuredLoan6mon(caisAccountDetails, reportDate);
             if (caisAccountDetails.get("Account_Type") != null) {
@@ -127,7 +127,7 @@ public class NewToBharatpeService {
             }
         } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()) {
             for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                delinquencyCount6mon += checkDPDLastXmonths(caisAccountDetails, 6);
+                delinquencyCount6mon += checkDPDLastXmonths(caisAccountDetails, 6, reportDate);
                 loanSanctioned3mon += loanSanctioned3mon(caisAccountDetails, reportDate);
                 unsecuredLoanCount6mon += unsecuredLoan6mon(caisAccountDetails, reportDate);
                 if (caisAccountDetails.get("Account_Type") != null) {
@@ -609,9 +609,10 @@ public class NewToBharatpeService {
         return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").asInt();
     }
 
-    private int checkDPDLastXmonths(JsonNode jsonNode, int months){
+    private int checkDPDLastXmonths(JsonNode jsonNode, int months, Date reportDate){
         List<String> monthYear = new ArrayList<>();
         Calendar c = Calendar.getInstance();
+        c.setTime(reportDate);
         String month;
         int dpd = 0;
         for (int i = 0; i < months; i++) {
