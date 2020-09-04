@@ -95,7 +95,7 @@ public class CallLoanDetailService {
 			if (experianDummy == null) {
 				experianDummy = ExperianDummy.createObject(experian);
 			}
-			Date reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
+			//Date reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
 			JsonNode experianResponse = objectMapper.readTree(experian.getResponse());
 //			if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
 //				experianResponse = objectMapper.readTree(experian.getResponse());
@@ -220,13 +220,13 @@ public class CallLoanDetailService {
 		}
 		if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isArray()) {
 			for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-				if (monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year")) && !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= dpd) {
+				if (monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() >= dpd) {
 					return true;
 				}
 			}
 		} else if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isObject()){
 			JsonNode cais_account_history = jsonNode.get("CAIS_Account_History");
-			return monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year")) && !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= dpd;
+			return monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() >= dpd;
 		}
 		return false;
 	}
