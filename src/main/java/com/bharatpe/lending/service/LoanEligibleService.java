@@ -43,6 +43,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -229,17 +230,18 @@ public class LoanEligibleService {
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication);
     }
 
-    public boolean isDerog(JsonNode experianResponse, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) {
+    public boolean isDerog(JsonNode experianResponse, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) throws ParseException {
+        Date reportDate = new SimpleDateFormat("yyyyMMdd").parse(experianResponse.get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
         if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()) {
             JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog)) {
+            if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog, reportDate)) {
                 logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
                 return true;
             }
         } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()) {
             int unsecuredLoanCount = 0;
             for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog)) {
+                if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog, reportDate)) {
                     logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
                     return true;
                 }
@@ -258,7 +260,7 @@ public class LoanEligibleService {
             }
         }
         //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
-        if (!isRepeatLoanNoDerog && checkUnsecuredLoanEnquiriesInLast6Months(experianResponse)) {
+        if (!isRepeatLoanNoDerog && checkUnsecuredLoanEnquiriesInLast6Months(experianResponse, reportDate)) {
             logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
             experian.setRejected(true);
             experian.setRejectedDate(new Date());
@@ -764,7 +766,7 @@ public class LoanEligibleService {
         return 0;
     }
 
-    private boolean derogChecks(JsonNode jsonNode, Long merchantId, Experian experian, boolean isRepeatLoanNoDerog) {
+    private boolean derogChecks(JsonNode jsonNode, Long merchantId, Experian experian, boolean isRepeatLoanNoDerog, Date reportDate) {
         //Check for Derog Account Status
         if (jsonNode.get("Account_Status") != null && derogAccountStatus.contains(jsonNode.get("Account_Status").asInt())){
             logger.info("Derog Account Status check failed, rejecting merchant: {}", merchantId);
@@ -775,7 +777,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 3 months
-        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 3)){
+        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 3, reportDate)){
             logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setRejectedDate(new Date());
@@ -784,7 +786,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 6 months
-        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 6)){
+        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 6, reportDate)){
             logger.info("Derog DPD Last 6 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setRejectedDate(new Date());
@@ -793,7 +795,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 12 months
-        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12)){
+        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12, reportDate)){
             logger.info("Derog DPD Last 12 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setRejectedDate(new Date());
@@ -802,7 +804,7 @@ public class LoanEligibleService {
             return true;
         }
         //Check for Derog DPD Last 24 months
-        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24)){
+        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24, reportDate)){
             logger.info("Derog DPD Last 24 months check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setRejectedDate(new Date());
@@ -829,11 +831,12 @@ public class LoanEligibleService {
         return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").asInt() > 6;
     }
 
-    private boolean checkUnsecuredLoanEnquiriesInLast6Months(JsonNode experianResponse) {
+    private boolean checkUnsecuredLoanEnquiriesInLast6Months(JsonNode experianResponse, Date reportDate) {
         if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days").asInt() <= 4){
             return false;
         }
         Calendar c = Calendar.getInstance();
+        c.setTime(reportDate);
         c.add(Calendar.MONTH, -6);
         String month = (c.get(Calendar.MONTH) + 1) < 10 ? "0" + (c.get(Calendar.MONTH) + 1) : (c.get(Calendar.MONTH) + 1) + "";
         String day = (c.get(Calendar.DAY_OF_MONTH) + 1) < 10 ? "0" + (c.get(Calendar.DAY_OF_MONTH) + 1) : (c.get(Calendar.DAY_OF_MONTH) + 1) + "";
@@ -851,9 +854,10 @@ public class LoanEligibleService {
         return false;
     }
 
-    private boolean checkDPDLastXmonths(JsonNode jsonNode, int months){
+    private boolean checkDPDLastXmonths(JsonNode jsonNode, int months, Date reportDate){
         List<String> monthYear = new ArrayList<>();
         Calendar c = Calendar.getInstance();
+        c.setTime(reportDate);
         String month;
         int dpd = 5;//3 months
         switch (months){
@@ -880,8 +884,8 @@ public class LoanEligibleService {
     }
 
     //No 60DPD in any month older than 24 months, for cases where no recent loan is there
-    private boolean checkDPDOlderThan24months(JsonNode jsonNode){
-        if (!checkDPDLastXmonths(jsonNode, 24)){
+    private boolean checkDPDOlderThan24months(JsonNode jsonNode, Date reportDate){
+        if (!checkDPDLastXmonths(jsonNode, 24, reportDate)){
             List<String> monthYear = new ArrayList<>();
             Calendar c = Calendar.getInstance();
             String month;
