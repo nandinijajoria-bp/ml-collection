@@ -148,9 +148,9 @@ public class LoanEligibleService {
         JsonNode experianResponse = null;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
-            ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
-            if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
-                experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
+            //ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
+            if (experianRawResponse != null && experianRawResponse.getResponse() != null && LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
+                experianResponse = objectMapper.readTree(experianRawResponse.getResponse());
             } else if (experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
