@@ -39,4 +39,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	
 	@Query(value="select count(*) from lending_application where created_at between :startDate and :endDate and lender='LDC'", nativeQuery = true)
 	Long getLDCApplicationCountBetweenDate(Date startDate,Date endDate);
+
+	@Query(value = "select * from lending_application where loan_type='NTB' and disburse_timestamp is null LIMIT :offset, 1000", nativeQuery = true)
+	List<LendingApplication> getApplications(long offset);
 }
