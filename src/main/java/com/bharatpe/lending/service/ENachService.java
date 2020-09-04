@@ -230,7 +230,8 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
-            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId()));
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+               executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId()));
         }
         return responseDTO;
     }

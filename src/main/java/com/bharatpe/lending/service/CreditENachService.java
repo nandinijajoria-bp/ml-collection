@@ -239,7 +239,8 @@ public class CreditENachService {
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
             creditApplicationNachDao.save(creditApplicationNach);
-            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingClEnach), merchant.getId()));
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+                executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingClEnach), merchant.getId()));
         }
         return responseDTO;
     }
