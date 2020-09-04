@@ -610,9 +610,24 @@ public class NewToBharatpeService {
     }
 
     private int checkDPDLastXmonths(JsonNode jsonNode, int months, Date reportDate){
-        List<String> monthYear = new ArrayList<>();
-        Calendar c = Calendar.getInstance();
-        c.setTime(reportDate);
+		Date dateReported = null;
+		try {
+			if (jsonNode.get("Date_Reported") != null && !jsonNode.get("Date_Reported").asText().equalsIgnoreCase("")) {
+				dateReported = new SimpleDateFormat("yyyyMMdd").parse(jsonNode.get("Date_Reported").asText());
+			}
+		} catch (Exception e) {
+			logger.error("Exception:", e);
+		}
+		List<String> monthYear = new ArrayList<>();
+		Calendar c = Calendar.getInstance();
+		if (dateReported != null && LoanUtil.getDateDiffInDays(dateReported, reportDate) > months * 30) {
+			return 0;
+		}
+		if (dateReported != null && LoanUtil.getDateDiffInDays(dateReported, reportDate) <= months * 30) {
+			c.setTime(dateReported);
+		} else {
+			c.setTime(reportDate);
+		}
         String month;
         int dpd = 0;
         for (int i = 0; i < months; i++) {
