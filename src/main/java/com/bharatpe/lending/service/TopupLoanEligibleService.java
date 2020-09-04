@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.*;
 
 @Component
@@ -82,7 +83,7 @@ public class TopupLoanEligibleService {
     	 }
     }
 
-    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) {
+    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) throws ParseException {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
         if (true) {
             logger.info("topup loan closed");
@@ -199,7 +200,7 @@ public class TopupLoanEligibleService {
         return new ArrayList<>();
     }
 
-    private Experian updateExperian(JsonNode experianResponse, Merchant merchant, double bpScore, String pancard, Long pincode) {
+    private Experian updateExperian(JsonNode experianResponse, Merchant merchant, double bpScore, String pancard, Long pincode) throws ParseException {
         Experian experian = new Experian();
         experian.setMerchantId(merchant.getId());
         experian.setResponse(experianResponse.toString());
