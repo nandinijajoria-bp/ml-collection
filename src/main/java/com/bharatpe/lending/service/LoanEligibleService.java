@@ -117,6 +117,8 @@ public class LoanEligibleService {
     @Autowired
     ExperianRawResponseDao experianRawResponseDao;
 
+    SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
+
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
@@ -149,10 +151,13 @@ public class LoanEligibleService {
         JsonNode experianResponse = null;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
-            //ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
-            if (experianRawResponse != null && experianRawResponse.getResponse() != null && LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
-                experianResponse = objectMapper.readTree(experianRawResponse.getResponse());
-            } else if (experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
+            Date reportDate = null;
+            if (experian.getResponse() != null) {
+                reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
+            }
+            if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
+                experianResponse = objectMapper.readTree(experian.getResponse());
+            } else if ((reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                 } catch (ResourceAccessException e) {
