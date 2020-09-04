@@ -203,9 +203,21 @@ public class CallLoanDetailService {
 	}
 
 	private boolean checkDPDLastXmonths(JsonNode jsonNode, int months, Date reportDate){
+		Date dateReported = null;
+		try {
+			if (jsonNode.get("Date_Reported") != null && !jsonNode.get("Date_Reported").asText().equalsIgnoreCase("")) {
+				dateReported = new SimpleDateFormat("yyyyMMdd").parse(jsonNode.get("Date_Reported").asText());
+			}
+		} catch (Exception e) {
+			logger.error("Exception:", e);
+		}
 		List<String> monthYear = new ArrayList<>();
 		Calendar c = Calendar.getInstance();
-		c.setTime(reportDate);
+		if (dateReported != null) {
+			c.setTime(dateReported);
+		} else {
+			c.setTime(reportDate);
+		}
 		String month;
 		int dpd = 5;//3 months
 		switch (months){
