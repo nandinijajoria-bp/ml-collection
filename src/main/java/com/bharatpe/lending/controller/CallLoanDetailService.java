@@ -68,7 +68,7 @@ public class CallLoanDetailService {
 		long offset = 0;
 		boolean lastBatchProcessed = false;
 		logger.info("Loan Details Script Started");
-		ExecutorService executorService = Executors.newFixedThreadPool(10);
+		ExecutorService executorService = Executors.newFixedThreadPool(100);
 		while (!lastBatchProcessed) {
 			try {
 				List<LendingApplication> lendingApplications = lendingApplicationDao.getApplications(offset);//query returns integer in merchant_id
@@ -91,27 +91,29 @@ public class CallLoanDetailService {
 		try {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
-			ExperianDummy experianDummy = ExperianDummy.createObject(experian);
-			experianDummyDao.save(experianDummy);
+			ExperianDummy experianDummy = experianDummyDao.getByMerchantId(merchant.getId());
+			if (experianDummy == null) {
+				experianDummy = ExperianDummy.createObject(experian);
+			}
 			Date reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
-			JsonNode experianResponse = null;
-			if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
-				experianResponse = objectMapper.readTree(experian.getResponse());
-			} else {
-				int retry=0;
-				while (retry < 3) {
-					try {
-						experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), experian.getBpScore(), merchantBankDetail);
-						break;
-					} catch (Exception e) {
-						retry++;
-					}
-				}
-			}
-			if (experianResponse == null) {
-				logger.info("Experian not found for merchant:{}", merchant.getId());
-				return;
-			}
+			JsonNode experianResponse = objectMapper.readTree(experian.getResponse());
+//			if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
+//				experianResponse = objectMapper.readTree(experian.getResponse());
+//			} else {
+//				int retry=0;
+//				while (retry < 3) {
+//					try {
+//						experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), experian.getBpScore(), merchantBankDetail);
+//						break;
+//					} catch (Exception e) {
+//						retry++;
+//					}
+//				}
+//			}
+//			if (experianResponse == null) {
+//				logger.info("Experian not found for merchant:{}", merchant.getId());
+//				return;
+//			}
 			isDerog(experianResponse, merchant, experianDummy, false);
 			experianDummyDao.save(experianDummy);
 		} catch (Exception e) {
