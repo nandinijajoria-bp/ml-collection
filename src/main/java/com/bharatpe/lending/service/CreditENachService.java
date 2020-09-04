@@ -91,6 +91,9 @@ public class CreditENachService {
 
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
+    
+    @Autowired
+    VerifyOTPService verifyOTPService;
 
     @Autowired
     BPEnachService bpEnachService;
@@ -239,8 +242,10 @@ public class CreditENachService {
             creditApplicationNach.setNachStatus("APPROVED");
             creditApplicationNach.setNachReferenceNumber(lendingClEnach.getmId());
             creditApplicationNachDao.save(creditApplicationNach);
-            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) {
                 executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingClEnach), merchant.getId()));
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(), creditApplication.getId(), true);
+            }
         }
         return responseDTO;
     }

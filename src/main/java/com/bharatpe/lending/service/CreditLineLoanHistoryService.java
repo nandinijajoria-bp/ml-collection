@@ -246,7 +246,7 @@ public class CreditLineLoanHistoryService {
 					creditLineTlHistoryResponseDto.setRepaymentAmount(0D);
 				}
 				else {
-					creditLineTlHistoryResponseDto.setRepaymentAmount(lendingPaymentSchedule.getLoanAmount()-lendingPaymentSchedule.getPaidPrinciple()+lendingPaymentSchedule.getDueInterest());
+					creditLineTlHistoryResponseDto.setRepaymentAmount(lendingPaymentSchedule.getLoanAmount()-(lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)+(lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
 				}
 				
 				if(lendingPaymentSchedule.getInterestOnlyStartDate()!=null) {

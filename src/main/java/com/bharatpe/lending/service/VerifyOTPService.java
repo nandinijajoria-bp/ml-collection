@@ -21,6 +21,7 @@ import com.bharatpe.lending.util.LoanCalculationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -112,6 +113,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
+	
+	@Autowired
+	KafkaTemplate<String, Object> kafkaTemplate;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -234,9 +238,26 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
+	}
+	
+	public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
+		try {
+			Map<String,Long> detailMap=new HashMap<String, Long>(){{
+				put("merchantId", merchantId);
+				put("applicationId",applicationId);
+				put("isCreditLine",isCreditLine?1L:0L);
+			}};
+			kafkaTemplate.send("verify_kyc_details",detailMap);
+			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
+		}
+		catch(Exception e) {
+			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+		}
 	}
 
 	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {

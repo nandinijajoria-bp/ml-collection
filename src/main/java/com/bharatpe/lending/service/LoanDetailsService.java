@@ -575,7 +575,7 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
 					}
 					//fetching NTB loans
-					if (!rejected && loanEligibilityDTOs.isEmpty() && experian.getResponse() != null) {
+					if (!rejected && loanEligibilityDTOs.isEmpty()) {
 						experian.setReason(null);
 						experianDao.save(experian);
 						if (bankCode == null) {
@@ -583,6 +583,12 @@ public class LoanDetailsService {
 							experian.setCategory("1N");
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.ENACH);
+							experianDao.save(experian);
+						} else if (experian.getResponse() == null) {
+							logger.info("NTC merchant, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+							experian.setCategory("1N");
+							experian.setColor(ExperianConstants.COLOR.RED.name());
+							experian.setReason(ExperianConstants.NTC);
 							experianDao.save(experian);
 						} else {
 							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));

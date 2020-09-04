@@ -75,6 +75,9 @@ public class ENachService {
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;
+    
+    @Autowired
+    VerifyOTPService verifyOTPService;
 
     @Autowired
     BPEnachService bpEnachService;
@@ -210,7 +213,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender("BHARATPE");
-            lendingApplication.setNachStatus("APPROVED");
+            lendingApplication.setNachStatus("APPROVED");  
             lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
 //            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 //                List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
@@ -230,8 +233,10 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
-            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
-               executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId()));
+            if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) {
+                executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId()));
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
+            }
         }
         return responseDTO;
     }

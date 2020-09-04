@@ -323,8 +323,10 @@ public class SignAgreementService {
 				}
 			}
 			toSaveDocuments.setSinglePage(singleProofDoc);
-			toSaveDocuments.setLatitude(meta.getLatitude());
-			toSaveDocuments.setLongitude(meta.getLongitude());
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLongitude(meta.getLongitude());
 			toSaveDocuments.setIp(meta.getIp());
 			documentsIdProofDao.save(toSaveDocuments);
 

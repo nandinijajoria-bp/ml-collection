@@ -218,7 +218,7 @@ public class PaymentService {
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
  			
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			Double paidInterestAmount = 0D;
@@ -226,7 +226,7 @@ public class PaymentService {
 			
 			if(principalDueAmount + ediHolidayInterestAmount - request.getAmount() <= 1D) {
 				
-				paidInterestAmount = activeLoan.getDueInterest() + ediHolidayInterestAmount;
+				paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
 				paidPrincipalAmount = request.getAmount() - paidInterestAmount;
 				
 				if(activeLoan.getDueAmount() >= 0) {
@@ -236,8 +236,8 @@ public class PaymentService {
 				}
 				
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
-				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
-				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + paidPrincipalAmount);
+				activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
+				activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
 
 				activeLoan.setDueAmount(0D);
 				activeLoan.setDueInterest(0D);
@@ -248,18 +248,18 @@ public class PaymentService {
 				activeLoan.setDueAmount(activeLoan.getDueAmount() - request.getAmount());
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
 				
-				Double balance = request.getAmount() - activeLoan.getDueInterest();
+				Double balance = request.getAmount() - (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
 				if(balance > 0) { // Paid amount is greater than due interest
-					paidInterestAmount = activeLoan.getDueInterest();
+					paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
 					paidPrincipalAmount = balance;
-					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
+					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
 					activeLoan.setDueInterest(0D);
 					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
-					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + balance);
+					activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + balance);
 				} else {
 					paidInterestAmount = request.getAmount();
-					activeLoan.setPaidInterest(activeLoan.getPaidInterest() + paidInterestAmount);
-					activeLoan.setDueInterest(activeLoan.getDueInterest() - paidInterestAmount);
+					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
+					activeLoan.setDueInterest((activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - paidInterestAmount);
 				}
 			}
 					
