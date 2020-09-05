@@ -140,7 +140,7 @@ public class LendingApplicationController {
 	
 	@RequestMapping(value = "/callLoanDetail", method = RequestMethod.GET)
 	public void callLoanDetails() {
-		callLoanDetailService.sendSMS();
+		callLoanDetailService.callLoanDetail();
 	}
 
 	@RequestMapping(value="/kafka/publish", method = RequestMethod.POST, consumes="application/json", produces="application/json")
