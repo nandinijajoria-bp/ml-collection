@@ -214,7 +214,7 @@ public class CreditLineKycService {
 		map.put("message", "address same");
 		sendNotification(merchant,creditApplication);
 		redisNotificationService.sendEnachNotificationForCreditLine(merchant, creditApplication);
-		if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+		if ((merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) && creditApplication.getAmount() <= 50000)
 			verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
 		return map;
 	}

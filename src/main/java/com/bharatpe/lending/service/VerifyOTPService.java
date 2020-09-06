@@ -238,7 +238,7 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L))
+		if ((merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) && lendingApplication.getLoanAmount() <= 50000)
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
