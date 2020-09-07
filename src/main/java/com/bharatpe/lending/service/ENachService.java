@@ -234,7 +234,7 @@ public class ENachService {
 //            }
             lendingApplicationDao.save(lendingApplication);
             executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId()));
-            if ((merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) && lendingApplication.getLoanAmount() <= 50000) {
+            if (lendingApplication.getLoanAmount() <= 50000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
         }

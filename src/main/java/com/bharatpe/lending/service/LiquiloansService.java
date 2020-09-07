@@ -470,14 +470,14 @@ public class LiquiloansService {
 		} else {
 			sms1="Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
 					"Your BharatPe Loan of Rs."+lendingApplication.getLoanAmount()+" is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
+					"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
 		}
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
+			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Your daily installment for 1st month is INR "+lendingPaymentSchedule.getInterestOnlyEdiAmount()+" (Only Interest). After that, it will be INR"+lendingApplication.getEdi()+". First installment date is "+lendingPaymentSchedule.getStartDate()+" Installments will be deducted from your daily settlements.";
+			sms2 = "Your daily installment for 1st month is INR "+lendingPaymentSchedule.getInterestOnlyEdiAmount()+" (Only Interest). After that, it will be INR"+lendingApplication.getEdi()+". First installment date is "+lendingPaymentSchedule.getStartDate()+" Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		}
 		smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, sms1, NotificationProvider.SMS.GUPSHUP);
 		if (sms2 != null) {
