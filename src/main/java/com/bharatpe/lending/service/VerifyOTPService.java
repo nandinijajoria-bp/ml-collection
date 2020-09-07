@@ -252,7 +252,7 @@ public class VerifyOTPService {
 				put("applicationId",applicationId);
 				put("isCreditLine",isCreditLine?1L:0L);
 			}};
-			kafkaTemplate.send("verify_kyc_details",detailMap);
+			kafkaTemplate.send("verify_kyc_details", merchantId.toString(), detailMap);
 			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
 		}
 		catch(Exception e) {
