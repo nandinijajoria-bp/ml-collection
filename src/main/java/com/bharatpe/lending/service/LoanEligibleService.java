@@ -157,9 +157,10 @@ public class LoanEligibleService {
             }
             if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
                 experianResponse = objectMapper.readTree(experian.getResponse());
-            } else if ((reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
+            } else if ((reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                    experian.setRetryCount(0);
                 } catch (ResourceAccessException e) {
                     logger.error("Experian not responding---", e);
                     experian.setReason(ExperianConstants.TIMEOUT);
@@ -175,7 +176,6 @@ public class LoanEligibleService {
                     }
                 }
             }
-            experian.setRetryCount(0);
             ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
             if (experianResponse != null){
                 if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
@@ -219,6 +219,7 @@ public class LoanEligibleService {
         } catch (ResourceAccessException e) {
             logger.error("Experian not responding---", e);
             logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
+            experian.setReason(ExperianConstants.TIMEOUT);
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
             emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "Failed for merchant: "+merchant.getId());
