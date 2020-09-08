@@ -121,7 +121,8 @@ public class LoanEligibleService {
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
-        double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0D;
+        double selfTpv = (merchantSummary != null && merchantSummary.getSelfTxnValue1Mon() != null) ? merchantSummary.getSelfTxnValue1Mon() : 0d;
+        double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() - selfTpv : 0D;
         int txnLast30Days = 30;
         double avgTpv = tpvLast30Days/txnLast30Days;
         List<LendingPaymentSchedule> prevLoans;
@@ -304,7 +305,8 @@ public class LoanEligibleService {
     }
 
     public boolean checkFraud(MerchantSummary merchantSummary) {
-        return (merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null && merchantSummary.getUniqueCustomer1mon() < 15)
+        int selfTxnCount = (merchantSummary != null && merchantSummary.getSelfTxnCount1Mon() != null) ? merchantSummary.getSelfTxnCount1Mon() : 0;
+        return (merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null && (merchantSummary.getUniqueCustomer1mon() - selfTxnCount) < 15)
                 || (merchantSummary != null && merchantSummary.getFraudCustomer() != null);
     }
 
