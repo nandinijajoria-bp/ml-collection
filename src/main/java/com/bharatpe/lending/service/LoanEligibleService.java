@@ -162,6 +162,8 @@ public class LoanEligibleService {
                     experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                 } catch (ResourceAccessException e) {
                     logger.error("Experian not responding---", e);
+                    experian.setReason(ExperianConstants.TIMEOUT);
+                    experianDao.save(experian);
                     if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
                         logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
                         experian.setRetryCount(experian.getRetryCount() + 1);
