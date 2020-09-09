@@ -467,12 +467,24 @@ public class LiquiloansService {
 			sms1= "Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
 					"Your BharatPe Loan of Rs."+ lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
 					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
-		} else {
+		}
+		else if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
+			sms1="Congratulations!\nYour Loan of Rs."+lendingApplication.getDisbursalAmount()+" is disbursed to your "+merchantBankDetail.getBankName()+" A/c Successfully! \n" + 
+					"Daily Installment of Rs."+lendingApplication.getEdi()+" will be deducted from your BharatPe Settlement everyday.\n\n" +
+					"Transact on BharatPe QR everyday to ensure timely repayment.\n" + 
+					"(Attach BharatPe QR Code)";
+		}
+		else {
 			sms1="Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
 					"Your BharatPe Loan of Rs."+lendingApplication.getLoanAmount()+" is successfully disbursed. " +
 					"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
 		}
-		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
+		if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())) {
+			sms2="Congratulations!\nYour Loan of Rs."+lendingApplication.getDisbursalAmount()+" is disbursed to your "+merchantBankDetail.getBankName()+" A/c Successfully! \n" + 
+					"Daily Installment of Rs."+lendingApplication.getEdi()+" will be deducted from your BharatPe Settlement everyday.\n\n" + 
+					"Transact on BharatPe QR everyday to ensure timely repayment.";
+		}
+		else if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
