@@ -43,18 +43,18 @@ public class RedisNotificationService {
 					"Just 2 minutes to complete your loan application");
 			//String messageString30min=objectMapper.writeValueAsString(notificationDto);
 			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_30min_"+lendingApplication.getId(), 15*60);
-			notificationDto.setMessage("Just 2 minutes away from Rs."+lendingApplication.getLoanAmount()+" Loan \n" + 
-					"Complete application now and get money in your "+bankName+" A/c");
-			//String messageString1day=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_1day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 1));
-			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
-					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
-			//String messageString3day=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,"applied_application_3day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 3));
-			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
-					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
-			//String messageString5day=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 5));
+//			notificationDto.setMessage("Just 2 minutes away from Rs."+lendingApplication.getLoanAmount()+" Loan \n" + 
+//					"Complete application now and get money in your "+bankName+" A/c");
+//			//String messageString1day=objectMapper.writeValueAsString(notificationDto);
+//			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_1day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 1));
+//			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
+//					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
+//			//String messageString3day=objectMapper.writeValueAsString(notificationDto);
+//			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,"applied_application_3day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 3));
+//			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
+//					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
+//			//String messageString5day=objectMapper.writeValueAsString(notificationDto);
+//			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 5));
 		} catch (Exception e) {
 			logger.error("Error occured while sending notification",e);
 		}
@@ -76,17 +76,17 @@ public class RedisNotificationService {
 				//String messageString30min=objectMapper.writeValueAsString(notificationDto);
 				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_"+merchantId, 5*60);
 				
-				notificationDto.setMessage("Transfer Rs. "+highestLoan.getAmount()+" to your "+bankName+" A/c Now\n" + 
-						"Pay only Rs. "+highestLoan.getEdi()+" Daily from your QR Settlement");
-				//String messageString1Day=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
-				
-				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is waiting to be transferred to your "+bankName+" A/c\n" + 
-						"Pay only Rs. "+highestLoan.getEdi()+". Daily from your QR Settlement.");
-				//String messageString3days=objectMapper.writeValueAsString(notificationDto);
-				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
-				//message of day 3 and day 5 are same
-				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));
+//				notificationDto.setMessage("Transfer Rs. "+highestLoan.getAmount()+" to your "+bankName+" A/c Now\n" + 
+//						"Pay only Rs. "+highestLoan.getEdi()+" Daily from your QR Settlement");
+//				//String messageString1Day=objectMapper.writeValueAsString(notificationDto);
+//				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
+//				
+//				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is waiting to be transferred to your "+bankName+" A/c\n" + 
+//						"Pay only Rs. "+highestLoan.getEdi()+". Daily from your QR Settlement.");
+//				//String messageString3days=objectMapper.writeValueAsString(notificationDto);
+//				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
+//				//message of day 3 and day 5 are same
+//				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));
 			}
 		}
 		catch(Exception e) {
@@ -94,45 +94,45 @@ public class RedisNotificationService {
 		}
 	}
 	
-	public void sendEligibleNotificationForCreditLine(Merchant merchant, List<LoanEligibilityDTO> eligibleLoan) {
-		try {
-			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
-				logger.info("Sending eligible notification for merchant {}",merchant);
-				LoanEligibilityDTO highestLoan=eligibleLoan.get(0);
-				InstantNotificationDto notificationDto=new InstantNotificationDto();
-				notificationDto.setMerchantId(merchant.getId());
-				notificationDto.setMessageCategory("CREDIT_LINE_ELIGIBLE");
-				String message = "You are pre - approved for business loan up to Rs."+highestLoan.getAmount()+" from BharatPe. Enjoy repayment flexibility along with interest rate as low as 0.1% per day. \n" +
-						"Get Now: ";
-				notificationDto.setMessage(message);
-				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
-				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_4day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 4));
-				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_6day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 6));
-			}
-		}
-		catch(Exception e) {
-			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);
-		}
-	}
+//	public void sendEligibleNotificationForCreditLine(Merchant merchant, List<LoanEligibilityDTO> eligibleLoan) {
+//		try {
+//			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
+//				logger.info("Sending eligible notification for merchant {}",merchant);
+//				LoanEligibilityDTO highestLoan=eligibleLoan.get(0);
+//				InstantNotificationDto notificationDto=new InstantNotificationDto();
+//				notificationDto.setMerchantId(merchant.getId());
+//				notificationDto.setMessageCategory("CREDIT_LINE_ELIGIBLE");
+//				String message = "You are pre - approved for business loan up to Rs."+highestLoan.getAmount()+" from BharatPe. Enjoy repayment flexibility along with interest rate as low as 0.1% per day. \n" +
+//						"Get Now: ";
+//				notificationDto.setMessage(message);
+//				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
+//				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_4day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 4));
+//				delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_eligible_6day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 6));
+//			}
+//		}
+//		catch(Exception e) {
+//			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);
+//		}
+//	}
 	
-	public void sendDraftNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
-		try {
-			logger.info("Sending notification for application in draft state got merchant {}",merchant);
-			InstantNotificationDto notificationDto=new InstantNotificationDto();
-			notificationDto.setApplicationId(creditApplication.getId());
-			notificationDto.setMerchantId(merchant.getId());
-			notificationDto.setMessageCategory("CREDIT_LINE_APPLIED_APPLICATION");
-			String message= "You are 1 step away from activating your Rs."+creditApplication.getAmount()+" BharatPe Loan Balance. Pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility. \n" +
-					"Get Now: ";
-			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_4day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 4));
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_6day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 6));
-		}
-		catch(Exception e) {
-			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);		
-		}
-	}
+//	public void sendDraftNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
+//		try {
+//			logger.info("Sending notification for application in draft state got merchant {}",merchant);
+//			InstantNotificationDto notificationDto=new InstantNotificationDto();
+//			notificationDto.setApplicationId(creditApplication.getId());
+//			notificationDto.setMerchantId(merchant.getId());
+//			notificationDto.setMessageCategory("CREDIT_LINE_APPLIED_APPLICATION");
+//			String message= "You are 1 step away from activating your Rs."+creditApplication.getAmount()+" BharatPe Loan Balance. Pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility. \n" +
+//					"Get Now: ";
+//			notificationDto.setMessage(message);
+//			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_2day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 2));
+//			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_4day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 4));
+//			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "credit_draft_6day_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 6));
+//		}
+//		catch(Exception e) {
+//			logger.error("Error occured while sending redis based notification for merchant {}",merchant,e);		
+//		}
+//	}
 	
 	public void sendEnachNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
 		try {

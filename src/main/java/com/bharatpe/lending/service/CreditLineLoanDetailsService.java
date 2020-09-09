@@ -267,7 +267,7 @@ public class CreditLineLoanDetailsService {
 				
 				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(),null, false,"CREDITLINE", false));
 				//send notification
-				redisNotificationService.sendEligibleNotificationForCreditLine(merchant, loanEligibilityDTOs);
+				//redisNotificationService.sendEligibleNotificationForCreditLine(merchant, loanEligibilityDTOs);
 				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 			} catch (Exception e) {
 				logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
