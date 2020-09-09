@@ -163,11 +163,11 @@ public class LoanEligibleService {
                     experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                     experian.setRetryCount(0);
                 } catch (ResourceAccessException e) {
-                    logger.error("Experian not responding---", e);
+                    logger.info("Experian not responding---", e);
                     experian.setReason(ExperianConstants.TIMEOUT);
                     experianDao.save(experian);
                     if (experian.getRetryCount() != null && experian.getRetryCount() == 0) {
-                        logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
+                        logger.info("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
                         experian.setRetryCount(experian.getRetryCount() + 1);
                         experianDao.save(experian);
                         //emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
@@ -218,8 +218,8 @@ public class LoanEligibleService {
                 return fetchBureauEligibleLoan(experianResponse, merchant.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays, lendingApplication);
             }
         } catch (ResourceAccessException e) {
-            logger.error("Experian not responding---", e);
-            logger.error("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
+            logger.info("Experian not responding---", e);
+            logger.info("Experian timeout for merchant: {}, pancard: {}", merchant.getId(), experian.getPancardNumber());
             experian.setReason(ExperianConstants.TIMEOUT);
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
