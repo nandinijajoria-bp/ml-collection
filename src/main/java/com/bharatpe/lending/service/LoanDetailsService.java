@@ -181,7 +181,7 @@ public class LoanDetailsService {
 //			}
 			if (requestDTO.getPayload().getPanCard() != null) {
 				if (requestDTO.getPayload().getPincode() == null) {
-					logger.error("pincode bug for merchant:{}", merchant.getId());
+					logger.info("pincode bug for merchant:{}", merchant.getId());
 					emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
 						add("mihit@bharatpe.com");add("anubhav.mathur@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId() + ", mid:" + merchant.getMid());
 					LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();
