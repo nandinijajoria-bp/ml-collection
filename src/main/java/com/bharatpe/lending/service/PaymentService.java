@@ -129,6 +129,10 @@ public class PaymentService {
 				logger.info("Amount not between 1-99999 for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("Amount shoule be between 1-99999.");
 			}
+			if (amount > 2000 && request.getPayload().getVpa() == null) {
+				logger.info("VPA missing for merchant id {}", merchant.getId());
+				return new InitiatePaymentResponseDTO("VPA missing");
+			}
 			
 			LoanPaymentOrder order = new LoanPaymentOrder();
 			order.setMerchant(merchant);
@@ -143,11 +147,11 @@ public class PaymentService {
 			
 			order.setOrderId(orderId);
 			
-			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
+			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
 			
 			if(vpaResponse == null) {
 				logger.info("API generation response failed, Retrying.");
-				vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId);
+				vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
 			}
 			
 			if(vpaResponse == null || !"OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
