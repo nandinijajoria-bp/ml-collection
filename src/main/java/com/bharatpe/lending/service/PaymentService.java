@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,10 +30,6 @@ import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
-import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
-import com.bharatpe.lending.dto.InitiatePaymentResponseDTO;
-import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
-import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 
 @Service
@@ -174,7 +171,7 @@ public class PaymentService {
 			order.setMid(mid);
 			loanPaymentOrderDao.save(order);
 			
-			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink);
+			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink, order.getOrderId());
 			data.setPsps(psps);
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
@@ -366,5 +363,20 @@ public class PaymentService {
 			logger.error("Exception in getEDIHolidayInterestAmount for Loan ID {}, Exception is {}", lps.getId(), ex);
 		}
 		return 0;
+	}
+
+	public PaymentStatusResponseDTO getStatus(String orderId, Merchant merchant) {
+		logger.info("Received status check request for orderId:{}", orderId);
+		try {
+			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
+			if (order == null || !order.getMerchant().getId().equals(merchant.getId())) {
+				logger.info("No order found for orderId:{}", orderId);
+				return new PaymentStatusResponseDTO(false, "Order not found");
+			}
+			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo());
+		} catch (Exception e) {
+			logger.error("Exception in payment status check", e);
+			return new PaymentStatusResponseDTO(false, "Something went wrong");
+		}
 	}
 }

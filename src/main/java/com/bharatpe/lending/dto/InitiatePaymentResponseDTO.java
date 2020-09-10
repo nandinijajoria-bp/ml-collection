@@ -66,15 +66,17 @@ public class InitiatePaymentResponseDTO {
 		private String intent;
 		private String paymentLink;
 		private List<String> psps;
+		private String orderId;
 
 		public Data() {
 			
 		}
 		
-		public Data(String vpa, String intent, String paymentLink) {
+		public Data(String vpa, String intent, String paymentLink, String orderId) {
 			this.vpa = vpa;
 			this.intent = intent;
 			this.paymentLink = paymentLink;
+			this.orderId = orderId;
 		}
 
 		public String getVpa() {
@@ -107,6 +109,14 @@ public class InitiatePaymentResponseDTO {
 
 		public void setPsps(List<String> psps) {
 			this.psps = psps;
+		}
+
+		public String getOrderId() {
+			return orderId;
+		}
+
+		public void setOrderId(String orderId) {
+			this.orderId = orderId;
 		}
 
 		@Override
