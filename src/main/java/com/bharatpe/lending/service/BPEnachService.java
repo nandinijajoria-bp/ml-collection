@@ -76,11 +76,6 @@ public class BPEnachService {
     @Autowired
     HmacCalculator hmacCalculator;
 
-    private static String clientSecret;
-
-    private final String CLIENT_NAME = "LENDING";
-
-
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type,String referenceNumber) {
@@ -188,15 +183,15 @@ public class BPEnachService {
         return branch;
     }
 
-    public void registerNach(Map requestParams, Long merchantId) {
+    public void registerNach(Map requestParams, Long merchantId, String clientName) {
         logger.info("Registering Nach for merchant:{}", merchantId);
         try {
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret(clientName));
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
             headers.set("hash", hash);
-            headers.set("clientName", CLIENT_NAME);
+            headers.set("clientName", clientName);
 
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
             logger.info("URL: {} request: {} ", BPNACH_REGISTER_URL, objectMapper.writeValueAsString(request));
@@ -211,14 +206,12 @@ public class BPEnachService {
         }
     }
 
-    private String getSecret() {
-        if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
-            InternalClient client = internalClientDao.findByClientName(CLIENT_NAME);
-            if (client != null) {
-                clientSecret = aesEncryption.decrypt(client.getSecret());
-            }
+    private String getSecret(String clientName) {
+        InternalClient client = internalClientDao.findByClientName(clientName);
+        if (client != null) {
+            return aesEncryption.decrypt(client.getSecret());
         }
-        return clientSecret;
+        return "";
     }
 }
 
