@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
@@ -63,7 +65,8 @@ public class InitiatePaymentResponseDTO {
 		private String vpa;
 		private String intent;
 		private String paymentLink;
-		
+		private List<String> psps;
+
 		public Data() {
 			
 		}
@@ -96,6 +99,14 @@ public class InitiatePaymentResponseDTO {
 
 		public void setPaymentLink(String paymentLink) {
 			this.paymentLink = paymentLink;
+		}
+
+		public List<String> getPsps() {
+			return psps;
+		}
+
+		public void setPsps(List<String> psps) {
+			this.psps = psps;
 		}
 
 		@Override

@@ -115,7 +115,7 @@ public class PaymentService {
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
-			
+			List<String> psps = Arrays.asList("com.google.android.apps.nbu.paisa.user","net.one97.paytm","in.org.npci.upiapp","com.csam.icici.bank.imobile","com.mobikwik_new","com.myairtelapp","com.phonepe.app","com.olacabs.customer");
 			Integer amount = 0;
 			if("CUSTOM".equalsIgnoreCase(request.getPayload().getPaymentType())) {
 				amount = request.getPayload().getAmount();
@@ -175,6 +175,7 @@ public class PaymentService {
 			loanPaymentOrderDao.save(order);
 			
 			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink);
+			data.setPsps(psps);
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
 			logger.error("Execption while initiating payment for merchant id {}, Exception is {}", merchant.getId(), ex);
