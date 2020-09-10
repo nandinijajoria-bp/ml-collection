@@ -2,9 +2,11 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.PaymentTransactionNewDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.PaymentTransactionNew;
 import com.bharatpe.lending.common.dao.LendingBBSAuditDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
 import com.bharatpe.lending.common.entity.LendingBBS;
@@ -55,6 +57,9 @@ public class NewToBharatpeService {
     @Autowired
 	EligibleLoanDao eligibleLoanDao;
 
+    @Autowired
+	PaymentTransactionNewDao paymentTransactionNewDao;
+
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
     List<Integer> unsecuredLoan = Arrays.asList(0,5,6,8,9,10,11,12,14,16,18,19,20,31,35,36,37,38,39,43,51,52,53,54,55,56,57,58,61);
@@ -81,12 +86,8 @@ public class NewToBharatpeService {
         		lendingBBS = calculateBBS(experian);
 			}
 			logger.info("BBS:{} for merchant:{}", lendingBBS.getBbs(), experian.getMerchantId());
-            if (lendingBBS.getBbs() < 500) {
-            	logger.info("BBS less than 500, rejecting merchant:{}", merchant.getId());
-				experian.setCategory("1N");
-				experian.setColor(ExperianConstants.COLOR.RED.name());
-				experian.setReason(ExperianConstants.LOW_BBS);
-				experianDao.save(experian);
+        	if (!baseChecks(lendingBBS, merchant, experian, yellowPincode)) {
+				logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
 				return new ArrayList<>();
 			}
 			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode);
@@ -95,6 +96,59 @@ public class NewToBharatpeService {
             return new ArrayList<>();
         }
     }
+
+    private boolean baseChecks(LendingBBS lendingBBS, Merchant merchant, Experian experian, boolean yellowPincode) {
+		if (lendingBBS.getBbs() < 500) {
+			logger.info("BBS less than 500, rejecting merchant:{}", merchant.getId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.LOW_BBS);
+			experianDao.save(experian);
+			return false;
+		}
+		if (checkVintage(merchant) < 30 && ((yellowPincode && lendingBBS.getBbs() < 700) || (!yellowPincode && lendingBBS.getBbs() < 650))) {
+			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+			experianDao.save(experian);
+			return false;
+		}
+		if (checkVintage(merchant) < 60 && ((yellowPincode && lendingBBS.getBbs() < 650) || (!yellowPincode && lendingBBS.getBbs() < 600))) {
+			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+			experianDao.save(experian);
+			return false;
+		}
+		if (checkVintage(merchant) < 90 && ((yellowPincode && lendingBBS.getBbs() < 600) || (!yellowPincode && lendingBBS.getBbs() < 550))) {
+			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+			experianDao.save(experian);
+			return false;
+		}
+		if (checkVintage(merchant) >= 90 && ((yellowPincode && lendingBBS.getBbs() < 550) || (!yellowPincode && lendingBBS.getBbs() < 500))) {
+			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+			experianDao.save(experian);
+			return false;
+		}
+		return true;
+	}
+
+    private long checkVintage(Merchant merchant) {
+		PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
+		if (firstTransaction != null) {
+			return LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date());
+		} else {
+			return LoanUtil.getDateDiffInDays(merchant.getCreatedAt(), new Date());
+		}
+	}
 
     private LendingBBS calculateBBS(Experian experian) throws IOException, ParseException {
 		logger.info("Calculating BBS for merchant:{}", experian.getMerchantId());
