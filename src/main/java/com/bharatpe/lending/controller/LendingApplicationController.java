@@ -1,3 +1,5 @@
+ 
+  
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.constants.ResponseCode;
@@ -45,10 +47,13 @@ public class LendingApplicationController {
 	@Autowired
 	CancelApplicationService cancelApplicationService;
 	
+	@Autowired
+	CallLoanDetailService callLoanDetailService;
+	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		
-		if(!lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
+		if(requestDTO.getPayload() != null && requestDTO.getPayload().getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
 			logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
 			LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
 			lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
@@ -108,7 +113,7 @@ public class LendingApplicationController {
 	public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("cancelApplication request : {}",commonAPIRequest);
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-
+		String reason = commonAPIRequest.getPayload().get("reason") != null ? commonAPIRequest.getPayload().get("reason").toString() : null;
 		if(applicationId == null || applicationId <=0) {
 			logger.info("CancelApplicationService invalid applicationId");
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
@@ -117,7 +122,7 @@ public class LendingApplicationController {
 			return resp;
 		}
 
-		Object resp = cancelApplicationService.cancelApplication(merchant, applicationId);
+		Object resp = cancelApplicationService.cancelApplication(merchant, applicationId, reason);
 
 		logger.info("cancelApplication response : {}", resp);
 		return resp;
@@ -128,4 +133,19 @@ public class LendingApplicationController {
 		return new ResponseEntity<>(lendingApplicationService.sendOtp(merchant), HttpStatus.OK);
 	}
 
+	@RequestMapping(value="/tnc", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<TncDto> tnc(@RequestAttribute Merchant merchant, @RequestParam Long applicationId) {
+	   return new ResponseEntity<>(lendingApplicationService.getTnc(merchant, applicationId), HttpStatus.OK);
+	}
+	
+	@RequestMapping(value = "/callLoanDetail", method = RequestMethod.GET)
+	public void callLoanDetails() {
+		callLoanDetailService.callLoanDetail();
+	}
+
+	@RequestMapping(value="/kafka/publish", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public ResponseEntity publish(@RequestBody CreateTxnRequestDTO requestDTO, @RequestAttribute Merchant merchant) {
+		lendingApplicationService.publishKafka(requestDTO, merchant.getId());
+		return new ResponseEntity(HttpStatus.OK);
+	}
 }

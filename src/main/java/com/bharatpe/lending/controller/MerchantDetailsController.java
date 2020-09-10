@@ -89,7 +89,7 @@ public class MerchantDetailsController {
                 logger.info("Invalid request to delete image");
                 return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
             }
-            int deleteImage = merchantDetailsService.deleteImage(requestDTO.getPayload().getImageData().getImageId(), merchant, requestDTO.getPayload().getApplicationId());
+            int deleteImage = merchantDetailsService.deleteImage(merchant, requestDTO.getPayload());
             if (deleteImage == 0) {
                 return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
             } else {
@@ -101,11 +101,11 @@ public class MerchantDetailsController {
         }
     }
 
-    @RequestMapping(value="/merchantDetails", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<MerchantDetailsDTO> merchantDetails(@RequestAttribute Merchant merchant, @RequestParam Long applicationId) {
+   @RequestMapping(value="/merchantDetails", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+    public ResponseEntity<MerchantDetailsDTO> merchantDetails(@RequestAttribute Merchant merchant, @RequestParam Long applicationId,@RequestParam(required = false)String module) {
         try {
             logger.info("Fetching Merchant Details for merchant: {}", merchant.getId());
-            return new ResponseEntity<>(merchantDetailsService.getMerchantDetails(applicationId), HttpStatus.OK);
+            return new ResponseEntity<>(merchantDetailsService.getMerchantDetails(applicationId,module), HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception while fetching merchant details", e);
             return new ResponseEntity<>(HttpStatus.CONFLICT);

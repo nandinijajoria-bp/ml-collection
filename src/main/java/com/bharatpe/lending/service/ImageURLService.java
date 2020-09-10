@@ -12,6 +12,10 @@ import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.entity.CreditApplication;
+import com.bharatpe.lending.common.entity.LendingEkyc;
+import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +43,9 @@ public class ImageURLService {
 
 	@Autowired
 	S3BucketHandler s3BucketHandler;
+	
+	@Autowired
+	LendingEkycDao lendingEkycDao;
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
@@ -59,10 +66,48 @@ public class ImageURLService {
 		}
 
 		logger.info("Application: {}", lendingApplication);
+		Boolean ekycDone=isEkycDone(merchant, lendingApplication.getId());
+		if(ekycDone==null){
+			result.put("success", false);
+			return result;
+		}
+		result.put("isEKYC",ekycDone);
+		result.put("allow_route", allowRoute(lendingApplication, merchant, ekycDone));
 		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
 		result.put("proofs", data);
-		result.put("success", data.size() > 0 ? true : false);
+		result.put("success", true);
 		return result;
+	}
+
+	private boolean allowRoute(LendingApplication lendingApplication, Merchant merchant, Boolean isEkycDone) {
+		boolean selfie = false;
+		boolean pancard = false;
+		boolean poa = false;
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+		for (DocumentsIdProof documentsIdProof : documentsIdProofList) {
+			if (documentsIdProof.getProofType().equalsIgnoreCase("selfie")) {
+				selfie = true;
+			} else if (documentsIdProof.getProofType().equalsIgnoreCase("pancard")) {
+				pancard = true;
+			} else {
+				poa = true;
+			}
+		}
+		return selfie && pancard && (isEkycDone || poa);
+	}
+	
+	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
+		try{
+			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
+			if(lendingEkyc!=null){
+				return true;
+			}
+			return false;
+		}
+		catch(Exception e) {
+			logger.error("Error occured while checking for ekyc status",e);
+			return null;
+		}
 	}
 	
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
@@ -70,6 +115,9 @@ public class ImageURLService {
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
 
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
+			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
+				continue;
+			}
 			Map<String, Object> proof = new LinkedHashMap<>();
 			proof.put("proof_type",documentsIdProof.getProofType());
 			proof.put("single_page_document",documentsIdProof.getSinglePage() == 1 ? true : false);

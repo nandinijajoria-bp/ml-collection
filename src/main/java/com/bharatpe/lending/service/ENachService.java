@@ -26,9 +26,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class ENachService {
@@ -70,6 +75,14 @@ public class ENachService {
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;
+    
+    @Autowired
+    VerifyOTPService verifyOTPService;
+
+    @Autowired
+    BPEnachService bpEnachService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
@@ -160,7 +173,7 @@ public class ENachService {
             lendingApplication.setNachLender("BHARATPE");
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
-            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
+            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchant.getId(),false);
             if (prevLoans != null && prevLoans.size() > 0) {
                 lendingApplication.setStatus("approved");
                 lendingApplication.setManualKyc("APPROVED");
@@ -200,7 +213,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
             lendingApplication.setNachLender("BHARATPE");
-            lendingApplication.setNachStatus("APPROVED");
+            lendingApplication.setNachStatus("APPROVED");  
             lendingApplication.setNachReferenceNumber(lendingEnach.getMid());
 //            if (!ExperianConstants.LOCKDOWN || (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2")) || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 //                List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchant(merchant.getId());
@@ -220,8 +233,38 @@ public class ENachService {
 //                }
 //            }
             lendingApplicationDao.save(lendingApplication);
+            executorService.submit(() -> bpEnachService.registerNach(createNachRegReq(lendingEnach), merchant.getId(), "LENDING"));
+            if (lendingApplication.getLoanAmount() <= 50000) {
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
+            }
         }
         return responseDTO;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private Map createNachRegReq(LendingEnach lendingEnach) {
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingEnach.getMerchantId(), "ACTIVE");
+        Map request = new HashMap();
+        request.put("merchantId", lendingEnach.getMerchantId());
+        request.put("referenceNumber", lendingEnach.getMid());
+        Date startDate = new Date();
+        try {
+            startDate = new SimpleDateFormat("dd-MM-yyyy").parse(lendingEnach.getMandateDate());
+        } catch (ParseException e) {
+            logger.error("Exception while parsing date", e);
+        }
+        request.put("startDate", new SimpleDateFormat("yyyy-MM-dd").format(startDate));
+        request.put("nachAmount", lendingEnach.getAmount());
+        request.put("ownerId", lendingEnach.getApplicationId());
+        request.put("nachType", "ENACH");
+        request.put("status", "APPROVED");
+        request.put("applicantName", merchantBankDetail.getBeneficiaryName());
+        request.put("nachMode", "ADHO");
+        request.put("identifier", lendingEnach.getIdentifier());
+        request.put("mendateId", lendingEnach.getMandateId());
+        request.put("bankResponse", lendingEnach.getResponse());
+        request.put("txnIdentifier", lendingEnach.getId());
+        return request;
     }
 
     //changing skip status to true

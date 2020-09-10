@@ -1,3 +1,4 @@
+  
 package com.bharatpe.lending.service;
 
 import java.time.Duration;
@@ -76,6 +77,9 @@ public class SignAgreementService {
 
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
+
+	@Autowired
+	RedisNotificationService redisNotificationService;
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -176,7 +180,7 @@ public class SignAgreementService {
 		if (EXPERIAN_ENABLED) {
 			
 			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
-				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
+				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
 			int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
@@ -215,7 +219,7 @@ public class SignAgreementService {
 			AvailableLoan selectedAvailableLoan = null;
 			
 			if(!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
-				logger.error("Last loan not closed for merchant ID {}", merchant.getId());
+				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
 			
@@ -256,12 +260,18 @@ public class SignAgreementService {
 			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
 		}
-		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()))
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
-		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()))
+		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
+		if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
+			newApplication.setLender("HINDON");
+		}
+		else {
+			newApplication.setLender("LDC");
+		}
 		lendingApplicationDao.save(newApplication);
 
 		if(newApplication.getId() != null) {
@@ -287,6 +297,11 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			
 			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				lendingApplicationService.createBBSSnapshot(newApplication);
+			}
+			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
+			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), newApplication);
 		}
 		return response;
 	}
@@ -308,8 +323,10 @@ public class SignAgreementService {
 				}
 			}
 			toSaveDocuments.setSinglePage(singleProofDoc);
-			toSaveDocuments.setLatitude(meta.getLatitude());
-			toSaveDocuments.setLongitude(meta.getLongitude());
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLongitude(meta.getLongitude());
 			toSaveDocuments.setIp(meta.getIp());
 			documentsIdProofDao.save(toSaveDocuments);
 

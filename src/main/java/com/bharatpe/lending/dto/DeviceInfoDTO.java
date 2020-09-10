@@ -3,6 +3,7 @@ package com.bharatpe.lending.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class DeviceInfoDTO {
+	
 
 	private String os;
 
@@ -47,11 +48,10 @@ public class DeviceInfoDTO {
 	
 	@Override
 	public String toString() {
-		String response = "DeviceInfo { os : " + os +
-						  " manufacturer : " + manufacturer +
-						  " device : " + device +
-						  " is_virtual : " + isVirtual + "}";
-		return response;
+		return "{\"os\":" + os +
+						  "\"manufacturer\":" + manufacturer +
+						  "\"device\":" + device +
+						  "\"is_virtual\":" + isVirtual + "}";
 	}
 
 }

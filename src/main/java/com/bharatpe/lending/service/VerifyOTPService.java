@@ -21,6 +21,7 @@ import com.bharatpe.lending.util.LoanCalculationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -109,6 +110,12 @@ public class VerifyOTPService {
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
+	
+	@Autowired
+	RedisNotificationService redisNotificationService;
+	
+	@Autowired
+	KafkaTemplate<String, Object> kafkaTemplate;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -157,18 +164,15 @@ public class VerifyOTPService {
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
 		lendingApplication.setAgreementAt(new Date());
 		lendingApplication.setAgreement(1);
-		lendingApplication.setLatitude(meta.getLatitude());
-		lendingApplication.setLongitude(meta.getLongitude());
-		lendingApplication.setIp(meta.getIp());
+		if (meta != null && meta.getLatitude() != null && !meta.getLatitude().equalsIgnoreCase("undefined")) {
+			lendingApplication.setLatitude(meta.getLatitude());
+			lendingApplication.setLongitude(meta.getLongitude());
+			lendingApplication.setIp(meta.getIp());
+		}
 		lendingApplication.setExternalLoanId(loanId);
-		if (enachSuccess != null) {
-			if (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
-				lendingApplication.setNachType("EXTERNAL");
-				lendingApplication.setNachLender("LIQUILOANS");
-			} else {
-				lendingApplication.setNachType("ENACH");
-				lendingApplication.setNachLender("BHARATPE");
-			}
+		if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
+			lendingApplication.setNachType("ENACH");
+			lendingApplication.setNachLender("BHARATPE");
 			lendingApplication.setNachReferenceNumber(enachSuccess.getMid());
 			lendingApplication.setNachStatus("APPROVED");
 		}
@@ -184,6 +188,9 @@ public class VerifyOTPService {
 			if (!cpvMandatory && (enachSuccess != null && lendingApplication.getLoanAmount() < 300000)) {
 				lendingApplication.setPhysicalVerificationStatus("APPROVED");
 				lendingApplication.setPhysicalApprovedDate(lendingApplication.getAgreementAt());
+				lendingApplication.setAssignedAt(lendingApplication.getAgreementAt());
+				lendingApplication.setCpvSubmitTimestamp(lendingApplication.getAgreementAt());
+				lendingApplication.setCpvCloseDate(lendingApplication.getAgreementAt());
 				lendingApplication.setStatus("approved");
 			} else {
 				sendTopupSms(merchant, lendingApplication);
@@ -194,8 +201,10 @@ public class VerifyOTPService {
 			lendingApplication.setVerifyPan("yes");
 			lendingApplication.setManualKyc("APPROVED");
 			lendingApplication.setKycApprovedDate(lendingApplication.getAgreementAt());
+			lendingApplication.setKycAssignedAt(lendingApplication.getAgreementAt());
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setCibilApprovedDate(lendingApplication.getAgreementAt());
+			lendingApplication.setLender("LIQUILOANS");
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
@@ -203,6 +212,9 @@ public class VerifyOTPService {
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		lendingApplicationDao.save(lendingApplication);
+		if(lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
+			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);	
+		}
 		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
 				.amount(0D)
 				.merchantStoreId(null)
@@ -225,29 +237,32 @@ public class VerifyOTPService {
 		lendingAuditTrial.setType("APP_STATUS");
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
-
-		String bankCode = null;
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-		if (merchantBankDetail != null && meta.getAppVersion() != null && Integer.parseInt(meta.getAppVersion()) >= 238) {
-			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
-		} else if (merchantBankDetail != null){
-			bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
-		}
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-// 		if (ExperianConstants.LOCKDOWN && bankCode != null && merchant.getBusinessCategory() != null && lendingApplication.getLoanAmount() > 100000D && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
-// 			preBookExecutor.submit(() -> checkPreBook(merchant, lendingApplication));
-// 		} else {
-// 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-// 		}
-		
+		if (lendingApplication.getLoanAmount() <= 50000 && "REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()))
+			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
 	}
+	
+	public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
+		try {
+			Map<String,Long> detailMap=new HashMap<String, Long>(){{
+				put("merchantId", merchantId);
+				put("applicationId",applicationId);
+				put("isCreditLine",isCreditLine?1L:0L);
+			}};
+			kafkaTemplate.send("verify_kyc_details", merchantId.toString(), detailMap);
+			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
+		}
+		catch(Exception e) {
+			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+		}
+	}
 
 	private void updateDocuments(LendingApplication lendingApplication, Meta meta) {
 		try {
-			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(lendingApplication.getMerchant().getId(),false);
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 			if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {
 				logger.info("No previous loan/active loan for merchant ID {}", lendingApplication.getMerchant().getId());
@@ -351,12 +366,12 @@ public class VerifyOTPService {
 				mobiles.add(merchant.getMobile());
 			}
 			String pushContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "homepage.html");
+			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "dynamic?key=loan");
 			if (isPaymentBank(merchant, merchantBankDetail)) {
 				String pushNotification = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
 						"\n" +
 						"We have received your Loan Application of Rs." + loanAmount.intValue() + ".Our lending partners do not support disbursal in Payment Banks. Please change your registered account with us to a non-payment bank to get Rs." + loanAmount.intValue() + " NOW!";
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushNotification, "bharatpe://dynamic?key=change-acc");
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushNotification, "dynamic?key=change-acc");
 				String sms = "Dear "+merchantBankDetail.getBeneficiaryName()+",\nYour loan application for Rs."+loanAmount.intValue()+" has been successfully received.. Our lending partners do not support disbursal to Payment Banks.\nPlease change your registered account with us to a Non-payment bank to get the amount now.\nClick here: https://bharatpe.in/acchange to change bank.";
 				boolean smsSent = smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
 				whatsappNotificationService.send(merchant, null, sms, mobiles, null);

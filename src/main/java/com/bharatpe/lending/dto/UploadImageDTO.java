@@ -11,6 +11,17 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class UploadImageDTO {
 
     private Long applicationId;
+    
+    
+    public String getModule() {
+		return module;
+	}
+
+	public void setModule(String module) {
+		this.module = module;
+	}
+
+	private String module;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private SelectedLoanDTO selectedLoan;
@@ -43,13 +54,10 @@ public class UploadImageDTO {
     }
 
     @Override
-    public String toString() {
-        return "UploadImageDTO{" +
-                "applicationId=" + applicationId +
-                ", selectedLoan=" + selectedLoan +
-                ", imageData=" + imageData +
-                '}';
-    }
+	public String toString() {
+		return "UploadImageDTO [applicationId=" + applicationId + ", module=" + module + ", selectedLoan="
+				+ selectedLoan + ", imageData=" + imageData + "]";
+	}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)

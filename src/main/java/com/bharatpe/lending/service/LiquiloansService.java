@@ -3,20 +3,31 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
+import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.constant.LendingConstants;
 
+import com.bharatpe.lending.handlers.LiquiloansHandler;
+import com.bharatpe.lending.util.Finance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,24 +41,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.bharatpe.common.dao.ExternalGatewayDao;
-import com.bharatpe.common.dao.LendingPancardDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.DisbursalSettlement;
-import com.bharatpe.common.entities.ExternalGateway;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.entities.SettlementSchedule;
-import com.bharatpe.common.entities.Validate;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dao.DisbursalSettlementDao;
@@ -135,6 +136,45 @@ public class LiquiloansService {
     
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+	CreditApplicationDao creditApplicationDao;
+
+    @Autowired
+	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+
+    @Autowired
+	IfscDao ifscDao;
+
+    @Autowired
+	MerchantSummaryDao merchantSummaryDao;
+
+    @Autowired
+	ExperianDao experianDao;
+
+    @Autowired
+	CreditApplicationAddressDao creditApplicationAddressDao;
+
+    @Autowired
+	LiquiloansDirectDisbursalRawResponseDao liquiloansDirectDisbursalRawResponseDao;
+
+    @Autowired
+	LendingTlDetailsDao lendingTlDetailsDao;
+
+    @Autowired
+	MerchantStoreDao merchantStoreDao;
+
+    @Autowired
+	LendingEDIScheduleDao lendingEDIScheduleDao;
+
+    @Autowired
+	LiquiloansHandler liquiloansHandler;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(5);
+
+	private static String secretKey;
+
+	private static String SID;
     
     public LendingPancard fetchNameOnPancard(String pancardNumber, Long merchantId) {
         String name = null;
@@ -189,6 +229,27 @@ public class LiquiloansService {
 		logger.info("Fetching lending application for given liquiloan_loan_id:{} and bp_loan_id:{}", callbackRequestDto.getUrn(),callbackRequestDto.getLoanId());
 		liquiloansDirectDisbursalRawResponse.setApiName("APPROVELOAN");
 		liquiloansDirectDisbursalRawResponse.setRequest(callbackRequestDto.toString());
+		if (callbackRequestDto.getUrn().contains("CL")) {
+			//Credit line loan
+			LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByExternalLoanIdAndNbfcId(callbackRequestDto.getUrn(), callbackRequestDto.getLoanId());
+			if (lendingTlDetails == null) {
+				return new ResponseDTO(false,"loan application not found",null);
+			}
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByTlDetailsIdAndCreditLoanAndStatus(lendingTlDetails.getId(), true, "ACTIVE");
+			if (lendingPaymentSchedule == null) {
+				return new ResponseDTO(false,"lending payment schedule not found",null);
+			}
+			List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
+			if (ediSchedules == null || ediSchedules.isEmpty()) {
+				return new ResponseDTO(false,"lending edi schedule not found",null);
+			}
+			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingTlDetails.getMerchantId());
+			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingTlDetails.getId());
+			liquiloansDirectDisbursalRawResponse.setLoanId(lendingTlDetails.getExternalLoanId());
+			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingTlDetails.getNbfcId());
+			executorService.submit(() -> liquiloansHandler.notifyEDISchedule(lendingPaymentSchedule,ediSchedules, lendingTlDetails));
+			return new ResponseDTO(true,null,null);
+		}
 		try {
 			LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
 			if(lendingApplication==null) {
@@ -262,6 +323,7 @@ public class LiquiloansService {
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
 			lendingApplication.setDisburseTimestamp(new Date());
+			lendingApplication.setAccountType("INVESTOR_FUNDS");
     		lendingApplicationDao.save(lendingApplication);
 
     		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
@@ -326,6 +388,7 @@ public class LiquiloansService {
     			lendingPaymentSchedule.setInterestOnlyStartDate(tomorrow);		
     			lendingPaymentSchedule.setInterestOnlyEdiAmount(lendingApplication.getIoEdi());
     			lendingPaymentSchedule.setInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
+    			lendingPaymentSchedule.setRemainingInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
     		}
     		else {
     			logger.error("Wrong construct type found for applicationId: {}", lendingApplication.getId());
@@ -363,7 +426,7 @@ public class LiquiloansService {
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
     
-    private void changeDeductionFromInstantToDaily(Merchant merchant) {
+    public void changeDeductionFromInstantToDaily(Merchant merchant) {
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
     		merchant.setSettlementType("DAILY");
     		merchant.setKycType("LEVEL2");
@@ -404,17 +467,24 @@ public class LiquiloansService {
 			sms1= "Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
 					"Your BharatPe Loan of Rs."+ lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
 					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
-		} else {
+		}
+		else if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
+			sms1="Congratulations!\nYour Loan of Rs."+lendingApplication.getDisbursalAmount()+" is disbursed to your "+merchantBankDetail.getBankName()+" A/c Successfully! \n" + 
+					"Daily Installment of Rs."+lendingApplication.getEdi()+" will be deducted from your BharatPe Settlement everyday.\n\n" +
+					"Transact on BharatPe QR everyday to ensure timely repayment.";
+		}
+		else {
 			sms1="Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
 					"Your BharatPe Loan of Rs."+lendingApplication.getLoanAmount()+" is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
+					"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
 		}
+
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
+			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements.";
+			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Your daily installment for 1st month is INR "+lendingPaymentSchedule.getInterestOnlyEdiAmount()+" (Only Interest). After that, it will be INR"+lendingApplication.getEdi()+". First installment date is "+lendingPaymentSchedule.getStartDate()+" Installments will be deducted from your daily settlements.";
+			sms2 = "Your daily installment for 1st month is INR "+lendingPaymentSchedule.getInterestOnlyEdiAmount()+" (Only Interest). After that, it will be INR"+lendingApplication.getEdi()+". First installment date is "+lendingPaymentSchedule.getStartDate()+" Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
 		}
 		smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, sms1, NotificationProvider.SMS.GUPSHUP);
 		if (sms2 != null) {
@@ -485,6 +555,10 @@ public class LiquiloansService {
     }
     
     public boolean updateDisbursalSettlementIdInLendingPaymentSchedule(String loanId, String urnId, Integer settlementId, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse){
+    	if (urnId.contains("CL")) {
+    		logger.info("Settlement for credit loan:{}", urnId);
+    		return true;
+		}
     	logger.info("Fetching lending application for the externa loan id {} and nbfc id {}",urnId,loanId);
     	try {
     	LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(urnId, loanId, "approved");
@@ -547,6 +621,344 @@ public class LiquiloansService {
 			return shortUrl;
 		}
 		return " ";
+	}
+
+	@SuppressWarnings(value = "unchecked")
+	public void createLead(LendingPaymentSchedule lendingPaymentSchedule, LendingTlDetails lendingTlDetails) {
+		try {
+			CreditApplication creditApplication = creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(lendingTlDetails.getMerchantId());
+			List<MerchantDocumentProofOcr> documents = merchantDocumentProofOcrDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingTlDetails.getMerchantId(), "ACTIVE");
+			List<Ifsc> ifscList = ifscDao.findByIfsc(merchantBankDetail.getIfscCode());
+			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingTlDetails.getMerchantId());
+			Experian experian = experianDao.getByMerchantId(lendingTlDetails.getMerchantId());
+			CreditApplicationAddress creditApplicationAddress = creditApplicationAddressDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
+			MerchantDocumentProofOcr pancard = null;
+			MerchantDocumentProofOcr poa = null;
+			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+			for (MerchantDocumentProofOcr document : documents) {
+				if ("pancard".equalsIgnoreCase(document.getProofType())) {
+					pancard = document;
+				} else {
+					poa = document;
+				}
+			}
+			if (pancard == null || poa == null) {
+				logger.info("pancard/poa not found for credit_application id :{}", creditApplication.getId());
+				return;
+			}
+			Map<String, Object> request = new LinkedHashMap<>();
+			request.put("SID", getSID());
+			request.put("urn", lendingTlDetails.getExternalLoanId());
+			request.put("loan_type", "PL");
+			request.put("amount", lendingPaymentSchedule.getLoanAmount().toString());
+			request.put("application_date", simpleDateFormat.format(lendingPaymentSchedule.getCreatedAt()));
+			Map<String, Object> schemeDetails = new LinkedHashMap<>();
+			schemeDetails.put("scheme_id", "0");
+			schemeDetails.put("installment_frequency", "Daily");
+			schemeDetails.put("installment_tenure", lendingTlDetails.getPayableDays().toString());
+			schemeDetails.put("processing_fees_value", "0");
+
+			schemeDetails.put("roi_percentage", Double.toString(lendingTlDetails.getInterestRate() * 12));
+			schemeDetails.put("installment_amount", lendingTlDetails.getEdi().toString());
+			schemeDetails.put("xirr", "22.2");
+			request.put("scheme_details", schemeDetails);
+			Map<String, Object> personalDetails = new LinkedHashMap<>();
+			personalDetails.put("pan", pancard.getProofNumber());
+			personalDetails.put("full_name", pancard.getName());
+			if ("male".equalsIgnoreCase(poa.getGender())) {
+				personalDetails.put("gender", "Male");
+			} else if ("female".equalsIgnoreCase(poa.getGender())) {
+				personalDetails.put("gender", "Female");
+			} else {
+				personalDetails.put("gender", "");
+			}
+			if (pancard.getDob() != null) {
+				personalDetails.put("dob", simpleDateFormat.format(new SimpleDateFormat("dd/MM/yyyy").parse(pancard.getDob())));
+			} else {
+				personalDetails.put("dob", "");
+			}
+			personalDetails.put("email", "lending@bharatpe.in");
+			personalDetails.put("contact_number", lendingPaymentSchedule.getMerchant().getMobile().substring(2));
+			personalDetails.put("aadhaar_number", poa.getProofNumber());
+			request.put("personal_details", personalDetails);
+			Map<String, Object> addressDetails = new LinkedHashMap<>();
+			addressDetails.put("full_address", poa.getAddress().replace("/"," "));
+			addressDetails.put("pincode", poa.getPincode());
+			addressDetails.put("city", poa.getCity());
+			addressDetails.put("state", poa.getState());
+			request.put("address_details", addressDetails);
+			Map<String, Object> bankingDetails = new LinkedHashMap<>();
+			bankingDetails.put("bank_name", ifscList.get(0).getBank());
+			bankingDetails.put("branch_name", ifscList.get(0).getBranch());
+			bankingDetails.put("ifsc", merchantBankDetail.getIfscCode());
+			bankingDetails.put("account_number", merchantBankDetail.getAccountNumber());
+			bankingDetails.put("account_holder_name", merchantBankDetail.getBeneficiaryName().trim());
+			bankingDetails.put("account_type", "Saving");
+			request.put("banking_details", bankingDetails);
+			Map<String, Object> incomeDetails = new LinkedHashMap<>();
+			incomeDetails.put("occupation", "SelfEmployed");
+			incomeDetails.put("name_of_company", lendingPaymentSchedule.getMerchant().getBusinessName().trim());
+			incomeDetails.put("monthly_income", merchantSummary.getTpv1Mon().toString());
+			request.put("income_details", incomeDetails);
+			Map<String, Object> kycDetails = new LinkedHashMap<>();
+			kycDetails.put("file_name", "test.zip");
+			kycDetails.put("document_path", "test.zip");
+			request.put("kyc_details", kycDetails);
+			Map<String, Object> udf1 = new LinkedHashMap<>();
+			udf1.put("state", creditApplicationAddress.getState());
+			udf1.put("city", creditApplicationAddress.getCity());
+			udf1.put("pin_code", creditApplicationAddress.getPincode());
+			request.put("UDF1", udf1);
+			Map<String, Object> udf2 = new LinkedHashMap<>();
+			udf2.put("type_of_poa", poa.getProofType());
+			udf2.put("poa_number", poa.getProofNumber());
+			udf2.put("shop_category", lendingPaymentSchedule.getMerchant().getBusinessCategory());
+			String businessAddress = creditApplicationAddress.getShopNumber() + " " + creditApplicationAddress.getStreetAddress() + " " + creditApplicationAddress.getArea() + " " + creditApplicationAddress.getCity() + " " + creditApplicationAddress.getState();
+			udf2.put("business_address", businessAddress.replace("/"," "));
+			request.put("UDF2", udf2);
+			Map<String, Object> udf3 = new LinkedHashMap<>();
+			udf3.put("lender", "LIQUILOANS");
+			udf3.put("loan_category", creditApplication.getLoanType());
+			udf3.put("repayment_type", "EDI");
+			udf3.put("is_ntc", "NO");
+			if (experian.getExperianScore() != null) {
+				double score = experian.getExperianScore() - experian.getBpScore();
+				udf3.put("customer_score", (int) score);
+			} else {
+				udf3.put("customer_score", experian.getBpScore().intValue());
+			}
+			udf3.put("bp_segment", experian.getColor());
+			request.put("UDF3", udf3);
+
+			try {
+				String checksumString = getChecksumString(request) + getSecretKey();
+				logger.info("Checksum String is {}", checksumString);
+				request.put("Checksum", hmacCalculator.calculateHMACHexEncoded(checksumString, getSecretKey()));
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON);
+				headers.setCacheControl(CacheControl.noCache());
+				String requestString = objectMapper.writeValueAsString(request);
+				logger.info("Request to liquiloans : {}", requestString);
+				LiquiloansDirectDisbursalRawResponse bean = new LiquiloansDirectDisbursalRawResponse();
+				bean.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+				bean.setApiName("CreateLeadV2");
+				bean.setApplicationId(lendingTlDetails.getId());
+				bean.setRequest(requestString);
+				bean.setLoanId(lendingTlDetails.getExternalLoanId());
+				bean.setStatus("PENDING");
+				bean = liquiloansDirectDisbursalRawResponseDao.save(bean);
+				HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
+				String responseString;
+				boolean isSuccess = false;
+				Map<String, Object> responseMap = null;
+				try {
+					long startTime = System.currentTimeMillis();
+					responseMap = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("liquiloans.createLead.api")), requestEntity, Map.class);
+					logger.info("Response from Liquiloans : {}", responseMap);
+					logger.info("Liquiloans create lead api response time : {}ms, response {}", System.currentTimeMillis() - startTime, responseMap);
+					responseString = objectMapper.writeValueAsString(responseMap);
+					isSuccess = true;
+				} catch (HttpClientErrorException e) {
+					logger.info("Response form Liquiloans : {}", e.getResponseBodyAsString());
+					responseString = e.getResponseBodyAsString();
+					logger.error("Error in api call in liquiloans create lead api for {}, {}", request, e);
+				} catch (Exception ex) {
+					responseString = ex.getMessage();
+					logger.error("Error in api call in liquiloans create lead api for {}, {}", request, ex);
+				}
+				if(isSuccess) {
+					if(responseMap != null && (responseMap.get("status") == null || !"true".equalsIgnoreCase(responseMap.get("status").toString()))) {
+						isSuccess = false;
+					}
+				}
+				if (isSuccess && responseMap != null && responseMap.get("data") != null) {
+					String nbfcId =  ((Map<String, Object>)responseMap.get("data")).get("loan_id").toString();
+					bean.setLiquiloanId(nbfcId);
+					lendingTlDetailsDao.updateNbfcId(lendingTlDetails.getId(), nbfcId);
+				}
+				bean.setResponse(responseString);
+				bean.setStatus(isSuccess ? "SUCCESS" : "FAILED");
+				liquiloansDirectDisbursalRawResponseDao.save(bean);
+			} catch (Exception e) {
+				logger.error("Exception in create lead api", e);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in create lead api for loan_id: {}", lendingTlDetails.getExternalLoanId());
+			logger.error("Exception---", e);
+		}
+	}
+
+	private String getSecretKey() {
+		if (secretKey == null) {
+			secretKey = env.getProperty("liquiloan.secret");
+		}
+		return secretKey;
+	}
+
+	private String getSID() {
+		if (SID == null) {
+			SID = env.getProperty("liquiloan.sid");
+		}
+		return SID;
+	}
+
+	private String getChecksumString(Map<String, Object> request) throws IOException {
+		Map<String, Object> map = new LinkedHashMap<>();
+		for (Map.Entry<String, Object> entry : request.entrySet()) {
+			if(request.get(entry.getKey()) == null) {
+				continue;
+			}
+			if(request.get(entry.getKey()) instanceof List || request.get(entry.getKey()) instanceof Map) {
+				map.put(entry.getKey(), objectMapper.writeValueAsString(request.get(entry.getKey())));
+			} else {
+				map.put(entry.getKey(), request.get(entry.getKey()));
+			}
+		}
+		return StringUtils.collectionToDelimitedString(map.values(), "||");
+	}
+
+	public void createEdiSchedule(LendingPaymentSchedule paymentSchedule) {
+		try {
+			List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
+			if (scheduleList != null && !scheduleList.isEmpty()) {
+				logger.info("EDI schedule already exist for Loan ID {}.", paymentSchedule.getId());
+				return;
+			}
+			logger.info("Creating EDI schedule for Loan ID {}.", paymentSchedule.getId());
+			int installmentNo = 1;
+			int ediCount = paymentSchedule.getEdiCount();
+			Double openingBalance = paymentSchedule.getLoanAmount();
+			String construct = paymentSchedule.getLoanConstruct();
+			double totalInterest = 0D;
+			Double totalPrincipal = 0D;
+			List<LendingEDISchedule> ediSchedules = new ArrayList<>();
+			double procFee = paymentSchedule.getLoanApplication() == null ? 0D : paymentSchedule.getLoanApplication().getProcessingFee();
+			MerchantStore store = paymentSchedule.getMerchantStoreId() == null ? null : merchantStoreDao.findById(paymentSchedule.getMerchantStoreId()).get();
+			if(procFee > 0D) {
+				ediSchedules.add(createProcFeeSchedule(paymentSchedule, store));
+			}
+			if("CONSTRUCT_2".equals(construct) || "CONSTRUCT_3".equals(construct)) {
+				if("CONSTRUCT_3".equals(construct)) {
+					int ioInstallmentNo = 1;
+					Calendar cal = Calendar.getInstance();
+					cal.setTime(paymentSchedule.getInterestOnlyStartDate());
+					while(ioInstallmentNo <= paymentSchedule.getInterestOnlyEdiCount()) {
+						if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+							cal.add(Calendar.DAY_OF_MONTH, 1);
+							continue;
+						} else {
+							LendingEDISchedule currentSchedule = new LendingEDISchedule();
+							currentSchedule.setConstruct(construct);
+							currentSchedule.setDate(cal.getTime());
+							currentSchedule.setEdiType("Principal Morat");
+							currentSchedule.setInstallmentNumber(installmentNo);
+							currentSchedule.setOpeningBalance(openingBalance);
+							currentSchedule.setInterest(paymentSchedule.getInterestOnlyEdiAmount());
+							currentSchedule.setPrinciple(0D);
+							currentSchedule.setProcessingFee(0D);
+							currentSchedule.setTotalEdi(paymentSchedule.getInterestOnlyEdiAmount().intValue());
+							currentSchedule.setOtherCharges(0D);
+							currentSchedule.setMerchant(paymentSchedule.getMerchant());
+							currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+							currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+							currentSchedule.setMerchantStore(store);
+							ediSchedules.add(currentSchedule);
+
+							totalInterest = totalInterest + paymentSchedule.getInterestOnlyEdiAmount();
+
+							installmentNo++;
+							ioInstallmentNo++;
+
+							cal.add(Calendar.DAY_OF_MONTH, 1);
+						}
+					}
+				}
+			}
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(paymentSchedule.getStartDate());
+			Double reducingInterestRateDaily = Finance.rate(ediCount, paymentSchedule.getEdiAmount().intValue(), paymentSchedule.getLoanAmount());
+			int normalEdIinstallmentNo = 1;
+			while (normalEdIinstallmentNo <= ediCount) {
+				if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+					cal.add(Calendar.DAY_OF_MONTH, 1);
+					continue;
+				} else {
+					Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * paymentSchedule.getLoanAmount()));
+					double interest = round(paymentSchedule.getEdiAmount().intValue() - principal);
+					if(normalEdIinstallmentNo == ediCount) {
+						if(!paymentSchedule.getLoanAmount().equals(totalPrincipal + principal)) {
+							double diff = paymentSchedule.getLoanAmount() - (totalPrincipal + principal);
+							principal = round(paymentSchedule.getLoanAmount() - totalPrincipal);
+							interest = round(interest - diff);
+						}
+					}
+					totalPrincipal = totalPrincipal + principal;
+					totalInterest = totalInterest + interest;
+					LendingEDISchedule currentSchedule = new LendingEDISchedule();
+					currentSchedule.setConstruct(construct);
+					currentSchedule.setDate(cal.getTime());
+					currentSchedule.setEdiType("Regular");
+					currentSchedule.setInstallmentNumber(installmentNo);
+					currentSchedule.setOpeningBalance(round(openingBalance));
+					currentSchedule.setInterest(interest);
+					currentSchedule.setPrinciple(principal);
+					currentSchedule.setProcessingFee(0D);
+					currentSchedule.setTotalEdi(paymentSchedule.getEdiAmount().intValue());
+					currentSchedule.setOtherCharges(0D);
+					currentSchedule.setMerchant(paymentSchedule.getMerchant());
+					currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+					currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+					currentSchedule.setMerchantStore(store);
+					ediSchedules.add(currentSchedule);
+					openingBalance = openingBalance - principal;
+					installmentNo++;
+					normalEdIinstallmentNo++;
+					cal.add(Calendar.DAY_OF_MONTH, 1);
+				}
+			}
+
+			lendingEDIScheduleDao.saveAll(ediSchedules);
+			paymentSchedule.setInterest(totalInterest);
+			paymentSchedule.setOtherCharges(0D);
+			paymentSchedule.setTentativeClosingDate(cal.getTime());
+			lendingPaymentScheduleDao.save(paymentSchedule);
+		} catch(Exception ex) {
+			logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
+		}
+	}
+
+	private LendingEDISchedule createProcFeeSchedule(LendingPaymentSchedule paymentSchedule, MerchantStore store) {
+		Double procFee = paymentSchedule.getLoanApplication().getProcessingFee();
+		Calendar cal = Calendar.getInstance();
+		if(paymentSchedule.getInterestOnlyStartDate() != null) {
+			cal.setTime(paymentSchedule.getInterestOnlyStartDate());
+		} else {
+			cal.setTime(paymentSchedule.getStartDate());
+		}
+		cal.add(Calendar.DAY_OF_MONTH, -1);
+		LendingEDISchedule schedule = new LendingEDISchedule();
+		schedule.setConstruct(paymentSchedule.getLoanConstruct());
+		schedule.setDate(cal.getTime());
+		schedule.setEdiType("");
+		schedule.setInstallmentNumber(0);
+		schedule.setInterest(0D);
+		schedule.setOpeningBalance(paymentSchedule.getLoanAmount());
+		schedule.setPrinciple(0D);
+		schedule.setOtherCharges(0D);
+		schedule.setProcessingFee(procFee);
+		schedule.setTotalEdi(procFee.intValue());
+		schedule.setMerchant(paymentSchedule.getMerchant());
+		schedule.setLoanApplication(paymentSchedule.getLoanApplication());
+		schedule.setLendingPaymentSchedule(paymentSchedule);
+		schedule.setMerchantStore(store);
+		return schedule;
+	}
+
+	private static double round(double value) {
+		BigDecimal bd = BigDecimal.valueOf(value);
+		bd = bd.setScale(2, RoundingMode.HALF_UP);
+		return bd.doubleValue();
 	}
 
 

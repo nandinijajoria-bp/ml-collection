@@ -8,6 +8,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -16,10 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.text.ParseException;
+import java.util.*;
 
 @Component
 public class TopupLoanEligibleService {
@@ -77,15 +76,19 @@ public class TopupLoanEligibleService {
     		 MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.get().getId());
     		 Experian experian = experianDao.getByMerchantId(merchant.get().getId());
     		 MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.get().getId(), "ACTIVE");
-    		 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdOrderByIdDesc(merchant.get().getId());
+    		 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.get().getId(),false);
              fetchTopupLoans(merchant.get(), experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, null);
     	 } catch(Exception ex) {
     		 logger.error("Exception while generating new loans for merchant with ID {}, Exception is {}", merchantId, ex);
     	 }
     }
 
-    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) {
+    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) throws ParseException {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
+        if (true) {
+            logger.info("topup loan closed");
+            return new ArrayList<>();
+        }
         double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0d;
         LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
         if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {
@@ -119,7 +122,13 @@ public class TopupLoanEligibleService {
             if (docKycDetails != null && docKycDetails.getDocNo() != null) {
                 logger.info("fetching experian for merchant:{} and pancard:{}", merchant.getId(), docKycDetails.getDocNo());
                 try {
-                    JsonNode experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), docKycDetails.getDocNo(), merchant.getId(), bpScore, merchantBankDetail);
+                    JsonNode experianResponse;
+                    ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
+                    if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(docKycDetails.getDocNo()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
+                        experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
+                    } else {
+                        experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), docKycDetails.getDocNo(), merchant.getId(), bpScore, merchantBankDetail);
+                    }
                     if (experianResponse != null) {
                         experian = updateExperian(experianResponse, merchant, bpScore, docKycDetails.getDocNo(), lendingApplication.getPincode());
                         experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
@@ -134,7 +143,13 @@ public class TopupLoanEligibleService {
             }
         } else {
             try {
-                JsonNode experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                JsonNode experianResponse;
+                ExperianAuditTrail experianAuditTrail = experianAuditTrailDao.findLatestByMerchantId(merchant.getId());
+                if (experianAuditTrail != null && experianAuditTrail.getResponse() != null && experianAuditTrail.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber()) && LoanUtil.getDateDiffInDays(experianAuditTrail.getCreatedAt(), new Date()) <= 45) {//get experian data from db if less than 45 days old
+                    experianResponse = objectMapper.readTree(experianAuditTrail.getResponse());
+                } else {
+                    experianResponse = loanEligibleService.fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                }
                 if (experianResponse != null) {
                     experian.setResponse(experianResponse.toString());
                     experianDao.save(experian);
@@ -173,7 +188,7 @@ public class TopupLoanEligibleService {
             //lendingCategories.setInterestRate(1.75D);//fixed for topup loan
             Long experianId = experian != null ? experian.getId() : 0L;
             eligibleLoanDao.deleteByMerchantId(merchant.getId());
-            LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false);
+            LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, merchant.getId(), experianId, prevLoanAmount, color, "2", "TOPUP", false, false);
             double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
             if (loanEligibilityDTO != null) {
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
@@ -185,7 +200,7 @@ public class TopupLoanEligibleService {
         return new ArrayList<>();
     }
 
-    private Experian updateExperian(JsonNode experianResponse, Merchant merchant, double bpScore, String pancard, Long pincode) {
+    private Experian updateExperian(JsonNode experianResponse, Merchant merchant, double bpScore, String pancard, Long pincode) throws ParseException {
         Experian experian = new Experian();
         experian.setMerchantId(merchant.getId());
         experian.setResponse(experianResponse.toString());

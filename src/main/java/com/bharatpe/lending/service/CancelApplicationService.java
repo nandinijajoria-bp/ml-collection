@@ -7,6 +7,8 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dto.ResponseDTO;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +28,7 @@ public class CancelApplicationService {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
-	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId) {
+	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId, String reason) {
 		Map<String, Boolean> resp = new HashMap<> ();
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
 
@@ -36,6 +38,7 @@ public class CancelApplicationService {
 			return resp;
 		}
 		lendingApplication.setStatus("deleted");
+		lendingApplication.setResponseCode(reason);
 		lendingApplicationDao.save(lendingApplication);
 
 		logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
@@ -52,5 +55,7 @@ public class CancelApplicationService {
 		logger.info("CancelApplicationService lending_audit_trail success insert for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
 		return resp;
 	}
+	
+	
 
 }

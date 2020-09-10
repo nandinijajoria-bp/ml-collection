@@ -7,6 +7,8 @@ public class RequestDTO<T> {
 	@JsonProperty(value = "meta", required = false)
 	private MetaDTO meta;
 	private T payload;
+	@JsonProperty(value = "sim_info")
+	private SimInfo simInfo;
 
 	public MetaDTO getMeta() {
 		return meta;
@@ -25,6 +27,14 @@ public class RequestDTO<T> {
 		this.payload = payload;
 	}
 
+	public SimInfo getSimInfo() {
+		return simInfo;
+	}
+
+	public void setSimInfo(SimInfo simInfo) {
+		this.simInfo = simInfo;
+	}
+
 	@Override
 	public String toString() {
 		return "RequestDTO{" +
@@ -32,4 +42,5 @@ public class RequestDTO<T> {
 				", payload=" + payload +
 				'}';
 	}
+
 }

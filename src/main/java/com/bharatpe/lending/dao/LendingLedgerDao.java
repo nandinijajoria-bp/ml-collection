@@ -22,4 +22,12 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
 
     List<LendingLedger> findByLendingPaymentSchedule(LendingPaymentSchedule lendingPaymentSchedule);
     
+    List<LendingLedger> findByLendingPaymentScheduleOrderByDateDescAmountAsc(LendingPaymentSchedule lendingPaymentSchedule);
+
+    @Query(value = "SELECT * FROM lending_ledger WHERE merchant_id = :id AND amount > 0 ORDER BY date DESC", nativeQuery = true)
+	 List<LendingLedger> findByMerchantIdOrderByDateDesc(Long id);
+
+    List<LendingLedger> findByLendingPaymentScheduleOrderByDateAscAmountAsc(LendingPaymentSchedule lendingPaymentSchedule);
+    
+    
 }

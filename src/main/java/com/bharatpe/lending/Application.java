@@ -9,6 +9,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.PropertySources;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
 @ComponentScan(basePackages =  "com.bharatpe.*")
@@ -18,7 +19,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 		@PropertySource("file:/etc/bharatpe/key.properties"),
 		@PropertySource("file:/etc/bharatpe/production.properties")
 })
-public class Application 
+public class Application
 {
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args);

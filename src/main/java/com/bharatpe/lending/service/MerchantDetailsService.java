@@ -1,3 +1,4 @@
+  
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.CpvDocumentsIdProofDao;
@@ -53,11 +54,19 @@ public class MerchantDetailsService {
     }};
 
     public MerchantDetailsDTO updatePersonalDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), MODULE);
+    	String module;
+        if(merchantDetailsDTO.getModule()!=null)
+           module=merchantDetailsDTO.getModule();
+        else
+           module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             lendingCpvDetails.setLatitude(Double.parseDouble(lat));
             lendingCpvDetails.setLongitude(Double.parseDouble(lng));
         }
@@ -71,26 +80,40 @@ public class MerchantDetailsService {
         lendingCpvDetails.setState(merchantDetailsDTO.getPersonalDetails().getState());
         lendingCpvDetails.setCity(merchantDetailsDTO.getPersonalDetails().getCity());
         lendingCpvDetails.setLandmark(merchantDetailsDTO.getPersonalDetails().getLandmark());
-        lendingCpvDetails.setModule(MODULE);
-        lendingCpvDetailsDao.save(lendingCpvDetails);
+        lendingCpvDetails.setModule(module);
+        if (module.equalsIgnoreCase("CREDITLINE")) {
+            lendingCpvDetails.setSource("CREDITLINE");
+        }
+       lendingCpvDetailsDao.save(lendingCpvDetails);
         return merchantDetailsDTO;
     }
 
     public MerchantDetailsDTO updateShopDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), MODULE);
+    	 String module;
+         if(merchantDetailsDTO.getModule()!=null)
+          module=merchantDetailsDTO.getModule();
+          else
+         module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), module);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             lendingCpvDetails.setLatitude(Double.parseDouble(lat));
             lendingCpvDetails.setLongitude(Double.parseDouble(lng));
         }
         lendingCpvDetails.setMerchantId(merchant.getId());
         lendingCpvDetails.setApplicationId(merchantDetailsDTO.getApplicationId());
-        lendingCpvDetails.setModule(MODULE);
+        lendingCpvDetails.setModule(module);
         lendingCpvDetails.setBusinessType(merchantDetailsDTO.getShopDetails().getBusinessType());
         lendingCpvDetails.setOwnership(merchantDetailsDTO.getShopDetails().getShopOwnership());
         lendingCpvDetails.setShopName(merchantDetailsDTO.getShopDetails().getShopName());
+        if (module.equalsIgnoreCase("CREDITLINE")) {
+            lendingCpvDetails.setSource("CREDITLINE");
+        }
         lendingCpvDetailsDao.save(lendingCpvDetails);
         getShopDetailsImages(merchantDetailsDTO, lendingCpvDetails);
         return merchantDetailsDTO;
@@ -98,7 +121,12 @@ public class MerchantDetailsService {
 
     private void getShopDetailsImages(MerchantDetailsDTO merchantDetailsDTO, LendingCpvDetails lendingCpvDetails) {
         Map<String, List<CpvDocumentsIdProof>> cpvDocumentTypeMap = new HashMap<>();
-        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("SHOP_FRONT", "QR_CODE", "STOCK"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), MODULE);
+        String module;
+        if(merchantDetailsDTO.getModule()!=null)
+           module=merchantDetailsDTO.getModule();
+        else
+           module=MODULE;
+        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("SHOP_FRONT", "QR_CODE", "STOCK"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(),module);
         for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentsIdProofList) {
             cpvDocumentTypeMap.putIfAbsent(cpvDocumentsIdProof.getProofType(), new ArrayList<>());
             cpvDocumentTypeMap.get(cpvDocumentsIdProof.getProofType()).add(cpvDocumentsIdProof);
@@ -130,21 +158,32 @@ public class MerchantDetailsService {
             logger.error("Image not found for merchant: {}, cpvId: {}", lendingCpvDetails.getMerchantId(), lendingCpvDetails.getId());
         }
     }
-
+    
     public MerchantDetailsDTO updateBusinessDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(), MODULE);
+    	 String module;
+         if(merchantDetailsDTO.getModule()!=null)
+          module=merchantDetailsDTO.getModule();
+         else
+          module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(merchantDetailsDTO.getApplicationId(),module);
         if (lendingCpvDetails == null) {
             lendingCpvDetails = new LendingCpvDetails();
         }
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             lendingCpvDetails.setLatitude(Double.parseDouble(lat));
             lendingCpvDetails.setLongitude(Double.parseDouble(lng));
         }
         lendingCpvDetails.setMerchantId(merchant.getId());
         lendingCpvDetails.setApplicationId(merchantDetailsDTO.getApplicationId());
-        lendingCpvDetails.setModule(MODULE);
+        lendingCpvDetails.setModule(module);
         lendingCpvDetails.setBusinessStartedAt(merchantDetailsDTO.getBusinessDetails().getBusinessStartDate());
         lendingCpvDetails.setDailySales(merchantDetailsDTO.getBusinessDetails().getDailySales());
+        if (module.equalsIgnoreCase("CREDITLINE")) {
+            lendingCpvDetails.setSource("CREDITLINE");
+        }
         lendingCpvDetailsDao.save(lendingCpvDetails);
         getBusinessDetailsImages(merchantDetailsDTO, lendingCpvDetails);
         return merchantDetailsDTO;
@@ -152,7 +191,12 @@ public class MerchantDetailsService {
 
     private void getBusinessDetailsImages(MerchantDetailsDTO merchantDetailsDTO, LendingCpvDetails lendingCpvDetails) {
         Map<String, List<CpvDocumentsIdProof>> cpvDocumentTypeMap = new HashMap<>();
-        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("RELATIONSHIP", "OWNERSHIP", "CHEQUE"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), MODULE);
+        String module;
+        if(merchantDetailsDTO.getModule()!=null)
+           module=merchantDetailsDTO.getModule();
+         else
+        	module=MODULE;
+        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.getByProofTypesCpvIdMerchantModule(Arrays.asList("RELATIONSHIP", "OWNERSHIP", "CHEQUE"), lendingCpvDetails.getId(), lendingCpvDetails.getMerchantId(), module);
         for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentsIdProofList) {
             cpvDocumentTypeMap.putIfAbsent(cpvDocumentsIdProof.getProofType(), new ArrayList<>());
             cpvDocumentTypeMap.get(cpvDocumentsIdProof.getProofType()).add(cpvDocumentsIdProof);
@@ -186,12 +230,20 @@ public class MerchantDetailsService {
     }
 
     public UploadImageDTO uploadImage(UploadImageDTO uploadImageDTO, Merchant merchant, String lat, String lng) {
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(uploadImageDTO.getApplicationId(), MODULE);
+    	 String module;
+         if(uploadImageDTO.getModule()!=null)
+            module=uploadImageDTO.getModule();
+          else
+         	module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(uploadImageDTO.getApplicationId(),module);
         if (lendingCpvDetails == null) {
             logger.info("lending cpv details not found for merchant: {}, for application: {}", merchant.getId(), uploadImageDTO.getApplicationId());
             return null;
         }
-        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.findByProofTypeAndCpvIdAndModule(uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), MODULE);
+        List<CpvDocumentsIdProof> cpvDocumentsIdProofList = cpvDocumentsIdProofDao.findByProofTypeAndCpvIdAndModule(uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(),module);
         int count = 0;
         for (CpvDocumentsIdProof cpvDocumentsIdProof : cpvDocumentsIdProofList) {
             if (cpvDocumentsIdProof.getDeletedAt() == null) {
@@ -204,7 +256,7 @@ public class MerchantDetailsService {
         }
         int index;
         if (uploadImageDTO.getImageData().getImageId() != null) {
-            CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(uploadImageDTO.getImageData().getImageId(), lendingCpvDetails.getId(), merchant.getId(), MODULE);
+            CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(uploadImageDTO.getImageData().getImageId(), lendingCpvDetails.getId(), merchant.getId(),module);
             if (cpvDocumentsIdProof == null || cpvDocumentsIdProof.getDeletedAt() != null) {
                 logger.info("Image not found/already deleted for id: {}, cpvId: {}, merchant: {}", uploadImageDTO.getImageData().getImageId(), lendingCpvDetails.getId(), merchant.getId());
                 return null;
@@ -217,7 +269,7 @@ public class MerchantDetailsService {
         }
         double latitude = 0D;
         double longitude = 0D;
-        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("")) {
+        if (lat != null && lng != null && !lat.trim().equalsIgnoreCase("") && !lng.trim().equalsIgnoreCase("") && !lat.equalsIgnoreCase("undefined")) {
             latitude = Double.parseDouble(lat);
             longitude = Double.parseDouble(lng);
         }
@@ -231,20 +283,30 @@ public class MerchantDetailsService {
         } catch (FileNotFoundException e) {
             logger.info("Exception while fetching file from S3---", e);
         }
-        CpvDocumentsIdProof cpvDocumentsIdProof = new CpvDocumentsIdProof(merchant.getId(), uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), filename, index, uploadImageDTO.getApplicationId(), null, "PENDING_VERIFICATION", uploadImageDTO.getImageData().getImageDescription(), null, latitude, longitude, MODULE);
+        CpvDocumentsIdProof cpvDocumentsIdProof = new CpvDocumentsIdProof(merchant.getId(), uploadImageDTO.getImageData().getImageName(), lendingCpvDetails.getId(), filename, index, uploadImageDTO.getApplicationId(), null, "PENDING_VERIFICATION", uploadImageDTO.getImageData().getImageDescription(), null, latitude, longitude,module);
         cpvDocumentsIdProof = cpvDocumentsIdProofDao.save(cpvDocumentsIdProof);
         uploadImageDTO.getImageData().setImageUrl(imageUrl);
         uploadImageDTO.getImageData().setImageId(cpvDocumentsIdProof.getId());
         return uploadImageDTO;
     }
 
-    public int deleteImage(Long imageId, Merchant merchant, Long applicationId) {
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, MODULE);
+    public int deleteImage(Merchant merchant, UploadImageDTO uploadImageDTO) {
+    	Long applicationId=uploadImageDTO.getApplicationId();
+    	Long imageId=uploadImageDTO.getImageData().getImageId();
+    	 String module;
+         if(uploadImageDTO.getModule()!=null)
+           module=uploadImageDTO.getModule();
+         else
+         	module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, module);
         if (lendingCpvDetails == null) {
             logger.info("lending cpv details not found for merchant: {}, for application: {}", merchant.getId(), applicationId);
             return 0;
         }
-        CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(imageId, lendingCpvDetails.getId(), merchant.getId(), MODULE);
+        CpvDocumentsIdProof cpvDocumentsIdProof = cpvDocumentsIdProofDao.findByIdAndCpvIdAndMerchantIdAndModule(imageId, lendingCpvDetails.getId(), merchant.getId(),module);
         if (cpvDocumentsIdProof == null || cpvDocumentsIdProof.getDeletedAt() != null) {
             logger.info("Image not found/already deleted for id: {}, cpvId: {}, merchant: {}", imageId, lendingCpvDetails.getId(), merchant.getId());
             return 0;
@@ -253,13 +315,19 @@ public class MerchantDetailsService {
         cpvDocumentsIdProofDao.save(cpvDocumentsIdProof);
         return 1;
     }
-
-    public MerchantDetailsDTO getMerchantDetails(Long applicationId) {
-        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId, MODULE);
+    
+    public MerchantDetailsDTO getMerchantDetails(Long applicationId,String module) {
+    	if(module==null)
+           module=MODULE;
+        if(module.equalsIgnoreCase("CREDIT-LINE")) {
+            module = "CREDITLINE";
+        }
+        LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByApplicationIdAndModule(applicationId,module);
         if (lendingCpvDetails == null) {
             return new MerchantDetailsDTO();
         }
         MerchantDetailsDTO merchantDetailsDTO = new MerchantDetailsDTO();
+        merchantDetailsDTO.setModule(module);
         merchantDetailsDTO.setApplicationId(applicationId);
         setPersonalDetails(lendingCpvDetails, merchantDetailsDTO);
         setShopDetails(lendingCpvDetails, merchantDetailsDTO);

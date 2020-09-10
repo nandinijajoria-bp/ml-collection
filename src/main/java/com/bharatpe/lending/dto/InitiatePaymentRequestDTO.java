@@ -12,6 +12,7 @@ public class InitiatePaymentRequestDTO {
 
 	private Integer amount;
 	private String paymentType;
+	private String vpa;
 
 	public Integer getAmount() {
 		return amount;
@@ -27,6 +28,14 @@ public class InitiatePaymentRequestDTO {
 
 	public void setPaymentType(String paymentType) {
 		this.paymentType = paymentType;
+	}
+
+	public String getVpa() {
+		return vpa;
+	}
+
+	public void setVpa(String vpa) {
+		this.vpa = vpa;
 	}
 
 	@Override

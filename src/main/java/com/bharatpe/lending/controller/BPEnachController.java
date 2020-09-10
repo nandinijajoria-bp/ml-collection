@@ -6,7 +6,6 @@ import com.bharatpe.lending.dao.BPEnachRawRequestDao;
 import com.bharatpe.lending.dao.BPEnachSkipDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
-import com.bharatpe.lending.dto.Response;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.BPEnachRawRequest;
 import com.bharatpe.lending.service.BPEnachService;
@@ -45,7 +44,6 @@ public class BPEnachController {
 
         BPEnachRawRequest bpEnachRawRequest = new BPEnachRawRequest(merchant.getId(), "INITIATE");
         bpEnachRawRequest.setRequest(httpServletRequest.getQueryString());
-        bpEnachRawRequest.setReferenceNumber(referenceNumber);
         bpEnachRawRequest = bpEnachRawRequestDao.save(bpEnachRawRequest);
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse;
         try {
@@ -54,14 +52,15 @@ public class BPEnachController {
             if (enachServiceToUse == null || (!enachServiceToUse.equals("digio") && !enachServiceToUse.equals("techprocess"))) {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
-                return finalResponse;
-            }
-
-            if (enachServiceToUse.equals("techprocess")) {
-                finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount, type, referenceNumber), HttpStatus.OK);
             } else {
-                finalResponse = new ResponseEntity<>(bpEnachService.enachInititateForDigio(merchant, appVersion, module, loanAmount, type, referenceNumber), HttpStatus.OK);
+                finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount, type, referenceNumber), HttpStatus.OK);
             }
+//            disabled for now
+//            if (enachServiceToUse.equals("techprocess")) {
+//                return new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount), HttpStatus.OK);
+//            } else {
+//                return new ResponseEntity<>(BPEnachService.enachInititateForDigio(merchant), HttpStatus.OK);
+//            }
         } catch (Exception e) {
             logger.error("Exception while initiating enach", e);
             responseDTO.setMessage("Something went wrong");
@@ -84,9 +83,12 @@ public class BPEnachController {
         bpEnachRawRequest = bpEnachRawRequestDao.save(bpEnachRawRequest);
         if (enachServiceToUse.equals("techprocess")) {
             finalResponse = new ResponseEntity<>(bpEnachService.submitEnach(merchant, body), HttpStatus.OK);
-        } else if (enachServiceToUse.equals("digio")) {
-            finalResponse = new ResponseEntity<>(bpEnachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
-        } else {
+        }
+        //disabled for now
+//        else if(enachServiceToUse.equals("digio")){
+//            return new ResponseEntity<>(bpEnachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
+//        }
+        else {
             logger.error("Mentioned wrong enach service provider");
             ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
             responseDTO.setResponse(false);
@@ -99,9 +101,9 @@ public class BPEnachController {
         return finalResponse;
     }
 
-    @RequestMapping(value = "/check", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Response> checkEnachStatus(@RequestAttribute Merchant merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
-        return new ResponseEntity<>(bpEnachService.checkEnachStatus(merchant, referenceNumber), HttpStatus.OK);
+    @RequestMapping(value = "/skip", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
+        return new ResponseEntity<>(bpEnachService.setEnachSkipStatus(merchant, referenceNumber), HttpStatus.OK);
     }
 
 }

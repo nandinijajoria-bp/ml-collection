@@ -28,6 +28,9 @@ public class ShopDetailsDTO {
 	@JsonProperty("state")
 	private String state = "";
 
+	@JsonProperty("alternative_contact")
+	private String alternateContact = "";
+
 	public String getBusinessName() {
 		return businessName;
 	}
@@ -90,6 +93,14 @@ public class ShopDetailsDTO {
 
 	public void setState(String state) {
 		this.state = state;
+	}
+
+	public String getAlternateContact() {
+		return alternateContact;
+	}
+
+	public void setAlternateContact(String alternateContact) {
+		this.alternateContact = alternateContact;
 	}
 
 	@Override

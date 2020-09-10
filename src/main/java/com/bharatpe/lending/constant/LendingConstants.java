@@ -20,5 +20,7 @@ public interface LendingConstants {
 	String LOAN_APPLICATION_OGL_MESSAGE="OGL CASE";
 	String DIGIO_ENACH_INITIATION_URL="https://api.digio.in/v3/client/mandate/create_form";
 	String DIGIO_ENACH_STATUS_CHECK="https://api.digio.in/v3/client/mandate/";
-	String ENACH_STATUS_CHECK = "https://www.paynimo.com/api/paynimoV2.req";
+
 }
+
+

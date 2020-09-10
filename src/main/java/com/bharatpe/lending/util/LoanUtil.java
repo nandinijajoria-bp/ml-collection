@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.utils.CurrencyUtils;
+import com.bharatpe.lending.common.entity.CreditApplication;
+import com.bharatpe.lending.common.entity.CreditApplicationAddress;
 import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
@@ -51,7 +53,22 @@ public class LoanUtil {
 		selectedLoan.setRepayment(application.getRepayment().intValue());
 		selectedLoan.setDisbursementAmount((application.getLoanAmount().intValue() - application.getProcessingFee().intValue()));
 		selectedLoan.setInterestAmount(application.getRepayment().intValue() - application.getLoanAmount().intValue());
-		selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
+		if (lendingCategories != null) {
+			selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
+		}
+		
+		return selectedLoan;
+	}
+	
+	//for credit line
+	public static SelectedLoanDTO prepareSelectedLoanDTO(CreditApplication application) {
+		
+		
+		SelectedLoanDTO selectedLoan = new SelectedLoanDTO();
+		
+		selectedLoan.setId(application.getId());
+		selectedLoan.setAmount(application.getAmount().intValue());
+		selectedLoan.setCategory(application.getCategory());
 		
 		return selectedLoan;
 	}
@@ -87,6 +104,29 @@ public class LoanUtil {
 		
 		return shopDetails;
 	}
+
+	//for credit line
+	public static ShopDetailsDTO prepareShopDetailsDTO(CreditApplication application, CreditApplicationAddress creditApplicationAddress){
+
+		ShopDetailsDTO shopDetails = new ShopDetailsDTO();
+		if(creditApplicationAddress!=null) {
+			shopDetails.setBusinessName(application.getBusinessName());
+			shopDetails.setShopNumber(creditApplicationAddress.getShopNumber());
+			shopDetails.setStreetAddress(creditApplicationAddress.getStreetAddress());
+			shopDetails.setArea(creditApplicationAddress.getArea());
+			shopDetails.setLandmark(creditApplicationAddress.getLandmark());
+			if (creditApplicationAddress.getPincode() != null) {
+				shopDetails.setPincode(creditApplicationAddress.getPincode().toString());
+			}
+			shopDetails.setCity(creditApplicationAddress.getCity());
+			shopDetails.setState(creditApplicationAddress.getState());
+			shopDetails.setAlternateContact(application.getAlternateMobile());
+		}
+		else {
+			logger.warn("Shop details not available for application {}",application.getId());
+		}
+		return shopDetails;
+	}
 	
 	private static List<LabelDTO> prepareLabels(LendingApplication application, int months) {
 		List<LabelDTO> list = new ArrayList<>();
@@ -95,7 +135,7 @@ public class LoanUtil {
 			
 		} else if("CONSTRUCT_2".equals(application.getLoanConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
-			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
+			list.add(new LabelDTO("EDI for Next " + (application.getTenureInMonths() - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
 			list.add(new LabelDTO("No Deduction on Sundays", ""));
 		} else if("CONSTRUCT_3".equals(application.getLoanConstruct())) {
 			if (months > 1) {
@@ -103,7 +143,7 @@ public class LoanUtil {
 			} else {
 				list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
 			}
-			list.add(new LabelDTO("EDI for Next " + (Integer.valueOf(application.getTenureInMonths()) - months) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
+			list.add(new LabelDTO("EDI for Next " + (application.getTenureInMonths() - months) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
 			list.add(new LabelDTO("No Deduction on Sundays", ""));
 		} else {
 			logger.error("Construct {} not defined, throwing Exception", application.getLoanConstruct());
@@ -125,4 +165,15 @@ public class LoanUtil {
 		put("REFUND", "Refund");
 		put("BHARATPE_NACH", "NACH");
 	}};
+
+	public static int getEdiDays(int tenure){
+		switch (tenure){
+			case 1: return 26;
+			case 3: return 77;
+			case 6: return 155;
+			case 9: return 234;
+			case 12: return 311;
+			default: return 388;//15 months
+		}
+	}
 }

@@ -56,13 +56,16 @@ public class APIGatewayService {
     	}
     }
  
-    public Map createVPA(Merchant merchant, Double amount, String orderId) {
+    public Map createVPA(Merchant merchant, Double amount, String orderId, String vpa) {
         logger.info("In Create VPA of APIGatewayService for merchnat id {}", merchant.getId());
         try {
             Map requestParams = new HashMap<>();
             requestParams.put("amount", amount);
             requestParams.put("orderId", orderId);
             requestParams.put("mid", getMid());
+            if(vpa!=null) {
+                requestParams.put("payerVpa", vpa);
+            }
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();

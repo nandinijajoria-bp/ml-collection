@@ -43,7 +43,7 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
     			return false;
         	} else {
                 String normalized = Normalizer.normalize(token, Form.NFD);
-                token = normalized.replaceAll("[^A-Za-z0-9]", "");
+                token = normalized.replaceAll("[^A-Za-z0-9-]", "");
                 
         		List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
         		
