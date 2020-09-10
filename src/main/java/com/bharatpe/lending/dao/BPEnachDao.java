@@ -13,5 +13,5 @@ public interface BPEnachDao extends CrudRepository<BpEnach, Long> {
 
     BpEnach findByIdAndMerchantIdAndStatus(Long Id,Long merchantId,String status);
 
-    List<BpEnach> findByMerchantIdAndReferenceNumber(Long merchantId,String referenceNumber);
+    BpEnach findTop1ByMerchantIdAndReferenceNumber(Long merchantId,String referenceNumber);
 }

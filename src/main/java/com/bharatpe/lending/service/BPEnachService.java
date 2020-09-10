@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.dao.PartnerRetailersDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
@@ -33,6 +34,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -75,8 +77,13 @@ public class BPEnachService {
 
     @Autowired
     HmacCalculator hmacCalculator;
+    
+    @Autowired
+    PartnerRetailersDao partnerRetailerDao;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
+    
+    private static String drfDeepLinkStr = "drf-onboard";
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type,String referenceNumber) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
@@ -126,7 +133,17 @@ public class BPEnachService {
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
         BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
-        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() + "&&wroute=status");
+        
+        if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.DRF.name())) {
+        	Optional<PartnerRetailer> retailer = partnerRetailerDao.findByExternalRetailerId(bpEnach.getReferenceNumber());
+        	
+        	responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.get().getToken());
+        	
+        }else {
+        	responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() + "&&wroute=status");
+        }
+        
+        
 
         if (bpEnach == null) {
             responseDTO.setResponse(false);
@@ -158,7 +175,7 @@ public class BPEnachService {
 
 
     public ResponseDTO setEnachSkipStatus(Merchant merchant, String referenceNumber) {
-        BpEnach bpEnach = bpEnachDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
+        BpEnach bpEnach = bpEnachDao.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         if (bpEnachSkip == null) {
             return new ResponseDTO(false, "Loan Application not found", null);
