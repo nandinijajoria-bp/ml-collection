@@ -600,6 +600,7 @@ public class LoanDetailsService {
 						experian.setLoanType(null);
 						experianDao.save(experian);
 					}
+					experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					//send instant notification
 					redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
