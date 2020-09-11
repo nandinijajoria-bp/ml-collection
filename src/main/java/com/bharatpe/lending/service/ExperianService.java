@@ -154,7 +154,7 @@ public class ExperianService {
             }
             return null;
         } catch (ResourceAccessException e) {
-            logger.error("ExperianV2 API timeout", e);
+            logger.info("ExperianV2 API timeout", e);
             throw new RuntimeException("Timeout");
         } catch (Exception e) {
             emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Long API Exception", "");
