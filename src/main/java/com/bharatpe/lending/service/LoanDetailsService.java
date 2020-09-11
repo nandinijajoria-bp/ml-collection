@@ -475,6 +475,9 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
+			if (merchant.getId().equals(2411647L)) {
+				enach = "bharatpe://enachtp";
+			}
 //			if (enach == null) {
 //				if (enachSuccess != null) {
 //					enach = "success";
