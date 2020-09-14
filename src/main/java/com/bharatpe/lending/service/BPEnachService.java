@@ -137,7 +137,9 @@ public class BPEnachService {
         if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.DRF.name())) {
         	Optional<PartnerRetailer> retailer = partnerRetailerDao.findByExternalRetailerId(bpEnach.getReferenceNumber());
         	
-        	responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.get().getToken());
+        	if(retailer.isPresent())
+        		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.get().getToken());
+        	
         	
         }else {
         	responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() + "&&wroute=status");
