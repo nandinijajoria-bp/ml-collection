@@ -43,6 +43,7 @@ public interface ExperianConstants {
     String DEROG_MORE_THAN_6_LOAN_ENQUIRY = "High number of loan enquiries in last 6 months";
     String LOW_BBS = "LOW_BBS";
     String LOW_NFI = "LOW_NFI";
+    String LOW_BBS_VINTAGE = "LOW_BBS_VINTAGE";
 
     List<String> RED = Arrays.asList("1","2","13","25");
     List<String> AMBER = Arrays.asList("3","4","5","6","14","15","16","17","18","26","27","28","29","37","38","39","40","41");

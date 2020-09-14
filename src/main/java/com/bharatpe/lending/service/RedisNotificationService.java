@@ -154,11 +154,13 @@ public class RedisNotificationService {
 	public void sendPromotionalNotificationForCreditLine(Merchant merchant, CreditAccount creditAccount) {
 		try {
 			logger.info("Sending promotional notification got merchant {}",merchant);
+			MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(creditAccount.getId());
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("CREDIT_LINE_PROMOTIONAL");
-			String message= "BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
+			String message= "Hi "+bankDetail.getBeneficiaryName()+",\n" +
+					"BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
 			notificationDto.setMessage(message);
 			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
 		}

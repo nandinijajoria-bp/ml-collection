@@ -4,8 +4,16 @@ import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.dao.SignzyCredentialDao;
+import com.bharatpe.lending.common.dao.SignzyRequestResponseDao;
+import com.bharatpe.lending.common.entity.SignzyCredential;
+import com.bharatpe.lending.common.entity.SignzyRequestResponse;
+import com.bharatpe.lending.constant.CreditConstants;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -40,11 +49,24 @@ public class APIGatewayService {
     
     @Autowired
     private MerchantDao merchantDao;
+
+    @Autowired
+    private SignzyCredentialDao signzyCredentialDao;
+
+    @Value("${signzy.url}")
+    public String SIGNZY_URL;
     
     private static String SECRET;
     private static String MID;
-    
-    ObjectMapper mapper = new ObjectMapper();
+
+    @Autowired
+    ObjectMapper mapper;
+
+    @Autowired
+    RestTemplate restTemplate;
+
+    @Autowired
+    SignzyRequestResponseDao signzyRequestResponseDao;
     
     @PostConstruct
     public void init() {
@@ -77,7 +99,6 @@ public class APIGatewayService {
 
             logger.info("createVPA internal request: {}", mapper.writeValueAsString(request));
             
-            RestTemplate restTemplate = new RestTemplate();
             Map response = restTemplate.postForObject(createVPAEndpoint, request, Map.class);
             logger.info("Response received from create VPA API {}", mapper.writeValueAsString(response));
             return response;
@@ -110,5 +131,105 @@ public class APIGatewayService {
             }
         }
         return MID;
+    }
+
+    public Map<String,String> signzyIdentityDetails(String proofType, Long merchantId) {
+        logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
+        try {
+            SignzyCredential signzyCredential = signzyCredentialDao.findByModule("LENDING");
+            if (signzyCredential == null) {
+                logger.info("signzy credentials not found");
+                return null;
+            }
+            Map<String, Object> body = new HashMap<>();
+            body.put("type", proofType);
+            body.put("email", "admin@signzy.com");
+            body.put("callbackUrl", "https://your-domain.com/your-callback-system");
+            body.put("images", new ArrayList<>());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", signzyCredential.getAccessId());
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/identities";
+            logger.info("Request body to get signzy identity credentials URL {} request {}",URL,request);
+            String response= null;
+            int retryCount = 0;
+            while(retryCount < 3) {
+                try {
+                    response = restTemplate.postForObject(URL,request, String.class);
+                    logger.info("Signzy identity response {}",response);
+                    if(response!=null) {
+                        JsonNode jsonNode = mapper.readTree(response);
+                        if(jsonNode!=null && jsonNode.has("id") && jsonNode.has("accessToken")) {
+                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "SUCCESS", mapper.writeValueAsString(request), response);
+                            Map<String, String> identityDetail = new HashMap<>();
+                            identityDetail.put("itemId", jsonNode.get("id").asText());
+                            identityDetail.put("accessToken", jsonNode.get("accessToken").asText());
+                            return identityDetail;
+                        } else {
+                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response);
+                        }
+                    }
+                    break;
+                }
+                catch(Exception e) {
+                    logger.error("Error occurred while fetching identity details",e);
+                    insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response);
+                }
+                retryCount++;
+            }
+        } catch (Exception e) {
+            logger.error("Exception in Signzy Identity flow Api", e);
+        }
+        return null;
+    }
+
+    public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId) {
+        logger.info("Calling Signzy Pan Fetch Api for pancard:{}", pancard);
+        try {
+            Map<String, Object> body = new HashMap<String,Object>() {{
+                put("service","Identity");
+                put("itemId",itemId);
+                put("task","fetch");
+                put("accessToken",accessToken);
+                put("essentials",new HashMap<String, String>(){{
+                    put("number", pancard);
+                }});
+            }};
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
+            logger.info("Signzy Pan Fetch URL {} request {}",URL,request);
+            String response = null;
+            int retryCount = 0;
+            while(retryCount < 3) {
+                try {
+                    response = restTemplate.postForObject(URL, request, String.class);
+                    logger.info("Response for Signzy Pan Fetch: {}",response);
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), response);
+                    break;
+                }
+                catch(Exception e) {
+                    logger.error("Error occurred while calling pan fetch api",e);
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    retryCount++;
+                }
+            }
+            return response;
+        } catch (Exception e) {
+            logger.error("Exception in Signzy Pan Fetch Api", e);
+        }
+        return null;
+    }
+
+    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId,String apiName, String status, String request,String response) {
+        try {
+            SignzyRequestResponse signzyRequestResponse=new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response);
+            signzyRequestResponseDao.save(signzyRequestResponse);
+        }
+        catch(Exception e) {
+            logger.error("Error occured while inserting into signzy req res table ",e);
+        }
     }
 }
