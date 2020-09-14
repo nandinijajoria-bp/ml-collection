@@ -297,7 +297,6 @@ public class PaymentService {
                         List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
                         if (ediSchedules == null || ediSchedules.isEmpty()) {
                             logger.error("Edi Schedule not found for loan id:{}", activeLoan.getId());
-                            continue;
                         }
                         ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
                         int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
