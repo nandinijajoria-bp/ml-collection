@@ -173,7 +173,7 @@ public class APIGatewayService {
                     break;
                 }
                 catch(Exception e) {
-                    logger.error("Error occurred while fetching identity details",e);
+                    logger.info("Error occurred while fetching identity details",e);
                     insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response);
                 }
                 retryCount++;
@@ -211,7 +211,7 @@ public class APIGatewayService {
                     break;
                 }
                 catch(Exception e) {
-                    logger.error("Error occurred while calling pan fetch api",e);
+                    logger.info("Error occurred while calling pan fetch api",e);
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
                     retryCount++;
                 }
