@@ -386,9 +386,9 @@ public class LoanEligibleService {
     private LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
         logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
         try {
-            Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan");
+            Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan", merchantId);
             if (identityDetail != null) {
-                String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber);
+                String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId);
                 if (response != null) {
                     JsonNode responseNode = objectMapper.readTree(response);
                     if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("name") != null) {

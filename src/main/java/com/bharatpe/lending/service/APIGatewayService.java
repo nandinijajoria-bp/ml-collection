@@ -133,7 +133,7 @@ public class APIGatewayService {
         return MID;
     }
 
-    public Map<String,String> signzyIdentityDetails(String proofType) {
+    public Map<String,String> signzyIdentityDetails(String proofType, Long merchantId) {
         logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
         try {
             SignzyCredential signzyCredential = signzyCredentialDao.findByModule("LENDING");
@@ -184,7 +184,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public String signzyPanFetch(String itemId, String accessToken, String pancard) {
+    public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId) {
         logger.info("Calling Signzy Pan Fetch Api for pancard:{}", pancard);
         try {
             Map<String, Object> body = new HashMap<String,Object>() {{
