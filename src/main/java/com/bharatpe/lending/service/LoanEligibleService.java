@@ -117,6 +117,9 @@ public class LoanEligibleService {
     @Autowired
     ExperianRawResponseDao experianRawResponseDao;
 
+    @Autowired
+    APIGatewayService apiGatewayService;
+
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
@@ -311,6 +314,7 @@ public class LoanEligibleService {
     }
 
     private LendingPancard fetchNameFromLiquiloans(String pancardNumber, Long merchantId) {
+        logger.info("Calling Liquiloan Name Fetch Api for merchant:{}", merchantId);
         String name = null;
         String apiResponse = null;
         try {
@@ -372,7 +376,33 @@ public class LoanEligibleService {
         if (lendingPancard != null) {
             return lendingPancard;
         }
+        if (name == null) {
+            return null;
+        }
+        lendingPancardDao.deleteByMerchantId(merchantId);
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
+    }
+
+    private LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
+        logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
+        try {
+            Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan");
+            if (identityDetail != null) {
+                String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber);
+                if (response != null) {
+                    JsonNode responseNode = objectMapper.readTree(response);
+                    if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("name") != null) {
+                        String name = responseNode.get("response").get("result").get("name").asText();
+                        logger.info("Name:{} found in pancard:{}", name, pancardNumber);
+                        lendingPancardDao.deleteByMerchantId(merchantId);
+                        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in Signzy Pan Fetch Api", e);
+        }
+        return null;
     }
 
     private List<LoanEligibilityDTO> fetchBureauEligibleLoan(JsonNode experianResponse, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication) {
@@ -998,7 +1028,14 @@ public class LoanEligibleService {
 
     public JsonNode fetchExperianDetails(String contact, String panCard, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail) {
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
-        if (lendingPancard == null) {// get data from liquiloans
+        if (lendingPancard == null || lendingPancard.getName() == null) {// get data from signzy
+            try {
+                lendingPancard = fetchNameFromSignzy(panCard, merchantId);
+            } catch (Exception e) {
+                logger.error("Exception in Signzy pan fetch API---", e);
+            }
+        }
+        if (lendingPancard == null || lendingPancard.getName() == null) {// get data from liquiloans
             try {
                 lendingPancard = fetchNameFromLiquiloans(panCard, merchantId);
             } catch (Exception e) {
