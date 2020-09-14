@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public interface BPEnachDao extends CrudRepository<BpEnach, Long> {
 
-    BpEnach findByMerchantIdAndReferenceNumber(Long merchantId,String referenceNumber);
-
     BpEnach findByIdAndMerchantIdAndStatus(Long Id,Long merchantId,String status);
+
+    BpEnach findTop1ByMerchantIdAndReferenceNumber(Long merchantId,String referenceNumber);
 }
