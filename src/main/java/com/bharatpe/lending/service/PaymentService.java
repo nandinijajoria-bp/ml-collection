@@ -253,21 +253,23 @@ public class PaymentService {
 			} else {
 				Double balance=request.getAmount();
 				if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
-					Double paidAmount=balance>=activeLoan.getDueOtherCharges()?activeLoan.getDueOtherCharges():activeLoan.getDueOtherCharges()-balance;		
+					Double paidAmount=balance>=activeLoan.getDueOtherCharges()?activeLoan.getDueOtherCharges():balance;		
 					activeLoan.setDueOtherCharges(activeLoan.getDueOtherCharges()-paidAmount);
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
 					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges()+paidAmount);
 					balance-=paidAmount;
 				}
 				if(balance>0D && activeLoan.getDuePenalty()!=null && activeLoan.getDuePenalty()>0D) {
-					Double paidAmount=balance>=activeLoan.getDuePenalty()?activeLoan.getDuePenalty():activeLoan.getDuePenalty()-balance;		
+					Double paidAmount=balance>=activeLoan.getDuePenalty()?activeLoan.getDuePenalty():balance;		
 					activeLoan.setDuePenalty(activeLoan.getDuePenalty()-paidAmount);
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
 					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					activeLoan.setPaidPenalty(activeLoan.getPaidPenalty()+paidAmount);
 					balance-=paidAmount;
 				}
 				if(balance>0D && activeLoan.getDueInterest()!=null && activeLoan.getDueInterest()>0D) {
-					Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():activeLoan.getDueInterest()-balance;		
+					Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():balance;		
 					activeLoan.setDueInterest(activeLoan.getDueInterest()-paidAmount);
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
 					activeLoan.setPaidInterest(activeLoan.getPaidInterest()+paidAmount);
@@ -276,7 +278,7 @@ public class PaymentService {
 					
 				}
 				if(balance>0D && activeLoan.getDuePrinciple()!=null && activeLoan.getDuePrinciple()>0D) {
-					Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():activeLoan.getDuePrinciple()-balance;		
+					Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():balance;		
 					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple()-paidAmount);
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
 					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple()+paidAmount);
@@ -286,7 +288,6 @@ public class PaymentService {
 				}
 				if(balance>0D) {
 		            logger.info("Adjusting principle tl for account:{}", activeLoan.getId());
-
                     double totalPaid = 0d;
                     if ((activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest()) <= balance) {
                         logger.info("Closing loan:{}", activeLoan.getId());
