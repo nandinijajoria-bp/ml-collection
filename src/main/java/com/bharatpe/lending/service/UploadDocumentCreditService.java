@@ -119,8 +119,16 @@ public class UploadDocumentCreditService {
 		if(merchantDocumentProofList.size() > 0) {
 			isUpdate = true;
 		}
+		boolean poaUploaded = false;
+		for (CreditUploadDocumentRequestDTO.Document document : documents) {
+			if (document.getProofType() != null && !document.getProofType().equalsIgnoreCase("selfie") && !document.getProofType().equalsIgnoreCase("pancard") && !document.getProofType().equalsIgnoreCase("eAadhar")) {
+				poaUploaded = true;
+				break;
+			}
+		}
+
 		for (MerchantDocumentProof merchantDocumentProof : merchantDocumentProofList) {
-			if (!merchantDocumentProof.getProofType().equalsIgnoreCase("selfie") && !merchantDocumentProof.getProofType().equalsIgnoreCase("pancard") && !merchantDocumentProof.getProofType().equalsIgnoreCase("eAadhar")) {
+			if (poaUploaded && !merchantDocumentProof.getProofType().equalsIgnoreCase("selfie") && !merchantDocumentProof.getProofType().equalsIgnoreCase("pancard") && !merchantDocumentProof.getProofType().equalsIgnoreCase("eAadhar")) {
 				merchantDocumentProof.setStatus("DELETED");
 				merchantDocumentProofDao.save(merchantDocumentProof);
 			}
