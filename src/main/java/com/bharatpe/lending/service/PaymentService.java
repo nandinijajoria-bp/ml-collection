@@ -274,6 +274,7 @@ public class PaymentService {
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
 					activeLoan.setPaidInterest(activeLoan.getPaidInterest()+paidAmount);
 					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					paidInterestAmount+=paidAmount;
 					balance-=paidAmount;
 					
 				}
@@ -283,6 +284,7 @@ public class PaymentService {
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
 					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple()+paidAmount);
 					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					paidPrincipalAmount+=paidAmount;
 					balance-=paidAmount;
 					
 				}
@@ -331,6 +333,7 @@ public class PaymentService {
                             activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
                         }
                     }
+                    paidPrincipalAmount+=totalPaid;
 		        }
 //				activeLoan.setDueAmount(activeLoan.getDueAmount() - request.getAmount());
 //				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
@@ -425,6 +428,7 @@ public class PaymentService {
         lendingLedger.setOtherCharges(0D);
         lendingLedger.setPenalty(0D);
         lendingLedger.setPrinciple(principle);
+        
         lendingLedger.setDescription(description);
         
         lendingLedgerDao.save(lendingLedger);
