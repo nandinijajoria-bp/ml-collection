@@ -428,6 +428,7 @@ public class PaymentService {
         lendingLedger.setOtherCharges(0D);
         lendingLedger.setPenalty(0D);
         lendingLedger.setPrinciple(principle);
+        lendingLedger.setAdjustmentMode("UPI");
         
         lendingLedger.setDescription(description);
         
