@@ -14,9 +14,18 @@ public class LendingApplicationResponseDTO {
     private String message;
 
     private String code;
-    
 
-    public String getMessage() {
+    public LendingApplicationResponseDTO() {
+		super();
+	}
+
+	public LendingApplicationResponseDTO(Boolean success, String message) {
+		super();
+		this.success = success;
+		this.message = message;
+	}
+
+	public String getMessage() {
 		return message;
 	}
 
