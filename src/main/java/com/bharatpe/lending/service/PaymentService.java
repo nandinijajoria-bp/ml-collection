@@ -272,7 +272,7 @@ public class PaymentService {
 					Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():balance;		
 					activeLoan.setDueInterest(activeLoan.getDueInterest()-paidAmount);
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
-					activeLoan.setPaidInterest(activeLoan.getPaidInterest()+paidAmount);
+					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0)+paidAmount);
 					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
 					paidInterestAmount+=paidAmount;
 					balance-=paidAmount;
@@ -282,7 +282,7 @@ public class PaymentService {
 					Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():balance;		
 					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple()-paidAmount);
 					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
-					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple()+paidAmount);
+					activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0)+paidAmount);
 					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
 					paidPrincipalAmount+=paidAmount;
 					balance-=paidAmount;
@@ -333,7 +333,7 @@ public class PaymentService {
                             totalPaid = principleAdjusted;
                             activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - ediCount);
                             activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
-                            activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
+                            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + totalPaid);
                             activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
                         }
                     }
