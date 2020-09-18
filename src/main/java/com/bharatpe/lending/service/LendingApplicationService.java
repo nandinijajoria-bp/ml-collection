@@ -128,9 +128,15 @@ public class LendingApplicationService {
 			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
 		}else {
-			LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
-			if(prevApplication!=null) {
-				return createApplicationFromPrevLoan(prevApplication,requestDTO);
+			if(requestDTO.getPayload().getPincode() == null ) {
+				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+				if(prevApplication!=null) {
+					return createApplicationFromPrevLoan(prevApplication,requestDTO);
+				}
+				else {
+					logger.error("Not details received and no prev loan found for merchant ",merchant);
+					return new LendingApplicationResponseDTO(false,"Details missing");
+				}
 			}
 			else {
 				List<EligibleLoan> eligibleLoans = new ArrayList<>();
@@ -189,7 +195,7 @@ public class LendingApplicationService {
 	
 	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		try {
-			if(lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
+			if(!lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
 				logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
 				LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
@@ -254,7 +260,7 @@ public class LendingApplicationService {
 				newApplication.setLender("LDC");
 			}
 			lendingApplicationDao.save(newApplication);
-			replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), meta);
+			replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
 		}
 		return null;
 	}
