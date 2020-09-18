@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +25,12 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
 import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -247,22 +251,94 @@ public class PaymentService {
 				
 				activeLoan.setStatus("CLOSED");
 			} else {
-				activeLoan.setDueAmount(activeLoan.getDueAmount() - request.getAmount());
-				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
-				
-				Double balance = request.getAmount() - (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
-				if(balance > 0) { // Paid amount is greater than due interest
-					paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
-					paidPrincipalAmount = balance;
-					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
-					activeLoan.setDueInterest(0D);
-					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
-					activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + balance);
-				} else {
-					paidInterestAmount = request.getAmount();
-					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
-					activeLoan.setDueInterest((activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - paidInterestAmount);
+				Double balance=request.getAmount();
+				if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
+					Double paidAmount=balance>=activeLoan.getDueOtherCharges()?activeLoan.getDueOtherCharges():balance;		
+					activeLoan.setDueOtherCharges(activeLoan.getDueOtherCharges()-paidAmount);
+					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges()+paidAmount);
+					balance-=paidAmount;
 				}
+				if(balance>0D && activeLoan.getDuePenalty()!=null && activeLoan.getDuePenalty()>0D) {
+					Double paidAmount=balance>=activeLoan.getDuePenalty()?activeLoan.getDuePenalty():balance;		
+					activeLoan.setDuePenalty(activeLoan.getDuePenalty()-paidAmount);
+					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					activeLoan.setPaidPenalty(activeLoan.getPaidPenalty()+paidAmount);
+					balance-=paidAmount;
+				}
+				if(balance>0D && activeLoan.getDueInterest()!=null && activeLoan.getDueInterest()>0D) {
+					Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():balance;		
+					activeLoan.setDueInterest(activeLoan.getDueInterest()-paidAmount);
+					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+					activeLoan.setPaidInterest(activeLoan.getPaidInterest()+paidAmount);
+					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					paidInterestAmount+=paidAmount;
+					balance-=paidAmount;
+					
+				}
+				if(balance>0D && activeLoan.getDuePrinciple()!=null && activeLoan.getDuePrinciple()>0D) {
+					Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():balance;		
+					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple()-paidAmount);
+					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple()+paidAmount);
+					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+					paidPrincipalAmount+=paidAmount;
+					balance-=paidAmount;
+					
+				}
+				if(balance>0D) {
+		            logger.info("Adjusting principle tl for account:{}", activeLoan.getId());
+                    double totalPaid = 0d;
+                    if ((activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest()) <= balance) {
+                        logger.info("Closing loan:{}", activeLoan.getId());
+                        totalPaid = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+                        activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
+                        activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
+						activeLoan.setDueAmount(0D);
+						activeLoan.setDueInterest(0D);
+						activeLoan.setDuePrinciple(0D);
+						activeLoan.setStatus("CLOSED");
+                    } else {
+                        List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
+                        if (ediSchedules == null || ediSchedules.isEmpty()) {
+                            logger.error("Edi Schedule not found for loan id:{}", activeLoan.getId());
+                        }
+                        ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
+                        int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
+                        double principleAdjusted = 0d;
+                        double interestAdjusted = 0d;
+                        int ediCount = 0;
+                        for (LendingEDISchedule ediSchedule : ediSchedules) {
+                            if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
+                                continue;
+                            }
+                            principleAdjusted += ediSchedule.getPrinciple();
+                            interestAdjusted += ediSchedule.getInterest();
+                            ediCount++;
+                            if (principleAdjusted >= balance) {
+                                double extraAmount = principleAdjusted - balance;
+                                if (extraAmount > 0) {
+                                    LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
+                                    lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
+                                    lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
+                                    lendingEDIScheduleDao.save(lastSchedule);
+                                    principleAdjusted -= extraAmount;
+                                }
+                                break;
+                            }
+                        }
+                        if (principleAdjusted > 0) {
+                            totalPaid = principleAdjusted;
+                            activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - ediCount);
+                            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
+                            activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
+                            activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
+                        }
+                    }
+                    paidPrincipalAmount+=totalPaid;
+		        }
 			}
 					
 			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNumber()));
@@ -340,6 +416,8 @@ public class PaymentService {
         lendingLedger.setOtherCharges(0D);
         lendingLedger.setPenalty(0D);
         lendingLedger.setPrinciple(principle);
+        lendingLedger.setAdjustmentMode("UPI");
+        
         lendingLedger.setDescription(description);
         
         lendingLedgerDao.save(lendingLedger);

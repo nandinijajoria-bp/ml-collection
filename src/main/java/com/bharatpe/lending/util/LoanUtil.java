@@ -164,6 +164,7 @@ public class LoanUtil {
 		put("INTEREST_ACCOUNT", "Interest A/c");
 		put("REFUND", "Refund");
 		put("BHARATPE_NACH", "NACH");
+		put("UPI","UPI");
 	}};
 
 	public static int getEdiDays(int tenure){
