@@ -134,7 +134,7 @@ public class LendingApplicationService {
 					return createApplicationFromPrevLoan(prevApplication,requestDTO);
 				}
 				else {
-					logger.error("Not details received and no prev loan found for merchant ",merchant);
+					logger.error("Not details received from frontend and no prev loan found for merchant ",merchant);
 					return new LendingApplicationResponseDTO(false,"Details missing");
 				}
 			}
@@ -261,6 +261,7 @@ public class LendingApplicationService {
 			}
 			lendingApplicationDao.save(newApplication);
 			replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
+			return prepareAPIResponse(newApplication);
 		}
 		return null;
 	}
