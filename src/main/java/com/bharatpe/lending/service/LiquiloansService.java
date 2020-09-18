@@ -347,10 +347,14 @@ public class LiquiloansService {
     		lendingPaymentSchedule.setEdiCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
     		lendingPaymentSchedule.setOverdueEdiCount(0);
     		lendingPaymentSchedule.setDueAmount(0D);
+    		lendingPaymentSchedule.setDueInterest(0D);
+    		lendingPaymentSchedule.setDuePrinciple(0D);
     		lendingPaymentSchedule.setIncentiveAmount(0D);
     		lendingPaymentSchedule.setEdiRemainingCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
     		lendingPaymentSchedule.setOverdueAmount(0D);
     		lendingPaymentSchedule.setPaidAmount(0D);
+    		lendingPaymentSchedule.setPaidPrinciple(0D);
+    		lendingPaymentSchedule.setPaidInterest(0D);
     		lendingPaymentSchedule.setTotalCashbackAmount(0D);
     		lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
     		lendingPaymentSchedule.setCreatedAt(new Date());
