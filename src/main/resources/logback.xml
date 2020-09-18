@@ -2,11 +2,13 @@
 <configuration>
 	<springProfile name="dev">
 		<property name="LOG.APPENDER" value="Console" />
+        <property name="SENTRY.APPENDER.LEVEL" value="OFF" />
 		<property name="LOG.FILE" value="logs/lending-java.log" />
 	</springProfile>
 	
 	<springProfile name="!dev">
 		<property name="LOG.APPENDER" value="RollingFile" />
+        <property name="SENTRY.APPENDER.LEVEL" value="ERROR" />
 		<property name="LOG.FILE" value="/data/logs/lending-java.log" />
 	</springProfile>
 	
@@ -27,10 +29,20 @@
         <maxHistory>30</maxHistory>
     </rollingPolicy>
     </appender>
+
+    <appender name="Sentry" class="io.sentry.logback.SentryAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${SENTRY.APPENDER.LEVEL}</level>
+        </filter>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{dd-MM-yyyy HH:mm:ss.SSS} [%thread] %X{X-Request-ID} %-5level %logger{36}.%M\(%line\) - %msg%n</pattern>
+        </encoder>
+    </appender>
      
     <logger name="com.bharatpe" level="INFO"></logger>
     
     <root level="ERROR">
         <appender-ref ref="${LOG.APPENDER}"/>
+        <appender-ref ref="Sentry"/>
     </root>
 </configuration>
