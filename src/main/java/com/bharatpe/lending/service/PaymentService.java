@@ -291,7 +291,7 @@ public class PaymentService {
 				if(balance>0D) {
 		            logger.info("Adjusting principle tl for account:{}", activeLoan.getId());
                     double totalPaid = 0d;
-                    if ((activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest()) <= balance) {
+                    if ((activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + activeLoan.getDueInterest()) <= balance) {
                         logger.info("Closing loan:{}", activeLoan.getId());
                         totalPaid = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
                         activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
