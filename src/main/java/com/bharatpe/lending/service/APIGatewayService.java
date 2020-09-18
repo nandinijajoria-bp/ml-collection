@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.SignzyCredentialDao;
@@ -85,6 +86,8 @@ public class APIGatewayService {
             requestParams.put("amount", amount);
             requestParams.put("orderId", orderId);
             requestParams.put("mid", getMid());
+            requestParams.put("gateway", Gateway.FEDERAL.name());
+            requestParams.put("beneficiaryName", "BharatPe Loans");
             if(vpa!=null) {
                 requestParams.put("payerVpa", vpa);
             }

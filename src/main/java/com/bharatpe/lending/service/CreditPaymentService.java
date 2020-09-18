@@ -5,6 +5,7 @@ import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
@@ -854,6 +855,8 @@ public class CreditPaymentService {
             requestParams.put("amount", amount);
             requestParams.put("orderId", txn_id);
             requestParams.put("mid", getMid());
+            requestParams.put("gateway", Gateway.FEDERAL.name());
+            requestParams.put("beneficiaryName", "BharatPe Loans");
             if(vpa!=null) {
                 requestParams.put("payerVpa", vpa);
             }
