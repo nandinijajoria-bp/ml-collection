@@ -339,22 +339,6 @@ public class PaymentService {
                     }
                     paidPrincipalAmount+=totalPaid;
 		        }
-//				activeLoan.setDueAmount(activeLoan.getDueAmount() - request.getAmount());
-//				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
-//				
-//				Double balance = request.getAmount() - (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
-//				if(balance > 0) { // Paid amount is greater than due interest
-//					paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
-//					paidPrincipalAmount = balance;
-//					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
-//					activeLoan.setDueInterest(0D);
-//					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - balance);
-//					activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + balance);
-//				} else {
-//					paidInterestAmount = request.getAmount();
-//					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
-//					activeLoan.setDueInterest((activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - paidInterestAmount);
-//				}
 			}
 					
 			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNumber()));
