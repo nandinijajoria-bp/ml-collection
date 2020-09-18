@@ -214,56 +214,61 @@ public class LendingApplicationService {
 	}
 	
 	private LendingApplicationResponseDTO  copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan) {
-		String selectedCategory = requestDTO.getPayload().getCategory();
-		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
-		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(prevLoan.getMerchant().getId(), selectedCategory);
-		if(eligibleLoans.isEmpty()) {
-			logger.error("No eligible loan found for merchant {}",prevLoan.getMerchant().getId());
-			return new LendingApplicationResponseDTO(false,"No eligible loan found");
-		}
-		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(prevLoan.getMerchant().getId());
-		if(merchantSummary == null) {
-			logger.error("Merchant summary is empty for merchant with id {}", prevLoan.getMerchant().getId());
-			return new LendingApplicationResponseDTO(false,"Merchant summary is empty");
-		}
-		EligibleLoan eligibleLoan=eligibleLoans.get(0);
-		LendingApplication newApplication=null;
-		if(EXPERIAN_ENABLED) {
-			newApplication=copyApplicationDataWhenExperianEnabled(eligibleLoan, selectedCategoriesData, prevLoan, selectedCategory);
-		}
-		else {
-			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(prevLoan.getMerchant().getId(), merchantSummary.getLoanType());
-			AvailableLoan selectedAvailableLoan = null;
-			for(AvailableLoan current : availableLoanList) {
-				if(current.getCategory().equals(selectedCategory)) {
-					selectedAvailableLoan = current;
-					break;
-				}
-			}
-			if(selectedAvailableLoan == null) {
-				logger.error("No availabel loan found with merchant id {} and loan category {}", prevLoan.getMerchant().getId(), selectedCategory);
+		try {
+			String selectedCategory = requestDTO.getPayload().getCategory();
+			LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+			List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(prevLoan.getMerchant().getId(), selectedCategory);
+			if(eligibleLoans.isEmpty()) {
+				logger.error("No eligible loan found for merchant {}",prevLoan.getMerchant().getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
-			newApplication=copyApplication(selectedAvailableLoan, prevLoan, selectedCategoriesData, selectedCategory);
-		}
-		if(newApplication!=null) {
-			if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
-				newApplication.setLatitude(requestDTO.getMeta().getLatitude());
-			if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
-				newApplication.setLongitude(requestDTO.getMeta().getLongitude());
-			newApplication.setIp(requestDTO.getMeta().getIp());
-			newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-			if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
-				newApplication.setLender("HINDON");
+			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(prevLoan.getMerchant().getId());
+			if(merchantSummary == null) {
+				logger.error("Merchant summary is empty for merchant with id {}", prevLoan.getMerchant().getId());
+				return new LendingApplicationResponseDTO(false,"Merchant summary is empty");
+			}
+			EligibleLoan eligibleLoan=eligibleLoans.get(0);
+			LendingApplication newApplication=null;
+			if(EXPERIAN_ENABLED) {
+				newApplication=copyApplicationDataWhenExperianEnabled(eligibleLoan, selectedCategoriesData, prevLoan, selectedCategory);
 			}
 			else {
-				newApplication.setLender("LDC");
+				List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(prevLoan.getMerchant().getId(), merchantSummary.getLoanType());
+				AvailableLoan selectedAvailableLoan = null;
+				for(AvailableLoan current : availableLoanList) {
+					if(current.getCategory().equals(selectedCategory)) {
+						selectedAvailableLoan = current;
+						break;
+					}
+				}
+				if(selectedAvailableLoan == null) {
+					logger.error("No availabel loan found with merchant id {} and loan category {}", prevLoan.getMerchant().getId(), selectedCategory);
+					return new LendingApplicationResponseDTO(false,"No eligible loan found");
+				}
+				newApplication=copyApplication(selectedAvailableLoan, prevLoan, selectedCategoriesData, selectedCategory);
 			}
-			lendingApplicationDao.save(newApplication);
-			replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
-			return prepareAPIResponse(newApplication);
+			if(newApplication!=null) {
+				if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
+					newApplication.setLatitude(requestDTO.getMeta().getLatitude());
+				if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
+					newApplication.setLongitude(requestDTO.getMeta().getLongitude());
+				newApplication.setIp(requestDTO.getMeta().getIp());
+				newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
+				if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
+					newApplication.setLender("HINDON");
+				}
+				else {
+					newApplication.setLender("LDC");
+				}
+				lendingApplicationDao.save(newApplication);
+				replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
+				return prepareAPIResponse(newApplication);
+			}
 		}
-		return null;
+		catch(Exception e) {
+			logger.error("Error occured while creating loan application",e);
+		}
+		return new LendingApplicationResponseDTO(false,"Error occured while creating loan application");
 	}
 	
 	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
