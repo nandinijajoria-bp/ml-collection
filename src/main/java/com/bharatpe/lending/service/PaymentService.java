@@ -296,6 +296,10 @@ public class PaymentService {
                         totalPaid = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
                         activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
                         activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
+						activeLoan.setDueAmount(0D);
+						activeLoan.setDueInterest(0D);
+						activeLoan.setDuePrinciple(0D);
+						activeLoan.setStatus("CLOSED");
                     } else {
                         List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
                         if (ediSchedules == null || ediSchedules.isEmpty()) {
