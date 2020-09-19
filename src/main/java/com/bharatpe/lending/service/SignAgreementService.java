@@ -164,7 +164,7 @@ public class SignAgreementService {
 			logger.info("Starting pin code check for loan eligibilty ");
 			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
 			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
-			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
+			if(prevApplication.getPincode() != null && !"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
 				logger.error("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
 				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
 				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
@@ -172,7 +172,7 @@ public class SignAgreementService {
 			}
 		}
 		catch(Exception e) {
-			logger.error("Error ocuured while checking loan eligibilty for pin code {}",(long)prevApplication.getPincode());
+			logger.error("Error ocuured while checking loan eligibilty for pin code", e);
 		}
 		
 		LendingApplication newApplication = new LendingApplication();

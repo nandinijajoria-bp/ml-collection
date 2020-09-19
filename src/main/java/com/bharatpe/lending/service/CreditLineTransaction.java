@@ -436,7 +436,7 @@ public class CreditLineTransaction {
         double usedBalanceG1 = 0d;
         double usedBalanceG2 = 0d;
         double usedBalanceG3 = 0d;
-        if (clPrinciple > 0) {
+        if (clPrinciple > 0 && lendingCaBalanceDetail.getUsedBalanceCl() > 0) {
             usedBalanceCl = clPrinciple;
             usedBalanceG1 = (lendingCaBalanceDetail.getUsedBalanceG1()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
             usedBalanceG2 = (lendingCaBalanceDetail.getUsedBalanceG2()/lendingCaBalanceDetail.getUsedBalanceCl()) * clPrinciple;
