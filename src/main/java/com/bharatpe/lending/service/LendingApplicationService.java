@@ -109,6 +109,9 @@ public class LendingApplicationService {
 	
 	@Autowired
 	DocAuthenticationDao docAuthenticationDao;
+	
+	@Autowired
+	PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -116,7 +119,6 @@ public class LendingApplicationService {
 		LendingApplication lendingApplication=null;
 		Long merchantId = merchant.getId();
 		LendingApplicationRequestDTO lendingApplicationRequest = requestDTO.getPayload();
-
 		if(lendingApplicationRequest.getApplicationId() != null && lendingApplicationRequest.getApplicationId() > 0) {
 			lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(lendingApplicationRequest.getApplicationId(), merchant, "draft");
 			if(lendingApplication == null) {
@@ -128,7 +130,7 @@ public class LendingApplicationService {
 			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
 		}else {
-			if(requestDTO.getPayload().getPincode() == null ) {
+			if(requestDTO.getPayload().getPincode() == null) {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 				if(prevApplication!=null) {
 					return createApplicationFromPrevLoan(prevApplication,requestDTO);
@@ -190,7 +192,7 @@ public class LendingApplicationService {
 		}
 		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
 		logger.info("Loan Application saved : {}",lendingApplication);
-		return prepareAPIResponse(lendingApplication);
+		return prepareAPIResponse(lendingApplication,false);
 	}
 	
 	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -216,6 +218,10 @@ public class LendingApplicationService {
 	private LendingApplicationResponseDTO  copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan) {
 		try {
 			String selectedCategory = requestDTO.getPayload().getCategory();
+			if(selectedCategory==null || selectedCategory.isEmpty()) {
+				logger.error("Loan category not found in the request {}",requestDTO.toString());
+				return new LendingApplicationResponseDTO(false, "Category missing");
+			}
 			LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
 			List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(prevLoan.getMerchant().getId(), selectedCategory);
 			if(eligibleLoans.isEmpty()) {
@@ -262,7 +268,7 @@ public class LendingApplicationService {
 				}
 				lendingApplicationDao.save(newApplication);
 				replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
-				return prepareAPIResponse(newApplication);
+				return prepareAPIResponse(newApplication,true);
 			}
 		}
 		catch(Exception e) {
@@ -561,7 +567,7 @@ public class LendingApplicationService {
 		lendingAuditTrialDao.save(lendingAuditTrial);
 	}
 	
-	private LendingApplicationResponseDTO prepareAPIResponse(LendingApplication lendingApplication) {
+	private LendingApplicationResponseDTO prepareAPIResponse(LendingApplication lendingApplication, Boolean prevLoanExists) {
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 		LendingApplicationResponseDTO lendingApplicationResponse = new LendingApplicationResponseDTO();
 		LendingApplicationResponseDTO.LoanApplication loanApplication = lendingApplicationResponse.new LoanApplication();
@@ -572,6 +578,7 @@ public class LendingApplicationService {
 		loanApplication.setShopDetails(LoanUtil.prepareShopDetailsForClient(lendingApplication));
 		lendingApplicationResponse.setLoanApplication(loanApplication);
 		lendingApplicationResponse.setSuccess(true);
+		lendingApplicationResponse.setPrevLoanFound(prevLoanExists);
 
 		return lendingApplicationResponse;
 	}
@@ -611,6 +618,8 @@ public class LendingApplicationService {
 	
 	public boolean checkLoanRequestPinCodeForLoanEligibilty(int pinCode) {
 		try {
+			PincodeCityStateMapping pincodeCityStateMapping=pincodeCityStateMappingDao.findByPincode(pinCode);
+			if(pincodeCityStateMapping==null) return false;
 			LendingCities lendingCities=lendingCitiesDao.findActiveCityByPincode(pinCode);
 			LendingRedCities redCity = lendingRedCitiesDao.findByPincode(pinCode);
 			if(lendingCities==null && redCity != null) return false;

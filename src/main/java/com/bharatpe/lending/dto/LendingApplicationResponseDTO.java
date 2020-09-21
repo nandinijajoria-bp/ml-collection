@@ -12,6 +12,9 @@ public class LendingApplicationResponseDTO {
     private Boolean success;
     
     private String message;
+    
+    @JsonProperty("prev_loan_found")
+    private Boolean prevLoanFound=false;
 
     private String code;
 
@@ -57,7 +60,17 @@ public class LendingApplicationResponseDTO {
         this.success = success;
     }
 
-    public class LoanApplication {
+    public Boolean getPrevLoanFound() {
+		return prevLoanFound;
+	}
+
+	public void setPrevLoanFound(Boolean prevLoanFound) {
+		this.prevLoanFound = prevLoanFound;
+	}
+
+
+
+	public class LoanApplication {
         @JsonProperty("application_id")
         private Long applicationId;
 
