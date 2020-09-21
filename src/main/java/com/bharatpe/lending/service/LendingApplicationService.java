@@ -140,7 +140,7 @@ public class LendingApplicationService {
 				}
 				else {
 					logger.error("Not details received from frontend and no prev loan found for merchant ",merchant);
-					return new LendingApplicationResponseDTO(false,"Details missing");
+					return new LendingApplicationResponseDTO(true,"Details missing");
 				}
 			}
 			else {
