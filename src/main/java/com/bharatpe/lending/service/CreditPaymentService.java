@@ -619,6 +619,7 @@ public class CreditPaymentService {
                                     LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
                                     lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
                                     lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
+                                    lastSchedule.setTotalEdi((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest()));
                                     lendingEDIScheduleDao.save(lastSchedule);
                                     principleAdjusted -= extraAmount;
                                 }
