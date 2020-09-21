@@ -395,6 +395,10 @@ public class LoanEligibleService {
                         String name = responseNode.get("response").get("result").get("name").asText();
                         logger.info("Name:{} found in pancard:{}", name, pancardNumber);
                         lendingPancardDao.deleteByMerchantId(merchantId);
+                        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+                        if (lendingPancard != null) {
+                            return lendingPancard;
+                        }
                         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
                     }
                 }

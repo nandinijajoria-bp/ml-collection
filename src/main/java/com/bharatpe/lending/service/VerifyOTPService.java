@@ -156,7 +156,10 @@ public class VerifyOTPService {
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
-		LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
+		LendingCities lendingCities = null;
+		if (lendingApplication.getPincode() != null) {
+			lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
+		}
 		boolean cpvMandatory = lendingCities != null && lendingCities.getCpvMandatory();
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
