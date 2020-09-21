@@ -112,6 +112,9 @@ public class LendingApplicationService {
 	
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+	
+	@Autowired
+	SignAgreementService signAgreementService;
 
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -267,7 +270,7 @@ public class LendingApplicationService {
 					newApplication.setLender("LDC");
 				}
 				lendingApplicationDao.save(newApplication);
-				replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
+				signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
 				return prepareAPIResponse(newApplication,true);
 			}
 		}
@@ -275,93 +278,6 @@ public class LendingApplicationService {
 			logger.error("Error occured while creating loan application",e);
 		}
 		return new LendingApplicationResponseDTO(false,"Error occured while creating loan application");
-	}
-	
-	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
-		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
-			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
-			toSaveDocuments.setMerchant(merchant);
-			toSaveDocuments.setProofType(documentsIdProof.getProofType());
-			toSaveDocuments.setProofFrontSide(documentsIdProof.getProofFrontSide());
-			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
-			toSaveDocuments.setLendingApplication(newApplication);
-			toSaveDocuments.setStatus("pending_verification");
-			Integer singleProofDoc = documentsIdProof.getSinglePage();
-			if(singleProofDoc == null) {
-				if(documentsIdProof.getProofBackSide() != null) {
-					singleProofDoc = 0;
-				}
-			}
-			toSaveDocuments.setSinglePage(singleProofDoc);
-			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
-				toSaveDocuments.setLatitude(meta.getLatitude());
-			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
-				toSaveDocuments.setLongitude(meta.getLongitude());
-			toSaveDocuments.setIp(meta.getIp());
-			documentsIdProofDao.save(toSaveDocuments);
-
-			if(documentsIdProof.getProofType().equals("selfie")) {
-				continue;
-			}
-
-			List<DocKycDetails> docKycDetailsList = docKycDetailsDao.findByDocumentsIdProof(documentsIdProof);
-
-			for(DocKycDetails docKycDetails : docKycDetailsList) {
-				DocKycDetails newDocKycDetails = insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
-				if("FRONT".equalsIgnoreCase(docKycDetails.getDocSide()) && "pancard".equalsIgnoreCase(toSaveDocuments.getProofType())) {
-					List<DocAuthentication> docAuthenticationList = docAuthenticationDao.findByDocumentsIdProof(documentsIdProof);
-					if(docAuthenticationList != null && docAuthenticationList.size() > 0) {
-						insertIntoDocAuthentication(docAuthenticationList.get(0), newDocKycDetails, toSaveDocuments);
-					}
-				}
-			}
-		}
-	}
-	
-	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {
-		DocKycDetails docKycDetails = new DocKycDetails();
-		
-		docKycDetails.setMerchant(oldDocKycDetails.getMerchant());
-		docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
-		docKycDetails.setDocumentsIdProof(documentsIdProof);
-		docKycDetails.setDocType(documentsIdProof.getProofType());
-		docKycDetails.setQr(oldDocKycDetails.getQr());
-		docKycDetails.setPersonName(oldDocKycDetails.getPersonName());
-		docKycDetails.setDob(oldDocKycDetails.getDob());
-		docKycDetails.setGender(oldDocKycDetails.getGender());
-		docKycDetails.setFatherName(oldDocKycDetails.getFatherName());
-		docKycDetails.setYob(oldDocKycDetails.getYob());
-		docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
-		docKycDetails.setMotherName(oldDocKycDetails.getMotherName());
-		docKycDetails.setAddress(oldDocKycDetails.getAddress());
-		docKycDetails.setCity(oldDocKycDetails.getCity());
-		docKycDetails.setState(oldDocKycDetails.getState());
-		docKycDetails.setPincode(oldDocKycDetails.getPincode());
-		docKycDetails.setCountryCode(oldDocKycDetails.getCountryCode());
-		docKycDetails.setResponse(oldDocKycDetails.getResponse());
-		docKycDetails.setStatus("pending_verification");
-		docKycDetails.setModule(oldDocKycDetails.getModule());
-		docKycDetails.setMode(oldDocKycDetails.getMode());
-		
-		docKycDetailsDao.save(docKycDetails);
-		return docKycDetails;
-	}
-	
-	private void insertIntoDocAuthentication(DocAuthentication oldDocAuthentication, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof) {
-		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetails(docKycDetails);
-		docAuthentication.setDocumentsIdProof(documentsIdProof);
-		docAuthentication.setMerchant(oldDocAuthentication.getMerchant());
-		docAuthentication.setDocType(oldDocAuthentication.getDocType());
-		docAuthentication.setStatus(oldDocAuthentication.getStatus());
-		docAuthentication.setDuplicate(oldDocAuthentication.getDuplicate());
-		docAuthentication.setNameMatch(oldDocAuthentication.getNameMatch());
-		docAuthentication.setDobMatch(oldDocAuthentication.getDobMatch());
-		docAuthentication.setFullResponse(oldDocAuthentication.getFullResponse());
-		docAuthentication.setDocStatus(oldDocAuthentication.getDocStatus());
-		
-		docAuthenticationDao.save(docAuthentication);
 	}
 	
 	private LendingApplication copyApplicationDataWhenExperianEnabled(EligibleLoan eligibleLoan, LendingCategories selectedCategoriesData, LendingApplication prevLoan,String selectedCategory) {
