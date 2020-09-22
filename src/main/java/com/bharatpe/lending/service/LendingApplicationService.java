@@ -342,7 +342,7 @@ public class LendingApplicationService {
 		newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
 		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 		newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
-		
+		newApplication.setManualKycAdditionalInfo(prevApplication.getManualKycAdditionalInfo());
 		return newApplication;
 	}
 	
