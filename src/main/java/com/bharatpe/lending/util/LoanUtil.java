@@ -50,7 +50,7 @@ public class LoanUtil {
 		selectedLoan.setEdi(application.getEdi());
 		selectedLoan.setEdiDuration(application.getPayableDays());
 		selectedLoan.setInterestRate(application.getInterestRate());
-		selectedLoan.setRepayment(application.getRepayment().intValue());
+		selectedLoan.setRepayment(application.getRepayment() != null ? application.getRepayment().intValue() : 0);
 		selectedLoan.setDisbursementAmount((application.getLoanAmount().intValue() - application.getProcessingFee().intValue()));
 		selectedLoan.setInterestAmount(application.getRepayment().intValue() - application.getLoanAmount().intValue());
 		if (lendingCategories != null) {

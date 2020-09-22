@@ -157,7 +157,11 @@ public class LoanEligibleService {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
             Date reportDate = null;
             if (experian.getResponse() != null) {
-                reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
+                try {
+                    reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
+                } catch (Exception e) {
+                    logger.info("Exception while parsing report date", e);
+                }
             }
             if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
                 experianResponse = objectMapper.readTree(experian.getResponse());
@@ -394,10 +398,12 @@ public class LoanEligibleService {
                     if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("name") != null) {
                         String name = responseNode.get("response").get("result").get("name").asText();
                         logger.info("Name:{} found in pancard:{}", name, pancardNumber);
-                        lendingPancardDao.deleteByMerchantId(merchantId);
                         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
                         if (lendingPancard != null) {
-                            return lendingPancard;
+                            lendingPancard.setName(name);
+                            lendingPancard.setResponse(response);
+                            lendingPancard.setPancardNumber(pancardNumber);
+                            return lendingPancardDao.save(lendingPancard);
                         }
                         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
                     }
