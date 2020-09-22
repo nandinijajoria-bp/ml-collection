@@ -102,15 +102,6 @@ public class LendingApplicationService {
 	LendingApplicationService lendingApplicationService;
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
-	
-	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
-	
-	@Autowired
-	DocAuthenticationDao docAuthenticationDao;
-	
-	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
 	
 	@Autowired
@@ -133,42 +124,26 @@ public class LendingApplicationService {
 			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
 		}else {
+			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if(requestDTO.getPayload().getPincode() == null) {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 				if(prevApplication!=null) {
 					return createApplicationFromPrevLoan(prevApplication,requestDTO);
 				}
 				else {
-					logger.error("Not details received from frontend and no prev loan found for merchant ",merchant);
+					logger.error("Not details received from frontend and no prev loan found for merchant:{} ",merchant.getId());
 					return new LendingApplicationResponseDTO(true,"Details missing");
 				}
 			}
 			else {
-				List<EligibleLoan> eligibleLoans = new ArrayList<>();
-				List<AvailableLoan> availableLoan = new ArrayList<>();
-				if (EXPERIAN_ENABLED) {
-					eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-					if(eligibleLoans == null || eligibleLoans.isEmpty()) {
-						logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
-						lendingApplicationResponse = new LendingApplicationResponseDTO();
-						lendingApplicationResponse.setSuccess(false);
-						return lendingApplicationResponse;
-					}
-				} else {
-					availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
-					if(availableLoan == null || availableLoan.isEmpty()) {
-						logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
-						lendingApplicationResponse = new LendingApplicationResponseDTO();
-						lendingApplicationResponse.setSuccess(false);
-						return lendingApplicationResponse;
-					}
+				List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
+					lendingApplicationResponse = new LendingApplicationResponseDTO();
+					lendingApplicationResponse.setSuccess(false);
+					return lendingApplicationResponse;
 				}
-				MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
-				if (EXPERIAN_ENABLED) {
-					lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
-				} else {
-					lendingApplication = createApplication(merchant, availableLoan.get(0), lendingApplicationRequest);
-				}
+				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
 				if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
 					lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 					lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
@@ -182,16 +157,16 @@ public class LendingApplicationService {
 					lendingApplication.setLender("LDC");
 				}
 				lendingApplicationDao.save(lendingApplication);
-				if (summary != null) {
-					createMerchantSummarySnapshot(merchant, lendingApplication, summary);
-				}
-				createExperianSnapshot(merchant, lendingApplication);
-				if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
-					createBBSSnapshot(lendingApplication);
-				}
-				createMerchantScoreSnapshot(lendingApplication);
-				createStatusAuditTrail(lendingApplication);
 			}
+			if (summary != null) {
+				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
+			}
+			createExperianSnapshot(merchant, lendingApplication);
+			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				createBBSSnapshot(lendingApplication);
+			}
+			createMerchantScoreSnapshot(lendingApplication);
+			createStatusAuditTrail(lendingApplication);
 		}
 		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
 		logger.info("Loan Application saved : {}",lendingApplication);
@@ -200,7 +175,7 @@ public class LendingApplicationService {
 	
 	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		try {
-			if(!lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
+			if(prevLoan.getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
 				logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
 				LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
@@ -237,42 +212,23 @@ public class LendingApplicationService {
 				return new LendingApplicationResponseDTO(false,"Merchant summary is empty");
 			}
 			EligibleLoan eligibleLoan=eligibleLoans.get(0);
-			LendingApplication newApplication=null;
-			if(EXPERIAN_ENABLED) {
-				newApplication=copyApplicationDataWhenExperianEnabled(eligibleLoan, selectedCategoriesData, prevLoan, selectedCategory);
+			LendingApplication newApplication = copyApplicationDataWhenExperianEnabled(eligibleLoan, selectedCategoriesData, prevLoan, selectedCategory);
+			if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
+				newApplication.setLatitude(requestDTO.getMeta().getLatitude());
+			if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
+				newApplication.setLongitude(requestDTO.getMeta().getLongitude());
+			newApplication.setIp(requestDTO.getMeta().getIp());
+			newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
+			if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
+				newApplication.setLender("HINDON");
 			}
 			else {
-				List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(prevLoan.getMerchant().getId(), merchantSummary.getLoanType());
-				AvailableLoan selectedAvailableLoan = null;
-				for(AvailableLoan current : availableLoanList) {
-					if(current.getCategory().equals(selectedCategory)) {
-						selectedAvailableLoan = current;
-						break;
-					}
-				}
-				if(selectedAvailableLoan == null) {
-					logger.error("No availabel loan found with merchant id {} and loan category {}", prevLoan.getMerchant().getId(), selectedCategory);
-					return new LendingApplicationResponseDTO(false,"No eligible loan found");
-				}
-				newApplication=copyApplication(selectedAvailableLoan, prevLoan, selectedCategoriesData, selectedCategory);
+				newApplication.setLender("LDC");
 			}
-			if(newApplication!=null) {
-				if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
-					newApplication.setLatitude(requestDTO.getMeta().getLatitude());
-				if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
-					newApplication.setLongitude(requestDTO.getMeta().getLongitude());
-				newApplication.setIp(requestDTO.getMeta().getIp());
-				newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-				if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
-					newApplication.setLender("HINDON");
-				}
-				else {
-					newApplication.setLender("LDC");
-				}
-				lendingApplicationDao.save(newApplication);
-				signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
-				return prepareAPIResponse(newApplication,true);
-			}
+			lendingApplicationDao.save(newApplication);
+			signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
+			redisNotificationService.sendNotificationForAppliedApplication(prevLoan.getMerchant().getId(), newApplication);
+			return prepareAPIResponse(newApplication,true);
 		}
 		catch(Exception e) {
 			logger.error("Error occured while creating loan application",e);
@@ -311,38 +267,6 @@ public class LendingApplicationService {
 		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLoanType(eligibleLoan.getLoanType());
 		
-		return newApplication;
-	}
-	
-	private LendingApplication copyApplication(AvailableLoan selectedAvailableLoan, LendingApplication prevApplication,LendingCategories selectedCategoriesData , String selectedCategory) {
-		LendingApplication newApplication=new LendingApplication();
-		LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData, null);
-		newApplication.setEdi(Double.valueOf(breakup.getEdi()));
-		newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
-		newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
-		newApplication.setInterestRate(breakup.getEffectiveInterestRate());
-		newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
-		newApplication.setLoanConstruct(breakup.getConstruct());
-		newApplication.setDisbursalAmount(Double.valueOf(breakup.getDisbursementAmount()));
-		newApplication.setMerchant(prevApplication.getMerchant());
-		newApplication.setShopNumber(prevApplication.getShopNumber());
-		newApplication.setStreetAddress(prevApplication.getStreetAddress());
-		newApplication.setArea(prevApplication.getArea());
-		newApplication.setLandmark(prevApplication.getLandmark());
-		newApplication.setPincode(prevApplication.getPincode());
-		newApplication.setCity(prevApplication.getCity());
-		newApplication.setState(prevApplication.getState());
-		newApplication.setBusinessName(prevApplication.getBusinessName());
-		newApplication.setStatus("draft");
-		newApplication.setMode("AUTO");
-		newApplication.setCategory(selectedCategory);
-		newApplication.setTenure(selectedCategoriesData.getPayableConverter());
-		newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-		newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
-		newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
-		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
-		newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
-		newApplication.setManualKycAdditionalInfo(prevApplication.getManualKycAdditionalInfo());
 		return newApplication;
 	}
 	
