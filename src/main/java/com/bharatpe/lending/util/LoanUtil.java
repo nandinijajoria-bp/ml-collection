@@ -84,7 +84,7 @@ public class LoanUtil {
 		shopDetails.put("pincode", application.getPincode());
 		shopDetails.put("city", application.getCity());
 		shopDetails.put("state", application.getState());
-		
+		shopDetails.put("alternate_mobile", application.getAlternateMobile());
 		return shopDetails;
 	}
 	
