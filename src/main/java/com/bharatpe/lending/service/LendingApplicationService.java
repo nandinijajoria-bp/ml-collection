@@ -266,6 +266,7 @@ public class LendingApplicationService {
 		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
 		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLoanType(eligibleLoan.getLoanType());
+		newApplication.setAlternateMobile(prevLoan.getAlternateMobile());
 		
 		return newApplication;
 	}
