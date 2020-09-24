@@ -14,6 +14,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
+import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
@@ -135,6 +136,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	NewToBharatpeService newToBharatpeService;
+
+	@Autowired
+	LendingBlockedPancardDao lendingBlockedPancardDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -596,6 +600,11 @@ public class LoanDetailsService {
 						} else {
 							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));
 						}
+					}
+					LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+					if (lendingBlockedPancard != null) {
+						logger.info("Blocked pancard:{}", experian.getPancardNumber());
+						loanEligibilityDTOs.clear();
 					}
 					if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
 						experian.setEligibleAmount(null);
