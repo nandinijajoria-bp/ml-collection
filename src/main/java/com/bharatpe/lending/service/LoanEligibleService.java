@@ -1214,4 +1214,12 @@ public class LoanEligibleService {
         }
         return true;
     }
+
+    private JsonNode getCrifReport(String contact, String panCard, Long merchantId, String firstName, String lastName) {
+        JsonNode stage1Response = apiGatewayService.crifStage1(firstName, lastName, panCard, contact, merchantId);
+        if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
+            logger.info("Crif stage1 success for merchant:{}", merchantId);
+            JsonNode stage2Response = apiGatewayService.crifStage2(stage1Response.get(""))
+        }
+    }
 }
