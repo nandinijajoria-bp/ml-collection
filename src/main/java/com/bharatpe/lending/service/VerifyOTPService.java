@@ -240,6 +240,7 @@ public class VerifyOTPService {
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 		if (lendingApplication.getLoanAmount() <= 50000 && "REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()))
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
+		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
@@ -257,6 +258,18 @@ public class VerifyOTPService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+		}
+	}
+
+	public void sendDetailsForContactsVerification(Long merchantId, Long applicationId) {
+		try {
+			Map<String, Long> detailMap = new HashMap<>();
+			detailMap.put("merchantId", merchantId);
+			detailMap.put("applicationId", applicationId);
+			kafkaTemplate.send("verify_contacts_for_application", merchantId.toString(), detailMap);
+			logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
+		} catch (Exception e) {
+			logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
 		}
 	}
 
