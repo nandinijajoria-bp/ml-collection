@@ -165,7 +165,7 @@ public class SignAgreementService {
 			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
 			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
 			if(prevApplication.getPincode() != null && !"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
-				logger.error("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
+				logger.info("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
 				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
 				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
 				return response;

@@ -131,7 +131,7 @@ public class LendingApplicationService {
 					return createApplicationFromPrevLoan(prevApplication,requestDTO);
 				}
 				else {
-					logger.error("Not details received from frontend and no prev loan found for merchant:{} ",merchant.getId());
+					logger.info("Not details received from frontend and no prev loan found for merchant:{} ",merchant.getId());
 					return new LendingApplicationResponseDTO(true,"Details missing");
 				}
 			}
