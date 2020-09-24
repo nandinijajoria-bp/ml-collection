@@ -605,6 +605,10 @@ public class LoanDetailsService {
 					if (lendingBlockedPancard != null) {
 						logger.info("Blocked pancard:{}", experian.getPancardNumber());
 						loanEligibilityDTOs.clear();
+						experian.setReason(ExperianConstants.BLOCKED_PANCARD);
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experianDao.save(experian);
 					}
 					if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
 						experian.setEligibleAmount(null);

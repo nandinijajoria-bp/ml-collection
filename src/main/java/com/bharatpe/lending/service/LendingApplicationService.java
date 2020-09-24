@@ -207,10 +207,6 @@ public class LendingApplicationService {
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(prevLoan.getMerchant().getId());
-			if(merchantSummary == null) {
-				logger.error("Merchant summary is empty for merchant with id {}", prevLoan.getMerchant().getId());
-				return new LendingApplicationResponseDTO(false,"Merchant summary is empty");
-			}
 			EligibleLoan eligibleLoan=eligibleLoans.get(0);
 			LendingApplication newApplication = copyApplicationDataWhenExperianEnabled(eligibleLoan, selectedCategoriesData, prevLoan, selectedCategory);
 			if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
@@ -218,7 +214,7 @@ public class LendingApplicationService {
 			if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 				newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			newApplication.setIp(requestDTO.getMeta().getIp());
-			newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
+			newApplication.setTotalLoansCount(merchantSummary != null && merchantSummary.getTotalLoansCount() != null ? merchantSummary.getTotalLoansCount() : 0);
 			if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 				newApplication.setLender("HINDON");
 			}
