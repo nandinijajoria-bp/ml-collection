@@ -40,7 +40,7 @@ public class LoanCalculationUtil {
 			totalInterestAmount = ioInterestAmount + interestAmount;
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
 		} else {
-			processingFee = Integer.valueOf(category.getProcessingFee());
+			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
 			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
 			repayment = (int) Math.round(category.getPayableDays() * edi);
 			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
