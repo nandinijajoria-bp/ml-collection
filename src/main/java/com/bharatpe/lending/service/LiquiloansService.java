@@ -304,11 +304,14 @@ public class LiquiloansService {
     		lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
     		
     		
-    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
-    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
-    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
-    		}
-    		
+//    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
+//    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+//    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
+//    		}
+			if(lendingApplication==null){
+				logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+				return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
+			}
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
 			lendingApplication.setDisburseTimestamp(new Date());
@@ -401,10 +404,10 @@ public class LiquiloansService {
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
     		
-    		logger.info("Changing loan_disbursal_status back to 'PROCESSING'");
+    		logger.info("Changing loan_disbursal_status back to 'PENDING'");
     		if(lendingApplication!=null){
     			lendingApplication.setDisburseTimestamp(null);
-    			lendingApplication.setLoanDisbursalStatus("PROCESSING");
+    			lendingApplication.setLoanDisbursalStatus("PENDING");
     			lendingApplicationDao.save(lendingApplication);
     			if (lendingPaymentSchedule != null) {
 					lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
