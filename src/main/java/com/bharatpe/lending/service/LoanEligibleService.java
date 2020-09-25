@@ -609,7 +609,7 @@ public class LoanEligibleService {
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
         } else {
-            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays);
+            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories);
         }
         if (!isZomato && !"OGL".equalsIgnoreCase(loanType)) {
             if (color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType)) {
@@ -627,8 +627,7 @@ public class LoanEligibleService {
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
 
-    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays){
-        int processingFee = 0;
+    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories){
         int tenure = tenureMonth - ioTenure;
         int ediDays, disbursementAmount, ioInterestAmount, principleEdiTenure, repayment;
         double loanAmount, edi, totalInterestAmount, ioEdi;
@@ -636,6 +635,7 @@ public class LoanEligibleService {
         edi = (avgTpv * percentage);
         repayment = (int)Math.round(ediDays * edi);
         loanAmount = Math.min(roundUp(repayment / (1 + (interest/100)*tenure)), maxAmount);// round down
+        int processingFee = LoanCalculationUtil.getProcessingFee(loanAmount, categories);
         edi = Math.ceil((loanAmount * (1 + (interest/100)*tenure)) / ediDays);
         disbursementAmount = (int)loanAmount - processingFee;
         ioEdi = ioPayableDays > 0 ? Math.ceil((loanAmount * (interest / 100)) / ioPayableDays) : 0;

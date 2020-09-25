@@ -22,7 +22,7 @@ public class LoanCalculationUtil {
 		Double effectiveInterestRate = null;
 		
 		if("CONSTRUCT_2".equals(category.getLoanConstruct())) {
-			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
+			processingFee = getProcessingFee(availableLoan.getAmount(), category);
 			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
 			repayment = (int) Math.round(category.getPayableDays() * edi);
 			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
@@ -31,7 +31,7 @@ public class LoanCalculationUtil {
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
 		} else if("CONSTRUCT_3".equals(category.getLoanConstruct())) {
 			ioOrFreeEdiTenure = category.getIoTenureMonths().intValue();
-			processingFee = (int) Math.ceil(availableLoan.getAmount() * Double.valueOf(category.getProcessingFee()));
+			processingFee = getProcessingFee(availableLoan.getAmount(), category);
 			ioEdi = (int) Math.ceil(availableLoan.getAmount() * (interest / 100) * category.getIoTenureMonths() / category.getIoPayableDays());
 			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * (category.getTenureMonths() - ioOrFreeEdiTenure)))) / category.getPayableDays());
 			repayment = (int) Math.round((category.getPayableDays() * edi) + (category.getIoPayableDays() * ioEdi));
@@ -40,7 +40,7 @@ public class LoanCalculationUtil {
 			totalInterestAmount = ioInterestAmount + interestAmount;
 			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
 		} else {
-			processingFee = Integer.valueOf(category.getProcessingFee());
+			processingFee = getProcessingFee(availableLoan.getAmount(), category);
 			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
 			repayment = (int) Math.round(category.getPayableDays() * edi);
 			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
@@ -69,6 +69,13 @@ public class LoanCalculationUtil {
 		return breakup;
 		
 	
+	}
+	
+	public static int getProcessingFee(Double loanAmount, LendingCategories category) {
+		if(category!=null && category.getProcessingFeeType()!=null) {
+			return category.getProcessingFeeType().equalsIgnoreCase("PERCENTAGE")?(int)Math.ceil(loanAmount * Double.valueOf(category.getProcessingFee())):(int)(double)Double.valueOf(category.getProcessingFee());
+		}
+		return 0;
 	}
 	
 	public static String getType(String loanConstruct) {
