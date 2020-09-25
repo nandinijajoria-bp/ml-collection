@@ -420,7 +420,7 @@ public class CreditLineLoanDetailsService {
 					applicationTransition = applicationTransitionList.get(0);
 				}
 				response.getDetails().setEligible(false);
-				response.getDetails().getLoanApplication().setStatusMessage("Loan Approved");
+				response.getDetails().getLoanApplication().setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment. Please write to us on  support@bharatpe.com to apply again.");
 				
 				if("cibil".equalsIgnoreCase(creditApplication.getRejectionReason()) || rejectedInLastNDays(applicationTransition, 7)) {
 					response.getDetails().getLoanApplication().setShowReapply(true);
