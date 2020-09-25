@@ -73,7 +73,7 @@ public class LoanCalculationUtil {
 	
 	public static int getProcessingFee(Double loanAmount, LendingCategories category) {
 		if(category!=null && category.getProcessingFeeType()!=null) {
-			return category.getProcessingFeeType().equalsIgnoreCase("PERCENTAGE")?(int)Math.ceil(loanAmount * Double.valueOf(category.getProcessingFee())):(int)(double)Double.valueOf(category.getProcessingFee());
+			return category.getProcessingFeeType().equalsIgnoreCase("PERCENTAGE")?(int)Math.ceil(loanAmount * Double.parseDouble(category.getProcessingFee())):Integer.parseInt(category.getProcessingFee());
 		}
 		return 0;
 	}
