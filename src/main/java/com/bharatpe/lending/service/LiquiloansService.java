@@ -170,6 +170,9 @@ public class LiquiloansService {
     @Autowired
 	LiquiloansHandler liquiloansHandler;
 
+    @Autowired
+	MerchantVirtualAccountDao merchantVirtualAccountDao;
+
 	ExecutorService executorService = Executors.newFixedThreadPool(5);
 
 	private static String secretKey;
@@ -226,61 +229,47 @@ public class LiquiloansService {
     }
 
 	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse) {
-		logger.info("Fetching lending application for given liquiloan_loan_id:{} and bp_loan_id:{}", callbackRequestDto.getUrn(),callbackRequestDto.getLoanId());
+		logger.info("Fetching lending application for given application_id:{} and nbfc_id:{}", callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());
 		liquiloansDirectDisbursalRawResponse.setApiName("APPROVELOAN");
 		liquiloansDirectDisbursalRawResponse.setRequest(callbackRequestDto.toString());
-		if (callbackRequestDto.getUrn().contains("CL")) {
-			//Credit line loan
-			LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByExternalLoanIdAndNbfcId(callbackRequestDto.getUrn(), callbackRequestDto.getLoanId());
-			if (lendingTlDetails == null) {
-				return new ResponseDTO(false,"loan application not found",null);
-			}
-			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByTlDetailsIdAndCreditLoanAndStatus(lendingTlDetails.getId(), true, "ACTIVE");
-			if (lendingPaymentSchedule == null) {
-				return new ResponseDTO(false,"lending payment schedule not found",null);
-			}
-			List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
-			if (ediSchedules == null || ediSchedules.isEmpty()) {
-				return new ResponseDTO(false,"lending edi schedule not found",null);
-			}
-			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingTlDetails.getMerchantId());
-			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingTlDetails.getId());
-			liquiloansDirectDisbursalRawResponse.setLoanId(lendingTlDetails.getExternalLoanId());
-			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingTlDetails.getNbfcId());
-			executorService.submit(() -> liquiloansHandler.notifyEDISchedule(lendingPaymentSchedule,ediSchedules, lendingTlDetails));
-			return new ResponseDTO(true,null,null);
-		}
+//		if (callbackRequestDto.getUrn().contains("CL")) {
+//			//Credit line loan
+//			LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByExternalLoanIdAndNbfcId(callbackRequestDto.getUrn(), callbackRequestDto.getLoanId());
+//			if (lendingTlDetails == null) {
+//				return new ResponseDTO(false,"loan application not found",null);
+//			}
+//			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByTlDetailsIdAndCreditLoanAndStatus(lendingTlDetails.getId(), true, "ACTIVE");
+//			if (lendingPaymentSchedule == null) {
+//				return new ResponseDTO(false,"lending payment schedule not found",null);
+//			}
+//			List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
+//			if (ediSchedules == null || ediSchedules.isEmpty()) {
+//				return new ResponseDTO(false,"lending edi schedule not found",null);
+//			}
+//			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingTlDetails.getMerchantId());
+//			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingTlDetails.getId());
+//			liquiloansDirectDisbursalRawResponse.setLoanId(lendingTlDetails.getExternalLoanId());
+//			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingTlDetails.getNbfcId());
+//			executorService.submit(() -> liquiloansHandler.notifyEDISchedule(lendingPaymentSchedule,ediSchedules, lendingTlDetails));
+//			return new ResponseDTO(true,null,null);
+//		}
 		try {
-			LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
+			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndNbfcId(callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());
 			if(lendingApplication==null) {
 				return new ResponseDTO(false,"loan application not found",null);
+			}
+			MerchantVirtualAccount merchantVirtualAccount = merchantVirtualAccountDao.findByMerchantAndType(lendingApplication.getMerchant(), "LENDING");
+			if (merchantVirtualAccount == null) {
+				return new ResponseDTO(false,"merchant virtual account not found",null);
 			}
 			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
 			liquiloansDirectDisbursalRawResponse.setLoanId(lendingApplication.getExternalLoanId());
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
-			if (lendingApplication.getLoanDisbursalStatus() != null && !"null".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
-				return new ResponseDTO(false,"duplicate request",null);
-			}
-			else if(callbackRequestDto.getStatus().equalsIgnoreCase("approved")){
-				lendingApplication.setLoanDisbursalStatus("PENDING");
-				lendingApplicationDao.save(lendingApplication);
-				publishForDisbursal(lendingApplication.getId());
-				return new ResponseDTO(true,null,null);
-			}
-			else if(callbackRequestDto.getStatus().equalsIgnoreCase("rejected")){
-				lendingApplication.setLoanDisbursalStatus("REJECTED");
-				lendingApplicationDao.save(lendingApplication);
-				return new ResponseDTO(true,null,null);
-			}
-			else if(callbackRequestDto.getStatus().equalsIgnoreCase("disbursed")){
-				lendingApplication.setLoanDisbursalStatus("DISBURSED");
-				lendingApplicationDao.save(lendingApplication);
-				return new ResponseDTO(true,null,null);
-			}
-			else {
-				return new ResponseDTO(false,"invalid loan status",null);
-			}
+			lendingApplication.setDisbursalPartner("BHARATPE");
+			lendingApplicationDao.save(lendingApplication);
+			publishForDisbursal(lendingApplication.getId());
+			return new ResponseDTO(true,null,null);
 		}
 		catch(Exception e){
 			logger.error("Error occured while updating lending application disbursal status",e);
@@ -315,7 +304,7 @@ public class LiquiloansService {
     		lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
     		
     		
-    		if(lendingApplication==null){
+    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PENDING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
     			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
     			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
     		}
