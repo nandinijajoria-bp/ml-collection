@@ -660,7 +660,10 @@ public class NewToBharatpeService {
     }
 
     private int checkLoanEnquiriesInLast3Months(JsonNode experianResponse) {
-        return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").asInt();
+    	if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days") != null) {
+    		return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").asInt();
+		}
+        return 0;
     }
 
     private int checkDPDLastXmonths(JsonNode jsonNode, int months, Date reportDate){

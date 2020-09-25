@@ -882,7 +882,7 @@ public class LoanEligibleService {
     }
 
     private boolean checkUnsecuredLoanEnquiriesInLast6Months(JsonNode experianResponse, Date reportDate) {
-        if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days").asInt() <= 4){
+        if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days").asInt() <= 4){
             return false;
         }
         Calendar c = Calendar.getInstance();
