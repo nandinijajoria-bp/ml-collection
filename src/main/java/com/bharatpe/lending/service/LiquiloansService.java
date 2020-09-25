@@ -266,9 +266,9 @@ public class LiquiloansService {
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
 			liquiloansDirectDisbursalRawResponse.setLoanId(lendingApplication.getExternalLoanId());
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
-			lendingApplication.setDisbursalPartner("BHARATPE");
+			lendingApplication.setLoanDisbursalStatus("PROCESSING");
 			lendingApplicationDao.save(lendingApplication);
-			publishForDisbursal(lendingApplication.getId());
+			//publishForDisbursal(lendingApplication.getId());
 			return new ResponseDTO(true,null,null);
 		}
 		catch(Exception e){
@@ -304,7 +304,7 @@ public class LiquiloansService {
     		lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
     		
     		
-    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PENDING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
+    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
     			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
     			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
     		}
@@ -401,12 +401,14 @@ public class LiquiloansService {
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
     		
-    		logger.info("Changing loan_disbursal_status back to 'PENDING'");
+    		logger.info("Changing loan_disbursal_status back to 'PROCESSING'");
     		if(lendingApplication!=null){
     			lendingApplication.setDisburseTimestamp(null);
-    			lendingApplication.setLoanDisbursalStatus("PENDING");
+    			lendingApplication.setLoanDisbursalStatus("PROCESSING");
     			lendingApplicationDao.save(lendingApplication);
-    			lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
+    			if (lendingPaymentSchedule != null) {
+					lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
+				}
     		}		
     		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
