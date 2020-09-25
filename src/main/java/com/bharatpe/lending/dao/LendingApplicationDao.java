@@ -42,4 +42,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	@Query(value = "select * from lending_application where loan_type='NTB' and loan_disbursal_status='DISBURSED' LIMIT :offset, 1000", nativeQuery = true)
 	List<LendingApplication> getApplications(long offset);
+
+	@Query(value="select * from lending_application where id=:id and nbfc_id=:nbfcId and status='approved' and lender='LDC' and loan_disbursal_status='PENDING' and (disbursal_partner is null or disbursal_partner='null')", nativeQuery = true)
+	LendingApplication findByIdAndNbfcId(Long id, String nbfcId);
 }

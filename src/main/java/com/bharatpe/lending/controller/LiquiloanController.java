@@ -26,6 +26,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("lending/liquiloan/*")
 public class LiquiloanController {
+
+	Logger logger = LoggerFactory.getLogger(LiquiloanController.class);
 	
 	@Autowired
 	LiquiloansService liquilaonService;
@@ -39,12 +41,9 @@ public class LiquiloanController {
 	@Autowired
 	LendingTlDetailsDao lendingTlDetailsDao;
 	
-	
-	Logger logger=LoggerFactory.getLogger(LiquiloanController.class);
-	
 	@RequestMapping(value = "approveLoan", method =RequestMethod.POST)
 	public ResponseEntity<ResponseDTO> checkLoanStatus(@RequestBody LiquiloanCallbackRequestDTO callbackRequestDto){
-		//fetching lending application for given liquiloan_loan_id and bp_loan_id
+		logger.info("Approve Loan request:{}", callbackRequestDto);
 		LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse = new LiquiloansDirectDisbursalRawResponse();
 		ResponseDTO responseDTO = liquilaonService.checkLoanStatus(callbackRequestDto, liquiloansDirectDisbursalRawResponse);
 		liquiloansDirectDisbursalRawResponse.setResponse(responseDTO.toString());
