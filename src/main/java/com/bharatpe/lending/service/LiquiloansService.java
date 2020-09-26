@@ -254,7 +254,7 @@ public class LiquiloansService {
 //			return new ResponseDTO(true,null,null);
 //		}
 		try {
-			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndNbfcId(callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());
+			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndNbfcId(Long.parseLong(callbackRequestDto.getApplicationId()), callbackRequestDto.getNbfcId());
 			if(lendingApplication==null) {
 				return new ResponseDTO(false,"loan application not found",null);
 			}
