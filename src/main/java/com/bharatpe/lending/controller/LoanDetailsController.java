@@ -1,9 +1,11 @@
 package com.bharatpe.lending.controller;
- 
+
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
+import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
+import com.bharatpe.lending.service.ActiveLoansService;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bharatpe.common.entities.Merchant;
@@ -36,6 +39,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	ImageURLService imageURLService;
+
+	@Autowired
+    ActiveLoansService activeLoansService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
@@ -80,5 +86,15 @@ public class LoanDetailsController {
 			logger.error("Exception in settlement---", e);
 			return new ResponseEntity<>(new SettlementResponseDTO(false, "Something went wrong"), HttpStatus.OK);
 		}
+	}
+
+    @RequestMapping(value="/active_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<LendingActiveLoansResponseDTO> getAvailableLoans(
+			@RequestParam(name = "merchant_id", required = true) String requestMerchantId,
+			@RequestParam(name = "merchant_store_id", required = false) String requestMerchantStoreId) {
+		logger.info("activeLoans request with merchant_id : {}, merchant_store_id: {}", requestMerchantId, requestMerchantStoreId);
+		Long merchantId = requestMerchantId != null ? Long.parseLong(requestMerchantId) : null;
+		Long merchantStoreId = requestMerchantStoreId != null ? Long.parseLong(requestMerchantStoreId) : null;
+		return new ResponseEntity<>(activeLoansService.getActiveLoans(merchantId, merchantStoreId), HttpStatus.OK);
 	}
 }
