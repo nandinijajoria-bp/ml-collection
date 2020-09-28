@@ -20,6 +20,9 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	LendingApplication findByIdAndMerchant(Long id, Merchant merchant);
 
+	@Query(value = "select * from lending_application where merchant_id= :merchantId and loan_type= :loanType and status!= :status order by id desc limit 1", nativeQuery = true)
+	LendingApplication findByMerchantIdAndLoanTypeAndNotStatus(Long merchantId, String loanType, String status);
+
 	LendingApplication findTop1ByMerchantOrderByIdDesc(Merchant merchant);
 
 	List<LendingApplication> fetchLatestOpenApplication(Merchant merchant);

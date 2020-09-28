@@ -2,12 +2,15 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
+import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.service.ActiveLoansService;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
+import com.bharatpe.lending.service.LendingOffersService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,10 +41,13 @@ public class LoanDetailsController {
 	LendingAgreementService lendingAgreementService;
 
 	@Autowired
+	LendingOffersService lendingOffersService;
+
+	@Autowired
 	ImageURLService imageURLService;
 
 	@Autowired
-    ActiveLoansService activeLoansService;
+	ActiveLoansService activeLoansService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
@@ -88,13 +94,21 @@ public class LoanDetailsController {
 		}
 	}
 
-    @RequestMapping(value="/active_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	@RequestMapping(value = "/active_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<LendingActiveLoansResponseDTO> getAvailableLoans(
 			@RequestParam(name = "merchant_id", required = true) String requestMerchantId,
 			@RequestParam(name = "merchant_store_id", required = false) String requestMerchantStoreId) {
-		logger.info("activeLoans request with merchant_id : {}, merchant_store_id: {}", requestMerchantId, requestMerchantStoreId);
+		logger.info("activeLoans request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
+				requestMerchantStoreId);
 		Long merchantId = requestMerchantId != null ? Long.parseLong(requestMerchantId) : null;
 		Long merchantStoreId = requestMerchantStoreId != null ? Long.parseLong(requestMerchantStoreId) : null;
 		return new ResponseEntity<>(activeLoansService.getActiveLoans(merchantId, merchantStoreId), HttpStatus.OK);
+
+	}
+
+	@RequestMapping(value = "/get_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute Merchant merchant) {
+		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
+		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
 	}
 }
