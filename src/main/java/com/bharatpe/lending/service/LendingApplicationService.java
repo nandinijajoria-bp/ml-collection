@@ -150,7 +150,7 @@ public class LendingApplicationService {
 					lendingApplication.setIp(requestDTO.getMeta().getIp());
 				}
 				lendingApplication.setTotalLoansCount(summary == null || summary.getTotalLoansCount() == null ? 0 : summary.getTotalLoansCount());
-				if(lendingApplication.getLoanAmount() >= 500000 || (lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
+				if((lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 					lendingApplication.setLender("HINDON");
 				}
 				else {
@@ -215,7 +215,7 @@ public class LendingApplicationService {
 				newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 			newApplication.setIp(requestDTO.getMeta().getIp());
 			newApplication.setTotalLoansCount(merchantSummary != null && merchantSummary.getTotalLoansCount() != null ? merchantSummary.getTotalLoansCount() : 0);
-			if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
+			if((newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 				newApplication.setLender("HINDON");
 			}
 			else {
