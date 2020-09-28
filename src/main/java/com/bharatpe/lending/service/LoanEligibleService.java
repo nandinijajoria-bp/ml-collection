@@ -122,7 +122,7 @@ public class LoanEligibleService {
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode, boolean isFromSwipe){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double selfTpv = (merchantSummary != null && merchantSummary.getSelfTxnValue1Mon() != null) ? merchantSummary.getSelfTxnValue1Mon() : 0d;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() - selfTpv : 0D;
@@ -218,7 +218,7 @@ public class LoanEligibleService {
                     logger.error("Exception---", e);
                 }
                 //base checks
-                if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
+                if (!isFromSwipe && !baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
                     logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
                     return new ArrayList<>();
                 }

@@ -7,8 +7,10 @@ import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
+import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
 import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
+import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.LendingPartnerOffers;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
@@ -139,6 +141,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingBlockedPancardDao lendingBlockedPancardDao;
+	
+	@Autowired
+	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -549,8 +554,9 @@ public class LoanDetailsService {
 			
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
+					boolean isFromSwipe=requestDTO.getPayload().getLoanSource()!=null?requestDTO.getPayload().getLoanSource().equalsIgnoreCase("SWIPE"):false;
 					try {
-						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -568,6 +574,10 @@ public class LoanDetailsService {
 						if (experian.getMaskedMobiles() != null && !experian.getMaskedMobiles().isEmpty()) {
 							maskedMobiles = experian.getMaskedMobiles();
 						}
+					}
+					if(isFromSwipe) {
+						loanEligibilityDTOs.clear();
+						loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian));
 					}
 					//fetching Zomato loans
 					if (isZomato && !rejected) {
@@ -684,6 +694,22 @@ public class LoanDetailsService {
 			return createFailureResponse();
 		}
 		return response;
+	}
+	
+	
+	
+	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian) {
+		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
+		if(!lendingCategoriesList.isEmpty()) {
+			LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
+			if(lendingBharatswipeOffers!=null) {
+				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
+				LendingCategories lendingCategories=lendingCategoriesList.get(0);
+				eligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingBharatswipeOffers.getLoanAmount(), experian.getColor(), "2", "BHARAT_SWIPE", false, false));
+				return eligibilityDTOs;
+			}	
+		}
+		return new ArrayList<>();
 	}
 
 	private List<LoanEligibilityDTO> fetchOglOffers(Experian experian, MerchantSummary merchantSummary, Merchant merchant, String bankCode) {
