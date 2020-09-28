@@ -699,6 +699,7 @@ public class LoanDetailsService {
 	
 	
 	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian) {
+		logger.info("Fetching loan details for bharat swipe for merchant {}",merchant);
 		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
 		if(!lendingCategoriesList.isEmpty()) {
 			LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
