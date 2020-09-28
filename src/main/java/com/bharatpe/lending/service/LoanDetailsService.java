@@ -1020,13 +1020,13 @@ public class LoanDetailsService {
 				} else {
 					history.setLoanStatusHeader("Loan Approved");
 					history.setLoanStatusTitle("Loan Transfer Initiated");
-					history.setLoanStatusMessage("The amount will reflect in your bank account within 48-72 hours.");
+					history.setLoanStatusMessage("The amount will reflect in your bank account in next 7 days.");
 				}
 			} else {
 				history.setLoanStatusHeader("Loan Approved");
 				history.setLoanStatusTitle("Loan Approved");
 				if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
-					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
+					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in next 7 days.");
 				} else {
 					history.setLoanStatusMessage("The amount will reflect in your Bank A/c in the next 7-10 days. Keep transacting on BharatPe QR to get money in your Account faster.");
 				}
