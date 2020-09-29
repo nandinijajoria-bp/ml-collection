@@ -96,13 +96,11 @@ public class LoanDetailsController {
 
 	@RequestMapping(value = "/active_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<LendingActiveLoansResponseDTO> getAvailableLoans(
-			@RequestParam(name = "merchant_id", required = true) String requestMerchantId,
-			@RequestParam(name = "merchant_store_id", required = false) String requestMerchantStoreId) {
+			@RequestParam(name = "merchant_id") Long requestMerchantId,
+			@RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
 		logger.info("activeLoans request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
 				requestMerchantStoreId);
-		Long merchantId = requestMerchantId != null ? Long.parseLong(requestMerchantId) : null;
-		Long merchantStoreId = requestMerchantStoreId != null ? Long.parseLong(requestMerchantStoreId) : null;
-		return new ResponseEntity<>(activeLoansService.getActiveLoans(merchantId, merchantStoreId), HttpStatus.OK);
+		return new ResponseEntity<>(activeLoansService.getActiveLoans(requestMerchantId, requestMerchantStoreId), HttpStatus.OK);
 
 	}
 

@@ -31,15 +31,25 @@ public class LendingOffersService {
 
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
+		LendingBharatswipeOffers lendingOffer = lendingBharatswipeOffersDao.findByMerchantId(merchantId);
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-		if(activeLoan != null) {
+		if (lendingOffer == null) {
+			responseDTO.setSuccess(false);
+			responseDTO.setMessage("No Offer found");
+			return responseDTO;
+		}
+		if(activeLoan != null && activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getLoanType().equals("BHARATSWIPE")) {
 			logger.info("LendingPaymentSchedule active loan found loanId: {}", activeLoan.getId());
 			responseDTO.setApplicationStatus("approved");
 			responseDTO.setSuccess(true);
-			responseDTO.setOfferAmount(0.0);
+			responseDTO.setOfferAmount(activeLoan.getLoanApplication().getLoanAmount());
 			responseDTO.setActiveLoan(true);
 			responseDTO.setTenure(activeLoan.getLoanApplication().getTenureInMonths());
-			responseDTO.setMessage("Previously active loan found");
+			responseDTO.setMessage("Active Bharat Swipe Loan found");
+			return responseDTO;
+		} else if (activeLoan != null) {
+			responseDTO.setSuccess(false);
+			responseDTO.setMessage("Active loan found");
 			return responseDTO;
 		}
 		LendingApplication previousApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchantId, "BHARATSWIPE", "deleted");
@@ -50,26 +60,16 @@ public class LendingOffersService {
 			responseDTO.setOfferAmount(previousApplication.getLoanAmount());
 			responseDTO.setActiveLoan(false);
 			responseDTO.setTenure(previousApplication.getTenureInMonths());
-			responseDTO.setMessage("Previously active loan application found");
+			responseDTO.setMessage("Bharat Swipe Loan application found");
 			return responseDTO;
 		}
-		LendingBharatswipeOffers lendingOffer = lendingBharatswipeOffersDao.findByMerchantId(merchantId);
-		if(lendingOffer != null) {
-			logger.info("LendingBharatswipeOffer found with id: {}", lendingOffer.getId());
-			responseDTO.setApplicationStatus(null);
-			responseDTO.setSuccess(true);
-			responseDTO.setOfferAmount(lendingOffer.getLoanAmount());
-			responseDTO.setActiveLoan(false);
-			responseDTO.setTenure(lendingOffer.getTenureMonths());
-			responseDTO.setMessage("Fetched available lending offer");
-			return responseDTO;
-		}
+		logger.info("LendingBharatswipeOffer found with id: {}", lendingOffer.getId());
 		responseDTO.setApplicationStatus(null);
 		responseDTO.setSuccess(true);
-		responseDTO.setOfferAmount(0.0);
+		responseDTO.setOfferAmount(lendingOffer.getLoanAmount());
 		responseDTO.setActiveLoan(false);
-		responseDTO.setTenure(0);
-		responseDTO.setMessage("No offers available!");
+		responseDTO.setTenure(lendingOffer.getTenureMonths());
+		responseDTO.setMessage("Fetched available bharat swipe lending offer");
 		return responseDTO;
 	}
 }
