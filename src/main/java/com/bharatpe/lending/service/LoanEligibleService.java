@@ -601,7 +601,11 @@ public class LoanEligibleService {
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
-                prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
+                if (yellowPincode) {
+                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 50000);
+                } else {
+                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
+                }
             } else {
                 prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
             }
