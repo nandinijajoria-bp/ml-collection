@@ -20,10 +20,10 @@ import javax.annotation.PostConstruct;
 @ComponentScan(basePackages =  "com.bharatpe.*")
 @EntityScan(basePackages = "com.bharatpe.*")
 @EnableJpaRepositories(basePackages = "com.bharatpe.*")
-@PropertySources({
-		@PropertySource("file:/etc/bharatpe/key.properties"),
-		@PropertySource("file:/etc/bharatpe/production.properties")
-})
+//@PropertySources({
+//		@PropertySource("file:/etc/bharatpe/key.properties"),
+//		@PropertySource("file:/etc/bharatpe/production.properties")
+//})
 public class Application
 {
 

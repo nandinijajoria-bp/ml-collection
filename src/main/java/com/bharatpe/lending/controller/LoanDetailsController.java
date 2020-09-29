@@ -6,6 +6,8 @@ import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
+import com.bharatpe.lending.dto.VerifyPanCardDto;
+import com.bharatpe.lending.dto.VerifyPanRequestDto;
 import com.bharatpe.lending.service.ActiveLoansService;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.service.LoanDetailsService;
+import com.bharatpe.lending.service.VerifyDocService;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -48,6 +51,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	ActiveLoansService activeLoansService;
+	
+	@Autowired
+	VerifyDocService verifyDocService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
@@ -108,5 +114,10 @@ public class LoanDetailsController {
 	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute Merchant merchant) {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
+	}
+	
+	@RequestMapping(value = "/verify_pan_card",method = RequestMethod.POST)
+	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant, @RequestBody VerifyPanRequestDto requestDto) {
+		return verifyDocService.verifyPanCard(merchant, requestDto);
 	}
 }

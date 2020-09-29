@@ -387,7 +387,7 @@ public class LoanEligibleService {
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
 
-    private LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
+    public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
         logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
         try {
             Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan", merchantId);
