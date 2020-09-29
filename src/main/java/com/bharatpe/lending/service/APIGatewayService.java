@@ -204,14 +204,24 @@ public class APIGatewayService {
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
             logger.info("Signzy Pan Fetch URL {} request {}",URL,request);
-            String response = null;
             int retryCount = 0;
+            String response=null;
             while(retryCount < 3) {
                 try {
-                    response = restTemplate.postForObject(URL, request, String.class);
-                    logger.info("Response for Signzy Pan Fetch: {}",response);
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), response);
-                    break;
+                    ResponseEntity<String> responseEntity = restTemplate.postForObject(URL, request, ResponseEntity.class);
+                    logger.info("Response for Signzy Pan Fetch: {}",responseEntity.getBody());
+                    if(responseEntity!=null && responseEntity.getBody()!=null) {
+                    	response=responseEntity.getBody();
+                    	if(responseEntity.getStatusCode().is2xxSuccessful()) {
+                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody());
+                            
+                    	}
+                    	else {
+                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                        }
+                        break;
+                    }
+                    retryCount++;
                 }
                 catch(Exception e) {
                     logger.info("Error occurred while calling pan fetch api",e);
