@@ -11,9 +11,7 @@ import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
-import com.bharatpe.lending.dto.VerifyPanRequestDto;
 
 @Service
 public class VerifyDocService {
@@ -26,18 +24,18 @@ public class VerifyDocService {
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
 	
-	public VerifyPanCardDto verifyPanCard(Merchant merchant, VerifyPanRequestDto requestDto) {
+	public VerifyPanCardDto verifyPanCard(Merchant merchant, String  panCard) {
 		try {
-			LendingPancard lendingPancard=loanEligibleService.fetchNameFromSignzy(requestDto.getPanCard(),merchant.getId());
+			LendingPancard lendingPancard=loanEligibleService.fetchNameFromSignzy(panCard,merchant.getId());
 			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty()) {
-				if(!isUsingOthersPancard(merchant.getId(),requestDto.getPanCard())) {
+				if(!isUsingOthersPancard(merchant.getId(),panCard)) {
 					return new VerifyPanCardDto(true , "", true);
 				}
 			}
 			return new VerifyPanCardDto(true , "", false);
 		}
 		catch(Exception e) {
-			logger.error("Error occured while verifying pancard {} for merchant {}",requestDto.getPanCard(),merchant.getId(),e);
+			logger.error("Error occured while verifying pancard {} for merchant {}",panCard,merchant.getId(),e);
 			return new VerifyPanCardDto(false, "Error occured while verifying pancard", null);
 		}
 	}

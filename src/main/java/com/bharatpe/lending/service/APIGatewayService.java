@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -208,7 +209,7 @@ public class APIGatewayService {
             String response=null;
             while(retryCount < 3) {
                 try {
-                    ResponseEntity<String> responseEntity = restTemplate.postForObject(URL, request, ResponseEntity.class);
+                    ResponseEntity<String> responseEntity = restTemplate.postForEntity(URL, request, String.class);
                     logger.info("Response for Signzy Pan Fetch: {}",responseEntity.getBody());
                     if(responseEntity!=null && responseEntity.getBody()!=null) {
                     	response=responseEntity.getBody();
@@ -223,9 +224,12 @@ public class APIGatewayService {
                     }
                     retryCount++;
                 }
-                catch(Exception e) {
-                    logger.info("Error occurred while calling pan fetch api",e);
+                catch(HttpStatusCodeException e) {
+                    logger.error("Error occurred while calling pan fetch api",e.getResponseBodyAsString());
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    if(e.getRawStatusCode()==404) {
+                    	break;
+                    }
                     retryCount++;
                 }
             }
