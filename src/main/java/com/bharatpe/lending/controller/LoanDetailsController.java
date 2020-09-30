@@ -16,12 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestAttribute;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
@@ -31,6 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("lending")
+@CrossOrigin(origins = "*")
 public class LoanDetailsController {
 	Logger logger = LoggerFactory.getLogger(LoanDetailsController.class);
 	
