@@ -13,6 +13,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -121,6 +122,40 @@ public class LoanEligibleService {
     APIGatewayService apiGatewayService;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
+
+    public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, String loanType) {
+		EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
+		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndLoanTypeAndGreaterThanAmount(merchantId, loanType, queryAmount);
+		List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
+		for(EligibleLoan eligibleLoan : eligibleLoans){
+            List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(eligibleLoan.getCategory());
+            LoanCalculationUtil.LoanBreakupDetail breakup = null;
+            if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty()) {
+                LendingCategories lendingCategories = lendingCategoriesList.get(0);
+                AvailableLoan availableLoan = new AvailableLoan();
+                availableLoan.setAmount(queryAmount);
+                breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
+            }
+            if(breakup != null){
+                tenures.add(convertLoanToTenureDetails(eligibleLoan, responseDTO, loanType, breakup));
+            }
+        }
+        responseDTO.setEligibleOfferDetails(responseDTO.new EligibleOfferDetails(queryAmount, tenures));
+        responseDTO.setMessage("Available tenures for given amount");
+        responseDTO.setSuccess(true);
+		return responseDTO;
+	}
+
+	private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, String loanType, LoanCalculationUtil.LoanBreakupDetail breakup){
+        EligibleLendingOffersResponseDTO.TenureDetails tenureDetails =  responseDTO.new TenureDetails();
+		tenureDetails.setTenure(eligibleLoan.getTenure());
+		tenureDetails.setCategory(eligibleLoan.getCategory());
+        tenureDetails.setEdi(breakup.getEdi());
+        tenureDetails.setIoEdi(breakup.getIoEdi());
+        tenureDetails.setRateOfInterest(breakup.getEffectiveInterestRate());
+        tenureDetails.setRepaymentAmount(breakup.getRepayment());
+		return tenureDetails;
+	}
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode, boolean isFromSwipe){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;

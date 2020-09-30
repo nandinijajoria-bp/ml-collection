@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.service.LoanDetailsService;
+import com.bharatpe.lending.service.LoanEligibleService;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -48,6 +50,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	ActiveLoansService activeLoansService;
+
+	@Autowired
+	LoanEligibleService loanEligibleService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
@@ -108,5 +113,13 @@ public class LoanDetailsController {
 	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute Merchant merchant) {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute Merchant merchant,
+			@RequestParam(name = "query_amount", required = true) Double queryAmount,
+			@RequestParam(name = "loan_type", required = true) String loanType) {
+		logger.info("EligibleLendingOffers request with merchant_id: {}", merchant.getId());
+		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount, loanType), HttpStatus.OK);
 	}
 }
