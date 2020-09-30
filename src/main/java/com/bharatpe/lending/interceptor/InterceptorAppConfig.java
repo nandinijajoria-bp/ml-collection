@@ -36,6 +36,6 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 //        registry.addInterceptor(liquiloanInterceptor).addPathPatterns("/lending/liquiloan/approveLoan","/lending/liquiloan/settlement");
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
 
-        registry.addInterceptor(accessControlInterceptor);
+//        registry.addInterceptor(accessControlInterceptor);
     }
 }
