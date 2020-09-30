@@ -25,7 +25,6 @@ import com.bharatpe.lending.service.LoanDetailsService;
 import javax.servlet.http.HttpServletResponse;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("lending")
 public class LoanDetailsController {
 	Logger logger = LoggerFactory.getLogger(LoanDetailsController.class);
