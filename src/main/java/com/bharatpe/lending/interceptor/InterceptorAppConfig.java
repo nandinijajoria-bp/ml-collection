@@ -22,6 +22,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	
 	@Autowired
 	private HmacForMIDAndInternalClientInterceptor midInterceptor;
+
+	@Autowired
+	AccessControlInterceptor accessControlInterceptor;
 	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -32,5 +35,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 //        registry.addInterceptor(liquiloanInterceptor).addPathPatterns("/lending/liquiloan/approveLoan","/lending/liquiloan/settlement");
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
+
+        registry.addInterceptor(accessControlInterceptor);
     }
 }
