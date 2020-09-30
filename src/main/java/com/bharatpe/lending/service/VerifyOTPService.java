@@ -217,6 +217,7 @@ public class VerifyOTPService {
 		lendingApplicationDao.save(lendingApplication);
 		if(lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
 			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);	
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 		}
 		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
 				.amount(0D)
@@ -260,6 +261,18 @@ public class VerifyOTPService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+		}
+	}
+
+	public void sendDetailsForContactsVerification(Long merchantId, Long applicationId) {
+		try {
+			Map<String, Long> detailMap = new HashMap<>();
+			detailMap.put("merchantId", merchantId);
+			detailMap.put("applicationId", applicationId);
+			kafkaTemplate.send("verify_contacts_for_application", merchantId.toString(), detailMap);
+			logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
+		} catch (Exception e) {
+			logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
 		}
 	}
 
