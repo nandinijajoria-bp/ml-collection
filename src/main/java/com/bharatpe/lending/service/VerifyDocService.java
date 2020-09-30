@@ -38,8 +38,11 @@ public class VerifyDocService {
 				if(!isUsingOthersPancard(merchant.getId(),panCard)) {
 					return new VerifyPanCardDto(true , "", true);
 				}
+				else {
+					return new VerifyPanCardDto(true,"PAN Card mapped with different Merchant",false);
+				}
 			}
-			return new VerifyPanCardDto(true , "", false);
+			return new VerifyPanCardDto(true , "Please Enter Valid PAN Card", false);
 		}
 		catch(Exception e) {
 			logger.error("Error occured while verifying pancard {} for merchant {}",panCard,merchant.getId(),e);
