@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jdk.internal.org.objectweb.asm.TypeReference;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -208,20 +209,18 @@ public class APIGatewayService {
             String response=null;
             while(retryCount < 3) {
                 try {
-                    ResponseEntity<String> responseEntity = restTemplate.postForObject(URL, request, ResponseEntity.class);
-                    logger.info("Response for Signzy Pan Fetch: {}",responseEntity.getBody());
-                    if(responseEntity!=null && responseEntity.getBody()!=null) {
+                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+                    logger.info("Response for Signzy Pan Fetch: {}",responseEntity);
+                    if(responseEntity.getBody()!=null) {
                     	response=responseEntity.getBody();
                     	if(responseEntity.getStatusCode().is2xxSuccessful()) {
                     		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody());
-                            
                     	}
                     	else {
                     		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
                         }
                         break;
                     }
-                    retryCount++;
                 }
                 catch(Exception e) {
                     logger.info("Error occurred while calling pan fetch api",e);
