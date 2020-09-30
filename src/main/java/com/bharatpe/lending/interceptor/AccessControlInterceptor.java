@@ -3,10 +3,13 @@ package com.bharatpe.lending.interceptor;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class AccessControlInterceptor extends HandlerInterceptorAdapter {
 
 	@Override
@@ -15,6 +18,7 @@ public class AccessControlInterceptor extends HandlerInterceptorAdapter {
 		response.setHeader("Access-Control-Allow-Origin", "*");
 		response.setHeader("Access-Control-Allow-Headers", "*");
 		response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+		response.setHeader("Access-Control-Allow-Credentials", "true");
 		return true;
 	}
 }
