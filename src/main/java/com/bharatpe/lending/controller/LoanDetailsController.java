@@ -26,7 +26,6 @@ import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("lending")
-@CrossOrigin(origins = "*")
 public class LoanDetailsController {
 	Logger logger = LoggerFactory.getLogger(LoanDetailsController.class);
 	
@@ -100,6 +99,7 @@ public class LoanDetailsController {
 
 	}
 
+	@CrossOrigin(origins = "*")
 	@RequestMapping(value = "/get_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute Merchant merchant) {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
