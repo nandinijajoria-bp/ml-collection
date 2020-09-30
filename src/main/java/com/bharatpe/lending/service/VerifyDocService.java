@@ -31,7 +31,7 @@ public class VerifyDocService {
 	public VerifyPanCardDto verifyPanCard(Merchant merchant, String  panCard) {
 		try {
 			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
-			if (lendingPancard == null) {
+			if(lendingPancard == null || (lendingPancard.getPancardNumber()!=null && !lendingPancard.getPancardNumber().equalsIgnoreCase(panCard))||(lendingPancard.getPancardNumber()==null || lendingPancard.getPancardNumber().isEmpty())) {
 				lendingPancard=loanEligibleService.fetchNameFromSignzy(panCard,merchant.getId());
 			}
 			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty()) {
