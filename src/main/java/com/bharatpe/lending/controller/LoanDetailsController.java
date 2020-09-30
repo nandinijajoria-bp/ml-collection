@@ -105,4 +105,11 @@ public class LoanDetailsController {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
 	}
+
+	@RequestMapping(value = "/offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<LendingOffersResponseDTO> getSwipeOffers(@RequestParam(name = "merchant_id") Long requestMerchantId,
+																   @RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
+		logger.info("LendingOffers request with merchant_id : {}", requestMerchantId);
+		return new ResponseEntity<>(lendingOffersService.getOffers(requestMerchantId), HttpStatus.OK);
+	}
 }

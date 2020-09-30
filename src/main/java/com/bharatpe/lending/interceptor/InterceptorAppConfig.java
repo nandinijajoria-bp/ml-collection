@@ -9,33 +9,21 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class InterceptorAppConfig implements WebMvcConfigurer {
 
 	@Autowired
-    private ValidateTokenInterceptor validateTokenInterceptor;
+	ValidateTokenInterceptor validateTokenInterceptor;
 	
 	@Autowired
-	private ExternalClientHmacInterceptor externalClientHmacInterceptor;
+	InternalClientHmacInterceptor clientHmacInterceptor;
 	
 	@Autowired
-	private InternalClientHmacInterceptor clientHmacInterceptor;
-
-	@Autowired
-	LiquiloanInterceptor liquiloanInterceptor;
-	
-	@Autowired
-	private HmacForMIDAndInternalClientInterceptor midInterceptor;
-
-	@Autowired
-	AccessControlInterceptor accessControlInterceptor;
+	HmacForMIDAndInternalClientInterceptor midInterceptor;
 	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
-				.excludePathPatterns("/lending/csPanel/**", "/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/partner/details", "/lending/active_loans");
+				.excludePathPatterns("/lending/csPanel/**", "/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/partner/details", "/lending/active_loans", "/lending/offers");
 
-        registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans");
+        registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans", "/lending/offers");
 
-//        registry.addInterceptor(liquiloanInterceptor).addPathPatterns("/lending/liquiloan/approveLoan","/lending/liquiloan/settlement");
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
-
-//        registry.addInterceptor(accessControlInterceptor);
     }
 }
