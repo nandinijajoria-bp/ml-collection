@@ -7,7 +7,6 @@ import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
-import com.bharatpe.lending.dto.VerifyPanRequestDto;
 import com.bharatpe.lending.service.ActiveLoansService;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
@@ -18,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -116,8 +116,8 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
 	}
 	
-	@RequestMapping(value = "/verify_pan_card",method = RequestMethod.POST)
-	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant, @RequestBody VerifyPanRequestDto requestDto) {
-		return verifyDocService.verifyPanCard(merchant, requestDto);
+	@RequestMapping(value = "/verify_pan_card/{panCard}",method = RequestMethod.GET)
+	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant,@PathVariable("panCard") String panCard) {
+		return verifyDocService.verifyPanCard(merchant, panCard);
 	}
 }

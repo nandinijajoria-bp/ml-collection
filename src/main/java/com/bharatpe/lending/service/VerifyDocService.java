@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.util.List;
 
+import com.bharatpe.common.dao.LendingPancardDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,9 +12,7 @@ import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
-import com.bharatpe.lending.dto.VerifyPanRequestDto;
 
 @Service
 public class VerifyDocService {
@@ -25,19 +24,25 @@ public class VerifyDocService {
 	
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
+
+	@Autowired
+	LendingPancardDao lendingPancardDao;
 	
-	public VerifyPanCardDto verifyPanCard(Merchant merchant, VerifyPanRequestDto requestDto) {
+	public VerifyPanCardDto verifyPanCard(Merchant merchant, String  panCard) {
 		try {
-			LendingPancard lendingPancard=loanEligibleService.fetchNameFromSignzy(requestDto.getPanCard(),merchant.getId());
+			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+			if (lendingPancard == null) {
+				lendingPancard=loanEligibleService.fetchNameFromSignzy(panCard,merchant.getId());
+			}
 			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty()) {
-				if(!isUsingOthersPancard(merchant.getId(),requestDto.getPanCard())) {
+				if(!isUsingOthersPancard(merchant.getId(),panCard)) {
 					return new VerifyPanCardDto(true , "", true);
 				}
 			}
 			return new VerifyPanCardDto(true , "", false);
 		}
 		catch(Exception e) {
-			logger.error("Error occured while verifying pancard {} for merchant {}",requestDto.getPanCard(),merchant.getId(),e);
+			logger.error("Error occured while verifying pancard {} for merchant {}",panCard,merchant.getId(),e);
 			return new VerifyPanCardDto(false, "Error occured while verifying pancard", null);
 		}
 	}
