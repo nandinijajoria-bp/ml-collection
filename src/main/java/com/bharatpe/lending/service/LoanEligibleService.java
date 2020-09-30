@@ -239,7 +239,7 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         //base checks
-        if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
+        if (!isFromSwipe && !baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
             logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
             return new ArrayList<>();
         }
