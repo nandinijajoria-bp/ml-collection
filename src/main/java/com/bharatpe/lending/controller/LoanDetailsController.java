@@ -129,7 +129,7 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount, loanType), HttpStatus.OK);
 	}
 
-	@RequestMapping(value = "/eligible_loan", method = RequestMethod.PUT, consumes = "application/json", produces = "application/json")
+	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute Merchant merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
 		logger.info("updateEligibleLoanAmount request with merchant_id: {}", merchant.getId());
 		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
