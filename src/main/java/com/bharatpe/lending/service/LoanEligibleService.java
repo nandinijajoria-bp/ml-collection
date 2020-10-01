@@ -125,12 +125,13 @@ public class LoanEligibleService {
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
-    public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, String loanType) {
+    public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
-        Set<String> categorySet = new HashSet<String>();
-        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndLoanTypeAndGreaterThanAmount(merchantId, loanType, queryAmount);
+        Set<String> categorySet = new HashSet<>();
+        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndGreaterThanAmount(merchantId, queryAmount);
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
         for(EligibleLoan eligibleLoan : eligibleLoans){
+            String loanType = eligibleLoan.getLoanType();
             List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(eligibleLoan.getCategory());
             LoanCalculationUtil.LoanBreakupDetail breakup = null;
             if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty()) {
