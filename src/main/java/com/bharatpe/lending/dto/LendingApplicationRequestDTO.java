@@ -33,6 +33,9 @@ public class LendingApplicationRequestDTO {
 
     private String state;
 
+    @JsonProperty("offer_type")
+    private String offerType;
+
     @JsonProperty("alternative_contact")
     private AlternateContact alternativeContact;
 
@@ -147,6 +150,14 @@ public class LendingApplicationRequestDTO {
         this.state = state;
     }
 
+    public String getOfferType() {
+        return offerType;
+    }
+
+    public void setOfferType(String offerType) {
+        this.offerType = offerType;
+    }
+
     public AlternateContact getAlternativeContact() {
         return alternativeContact;
     }
@@ -169,6 +180,7 @@ public class LendingApplicationRequestDTO {
                 ", pincode='" + pincode + '\'' +
                 ", city='" + city + '\'' +
                 ", state='" + state + '\'' +
+                ", offerType='" + offerType + '\'' +
                 '}';
     }
 }

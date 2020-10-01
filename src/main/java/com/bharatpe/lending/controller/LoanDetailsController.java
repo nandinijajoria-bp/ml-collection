@@ -137,10 +137,9 @@ public class LoanDetailsController {
 	}
 	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute Merchant merchant,
-			@RequestParam(name = "query_amount", required = true) Double queryAmount,
-			@RequestParam(name = "loan_type", required = true) String loanType) {
+			@RequestParam(name = "query_amount", required = true) Double queryAmount) {
 		logger.info("EligibleLendingOffers request with merchant_id: {}", merchant.getId());
-		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount, loanType), HttpStatus.OK);
+		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount), HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
