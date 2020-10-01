@@ -223,7 +223,7 @@ public class APIGatewayService {
                     break;
                 }
                 catch(HttpStatusCodeException e) {
-                    logger.error("Error occurred while calling pan fetch api",e);
+                    logger.info("Error occurred while calling pan fetch api",e);
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
                     if(e.getRawStatusCode()==404 || e.getRawStatusCode()==400) {
                     	break;

@@ -1102,7 +1102,7 @@ public class LoanEligibleService {
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
             emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");
-            logger.error("Exception while parsing experian response", e);
+            logger.info("Exception while parsing experian response", e);
             logger.info("Experian response is---" + response);
             return null;
         }
