@@ -128,9 +128,9 @@ public class LoanEligibleService {
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, String loanType) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
         Set<String> categorySet = new HashSet<String>();
-		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndLoanTypeAndGreaterThanAmount(merchantId, loanType, queryAmount);
-		List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
-		for(EligibleLoan eligibleLoan : eligibleLoans){
+        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndLoanTypeAndGreaterThanAmount(merchantId, loanType, queryAmount);
+        List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
+        for(EligibleLoan eligibleLoan : eligibleLoans){
             List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(eligibleLoan.getCategory());
             LoanCalculationUtil.LoanBreakupDetail breakup = null;
             if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty()) {
@@ -150,18 +150,18 @@ public class LoanEligibleService {
         responseDTO.setEligibleOfferDetails(responseDTO.new EligibleOfferDetails(queryAmount, tenures));
         responseDTO.setMessage("Available tenures for given amount");
         responseDTO.setSuccess(true);
-		return responseDTO;
-	}
+        return responseDTO;
+    }
 
-	private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, String loanType, LoanCalculationUtil.LoanBreakupDetail breakup){
+    private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, String loanType, LoanCalculationUtil.LoanBreakupDetail breakup){
         EligibleLendingOffersResponseDTO.TenureDetails tenureDetails =  responseDTO.new TenureDetails();
-		tenureDetails.setTenure(eligibleLoan.getTenure());
-		tenureDetails.setCategory(eligibleLoan.getCategory());
+        tenureDetails.setTenure(eligibleLoan.getTenure());
+        tenureDetails.setCategory(eligibleLoan.getCategory());
         tenureDetails.setEdi(breakup.getEdi());
         tenureDetails.setIoEdi(breakup.getIoEdi());
         tenureDetails.setRateOfInterest(breakup.getEffectiveInterestRate());
         tenureDetails.setRepaymentAmount(breakup.getRepayment());
-		return tenureDetails;
+        return tenureDetails;
     }
     
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body){
@@ -183,8 +183,8 @@ public class LoanEligibleService {
         }
         responseDTO.setMessage("No eligible loan entry found");
         responseDTO.setSuccess(false);
-		return responseDTO;
-	}
+        return responseDTO;
+    }
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode, boolean isFromSwipe){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
