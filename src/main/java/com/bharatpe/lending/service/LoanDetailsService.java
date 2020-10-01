@@ -703,7 +703,7 @@ public class LoanDetailsService {
 		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
 		if(!lendingCategoriesList.isEmpty()) {
 			LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
-			if(lendingBharatswipeOffers!=null) {
+			if(lendingBharatswipeOffers!=null && !isOfferExpired(lendingBharatswipeOffers)) {
 				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
 				eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
 				for (LendingCategories lendingCategories : lendingCategoriesList) {
@@ -717,6 +717,13 @@ public class LoanDetailsService {
 			}	
 		}
 		return new ArrayList<>();
+	}
+	
+	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
+		if(offer!=null && offer.getExpiryDate()!=null) {
+			return offer.getExpiryDate().compareTo(new Date())<=0;
+		}
+		return true;
 	}
 
 	private List<LoanEligibilityDTO> fetchOglOffers(Experian experian, MerchantSummary merchantSummary, Merchant merchant, String bankCode) {
