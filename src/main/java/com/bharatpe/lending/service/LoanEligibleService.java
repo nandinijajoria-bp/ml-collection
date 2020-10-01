@@ -1048,7 +1048,7 @@ public class LoanEligibleService {
                 logger.error("Exception in Signzy pan fetch API---", e);
             }
         }
-        if (lendingPancard == null || lendingPancard.getName() == null) {// get data from liquiloans
+        if (lendingPancard == null || lendingPancard.getName() == null || lendingPancard.getResponse() == null) {// get data from liquiloans
             try {
                 lendingPancard = fetchNameFromLiquiloans(panCard, merchantId);
             } catch (Exception e) {
