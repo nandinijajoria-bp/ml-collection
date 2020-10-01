@@ -554,7 +554,8 @@ public class LoanDetailsService {
 			
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
-					boolean isFromSwipe= requestDTO.getPayload().getLoanSource() != null && requestDTO.getPayload().getLoanSource().equalsIgnoreCase("SWIPE");
+					LendingBharatswipeOffers lendingBharatswipeOffers=getSwipeLoanOffer(merchant);
+					Boolean isFromSwipe=lendingBharatswipeOffers!=null;
 					try {
 						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe));
 					} catch (Exception e) {
@@ -577,7 +578,8 @@ public class LoanDetailsService {
 					}
 					if(isFromSwipe && !rejected) {
 						loanEligibilityDTOs.clear();
-						loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian));
+						loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian,lendingBharatswipeOffers));
+						response.setBharatSwipe(true);
 					}
 					//fetching Zomato loans
 					if (isZomato && !rejected) {
@@ -696,14 +698,20 @@ public class LoanDetailsService {
 		return response;
 	}
 	
+	private LendingBharatswipeOffers getSwipeLoanOffer(Merchant merchant) {
+		LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
+		if(lendingBharatswipeOffers!=null && !isOfferExpired(lendingBharatswipeOffers) && lendingBharatswipeOffers.getTpv()!=null && lendingBharatswipeOffers.getTpv()>0) {
+			return lendingBharatswipeOffers;
+		}
+		return null;
+	}
 	
-	
-	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian) {
+	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian,LendingBharatswipeOffers lendingBharatswipeOffers) {
 		logger.info("Fetching loan details for bharat swipe for merchant {}",merchant);
 		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
 		if(!lendingCategoriesList.isEmpty()) {
-			LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
-			if(lendingBharatswipeOffers!=null && !isOfferExpired(lendingBharatswipeOffers)) {
+		//	LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
+			if(lendingBharatswipeOffers!=null) {
 				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
 				eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
 				for (LendingCategories lendingCategories : lendingCategoriesList) {

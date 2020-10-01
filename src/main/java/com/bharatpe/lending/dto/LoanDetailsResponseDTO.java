@@ -10,6 +10,7 @@ public class LoanDetailsResponseDTO {
 	private String message;
 	private String deeplink;
 	private LoanDetailsDTO details;
+	private Boolean bharatSwipe=false;
 	
 	public String getDeeplink() {
 		return deeplink;
@@ -43,10 +44,20 @@ public class LoanDetailsResponseDTO {
 		this.details = details;
 	}
 
+	public Boolean getBharatSwipe() {
+		return bharatSwipe;
+	}
+
+	public void setBharatSwipe(Boolean bharatSwipe) {
+		this.bharatSwipe = bharatSwipe;
+	}
+
 	@Override
 	public String toString() {
-		return "LoanDetailsResponseDTO [success=" + success + ", details=" + details + "]";
+		return "LoanDetailsResponseDTO [success=" + success + ", message=" + message + ", deeplink=" + deeplink
+				+ ", details=" + details + ", bharatSwipe=" + bharatSwipe + "]";
 	}
+
 
 	public static class LoanDetailsDTO {
 		private boolean eligible;
