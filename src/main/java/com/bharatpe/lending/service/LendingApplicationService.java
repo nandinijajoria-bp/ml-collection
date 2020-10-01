@@ -136,7 +136,8 @@ public class LendingApplicationService {
 				}
 			}
 			else {
-				List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, lendingApplicationRequest.getCategory());
+				String offerType = lendingApplicationRequest.getOfferType();
+				List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchantId, lendingApplicationRequest.getCategory(), offerType);
 				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
 					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
 					lendingApplicationResponse = new LendingApplicationResponseDTO();
@@ -193,6 +194,13 @@ public class LendingApplicationService {
 		return null;
 	}
 	
+	private List<EligibleLoan> fetchEligibleLoansForCreateApplication(Long merchantId, String category, String offerType){
+		if(offerType != null && "CUSTOM".equalsIgnoreCase(offerType)){
+			return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
+		}
+		return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
+	}
+
 	private LendingApplicationResponseDTO  copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan) {
 		try {
 			String selectedCategory = requestDTO.getPayload().getCategory();

@@ -168,7 +168,7 @@ public class LoanEligibleService {
         ResponseDTO responseDTO = new ResponseDTO();
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, body.getCategory());
         if(eligibleLoans != null) {
-            EligibleLoan eligibleLoan = eligibleLoans.get(0);
+            EligibleLoan eligibleLoan = new EligibleLoan(eligibleLoans.get(0));
             eligibleLoan.setAmount(body.getAmount());
             eligibleLoan.setEdi(body.getEdi());
             eligibleLoan.setIoEdi(body.getIoEdi());
@@ -178,7 +178,7 @@ public class LoanEligibleService {
             eligibleLoan.setOfferType("CUSTOM");
             eligibleLoanDao.save(eligibleLoan);
             eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
-            responseDTO.setMessage("Updated eligible loan entry successfully");
+            responseDTO.setMessage("Created eligible loan entry successfully");
             responseDTO.setSuccess(true);
             return responseDTO;
         }
