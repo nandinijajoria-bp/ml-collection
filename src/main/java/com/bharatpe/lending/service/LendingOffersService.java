@@ -12,8 +12,9 @@ import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
- 
- 
+
+import java.util.Date;
+
 
 @Service
 public class LendingOffersService {
@@ -33,7 +34,7 @@ public class LendingOffersService {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
 		LendingBharatswipeOffers lendingOffer = lendingBharatswipeOffersDao.findByMerchantId(merchantId);
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-		if (lendingOffer == null) {
+		if (lendingOffer == null || lendingOffer.getTpv() == null || lendingOffer.getTpv() <= 0D || isOfferExpired(lendingOffer)) {
 			responseDTO.setSuccess(false);
 			responseDTO.setMessage("No Offer found");
 			return responseDTO;
@@ -71,5 +72,12 @@ public class LendingOffersService {
 		responseDTO.setTenure(lendingOffer.getTenureMonths());
 		responseDTO.setMessage("Fetched available bharat swipe lending offer");
 		return responseDTO;
+	}
+
+	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
+		if(offer!=null && offer.getExpiryDate()!=null) {
+			return offer.getExpiryDate().compareTo(new Date())<=0;
+		}
+		return true;
 	}
 }
