@@ -1,11 +1,13 @@
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
+import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.service.ActiveLoansService;
 import com.bharatpe.lending.service.ImageURLService;
@@ -125,5 +127,11 @@ public class LoanDetailsController {
 			@RequestParam(name = "loan_type", required = true) String loanType) {
 		logger.info("EligibleLendingOffers request with merchant_id: {}", merchant.getId());
 		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount, loanType), HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/eligible_loan", method = RequestMethod.PUT, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute Merchant merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
+		logger.info("updateEligibleLoanAmount request with merchant_id: {}", merchant.getId());
+		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
 	}
 }

@@ -14,7 +14,9 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
+import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -124,7 +126,8 @@ public class LoanEligibleService {
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, String loanType) {
-		EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
+        EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
+        Set<String> categorySet = new HashSet<String>();
 		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndLoanTypeAndGreaterThanAmount(merchantId, loanType, queryAmount);
 		List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
 		for(EligibleLoan eligibleLoan : eligibleLoans){
@@ -132,6 +135,10 @@ public class LoanEligibleService {
             LoanCalculationUtil.LoanBreakupDetail breakup = null;
             if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty()) {
                 LendingCategories lendingCategories = lendingCategoriesList.get(0);
+                if(categorySet.contains(lendingCategories.getCategory())) {
+                    logger.debug("Category already evaluated");
+                    continue;
+                }
                 AvailableLoan availableLoan = new AvailableLoan();
                 availableLoan.setAmount(queryAmount);
                 breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
@@ -155,6 +162,28 @@ public class LoanEligibleService {
         tenureDetails.setRateOfInterest(breakup.getEffectiveInterestRate());
         tenureDetails.setRepaymentAmount(breakup.getRepayment());
 		return tenureDetails;
+    }
+    
+    public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body){
+        ResponseDTO responseDTO = new ResponseDTO();
+        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, body.getCategory());
+        if(eligibleLoans != null) {
+            EligibleLoan eligibleLoan = eligibleLoans.get(0);
+            eligibleLoan.setAmount(body.getAmount());
+            eligibleLoan.setEdi(body.getEdi());
+            eligibleLoan.setIoEdi(body.getIoEdi());
+            eligibleLoan.setIoEdiDays(body.getIoEdiDays());
+            eligibleLoan.setEdiFreeDays(body.getEdiFreeDays());
+            eligibleLoan.setRepayment(body.getRepayment());
+            eligibleLoan.setOfferType("CUSTOM");
+            eligibleLoanDao.save(eligibleLoan);
+            eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
+            responseDTO.setMessage("Updated eligible loan entry successfully");
+            responseDTO.setSuccess(true);
+        }
+        responseDTO.setMessage("No eligible loan entry found");
+        responseDTO.setSuccess(false);
+		return responseDTO;
 	}
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode, boolean isFromSwipe){
