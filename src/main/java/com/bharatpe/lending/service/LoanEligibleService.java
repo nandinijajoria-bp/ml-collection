@@ -180,6 +180,7 @@ public class LoanEligibleService {
             eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
             responseDTO.setMessage("Updated eligible loan entry successfully");
             responseDTO.setSuccess(true);
+            return responseDTO;
         }
         responseDTO.setMessage("No eligible loan entry found");
         responseDTO.setSuccess(false);
@@ -689,7 +690,7 @@ public class LoanEligibleService {
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
-        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType));
+        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType, "REGULAR"));
         logger.info("eligible loan for merchant: {} is-- {}", merchantId, eligibleLoan.toString());
         eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
         return createLoanEligibilityDTO(breakup, payableConverter, category);
