@@ -60,6 +60,7 @@ public class CommonController {
 	public ResponseEntity<String> generateHash(@RequestBody Map<String, String> requestMap, @RequestHeader(name = "clientName") String clientName){
 		InternalClient internalClient = internalClientDao.findByClientName(clientName);
 		if (internalClient != null) {
+			logger.info("lending secret:{}", aesEncryption.decrypt(internalClient.getSecret()));
 			String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestMap), aesEncryption.decrypt(internalClient.getSecret()));
 			return new ResponseEntity<>(hash, HttpStatus.OK);
 		}

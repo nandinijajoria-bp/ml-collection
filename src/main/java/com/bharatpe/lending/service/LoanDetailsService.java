@@ -7,8 +7,10 @@ import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
+import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
 import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
+import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.LendingPartnerOffers;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
@@ -139,6 +141,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingBlockedPancardDao lendingBlockedPancardDao;
+	
+	@Autowired
+	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -398,7 +403,7 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
-					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && enachSuccess == null) {
+					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
 						skipEnatch = false;
 					}
 					eligibleFlag = false;
@@ -549,8 +554,9 @@ public class LoanDetailsService {
 			
 //			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
+					boolean isFromSwipe= requestDTO.getPayload().getLoanSource() != null && requestDTO.getPayload().getLoanSource().equalsIgnoreCase("SWIPE");
 					try {
-						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode));
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -569,13 +575,17 @@ public class LoanDetailsService {
 							maskedMobiles = experian.getMaskedMobiles();
 						}
 					}
+					if(isFromSwipe && !rejected) {
+						loanEligibilityDTOs.clear();
+						loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian));
+					}
 					//fetching Zomato loans
 					if (isZomato && !rejected) {
 						loanEligibilityDTOs.clear();
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
 					//fetching OGL loans
-					if (yellowPincode && !rejected && experian.getReason() == null && merchantSummary != null && merchantSummary.getBpScore() != null) {
+					if (!isZomato && !isFromSwipe && yellowPincode && !rejected && experian.getReason() == null && merchantSummary != null && merchantSummary.getBpScore() != null) {
 						logger.info("Yellow pincode found for merchant:{}", merchant.getId());
 						loanEligibilityDTOs.clear();
 						eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
@@ -685,6 +695,29 @@ public class LoanDetailsService {
 		}
 		return response;
 	}
+	
+	
+	
+	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian) {
+		logger.info("Fetching loan details for bharat swipe for merchant {}",merchant);
+		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
+		if(!lendingCategoriesList.isEmpty()) {
+			LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
+			if(lendingBharatswipeOffers!=null) {
+				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
+				eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
+				for (LendingCategories lendingCategories : lendingCategoriesList) {
+					eligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingBharatswipeOffers.getLoanAmount(), experian.getColor(), "2", "BHARAT_SWIPE", false, false));
+				}
+				if (!eligibilityDTOs.isEmpty()) {
+					eligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+					experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOs.get(0).getAmount().doubleValue(), eligibilityDTOs.get(0).getPrincipleEdiTenure().toString(), "BHARAT_SWIPE");
+				}
+				return eligibilityDTOs;
+			}	
+		}
+		return new ArrayList<>();
+	}
 
 	private List<LoanEligibilityDTO> fetchOglOffers(Experian experian, MerchantSummary merchantSummary, Merchant merchant, String bankCode) {
 		boolean ntc = loanEligibleService.isNTC(experian);
@@ -731,6 +764,7 @@ public class LoanDetailsService {
 			return new ArrayList<>();
 		}
 		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
+		eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
 		for (LendingCategories category : categories) {
 			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
 				eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(category, 0, null, experian.getMerchantId(), experian.getId(), category.getMaxTpvAmount(), experian.getColor(), "2", "OGL", false, false));

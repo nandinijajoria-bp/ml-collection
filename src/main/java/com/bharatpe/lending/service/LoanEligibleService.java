@@ -122,7 +122,7 @@ public class LoanEligibleService {
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
+    public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode, boolean isFromSwipe){
         Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
         double selfTpv = (merchantSummary != null && merchantSummary.getSelfTxnValue1Mon() != null) ? merchantSummary.getSelfTxnValue1Mon() : 0d;
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() - selfTpv : 0D;
@@ -218,7 +218,7 @@ public class LoanEligibleService {
                     logger.error("Exception---", e);
                 }
                 //base checks
-                if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
+                if (!isFromSwipe && !baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
                     logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
                     return new ArrayList<>();
                 }
@@ -239,7 +239,7 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         //base checks
-        if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
+        if (!isFromSwipe && !baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode)) {
             logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
             return new ArrayList<>();
         }
@@ -604,7 +604,11 @@ public class LoanEligibleService {
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
-                prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
+                if (yellowPincode) {
+                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 50000);
+                } else {
+                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
+                }
             } else {
                 prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
             }
@@ -896,7 +900,7 @@ public class LoanEligibleService {
         long previous6MonthDate = Long.parseLong(c.get(Calendar.YEAR) + month + day);
         if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isObject()) {
             JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details");
-            return derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate;
+            return jsonNode.get("Product") != null && jsonNode.get("Date_of_Request") != null && derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate;
         } else if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isArray()) {
             for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details")) {
                 if (jsonNode.get("Product") != null && derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request") != null && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate) {

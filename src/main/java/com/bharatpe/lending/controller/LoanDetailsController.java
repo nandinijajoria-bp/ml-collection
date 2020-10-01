@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
@@ -115,9 +116,16 @@ public class LoanDetailsController {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/verify_pan_card/{panCard}",method = RequestMethod.GET)
 	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant,@PathVariable("panCard") String panCard) {
 		return verifyDocService.verifyPanCard(merchant, panCard);
+	}
+
+	@RequestMapping(value = "/offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<LendingOffersResponseDTO> getSwipeOffers(@RequestParam(name = "merchant_id") Long requestMerchantId,
+																   @RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
+		logger.info("LendingOffers request with merchant_id : {}", requestMerchantId);
+		return new ResponseEntity<>(lendingOffersService.getOffers(requestMerchantId), HttpStatus.OK);
 	}
 }
