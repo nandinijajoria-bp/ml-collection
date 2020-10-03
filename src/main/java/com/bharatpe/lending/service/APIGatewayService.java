@@ -233,6 +233,14 @@ public class APIGatewayService {
                     	response="ERROR_OCCURRED";
                     }
                     retryCount++;
+                } catch (Exception e) {
+                    logger.info("Error occurred while calling pan fetch api",e);
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    if(retryCount==2) {
+                        //to allow merchant to proceed if there's error from Experian end;
+                        response="ERROR_OCCURRED";
+                    }
+                    retryCount++;
                 }
             }
             return response;
