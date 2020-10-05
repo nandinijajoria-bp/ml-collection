@@ -1,10 +1,13 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
+import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
 import com.bharatpe.lending.service.ActiveLoansService;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.service.LoanDetailsService;
+import com.bharatpe.lending.service.LoanEligibleService;
 import com.bharatpe.lending.service.VerifyDocService;
 
 import javax.servlet.http.HttpServletResponse;
@@ -55,6 +59,9 @@ public class LoanDetailsController {
 	
 	@Autowired
 	VerifyDocService verifyDocService;
+
+	@Autowired
+	LoanEligibleService loanEligibleService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
@@ -127,5 +134,18 @@ public class LoanDetailsController {
 																   @RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
 		logger.info("LendingOffers request with merchant_id : {}", requestMerchantId);
 		return new ResponseEntity<>(lendingOffersService.getOffers(requestMerchantId), HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute Merchant merchant,
+			@RequestParam(name = "query_amount", required = true) Double queryAmount) {
+		logger.info("EligibleLendingOffers request with merchant_id: {}", merchant.getId());
+		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount), HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute Merchant merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
+		logger.info("updateEligibleLoanAmount request with merchant_id: {}", merchant.getId());
+		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
 	}
 }
