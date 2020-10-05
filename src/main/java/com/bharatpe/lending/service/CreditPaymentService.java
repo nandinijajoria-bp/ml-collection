@@ -701,9 +701,11 @@ public class CreditPaymentService {
                         logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
                         result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
                         Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-                        result.put("otp_flow", responseData.get("otp_flow"));
-                        result.put("auth_mode", responseData.get("auth_mode"));
-                        result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                        if (responseData != null) {
+                            result.put("otp_flow", responseData.get("otp_flow"));
+                            result.put("auth_mode", responseData.get("auth_mode"));
+                            result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                        }
                         logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
                         return result;
                     }
