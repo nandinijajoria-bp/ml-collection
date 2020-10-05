@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -204,18 +205,41 @@ public class APIGatewayService {
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
             logger.info("Signzy Pan Fetch URL {} request {}",URL,request);
-            String response = null;
             int retryCount = 0;
+            String response=null;
             while(retryCount < 3) {
                 try {
-                    response = restTemplate.postForObject(URL, request, String.class);
-                    logger.info("Response for Signzy Pan Fetch: {}",response);
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), response);
+                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+                    logger.info("Response for Signzy Pan Fetch: {}",responseEntity);
+                    if(responseEntity.getBody()!=null) {
+                    	response=responseEntity.getBody();
+                    	if(responseEntity.getStatusCode().is2xxSuccessful()) {
+                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody());
+                    	}
+                    	else {
+                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                        }
+                    }
                     break;
                 }
-                catch(Exception e) {
+                catch(HttpStatusCodeException e) {
                     logger.info("Error occurred while calling pan fetch api",e);
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    if(e.getRawStatusCode()==404 || e.getRawStatusCode()==400) {
+                    	break;
+                    }
+                    else if(retryCount==2) {
+                    	//to allow merchant to proceed if there's error from Experian end;
+                    	response="ERROR_OCCURRED";
+                    }
+                    retryCount++;
+                } catch (Exception e) {
+                    logger.info("Error occurred while calling pan fetch api",e);
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    if(retryCount==2) {
+                        //to allow merchant to proceed if there's error from Experian end;
+                        response="ERROR_OCCURRED";
+                    }
                     retryCount++;
                 }
             }

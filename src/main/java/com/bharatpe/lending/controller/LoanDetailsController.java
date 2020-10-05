@@ -9,6 +9,7 @@ import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
+import com.bharatpe.lending.dto.VerifyPanCardDto;
 import com.bharatpe.lending.service.ActiveLoansService;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
@@ -19,17 +20,24 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.service.LoanDetailsService;
 import com.bharatpe.lending.service.LoanEligibleService;
+import com.bharatpe.lending.service.VerifyDocService;
 
 import javax.servlet.http.HttpServletResponse;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("lending")
 public class LoanDetailsController {
 	Logger logger = LoggerFactory.getLogger(LoanDetailsController.class);
@@ -48,6 +56,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	ActiveLoansService activeLoansService;
+	
+	@Autowired
+	VerifyDocService verifyDocService;
 
 	@Autowired
 	LoanEligibleService loanEligibleService;
@@ -107,11 +118,15 @@ public class LoanDetailsController {
 
 	}
 
-
 	@RequestMapping(value = "/get_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute Merchant merchant) {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/verify_pan_card/{panCard}",method = RequestMethod.GET)
+	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant,@PathVariable("panCard") String panCard) {
+		return verifyDocService.verifyPanCard(merchant, panCard);
 	}
 
 	@RequestMapping(value = "/offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")

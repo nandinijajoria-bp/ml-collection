@@ -453,13 +453,16 @@ public class LoanEligibleService {
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
 
-    private LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
+    public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
         logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
         try {
             Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan", merchantId);
             if (identityDetail != null) {
                 String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId);
-                if (response != null) {
+                if(response!=null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
+                	return new LendingPancard(merchantId,pancardNumber,"NAME",null);
+                }
+                else if (response != null) {
                     JsonNode responseNode = objectMapper.readTree(response);
                     if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("name") != null) {
                         String name = responseNode.get("response").get("result").get("name").asText();
@@ -1115,7 +1118,7 @@ public class LoanEligibleService {
                 logger.error("Exception in Signzy pan fetch API---", e);
             }
         }
-        if (lendingPancard == null || lendingPancard.getName() == null) {// get data from liquiloans
+        if (lendingPancard == null || lendingPancard.getName() == null || lendingPancard.getResponse() == null) {// get data from liquiloans
             try {
                 lendingPancard = fetchNameFromLiquiloans(panCard, merchantId);
             } catch (Exception e) {
@@ -1165,7 +1168,7 @@ public class LoanEligibleService {
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
             emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");
-            logger.error("Exception while parsing experian response", e);
+            logger.info("Exception while parsing experian response", e);
             logger.info("Experian response is---" + response);
             return null;
         }

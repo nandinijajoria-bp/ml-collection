@@ -42,10 +42,11 @@ public class LoanDetailsResponseDTO {
 	public void setDetails(LoanDetailsDTO details) {
 		this.details = details;
 	}
-
+	
 	@Override
 	public String toString() {
-		return "LoanDetailsResponseDTO [success=" + success + ", details=" + details + "]";
+		return "LoanDetailsResponseDTO [success=" + success + ", message=" + message + ", deeplink=" + deeplink
+				+ ", details=" + details + "]";
 	}
 
 	public static class LoanDetailsDTO {
@@ -65,6 +66,7 @@ public class LoanDetailsResponseDTO {
 		private String city;
 		private Integer pincode;
 		private String tempClosed;
+		private Boolean bharatSwipe=false;
 		
 
 		@JsonProperty(value = "loan_history")
@@ -230,17 +232,24 @@ public class LoanDetailsResponseDTO {
 			isZomato = zomato;
 		}
 
+		public Boolean getBharatSwipe() {
+			return bharatSwipe;
+		}
+
+		public void setBharatSwipe(Boolean bharatSwipe) {
+			this.bharatSwipe = bharatSwipe;
+		}
+
 		@Override
 		public String toString() {
 			return "LoanDetailsDTO [eligible=" + eligible + ", rejected=" + rejected + ", panCard=" + panCard
 					+ ", rejectReason=" + rejectReason + ", loanClosed=" + loanClosed + ", noExperian=" + noExperian
 					+ ", maskedMobiles=" + maskedMobiles + ", ogl=" + ogl + ", accountDetails=" + accountDetails
-					+ ", skipEnatch=" + skipEnatch + ", enach=" + enach + ", city=" + city + ", pincode=" + pincode
-					+ ", tempClosed=" + tempClosed + ", history=" + history + ", eligibility=" + eligibility
-					+ ", topupLoan=" + topupLoan + ", loanApplication=" + loanApplication + "]";
+					+ ", skipEnatch=" + skipEnatch + ", isZomato=" + isZomato + ", enach=" + enach + ", city=" + city
+					+ ", pincode=" + pincode + ", tempClosed=" + tempClosed + ", bharatSwipe=" + bharatSwipe
+					+ ", history=" + history + ", eligibility=" + eligibility + ", topupLoan=" + topupLoan
+					+ ", loanApplication=" + loanApplication + "]";
 		}
 
-		
-		
 	}
 }
