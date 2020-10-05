@@ -1,5 +1,7 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dto.ApplicationDerogResponseDTO;
 import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
 import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
@@ -147,5 +149,12 @@ public class LoanDetailsController {
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute Merchant merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
 		logger.info("updateEligibleLoanAmount request with merchant_id: {}", merchant.getId());
 		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
+	}
+	
+	@RequestMapping(value = "/derog_application", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<ApplicationDerogResponseDTO> derogMerchantExperian(@RequestParam(name = "merchant_id") Long merchantId,
+	@RequestParam(name = "application_id") Long applicationId) {
+		logger.info("derogMerchantExperian request with merchant_id: {}, applicationId: {}", merchantId, applicationId);
+		return new ResponseEntity<>(loanEligibleService.processDerogSince(merchantId, applicationId, LendingConstants.APPLICATION_DEROG_RECHECK_MIN_DAYS), HttpStatus.OK);
 	}
 }
