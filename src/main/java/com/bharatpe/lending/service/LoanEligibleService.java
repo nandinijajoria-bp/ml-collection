@@ -1260,7 +1260,7 @@ public class LoanEligibleService {
                 experianDao.save(experian);
                 return false;
             }
-            if ((isNTC && merchantSummary.getBpScore() < 15) || (!isNTC && merchantSummary.getBpScore() < 13)) {
+            if ((isNTC && merchantSummary != null && merchantSummary.getBpScore() != null && merchantSummary.getBpScore() < 15) || (!isNTC && merchantSummary != null && merchantSummary.getBpScore() != null && merchantSummary.getBpScore() < 13)) {
                 logger.info("Low bp score, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
                 experian.setCategory("1N");
                 experian.setColor(ExperianConstants.COLOR.RED.name());
