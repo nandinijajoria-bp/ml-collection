@@ -34,7 +34,6 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.service.LoanDetailsService;
 import com.bharatpe.lending.service.LoanEligibleService;
 import com.bharatpe.lending.service.VerifyDocService;
-import com.bharatpe.lending.service.LoanEligibleService;
 
 import javax.servlet.http.HttpServletResponse;
 
