@@ -562,7 +562,7 @@ public class LoanDetailsService {
 				if (EXPERIAN_ENABLED && experian != null && !rejected) {
 					
 					try {
-						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe));
+						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe, bankCode));
 					} catch (Exception e) {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
@@ -591,12 +591,12 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
 					//fetching OGL loans
-					if (!isZomato && !isFromSwipe && yellowPincode && !rejected && experian.getReason() == null && merchantSummary != null && merchantSummary.getBpScore() != null) {
-						logger.info("Yellow pincode found for merchant:{}", merchant.getId());
-						loanEligibilityDTOs.clear();
-						eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
-						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
-					}
+//					if (!isZomato && !isFromSwipe && yellowPincode && !rejected && experian.getReason() == null && merchantSummary != null && merchantSummary.getBpScore() != null) {
+//						logger.info("Yellow pincode found for merchant:{}", merchant.getId());
+//						loanEligibilityDTOs.clear();
+//						eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
+//						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
+//					}
 					//fetching NTB loans
 					if (!rejected && loanEligibilityDTOs.isEmpty()) {
 						experian.setReason(null);
