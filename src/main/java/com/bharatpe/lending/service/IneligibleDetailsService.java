@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
@@ -51,6 +52,12 @@ public class IneligibleDetailsService {
     
     @Autowired
     ExperianDao experianDao;
+
+    @Autowired
+    BharatSwipeTerminalDao bharatSwipeTerminalDao;
+
+    @Autowired
+    FPAccountDao fpAccountDao;
 
     public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
@@ -154,25 +161,35 @@ public class IneligibleDetailsService {
                 response.setEnach(true);
             }
 
-            // if(!isMerchantSwipeEnabled(merchant.getId())){
-            //     Banner banner;
-            //     banner.setDeepLink("swipe_deepLink");
-            //     banner.setImg("swipe_img");
-            //     response.addBanner(banner);
-            // }
+            if(Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId()))){
+                Banner banner = response.new Banner();
+                banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
+                banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
+                response.addBanner(banner);
+            }
 
-            // if(!isMerchantFSEnabled(merchant.getId())){
-            //     Banner banner;
-            //     banner.setDeepLink("fs_deepLink");
-            //     banner.setImg("fs_img");
-            //     response.addBanner(banner);
-            // }
+            if(Boolean.FALSE.equals(isMerchantFSAccountEnabled(merchant.getId()))){
+                Banner banner = response.new Banner();
+                banner.setDeepLink(LendingConstants.FSACCOUNT_NEWUSER_DEEPLINK);
+                banner.setImg(LendingConstants.FSACCOUNT_NEWUSER_IMG);
+                response.addBanner(banner);
+            }
             return response;
     	}
     	catch(Exception e) {
     		logger.error("Error occured while fetching ineligiblity details",e);
     		return new IneligibleAPIResponseDto(false, "Something went wrong");
     	}
+    }
+
+    private Boolean isMerchantBharatSwipeEnabled(Long merchantId){
+        BharatSwipeTerminal bharatSwipeTerminal = bharatSwipeTerminalDao.findFirstByMerchantIdAndDeviceSerialNotNull(merchantId);
+        return bharatSwipeTerminal != null;
+    }
+    
+    private Boolean isMerchantFSAccountEnabled(Long merchantId){
+        FPAccount fpAccount = fpAccountDao.findByMerchantIdAndKYCStatusNotNull(merchantId);
+        return fpAccount != null;
     }
     
     private Map<String,Integer> getTransactionDetails(Merchant merchant, MerchantSummary merchantSummary){
