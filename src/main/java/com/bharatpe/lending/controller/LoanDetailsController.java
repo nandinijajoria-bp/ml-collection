@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.service.LoanDetailsService;
+import com.bharatpe.lending.service.LoanEligibleService;
 import com.bharatpe.lending.service.VerifyDocService;
 import com.bharatpe.lending.service.LoanEligibleService;
 
@@ -135,6 +136,7 @@ public class LoanDetailsController {
 		logger.info("LendingOffers request with merchant_id : {}", requestMerchantId);
 		return new ResponseEntity<>(lendingOffersService.getOffers(requestMerchantId), HttpStatus.OK);
 	}
+
 	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute Merchant merchant,
 			@RequestParam(name = "query_amount", required = true) Double queryAmount) {
