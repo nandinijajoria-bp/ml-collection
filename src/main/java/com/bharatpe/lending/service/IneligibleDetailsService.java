@@ -8,6 +8,8 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
+import com.bharatpe.lending.dto.IneligibleAPIResponseDto.Banner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -151,6 +153,20 @@ public class IneligibleDetailsService {
             if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(true);
             }
+
+            // if(!isMerchantSwipeEnabled(merchant.getId())){
+            //     Banner banner;
+            //     banner.setDeepLink("swipe_deepLink");
+            //     banner.setImg("swipe_img");
+            //     response.addBanner(banner);
+            // }
+
+            // if(!isMerchantFSEnabled(merchant.getId())){
+            //     Banner banner;
+            //     banner.setDeepLink("fs_deepLink");
+            //     banner.setImg("fs_img");
+            //     response.addBanner(banner);
+            // }
             return response;
     	}
     	catch(Exception e) {
