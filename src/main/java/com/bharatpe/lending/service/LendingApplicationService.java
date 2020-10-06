@@ -508,6 +508,7 @@ public class LendingApplicationService {
 		}
 		String html;
 		String lender=detail.get("Lender");
+		
 		if(lender!=null && lender.equalsIgnoreCase("LDC")) {
 			html=getLdcTnc(detail);
 		}
@@ -998,7 +999,7 @@ public class LendingApplicationService {
 						"    </ul>\n" +
 						"    </td>\n" +
 						"    <td class=\"td1\" valign=\"middle\">\n" +
-						"    <p class=\"p20\">2% per month&nbsp;</p>\n" +
+						"    <p class=\"p20\">"+detail.getOrDefault("Monthly rate of interest", "")+" per month&nbsp;</p>\n" +
 						"    </td>\n" +
 						"    </tr>\n" +
 						"    <tr>\n" +
@@ -1135,6 +1136,15 @@ public class LendingApplicationService {
 		return html;
 	}
 	
+	public Double getInterest(String category) {
+		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByCategory(category);
+		if(!lendingCategoriesList.isEmpty()) {
+			LendingCategories lendingCategories=lendingCategoriesList.get(0);
+			return lendingCategories.getInterestRate();
+		}
+		return null;
+	}
+	
 	public Map<String,String> getDetails(Merchant merchant, long applicationId){
 		Map<String,String> detail=new HashMap<>();
 		try {
@@ -1163,6 +1173,9 @@ public class LendingApplicationService {
 			detail.put("EDI Count", lendingApplication.getPayableDays().toString());
 			detail.put("Lender",lendingApplication.getLender());
 			detail.put("Pancard", getPanCard(merchant));
+			Double monthlyRateOfInterest=getInterest(lendingApplication.getCategory());
+			detail.put("Monthly rate of interest", monthlyRateOfInterest==null?"":monthlyRateOfInterest.toString());
+			detail.put("Annual rate of interest", monthlyRateOfInterest==null?"":(monthlyRateOfInterest*12+""));
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
 				detail.put("Name of the Borrower",merchantBankDetail.getBeneficiaryName());
@@ -1195,8 +1208,8 @@ public class LendingApplicationService {
 				"<p class=\"p3\">Date: " + DateTimeUtil.getDate(new Date()) + "</p>\n" +
 				"<p class=\"p3\">Loan Amount (INR): "+detail.getOrDefault("Loan Amount", "")+"</p>\n" +
 				"<p class=\"p3\">Tenure (Months): "+detail.getOrDefault("Tenure", "")+"</p>\n" +
-				"<p class=\"p3\">Flat Rate of Interest (% per month): 2</p>\n" +
-				"<p class=\"p3\">Flat Rate of Interest (% per annum): 24</p>\n" +
+				"<p class=\"p3\">Flat Rate of Interest (% per month): "+detail.getOrDefault("Monthly rate of interest", "")+"</p>\n" +
+				"<p class=\"p3\">Flat Rate of Interest (% per annum): "+detail.getOrDefault("Annual rate of interest", "")+"</p>\n" +
 				"<p class=\"p3\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"</p>\n" +
 				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"</p>\n" +
 				"<p class=\"p3\">Location: "+detail.getOrDefault("Location", "")+"</p>\n" +
