@@ -151,7 +151,7 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
 	}
 	
-	@RequestMapping(value = "/derog_application", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	@RequestMapping(value = "/derog_application", method = RequestMethod.PUT, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ApplicationDerogResponseDTO> derogMerchantExperian(@RequestParam(name = "merchant_id") Long merchantId,
 	@RequestParam(name = "application_id") Long applicationId) {
 		logger.info("derogMerchantExperian request with merchant_id: {}, applicationId: {}", merchantId, applicationId);
