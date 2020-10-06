@@ -145,7 +145,7 @@ public class LendingApplicationService {
 					return lendingApplicationResponse;
 				}
 				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
-				if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
+				if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("") && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
 					lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
 					lendingApplication.setLongitude(requestDTO.getMeta().getLongitude());
 					lendingApplication.setIp(requestDTO.getMeta().getIp());
