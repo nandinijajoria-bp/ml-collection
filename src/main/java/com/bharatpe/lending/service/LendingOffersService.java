@@ -59,6 +59,12 @@ public class LendingOffersService {
 			responseDTO.setMessage("Active loan found");
 			return responseDTO;
 		}
+		LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndNotLoanTypeAndNotStatus(merchantId, "BHARAT_SWIPE", "deleted");
+		if (lendingApplication != null) {
+			responseDTO.setSuccess(false);
+			responseDTO.setMessage("Active loan application found");
+			return responseDTO;
+		}
 		LendingApplication previousApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchantId, "BHARAT_SWIPE", "deleted");
 		if(previousApplication != null) {
 			logger.info("LendingApplication found applicationId: {}", previousApplication.getId());
