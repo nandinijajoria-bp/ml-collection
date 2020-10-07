@@ -128,7 +128,7 @@ public class LendingApplicationService {
 			if(requestDTO.getPayload().getPincode() == null) {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 				if(prevApplication!=null) {
-					return createApplicationFromPrevLoan(prevApplication,requestDTO);
+					return createApplicationFromPrevLoan(prevApplication,requestDTO, lendingApplicationRequest.getOfferType());
 				}
 				else {
 					logger.info("Not details received from frontend and no prev loan found for merchant:{} ",merchant.getId());
@@ -174,7 +174,7 @@ public class LendingApplicationService {
 		return prepareAPIResponse(lendingApplication,false);
 	}
 	
-	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO, String offerType) {
 		try {
 			if(prevLoan.getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
 				logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
@@ -185,7 +185,7 @@ public class LendingApplicationService {
 				return lendingApplicationResponse;
 			}
 			else {
-				return copyApplicationData(requestDTO ,prevLoan);	
+				return copyApplicationData(requestDTO ,prevLoan, offerType);
 			}
 		}
 		catch(Exception e) {
@@ -201,7 +201,7 @@ public class LendingApplicationService {
 		return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
 	}
 
-	private LendingApplicationResponseDTO  copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan) {
+	private LendingApplicationResponseDTO  copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan, String offerType) {
 		try {
 			String selectedCategory = requestDTO.getPayload().getCategory();
 			if(selectedCategory==null || selectedCategory.isEmpty()) {
@@ -209,7 +209,7 @@ public class LendingApplicationService {
 				return new LendingApplicationResponseDTO(false, "Category missing");
 			}
 			LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
-			List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(prevLoan.getMerchant().getId(), selectedCategory);
+			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(prevLoan.getMerchant().getId(), selectedCategory, offerType);
 			if(eligibleLoans.isEmpty()) {
 				logger.error("No eligible loan found for merchant {}",prevLoan.getMerchant().getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
@@ -350,7 +350,7 @@ public class LendingApplicationService {
 		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
 
 		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
-		lendingApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+		lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
 		lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 		lendingApplication.setInterestRate(lendingCategory.getInterestRate());
 		lendingApplication.setProcessingFee((double) processingFee);
@@ -508,6 +508,7 @@ public class LendingApplicationService {
 		}
 		String html;
 		String lender=detail.get("Lender");
+		
 		if(lender!=null && lender.equalsIgnoreCase("LDC")) {
 			html=getLdcTnc(detail);
 		}
@@ -998,7 +999,7 @@ public class LendingApplicationService {
 						"    </ul>\n" +
 						"    </td>\n" +
 						"    <td class=\"td1\" valign=\"middle\">\n" +
-						"    <p class=\"p20\">2% per month&nbsp;</p>\n" +
+						"    <p class=\"p20\">"+detail.getOrDefault("Monthly rate of interest", "")+" per month&nbsp;</p>\n" +
 						"    </td>\n" +
 						"    </tr>\n" +
 						"    <tr>\n" +
@@ -1135,6 +1136,15 @@ public class LendingApplicationService {
 		return html;
 	}
 	
+	public Double getInterest(String category) {
+		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByCategory(category);
+		if(!lendingCategoriesList.isEmpty()) {
+			LendingCategories lendingCategories=lendingCategoriesList.get(0);
+			return lendingCategories.getInterestRate();
+		}
+		return null;
+	}
+	
 	public Map<String,String> getDetails(Merchant merchant, long applicationId){
 		Map<String,String> detail=new HashMap<>();
 		try {
@@ -1163,6 +1173,9 @@ public class LendingApplicationService {
 			detail.put("EDI Count", lendingApplication.getPayableDays().toString());
 			detail.put("Lender",lendingApplication.getLender());
 			detail.put("Pancard", getPanCard(merchant));
+			Double monthlyRateOfInterest=getInterest(lendingApplication.getCategory());
+			detail.put("Monthly rate of interest", monthlyRateOfInterest==null?"":monthlyRateOfInterest.toString());
+			detail.put("Annual rate of interest", monthlyRateOfInterest==null?"":(monthlyRateOfInterest*12+""));
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
 				detail.put("Name of the Borrower",merchantBankDetail.getBeneficiaryName());
@@ -1195,8 +1208,8 @@ public class LendingApplicationService {
 				"<p class=\"p3\">Date: " + DateTimeUtil.getDate(new Date()) + "</p>\n" +
 				"<p class=\"p3\">Loan Amount (INR): "+detail.getOrDefault("Loan Amount", "")+"</p>\n" +
 				"<p class=\"p3\">Tenure (Months): "+detail.getOrDefault("Tenure", "")+"</p>\n" +
-				"<p class=\"p3\">Flat Rate of Interest (% per month): 2</p>\n" +
-				"<p class=\"p3\">Flat Rate of Interest (% per annum): 24</p>\n" +
+				"<p class=\"p3\">Flat Rate of Interest (% per month): "+detail.getOrDefault("Monthly rate of interest", "")+"</p>\n" +
+				"<p class=\"p3\">Flat Rate of Interest (% per annum): "+detail.getOrDefault("Annual rate of interest", "")+"</p>\n" +
 				"<p class=\"p3\">Amount of EDI: "+detail.getOrDefault("Amount of EDI", "")+"</p>\n" +
 				"<p class=\"p3\">BharatPe Registered Mobile Number: "+detail.getOrDefault("Registered Mobile Number", "")+"</p>\n" +
 				"<p class=\"p3\">Location: "+detail.getOrDefault("Location", "")+"</p>\n" +

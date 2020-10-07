@@ -635,7 +635,9 @@ public class LoanDetailsService {
 					experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
 					//send instant notification
-					redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
+					if(!isFromSwipe) {
+						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
+					}
 				}
 //			}
 			boolean ogl = false;
