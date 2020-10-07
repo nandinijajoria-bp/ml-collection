@@ -32,6 +32,9 @@ public class RedisNotificationService {
 	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
 		try {
+			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE")) {
+				return;
+			}
 			logger.info("Pushing notification of application applied but not confirmend for merchant {} and application {}",merchantId,lendingApplication);
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(lendingApplication.getId());
