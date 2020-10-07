@@ -328,7 +328,7 @@ public class LoanEligibleService {
         ApplicationDerogResponseDTO responseDTO = new ApplicationDerogResponseDTO();
         Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
         if(!merchantOptional.isPresent()){
-            logger.info("Merchant not found: {}", merchantId);
+            logger.info("Merchant not found for merchantId: {}", merchantId);
             responseDTO.setMessage("Merchant not found");
             responseDTO.setIsRejected(false);
             responseDTO.setSuccess(false);
@@ -337,16 +337,30 @@ public class LoanEligibleService {
         Merchant merchant = merchantOptional.get();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
         if(lendingApplication == null){
-            logger.info("Application not found: {}", applicationId);
+            logger.info("Application not found for applicationId: {}", applicationId);
             responseDTO.setMessage("Application not found");
             responseDTO.setIsRejected(false);
             responseDTO.setSuccess(false);
             return responseDTO;
         }
         Experian experian = experianDao.getByMerchantId(merchantId);
+        if(experian == null){
+            logger.info("Experian not found for merchantId: {}", merchantId);
+            responseDTO.setMessage("Experian not found");
+            responseDTO.setIsRejected(false);
+            responseDTO.setSuccess(false);
+            return responseDTO;
+        }
         Date reportDate = getReportDate(experian);
         if(reportDate == null || LoanUtil.getDateDiffInDays(reportDate, new Date()) >= daysDiffToCheck){
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+            if(merchantBankDetail == null){
+                logger.info("MerchantBankDetail not found for merchantId: {}", merchantId);
+                responseDTO.setMessage("Experian not found");
+                responseDTO.setIsRejected(false);
+                responseDTO.setSuccess(false);
+                return responseDTO;
+            }
             MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
             Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
             JsonNode experianResponse = getLatestExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail, experian, 3);
