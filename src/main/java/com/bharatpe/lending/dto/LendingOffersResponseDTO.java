@@ -24,6 +24,8 @@ public class LendingOffersResponseDTO {
 
     private String applicationStatus;
 
+    private Double tpv;
+
     public LendingOffersResponseDTO() {
     }
 
@@ -91,6 +93,14 @@ public class LendingOffersResponseDTO {
 
     public void setApplicationStatus(String applicationStatus) {
         this.applicationStatus = applicationStatus;
+    }
+
+    public Double getTpv() {
+        return tpv;
+    }
+
+    public void setTpv(Double tpv) {
+        this.tpv = tpv;
     }
 
     @Override

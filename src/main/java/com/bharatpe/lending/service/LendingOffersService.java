@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
+import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,16 +32,20 @@ public class LendingOffersService {
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
 
+	@Autowired
+	CreditLineMerchantDao creditLineMerchantDao;
+
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
 		LendingBharatswipeOffers lendingOffer = lendingBharatswipeOffersDao.findByMerchantId(merchantId);
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-		if (lendingOffer == null || lendingOffer.getTpv() == null || lendingOffer.getTpv() <= 0D || isOfferExpired(lendingOffer)) {
+		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
+		if (creditLineMerchant != null || lendingOffer == null || lendingOffer.getTpv() == null || lendingOffer.getTpv() <= 0D || isOfferExpired(lendingOffer)) {
 			responseDTO.setSuccess(false);
 			responseDTO.setMessage("No Offer found");
 			return responseDTO;
 		}
-		if(activeLoan != null && activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getLoanType().equals("BHARATSWIPE")) {
+		if(activeLoan != null && activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getLoanType().equals("BHARAT_SWIPE")) {
 			logger.info("LendingPaymentSchedule active loan found loanId: {}", activeLoan.getId());
 			responseDTO.setApplicationStatus("approved");
 			responseDTO.setSuccess(true);
@@ -53,7 +59,13 @@ public class LendingOffersService {
 			responseDTO.setMessage("Active loan found");
 			return responseDTO;
 		}
-		LendingApplication previousApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchantId, "BHARATSWIPE", "deleted");
+		LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndNotLoanTypeAndNotStatus(merchantId, "BHARAT_SWIPE", "deleted");
+		if (lendingApplication != null) {
+			responseDTO.setSuccess(false);
+			responseDTO.setMessage("Active loan application found");
+			return responseDTO;
+		}
+		LendingApplication previousApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchantId, "BHARAT_SWIPE", "deleted");
 		if(previousApplication != null) {
 			logger.info("LendingApplication found applicationId: {}", previousApplication.getId());
 			responseDTO.setApplicationStatus(previousApplication.getStatus());
@@ -70,6 +82,7 @@ public class LendingOffersService {
 		responseDTO.setOfferAmount(lendingOffer.getLoanAmount());
 		responseDTO.setActiveLoan(false);
 		responseDTO.setTenure(lendingOffer.getTenureMonths());
+		responseDTO.setTpv(lendingOffer.getTpv());
 		responseDTO.setMessage("Fetched available bharat swipe lending offer");
 		return responseDTO;
 	}

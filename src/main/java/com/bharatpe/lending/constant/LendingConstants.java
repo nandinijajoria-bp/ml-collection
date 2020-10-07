@@ -21,6 +21,11 @@ public interface LendingConstants {
 	String DIGIO_ENACH_INITIATION_URL="https://api.digio.in/v3/client/mandate/create_form";
 	String DIGIO_ENACH_STATUS_CHECK="https://api.digio.in/v3/client/mandate/";
 	int APPLICATION_DEROG_RECHECK_MIN_DAYS = 60;
+	String BHARATSWIPE_NEWUSER_IMG="http://d30gqtvesfc1d5.cloudfront.net/ext/product_entry_img/bharatswipe_entry.png";
+	String BHARATSWIPE_NEWUSER_DEEPLINK="bharatpe://dynamic?key=bharatpeswipe";
+	String FPACCOUNT_NEWUSER_IMG="http://d30gqtvesfc1d5.cloudfront.net/ext/product_entry_img/fp_account_entry.png";
+	String FPACCOUNT_NEWUSER_DEEPLINK="bharatpe://dynamic?key=interest_account";
+
 }
 
 

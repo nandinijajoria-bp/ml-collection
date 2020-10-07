@@ -265,7 +265,7 @@ public class CreditLineLoanDetailsService {
 				logger.info("Checking cibil score through experian for getting loan eligibility");	
 				//merchantSummery field was populated in populateExperianDetailsInExperianTable function which is called before this function
 				
-				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(),null, false,"CREDITLINE", false,false));
+				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(),null, false,"CREDITLINE", false,false, null));
 				//send notification
 				//redisNotificationService.sendEligibleNotificationForCreditLine(merchant, loanEligibilityDTOs);
 				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
