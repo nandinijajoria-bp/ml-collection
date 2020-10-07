@@ -350,7 +350,7 @@ public class LendingApplicationService {
 		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
 
 		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
-		lendingApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+		lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
 		lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 		lendingApplication.setInterestRate(lendingCategory.getInterestRate());
 		lendingApplication.setProcessingFee((double) processingFee);
