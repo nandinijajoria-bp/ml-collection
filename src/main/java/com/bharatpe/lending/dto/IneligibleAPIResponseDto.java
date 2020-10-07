@@ -3,6 +3,7 @@ package com.bharatpe.lending.dto;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -18,7 +19,7 @@ public class IneligibleAPIResponseDto {
 	private Boolean amountSuccess = false;
 	private Boolean countSuccess;
 	private Boolean enach = false;
-	private List<Banner> banners;
+	private List<Banner> banners = new ArrayList<>();
 
 	public IneligibleAPIResponseDto() {
 		super();
@@ -30,7 +31,6 @@ public class IneligibleAPIResponseDto {
 		this.message = message;
 	}
 
-	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 	public class Banner {
 		private String img;
 		private String deepLink;

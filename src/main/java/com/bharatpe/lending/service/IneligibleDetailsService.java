@@ -168,10 +168,10 @@ public class IneligibleDetailsService {
                 response.addBanner(banner);
             }
 
-            if(Boolean.FALSE.equals(isMerchantFSAccountEnabled(merchant.getId()))){
+            if(Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId()))){
                 Banner banner = response.new Banner();
-                banner.setDeepLink(LendingConstants.FSACCOUNT_NEWUSER_DEEPLINK);
-                banner.setImg(LendingConstants.FSACCOUNT_NEWUSER_IMG);
+                banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
+                banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
                 response.addBanner(banner);
             }
             return response;
@@ -187,7 +187,7 @@ public class IneligibleDetailsService {
         return bharatSwipeTerminal != null;
     }
     
-    private Boolean isMerchantFSAccountEnabled(Long merchantId){
+    private Boolean isMerchantFPAccountEnabled(Long merchantId){
         FPAccount fpAccount = fpAccountDao.findByMerchantIdAndKYCStatusNotNull(merchantId);
         return fpAccount != null;
     }
