@@ -146,7 +146,8 @@ public class IneligibleDetailsService {
             MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
             IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
     		Date onboardDate=getMerchantOnboardDate(merchant);
-    		Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
+            Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
+            Boolean isEnach = false;
     		response.setRegistrationDate(onboardDate);
     		if (transactionDetail != null) {
                 response.setPaymentAmount(transactionDetail.getOrDefault("amount", 0));
@@ -159,16 +160,17 @@ public class IneligibleDetailsService {
             Experian experian=experianDao.getByMerchantId(merchant.getId());
             if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(true);
+                isEnach = true;
             }
 
-            if(Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId()))){
+            if(Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId())) && Boolean.FALSE.equals(isEnach)){
                 Banner banner = response.new Banner();
                 banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
                 banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
                 response.addBanner(banner);
             }
 
-            if(Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId()))){
+            if(Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId())) && Boolean.FALSE.equals(isEnach)){
                 Banner banner = response.new Banner();
                 banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
                 banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
