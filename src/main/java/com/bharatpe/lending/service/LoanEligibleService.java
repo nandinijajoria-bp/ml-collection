@@ -172,9 +172,9 @@ public class LoanEligibleService {
             EligibleLoan eligibleLoan = new EligibleLoan(eligibleLoans.get(0));
             eligibleLoan.setAmount(body.getAmount());
             eligibleLoan.setEdi(body.getEdi());
-            eligibleLoan.setIoEdi(body.getIoEdi());
-            eligibleLoan.setIoEdiDays(body.getIoEdiDays());
-            eligibleLoan.setEdiFreeDays(body.getEdiFreeDays());
+            eligibleLoan.setIoEdi(body.getIoEdi() != null ? body.getIoEdi() : 0);
+            eligibleLoan.setIoEdiDays(body.getIoEdiDays() != null ? body.getIoEdiDays() : 0);
+            eligibleLoan.setEdiFreeDays(body.getEdiFreeDays() != null ? body.getEdiFreeDays() : 0);
             eligibleLoan.setRepayment(body.getRepayment());
             eligibleLoan.setOfferType("CUSTOM");
             eligibleLoanDao.save(eligibleLoan);
