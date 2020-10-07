@@ -145,7 +145,7 @@ public class LoanEligibleService {
                 breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, loanType);
             }
             if(breakup != null){
-                tenures.add(convertLoanToTenureDetails(eligibleLoan, responseDTO, loanType, breakup));
+                tenures.add(convertLoanToTenureDetails(eligibleLoan, responseDTO, breakup, lendingCategory));
             }
         }
         responseDTO.setEligibleOfferDetails(responseDTO.new EligibleOfferDetails(queryAmount, tenures));
@@ -154,13 +154,15 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, String loanType, LoanCalculationUtil.LoanBreakupDetail breakup){
+    private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
+        EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO,
+        LoanCalculationUtil.LoanBreakupDetail breakup, LendingCategories lendingCategory){
         EligibleLendingOffersResponseDTO.TenureDetails tenureDetails =  responseDTO.new TenureDetails();
         tenureDetails.setTenure(eligibleLoan.getTenure());
         tenureDetails.setCategory(eligibleLoan.getCategory());
         tenureDetails.setEdi(breakup.getEdi());
         tenureDetails.setIoEdi(breakup.getIoEdi());
-        tenureDetails.setRateOfInterest(breakup.getEffectiveInterestRate());
+        tenureDetails.setRateOfInterest(lendingCategory.getInterestRate());
         tenureDetails.setRepaymentAmount(breakup.getRepayment());
         return tenureDetails;
     }
