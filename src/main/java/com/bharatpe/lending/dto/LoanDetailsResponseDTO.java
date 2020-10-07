@@ -67,6 +67,7 @@ public class LoanDetailsResponseDTO {
 		private Integer pincode;
 		private String tempClosed;
 		private Boolean bharatSwipe=false;
+		private  Double bharatSwipeAmount;
 		
 
 		@JsonProperty(value = "loan_history")
@@ -238,6 +239,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setBharatSwipe(Boolean bharatSwipe) {
 			this.bharatSwipe = bharatSwipe;
+		}
+
+		public Double getBharatSwipeAmount() {
+			return bharatSwipeAmount;
+		}
+
+		public void setBharatSwipeAmount(Double bharatSwipeAmount) {
+			this.bharatSwipeAmount = bharatSwipeAmount;
 		}
 
 		@Override

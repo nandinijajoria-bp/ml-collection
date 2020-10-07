@@ -180,6 +180,7 @@ public class LoanDetailsService {
 			LendingCities lendingCity = null;
 			LendingBharatswipeOffers lendingBharatswipeOffers=getSwipeLoanOffer(merchant);
 			Boolean isFromSwipe=lendingBharatswipeOffers!=null;
+			Double bharatSwipeAmount = lendingBharatswipeOffers !=null ? lendingBharatswipeOffers.getLoanAmount() : 0D;
 //			if (experian != null && experian.getPincode() == null) {
 //				logger.error("pincode bug, deleting experian entry for merchant:{}", merchant.getId());
 //				emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
@@ -247,6 +248,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(null);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
+				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				if (experian != null) {
@@ -484,6 +486,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setEnach(enach);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
+				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -516,6 +519,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
+				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -544,6 +548,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
+				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 					loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 				} else {
@@ -690,6 +695,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setZomato(isZomato);
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setBharatSwipe(isFromSwipe);
+			loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 			} else {
