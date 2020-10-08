@@ -18,7 +18,7 @@ public class IneligibleAPIResponseDto {
 	private Boolean newMerchant = false;
 	private Boolean amountSuccess = false;
 	private Boolean countSuccess;
-	private Boolean enach = false;
+	private CtaDto enach;
 	private List<Banner> banners = new ArrayList<>();
 
 	public IneligibleAPIResponseDto() {
@@ -76,6 +76,14 @@ public class IneligibleAPIResponseDto {
 		this.message = message;
 	}
 
+	public CtaDto getEnach() {
+		return enach;
+	}
+
+	public void setEnach(String message, String deeplink) {
+		this.enach = new CtaDto(message, deeplink);
+	}
+
 	public Date getRegistrationDate() {
 		return registrationDate;
 	}
@@ -122,14 +130,6 @@ public class IneligibleAPIResponseDto {
 
 	public void setCountSuccess(Boolean countSuccess) {
 		this.countSuccess = countSuccess;
-	}
-
-	public Boolean getEnach() {
-		return enach;
-	}
-
-	public void setEnach(Boolean enach) {
-		this.enach = enach;
 	}
 
 	public List<Banner> getBanners() {

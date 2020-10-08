@@ -147,7 +147,6 @@ public class IneligibleDetailsService {
             IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
     		Date onboardDate=getMerchantOnboardDate(merchant);
             Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
-            Boolean isEnach = false;
     		response.setRegistrationDate(onboardDate);
     		if (transactionDetail != null) {
                 response.setPaymentAmount(transactionDetail.getOrDefault("amount", 0));
@@ -158,23 +157,22 @@ public class IneligibleDetailsService {
     		}
             response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null &&  merchantSummary.getUniqueCustomer1mon() >= 15);
             Experian experian=experianDao.getByMerchantId(merchant.getId());
-            if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
-                response.setEnach(true);
-                isEnach = true;
-            }
+            if(experian!=null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
+                response.setEnach(LendingConstants.ENACH_BANK_MESSAGE, LendingConstants.BANK_CHANGE_DEEPLINK);
+            } else {
+                if (Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId()))) {
+                    Banner banner = response.new Banner();
+                    banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
+                    banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
+                    response.addBanner(banner);
+                }
 
-            if(Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId())) && Boolean.FALSE.equals(isEnach)){
-                Banner banner = response.new Banner();
-                banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
-                banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
-                response.addBanner(banner);
-            }
-
-            if(Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId())) && Boolean.FALSE.equals(isEnach)){
-                Banner banner = response.new Banner();
-                banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
-                banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
-                response.addBanner(banner);
+                if (Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId()))) {
+                    Banner banner = response.new Banner();
+                    banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
+                    banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
+                    response.addBanner(banner);
+                }
             }
             return response;
     	}
