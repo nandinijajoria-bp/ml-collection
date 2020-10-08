@@ -31,18 +31,20 @@ public class LendingActiveLoansResponseDTO {
         private Double dueAmount;
         private String startDate;
         private String endDate;
+        private String loanType;
 
         public ActiveLoan() {
         }
 
         public ActiveLoan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, String startDate,
-                String endDate) {
+                String endDate, String loanType) {
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
             this.dueAmount = dueAmount;
             this.startDate = startDate;
             this.endDate = endDate;
+            this.loanType = loanType;
         }
 
         public Long getLoanId() {
@@ -93,6 +95,14 @@ public class LendingActiveLoansResponseDTO {
             this.endDate = endDate;
         }
 
+        public String getLoanType() {
+            return loanType;
+        }
+
+        public void setLoanType(String loanType) {
+            this.loanType = loanType;
+        }
+
         @Override
         public String toString() {
             return "{" + " loanId='" + getLoanId() + "'" + ", loanAmount='" + getLoanAmount() + "'" + ", ediAmount='"
@@ -110,7 +120,7 @@ public class LendingActiveLoansResponseDTO {
     }
 
     public void setActiveLoansFromLendingPaymentSchedule(List<LendingPaymentSchedule> activeLoansList) {
-        this.activeLoans = activeLoansList.stream().map(entry -> lendingPaymentScheduleToActiveLoan(entry))
+        this.activeLoans = activeLoansList.stream().map(this::lendingPaymentScheduleToActiveLoan)
                 .collect(Collectors.toList());
     }
 
@@ -120,7 +130,8 @@ public class LendingActiveLoansResponseDTO {
         Double dueAmount = lendingPaymentSchedule.getDueAmount() != null ? lendingPaymentSchedule.getDueAmount() : 0d;
         String startDate = lendingPaymentSchedule.getStartDate() != null ? lendingPaymentSchedule.getStartDate().toString() : "";
         String endDate = lendingPaymentSchedule.getTentativeClosingDate() != null ? lendingPaymentSchedule.getTentativeClosingDate().toString() : "";
-        return new ActiveLoan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, startDate, endDate);
+        String loanType = lendingPaymentSchedule.getLoanApplication() != null ? lendingPaymentSchedule.getLoanApplication().getLoanType() : "";
+        return new ActiveLoan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, startDate, endDate, loanType);
     }
 
     public boolean getSuccess() {
