@@ -139,13 +139,15 @@ public class LoanDetailsController {
 	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute Merchant merchant,
 			@RequestParam(name = "query_amount", required = true) Double queryAmount) {
-		logger.info("EligibleLendingOffers request with merchant_id: {}", merchant.getId());
-		return new ResponseEntity<>(loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount), HttpStatus.OK);
+		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}", merchant.getId(), queryAmount);
+		EligibleLendingOffersResponseDTO resp = loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount);
+		logger.info("EligibleLendingOffers response: {}", resp);
+		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute Merchant merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
-		logger.info("updateEligibleLoanAmount request with merchant_id: {}", merchant.getId());
+		logger.info("updateEligibleLoanAmount request with merchant_id: {}, with body: {}", merchant.getId(), requestDTO);
 		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
 	}
 }

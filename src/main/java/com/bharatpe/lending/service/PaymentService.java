@@ -339,6 +339,7 @@ public class PaymentService {
                         }
                     }
                     paidPrincipalAmount+=totalPaid;
+                    createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT");
 		        }
 			}
 					
