@@ -367,12 +367,15 @@ public class LoanEligibleService {
             if(experianResponse == null) {
                 responseDTO.setMessage("Unable to fetch experian data, please retry!");
                 responseDTO.setIsRejected(false);
-                responseDTO.setSuccess(false);
+                responseDTO.setSuccess(true);
                 return responseDTO;
             }
+            experian.setResponse(experianResponse.toString());
+            experianDao.save(experian);
             List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId,false);
             boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
             if(isDerogApplication(experianResponse, merchant, experian, isRepeatLoanNoDerog)){
+                experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                 lendingApplication.setStatus("rejected");
                 lendingApplication.setManualCibil("REJECTED");
                 lendingApplication.setManualCibilReason("EXPERIAN DEROG FAILED");
@@ -385,6 +388,7 @@ public class LoanEligibleService {
                 responseDTO.setSuccess(true);
                 return responseDTO;
             }
+            experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
         }
         responseDTO.setMessage("Application Derog Passed");
         responseDTO.setIsRejected(false);
