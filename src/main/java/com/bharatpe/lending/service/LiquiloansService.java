@@ -61,6 +61,7 @@ import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
+import com.bharatpe.lending.dto.PayloadDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -163,6 +164,9 @@ public class LiquiloansService {
 
     @Autowired
 	MerchantStoreDao merchantStoreDao;
+
+	@Autowired
+	MerchantUpdateService merchantUpdateService;
 
     @Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
@@ -405,8 +409,10 @@ public class LiquiloansService {
     
     public void changeDeductionFromInstantToDaily(Merchant merchant) {
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
-    		merchant.setSettlementType("DAILY");
-    		merchant.setKycType("LEVEL2");
+			List<PayloadDTO> merchantPayload = new ArrayList<>();
+			merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
+			merchantPayload.add(new PayloadDTO("set", "kycType", "LEVEL2"));
+
     		List<Validate> validateList=validateDao.findByMobile(merchant.getMobile());
     		for(Validate validate:validateList){
     			validate.setSettlement("daily");
@@ -416,8 +422,11 @@ public class LiquiloansService {
     			settlementSchedule.setSettlementDate(new Date());
         		settlementSchedule.setMoveDaily("YES");
         		settlementScheduleDao.save(settlementSchedule);
-    		}
-    		merchantDao.save(merchant);
+			}
+			JsonNode resp = merchantUpdateService.curlMerchantPartialUpdateAPI(merchant.getId(), merchantPayload);
+			if(resp == null){
+				logger.error("Merchant Update Request Failed!");
+			}
     		if(!validateList.isEmpty()){
     			validateDao.saveAll(validateList);
     		}

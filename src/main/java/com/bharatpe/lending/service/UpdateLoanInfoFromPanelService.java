@@ -10,11 +10,13 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.SettlementScheduleDao;
+import com.bharatpe.lending.dto.PayloadDTO;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,9 @@ public class UpdateLoanInfoFromPanelService {
 	
 	@Autowired
 	SettlementScheduleDao settlementScheduleDao;
+
+	@Autowired
+	MerchantUpdateService merchantUpdateService;
 	
 	@Autowired
 	MerchantDao merchantDao;
@@ -497,8 +502,13 @@ public class UpdateLoanInfoFromPanelService {
 			if(lendingApplication.getStatus() != null && lendingApplication.getStatus().equalsIgnoreCase("approved") && lendingApplication.getLoanDisbursalStatus() != null && lendingApplication.getLoanDisbursalStatus().equalsIgnoreCase("DISBURSED")) {
 				saveActiveLoanDetails(applicationId, merchantId, lendingApplication);
 				insertNewLendingPaymentSchedule(applicationId, merchantId, lendingApplication, merchantOptional.get());
-				merchantDao.updateSettlementType(merchantId, "DAILY");
-//				validateDao.updateSettlement(merchantOptional.get().getMobile(), "daily");
+				List<PayloadDTO> merchantPayload = new ArrayList<>();
+				merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
+				JsonNode resp = merchantUpdateService.curlMerchantPartialUpdateAPI(merchantId, merchantPayload);
+				if(resp == null){
+					logger.error("Merchant Update Request Failed!");
+				}
+				//				validateDao.updateSettlement(merchantOptional.get().getMobile(), "daily");
 				settlementScheduleDao.updateSettlementDateAndMoveDaily(new Date(), "YES", "PENDING", merchantId);
 				
 				if(loanDisbursalStatus.equalsIgnoreCase("DISBURSED")) {
