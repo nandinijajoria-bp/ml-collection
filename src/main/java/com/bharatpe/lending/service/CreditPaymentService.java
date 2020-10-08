@@ -638,6 +638,7 @@ public class CreditPaymentService {
                         }
                     }
                     if (totalPaid > 0) {
+                    	createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), -1*totalPaid, -1*totalPaid, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType());
                         lendingLedgers.add(createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), totalPaid, totalPaid, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType()));
                         lendingClPaymentBreakups.add(creditLineTransaction.createPaymentBreakup(lendingClTransaction, totalPaid, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name()));
                     }
