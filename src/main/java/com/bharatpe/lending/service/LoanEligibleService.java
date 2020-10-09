@@ -6,6 +6,8 @@ import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
+import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -119,6 +121,12 @@ public class LoanEligibleService {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    CrifDao crifDao;
+
+    @Autowired
+    CrifAuditTrailDao crifAuditTrailDao;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
@@ -615,7 +623,7 @@ public class LoanEligibleService {
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
-        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType));
+        EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType, null));
         logger.info("eligible loan for merchant: {} is-- {}", merchantId, eligibleLoan.toString());
         eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
         return createLoanEligibilityDTO(breakup, payableConverter, category);
@@ -1076,6 +1084,8 @@ public class LoanEligibleService {
                 } catch (Exception e) {
                     logger.error("Error occured while inserting experian call record",e);
                 }
+//                getCrifReport(contact, panCard, merchantId, firstName, lastName);
+                JsonNode crifResponse = getCrifReport("8793564813", "GAURR0857M", merchantId, "MANISHA", "GOPALE");
                 return null;
             }
             String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").asText().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
@@ -1219,7 +1229,18 @@ public class LoanEligibleService {
         JsonNode stage1Response = apiGatewayService.crifStage1(firstName, lastName, panCard, contact, merchantId);
         if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
             logger.info("Crif stage1 success for merchant:{}", merchantId);
-            JsonNode stage2Response = apiGatewayService.crifStage2(stage1Response.get(""))
+            JsonNode stage2Response = apiGatewayService.crifStage2(stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), false);
+            if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S10")) {
+                logger.info("Crif stage2 success for merchant:{}", merchantId);
+                JsonNode stage3Response = apiGatewayService.crifStage2(stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), true);
+                if (stage3Response != null) {
+                    logger.info("Found crif report for merchant:{}", merchantId);
+                    return stage3Response;
+                }
+            } else if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S11")) {
+                logger.info("Crif stage2 Questionnaire for merchant:{}", merchantId);
+            }
         }
+        return stage1Response;
     }
 }

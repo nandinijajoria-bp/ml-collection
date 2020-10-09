@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
+import org.json.JSONObject;
+import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -247,7 +249,7 @@ public class APIGatewayService {
         try {
             logger.info("Calling CRIF stage1 api for merchant:{} with pancard:{}", merchantId, pancard);
             String accessCode = generateAccessCode();
-            String orderId = RandomStringUtils.randomAlphanumeric(6).toUpperCase();
+            String orderId = RandomStringUtils.randomNumeric(6);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_PLAIN);
             headers.set("orderId", orderId);
@@ -256,11 +258,11 @@ public class APIGatewayService {
             headers.set("merchantID", env.getProperty("crif.customerId"));
             String body = firstName + "||" + lastName + "|||||" + mobile + "|||||" + pancard + "|||||||||||||||||||||||" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|Y|";
             HttpEntity<String> request = new HttpEntity<>(body, headers);
-            logger.info("CRIF request:{}", request);
+            logger.info("CRIF stage1 request:{}", request);
             CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, firstName, lastName, pancard, mobile, orderId, accessCode, null, "STAGE1", null, mapper.writeValueAsString(request), null);
             crifRequestResponseDao.save(crifRequestResponse);
             ResponseEntity<String> response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage1.url")), HttpMethod.POST, request, String.class);
-            logger.info("CRIF response:{}", response.getBody());
+            logger.info("CRIF stage1 response:{}", response.getBody());
             if (response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
                 JsonNode jsonNode = mapper.readTree(response.getBody());
                 crifRequestResponse.setReportId(jsonNode.get("reportId") != null ? jsonNode.get("reportId").asText() : null);
@@ -279,8 +281,46 @@ public class APIGatewayService {
         }
     }
 
-    public JsonNode crifStage2(String orderId, String reportId, String redirectUrl) {
-
+    public JsonNode crifStage2(String orderId, String reportId, String redirectUrl, boolean stage3) {
+        try {
+            String stage = stage3 ? "stage3" : "stage2";
+            logger.info("Calling CRIF " + stage + " api for merchant:{} with orderId:{}", merchantId, orderId);
+            String accessCode = generateAccessCode();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.TEXT_PLAIN);
+            if (!stage3) {
+                headers.set("requestType", "Authorization");
+            }
+            headers.set("accessCode", accessCode);
+            headers.set("appID", env.getProperty("crif.appId"));
+            headers.set("merchantID", env.getProperty("crif.customerId"));
+            headers.set("orderId", orderId);
+            headers.set("reportId", reportId);
+            String body = orderId + "|" + reportId + "|" + accessCode + "|" + redirectUrl + "|N|N|N|";
+            HttpEntity<String> request = new HttpEntity<>(body, headers);
+            logger.info("CRIF " + stage + " request:{}", request);
+            CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, null, null, null, null, orderId, accessCode, reportId, stage3 ? "STAGE3" : "STAGE2", null, mapper.writeValueAsString(request), null);
+            crifRequestResponseDao.save(crifRequestResponse);
+            ResponseEntity<String> response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage2.url")), HttpMethod.POST, request, String.class);
+            logger.info("CRIF " + stage + " response:{}", response.getBody());
+            if (response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
+                crifRequestResponse.setStatus("SUCCESS");
+                crifRequestResponse.setResponse(response.getBody());
+                crifRequestResponseDao.save(crifRequestResponse);
+                if (stage3) {
+                    JSONObject jsonObject = XML.toJSONObject(response.getBody());
+                    return mapper.readTree(jsonObject.toString());
+                }
+                return mapper.readTree(response.getBody());
+            } else {
+                crifRequestResponse.setStatus("FAILED");
+                crifRequestResponseDao.save(crifRequestResponse);
+                return null;
+            }
+        } catch (Exception e) {
+            logger.error("Exception in crif stage2 api", e);
+            return null;
+        }
     }
 
     private String generateAccessCode() {
