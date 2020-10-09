@@ -705,7 +705,7 @@ public class LoanDetailsService {
 			response.setSuccess(true);
 			
 		} catch(Exception ex) {
-			logger.error("Exception while checking loan details for merchant id {}, Exception is {}", merchant.getId(), ex);
+			logger.error("Exception while checking loan details for merchant id {}", merchant.getId(), ex);
 			return createFailureResponse();
 		}
 		return response;
