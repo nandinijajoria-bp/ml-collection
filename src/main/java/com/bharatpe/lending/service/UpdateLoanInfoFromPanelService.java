@@ -504,10 +504,10 @@ public class UpdateLoanInfoFromPanelService {
 				insertNewLendingPaymentSchedule(applicationId, merchantId, lendingApplication, merchantOptional.get());
 				List<PayloadDTO> merchantPayload = new ArrayList<>();
 				merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
-				JsonNode resp = merchantUpdateService.curlMerchantPartialUpdateAPI(merchantId, merchantPayload);
-				if(resp == null){
-					logger.error("Merchant Update Request Failed!");
-				}
+				boolean merchantUpdated = merchantUpdateService.curlMerchantPartialUpdateAPI(merchantId, merchantPayload);
+                if (!merchantUpdated) {
+					logger.info("Error while updating merchant info!");
+                }
 				//				validateDao.updateSettlement(merchantOptional.get().getMobile(), "daily");
 				settlementScheduleDao.updateSettlementDateAndMoveDaily(new Date(), "YES", "PENDING", merchantId);
 				

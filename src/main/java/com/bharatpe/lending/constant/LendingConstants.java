@@ -14,7 +14,6 @@ public interface LendingConstants {
 	String KARZA_PAN_AUTHENTICATION_URL = "https://api.karza.in/v2/pan-authentication";
 	String KARZA_KYC_URL = "https://api.karza.in/v3/ocr/kyc";
 	
-	String MERCHANT_PARTIAL_UPDATE_URL = "https://api-merchant.bharatpe.in/merchant/v1/partialupdate";
 	String LOAN_APPLICATION_SUCCESS_CODE="BP_200";
 	String LOAN_APPLICATION_OGL_CODE="BP_405";
 	String LOAN_APPLICATION_SUCCESS_MESSAGE="Successful";

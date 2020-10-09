@@ -4,24 +4,27 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.PayloadDTO;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
+
+import javax.annotation.PostConstruct;
 
 @Service
 public class MerchantUpdateService {
@@ -39,51 +42,77 @@ public class MerchantUpdateService {
 	@Autowired
 	RestTemplate restTemplate;
 
-	public JsonNode curlMerchantPartialUpdateAPI(Long merchantId, List<PayloadDTO> payload) {
-		String response = null;
-		Map<String, String> paramMap = new LinkedHashMap<>();
-		paramMap.put("payload", reducePayloads(payload));
-		String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(paramMap), getSecret("LENDING"));
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-		headers.set("merchantId", merchantId.toString());
-		headers.set("hash", hash);
-		headers.set("Client-Name", "LENDING");
+	private String clientSecret;
 
+	@Value("${merchant.partialUpdate.api}")
+    String merchantPartialUpdateApiUrl;
+
+	@PostConstruct
+    public void init() {
+        try {
+            getSecret("LENDING", "ACTIVE");
+        } catch (Exception ex) {
+            logger.error("Exception while loading Secret in MerchantUpdateService: ", ex);
+        }
+    }
+
+	public Boolean curlMerchantPartialUpdateAPI(Long merchantId, List<PayloadDTO> payload) {
+		logger.info("calling merchant api for update for merchant id : {}",merchantId);
+		boolean status = false;
+		Map response;
 		try {
+			HttpHeaders headers = new HttpHeaders();
+			Map<String, Object> paramMap = getParams(payload);
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.setCacheControl(CacheControl.noCache());
+			headers.set("client-Name", "LENDING");
+
+
+			String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(paramMap), getSecret("MERCHANT_UPDATE", "ACTIVE"));
+			logger.info("generated hash value is : {}", hash);
+			headers.set("merchantId", merchantId.toString());
+			headers.set("Hash", hash);
+
 			Instant start = Instant.now();
-			HttpEntity<Map<String, String>> request = new HttpEntity<>(paramMap, headers);
+			HttpEntity<Map> request = new HttpEntity<>(paramMap, headers);
 			logger.info("Merchant Updated API request : {}", request);
-			response = restTemplate.postForObject(LendingConstants.MERCHANT_PARTIAL_UPDATE_URL, request, String.class);
-			logger.info("Merchant Updated API response : {}", response);
+			response = restTemplate.exchange(merchantPartialUpdateApiUrl, HttpMethod.PUT, request, Map.class).getBody();
 			Instant end = Instant.now();
-			logger.info("Time Taken by Merchant Updated API API : {} miliseconds",
-					Duration.between(start, end).toMillis());
+			logger.info("Merchant Updated API response : {}, response time: {}", response, Duration.between(start, end).toMillis());
+			status = (Boolean)response.get("status");
+			if (status) {
+                logger.info("merchant details updated successfully for merchant id : {}",merchantId);
+
+            } else {
+                logger.error("failed to update merchant details for merchant id : {}",merchantId);
+            }
 		} catch (Exception e) {
-			logger.info("Exception while Merchant Updated API API, Exception is ---", e);
+			logger.error("Exception while Merchant Updated API for merchantId: {}, Exception: {}", merchantId, e);
 		}
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode resp = null;
-		try {
-			resp = mapper.readTree(response);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return resp;
+		return status;
 	}
 
-	private String reducePayloads(List<PayloadDTO> payloads) {
-		String reducedPayloads = payloads.stream().map(Object::toString).collect(Collectors.joining(","));
-		if (reducedPayloads == null)
-			return "[]";
-		return "[" + reducedPayloads + "]";
+	private Map<String, Object> getParams(List<PayloadDTO> payloadList){
+		Map<String,Object> requestParams = new HashMap<String, Object>();
+		List<Map<String, String>> payloadMap = new ArrayList<Map<String, String>>();
+		for(PayloadDTO payload: payloadList){
+			Map<String, String> mapData = new HashMap<String, String>();
+			mapData.put("op", payload.getOp());
+			mapData.put("key", payload.getKey());
+			mapData.put("value", payload.getValue());
+			payloadMap.add(mapData);
+		}
+		requestParams.put("payload", payloadMap);
+		return requestParams;
 	}
 
-	private String getSecret(String clientName) {
-		InternalClient client = internalClientDao.findByClientName(clientName);
-		if (client != null) {
-			return aesEncryption.decrypt(client.getSecret());
+	private String getSecret(String clientName, String status) {
+		if(StringUtils.isEmpty(this.clientSecret)) {
+			InternalClient client = internalClientDao.findByClientNameAndStatus(clientName, status);
+			if (client != null) {
+				this.clientSecret = aesEncryption.decrypt(client.getSecret());
+			}
 		}
-		return "";
+		return this.clientSecret;
 	}
 }

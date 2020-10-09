@@ -423,9 +423,9 @@ public class LiquiloansService {
         		settlementSchedule.setMoveDaily("YES");
         		settlementScheduleDao.save(settlementSchedule);
 			}
-			JsonNode resp = merchantUpdateService.curlMerchantPartialUpdateAPI(merchant.getId(), merchantPayload);
-			if(resp == null){
-				logger.error("Merchant Update Request Failed!");
+			boolean merchantUpdated = merchantUpdateService.curlMerchantPartialUpdateAPI(merchant.getId(), merchantPayload);
+			if (!merchantUpdated) {
+				logger.info("Error while updating merchant info!");
 			}
     		if(!validateList.isEmpty()){
     			validateDao.saveAll(validateList);
