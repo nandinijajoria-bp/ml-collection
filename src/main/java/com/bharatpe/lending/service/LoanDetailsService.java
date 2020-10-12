@@ -408,7 +408,7 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
-					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
+					if (("BHARAT_SWIPE".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB".equalsIgnoreCase(lendingApplication.getLoanType())) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
 						skipEnatch = false;
 					}
 					eligibleFlag = false;
@@ -705,7 +705,7 @@ public class LoanDetailsService {
 			response.setSuccess(true);
 			
 		} catch(Exception ex) {
-			logger.error("Exception while checking loan details for merchant id {}, Exception is {}", merchant.getId(), ex);
+			logger.error("Exception while checking loan details for merchant id {}", merchant.getId(), ex);
 			return createFailureResponse();
 		}
 		return response;
