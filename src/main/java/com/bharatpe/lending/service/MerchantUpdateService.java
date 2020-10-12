@@ -67,8 +67,9 @@ public class MerchantUpdateService {
 			headers.setCacheControl(CacheControl.noCache());
 			headers.set("client-Name", "LENDING");
 
-
-			String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(paramMap), getSecret("MERCHANT_UPDATE", "ACTIVE"));
+			String hash = hmacCalculator.calculateHMACHexEncoded(
+					hmacCalculator.getObjectPayloadList((List<Map<String, Object>>) paramMap.get("payload")),
+					getSecret("LENDING", "ACTIVE"));
 			logger.info("generated hash value is : {}", hash);
 			headers.set("merchantId", merchantId.toString());
 			headers.set("Hash", hash);
@@ -93,10 +94,10 @@ public class MerchantUpdateService {
 	}
 
 	private Map<String, Object> getParams(List<PayloadDTO> payloadList){
-		Map<String,Object> requestParams = new HashMap<String, Object>();
-		List<Map<String, String>> payloadMap = new ArrayList<Map<String, String>>();
+		Map<String,Object> requestParams = new HashMap<>();
+		List<Map<String, Object>> payloadMap = new ArrayList<>();
 		for(PayloadDTO payload: payloadList){
-			Map<String, String> mapData = new HashMap<String, String>();
+			Map<String, Object> mapData = new HashMap<>();
 			mapData.put("op", payload.getOp());
 			mapData.put("key", payload.getKey());
 			mapData.put("value", payload.getValue());

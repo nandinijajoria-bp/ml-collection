@@ -411,7 +411,6 @@ public class LiquiloansService {
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
 			List<PayloadDTO> merchantPayload = new ArrayList<>();
 			merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
-			merchantPayload.add(new PayloadDTO("set", "kycType", "LEVEL2"));
 
     		List<Validate> validateList=validateDao.findByMobile(merchant.getMobile());
     		for(Validate validate:validateList){
