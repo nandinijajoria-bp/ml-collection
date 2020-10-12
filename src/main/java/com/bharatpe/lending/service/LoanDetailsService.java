@@ -408,7 +408,7 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
-					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
+					if (("BHARAT_SWIPE".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB".equalsIgnoreCase(lendingApplication.getLoanType())) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
 						skipEnatch = false;
 					}
 					eligibleFlag = false;
