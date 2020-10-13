@@ -149,7 +149,7 @@ public class LendingApplicationController {
 		return new ResponseEntity(HttpStatus.OK);
 	}
 
-	@RequestMapping(value="/fos/Loan", method = RequestMethod.GET, produces="application/json")
+	@RequestMapping(value="/fos/loan", method = RequestMethod.GET, produces="application/json")
 	public ResponseEntity<ResponseDTO> fosLoanDetails(@RequestParam Long merchantId) {
 		return new ResponseEntity<>(lendingApplicationService.fosLoan(merchantId), HttpStatus.OK);
 	}
