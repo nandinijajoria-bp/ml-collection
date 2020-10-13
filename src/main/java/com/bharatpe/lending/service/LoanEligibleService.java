@@ -122,12 +122,6 @@ public class LoanEligibleService {
     @Autowired
     APIGatewayService apiGatewayService;
 
-    @Autowired
-    CrifDao crifDao;
-
-    @Autowired
-    CrifAuditTrailDao crifAuditTrailDao;
-
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
     public List<LoanEligibilityDTO> getNewLoanDetails(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, MerchantSummaryLending merchantSummaryLending, boolean isZomato, String lendingType, boolean yellowPincode){
@@ -1084,8 +1078,6 @@ public class LoanEligibleService {
                 } catch (Exception e) {
                     logger.error("Error occured while inserting experian call record",e);
                 }
-//                getCrifReport(contact, panCard, merchantId, firstName, lastName);
-                JsonNode crifResponse = getCrifReport("8793564813", "GAURR0857M", merchantId, "MANISHA", "GOPALE");
                 return null;
             }
             String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").asText().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
@@ -1223,24 +1215,5 @@ public class LoanEligibleService {
             }
         }
         return true;
-    }
-
-    private JsonNode getCrifReport(String contact, String panCard, Long merchantId, String firstName, String lastName) {
-        JsonNode stage1Response = apiGatewayService.crifStage1(firstName, lastName, panCard, contact, merchantId);
-        if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
-            logger.info("Crif stage1 success for merchant:{}", merchantId);
-            JsonNode stage2Response = apiGatewayService.crifStage2(stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), false);
-            if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S10")) {
-                logger.info("Crif stage2 success for merchant:{}", merchantId);
-                JsonNode stage3Response = apiGatewayService.crifStage2(stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), true);
-                if (stage3Response != null) {
-                    logger.info("Found crif report for merchant:{}", merchantId);
-                    return stage3Response;
-                }
-            } else if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S11")) {
-                logger.info("Crif stage2 Questionnaire for merchant:{}", merchantId);
-            }
-        }
-        return stage1Response;
     }
 }

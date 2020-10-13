@@ -17,6 +17,8 @@ public class ResponseDTO {
 
     private String mobile;
 
+    private boolean crif = false;
+
     public ResponseDTO(boolean success, String message) {
         this.success = success;
         this.message = message;
@@ -69,6 +71,14 @@ public class ResponseDTO {
 
     public void setData(Object data) {
         this.data = data;
+    }
+
+    public boolean isCrif() {
+        return crif;
+    }
+
+    public void setCrif(boolean crif) {
+        this.crif = crif;
     }
 
     @Override
