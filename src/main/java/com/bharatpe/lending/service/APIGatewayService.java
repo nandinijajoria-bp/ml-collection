@@ -257,7 +257,7 @@ public class APIGatewayService {
             headers.set("accessCode", accessCode);
             headers.set("appID", env.getProperty("crif.appId"));
             headers.set("merchantID", env.getProperty("crif.customerId"));
-            String body = "SRIVATSA||RAJAGOPAL||28-09-1957|||8826177971|||abc@abc.com||IBAPP9502R|ZNPEKW71699719|||||||NA|||NO B-144,  TARA MARG,  HANUMAN N NULL|COLABA|COLABA|RJ|400053|india|||||||" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|Y|";
+            String body = firstName + "||" + lastName + "|||||" + mobile + "|||||" + pancard + "|||||||||||||||||||||||" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|Y|";
             HttpEntity<String> request = new HttpEntity<>(body, headers);
             logger.info("CRIF stage1 request:{}", request);
             CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, firstName, lastName, pancard, mobile, orderId, accessCode, null, "STAGE1", null, mapper.writeValueAsString(request), null);
