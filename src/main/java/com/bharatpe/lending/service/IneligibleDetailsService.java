@@ -5,9 +5,12 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
+import com.bharatpe.lending.dto.IneligibleAPIResponseDto.Banner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +52,12 @@ public class IneligibleDetailsService {
     
     @Autowired
     ExperianDao experianDao;
+
+    @Autowired
+    BharatSwipeTerminalDao bharatSwipeTerminalDao;
+
+    @Autowired
+    FPAccountDao fpAccountDao;
 
     public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
@@ -137,7 +146,7 @@ public class IneligibleDetailsService {
             MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
             IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
     		Date onboardDate=getMerchantOnboardDate(merchant);
-    		Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
+            Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
     		response.setRegistrationDate(onboardDate);
     		if (transactionDetail != null) {
                 response.setPaymentAmount(transactionDetail.getOrDefault("amount", 0));
@@ -148,8 +157,22 @@ public class IneligibleDetailsService {
     		}
             response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null &&  merchantSummary.getUniqueCustomer1mon() >= 15);
             Experian experian=experianDao.getByMerchantId(merchant.getId());
-            if(experian!=null && experian.getReason()!=null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
-                response.setEnach(true);
+            if(experian!=null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
+                response.setEnach(LendingConstants.ENACH_BANK_MESSAGE, LendingConstants.BANK_CHANGE_DEEPLINK);
+            } else {
+                if (Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId()))) {
+                    Banner banner = response.new Banner();
+                    banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
+                    banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
+                    response.addBanner(banner);
+                }
+
+                if (Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId()))) {
+                    Banner banner = response.new Banner();
+                    banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
+                    banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
+                    response.addBanner(banner);
+                }
             }
             return response;
     	}
@@ -157,6 +180,16 @@ public class IneligibleDetailsService {
     		logger.error("Error occured while fetching ineligiblity details",e);
     		return new IneligibleAPIResponseDto(false, "Something went wrong");
     	}
+    }
+
+    private Boolean isMerchantBharatSwipeEnabled(Long merchantId){
+        BharatSwipeTerminal bharatSwipeTerminal = bharatSwipeTerminalDao.findFirstByMerchantIdAndDeviceSerialNotNull(merchantId);
+        return bharatSwipeTerminal != null;
+    }
+    
+    private Boolean isMerchantFPAccountEnabled(Long merchantId){
+        FPAccount fpAccount = fpAccountDao.findByMerchantIdAndKYCStatusNotNull(merchantId);
+        return fpAccount != null;
     }
     
     private Map<String,Integer> getTransactionDetails(Merchant merchant, MerchantSummary merchantSummary){

@@ -323,6 +323,7 @@ public class PaymentService {
                                     LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
                                     lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
                                     lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
+                                    lastSchedule.setTotalEdi(((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest())));
                                     lendingEDIScheduleDao.save(lastSchedule);
                                     principleAdjusted -= extraAmount;
                                 }
@@ -338,6 +339,7 @@ public class PaymentService {
                         }
                     }
                     paidPrincipalAmount+=totalPaid;
+                    createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT");
 		        }
 			}
 					

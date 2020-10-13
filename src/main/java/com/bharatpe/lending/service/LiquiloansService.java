@@ -61,6 +61,7 @@ import com.bharatpe.lending.dao.ValidateDao;
 import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
 import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
+import com.bharatpe.lending.dto.PayloadDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -164,11 +165,17 @@ public class LiquiloansService {
     @Autowired
 	MerchantStoreDao merchantStoreDao;
 
+	@Autowired
+	MerchantUpdateService merchantUpdateService;
+
     @Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
 
     @Autowired
 	LiquiloansHandler liquiloansHandler;
+
+    @Autowired
+	LdcVirtualAccountDao ldcVirtualAccountDao;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(5);
 
@@ -226,61 +233,26 @@ public class LiquiloansService {
     }
 
 	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse) {
-		logger.info("Fetching lending application for given liquiloan_loan_id:{} and bp_loan_id:{}", callbackRequestDto.getUrn(),callbackRequestDto.getLoanId());
+		logger.info("Fetching lending application for given application_id:{} and nbfc_id:{}", callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());
 		liquiloansDirectDisbursalRawResponse.setApiName("APPROVELOAN");
 		liquiloansDirectDisbursalRawResponse.setRequest(callbackRequestDto.toString());
-		if (callbackRequestDto.getUrn().contains("CL")) {
-			//Credit line loan
-			LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByExternalLoanIdAndNbfcId(callbackRequestDto.getUrn(), callbackRequestDto.getLoanId());
-			if (lendingTlDetails == null) {
-				return new ResponseDTO(false,"loan application not found",null);
-			}
-			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByTlDetailsIdAndCreditLoanAndStatus(lendingTlDetails.getId(), true, "ACTIVE");
-			if (lendingPaymentSchedule == null) {
-				return new ResponseDTO(false,"lending payment schedule not found",null);
-			}
-			List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
-			if (ediSchedules == null || ediSchedules.isEmpty()) {
-				return new ResponseDTO(false,"lending edi schedule not found",null);
-			}
-			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingTlDetails.getMerchantId());
-			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingTlDetails.getId());
-			liquiloansDirectDisbursalRawResponse.setLoanId(lendingTlDetails.getExternalLoanId());
-			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingTlDetails.getNbfcId());
-			executorService.submit(() -> liquiloansHandler.notifyEDISchedule(lendingPaymentSchedule,ediSchedules, lendingTlDetails));
-			return new ResponseDTO(true,null,null);
-		}
 		try {
-			LendingApplication lendingApplication=lendingApplicationDao.findByExternalLoanIdNbfcIdAndStatus(callbackRequestDto.getUrn(),callbackRequestDto.getLoanId(),"approved");
+			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndNbfcId(Long.parseLong(callbackRequestDto.getApplicationId()), callbackRequestDto.getNbfcId());
 			if(lendingApplication==null) {
 				return new ResponseDTO(false,"loan application not found",null);
+			}
+			LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
+			if (ldcVirtualAccount == null) {
+				return new ResponseDTO(false,"ldc virtual account not found",null);
 			}
 			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
 			liquiloansDirectDisbursalRawResponse.setLoanId(lendingApplication.getExternalLoanId());
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
-			if (lendingApplication.getLoanDisbursalStatus() != null && !"null".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
-				return new ResponseDTO(false,"duplicate request",null);
-			}
-			else if(callbackRequestDto.getStatus().equalsIgnoreCase("approved")){
-				lendingApplication.setLoanDisbursalStatus("PENDING");
-				lendingApplicationDao.save(lendingApplication);
-				publishForDisbursal(lendingApplication.getId());
-				return new ResponseDTO(true,null,null);
-			}
-			else if(callbackRequestDto.getStatus().equalsIgnoreCase("rejected")){
-				lendingApplication.setLoanDisbursalStatus("REJECTED");
-				lendingApplicationDao.save(lendingApplication);
-				return new ResponseDTO(true,null,null);
-			}
-			else if(callbackRequestDto.getStatus().equalsIgnoreCase("disbursed")){
-				lendingApplication.setLoanDisbursalStatus("DISBURSED");
-				lendingApplicationDao.save(lendingApplication);
-				return new ResponseDTO(true,null,null);
-			}
-			else {
-				return new ResponseDTO(false,"invalid loan status",null);
-			}
+			lendingApplication.setLoanDisbursalStatus("PROCESSING");
+			lendingApplicationDao.save(lendingApplication);
+			publishForDisbursal(lendingApplication.getId());
+			return new ResponseDTO(true,null,null);
 		}
 		catch(Exception e){
 			logger.error("Error occured while updating lending application disbursal status",e);
@@ -315,11 +287,14 @@ public class LiquiloansService {
     		lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
     		
     		
-    		if(lendingApplication==null){
-    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
-    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
-    		}
-    		
+//    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
+//    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+//    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
+//    		}
+			if(lendingApplication==null){
+				logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+				return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
+			}
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
 			lendingApplication.setDisburseTimestamp(new Date());
@@ -417,7 +392,9 @@ public class LiquiloansService {
     			lendingApplication.setDisburseTimestamp(null);
     			lendingApplication.setLoanDisbursalStatus("PENDING");
     			lendingApplicationDao.save(lendingApplication);
-    			lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
+    			if (lendingPaymentSchedule != null) {
+					lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
+				}
     		}		
     		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -432,8 +409,9 @@ public class LiquiloansService {
     
     public void changeDeductionFromInstantToDaily(Merchant merchant) {
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
-    		merchant.setSettlementType("DAILY");
-    		merchant.setKycType("LEVEL2");
+			List<PayloadDTO> merchantPayload = new ArrayList<>();
+			merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
+
     		List<Validate> validateList=validateDao.findByMobile(merchant.getMobile());
     		for(Validate validate:validateList){
     			validate.setSettlement("daily");
@@ -443,8 +421,11 @@ public class LiquiloansService {
     			settlementSchedule.setSettlementDate(new Date());
         		settlementSchedule.setMoveDaily("YES");
         		settlementScheduleDao.save(settlementSchedule);
-    		}
-    		merchantDao.save(merchant);
+			}
+			boolean merchantUpdated = merchantUpdateService.curlMerchantPartialUpdateAPI(merchant.getId(), merchantPayload);
+			if (!merchantUpdated) {
+				logger.info("Error while updating merchant info!");
+			}
     		if(!validateList.isEmpty()){
     			validateDao.saveAll(validateList);
     		}

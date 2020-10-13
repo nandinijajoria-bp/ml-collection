@@ -619,6 +619,7 @@ public class CreditPaymentService {
                                     LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
                                     lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
                                     lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
+                                    lastSchedule.setTotalEdi((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest()));
                                     lendingEDIScheduleDao.save(lastSchedule);
                                     principleAdjusted -= extraAmount;
                                 }
@@ -637,6 +638,7 @@ public class CreditPaymentService {
                         }
                     }
                     if (totalPaid > 0) {
+                    	createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), -1*totalPaid, -1*totalPaid, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType());
                         lendingLedgers.add(createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), totalPaid, totalPaid, 0d, 0d, 0d, "CREDIT_LINE", lendingClTransaction.getSubType()));
                         lendingClPaymentBreakups.add(creditLineTransaction.createPaymentBreakup(lendingClTransaction, totalPaid, lendingPaymentSchedule.getId(), CreditConstants.PaymentType.TL.name()));
                     }
@@ -700,9 +702,11 @@ public class CreditPaymentService {
                         logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
                         result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
                         Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-                        result.put("otp_flow", responseData.get("otp_flow"));
-                        result.put("auth_mode", responseData.get("auth_mode"));
-                        result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                        if (responseData != null) {
+                            result.put("otp_flow", responseData.get("otp_flow"));
+                            result.put("auth_mode", responseData.get("auth_mode"));
+                            result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                        }
                         logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
                         return result;
                     }

@@ -50,9 +50,13 @@ public class LoanUtil {
 		selectedLoan.setEdi(application.getEdi());
 		selectedLoan.setEdiDuration(application.getPayableDays());
 		selectedLoan.setInterestRate(application.getInterestRate());
-		selectedLoan.setRepayment(application.getRepayment().intValue());
+		selectedLoan.setRepayment(application.getRepayment() != null ? application.getRepayment().intValue() : 0);
 		selectedLoan.setDisbursementAmount((application.getLoanAmount().intValue() - application.getProcessingFee().intValue()));
-		selectedLoan.setInterestAmount(application.getRepayment().intValue() - application.getLoanAmount().intValue());
+		if (application.getRepayment() != null) {
+			selectedLoan.setInterestAmount(application.getRepayment().intValue() - application.getLoanAmount().intValue());
+		} else {
+			selectedLoan.setInterestAmount(0);
+		}
 		if (lendingCategories != null) {
 			selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
 		}
@@ -84,7 +88,7 @@ public class LoanUtil {
 		shopDetails.put("pincode", application.getPincode());
 		shopDetails.put("city", application.getCity());
 		shopDetails.put("state", application.getState());
-		
+		shopDetails.put("alternate_mobile", application.getAlternateMobile());
 		return shopDetails;
 	}
 	

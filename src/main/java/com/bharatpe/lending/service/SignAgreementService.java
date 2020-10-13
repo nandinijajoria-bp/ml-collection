@@ -165,7 +165,7 @@ public class SignAgreementService {
 			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
 			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
 			if(prevApplication.getPincode() != null && !"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
-				logger.error("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
+				logger.info("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
 				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
 				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
 				return response;
@@ -266,7 +266,7 @@ public class SignAgreementService {
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-		if(newApplication.getLoanAmount() >= 500000 || (newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
+		if((newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("ZOMATO"))) {
 			newApplication.setLender("HINDON");
 		}
 		else {

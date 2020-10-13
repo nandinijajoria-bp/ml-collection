@@ -265,7 +265,7 @@ public class CreditLineLoanDetailsService {
 				logger.info("Checking cibil score through experian for getting loan eligibility");	
 				//merchantSummery field was populated in populateExperianDetailsInExperianTable function which is called before this function
 				
-				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(),null, false,"CREDITLINE", false));
+				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(),null, false,"CREDITLINE", false,false, null));
 				//send notification
 				//redisNotificationService.sendEligibleNotificationForCreditLine(merchant, loanEligibilityDTOs);
 				experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
@@ -420,7 +420,7 @@ public class CreditLineLoanDetailsService {
 					applicationTransition = applicationTransitionList.get(0);
 				}
 				response.getDetails().setEligible(false);
-				response.getDetails().getLoanApplication().setStatusMessage("Loan Approved");
+				response.getDetails().getLoanApplication().setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment. Please write to us at support@bharatpe.com for any query.");
 				
 				if("cibil".equalsIgnoreCase(creditApplication.getRejectionReason()) || rejectedInLastNDays(applicationTransition, 7)) {
 					response.getDetails().getLoanApplication().setShowReapply(true);

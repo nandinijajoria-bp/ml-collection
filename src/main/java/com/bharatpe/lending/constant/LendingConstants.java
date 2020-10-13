@@ -20,6 +20,13 @@ public interface LendingConstants {
 	String LOAN_APPLICATION_OGL_MESSAGE="OGL CASE";
 	String DIGIO_ENACH_INITIATION_URL="https://api.digio.in/v3/client/mandate/create_form";
 	String DIGIO_ENACH_STATUS_CHECK="https://api.digio.in/v3/client/mandate/";
+	int APPLICATION_DEROG_RECHECK_MIN_DAYS = 60;
+	String BHARATSWIPE_NEWUSER_IMG="http://d30gqtvesfc1d5.cloudfront.net/ext/product_entry_img/bharatswipe_entry.png";
+	String BHARATSWIPE_NEWUSER_DEEPLINK="bharatpe://dynamic?key=bharatpeswipe";
+	String FPACCOUNT_NEWUSER_IMG="http://d30gqtvesfc1d5.cloudfront.net/ext/product_entry_img/fp_account_entry.png";
+	String FPACCOUNT_NEWUSER_DEEPLINK="bharatpe://dynamic?key=interest_account";
+	String ENACH_BANK_MESSAGE="<p class='inel-note'>Note: Your Bank A/C is not eNACH-able and our lending partners don’t process a loan application in this Bank A/C. Please change your Bank A/C by clicking <b>here</b> and try again.</p>";
+	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=change_bank";
 
 }
 

@@ -217,6 +217,7 @@ public class VerifyOTPService {
 		lendingApplicationDao.save(lendingApplication);
 		if(lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
 			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);	
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 		}
 		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
 				.amount(0D)
@@ -241,7 +242,7 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		if (lendingApplication.getLoanAmount() <= 50000 && "REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()))
+		if (lendingApplication.getLoanAmount() <= 50000 && !lendingApplication.getLoanType().equalsIgnoreCase("NTB"))
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
@@ -260,6 +261,18 @@ public class VerifyOTPService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+		}
+	}
+
+	public void sendDetailsForContactsVerification(Long merchantId, Long applicationId) {
+		try {
+			Map<String, Long> detailMap = new HashMap<>();
+			detailMap.put("merchantId", merchantId);
+			detailMap.put("applicationId", applicationId);
+			kafkaTemplate.send("verify_contacts_for_application", merchantId.toString(), detailMap);
+			logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
+		} catch (Exception e) {
+			logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
 		}
 	}
 
@@ -351,6 +364,9 @@ public class VerifyOTPService {
 		
 		if (!StringUtils.isEmpty(lendingApplication.getLoanType()) && "PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
 			String sms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Applied for Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in next 10 days post verification.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
+			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
+		}else if(!StringUtils.isEmpty(lendingApplication.getLoanType()) && "BHARAT_SWIPE".equalsIgnoreCase(lendingApplication.getLoanType())){
+			String sms =  "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\nYour Cash Advance application for INR " + loanAmount.intValue() + " has been received successfully." + "Your Application ID is " + lendingApplication.getExternalLoanId() + ". It should be processed in the next 24-48 hours.";
 			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
 		} else {
 			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+" and this should get processed in the next 7 days.\nNote: Due to necessary precautions for coronavirus, there may be a delay in processing your application. We'll keep you posted.";
