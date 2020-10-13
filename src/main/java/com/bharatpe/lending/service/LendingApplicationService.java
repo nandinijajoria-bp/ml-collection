@@ -5,27 +5,19 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.ExperianSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
 import com.bharatpe.lending.common.dao.LendingBBSSnapshotDao;
-import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.ExperianSnapshot;
 import com.bharatpe.lending.common.entity.LendingBBS;
 import com.bharatpe.lending.common.entity.LendingBBSSnapshot;
 import com.bharatpe.lending.common.util.DateTimeUtil;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingPrebookTargetDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
-
 import java.text.SimpleDateFormat;
 import java.util.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +59,12 @@ public class LendingApplicationService {
 
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
+
+	@Autowired
+	MerchantDao merchantDao;
+
+	@Autowired
+	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
@@ -1375,6 +1373,100 @@ public class LendingApplicationService {
 		}
 		catch(Exception e){
 			logger.error("Error publishing to kafka ", e);
+		}
+	}
+
+	public ResponseDTO fosLoan(Long merchantId) {
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		Map<Object,String> data= new HashMap<>();
+		data.put("rejected","false");
+		data.put("merchantId",merchantId.toString());
+		data.put("activeLoan","false");
+		data.put("eligible","false");
+		data.put("experian","true");
+		data.put("applicationPending","false");
+		try{
+			Experian experian = experianDao.getByMerchantId(merchantId);
+			if(experian == null){
+				data.put("message","Merchant Experian Not Pulled");
+				data.put("experian","false");
+				responseDTO.setData(data);
+				return  responseDTO;
+			}
+			String reason = experian.getReason();
+			if("ENACH".equalsIgnoreCase(reason)){
+				reason = "Merchant's Bank A/C does Not Allow Enach.";
+			}else if("OGL".equalsIgnoreCase(reason)){
+				reason = "PIN Code ares does Not Serviceable right now.";
+			}else if("LOW_TPV".equalsIgnoreCase(reason)){
+				reason = "Transact More to become Eligble Soon.";
+			}
+
+			if(experian.getRejected()){
+				data.put("message",reason);
+				data.put("rejected","true");
+				data.put("eligible","false");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+
+			if(experian.getReason() != null){
+				data.put("message",reason);
+				data.put("rejected","true");
+				responseDTO.setData(data);
+				return  responseDTO;
+			}
+			EligibleLoan eligibleLoan=eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+			LendingApplication lendingApplication=lendingApplicationDao.findBymerchantId(merchantId);
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
+			logger.info("Payment Schedule:{}",lendingPaymentSchedule);
+			if(lendingPaymentSchedule != null){
+				data.put("message","Merchant Has a Active Loan.");
+				data.put("activeLoan","true");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+			if(eligibleLoan == null){
+				data.put("message","Merchant Not Eligible For Loan.");
+				data.put("eligible","false");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+			if(lendingApplication == null && eligibleLoan != null){
+				data.put("message","Merchant is Eligible For Loan.");
+				data.put("eligible","true");
+				responseDTO.setData(data);
+				return responseDTO;
+			}else{
+				data.put("applicationPending","true");
+				data.put("eligible","true");
+				data.put("created_at",lendingApplication.getCreatedAt().toString());
+				data.put("agreement_at",lendingApplication.getAgreementAt().toString());
+				data.put("loanType",lendingApplication.getLoanType());
+				data.put("loanAmount",lendingApplication.getLoanAmount().toString());
+				data.put("loanId",lendingApplication.getExternalLoanId());
+				String loanType = lendingApplication.getLoanType();
+				if("draft".equals(lendingApplication.getStatus())){
+					data.put("message","Application Is Draft Mode.");
+					responseDTO.setData(data);
+					return  responseDTO;
+				}else if("approved".equals(lendingApplication.getStatus())){
+					data.put("message","Merchant Application Is Approved State.");
+					responseDTO.setData(data);
+					return  responseDTO;
+				}else if("pending_verification".equals(lendingApplication.getStatus())){
+					data.put("message","Merchant Loan Application Is Pending Verification State.");
+					if(("NTB".equals(loanType) || "OGL".equals(loanType) || "BHRAT_SWIPE".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())){
+						data.put("message","Please Complete Enach For Further Process Application.");
+					}
+					responseDTO.setData(data);
+					return  responseDTO;
+				}
+			}
+			return responseDTO;
+		}catch(Exception ex){
+			logger.error("Error Fos Loan Details API", ex);
+			return responseDTO;
 		}
 	}
 }
