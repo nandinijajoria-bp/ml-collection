@@ -452,7 +452,7 @@ public class LendingApplicationService {
 			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
 			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
 			snapshot.setBpScore(summary.getBpScore());
-			
+			snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
 			merchantSummarySnapshotDao.save(snapshot);
 		} catch(Exception ex) {
 			logger.error("Exception while creating merchant summary snapshot for merchant id {} and application id {}, Exception is {}", merchant.getId(), application.getId(), ex);
