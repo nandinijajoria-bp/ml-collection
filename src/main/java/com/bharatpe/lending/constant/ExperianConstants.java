@@ -45,6 +45,7 @@ public interface ExperianConstants {
     String LOW_NFI = "LOW_NFI";
     String LOW_BBS_VINTAGE = "LOW_BBS_VINTAGE";
     String BLOCKED_PANCARD = "BLOCKED_PANCARD";
+    String YELLOW = "YELLOW";
 
     List<String> RED = Arrays.asList("1","2","13","25");
     List<String> AMBER = Arrays.asList("3","4","5","6","14","15","16","17","18","26","27","28","29","37","38","39","40","41");
