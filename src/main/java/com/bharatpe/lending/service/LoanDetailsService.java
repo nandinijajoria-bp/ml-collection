@@ -586,6 +586,7 @@ public class LoanDetailsService {
 							maskedMobiles = experian.getMaskedMobiles();
 						}
 					}
+					//fetching Bharat Swipe loans
 					if(isFromSwipe && !rejected) {
 						loanEligibilityDTOs.clear();
 						loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian,lendingBharatswipeOffers));
@@ -595,13 +596,6 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.clear();
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
-					//fetching OGL loans
-//					if (!isZomato && !isFromSwipe && yellowPincode && !rejected && experian.getReason() == null && merchantSummary != null && merchantSummary.getBpScore() != null) {
-//						logger.info("Yellow pincode found for merchant:{}", merchant.getId());
-//						loanEligibilityDTOs.clear();
-//						eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
-//						loanEligibilityDTOs.addAll(fetchOglOffers(experian, merchantSummary, merchant, bankCode));
-//					}
 					//fetching NTB loans
 					if (!rejected && loanEligibilityDTOs.isEmpty()) {
 						experian.setReason(null);
@@ -617,6 +611,12 @@ public class LoanDetailsService {
 							experian.setCategory("1N");
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.NTC);
+							experianDao.save(experian);
+						} else if (yellowPincode) {
+							logger.info("Yellow pincode, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+							experian.setCategory("1N");
+							experian.setColor(ExperianConstants.COLOR.RED.name());
+							experian.setReason(ExperianConstants.YELLOW);
 							experianDao.save(experian);
 						} else {
 							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));

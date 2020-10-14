@@ -3,16 +3,14 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.PaymentTransactionNewDao;
-import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingCategories;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.PaymentTransactionNew;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingBBSAuditDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
 import com.bharatpe.lending.common.entity.LendingBBS;
 import com.bharatpe.lending.common.entity.LendingBBSAudit;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanUtil;
@@ -59,6 +57,9 @@ public class NewToBharatpeService {
 
     @Autowired
 	PaymentTransactionNewDao paymentTransactionNewDao;
+
+    @Autowired
+	LendingApplicationDao lendingApplicationDao;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
@@ -299,6 +300,23 @@ public class NewToBharatpeService {
 			}
 		}
 		loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+		try {
+			LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchant.getId());
+			if (!loanEligibilityDTOList.isEmpty() && ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
+				logger.info("Calculating ntb loan using previous NTB loan amount for merchant:{}", merchant.getId());
+				LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
+				LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(categories, 0D, null, experian.getMerchantId(), experian.getId(), ntbLoan.getLoanAmount() * 1.25, experian.getColor(), "2", loanType, false, yellowPincode);
+				if (loanEligibilityDTO != null) {
+					logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchant.getId());
+					loanEligibilityDTOList.add(loanEligibilityDTO);
+					loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+				} else {
+					logger.info("loan offer is null for merchant: {}", merchant.getId());
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Exception in ntb loan", e);
+		}
 		if (!loanEligibilityDTOList.isEmpty()) {
 			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
 		}
