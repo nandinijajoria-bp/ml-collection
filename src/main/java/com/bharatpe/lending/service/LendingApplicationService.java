@@ -1378,18 +1378,18 @@ public class LendingApplicationService {
 
 	public ResponseDTO fosLoan(Long merchantId) {
 		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
-		Map<Object,String> data= new HashMap<>();
-		data.put("rejected","false");
+		Map<String,Object> data= new HashMap<>();
+		data.put("rejected",Boolean.FALSE);
 		data.put("merchantId",merchantId.toString());
-		data.put("activeLoan","false");
-		data.put("eligible","false");
-		data.put("experian","true");
-		data.put("applicationPending","false");
+		data.put("activeLoan",Boolean.FALSE);
+		data.put("eligible",Boolean.FALSE);
+		data.put("experian",Boolean.TRUE);
+		data.put("applicationPending",Boolean.FALSE);
 		try{
 			Experian experian = experianDao.getByMerchantId(merchantId);
 			if(experian == null){
 				data.put("message","Merchant Experian Not Pulled");
-				data.put("experian","false");
+				data.put("experian",Boolean.FALSE);
 				responseDTO.setData(data);
 				return  responseDTO;
 			}
@@ -1404,15 +1404,15 @@ public class LendingApplicationService {
 
 			if(experian.getRejected()){
 				data.put("message",reason);
-				data.put("rejected","true");
-				data.put("eligible","false");
+				data.put("rejected",Boolean.TRUE);
+				data.put("eligible",Boolean.FALSE);
 				responseDTO.setData(data);
 				return responseDTO;
 			}
 
 			if(experian.getReason() != null){
 				data.put("message",reason);
-				data.put("rejected","true");
+				data.put("rejected",Boolean.TRUE);
 				responseDTO.setData(data);
 				return  responseDTO;
 			}
@@ -1422,24 +1422,24 @@ public class LendingApplicationService {
 			logger.info("Payment Schedule:{}",lendingPaymentSchedule);
 			if(lendingPaymentSchedule != null){
 				data.put("message","Merchant Has a Active Loan.");
-				data.put("activeLoan","true");
+				data.put("activeLoan",Boolean.TRUE);
 				responseDTO.setData(data);
 				return responseDTO;
 			}
 			if(eligibleLoan == null){
 				data.put("message","Merchant Not Eligible For Loan.");
-				data.put("eligible","false");
+				data.put("eligible",Boolean.FALSE);
 				responseDTO.setData(data);
 				return responseDTO;
 			}
 			if(lendingApplication == null && eligibleLoan != null){
 				data.put("message","Merchant is Eligible For Loan.");
-				data.put("eligible","true");
+				data.put("eligible",Boolean.TRUE);
 				responseDTO.setData(data);
 				return responseDTO;
 			}else{
-				data.put("applicationPending","true");
-				data.put("eligible","true");
+				data.put("applicationPending",Boolean.TRUE);
+				data.put("eligible",Boolean.TRUE);
 				data.put("created_at",lendingApplication.getCreatedAt().toString());
 				data.put("agreement_at",lendingApplication.getAgreementAt().toString());
 				data.put("loanType",lendingApplication.getLoanType());
