@@ -6,6 +6,8 @@ import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
+import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;

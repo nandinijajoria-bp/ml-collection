@@ -105,7 +105,9 @@ public class ExperianService {
         } else if (!maskedMobiles.isEmpty()){
             return new ResponseDTO(false, null, maskedMobiles);
         } else {
-            return new ResponseDTO(true, null, null);
+            ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+            responseDTO.setCrif(true);
+            return responseDTO;
         }
     }
 
@@ -241,17 +243,25 @@ public class ExperianService {
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         try {
             if (isOTPVerified) {
-                authenticateExperian(merchant.getId(), mobile);
+                boolean experianFound = authenticateExperian(merchant.getId(), mobile);
                 experianDetails.setOtpVerified(true);
                 experianDetailsDao.save(experianDetails);
-                return new ResponseDTO(true, null, null);
+                ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+                if (!experianFound) {
+                    responseDTO.setCrif(true);
+                }
+                return responseDTO;
             }
             isOTPVerified = gupShupOTPHandler.verifyOTP(mobile, otp);
             if (isOTPVerified) {
-                authenticateExperian(merchant.getId(), mobile);
+                boolean experianFound = authenticateExperian(merchant.getId(), mobile);
                 experianDetails.setOtpVerified(true);
                 experianDetailsDao.save(experianDetails);
-                return new ResponseDTO(true, null, null);
+                ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+                if (!experianFound) {
+                    responseDTO.setCrif(true);
+                }
+                return responseDTO;
             }
         } catch (Exception e) {
             if (!retry) {
@@ -265,7 +275,7 @@ public class ExperianService {
         return new ResponseDTO(false, "Invalid OTP", null);
     }
 
-    private void authenticateExperian(Long merchantId, String mobile){
+    private boolean authenticateExperian(Long merchantId, String mobile){
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchantId);
         if (experianDetails != null && experianDetails.getStageOneId() != null && experianDetails.getStageTwoId() != null) {
             HttpHeaders headers = new HttpHeaders();
@@ -293,6 +303,7 @@ public class ExperianService {
                     experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                     insertExperianCallRecord(experianResponse.toString(), "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
                     logger.info("Successfully found experian report for merchant: {}", merchantId);
+                    return true;
                 } else {
                     insertExperianCallRecord(null, "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
                     logger.info("Experian Report not found for merchant: {} with mobile: {}", merchantId, mobile);
@@ -304,6 +315,7 @@ public class ExperianService {
             }
 
         }
+        return false;
     }
 	
 	public void insertExperianCallRecord(String response,String apiName,String request,Long merchantId,Double bpScore, String pancard, String mobile) {
