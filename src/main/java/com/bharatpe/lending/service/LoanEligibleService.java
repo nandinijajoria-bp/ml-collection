@@ -57,7 +57,7 @@ public class LoanEligibleService {
     List<Integer> derogAccountStatus = Arrays.asList(93,89,93,97,97,97,97,30,31,32,33,35,37,38,39,41,42,43,44,45,47,49,50,51,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,77,79,81,85,86,87,88,94,90,91);
     List<Integer> derogUnsecuredProducts = Arrays.asList(5,10,36,37,38,39,43,51,52,53,54,55,56,57,58,60,61);
     List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com", "puneet.arora@bharatpe.com");
-    List<Long> exemptMerchant = Arrays.asList(139533L,1812311L);
+    List<Long> exemptMerchant = Arrays.asList(139533L,1812311L,1709295L);
 
     private Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 

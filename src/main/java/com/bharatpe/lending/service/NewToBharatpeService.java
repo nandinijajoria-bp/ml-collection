@@ -712,14 +712,14 @@ public class NewToBharatpeService {
         }
         if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isArray()) {
             for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-                if (monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() > 0) {
+                if (monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() > 5) {
                     logger.info("dpd: {}: {}", cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText(), cais_account_history.get("Days_Past_Due"));
                 	dpd ++;
                 }
             }
         } else if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isObject()){
             JsonNode cais_account_history = jsonNode.get("CAIS_Account_History");
-            if (monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() > 0) {
+            if (monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() > 5) {
 				logger.info("dpd: {}: {}", cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText(), cais_account_history.get("Days_Past_Due"));
             	dpd ++;
             }
