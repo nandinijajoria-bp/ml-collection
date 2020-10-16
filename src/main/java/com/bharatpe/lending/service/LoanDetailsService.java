@@ -1104,7 +1104,6 @@ public class LoanDetailsService {
 
 		for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
 			LoanHistoryDTO history = new LoanHistoryDTO();
-			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(),lendingPaymentSchedule.getMerchant());
 			Boolean showPaynow = false;
 			history.setId(lendingPaymentSchedule.getId());
 			history.setAmount(lendingPaymentSchedule.getLoanAmount());
@@ -1112,8 +1111,8 @@ public class LoanDetailsService {
 			history.setStatus(lendingPaymentSchedule.getStatus());
 			history.setLoanStatusTitle("");
 			history.setLoanStatusMessage("");
-			history.setProcessingFee(lendingApplication.getProcessingFee());
-			history.setDisbursalAmount(lendingApplication.getDisbursalAmount());
+			history.setProcessingFee(lendingPaymentSchedule.getLoanApplication().getProcessingFee());
+			history.setDisbursalAmount(lendingPaymentSchedule.getLoanApplication().getDisbursalAmount());
 			if("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
 				LendingEDISchedule lendingEDISchedule = lendingEDIScheduleDao.getLatestByLoanId(lendingPaymentSchedule.getId());
 				if(lendingEDISchedule != null){
