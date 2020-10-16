@@ -63,6 +63,9 @@ public class LoanDetailsService {
 	
 	@Autowired
 	AgentDao agentDao;
+
+	@Autowired
+	LendingEDIScheduleDao lendingEDIScheduleDao;
 	
 	@Autowired
 	MerchantAddressDao merchantAddressDao;
@@ -1124,12 +1127,22 @@ public class LoanDetailsService {
 
 		for(LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
 			LoanHistoryDTO history = new LoanHistoryDTO();
+			Boolean showPaynow = false;
 			history.setId(lendingPaymentSchedule.getId());
 			history.setAmount(lendingPaymentSchedule.getLoanAmount());
 			history.setStartDate(lendingPaymentSchedule.getStartDate());
 			history.setStatus(lendingPaymentSchedule.getStatus());
 			history.setLoanStatusTitle("");
 			history.setLoanStatusMessage("");
+			history.setProcessingFee(lendingPaymentSchedule.getLoanApplication().getProcessingFee());
+			history.setDisbursalAmount(lendingPaymentSchedule.getLoanApplication().getDisbursalAmount());
+			if("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
+				LendingEDISchedule lendingEDISchedule = lendingEDIScheduleDao.getLatestByLoanId(lendingPaymentSchedule.getId());
+				if(lendingEDISchedule != null){
+					showPaynow=true;
+				}
+			}
+			history.setShowPaynow(showPaynow);
 			if(LendingStatus.CLOSED.toString().equals(lendingPaymentSchedule.getStatus())) {
 				history.setEndDate(lendingPaymentSchedule.getUpdatedAt());
 			} else {
