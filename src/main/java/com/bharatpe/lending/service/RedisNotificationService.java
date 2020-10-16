@@ -31,6 +31,7 @@ public class RedisNotificationService {
 	Logger logger=LoggerFactory.getLogger(RedisNotificationService.class);
 	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
+		if (true) return;
 		try {
 			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE")) {
 				return;
@@ -64,6 +65,7 @@ public class RedisNotificationService {
 	}
 	
 	public void sendNotificationForSeenOffer(Long merchantId, List<LoanEligibilityDTO> eligibleLoan) {
+		if (true) return;
 		try {
 			logger.info("Pushing notification of seen offer for merchant {}",merchantId);
 			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
@@ -138,6 +140,7 @@ public class RedisNotificationService {
 //	}
 	
 	public void sendEnachNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
+		if (true) return;
 		try {
 			logger.info("Sending enach notification got merchant {}",merchant);
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
@@ -174,6 +177,7 @@ public class RedisNotificationService {
 	}
 	
 	public void sendPendingEnachNotification(Merchant merchant, LendingApplication lendingApplication) {
+		if (true) return;
 		try {
 			logger.info("Sending pending enach notification for merchant {}",merchant);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");
