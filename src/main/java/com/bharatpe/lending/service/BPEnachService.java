@@ -106,14 +106,14 @@ public class BPEnachService {
         if (bankCode == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Bank not supported for Enach");
-            logger.error("Merchant Bank not supported for Enach - {}", merchant);
+            logger.info("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
         String bankBranch = getBranchName(merchantBankDetail.getIfscCode());
         if (bankBranch == null || StringUtils.isEmpty(bankBranch)) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Bank Branch not found for Enach");
-            logger.error("Merchant Bank Br`anch not found for Enach - {}", merchant);
+            logger.info("Merchant Bank Br`anch not found for Enach - {}", merchant);
             return responseDTO;
         }
 
