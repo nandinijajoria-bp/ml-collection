@@ -145,6 +145,9 @@ public class LoanDetailsService {
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
 
+	@Autowired
+	BankListDao bankListDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -256,6 +259,27 @@ public class LoanDetailsService {
 				}
 				return response;
 			}
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
+			//check for payments bank
+			if (bankList != null && bankList.getIsPaymentBank()) {
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<>());
+				loanDetailsDTO.setHistory(new ArrayList<>());
+				loanDetailsDTO.setEligible(false);
+				loanDetailsDTO.setRejected(false);
+				loanDetailsDTO.setRejectReason(null);
+				loanDetailsDTO.setPanCard(experian.getPancardNumber());
+				loanDetailsDTO.setZomato(isZomato);
+				loanDetailsDTO.setBharatSwipe(isFromSwipe);
+				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				if (experian != null) {
+					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+				}
+				return response;
+			}
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 					rejected = true;
@@ -317,7 +341,6 @@ public class LoanDetailsService {
 			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess, showTarget, targetTpv);
 			List<LoanHistoryDTO> loanHistoryDTOs = orignalHistoryDTOs;
 			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			String bankCode = null;
 			try {

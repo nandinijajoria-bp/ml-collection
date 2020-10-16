@@ -288,7 +288,7 @@ public class APIGatewayService {
             crifRequestResponseDao.save(crifRequestResponse);
             int retryCount = 0;
             ResponseEntity<String> response = null;
-            while (retryCount < 3) {
+            while (retryCount < 2) {
                 try {
                     response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage1.url")), HttpMethod.POST, request, String.class);
                     logger.info("CRIF stage1 response:{}", response);
@@ -338,7 +338,7 @@ public class APIGatewayService {
             crifRequestResponseDao.save(crifRequestResponse);
             int retryCount = 0;
             ResponseEntity<String> response = null;
-            while (retryCount < 3) {
+            while (retryCount < 2) {
                 try {
                     response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage2.url")), HttpMethod.POST, request, String.class);
                     logger.info("CRIF " + stage + " response:{}", response.getBody());
