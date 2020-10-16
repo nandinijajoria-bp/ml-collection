@@ -276,6 +276,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
 				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+				loanDetailsDTO.setPincode(pincode);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				if (experian != null) {
