@@ -30,6 +30,10 @@ public class LoanHistoryDTO {
 	private Double repaid;
 	private Double due;
 	private Double edi;
+	private boolean showPaynow;
+
+	private Double disbursalAmount;
+	private Double processingFee;
 
 	public Long getId() {
 		return id;
@@ -117,6 +121,30 @@ public class LoanHistoryDTO {
 
 	public void setEdi(Double edi) {
 		this.edi = edi;
+	}
+
+	public boolean isShowPaynow() {
+		return showPaynow;
+	}
+
+	public void setShowPaynow(boolean showPaynow) {
+		this.showPaynow = showPaynow;
+	}
+
+	public Double getDisbursalAmount() {
+		return disbursalAmount;
+	}
+
+	public void setDisbursalAmount(Double disbursalAmount) {
+		this.disbursalAmount = disbursalAmount;
+	}
+
+	public Double getProcessingFee() {
+		return processingFee;
+	}
+
+	public void setProcessingFee(Double processingFee) {
+		this.processingFee = processingFee;
 	}
 
 	@Override
