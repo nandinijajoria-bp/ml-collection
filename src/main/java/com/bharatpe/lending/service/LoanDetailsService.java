@@ -265,25 +265,26 @@ public class LoanDetailsService {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 			//check for payments bank
-			if (bankList != null && bankList.getIsPaymentBank()) {
-				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setEligibility(new ArrayList<>());
-				loanDetailsDTO.setHistory(new ArrayList<>());
-				loanDetailsDTO.setEligible(false);
-				loanDetailsDTO.setRejected(false);
-				loanDetailsDTO.setRejectReason(null);
-				loanDetailsDTO.setPanCard(panCard);
-				loanDetailsDTO.setZomato(isZomato);
-				loanDetailsDTO.setBharatSwipe(isFromSwipe);
-				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
-				loanDetailsDTO.setPincode(pincode);
-				response.setDetails(loanDetailsDTO);
-				response.setSuccess(true);
-				if (experian != null) {
-					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
-				}
-				return response;
-			}
+			boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
+//			if (bankList != null && bankList.getIsPaymentBank()) {
+//				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+//				loanDetailsDTO.setEligibility(new ArrayList<>());
+//				loanDetailsDTO.setHistory(new ArrayList<>());
+//				loanDetailsDTO.setEligible(false);
+//				loanDetailsDTO.setRejected(false);
+//				loanDetailsDTO.setRejectReason(null);
+//				loanDetailsDTO.setPanCard(panCard);
+//				loanDetailsDTO.setZomato(isZomato);
+//				loanDetailsDTO.setBharatSwipe(isFromSwipe);
+//				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+//				loanDetailsDTO.setPincode(pincode);
+//				response.setDetails(loanDetailsDTO);
+//				response.setSuccess(true);
+//				if (experian != null) {
+//					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+//				}
+//				return response;
+//			}
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 					rejected = true;
@@ -654,6 +655,13 @@ public class LoanDetailsService {
 						logger.info("Blocked pancard:{}", experian.getPancardNumber());
 						loanEligibilityDTOs.clear();
 						experian.setReason(ExperianConstants.BLOCKED_PANCARD);
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experianDao.save(experian);
+					} else if (paymentsBank) {
+						logger.info("Payments bank pancard:{}", experian.getPancardNumber());
+						loanEligibilityDTOs.clear();
+						experian.setReason(ExperianConstants.PAYMENTS_BANK);
 						experian.setCategory("1N");
 						experian.setColor(ExperianConstants.COLOR.RED.name());
 						experianDao.save(experian);
