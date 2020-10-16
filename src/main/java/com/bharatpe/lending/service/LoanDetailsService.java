@@ -272,7 +272,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setEligible(false);
 				loanDetailsDTO.setRejected(false);
 				loanDetailsDTO.setRejectReason(null);
-				loanDetailsDTO.setPanCard(experian.getPancardNumber());
+				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
 				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
