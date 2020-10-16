@@ -661,7 +661,7 @@ public class LoanDetailsService {
 					} else if (paymentsBank) {
 						logger.info("Payments bank pancard:{}", experian.getPancardNumber());
 						loanEligibilityDTOs.clear();
-						experian.setReason(ExperianConstants.PAYMENTS_BANK);
+						experian.setReason(ExperianConstants.ENACH);
 						experian.setCategory("1N");
 						experian.setColor(ExperianConstants.COLOR.RED.name());
 						experianDao.save(experian);
