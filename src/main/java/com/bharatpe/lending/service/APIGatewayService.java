@@ -316,7 +316,7 @@ public class APIGatewayService {
         }
     }
 
-    public JsonNode crifStage2(String orderId, String reportId, String redirectUrl, boolean stage3, String userAns) {
+    public JsonNode crifStage2(Long merchantId, String orderId, String reportId, String redirectUrl, boolean stage3, String userAns) {
         try {
             String stage = stage3 ? "stage3" : "stage2";
             logger.info("Calling CRIF " + stage + " api for merchant:{} with orderId:{}", merchantId, orderId);
