@@ -1143,8 +1143,8 @@ public class LoanDetailsService {
 			history.setStatus(lendingPaymentSchedule.getStatus());
 			history.setLoanStatusTitle("");
 			history.setLoanStatusMessage("");
-			history.setProcessingFee(lendingPaymentSchedule.getLoanApplication().getProcessingFee());
-			history.setDisbursalAmount(lendingPaymentSchedule.getLoanApplication().getDisbursalAmount());
+			history.setProcessingFee(lendingPaymentSchedule.getLoanApplication() != null ? lendingPaymentSchedule.getLoanApplication().getProcessingFee() : 0D);
+			history.setDisbursalAmount(lendingPaymentSchedule.getLoanApplication() != null ? lendingPaymentSchedule.getLoanApplication().getDisbursalAmount() : lendingPaymentSchedule.getLoanAmount());
 			if("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
 				LendingEDISchedule lendingEDISchedule = lendingEDIScheduleDao.getLatestByLoanId(lendingPaymentSchedule.getId());
 				if(lendingEDISchedule != null){
