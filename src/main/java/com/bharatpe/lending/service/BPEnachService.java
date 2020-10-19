@@ -171,7 +171,7 @@ public class BPEnachService {
 
 
     public String fetchBankCode(String ifscCode, String mode) {
-        LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode, mode);
+        LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode);
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
 
