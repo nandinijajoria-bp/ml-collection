@@ -8,7 +8,9 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
 import com.bharatpe.lending.common.dao.CrifDao;
+import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
+import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -134,6 +136,9 @@ public class LoanEligibleService {
 
     @Autowired
     MerchantSummaryDao merchantSummaryDao;
+
+    @Autowired
+    CrifRequestResponseDao crifRequestResponseDao;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
@@ -265,6 +270,7 @@ public class LoanEligibleService {
                 }
             }
             ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
+            CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
             if (experianResponse != null){
                 if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
                     String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").asText();
@@ -287,6 +293,13 @@ public class LoanEligibleService {
                 Collections.addAll(maskedMobiles, mobiles);
                 experian.setMaskedMobiles(maskedMobiles);
                 return new ArrayList<>();
+            } else if (crifRequestResponse != null && crifRequestResponse.getApiName().equalsIgnoreCase("STAGE2") && crifRequestResponse.getResponse() != null) {
+                JsonNode crifResponse = objectMapper.readTree(crifRequestResponse.getResponse());
+                if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
+                    logger.info("Crif not found for merchant: {}, going to Crif question", merchant.getId());
+                    experian.setNoExperian(true);
+                    return new ArrayList<>();
+                }
             }
             if (experianResponse != null){
                 try {
