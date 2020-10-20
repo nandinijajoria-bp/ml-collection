@@ -193,7 +193,7 @@ public class UploadDocumentService {
 	}
 	
 	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
-		DocumentsIdProof documentsIdProof = documentsIdProofdao.findByMerchantAndLendingApplicationAndProofType(merchant, lendingApplication, proofType);
+		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantAndLendingApplicationAndProofTypeOrderByIdDesc(merchant, lendingApplication, proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);
 			documentsIdProof.setProofBackSide(backSide);
