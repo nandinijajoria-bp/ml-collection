@@ -150,7 +150,7 @@ public class APIGatewayService {
     public Map<String,String> signzyIdentityDetails(String proofType, Long merchantId) {
         logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
         try {
-            SignzyCredential signzyCredential = signzyCredentialDao.findByModule("LENDING");
+            SignzyCredential signzyCredential = signzyCredentialDao.findByModule("PAN");
             if (signzyCredential == null) {
                 logger.info("signzy credentials not found");
                 return null;
