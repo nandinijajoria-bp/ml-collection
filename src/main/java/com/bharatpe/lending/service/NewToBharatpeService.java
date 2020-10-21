@@ -75,10 +75,10 @@ public class NewToBharatpeService {
 
     public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian, boolean yellowPincode) {
 		logger.info("Fetching NTB loans for merchant:{}", experian.getMerchantId());
-        if (experian.getResponse() == null) {
-            logger.info("Merchant:{} not eligible for BBS", merchant.getId());
-            return new ArrayList<>();
-        }
+//        if (experian.getResponse() == null) {
+//            logger.info("Merchant:{} not eligible for BBS", merchant.getId());
+//            return new ArrayList<>();
+//        }
         try {
         	LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(merchant.getId());
         	if (lendingBBS == null || LoanUtil.getDateDiffInDays(lendingBBS.getCreatedAt(), new Date()) > 45) {
