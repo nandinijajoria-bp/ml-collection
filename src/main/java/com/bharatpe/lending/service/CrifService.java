@@ -126,7 +126,7 @@ public class CrifService {
             crif.setOrderId(stage1Response.get("orderId").asText());
             crif.setReportId(stage1Response.get("reportId").asText());
             JsonNode stage2Response = apiGatewayService.crifStage2(merchantId, stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), false, "");
-            if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S10")) {
+            if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
                 logger.info("Crif stage2 success for merchant:{}", merchantId);
                 JsonNode stage3Response = apiGatewayService.crifStage2(merchantId, stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), true, "");
                 if (stage3Response != null) {
@@ -148,7 +148,7 @@ public class CrifService {
 
     private JsonNode getCrifUserAns(Crif crif, String userAns, Long merchantId) {
         JsonNode stage2Response = apiGatewayService.crifStage2(merchantId, crif.getOrderId(), crif.getReportId(), null, false, userAns);
-        if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S01")) {
+        if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
             logger.info("Crif stage2 success for merchant:{}", crif.getMerchantId());
             JsonNode stage3Response = apiGatewayService.crifStage2(merchantId, crif.getOrderId(), crif.getReportId(), null, true, "");
             if (stage3Response != null) {
