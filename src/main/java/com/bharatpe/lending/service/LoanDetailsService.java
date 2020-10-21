@@ -7,9 +7,11 @@ import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
+import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
 import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
+import com.bharatpe.lending.common.entity.Crif;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.LendingPartnerOffers;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -150,6 +152,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	BankListDao bankListDao;
+
+	@Autowired
+	CrifDao crifDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -626,6 +631,7 @@ public class LoanDetailsService {
 					}
 					//fetching NTB loans
 					if (!rejected && loanEligibilityDTOs.isEmpty()) {
+						Crif crif = crifDao.findByMerchantId(merchant.getId());
 						experian.setReason(null);
 						experianDao.save(experian);
 						if (bankCode == null) {
@@ -634,7 +640,7 @@ public class LoanDetailsService {
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.ENACH);
 							experianDao.save(experian);
-						} else if (experian.getResponse() == null) {
+						} else if (experian.getResponse() == null && (crif == null || crif.getResponse() == null)) {
 							logger.info("NTC merchant, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 							experian.setCategory("1N");
 							experian.setColor(ExperianConstants.COLOR.RED.name());
