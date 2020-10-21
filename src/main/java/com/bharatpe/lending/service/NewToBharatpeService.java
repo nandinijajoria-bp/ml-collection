@@ -84,6 +84,10 @@ public class NewToBharatpeService {
         	if (lendingBBS == null || LoanUtil.getDateDiffInDays(lendingBBS.getCreatedAt(), new Date()) > 45) {
         		lendingBBS = calculateBBS(experian, merchant);
 			}
+			if(lendingBBS == null){
+				logger.info("BBS Calculation failed, invalid report, so rejecting merchant: {}", merchant.getId());
+				return new ArrayList<>();
+			}
 			logger.info("BBS:{} for merchant:{}", lendingBBS.getBbs(), experian.getMerchantId());
         	if (!baseChecks(lendingBBS, merchant, experian, yellowPincode)) {
 				logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());

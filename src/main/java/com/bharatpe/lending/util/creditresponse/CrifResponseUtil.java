@@ -367,7 +367,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         }
         JsonNode paymentHistory = jsonNode.get("COMBINED-PAYMENT-HISTORY");
         int dpdCount = 0;
-        if (paymentHistory != null) {
+        if (paymentHistory != null && !paymentHistory.toString().equalsIgnoreCase("\"\"")) {
             List<String> loanHistory = Arrays.asList(paymentHistory.asText().split("\\|"));
             for (String monthNode : loanHistory) {
                 String date = monthNode.split(",")[0];
