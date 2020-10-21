@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.entity.CreditApplicationAddress;
 import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
+import com.fasterxml.jackson.databind.JsonNode;
 
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
@@ -170,6 +171,20 @@ public class LoanUtil {
 		put("BHARATPE_NACH", "NACH");
 		put("UPI","UPI");
 	}};
+
+	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData){
+        List<JsonNode> resp = new ArrayList<>();
+        if(nodeData != null && !nodeData.asText().equals("\"\"")){
+            if(nodeData.isObject()){
+                resp.add(nodeData);
+            } else {
+                for(JsonNode node: nodeData){
+                    resp.add(node);
+                }
+            }
+        }
+        return resp;
+    }
 
 	public static int getEdiDays(int tenure){
 		switch (tenure){

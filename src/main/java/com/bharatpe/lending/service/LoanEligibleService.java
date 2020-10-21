@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
 import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
+import com.bharatpe.lending.common.entity.Crif;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -24,14 +25,10 @@ import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.bharatpe.lending.util.creditresponse.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.DateTime;
-import org.joda.time.Months;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.json.JSONObject;
 import org.json.XML;
 import org.slf4j.Logger;
@@ -49,9 +46,6 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -127,6 +121,12 @@ public class LoanEligibleService {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    CrifDao crifDao;
+
+    @Autowired
+    CrifAuditTrailDao crifAuditTrailDao;
 
     @Autowired
     MerchantBankDetailDao merchantBankDetailDao;
@@ -237,7 +237,7 @@ public class LoanEligibleService {
         if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
             experian.setReason(null);
         }
-        JsonNode experianResponse = null;
+        JsonNode creditBureauResponse = null;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
             Date reportDate = null;
@@ -249,12 +249,12 @@ public class LoanEligibleService {
                 }
             }
             if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
-                experianResponse = objectMapper.readTree(experian.getResponse());
+                creditBureauResponse = objectMapper.readTree(experian.getResponse());
             } else if ((reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
-                    experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                    creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                     experian.setRetryCount(0);
-                } catch (ResourceAccessException e) {
+                } catch (Exception e) {
                     logger.info("Experian not responding---", e);
                     experian.setReason(ExperianConstants.TIMEOUT);
                     experianDao.save(experian);
@@ -265,45 +265,26 @@ public class LoanEligibleService {
                         //emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
                         return new ArrayList<>();
                     } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
-                        experianResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                        creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                     }
                 }
             }
-            ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
-            CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-            if (experianResponse != null){
-                if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
-                    String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").asText();
-                    experian.setEmail(email);
+            ResponseUtil responseUtil = getCreditBureauResponse(experian, creditBureauResponse, merchant.getId());
+            if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
+                String email = responseUtil.getEmail();
+                Double bureauScore = responseUtil.getBureauScore();
+                if(email != null ) experian.setEmail(email);
+                if(bureauScore != null) experian.setExperianScore(bureauScore);
+                if ("EXPERIAN".equals(responseUtil.getType())) {
+                    experian.setResponse(responseUtil.getResponse());
                 }
-                if (experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore") != null) {
-                    experian.setExperianScore(experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore").doubleValue());
-                }
-                experian.setResponse(experianResponse.toString());
-                experianDao.save(experian);//updating response
-            } else if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
-                logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
-                experian.setNoExperian(true);
+                experianDao.save(experian);
+            } else if (goToExperianV2(experian, merchant, pancard)) {
                 return new ArrayList<>();
-            } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
-                logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
-                experian.setNoExperian(true);
-                String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
-                List<String> maskedMobiles = new ArrayList<>();
-                Collections.addAll(maskedMobiles, mobiles);
-                experian.setMaskedMobiles(maskedMobiles);
-                return new ArrayList<>();
-            } else if (crifRequestResponse != null && crifRequestResponse.getApiName().equalsIgnoreCase("STAGE2") && crifRequestResponse.getResponse() != null) {
-                JsonNode crifResponse = objectMapper.readTree(crifRequestResponse.getResponse());
-                if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
-                    logger.info("Crif not found for merchant: {}, going to Crif question", merchant.getId());
-                    experian.setNoExperian(true);
-                    return new ArrayList<>();
-                }
             }
-            if (experianResponse != null){
+            if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
                 try {
-                    if (!exemptMerchant.contains(merchant.getId()) && isDerog(experianResponse, merchant, experian, isRepeatLoanNoDerog)) {
+                    if (!exemptMerchant.contains(merchant.getId()) && responseUtil.isDerog(merchant, isRepeatLoanNoDerog, experian)) {
                         return new ArrayList<>();
                     }
                 } catch (Exception e) {
@@ -315,7 +296,7 @@ public class LoanEligibleService {
                     logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
                     return new ArrayList<>();
                 }
-                return fetchBureauEligibleLoan(experianResponse, merchant.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays, lendingApplication, yellowPincode);
+                return fetchBureauEligibleLoan(responseUtil, merchant.getId(), bpScore, experian, repeatedLoan, avgTpv, isEligibleForConstruct2And3, loanCount, previousLoanDays, lendingApplication, yellowPincode);
             }
         } catch (ResourceAccessException e) {
             logger.info("Experian not responding---", e);
@@ -329,6 +310,9 @@ public class LoanEligibleService {
             experianDao.save(experian);
             logger.error("Exception while fetching experian details---", e);
         }
+        if (goToExperianV2(experian, merchant, pancard)) {
+            return new ArrayList<>();
+        }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         //base checks
@@ -339,8 +323,39 @@ public class LoanEligibleService {
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
     }
 
+    private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard) {
+        ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
+        CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
+            logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
+            experian.setNoExperian(true);
+            return true;
+        } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+            logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
+            experian.setNoExperian(true);
+            String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
+            List<String> maskedMobiles = new ArrayList<>();
+            Collections.addAll(maskedMobiles, mobiles);
+            experian.setMaskedMobiles(maskedMobiles);
+            return true;
+        } else if (crifRequestResponse != null && crifRequestResponse.getApiName().equalsIgnoreCase("STAGE2") && crifRequestResponse.getResponse() != null) {
+            try {
+                JsonNode crifResponse = objectMapper.readTree(crifRequestResponse.getResponse());
+                if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
+                    logger.info("Crif not found for merchant: {}, going to Crif question", merchant.getId());
+                    experian.setNoExperian(true);
+                    return true;
+                }
+            } catch (Exception e) {
+                logger.error("Exception while parsing crif response", e);
+            }
+        }
+        return false;
+    }
+
     public ApplicationDerogResponseDTO processDerogSince(Long merchantId, Long applicationId, int daysDiffToCheck){
         ApplicationDerogResponseDTO responseDTO = new ApplicationDerogResponseDTO();
+        Date reportDate = null;
         Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
         if(!merchantOptional.isPresent()){
             logger.info("Merchant not found for merchantId: {}", merchantId);
@@ -366,7 +381,11 @@ public class LoanEligibleService {
             responseDTO.setSuccess(false);
             return responseDTO;
         }
-        Date reportDate = getReportDate(experian);
+        JsonNode bureauResponse = parseStringResponse(experian.getResponse());
+        ResponseUtil creditBureauResponseUtil = getCreditBureauResponse(experian, bureauResponse, merchantId);
+        if(creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
+            reportDate = creditBureauResponseUtil.getReportDate();
+        }
         if(reportDate == null || LoanUtil.getDateDiffInDays(reportDate, new Date()) >= daysDiffToCheck){
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
             if(merchantBankDetail == null){
@@ -378,18 +397,21 @@ public class LoanEligibleService {
             }
             MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
             Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
-            JsonNode experianResponse = getLatestExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail, experian, 3);
-            if(experianResponse == null) {
+            bureauResponse = getLatestExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail, 3);
+            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, false);
+            boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
+            creditBureauResponseUtil = getCreditBureauResponse(experian, bureauResponse, merchantId);
+            if(!creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())) {
                 responseDTO.setMessage("Unable to fetch experian data, please retry!");
                 responseDTO.setIsRejected(false);
                 responseDTO.setSuccess(true);
                 return responseDTO;
             }
-            experian.setResponse(experianResponse.toString());
-            experianDao.save(experian);
-            List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId,false);
-            boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
-            if(isDerogApplication(experianResponse, merchant, experian, isRepeatLoanNoDerog)){
+            if("EXPERIAN".equals(creditBureauResponseUtil.getType())){
+                experian.setResponse(creditBureauResponseUtil.getResponse());
+                experianDao.save(experian);
+            }
+            if(isDerogApplication(creditBureauResponseUtil, merchant, experian, isRepeatLoanNoDerog)){
                 experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                 lendingApplication.setStatus("rejected");
                 lendingApplication.setManualCibil("REJECTED");
@@ -398,7 +420,7 @@ public class LoanEligibleService {
                 lendingApplicationDao.save(lendingApplication);
                 responseDTO.setManualCibil("REJECTED");
                 responseDTO.setManualCibilReason("EXPERIAN DEROG FAILED");
-                responseDTO.setMessage("Created eligible loan entry successfully");
+                responseDTO.setMessage("Application Derof Failed");
                 responseDTO.setIsRejected(true);
                 responseDTO.setSuccess(true);
                 return responseDTO;
@@ -411,7 +433,7 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    private JsonNode getLatestExperianDetails(String contact, String panCard, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, Experian experian, int maxExperianRetryCount){
+    private JsonNode getLatestExperianDetails(String contact, String panCard, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, int maxExperianRetryCount){
         int retryCount = 0;
         JsonNode experianResponse = null;
         while(retryCount < maxExperianRetryCount){
@@ -426,21 +448,9 @@ public class LoanEligibleService {
         return experianResponse;
     }
 
-    private Date getReportDate(Experian experian){
-        Date reportDate = null;
-        if (experian != null && experian.getResponse() != null) {
-            try {
-                reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
-            } catch (Exception e) {
-                logger.info("Exception while parsing report date", e);
-            }
-        }
-        return reportDate;
-    }
-
-    private boolean isDerogApplication(JsonNode experianResponse, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) {
+    private boolean isDerogApplication(ResponseUtil responseUtil, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) {
         try {
-            if (!exemptMerchant.contains(merchant.getId()) && isDerog(experianResponse, merchant, experian, isRepeatLoanNoDerog)) {
+            if (!exemptMerchant.contains(merchant.getId()) && responseUtil.isDerog(merchant, isRepeatLoanNoDerog, experian)) {
                 return true;
             }
         } catch (Exception e) {
@@ -450,54 +460,14 @@ public class LoanEligibleService {
         return false;
     }
 
-    public boolean isDerog(JsonNode experianResponse, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) throws ParseException {
-        Date reportDate = new SimpleDateFormat("yyyyMMdd").parse(experianResponse.get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
-        if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()) {
-            JsonNode caisAccountDetails = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog, reportDate)) {
-                logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
-                return true;
-            }
-        } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()) {
-            int unsecuredLoanCount = 0;
-            for (JsonNode caisAccountDetails : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                if (derogChecks(caisAccountDetails, merchant.getId(), experian, isRepeatLoanNoDerog, reportDate)) {
-                    logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
-                    return true;
-                }
-                if (checkUnsecuredLiveLoans(caisAccountDetails)) {
-                    unsecuredLoanCount++;
-                }
-            }
-            //Not more than 3 live unsecured loans running
-            if (!isRepeatLoanNoDerog && unsecuredLoanCount > 3) {
-                logger.info("Derog more than 3 live unsecured loans running, rejecting merchant: {}", merchant.getId());
-                experian.setRejected(true);
-                experian.setRejectedDate(new Date());
-                experian.setReason(ExperianConstants.DEROG_UNSECURED_LOANS);
-                experianDao.save(experian);
-                return true;
-            }
+    private JsonNode parseStringResponse(String response){
+        if (response == null || response.isEmpty()) return null;
+        try {
+            return objectMapper.readTree(response);
+        } catch (Exception e) {
+            logger.info("Exception while parsing string response ", e);
+            return null;
         }
-        //Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
-        if (!isRepeatLoanNoDerog && checkUnsecuredLoanEnquiriesInLast6Months(experianResponse, reportDate)) {
-            logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}", merchant.getId());
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
-            experianDao.save(experian);
-            return true;
-        }
-        //Not more than 6 enquiries in the last 3 months ( across all product types) --- Derog check
-        if (!isRepeatLoanNoDerog && checkLoanEnquiriesInLast3Months(experianResponse)) {
-            logger.info("Derog more than 6 enquiries in the last 3 months, rejecting merchant: {}", merchant.getId());
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_MORE_THAN_6_LOAN_ENQUIRY);
-            experianDao.save(experian);
-            return true;
-        }
-        return false;
     }
 
     private boolean checkOverdue(List<LendingPaymentSchedule> prevLoans) {
@@ -622,9 +592,9 @@ public class LoanEligibleService {
         return null;
     }
 
-    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(JsonNode experianResponse, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
-        int bureauVintage = fetchBureauVintage(experianResponse);//months
-        String accountCategory = fetchAccountCategory(experianResponse);// A,B,C or NTC
+    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(ResponseUtil responseUtil, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
+        int bureauVintage = responseUtil.fetchBureauVintage();//months
+        String accountCategory = responseUtil.fetchAccountCategory();// A,B,C or NTC
         if (accountCategory.equals("NTC")){
             logger.info("Loan category is NTC for merchant: {}, Calculate NTC...", merchantId);
             return calculateNTC(bpScore, merchantId, repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
@@ -1016,215 +986,6 @@ public class LoanEligibleService {
         }
     }
 
-    public String fetchAccountCategory(JsonNode experianResponse) {
-        List<Integer> categoryA = Arrays.asList(6,7,13,38,39,43);
-        List<Integer> categoryB = Arrays.asList(1,5,8,9,10,11,12,17,32,33,34,36,37,51,52,53,54,55,56,57,58,59,60,61);
-        List<Integer> categoryC = Arrays.asList(2,3);
-        boolean a=false, b=false, c=false;
-        if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
-            for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                if (categoryA.contains(jsonNode.get("Account_Type").asInt())) { a = true;}
-                if (categoryB.contains(jsonNode.get("Account_Type").asInt())) { b = true;}
-                if (categoryC.contains(jsonNode.get("Account_Type").asInt())) { c = true;}
-            }
-        } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
-            JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            if (categoryA.contains(jsonNode.get("Account_Type").asInt())) { a = true;}
-            if (categoryB.contains(jsonNode.get("Account_Type").asInt())) { b = true;}
-            if (categoryC.contains(jsonNode.get("Account_Type").asInt())) { c = true;}
-        }
-        return c ? "C" : b ? "B" : a ? "A" : "NTC";
-    }
-
-    public int fetchBureauVintage(JsonNode experianResponse) {
-        DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyyMMdd");
-        DateTime min = new DateTime();
-        if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isArray()){
-            for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS")) {
-                try {
-                    min = formatter.parseDateTime(jsonNode.get("Open_Date").toString()).isBefore(min) ? formatter.parseDateTime(jsonNode.get("Open_Date").toString()) : min;
-                } catch (Exception e) {
-                    logger.info("Invalid Open_Date");
-                }
-            }
-            return Months.monthsBetween(min, DateTime.now()).getMonths();
-        } else if (experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS") != null && experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS").isObject()){
-            JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAIS_Account").get("CAIS_Account_DETAILS");
-            try {
-                min = formatter.parseDateTime(jsonNode.get("Open_Date").toString()).isBefore(min) ? formatter.parseDateTime(jsonNode.get("Open_Date").toString()) : min;
-            } catch (Exception e) {
-                logger.info("Invalid Open_Date");
-            }
-            return Months.monthsBetween(min, DateTime.now()).getMonths();
-        }
-        return 0;
-    }
-
-    private boolean derogChecks(JsonNode jsonNode, Long merchantId, Experian experian, boolean isRepeatLoanNoDerog, Date reportDate) {
-        //Check for Derog Account Status
-        if (jsonNode.get("Account_Status") != null && derogAccountStatus.contains(jsonNode.get("Account_Status").asInt())){
-            logger.info("Derog Account Status check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_ACCOUNT_STATUS);
-            experianDao.save(experian);
-            return true;
-        }
-        //Check for Derog DPD Last 3 months
-        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 3, reportDate)){
-            logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_DPD_LAST_3_MONTHS);
-            experianDao.save(experian);
-            return true;
-        }
-        //Check for Derog DPD Last 6 months
-        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 6, reportDate)){
-            logger.info("Derog DPD Last 6 months check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_DPD_LAST_6_MONTHS);
-            experianDao.save(experian);
-            return true;
-        }
-        //Check for Derog DPD Last 12 months
-        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 12, reportDate)){
-            logger.info("Derog DPD Last 12 months check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_DPD_LAST_12_MONTHS);
-            experianDao.save(experian);
-            return true;
-        }
-        //Check for Derog DPD Last 24 months
-        if (!isRepeatLoanNoDerog && jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDLastXmonths(jsonNode, 24, reportDate)){
-            logger.info("Derog DPD Last 24 months check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_DPD_LAST_24_MONTHS);
-            experianDao.save(experian);
-            return true;
-        }
-        //Check for Derog DPD Older than 24 months
-//        if (jsonNode.get("AccountHoldertypeCode").asInt() != 7 && checkDPDOlderThan24months(jsonNode)){
-//            logger.info("Derog DPD Older than 24 months check failed, rejecting merchant: {}", merchantId);
-//            experian.setRejected(true);
-//            experian.setReason(ExperianConstants.DEROG_DPD_OLDER_THAN_24_MONTHS);
-//            experianDao.save(experian);
-//            return true;
-//        }
-        return false;
-    }
-
-    private boolean checkUnsecuredLiveLoans(JsonNode jsonNode) {
-        return jsonNode.get("Date_Closed").toString().equals("\"\"") && jsonNode.get("Account_Type").asInt() != 10 && derogUnsecuredProducts.contains(jsonNode.get("Account_Type").asInt());
-    }
-
-    private boolean checkLoanEnquiriesInLast3Months(JsonNode experianResponse) {
-        return experianResponse.get("INProfileResponse").get("TotalCAPS_Summary") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast90Days").asInt() > 6;
-    }
-
-    private boolean checkUnsecuredLoanEnquiriesInLast6Months(JsonNode experianResponse, Date reportDate) {
-        if (experianResponse.get("INProfileResponse").get("TotalCAPS_Summary") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days") != null && experianResponse.get("INProfileResponse").get("TotalCAPS_Summary").get("TotalCAPSLast180Days").asInt() <= 4){
-            return false;
-        }
-        Calendar c = Calendar.getInstance();
-        c.setTime(reportDate);
-        c.add(Calendar.MONTH, -6);
-        String month = (c.get(Calendar.MONTH) + 1) < 10 ? "0" + (c.get(Calendar.MONTH) + 1) : (c.get(Calendar.MONTH) + 1) + "";
-        String day = (c.get(Calendar.DAY_OF_MONTH) + 1) < 10 ? "0" + (c.get(Calendar.DAY_OF_MONTH) + 1) : (c.get(Calendar.DAY_OF_MONTH) + 1) + "";
-        long previous6MonthDate = Long.parseLong(c.get(Calendar.YEAR) + month + day);
-        if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isObject()) {
-            JsonNode jsonNode = experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details");
-            return jsonNode.get("Product") != null && jsonNode.get("Date_of_Request") != null && derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate;
-        } else if (experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details") != null && experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details").isArray()) {
-            for (JsonNode jsonNode : experianResponse.get("INProfileResponse").get("CAPS").get("CAPS_Application_Details")) {
-                if (jsonNode.get("Product") != null && derogUnsecuredProducts.contains(jsonNode.get("Product").asInt()) && jsonNode.get("Date_of_Request") != null && jsonNode.get("Date_of_Request").longValue() >= previous6MonthDate) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean checkDPDLastXmonths(JsonNode jsonNode, int months, Date reportDate){
-        Date dateReported = null;
-        try {
-            if (jsonNode.get("Date_Reported") != null && !jsonNode.get("Date_Reported").asText().equalsIgnoreCase("")) {
-                dateReported = new SimpleDateFormat("yyyyMMdd").parse(jsonNode.get("Date_Reported").asText());
-            }
-        } catch (Exception e) {
-            logger.error("Exception:", e);
-        }
-        List<String> monthYear = new ArrayList<>();
-        Calendar c = Calendar.getInstance();
-        if (dateReported != null && LoanUtil.getDateDiffInDays(dateReported, reportDate) > months * 30) {
-            return false;
-        }
-        if (dateReported != null && LoanUtil.getDateDiffInDays(dateReported, reportDate) <= months * 30) {
-            c.setTime(dateReported);
-        } else {
-            c.setTime(reportDate);
-        }
-        String month;
-        int dpd = 5;//3 months
-        switch (months){
-            case 6: dpd = 30;break;
-            case 12: dpd = 60;break;
-            case 24: dpd = 90;break;
-        }
-        for (int i = 0; i < months; i++) {
-            month = (c.get(Calendar.MONTH) + 1) < 10 ? "0" + (c.get(Calendar.MONTH) + 1) : (c.get(Calendar.MONTH) + 1) + "";
-            monthYear.add(month + "$" + c.get(Calendar.YEAR));//01$2020
-            c.add(Calendar.MONTH, -1);
-        }
-        if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isArray()) {
-            for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-                if (monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() >= dpd) {
-                    return true;
-                }
-            }
-        } else if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isObject()){
-            JsonNode cais_account_history = jsonNode.get("CAIS_Account_History");
-            return monthYear.contains(cais_account_history.get("Month").asText() + "$" + cais_account_history.get("Year").asText()) && !cais_account_history.get("Days_Past_Due").isNull() && !cais_account_history.get("Days_Past_Due").asText().equalsIgnoreCase("") && cais_account_history.get("Days_Past_Due").asInt() >= dpd;
-        }
-        return false;
-    }
-
-    //No 60DPD in any month older than 24 months, for cases where no recent loan is there
-    private boolean checkDPDOlderThan24months(JsonNode jsonNode, Date reportDate){
-        if (!checkDPDLastXmonths(jsonNode, 24, reportDate)){
-            List<String> monthYear = new ArrayList<>();
-            Calendar c = Calendar.getInstance();
-            String month;
-            for (int i = 0; i < 24; i++) {
-                month = (c.get(Calendar.MONTH) + 1) < 10 ? "0" + (c.get(Calendar.MONTH) + 1) : (c.get(Calendar.MONTH) + 1) + "";
-                monthYear.add(month + "$" + c.get(Calendar.YEAR));//01$2020
-                c.add(Calendar.MONTH, -1);
-            }
-            if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isArray()) {
-                for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-                    if (monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year"))) {
-                        return false;//active loan found in last 24 months without any DPD then return false
-                    }
-                }
-                for (JsonNode cais_account_history : jsonNode.get("CAIS_Account_History")) {
-                    if (!cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= 60) {
-                        return true;
-                    }
-                }
-            } else if (jsonNode.get("CAIS_Account_History") != null && jsonNode.get("CAIS_Account_History").isObject()){
-                JsonNode cais_account_history = jsonNode.get("CAIS_Account_History");
-                if (monthYear.contains(cais_account_history.get("Month") + "$" + cais_account_history.get("Year"))) {
-                    return false;//active loan found in last 24 months without any DPD then return false
-                }
-                return !cais_account_history.get("Days_Past_Due").isNull() && cais_account_history.get("Days_Past_Due").asInt() >= 60;
-            }
-        }
-        return false;
-    }
-
     private boolean validatePancard(JsonNode experianResponse, String panCard, Long merchantId, Experian experian){
         if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
             String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").asText();
@@ -1481,5 +1242,24 @@ public class LoanEligibleService {
             }
         }
         return true;
+    }
+
+    public ResponseUtil getCreditBureauResponse(Experian experian, JsonNode experianResponse, Long merchantId) {
+        JsonNode bureauResponse = experianResponse;
+        if(bureauResponse != null){
+            return new ExperianResponseUtil(bureauResponse, experianDao);
+        }
+        if(experian != null && experian.getResponse() != null){
+            bureauResponse = parseStringResponse(experian.getResponse());
+        }
+        if(bureauResponse != null){
+            return new ExperianResponseUtil(bureauResponse, experianDao);
+        }
+        Crif crif = crifDao.findByMerchantId(merchantId);
+        if(crif != null && crif.getResponse() != null) {
+            bureauResponse = parseStringResponse(crif.getResponse());
+            return new CrifResponseUtil(bureauResponse, experianDao);
+        }
+        return new ExperianResponseUtil(bureauResponse, experianDao);
     }
 }

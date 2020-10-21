@@ -9,7 +9,9 @@ import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
 import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.entity.Crif;
 import com.bharatpe.lending.common.entity.CrifAuditTrail;
+import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.dto.CrifResponseDTO;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -129,8 +131,12 @@ public class CrifService {
                 JsonNode stage3Response = apiGatewayService.crifStage2(merchantId, stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), true, "");
                 if (stage3Response != null) {
                     logger.info("Found crif report for merchant:{}", merchantId);
-                    crif.setResponse(stage3Response.toString());
-                    return stage3Response;
+                    if (isValidReport(panCard, contact, stage3Response)) {
+                        crif.setResponse(stage3Response.toString());
+                        return stage3Response;
+                    } else {
+                        logger.info("Invalid crif report for merchant:{}", merchantId);
+                    }
                 }
             } else if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S11")) {
                 logger.info("Crif stage2 Questionnaire for merchant:{}", merchantId);
@@ -147,14 +153,54 @@ public class CrifService {
             JsonNode stage3Response = apiGatewayService.crifStage2(merchantId, crif.getOrderId(), crif.getReportId(), null, true, "");
             if (stage3Response != null) {
                 logger.info("Found crif report for merchant:{}", crif.getMerchantId());
-                crif.setResponse(stage3Response.toString());
-                return stage3Response;
+                if (isValidReport(crif.getPancard(), crif.getMobile(), stage3Response)) {
+                    crif.setResponse(stage3Response.toString());
+                    return stage3Response;
+                } else {
+                    logger.info("Invalid crif report for merchant:{}", merchantId);
+                }
             }
         } else if (stage2Response != null && stage2Response.get("status") != null && stage2Response.get("status").asText().equals("S11")) {
             logger.info("Crif stage2 Questionnaire for merchant:{}", crif.getMerchantId());
             return stage2Response;
         }
         return null;
+    }
+
+    private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
+        boolean checkPan = false;
+        boolean checkPhone = false;
+        if (response != null) {
+            JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
+                    .get(CrifConstants.PERSONAL_VARIATIONS);
+            if (personalData == null || personalData.asText().trim().equals("")) {
+                return false;
+            }
+            if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
+                    || personalData.get(CrifConstants.PAN_VARIATIONS).asText().trim().equals("")) {
+                return false;
+            }
+            if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
+                    || personalData.get(CrifConstants.PHONE_VARIATIONS).asText().trim().equals("")) {
+                return false;
+            }
+            List<JsonNode> panVariations = LoanUtil
+                    .jsonNodeArrayUtil(personalData.get(CrifConstants.PAN_VARIATIONS).get(CrifConstants.VARIATION));
+            List<JsonNode> phoneVariations = LoanUtil
+                    .jsonNodeArrayUtil(personalData.get(CrifConstants.PHONE_VARIATIONS).get(CrifConstants.VARIATION));
+            if (phoneNumber.length() > 10) {
+                phoneNumber = phoneNumber.substring(2);// remove 91
+            }
+            for (JsonNode pan : panVariations) {
+                checkPan = pan.get("VALUE").asText().equalsIgnoreCase(panCard);
+                if(checkPan) break;
+            }
+            for (JsonNode phone : phoneVariations) {
+                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber);
+                if(checkPhone) break;
+            }
+        }
+        return checkPan && checkPhone;
     }
 
 }

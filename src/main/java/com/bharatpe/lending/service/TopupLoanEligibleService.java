@@ -9,6 +9,7 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.util.creditresponse.ResponseUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -16,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.text.ParseException;
 import java.util.*;
 
@@ -159,16 +159,10 @@ public class TopupLoanEligibleService {
                 logger.error("Exception while fetching experian---", e);
             }
         }
-        if (experian != null && experian.getResponse() != null) {
-            try {
-                JsonNode response = objectMapper.readTree(experian.getResponse());
-                if (!exemptMerchant.contains(merchant.getId()) && loanEligibleService.isDerog(response, merchant, experian, true)) {
-                    logger.info("Derog Merchant, so rejecting merchant: {}", merchant.getId());
-                    return new ArrayList<>();
-                }
-            } catch (IOException e) {
-                logger.error("Exception parsing experian response---", e);
-            }
+        ResponseUtil responseUtil = loanEligibleService.getCreditBureauResponse(experian, null, merchant.getId());
+        if (!exemptMerchant.contains(merchant.getId()) && responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile()) && responseUtil.isDerog(merchant, true, experian)) {
+            logger.info("Derog Merchant, so rejecting merchant: {}", merchant.getId());
+            return new ArrayList<>();
         }
         double repaidRatio = 0.6d;
         double prevLoanAmount = 0d;
@@ -202,21 +196,23 @@ public class TopupLoanEligibleService {
 
     private Experian updateExperian(JsonNode experianResponse, Merchant merchant, double bpScore, String pancard, Long pincode) throws ParseException {
         Experian experian = new Experian();
-        experian.setMerchantId(merchant.getId());
-        experian.setResponse(experianResponse.toString());
-        experian.setPancardNumber(pancard);
-        experian.setPincode(pincode.intValue());
-        experian.setRequestedLoanAmount(0);
-        if (experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details") != null && experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details") != null) {
-            String email = experianResponse.get("INProfileResponse").get("Current_Application").get("Current_Application_Details").get("Current_Applicant_Details").get("EMailId").textValue();
-            experian.setEmail(email);
+        ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian, experianResponse, merchant.getId());
+        if(creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
+            experian.setMerchantId(merchant.getId());
+            if("EXPERIAN".equals(creditBureauResponseUtil.getType())) {
+                experian.setResponse(creditBureauResponseUtil.getResponse());
+            }
+            experian.setPancardNumber(pancard);
+            experian.setPincode(pincode.intValue());
+            experian.setRequestedLoanAmount(0);
+            String email = creditBureauResponseUtil.getEmail();
+            if(email != null) experian.setEmail(email);
+            Double bureauScore = creditBureauResponseUtil.getBureauScore();
+            if(bureauScore != null) experian.setExperianScore(bureauScore);
         }
-        if (experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore") != null) {
-            experian.setExperianScore(experianResponse.get("INProfileResponse").get("SCORE").get("BureauScore").doubleValue());
-        }
-        loanEligibleService.isDerog(experianResponse, merchant, experian, true);
-        int bureauVintage = loanEligibleService.fetchBureauVintage(experianResponse);//months
-        String accountCategory = loanEligibleService.fetchAccountCategory(experianResponse);// A,B,C or NTC
+        creditBureauResponseUtil.isDerog(merchant, true, experian);
+        int bureauVintage = creditBureauResponseUtil.fetchBureauVintage();//months
+        String accountCategory = creditBureauResponseUtil.fetchAccountCategory();// A,B,C or NTC
         String segment;
         String color;
         if (accountCategory.equals("NTC")){

@@ -43,8 +43,25 @@ public interface ExperianConstants {
     String DEROG_MORE_THAN_6_LOAN_ENQUIRY = "High number of loan enquiries in last 6 months";
     String LOW_BBS = "LOW_BBS";
     String LOW_NFI = "LOW_NFI";
+    String CAPS_DETAILS = "CAPS_Application_Details";
     String LOW_BBS_VINTAGE = "LOW_BBS_VINTAGE";
     String BLOCKED_PANCARD = "BLOCKED_PANCARD";
+    String ACCT_TYPE = "Account_Type";
+    String DATE_REPORTED = "Date_Reported";
+    String DATE_ADDITION = "DateOfAddition";
+    String DATE_CLOSED = "Date_Closed";
+    String DPD = "Days_Past_Due";
+    String PRODUCT = "Product";
+    String DOR = "Date_of_Request";
+    String OPEN_DATE = "Open_Date";
+    String PROFILE_RESPONSE = "INProfileResponse";
+    String ACCT_HISTORY = "CAIS_Account_History";
+    String ACCT_DETAILS = "CAIS_Account_DETAILS";
+    String ACCT_STATUS = "Account_Status";
+    String ACCT = "CAIS_Account";
+    String CAPS_SUMMARY = "TotalCAPS_Summary";
+    String ACCT_HOLDER_TYPE_CODE = "AccountHoldertypeCode";
+    String DATE_FORMAT = "yyyyMMdd";
     String YELLOW = "YELLOW";
     String PAYMENTS_BANK = "PAYMENTS_BANK";
 
