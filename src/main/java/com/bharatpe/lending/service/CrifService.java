@@ -173,15 +173,15 @@ public class CrifService {
         if (response != null) {
             JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
                     .get(CrifConstants.PERSONAL_VARIATIONS);
-            if (personalData == null || personalData.asText().trim().equals("")) {
+            if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
                 return false;
             }
             if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
-                    || personalData.get(CrifConstants.PAN_VARIATIONS).asText().trim().equals("")) {
+                    || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
                 return false;
             }
             if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
-                    || personalData.get(CrifConstants.PHONE_VARIATIONS).asText().trim().equals("")) {
+                    || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
                 return false;
             }
             List<JsonNode> panVariations = LoanUtil

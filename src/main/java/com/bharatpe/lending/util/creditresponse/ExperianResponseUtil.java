@@ -386,7 +386,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
 
     private int loanSanctioned3mon(JsonNode jsonNode, Date reportDate) throws ParseException {
         if (jsonNode.get(ExperianConstants.OPEN_DATE) != null
-                && !jsonNode.get(ExperianConstants.OPEN_DATE).asText().trim().equals("")) {
+                && !jsonNode.get(ExperianConstants.OPEN_DATE).toString().equalsIgnoreCase("\"\"")) {
             Date openDate = dateFormat.parse(jsonNode.get(ExperianConstants.OPEN_DATE).asText());
             return LoanUtil.getDateDiffInDays(openDate, reportDate) <= 90 ? 1 : 0;
         }
@@ -395,13 +395,13 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
 
     private int unsecuredLoan6mon(JsonNode jsonNode, Date reportDate) throws ParseException {
         if (jsonNode.get(ExperianConstants.ACCT_TYPE) != null && jsonNode.get(ExperianConstants.OPEN_DATE) != null
-                && !jsonNode.get(ExperianConstants.OPEN_DATE).asText().trim().equals("")) {
+                && !jsonNode.get(ExperianConstants.OPEN_DATE).toString().equalsIgnoreCase("\"\"")) {
             Date openDate = dateFormat.parse(jsonNode.get(ExperianConstants.OPEN_DATE).asText());
             return LoanUtil.getDateDiffInDays(openDate, reportDate) <= 180
                     && unsecuredLoan.contains(jsonNode.get(ExperianConstants.ACCT_TYPE).asInt()) ? 1 : 0;
         } else if (jsonNode.get(ExperianConstants.ACCT_TYPE) != null
                 && jsonNode.get(ExperianConstants.DATE_ADDITION) != null
-                && !jsonNode.get(ExperianConstants.DATE_ADDITION).asText().trim().equals("")) {
+                && !jsonNode.get(ExperianConstants.DATE_ADDITION).toString().equalsIgnoreCase("\"\"")) {
             Date openDate = dateFormat.parse(jsonNode.get(ExperianConstants.DATE_ADDITION).asText());
             return LoanUtil.getDateDiffInDays(openDate, reportDate) <= 180
                     && unsecuredLoan.contains(jsonNode.get(ExperianConstants.ACCT_TYPE).asInt()) ? 1 : 0;
@@ -799,13 +799,13 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                 loanTypes.add(accountDetails.get(ExperianConstants.ACCT_TYPE).asInt());
             }
             if (accountDetails.get(ExperianConstants.OPEN_DATE) != null
-                    && !accountDetails.get(ExperianConstants.OPEN_DATE).asText().trim().equals("")) {
+                    && !accountDetails.get(ExperianConstants.OPEN_DATE).toString().equalsIgnoreCase("\"\"")) {
                 Date openDate = dateFormat.parse(accountDetails.get(ExperianConstants.OPEN_DATE).asText());
                 if (openDate.before(minOpenDate)) {
                     minOpenDate = openDate;
                 }
             } else if (accountDetails.get(ExperianConstants.DATE_ADDITION) != null
-                    && !accountDetails.get(ExperianConstants.DATE_ADDITION).asText().trim().equals("")) {
+                    && !accountDetails.get(ExperianConstants.DATE_ADDITION).toString().equalsIgnoreCase("\"\"")) {
                 Date openDate = dateFormat.parse(accountDetails.get(ExperianConstants.DATE_ADDITION).asText());
                 if (openDate.before(minOpenDate)) {
                     minOpenDate = openDate;
@@ -821,13 +821,13 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                     loanTypes.add(caisAccountDetails.get(ExperianConstants.ACCT_TYPE).asInt());
                 }
                 if (caisAccountDetails.get(ExperianConstants.OPEN_DATE) != null
-                        && !caisAccountDetails.get(ExperianConstants.OPEN_DATE).asText().trim().equals("")) {
+                        && !caisAccountDetails.get(ExperianConstants.OPEN_DATE).toString().equalsIgnoreCase("\"\"")) {
                     Date openDate = dateFormat.parse(caisAccountDetails.get(ExperianConstants.OPEN_DATE).asText());
                     if (openDate.before(minOpenDate)) {
                         minOpenDate = openDate;
                     }
                 } else if (caisAccountDetails.get(ExperianConstants.DATE_ADDITION) != null
-                        && !caisAccountDetails.get(ExperianConstants.DATE_ADDITION).asText().trim().equals("")) {
+                        && !caisAccountDetails.get(ExperianConstants.DATE_ADDITION).toString().equalsIgnoreCase("\"\"")) {
                     Date openDate = dateFormat.parse(caisAccountDetails.get(ExperianConstants.DATE_ADDITION).asText());
                     if (openDate.before(minOpenDate)) {
                         minOpenDate = openDate;

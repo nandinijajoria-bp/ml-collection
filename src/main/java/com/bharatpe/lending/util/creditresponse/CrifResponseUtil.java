@@ -187,15 +187,15 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         if (this.response != null) {
             JsonNode personalData = this.response.get(CrifConstants.REPORT_HEADER)
                     .get(CrifConstants.PERSONAL_VARIATIONS);
-            if (personalData == null || personalData.asText().trim().equals("")) {
+            if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
                 return false;
             }
             if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
-                    || personalData.get(CrifConstants.PAN_VARIATIONS).asText().trim().equals("")) {
+                    || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
                 return false;
             }
             if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
-                    || personalData.get(CrifConstants.PHONE_VARIATIONS).asText().trim().equals("")) {
+                    || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
                 return false;
             }
             List<JsonNode> panVariations = LoanUtil
@@ -328,7 +328,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         Date dateReported = null;
         try {
             JsonNode dateRep = jsonNode.get(CrifConstants.DATE_REPORTED);
-            if (dateRep != null && !dateRep.asText().trim().equals("")) {
+            if (dateRep != null && !dateRep.toString().equalsIgnoreCase("\"\"")) {
                 dateReported = dateFormat.parse(dateRep.asText());
             }
         } catch (Exception e) {
@@ -395,10 +395,10 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         int inquiryCount = 0;
         JsonNode inquiryDate;
         JsonNode inquiryHistory = response.get(CrifConstants.REPORT_HEADER).get(CrifConstants.INQUIRY_HISTORY);
-        if (inquiryHistory == null || inquiryHistory.asText().trim().equals(""))
+        if (inquiryHistory == null || inquiryHistory.toString().equalsIgnoreCase("\"\""))
             return 0;
         inquiryHistory = inquiryHistory.get(CrifConstants.HISTORY);
-        if (inquiryHistory == null || inquiryHistory.asText().trim().equals(""))
+        if (inquiryHistory == null || inquiryHistory.toString().equalsIgnoreCase("\"\""))
             return 0;
         if (inquiryHistory.isArray()) {
             for (JsonNode history : inquiryHistory) {
@@ -427,10 +427,10 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         JsonNode inquiryDate;
         JsonNode purpose;
         JsonNode inquiryHistory = response.get(CrifConstants.REPORT_HEADER).get(CrifConstants.INQUIRY_HISTORY);
-        if (inquiryHistory == null || inquiryHistory.asText().trim().equals(""))
+        if (inquiryHistory == null || inquiryHistory.toString().equalsIgnoreCase("\"\""))
             return 0;
         inquiryHistory = inquiryHistory.get(CrifConstants.HISTORY);
-        if (inquiryHistory == null || inquiryHistory.asText().trim().equals(""))
+        if (inquiryHistory == null || inquiryHistory.toString().equalsIgnoreCase("\"\""))
             return 0;
         if (inquiryHistory.isArray()) {
             for (JsonNode history : inquiryHistory) {
@@ -531,7 +531,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         double income = 0D;
         Double otherIncome = 0D;
         if (loan == null || loan.get(CrifConstants.ACCT_TYPE) == null
-                || loan.get(CrifConstants.ACCT_TYPE).asText().trim().equals("")) {
+                || loan.get(CrifConstants.ACCT_TYPE).toString().equalsIgnoreCase("\"\"")) {
             debtAndIncome.put("debt", debt);
             debtAndIncome.put("income", income);
             debtAndIncome.put("otherIncome", otherIncome);
@@ -653,7 +653,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         for (JsonNode loan : loanDetails) {
             loan = loan.get(CrifConstants.LOAN_DETAILS);
             if (loan == null || loan.get(CrifConstants.ACCT_TYPE) == null
-                    || loan.get(CrifConstants.ACCT_TYPE).asText().trim().equals("")) {
+                    || loan.get(CrifConstants.ACCT_TYPE).toString().equalsIgnoreCase("\"\"")) {
                 continue;
             }
             double loanAmount = getLoanAmount(loan);
@@ -769,7 +769,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         Date dateReported = null;
         try {
             JsonNode dateRep = jsonNode.get(CrifConstants.DATE_REPORTED);
-            if (dateRep != null && !dateRep.asText().trim().equals("")) {
+            if (dateRep != null && !dateRep.toString().equalsIgnoreCase("\"\"")) {
                 dateReported = dateFormat.parse(dateRep.asText());
             }
         } catch (Exception e) {
@@ -794,7 +794,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         }
         JsonNode paymentHistory = jsonNode.get("COMBINED-PAYMENT-HISTORY");
         int dpdCount = 0;
-        if (paymentHistory != null && !paymentHistory.asText().trim().equals("")) {
+        if (paymentHistory != null && !paymentHistory.toString().equalsIgnoreCase("\"\"")) {
             List<String> loanHistory = Arrays.asList(paymentHistory.asText().split("\\|"));
             for (String monthNode : loanHistory) {
                 String date = monthNode.split(",")[0];
@@ -822,7 +822,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
 
     private int loanSanctioned3mon(JsonNode jsonNode, Date reportDate) throws ParseException {
         if (jsonNode.get(CrifConstants.DISBURSED_DT) != null
-                && !jsonNode.get(CrifConstants.DISBURSED_DT).asText().trim().equals("")) {
+                && !jsonNode.get(CrifConstants.DISBURSED_DT).toString().equalsIgnoreCase("\"\"")) {
             Date openDate = dateFormat.parse(jsonNode.get(CrifConstants.DISBURSED_DT).asText());
             return LoanUtil.getDateDiffInDays(openDate, reportDate) <= 90 ? 1 : 0;
         }
@@ -832,7 +832,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     private int unsecuredLoan6mon(JsonNode jsonNode, Date reportDate) throws ParseException {
         JsonNode acctType = jsonNode.get(CrifConstants.ACCT_TYPE);
         JsonNode openDt = jsonNode.get(CrifConstants.DISBURSED_DT);
-        if (acctType != null && openDt != null && !openDt.asText().trim().equals("")) {
+        if (acctType != null && openDt != null && !openDt.toString().equalsIgnoreCase("\"\"")) {
             Date openDate = dateFormat.parse(openDt.asText());
             return LoanUtil.getDateDiffInDays(openDate, reportDate) <= 180
                     && unsecuredLoanTypes.contains(acctType.asText().toLowerCase()) ? 1 : 0;
@@ -861,7 +861,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             loanSanctioned3mon += loanSanctioned3mon(loanDetails, reportDate);
             unsecuredLoanCount6mon += unsecuredLoan6mon(loanDetails, reportDate);
             loanTypes.add(getLoanType(acctType.asText()));
-            if (openDt != null && !openDt.asText().trim().equals("")) {
+            if (openDt != null && !openDt.toString().equalsIgnoreCase("\"\"")) {
                 Date openDate = dateFormat.parse(openDt.asText());
                 if (openDate.before(minOpenDate)) {
                     minOpenDate = openDate;
@@ -877,7 +877,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 loanSanctioned3mon += loanSanctioned3mon(detail, reportDate);
                 unsecuredLoanCount6mon += unsecuredLoan6mon(detail, reportDate);
                 loanTypes.add(getLoanType(acctType.asText()));
-                if (openDt != null && !openDt.asText().trim().equals("")) {
+                if (openDt != null && !openDt.toString().equalsIgnoreCase("\"\"")) {
                     Date openDate = dateFormat.parse(openDt.asText());
                     if (openDate.before(minOpenDate)) {
                         minOpenDate = openDate;
