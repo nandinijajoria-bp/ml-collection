@@ -1,14 +1,16 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.ExperianAuditTrailDao;
+import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
 import com.bharatpe.lending.common.dao.CrifDao;
+import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.entity.Crif;
 import com.bharatpe.lending.common.entity.CrifAuditTrail;
+import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.dto.CrifResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;
@@ -33,12 +35,6 @@ public class CrifService {
     APIGatewayService apiGatewayService;
 
     @Autowired
-    CrifDao crifDao;
-
-    @Autowired
-    CrifAuditTrailDao crifAuditTrailDao;
-
-    @Autowired
     LendingPancardDao lendingPancardDao;
 
     @Autowired
@@ -50,28 +46,33 @@ public class CrifService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    ExperianDao experianDao;
+
+    @Autowired
+    ExperianAuditTrailDao experianAuditTrailDao;
+
+    @Autowired
+    CrifRequestResponseDao crifRequestResponseDao;
+
     public CrifResponseDTO getCrif(Merchant merchant, String pancard) {
         try {
-            Crif crif = crifDao.findByMerchantId(merchant.getId());
-            if (crif != null && crif.getResponse() != null) {
-                logger.info("Crif report already exist for merchant:{}", merchant.getId());
+            Experian experian = experianDao.getByMerchantId(merchant.getId());
+            if (experian == null) {
+                logger.info("Experian entry not found for merchant:{}", merchant.getId());
                 return new CrifResponseDTO(true, null);
             }
             Map<String, String> merchantName = getFirstLastName(merchant);
             String firstName = merchantName.get("first");
             String lastName = merchantName.get("last");
-            if (crif == null) {
-                crif = new Crif(merchant.getId(), firstName, lastName, pancard, merchant.getMobile().substring(2));
-            } else {
-                crif.setFirstName(firstName);
-                crif.setLastName(lastName);
-                crif.setPancard(pancard);
-            }
-            JsonNode crifResponse = getCrifReport(merchant.getMobile().substring(2), pancard, merchant.getId(), firstName, lastName, crif);
-            crifDao.save(crif);
-            crifAuditTrailDao.save(CrifAuditTrail.createObject(crif));
+            JsonNode crifResponse = getCrifReport(merchant.getMobile().substring(2), pancard, merchant.getId(), firstName, lastName);
             if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
                 return new CrifResponseDTO(crifResponse.get("buttonbehaviour").asText(), crifResponse.get("question").asText(), objectMapper.readValue(crifResponse.get("optionsList").toString(), new TypeReference<List<String>>(){}));
+            } else if (crifResponse != null) {
+                experian.setResponse(crifResponse.toString());
+                experian.setBureau("CRIF");
+                experianDao.save(experian);
+                experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
             }
         } catch (Exception e) {
             logger.error("Exception in crif for merchant:{}", merchant.getId(), e);
@@ -82,16 +83,24 @@ public class CrifService {
 
     public CrifResponseDTO crifAnswer(Merchant merchant, String answer) {
         try {
-            Crif crif = crifDao.findByMerchantId(merchant.getId());
-            if (crif == null || crif.getOrderId() == null || crif.getReportId() == null || crif.getResponse() != null) {
+            CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+            if (crifRequestResponse == null || crifRequestResponse.getOrderId() == null || crifRequestResponse.getReportId() == null) {
                 logger.info("Crif not found for merchant:{}", merchant.getId());
                 return new CrifResponseDTO(false, "invalid request");
             }
-            JsonNode crifResponse = getCrifUserAns(crif, answer, merchant.getId());
-            crifDao.save(crif);
-            crifAuditTrailDao.save(CrifAuditTrail.createObject(crif));
+            Experian experian = experianDao.getByMerchantId(merchant.getId());
+            if (experian == null) {
+                logger.info("Experian entry not found for merchant:{}", merchant.getId());
+                return new CrifResponseDTO(true, null);
+            }
+            JsonNode crifResponse = getCrifUserAns(crifRequestResponse, answer, merchant.getId(), experian.getPancardNumber(), merchant.getMobile().substring(2));
             if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
                 return new CrifResponseDTO(crifResponse.get("buttonbehaviour").asText(), crifResponse.get("question").asText(), objectMapper.readValue(crifResponse.get("optionsList").toString(), new TypeReference<List<String>>(){}));
+            } else if (crifResponse != null) {
+                experian.setResponse(crifResponse.toString());
+                experian.setBureau("CRIF");
+                experianDao.save(experian);
+                experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
             }
         } catch (Exception e) {
             logger.error("Exception in crif user answer for merchant:{}", merchant.getId(), e);
@@ -119,12 +128,10 @@ public class CrifService {
     }
 
 
-    private JsonNode getCrifReport(String contact, String panCard, Long merchantId, String firstName, String lastName, Crif crif) {
+    private JsonNode getCrifReport(String contact, String panCard, Long merchantId, String firstName, String lastName) {
         JsonNode stage1Response = apiGatewayService.crifStage1(firstName, lastName, panCard, contact, merchantId);
         if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
             logger.info("Crif stage1 success for merchant:{}", merchantId);
-            crif.setOrderId(stage1Response.get("orderId").asText());
-            crif.setReportId(stage1Response.get("reportId").asText());
             JsonNode stage2Response = apiGatewayService.crifStage2(merchantId, stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), stage1Response.get("redirectURL").asText(), false, "");
             if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
                 logger.info("Crif stage2 success for merchant:{}", merchantId);
@@ -132,7 +139,6 @@ public class CrifService {
                 if (stage3Response != null) {
                     logger.info("Found crif report for merchant:{}", merchantId);
                     if (isValidReport(panCard, contact, stage3Response)) {
-                        crif.setResponse(stage3Response.toString());
                         return stage3Response;
                     } else {
                         logger.info("Invalid crif report for merchant:{}", merchantId);
@@ -146,15 +152,14 @@ public class CrifService {
         return null;
     }
 
-    private JsonNode getCrifUserAns(Crif crif, String userAns, Long merchantId) {
+    private JsonNode getCrifUserAns(CrifRequestResponse crif, String userAns, Long merchantId, String pancard, String mobile) {
         JsonNode stage2Response = apiGatewayService.crifStage2(merchantId, crif.getOrderId(), crif.getReportId(), null, false, userAns);
         if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
             logger.info("Crif stage2 success for merchant:{}", crif.getMerchantId());
             JsonNode stage3Response = apiGatewayService.crifStage2(merchantId, crif.getOrderId(), crif.getReportId(), null, true, "");
             if (stage3Response != null) {
                 logger.info("Found crif report for merchant:{}", crif.getMerchantId());
-                if (isValidReport(crif.getPancard(), crif.getMobile(), stage3Response)) {
-                    crif.setResponse(stage3Response.toString());
+                if (isValidReport(pancard, mobile, stage3Response)) {
                     return stage3Response;
                 } else {
                     logger.info("Invalid crif report for merchant:{}", merchantId);
