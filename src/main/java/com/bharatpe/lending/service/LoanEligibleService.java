@@ -10,10 +10,10 @@ import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
 import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
-import com.bharatpe.lending.common.entity.Crif;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -238,18 +238,20 @@ public class LoanEligibleService {
             experian.setReason(null);
         }
         JsonNode creditBureauResponse = null;
+        ResponseUtil responseUtil = getCreditBureauResponse(experian);
+        boolean isBureauExperian = false;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
             Date reportDate = null;
             if (experian.getResponse() != null) {
-                try {
-                    reportDate = experianFormat.parse(objectMapper.readTree(experian.getResponse()).get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
-                } catch (Exception e) {
-                    logger.info("Exception while parsing report date", e);
-                }
+                responseUtil = getCreditBureauResponse(experian);
+                reportDate = responseUtil.getReportDate();
+                isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             }
             if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
+                responseUtil = getCreditBureauResponse(experian);
                 creditBureauResponse = objectMapper.readTree(experian.getResponse());
+                isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             } else if ((reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
@@ -268,16 +270,20 @@ public class LoanEligibleService {
                         creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                     }
                 }
+                isBureauExperian = true;
             }
-            ResponseUtil responseUtil = getCreditBureauResponse(experian, creditBureauResponse, merchant.getId());
+            if(creditBureauResponse != null){
+                experian.setResponse(creditBureauResponse.toString());
+                experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
+            }
+            responseUtil = getCreditBureauResponse(experian);
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
                 String email = responseUtil.getEmail();
                 Double bureauScore = responseUtil.getBureauScore();
                 if(email != null ) experian.setEmail(email);
                 if(bureauScore != null) experian.setExperianScore(bureauScore);
-                if ("EXPERIAN".equals(responseUtil.getType())) {
-                    experian.setResponse(responseUtil.getResponse());
-                }
+                experian.setResponse(responseUtil.getResponse());
+                experian.setBureau(responseUtil.getType());
                 experianDao.save(experian);
             } else if (goToExperianV2(experian, merchant, pancard)) {
                 return new ArrayList<>();
@@ -381,8 +387,8 @@ public class LoanEligibleService {
             responseDTO.setSuccess(false);
             return responseDTO;
         }
-        JsonNode bureauResponse = parseStringResponse(experian.getResponse());
-        ResponseUtil creditBureauResponseUtil = getCreditBureauResponse(experian, bureauResponse, merchantId);
+        JsonNode bureauResponse = null;
+        ResponseUtil creditBureauResponseUtil = getCreditBureauResponse(experian);
         if(creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
             reportDate = creditBureauResponseUtil.getReportDate();
         }
@@ -398,19 +404,20 @@ public class LoanEligibleService {
             MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
             Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
             bureauResponse = getLatestExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail, 3);
+            if(bureauResponse != null){
+                experian.setResponse(bureauResponse.toString());
+                experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
+            }
             List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, false);
             boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
-            creditBureauResponseUtil = getCreditBureauResponse(experian, bureauResponse, merchantId);
+            creditBureauResponseUtil = getCreditBureauResponse(experian);
             if(!creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())) {
                 responseDTO.setMessage("Unable to fetch experian data, please retry!");
                 responseDTO.setIsRejected(false);
                 responseDTO.setSuccess(true);
                 return responseDTO;
             }
-            if("EXPERIAN".equals(creditBureauResponseUtil.getType())){
-                experian.setResponse(creditBureauResponseUtil.getResponse());
-                experianDao.save(experian);
-            }
+            experianDao.save(experian);
             if(isDerogApplication(creditBureauResponseUtil, merchant, experian, isRepeatLoanNoDerog)){
                 experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                 lendingApplication.setStatus("rejected");
@@ -566,7 +573,7 @@ public class LoanEligibleService {
         try {
             Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan", merchantId);
             if (identityDetail != null) {
-                String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId);
+                String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId, identityDetail.get("module"));
                 if(response!=null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
                 	return new LendingPancard(merchantId,pancardNumber,"NAME",null);
                 }
@@ -1244,21 +1251,15 @@ public class LoanEligibleService {
         return true;
     }
 
-    public ResponseUtil getCreditBureauResponse(Experian experian, JsonNode experianResponse, Long merchantId) {
-        JsonNode bureauResponse = experianResponse;
-        if(bureauResponse != null){
-            return new ExperianResponseUtil(bureauResponse, experianDao);
-        }
-        if(experian != null && experian.getResponse() != null){
+    public ResponseUtil getCreditBureauResponse(Experian experian) {
+        JsonNode bureauResponse = null;
+        if(experian != null){
             bureauResponse = parseStringResponse(experian.getResponse());
-        }
-        if(bureauResponse != null){
-            return new ExperianResponseUtil(bureauResponse, experianDao);
-        }
-        Crif crif = crifDao.findByMerchantId(merchantId);
-        if(crif != null && crif.getResponse() != null) {
-            bureauResponse = parseStringResponse(crif.getResponse());
-            return new CrifResponseUtil(bureauResponse, experianDao);
+            if(experian.getBureau() != null && experian.getBureau().equalsIgnoreCase("crif")){
+                return new CrifResponseUtil(bureauResponse, experianDao);
+            } else {
+                return new ExperianResponseUtil(bureauResponse, experianDao);
+            }
         }
         return new ExperianResponseUtil(bureauResponse, experianDao);
     }

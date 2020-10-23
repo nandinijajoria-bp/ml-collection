@@ -317,9 +317,7 @@ public class CallLoanDetailService {
 	private void test(Merchant merchant) {
 		try {
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
-			JsonNode experianResponse = objectMapper.readTree(experian.getResponse());
-			ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian,
-					experianResponse, merchant.getId());
+			ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian);
 			creditBureauResponseUtil.isDerog(merchant, false, experian);
 		} catch (Exception e) {
 			logger.error("Exception---", e);

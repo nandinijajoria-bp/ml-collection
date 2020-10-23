@@ -155,7 +155,7 @@ public class NewToBharatpeService {
 
     public LendingBBS calculateBBS(Experian experian, Merchant merchant) throws IOException, ParseException {
 		logger.info("Calculating BBS for merchant:{}", experian.getMerchantId());
-		ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian, null, merchant.getId());
+		ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian);
 		if(!creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())) return null;
 		Date reportDate = creditBureauResponseUtil.getReportDate();
 		Map<String, Object> data = creditBureauResponseUtil.getBBSCalculationDetails();

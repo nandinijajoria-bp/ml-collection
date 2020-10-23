@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -152,6 +153,7 @@ public class TopupLoanEligibleService {
                 }
                 if (experianResponse != null) {
                     experian.setResponse(experianResponse.toString());
+                    experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
                     experianDao.save(experian);
                     experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                 }
@@ -159,7 +161,7 @@ public class TopupLoanEligibleService {
                 logger.error("Exception while fetching experian---", e);
             }
         }
-        ResponseUtil responseUtil = loanEligibleService.getCreditBureauResponse(experian, null, merchant.getId());
+        ResponseUtil responseUtil = loanEligibleService.getCreditBureauResponse(experian);
         if (!exemptMerchant.contains(merchant.getId()) && responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile()) && responseUtil.isDerog(merchant, true, experian)) {
             logger.info("Derog Merchant, so rejecting merchant: {}", merchant.getId());
             return new ArrayList<>();
@@ -196,12 +198,15 @@ public class TopupLoanEligibleService {
 
     private Experian updateExperian(JsonNode experianResponse, Merchant merchant, double bpScore, String pancard, Long pincode) throws ParseException {
         Experian experian = new Experian();
-        ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian, experianResponse, merchant.getId());
+        if(experianResponse != null){
+            experian.setResponse(experianResponse.toString());
+            experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
+        }
+        ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian);
         if(creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
             experian.setMerchantId(merchant.getId());
-            if("EXPERIAN".equals(creditBureauResponseUtil.getType())) {
-                experian.setResponse(creditBureauResponseUtil.getResponse());
-            }
+            experian.setResponse(creditBureauResponseUtil.getResponse());
+            experian.setBureau(creditBureauResponseUtil.getType());
             experian.setPancardNumber(pancard);
             experian.setPincode(pincode.intValue());
             experian.setRequestedLoanAmount(0);

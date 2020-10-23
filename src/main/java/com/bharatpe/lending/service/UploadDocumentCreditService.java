@@ -282,7 +282,7 @@ public class UploadDocumentCreditService {
 			String request="";
 			if(!tempPublicURL.isEmpty()) {
 				start = Instant.now();
-				Map<String,String> res = signzyHandler.curlSignzyKycAPI(tempPublicURL,tempPublicBackURL,proofType);
+				Map<String,String> res = signzyHandler.curlSignzyKycAPI(tempPublicURL,tempPublicBackURL,proofType, merchant.getId());
 				end = Instant.now();
 				logger.info("Time Taken by Signzy kyc API : {} miliseconds", Duration.between(start, end).toMillis());
 				response=res.get("response");

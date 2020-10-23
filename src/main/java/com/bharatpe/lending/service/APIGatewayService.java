@@ -175,20 +175,21 @@ public class APIGatewayService {
                     if(response!=null) {
                         JsonNode jsonNode = mapper.readTree(response);
                         if(jsonNode!=null && jsonNode.has("id") && jsonNode.has("accessToken")) {
-                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "SUCCESS", mapper.writeValueAsString(request), response);
+                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
                             Map<String, String> identityDetail = new HashMap<>();
                             identityDetail.put("itemId", jsonNode.get("id").asText());
                             identityDetail.put("accessToken", jsonNode.get("accessToken").asText());
+                            identityDetail.put("module", signzyCredential.getModule());
                             return identityDetail;
                         } else {
-                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response);
+                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
                         }
                     }
                     break;
                 }
                 catch(Exception e) {
                     logger.info("Error occurred while fetching identity details",e);
-                    insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response);
+                    insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
                 }
                 retryCount++;
             }
@@ -198,7 +199,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId) {
+    public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId, String module) {
         logger.info("Calling Signzy Pan Fetch Api for pancard:{}", pancard);
         try {
             Map<String, Object> body = new HashMap<String,Object>() {{
@@ -224,17 +225,17 @@ public class APIGatewayService {
                     if(responseEntity.getBody()!=null) {
                     	response=responseEntity.getBody();
                     	if(responseEntity.getStatusCode().is2xxSuccessful()) {
-                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody());
+                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
                     	}
                     	else {
-                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
                         }
                     }
                     break;
                 }
                 catch(HttpStatusCodeException e) {
                     logger.info("Error occurred while calling pan fetch api",e);
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
                     if(e.getRawStatusCode()==404 || e.getRawStatusCode()==400) {
                     	break;
                     }
@@ -245,7 +246,7 @@ public class APIGatewayService {
                     retryCount++;
                 } catch (Exception e) {
                     logger.info("Error occurred while calling pan fetch api",e);
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response);
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
                     if(retryCount==2) {
                         //to allow merchant to proceed if there's error from Experian end;
                         response="ERROR_OCCURRED";
@@ -260,9 +261,9 @@ public class APIGatewayService {
         return null;
     }
 
-    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId,String apiName, String status, String request,String response) {
+    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId,String apiName, String status, String request,String response, String module) {
         try {
-            SignzyRequestResponse signzyRequestResponse=new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response);
+            SignzyRequestResponse signzyRequestResponse=new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response, module);
             signzyRequestResponseDao.save(signzyRequestResponse);
         }
         catch(Exception e) {

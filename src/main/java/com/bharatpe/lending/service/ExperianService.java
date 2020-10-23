@@ -6,6 +6,7 @@ import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
@@ -99,6 +100,7 @@ public class ExperianService {
         experianDetailsDao.save(experianDetails);
         if (experianResponse != null) {
             experian.setResponse(experianResponse.toString());
+            experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             experianDao.save(experian);
             experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
             return new ResponseDTO(true, null, null);
@@ -299,6 +301,7 @@ public class ExperianService {
                     JsonNode experianResponse = objectMapper.readTree(jsonObject.toString());
                     Experian experian = experianDao.getByMerchantId(merchantId);
                     experian.setResponse(experianResponse.toString());
+                    experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
                     experianDao.save(experian);
                     experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
                     insertExperianCallRecord(experianResponse.toString(), "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
