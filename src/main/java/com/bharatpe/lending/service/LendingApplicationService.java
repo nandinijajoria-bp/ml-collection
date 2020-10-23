@@ -1441,7 +1441,9 @@ public class LendingApplicationService {
 				data.put("applicationPending",Boolean.TRUE);
 				data.put("eligible",Boolean.TRUE);
 				data.put("created_at",lendingApplication.getCreatedAt().toString());
-				data.put("agreement_at",lendingApplication.getAgreementAt().toString());
+				if (lendingApplication.getAgreementAt() != null) {
+					data.put("agreement_at", lendingApplication.getAgreementAt().toString());
+				}
 				data.put("loanType",lendingApplication.getLoanType());
 				data.put("loanAmount",lendingApplication.getLoanAmount().toString());
 				data.put("loanId",lendingApplication.getExternalLoanId());

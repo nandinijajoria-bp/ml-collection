@@ -827,9 +827,11 @@ public class CreditPaymentService {
                         logger.info("Response : {} ", objectMapper.writeValueAsString(response.getBody()));
                         result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
                         Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
-                        result.put("order_id", responseData.get("order_id"));
-                        result.put("amount", responseData.get("amount"));
-                        result.put("status", responseData.get("status"));
+                        if (responseData != null) {
+                            result.put("order_id", responseData.get("order_id"));
+                            result.put("amount", responseData.get("amount"));
+                            result.put("status", responseData.get("status"));
+                        }
                         logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
                         return result;
                 	}
