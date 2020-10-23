@@ -520,6 +520,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setEnach(enach);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
 				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+				loanDetailsDTO.setEnachSuccess(enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()));
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -553,6 +554,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
 				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+				loanDetailsDTO.setEnachSuccess(enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()));
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -737,6 +739,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setBharatSwipe(isFromSwipe);
 			loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+			loanDetailsDTO.setEnachSuccess(enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()));
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 			} else {

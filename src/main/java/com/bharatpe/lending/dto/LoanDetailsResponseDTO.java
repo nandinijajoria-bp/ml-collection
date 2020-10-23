@@ -68,6 +68,7 @@ public class LoanDetailsResponseDTO {
 		private String tempClosed;
 		private Boolean bharatSwipe=false;
 		private  Double bharatSwipeAmount;
+		private boolean enachSuccess = false;
 		
 
 		@JsonProperty(value = "loan_history")
@@ -247,6 +248,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setBharatSwipeAmount(Double bharatSwipeAmount) {
 			this.bharatSwipeAmount = bharatSwipeAmount;
+		}
+
+		public boolean isEnachSuccess() {
+			return enachSuccess;
+		}
+
+		public void setEnachSuccess(boolean enachSuccess) {
+			this.enachSuccess = enachSuccess;
 		}
 
 		@Override
