@@ -85,7 +85,7 @@ public class ExperianService {
             firstName = loanEligibleService.getFirstName(merchantBankDetail.getBeneficiaryName());
             lastName = loanEligibleService.getLastName(merchantBankDetail.getBeneficiaryName());
         }
-        ExperianDetails experianDetails = new ExperianDetails(merchantId, experian.getId(), experianDetailsDTO.getPincode(), experianDetailsDTO.getState(), experianDetailsDTO.getCity(), experianDetailsDTO.getAddress(), experianDetailsDTO.getGender(), experianDetailsDTO.getDob());
+        ExperianDetails experianDetails = new ExperianDetails(merchantId, experian.getId(), experianDetailsDTO.getPincode(), "07", experianDetailsDTO.getCity(), experianDetailsDTO.getAddress(), experianDetailsDTO.getGender(), experianDetailsDTO.getDob());
         List<String> maskedMobiles = new ArrayList<>();
         JsonNode experianResponse;
         try {
@@ -183,7 +183,7 @@ public class ExperianService {
         body.add("mobileNo", contact);
         body.add("flatno", experianDetailsDTO.getAddress());
         body.add("city", experianDetailsDTO.getCity());
-        body.add("state", experianDetailsDTO.getState());
+        body.add("state", "07");
         body.add("pincode", experianDetailsDTO.getPincode());
         body.add("pan", panCard);
         body.add("noValidationByPass", "0");
