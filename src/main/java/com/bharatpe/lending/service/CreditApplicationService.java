@@ -204,7 +204,7 @@ public class CreditApplicationService {
 			experianSnapshot.setSkip(experian.isSkip());
 			experianSnapshot.setPincode(experian.getPincode());
 			experianSnapshot.setApplicationId(creditApplication.getId());
-
+			experianSnapshot.setBureau(experian.getBureau());
 			experianSnapshotDao.save(experianSnapshot);
 
 		}

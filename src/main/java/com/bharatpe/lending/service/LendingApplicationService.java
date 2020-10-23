@@ -319,6 +319,7 @@ public class LendingApplicationService {
 			experianSnapshot.setRetryCount(experian.getRetryCount());
 			experianSnapshot.setSkip(experian.isSkip());
 			experianSnapshot.setPincode(experian.getPincode());
+			experianSnapshot.setBureau(experian.getBureau());
 			experianSnapshot.setApplicationId(lendingApplication.getId());
 
 			experianSnapshotDao.save(experianSnapshot);
