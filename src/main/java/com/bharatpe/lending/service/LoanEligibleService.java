@@ -821,7 +821,7 @@ public class LoanEligibleService {
                 if (yellowPincode) {
                     prevLoanAmount = Math.min(roundUp(prevLoanAmount), 50000);
                 } else {
-                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 100000);
+                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 200000);
                 }
             } else {
                 prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
