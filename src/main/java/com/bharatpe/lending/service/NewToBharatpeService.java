@@ -244,19 +244,19 @@ public class NewToBharatpeService {
 				logger.info("loan offer is null for merchant: {}", merchant.getId());
 			}
 		}
-		if (loanEligibilityDTOList.isEmpty()) {
-			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
-			for (LendingCategories lendingCategory : lendingCategories) {
-				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
-					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
-					if (loanEligibilityDTO != null) {
-						loanEligibilityDTOList.add(loanEligibilityDTO);
-					} else {
-						logger.info("loan offer is null for merchant: {}", merchant.getId());
-					}
-				}
-			}
-		}
+//		if (loanEligibilityDTOList.isEmpty()) {
+//			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
+//			for (LendingCategories lendingCategory : lendingCategories) {
+//				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
+//					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
+//					if (loanEligibilityDTO != null) {
+//						loanEligibilityDTOList.add(loanEligibilityDTO);
+//					} else {
+//						logger.info("loan offer is null for merchant: {}", merchant.getId());
+//					}
+//				}
+//			}
+//		}
 		loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
 		try {
 			LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchant.getId());
@@ -277,6 +277,13 @@ public class NewToBharatpeService {
 		}
 		if (!loanEligibilityDTOList.isEmpty()) {
 			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
+		}
+		if (loanEligibilityDTOList.isEmpty()) {
+			logger.info("Low ATS, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experian.setReason(ExperianConstants.LOW_ATS);
+			experianDao.save(experian);
 		}
 		return loanEligibilityDTOList;
 	}

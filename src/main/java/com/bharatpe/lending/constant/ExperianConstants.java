@@ -63,6 +63,8 @@ public interface ExperianConstants {
     String ACCT_HOLDER_TYPE_CODE = "AccountHoldertypeCode";
     String DATE_FORMAT = "yyyyMMdd";
     String YELLOW = "YELLOW";
+    String LOW_ATS = "LOW_ATS";
+    String LOW_BUREAU_SCORE = "LOW_BUREAU_SCORE";
     String PAYMENTS_BANK = "PAYMENTS_BANK";
 
     List<String> RED = Arrays.asList("1","2","13","25");

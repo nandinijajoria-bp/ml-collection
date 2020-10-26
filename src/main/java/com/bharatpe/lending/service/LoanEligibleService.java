@@ -833,12 +833,27 @@ public class LoanEligibleService {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories);
         }
         if (!isZomato) {
+            if ("NTB".equalsIgnoreCase(loanType) && breakup.getLoanAmount() < 25000) {
+                logger.info("NTB loan amount is less than 25000 for merchant: {}", merchantId);
+                return null;
+            }
             if (color != null && color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType) && !"OGL".equalsIgnoreCase(loanType)) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
             } else if (breakup.getLoanAmount() < 10000) {
                 logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
                 return null;
+            }
+            if (breakup.getLoanAmount() > 300000) {
+                Experian experian = experianDao.getByMerchantId(merchantId);
+                if (experian.getExperianScore() != null && experian.getExperianScore() < 700) {
+                    logger.info("experian score is less than 700 for merchant: {}", merchantId);
+                    experian.setReason(ExperianConstants.LOW_BUREAU_SCORE);
+                    experian.setCategory("1N");
+                    experian.setColor(ExperianConstants.COLOR.RED.name());
+                    experianDao.save(experian);
+                    return null;
+                }
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
