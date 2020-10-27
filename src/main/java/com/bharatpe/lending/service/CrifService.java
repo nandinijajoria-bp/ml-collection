@@ -50,7 +50,7 @@ public class CrifService {
     ExperianDao experianDao;
 
     @Autowired
-    ExperianAuditTrailDao experianAuditTrailDao;
+    LoanUtil loanUtil;
 
     @Autowired
     CrifRequestResponseDao crifRequestResponseDao;
@@ -72,7 +72,7 @@ public class CrifService {
                 experian.setResponse(crifResponse.toString());
                 experian.setBureau("CRIF");
                 experianDao.save(experian);
-                experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                loanUtil.auditExperian(experian);
             }
         } catch (Exception e) {
             logger.error("Exception in crif for merchant:{}", merchant.getId(), e);
@@ -100,7 +100,7 @@ public class CrifService {
                 experian.setResponse(crifResponse.toString());
                 experian.setBureau("CRIF");
                 experianDao.save(experian);
-                experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                loanUtil.auditExperian(experian);
             }
         } catch (Exception e) {
             logger.error("Exception in crif user answer for merchant:{}", merchant.getId(), e);

@@ -1,13 +1,11 @@
 package com.bharatpe.lending.util;
 
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import com.bharatpe.common.entities.LendingCategories;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.bharatpe.common.dao.ExperianAuditTrailDao;
+import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.ExperianAuditTrail;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingCategories;
+import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.CreditApplicationAddress;
@@ -15,9 +13,23 @@ import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+@Component
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
+
+	@Autowired
+	ExperianAuditTrailDao experianAuditTrailDao;
+
+	@Autowired
+	MongoPublisher mongoPublisher;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -194,6 +206,19 @@ public class LoanUtil {
 			case 9: return 234;
 			case 12: return 311;
 			default: return 388;//15 months
+		}
+	}
+
+	public void auditExperian(Experian experian) {
+		if (experian == null) {
+			return;
+		}
+		try {
+			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
+			ExperianAuditTrail finalExperianAuditTrail = experianAuditTrailDao.save(experianAuditTrail);
+			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(finalExperianAuditTrail);}});
+		} catch (Exception e) {
+			logger.error("Exception in mongo publish", e);
 		}
 	}
 }

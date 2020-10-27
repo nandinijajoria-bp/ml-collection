@@ -72,7 +72,7 @@ public class LoanEligibleService {
     ExperianDao experianDao;
 
     @Autowired
-    ExperianAuditTrailDao experianAuditTrailDao;
+    LoanUtil loanUtil;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
@@ -419,7 +419,7 @@ public class LoanEligibleService {
             }
             experianDao.save(experian);
             if(isDerogApplication(creditBureauResponseUtil, merchant, experian, isRepeatLoanNoDerog)){
-                experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                loanUtil.auditExperian(experian);
                 lendingApplication.setStatus("rejected");
                 lendingApplication.setManualCibil("REJECTED");
                 lendingApplication.setManualCibilReason("EXPERIAN DEROG FAILED");
@@ -432,7 +432,7 @@ public class LoanEligibleService {
                 responseDTO.setSuccess(true);
                 return responseDTO;
             }
-            experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+            loanUtil.auditExperian(experian);
         }
         responseDTO.setMessage("Application Derog Passed");
         responseDTO.setIsRejected(false);

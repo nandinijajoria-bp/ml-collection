@@ -85,7 +85,7 @@ public class LoanDetailsService {
 	LoanEligibleService loanEligibleService;
 
 	@Autowired
-	ExperianAuditTrailDao experianAuditTrailDao;
+	LoanUtil loanUtil;
 
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
@@ -263,7 +263,7 @@ public class LoanDetailsService {
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				if (experian != null) {
-					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					loanUtil.auditExperian(experian);
 				}
 				return response;
 			}
@@ -286,7 +286,7 @@ public class LoanDetailsService {
 //				response.setDetails(loanDetailsDTO);
 //				response.setSuccess(true);
 //				if (experian != null) {
-//					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+//					loanUtil.auditExperian(experian);
 //				}
 //				return response;
 //			}
@@ -567,7 +567,7 @@ public class LoanDetailsService {
 					experian.setLoanType(null);
 					experian.setReason(ExperianConstants.OGL);
 					experianDao.save(experian);
-					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					loanUtil.auditExperian(experian);
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -679,7 +679,7 @@ public class LoanDetailsService {
 						experianDao.save(experian);
 					}
 					experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
-					experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+					loanUtil.auditExperian(experian);
 					//send instant notification
 					if(!isFromSwipe) {
 						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);

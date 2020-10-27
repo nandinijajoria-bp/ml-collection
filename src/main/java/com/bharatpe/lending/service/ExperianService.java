@@ -10,6 +10,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.DateTime;
@@ -40,7 +41,7 @@ public class ExperianService {
     ExperianDao experianDao;
 
     @Autowired
-    ExperianAuditTrailDao experianAuditTrailDao;
+    LoanUtil loanUtil;
 
     @Autowired
     LendingPancardDao lendingPancardDao;
@@ -102,7 +103,7 @@ public class ExperianService {
             experian.setResponse(experianResponse.toString());
             experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             experianDao.save(experian);
-            experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+            loanUtil.auditExperian(experian);
             return new ResponseDTO(true, null, null);
         } else if (!maskedMobiles.isEmpty()){
             return new ResponseDTO(false, null, maskedMobiles);
@@ -303,7 +304,7 @@ public class ExperianService {
                     experian.setResponse(experianResponse.toString());
                     experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
                     experianDao.save(experian);
-                    experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                    loanUtil.auditExperian(experian);
                     insertExperianCallRecord(experianResponse.toString(), "AUTHENTICATE_MOBILE_URL", objectMapper.writeValueAsString(request), merchantId, null, null, mobile);
                     logger.info("Successfully found experian report for merchant: {}", merchantId);
                     return true;

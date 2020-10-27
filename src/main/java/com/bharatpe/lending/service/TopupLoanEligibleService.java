@@ -65,6 +65,9 @@ public class TopupLoanEligibleService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     List<Long> exemptMerchant = Arrays.asList(3692069L);
     
     public void generateTopupLoan(Long merchantId) {
@@ -132,7 +135,7 @@ public class TopupLoanEligibleService {
                     }
                     if (experianResponse != null) {
                         experian = updateExperian(experianResponse, merchant, bpScore, docKycDetails.getDocNo(), lendingApplication.getPincode());
-                        experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                        loanUtil.auditExperian(experian);
                     } else {
                         logger.info("Experian not found for merchant:{}", merchant.getId());
                     }
@@ -155,7 +158,7 @@ public class TopupLoanEligibleService {
                     experian.setResponse(experianResponse.toString());
                     experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
                     experianDao.save(experian);
-                    experianAuditTrailDao.save(ExperianAuditTrail.createObject(experian));
+                    loanUtil.auditExperian(experian);
                 }
             } catch (Exception e) {
                 logger.error("Exception while fetching experian---", e);
