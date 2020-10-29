@@ -1440,11 +1440,12 @@ public class LendingApplicationService {
 				return responseDTO;
 			}else{
 				data.put("applicationPending",Boolean.TRUE);
+				data.put("applicationRejected",Boolean.FALSE);
 				data.put("eligible",Boolean.TRUE);
 				data.put("nachRequired",Boolean.FALSE);
-				data.put("created_at",lendingApplication.getCreatedAt());
+				data.put("created_at",lendingApplication.getCreatedAt().toString());
 				if (lendingApplication.getAgreementAt() != null) {
-					data.put("agreement_at", lendingApplication.getAgreementAt());
+					data.put("agreement_at", lendingApplication.getAgreementAt().toString());
 				}
 				data.put("loanType",lendingApplication.getLoanType());
 				data.put("loanAmount",lendingApplication.getLoanAmount());
@@ -1477,7 +1478,8 @@ public class LendingApplicationService {
 
 				if("deleted".equals(lendingApplication.getStatus()) || "rejected".equals(lendingApplication.getStatus()) || "closed".equals(lendingApplication.getStatus())){
 					data.put("message","Merchant Loan Application Is Rejected State.");
-					data.put("applicationPending",Boolean.FALSE);
+					data.put("applicationPending", Boolean.FALSE);
+					data.put("applicationRejected",Boolean.TRUE);
 					responseDTO.setData(data);
 					return  responseDTO;
 				}
