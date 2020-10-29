@@ -1441,6 +1441,7 @@ public class LendingApplicationService {
 			}else{
 				data.put("applicationPending",Boolean.TRUE);
 				data.put("eligible",Boolean.TRUE);
+				data.put("nachRequired",Boolean.FALSE);
 				data.put("created_at",lendingApplication.getCreatedAt().toString());
 				if (lendingApplication.getAgreementAt() != null) {
 					data.put("agreement_at", lendingApplication.getAgreementAt().toString());
@@ -1448,6 +1449,7 @@ public class LendingApplicationService {
 				data.put("loanType",lendingApplication.getLoanType());
 				data.put("loanAmount",lendingApplication.getLoanAmount().toString());
 				data.put("loanId",lendingApplication.getExternalLoanId());
+				data.put("nachStatus",lendingApplication.getNachStatus() == "APPROVED" ? "APPROVED" : "PENDING");
 				String loanType = lendingApplication.getLoanType();
 				if("draft".equals(lendingApplication.getStatus())){
 					data.put("message","Application Is Draft Mode.");
@@ -1461,6 +1463,7 @@ public class LendingApplicationService {
 					data.put("message","Merchant Loan Application Is Pending Verification State.");
 					if(("NTB".equals(loanType) || "OGL".equals(loanType) || "BHRAT_SWIPE".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())){
 						data.put("message","Please Complete Enach For Further Process Application.");
+						data.put("nachRequired",Boolean.TRUE);
 					}
 					responseDTO.setData(data);
 					return  responseDTO;
