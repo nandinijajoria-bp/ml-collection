@@ -810,7 +810,7 @@ public class LoanEligibleService {
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
-        int maxAmount = experian != null && experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
+        Integer maxAmount = experian != null && experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
