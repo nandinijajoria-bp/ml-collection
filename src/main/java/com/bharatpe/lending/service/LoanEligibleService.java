@@ -810,7 +810,7 @@ public class LoanEligibleService {
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
-        int maxAmount = experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
+        int maxAmount = experian != null && experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
@@ -821,7 +821,7 @@ public class LoanEligibleService {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 200000;
             } else {
-                maxAmount = experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : 700000;
+                maxAmount = experian != null && experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : 700000;
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
             AvailableLoan availableLoan = new AvailableLoan();
