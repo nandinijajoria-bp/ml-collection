@@ -805,11 +805,12 @@ public class LoanEligibleService {
     }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
+        Experian experian = experianDao.getByMerchantId(merchantId);
         Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
-        Integer maxAmount = lendingCategories.getMaxTpvAmount();
+        int maxAmount = experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
@@ -818,14 +819,11 @@ public class LoanEligibleService {
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
-                if (yellowPincode) {
-                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 50000);
-                } else {
-                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 200000);
-                }
+                maxAmount = 200000;
             } else {
-                prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
+                maxAmount = experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : 700000;
             }
+            prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
@@ -843,17 +841,6 @@ public class LoanEligibleService {
             } else if (breakup.getLoanAmount() < 10000) {
                 logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
                 return null;
-            }
-            if (breakup.getLoanAmount() > 300000) {
-                Experian experian = experianDao.getByMerchantId(merchantId);
-                if (experian.getExperianScore() != null && experian.getExperianScore() < 700) {
-                    logger.info("experian score is less than 700 for merchant: {}", merchantId);
-                    experian.setReason(ExperianConstants.LOW_BUREAU_SCORE);
-                    experian.setCategory("1N");
-                    experian.setColor(ExperianConstants.COLOR.RED.name());
-                    experianDao.save(experian);
-                    return null;
-                }
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
