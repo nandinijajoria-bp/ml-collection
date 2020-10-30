@@ -812,7 +812,7 @@ public class LoanEligibleService {
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
         logger.info("score:{} for merchant:{}", bureauScore, merchantId);
-        Integer maxAmount = lendingCategories.getMaxTpvAmount();
+        Integer maxAmount = bureauScore > 0 && bureauScore < 700 ? new Integer(300000) : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
