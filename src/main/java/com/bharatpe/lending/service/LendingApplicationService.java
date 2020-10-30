@@ -442,7 +442,7 @@ public class LendingApplicationService {
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 		LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
 		if(lendingGstDetail == null){
-			lendingGstDetail = lendingGstDao.findByTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
+			lendingGstDetail = lendingGstDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
 		}
 		logger.info("Lending GST Details aFInd IN Tvake:{}",lendingGstDetail);
 		LendingApplicationResponseDTO lendingApplicationResponse = new LendingApplicationResponseDTO();
