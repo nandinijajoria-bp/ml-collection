@@ -6,5 +6,5 @@ import org.springframework.data.repository.CrudRepository;
 public interface LendingGstDao extends CrudRepository<LendingGstDetail, Long> {
     LendingGstDetail findByApplicationId(Long applicationId);
 
-    LendingGstDetail findByTopByMerchantIdOrderByIdDesc(Long applicationId);
+    LendingGstDetail findByTop1ByMerchantIdOrderByIdDesc(Long applicationId);
 }
