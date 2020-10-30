@@ -811,6 +811,7 @@ public class LoanEligibleService {
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
+        logger.info("score:{} for merchant:{}", bureauScore, merchantId);
         Integer maxAmount = bureauScore > 0 && bureauScore < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
