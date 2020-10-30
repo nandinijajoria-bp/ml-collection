@@ -405,7 +405,7 @@ public class APIGatewayService {
             Map<String, Object> essentials = new HashMap<>();
             body.put("task", "panSearch");
             essentials.put("panNumber", experian.getPancardNumber());
-            essentials.put("state", pincodeCityStateMapping.getState());
+            essentials.put("state", pincodeCityStateMapping != null ? pincodeCityStateMapping.getState() : "");
             essentials.put("email", "");
             body.put("essentials", essentials);
             HttpHeaders headers = new HttpHeaders();
