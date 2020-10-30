@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ public class MerchantLoansService {
         } else {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
+            responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
             responseDTO.setMessage("Successfully fetched merchant loans");
             responseDTO.setSuccess(true);
         }
