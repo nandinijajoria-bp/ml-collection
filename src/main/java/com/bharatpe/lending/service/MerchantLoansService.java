@@ -8,20 +8,22 @@ import org.slf4j.LoggerFactory;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
+import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ActiveLoansService {
+public class MerchantLoansService {
 
-    private Logger logger = LoggerFactory.getLogger(ActiveLoansService.class);
+    private Logger logger = LoggerFactory.getLogger(MerchantLoansService.class);
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
-        List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchantId, merchantStoreId);
+        List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchantId, merchantStoreId, "ACTIVE");
         if (activeLoans == null || activeLoans.isEmpty()) {
             logger.info("No active loans found for merchantId: {}, merchantStoreId: {}", merchantId, merchantStoreId);
             responseDTO.setActiveLoans(Collections.emptyList());
@@ -36,11 +38,27 @@ public class ActiveLoansService {
         return responseDTO;
     }
 
-    private List<LendingPaymentSchedule> fetchLendingPaymentSchedule(Long merchantId, Long merchantStoreId) {
+    private List<LendingPaymentSchedule> fetchLendingPaymentSchedule(Long merchantId, Long merchantStoreId, String status) {
         if (merchantStoreId != null) {
             return lendingPaymentScheduleDao.findByMerchantIdAndMerchantStoreIdAndStatus(merchantId, merchantStoreId,
-                    "ACTIVE");
+                    status);
         }
-        return lendingPaymentScheduleDao.findByMerchantIdAndStatusList(merchantId, "ACTIVE");
+        return lendingPaymentScheduleDao.findByMerchantIdAndStatusList(merchantId, status);
+    }
+    public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
+        LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
+        List<LendingPaymentSchedule> merchantLoans = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoan(merchantId, false);
+        if (merchantLoans == null || merchantLoans.isEmpty()) {
+            logger.info("No loans found for merchantId: {}", merchantId);
+            responseDTO.setLoans(Collections.emptyList());
+            responseDTO.setMessage("No merchant loans found");
+            responseDTO.setSuccess(false);
+        } else {
+            logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
+            responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
+            responseDTO.setMessage("Successfully fetched merchant loans");
+            responseDTO.setSuccess(true);
+        }
+        return responseDTO;
     }
 }
