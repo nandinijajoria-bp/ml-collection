@@ -1,13 +1,7 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.LendingCitiesDao;
-import com.bharatpe.common.dao.LendingPancardDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingCities;
-import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
@@ -67,7 +61,7 @@ public class APIGatewayService {
     private LendingPancardDao lendingPancardDao;
 
     @Autowired
-    private LendingCitiesDao lendingCitiesDao;
+    private PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
     @Autowired
     private SignzyCredentialDao signzyCredentialDao;
@@ -406,12 +400,12 @@ public class APIGatewayService {
                 return;
             }
             Integer pincode = experian.getPincode();
-            LendingCities lendingCities =lendingCitiesDao.findActiveCityByPincode(pincode);
+            PincodeCityStateMapping pincodeCityStateMapping =pincodeCityStateMappingDao.findByPincode(pincode);
             Map<String, Object> body = new HashMap<>();
             Map<String, Object> essentials = new HashMap<>();
             body.put("task", "panSearch");
             essentials.put("panNumber", experian.getPancardNumber());
-            essentials.put("state", lendingCities.getState());
+            essentials.put("state", pincodeCityStateMapping.getState());
             essentials.put("email", "");
             body.put("essentials", essentials);
             HttpHeaders headers = new HttpHeaders();
