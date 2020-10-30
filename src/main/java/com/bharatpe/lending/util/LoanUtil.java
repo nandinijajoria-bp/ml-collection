@@ -1,10 +1,16 @@
 package com.bharatpe.lending.util;
 
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+import com.bharatpe.common.entities.LendingCategories;
+import com.bharatpe.common.entities.LendingGstDetail;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.bharatpe.common.dao.ExperianAuditTrailDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.ExperianAuditTrail;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.entity.CreditApplication;
@@ -13,13 +19,9 @@ import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.fasterxml.jackson.databind.JsonNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Component
 public class LoanUtil {
@@ -90,7 +92,7 @@ public class LoanUtil {
 		return selectedLoan;
 	}
 	
-	public static Map<String, Object> prepareShopDetailsForClient(LendingApplication application) {
+	public static Map<String, Object> prepareShopDetailsForClient(LendingApplication application, LendingGstDetail lendingGstDetail) {
 		Map<String, Object> shopDetails = new LinkedHashMap<>();
 		
 		shopDetails.put("business_name", application.getBusinessName());
@@ -102,10 +104,18 @@ public class LoanUtil {
 		shopDetails.put("city", application.getCity());
 		shopDetails.put("state", application.getState());
 		shopDetails.put("alternate_mobile", application.getAlternateMobile());
+		if (lendingGstDetail != null) {
+			shopDetails.put("gstNumber", lendingGstDetail.getGstNumber() != null ? lendingGstDetail.getGstNumber() : "");
+			shopDetails.put("entityType", lendingGstDetail.getEntityType() != null ? lendingGstDetail.getEntityType() : "");
+			shopDetails.put("salary", lendingGstDetail.getSalary() != null ? lendingGstDetail.getSalary() : "");
+			shopDetails.put("hasGST", lendingGstDetail.getGst() != null ? lendingGstDetail.getGst() : "");
+			shopDetails.put("experience", lendingGstDetail.getExperience() != null ? lendingGstDetail.getExperience() : "");
+			shopDetails.put("businessCategory", lendingGstDetail.getBusinessCategory() != null ? lendingGstDetail.getBusinessCategory() : "");
+		}
 		return shopDetails;
 	}
 	
-	public static ShopDetailsDTO prepareShopDetailsDTO(LendingApplication application) {
+	public static ShopDetailsDTO prepareShopDetailsDTO(LendingApplication application,LendingGstDetail lendingGstDetail) {
 		ShopDetailsDTO shopDetails = new ShopDetailsDTO();
 		
 		shopDetails.setBusinessName(application.getBusinessName());
@@ -118,7 +128,14 @@ public class LoanUtil {
 		}
 		shopDetails.setCity(application.getCity());
 		shopDetails.setState(application.getState());
-		
+		if (lendingGstDetail != null) {
+			shopDetails.setEntityType(lendingGstDetail.getEntityType());
+			shopDetails.setGstNumber(lendingGstDetail.getGstNumber());
+			shopDetails.setHasGST(lendingGstDetail.getGst());
+			shopDetails.setBusinessCategory(lendingGstDetail.getBusinessCategory());
+			shopDetails.setSalary(lendingGstDetail.getSalary());
+			shopDetails.setExperience(lendingGstDetail.getExperience());
+		}
 		return shopDetails;
 	}
 

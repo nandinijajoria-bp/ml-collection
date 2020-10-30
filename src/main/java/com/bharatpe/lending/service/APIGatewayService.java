@@ -1,6 +1,12 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingCitiesDao;
+import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingCities;
+import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.utils.AesEncryption;
@@ -30,6 +36,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -55,8 +62,18 @@ public class APIGatewayService {
     @Autowired
     private MerchantDao merchantDao;
 
+
+    @Autowired
+    private LendingPancardDao lendingPancardDao;
+
+    @Autowired
+    private LendingCitiesDao lendingCitiesDao;
+
     @Autowired
     private SignzyCredentialDao signzyCredentialDao;
+
+    @Autowired
+    private ExperianDao experianDao;
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
@@ -372,5 +389,59 @@ public class APIGatewayService {
     private String generateAccessCode() {
         String value = env.getProperty("crif.userId") + "|" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|" + env.getProperty("crif.password") + "|" + new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date());
         return Base64.getEncoder().encodeToString(value.getBytes());
+    }
+
+    public void signZyPanGst(Long merchantId) {
+        logger.info("Calling Signzy For GST Number:{}", merchantId);
+        try {
+            SignzyCredential signzyCredential = signzyCredentialDao.findByModule("GST");
+            if (signzyCredential == null) {
+                logger.info("signzy credentials not found");
+                return;
+            }
+            Experian experian=experianDao.getByMerchantId(merchantId);
+            LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+            if (lendingPancard != null && lendingPancard.getGstNumber() != null && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber())) {
+                logger.info("Already pulled gst for this pancard");
+                return;
+            }
+            Integer pincode = experian.getPincode();
+            LendingCities lendingCities =lendingCitiesDao.findActiveCityByPincode(pincode);
+            Map<String, Object> body = new HashMap<>();
+            Map<String, Object> essentials = new HashMap<>();
+            body.put("task", "panSearch");
+            essentials.put("panNumber", experian.getPancardNumber());
+            essentials.put("state", lendingCities.getState());
+            essentials.put("email", "");
+            body.put("essentials", essentials);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", signzyCredential.getAccessId());
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/gstns";
+            logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
+            String response = null;
+                try {
+                    response = restTemplate.postForObject(URL, request, String.class);
+                    logger.info("Signzy Pan To Gst {}", response);
+                    insertIntoSignzyReqRes(merchantId, null, "GST", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+                    if (response != null) {
+                        JsonNode jsonNode = mapper.readTree(response);
+                        if (jsonNode != null && jsonNode.get("result") != null && jsonNode.get("result").get("gstin") != null) {
+                            if (lendingPancard == null) {
+                                lendingPancard = new LendingPancard();
+                                lendingPancard.setMerchantId(merchantId);
+                            }
+                            lendingPancard.setGstNumber(jsonNode.get("result").get("gstin").asText());
+                            lendingPancardDao.save(lendingPancard);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.info("Error occurred while fetching gst details", e);
+                    insertIntoSignzyReqRes(merchantId, null, "GST", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+                }
+        } catch (Exception e) {
+            logger.error("Exception in Signzy GST flow Api", e);
+        }
     }
 }

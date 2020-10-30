@@ -34,6 +34,8 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class LoanDetailsService {
@@ -53,6 +55,9 @@ public class LoanDetailsService {
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
+
+	@Autowired
+	LendingGstDao lendingGstDao;
 	
 	@Autowired
 	AvailableLoanDao availableLoanDao;
@@ -155,6 +160,11 @@ public class LoanDetailsService {
 
 	@Autowired
 	CrifDao crifDao;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(5);
+
+	@Autowired
+	APIGatewayService apiGatewayService;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -684,6 +694,9 @@ public class LoanDetailsService {
 					if(!isFromSwipe) {
 						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 					}
+					if (!loanEligibilityDTOs.isEmpty()) {
+						executorService.submit(() -> apiGatewayService.signZyPanGst(merchant.getId()));
+					}
 				}
 //			}
 			boolean ogl = false;
@@ -1184,8 +1197,9 @@ public class LoanDetailsService {
 		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
 	    if(application != null) {
 			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(application.getCategory());
+			LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(application.getId());
 			logger.info("Open application found for merchant ID {}", merchant.getId());
-	        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application);
+	        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application,lendingGstDetail);
 	        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application, lendingCategories);
 	        List<DocumentDTO> documents = fetchDocuments(application, merchant);
 	        

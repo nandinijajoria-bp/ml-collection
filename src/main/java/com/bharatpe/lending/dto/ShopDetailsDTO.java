@@ -31,6 +31,24 @@ public class ShopDetailsDTO {
 	@JsonProperty("alternative_contact")
 	private String alternateContact = "";
 
+	@JsonProperty("gstNumber")
+	private String gstNumber = "";
+
+	@JsonProperty("entityType")
+	private String entityType = "";
+
+	@JsonProperty("salary")
+	private String salary = "";
+
+	@JsonProperty("hasGST")
+	private Boolean hasGST;
+
+	@JsonProperty("experience")
+	private String experience = "";
+
+	@JsonProperty("businessCategory")
+	private String businessCategory = "";
+
 	public String getBusinessName() {
 		return businessName;
 	}
@@ -97,6 +115,54 @@ public class ShopDetailsDTO {
 
 	public String getAlternateContact() {
 		return alternateContact;
+	}
+
+	public String getGstNumber() {
+		return gstNumber;
+	}
+
+	public void setGstNumber(String gstNumber) {
+		this.gstNumber = gstNumber;
+	}
+
+	public String getEntityType() {
+		return entityType;
+	}
+
+	public void setEntityType(String entityType) {
+		this.entityType = entityType;
+	}
+
+	public String getSalary() {
+		return salary;
+	}
+
+	public void setSalary(String salary) {
+		this.salary = salary;
+	}
+
+	public Boolean getHasGST() {
+		return hasGST;
+	}
+
+	public void setHasGST(Boolean hasGST) {
+		this.hasGST = hasGST;
+	}
+
+	public String getExperience() {
+		return experience;
+	}
+
+	public void setExperience(String experience) {
+		this.experience = experience;
+	}
+
+	public String getBusinessCategory() {
+		return businessCategory;
+	}
+
+	public void setBusinessCategory(String businessCategory) {
+		this.businessCategory = businessCategory;
 	}
 
 	public void setAlternateContact(String alternateContact) {
