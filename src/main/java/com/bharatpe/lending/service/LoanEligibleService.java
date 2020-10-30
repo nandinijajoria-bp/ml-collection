@@ -806,11 +806,12 @@ public class LoanEligibleService {
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
         Experian experian = experianDao.getByMerchantId(merchantId);
+        double bureauScore = experian != null && experian.getExperianScore() != null ? experian.getExperianScore() : 0;
         Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
-        Integer maxAmount = experian != null && experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
+        Integer maxAmount = bureauScore > 0 && bureauScore < 700 ? 300000 : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
@@ -821,7 +822,7 @@ public class LoanEligibleService {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 200000;
             } else {
-                maxAmount = experian != null && experian.getExperianScore() != null && experian.getExperianScore() < 700 ? 300000 : 700000;
+                maxAmount = bureauScore > 0 && bureauScore < 700 ? 300000 : 700000;
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
             AvailableLoan availableLoan = new AvailableLoan();
