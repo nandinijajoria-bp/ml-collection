@@ -102,9 +102,9 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
 		try {
-			return new ResponseEntity<>(loanDetailsService.getSettlements(merchant), HttpStatus.OK);
+			return new ResponseEntity<>(loanDetailsService.getSettlements(merchant, loanId), HttpStatus.OK);
 		} catch (Exception e) {
 			logger.error("Exception in settlement---", e);
 			return new ResponseEntity<>(new SettlementResponseDTO(false, "Something went wrong"), HttpStatus.OK);

@@ -43,4 +43,6 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	List<LendingPaymentSchedule> findByMerchantIdAndStatusList(Long merchantId, String status);
 
 	LendingPaymentSchedule findByTlDetailsIdAndCreditLoanAndStatus(Long tlDetailsId, Boolean creditLoan, String status);
+
+	LendingPaymentSchedule findByIdAndMerchantId(Long id, Long merchantId);
 }

@@ -1269,8 +1269,13 @@ public class LoanDetailsService {
 		return false;
 	}
 
-	public SettlementResponseDTO getSettlements(Merchant merchant) {
-		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+	public SettlementResponseDTO getSettlements(Merchant merchant, Long loanId) {
+		LendingPaymentSchedule lendingPaymentSchedule;
+		if (loanId != null) {
+			lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchant.getId());
+		} else {
+			lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+		}
 		if (lendingPaymentSchedule == null){
 			return new SettlementResponseDTO(false, "No Active Loan");
 		}
