@@ -451,7 +451,7 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
-					if (("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() <= 100000) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
+					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
 						skipEnatch = false;
 					}
 					eligibleFlag = false;
