@@ -1,5 +1,8 @@
 package com.bharatpe.lending.constant;
 
+import java.util.Arrays;
+import java.util.List;
+
 public interface LendingConstants {
 	String GUPSHUP_OTP_API_USERID = "2000182191";
 	String GUPSHUP_OTP_API_PASSWORD = "uelCIwOHu";
@@ -30,6 +33,7 @@ public interface LendingConstants {
 	enum BUREAU_TYPES {
         CRIF, EXPERIAN;
     }
+    List<String> FOOD_BEVERAGES = Arrays.asList("Bakery_Namkeen_Sweets","Bakery_Namkeen_Sweets","Food_and_Drink","Fast_Food_Cafe_QSR","Food_","Fast Food_Café_QSR","Fast Food_Cafe_QSR","Food_&_Beverages","Food_Court","Food Court","Ice Cream Vendor","Ice Cream Vendor","Ice Cream Vendor","Ice Cream Vendor","Juice Shop","Juice_Shop","Juice Shop","Restaurant_Fine_Dining","Restaurant_Fine Dining","Roadside_Eatery_Stall_Truck","Roadside Eatery_Stall_Truck","Roadside Eatery_Stall_Truck","Roadside Eatery_Stall_Truck","School_College Canteen","Take Away_Home Delivery");
 }
 
 
