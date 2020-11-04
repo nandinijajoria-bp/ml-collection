@@ -245,6 +245,10 @@ public class NewToBharatpeService {
 					loanAmount = 45000;
 				}
 			}
+			if (bbs <= 600 && loanAmount < 25000) {
+				logger.info("NTB loan amount is less than 25000 for merchant: {}", experian.getMerchantId());
+				continue;
+			}
 			LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), loanAmount, experian.getColor(), "2", loanType, false, yellowPincode);
 			if (loanEligibilityDTO != null) {
 				loanEligibilityDTOList.add(loanEligibilityDTO);
@@ -252,19 +256,19 @@ public class NewToBharatpeService {
 				logger.info("loan offer is null for merchant: {}", merchant.getId());
 			}
 		}
-//		if (loanEligibilityDTOList.isEmpty()) {
-//			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
-//			for (LendingCategories lendingCategory : lendingCategories) {
-//				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
-//					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
-//					if (loanEligibilityDTO != null) {
-//						loanEligibilityDTOList.add(loanEligibilityDTO);
-//					} else {
-//						logger.info("loan offer is null for merchant: {}", merchant.getId());
-//					}
-//				}
-//			}
-//		}
+		if (loanEligibilityDTOList.isEmpty() && bbs > 600) {
+			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
+			for (LendingCategories lendingCategory : lendingCategories) {
+				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
+					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
+					if (loanEligibilityDTO != null) {
+						loanEligibilityDTOList.add(loanEligibilityDTO);
+					} else {
+						logger.info("loan offer is null for merchant: {}", merchant.getId());
+					}
+				}
+			}
+		}
 		loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
 		try {
 			LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchant.getId());

@@ -736,7 +736,7 @@ public class LoanEligibleService {
                     if (ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
                         logger.info("Calculating regular loan using previous NTB loan amount for merchant:{}", merchantId);
                         LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
-                        LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, loanType, false, false);
+                        LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
                         if (loanEligibilityDTO != null) {
                             logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
                             loanEligibilityDTOList.add(loanEligibilityDTO);
@@ -838,10 +838,10 @@ public class LoanEligibleService {
             breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories, isNTC, merchant);
         }
         if (!isZomato) {
-            if ("NTB".equalsIgnoreCase(loanType) && breakup.getLoanAmount() < 25000) {
-                logger.info("NTB loan amount is less than 25000 for merchant: {}", merchantId);
-                return null;
-            }
+//            if ("NTB".equalsIgnoreCase(loanType) && breakup.getLoanAmount() < 25000) {
+//                logger.info("NTB loan amount is less than 25000 for merchant: {}", merchantId);
+//                return null;
+//            }
             if (color != null && color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType) && !"OGL".equalsIgnoreCase(loanType)) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
@@ -994,11 +994,11 @@ public class LoanEligibleService {
         else if (bpScore < 20) { row = 1;}
         else if (bpScore <= 25) { row = 2;}
         else { row = 3;}
-        if (bureauVintage <= 3){
+        if (bureauVintage < 6){
             return m1[row][col];
-        } else if (bureauVintage <= 6) {
-            return m2[row][col];
         } else if (bureauVintage <= 12) {
+            return m2[row][col];
+        } else if (bureauVintage <= 24) {
             return m3[row][col];
         } else {
             return m4[row][col];
