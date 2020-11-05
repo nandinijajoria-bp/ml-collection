@@ -45,13 +45,14 @@ public class LendingMerchantLoansResponseDTO {
         private String endDate;
         private String loanType;
         private String status;
+        private Double paidAmount;
 
         public Loan() {
         }
 
         public Loan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
-                String startDate, String endDate, String loanType, String status) {
+                String startDate, String endDate, String loanType, String status, Double paidAmount) {
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -66,6 +67,7 @@ public class LendingMerchantLoansResponseDTO {
             this.endDate = endDate;
             this.loanType = loanType;
             this.status = status;
+            this.paidAmount = paidAmount;
         }
 
         public Long getLoanId() {
@@ -180,6 +182,14 @@ public class LendingMerchantLoansResponseDTO {
             this.status = status;
         }
 
+        public Double getPaidAmount() {
+            return paidAmount;
+        }
+
+        public void setPaidAmount(Double paidAmount) {
+            this.paidAmount = paidAmount;
+        }
+
         public Loan loanId(Long loanId) {
             this.loanId = loanId;
             return this;
@@ -275,7 +285,7 @@ public class LendingMerchantLoansResponseDTO {
         this.loans = loansList.stream().map(this::lendingPaymentScheduleToLoan).collect(Collectors.toList());
         this.totalAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getLoanAmount(), Double::sum);
         this.totalDueAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getDueAmount(), Double::sum);
-        this.totalPaidAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getPaidPrinciple(), Double::sum);
+        this.totalPaidAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getPaidAmount(), Double::sum);
     }
 
     private Loan lendingPaymentScheduleToLoan(LendingPaymentSchedule lendingPaymentSchedule) {
@@ -303,7 +313,7 @@ public class LendingMerchantLoansResponseDTO {
         String tenure = application.getTenure() != null ? application.getTenure() : "";
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status);
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount());
     }
 
     public boolean getSuccess() {
