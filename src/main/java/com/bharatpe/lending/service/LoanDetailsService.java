@@ -317,6 +317,7 @@ public class LoanDetailsService {
 			boolean repeatLoan = lendingPaymentScheduleList != null && lendingPaymentScheduleList.size() > 0;
 
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
+			boolean isActiveLoan = activeLoan != null;
 
 			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
 			
@@ -485,6 +486,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setZomato(isZomato);
+				loanDetailsDTO.setActiveLoan(isActiveLoan);
 				if(!(pincode != null && lendingCity == null) && !isZomato) {
 					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.fetchTopupLoans(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, bankCode);
 					loanDetailsDTO.setTopupLoan(topupLoans == null || topupLoans.isEmpty() ? null : topupLoans);

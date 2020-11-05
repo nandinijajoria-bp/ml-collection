@@ -40,7 +40,8 @@ public interface CreditConstants {
 
 	enum PaymentMode {
 		BPB,
-		UPI
+		UPI,
+		BT
 	}
 
 	enum AccountStatus {

@@ -1,19 +1,28 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.InternalClientDao;
+import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.InternalClient;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
+import com.bharatpe.lending.common.dao.LendingVirtualAccountDao;
+import com.bharatpe.lending.common.dao.SignzyCredentialDao;
+import com.bharatpe.lending.common.dao.SignzyRequestResponseDao;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
+import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.entity.SignzyCredential;
 import com.bharatpe.lending.common.entity.SignzyRequestResponse;
 import com.bharatpe.lending.constant.CreditConstants;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dto.*;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
@@ -26,15 +35,15 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
-
-
-import java.text.SimpleDateFormat;
-import java.util.*;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @Service
 public class APIGatewayService {
@@ -90,6 +99,14 @@ public class APIGatewayService {
     @Autowired
     CrifRequestResponseDao crifRequestResponseDao;
     
+    @Autowired
+    InternalClientDao internalClientDao;
+
+    @Autowired
+    LendingVirtualAccountDao lendingVirtualAccountDao;
+
+    private final String CLIENT = "LENDING";
+    
     @PostConstruct
     public void init() {
     	try { 
@@ -108,8 +125,6 @@ public class APIGatewayService {
             requestParams.put("amount", amount);
             requestParams.put("orderId", orderId);
             requestParams.put("mid", getMid());
-            requestParams.put("gateway", Gateway.FEDERAL.name());
-            requestParams.put("beneficiaryName", "BharatPe Loans");
             if(vpa!=null) {
                 requestParams.put("payerVpa", vpa);
             }
@@ -123,15 +138,22 @@ public class APIGatewayService {
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
             logger.info("createVPA internal request: {}", mapper.writeValueAsString(request));
-            
-            Map response = restTemplate.postForObject(createVPAEndpoint, request, Map.class);
-            logger.info("Response received from create VPA API {}", mapper.writeValueAsString(response));
-            return response;
+            int retryCount = 0;
+            while(retryCount < 3) {
+                try {
+                    Map response = restTemplate.postForObject(env.getProperty("collect.vpa.endpoint") + LendingConstants.COLLECT_VPA_CREATE_TXN_URL, request, Map.class);
+                    logger.info("Response received from create VPA API {}", mapper.writeValueAsString(response));
+                    return response;
+                } catch (Exception e) {
+                    logger.error("Exception in createVPA", e);
+                }
+                retryCount++;
+            }
         } catch (HttpClientErrorException ex) {
 			logger.info("Response from API GAteway : {}" , ex.getResponseBodyAsString());
-			logger.error("Error in api call to generate dynamic vpa for merchant {}, Exception is {}", merchant.getId(), ex);
+			logger.error("Error in api call to generate dynamic vpa for merchant:{}", merchant.getId(), ex);
 		} catch (Exception ex) {
-            logger.error("error processing txn for dynamic vpa for merchant id {}, Exception is {}", merchant.getId(), ex);
+            logger.error("error processing txn for dynamic vpa for merchant id:{}", merchant.getId(), ex);
         }
         return null;
     }
@@ -383,6 +405,330 @@ public class APIGatewayService {
     private String generateAccessCode() {
         String value = env.getProperty("crif.userId") + "|" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|" + env.getProperty("crif.password") + "|" + new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date());
         return Base64.getEncoder().encodeToString(value.getBytes());
+    }
+
+    public List<PaymentDetailDto> getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
+        List<PaymentDetailDto> paymentDetails = new ArrayList<>();
+        try {
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.PAYMENT_MODE_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.set("token", token);
+            headers.set("clientName", CLIENT);
+            Map<String, Object> requestParams = new HashMap<>();
+            requestParams.put("common_params", requestDTO.getMeta());
+            requestParams.put("params", requestDTO.getSimInfo());
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            logger.info("Get payment modes request:{}", entity);
+            ResponseEntity<Object> response = null;
+            int retry = 0;
+            while (retry < 3) {
+                try {
+                    response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    if (response.getBody() != null) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    logger.error("Error occured while fetching payment mode", e);
+                }
+                retry++;
+            }
+            logger.info("Response : {} ", response);
+            if (response != null && response.getBody() != null) {
+                paymentDetails = mapper.readValue(mapper.writeValueAsString(((Map<String, Object>) response.getBody()).get("data")), new TypeReference<List<PaymentDetailDto>>() {});
+            }
+        } catch (HttpClientErrorException e) {
+            logger.error("Error fetching Balance info", e);
+        } catch (Exception e) {
+            logger.error("Error parsing details from payment details", e);
+        } finally {
+            if (paymentDetails.isEmpty()) {
+                logger.info("No Payment Mode Received, Falling Back to UPI Payment Mode");
+                paymentDetails.addAll(fetchDefaultModes());
+            }
+        }
+        return paymentDetails;
+    }
+
+    private List<PaymentDetailDto> fetchDefaultModes() {
+        List<PaymentDetailDto> paymentDetails = new ArrayList<>();
+        try {
+            String content = "[\n" + "{\n" + "\"name\": \"Pay Using UPI\",\n"
+                    + "                       \"type\": \"UPI\",\n"
+                    + "                       \"fund_source\": \"UPI\",\n"
+                    + "                       \"balance\": null,\n"
+                    + "                       \"amount_limit\": 100000.0,\n"
+                    + "                       \"description\": null,\n"
+                    + "                       \"offers\": null,\n"
+                    + "                       \"auth_type\": null,\n"
+                    + "                       \"psps\": [\n"
+                    + "                \"com.google.android.apps.nbu.paisa.user\",\n" + "\"net.one97.paytm\",\n" + "\"in.org.npci.upiapp\",\n"
+                    + "                \"com.csam.icici.bank.imobile\",\n" + "\"com.mobikwik_new\",\n"
+                    + "                \"com.myairtelapp\",\n" + "\"com.phonepe.app\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
+                    + "                     \"auth_required\": false,\n"
+                    + "                     \"default\": false,\n"
+                    + "                     \"enable\": true,\n"
+                    + "                     \"initiate_sb\": false,\n"
+                    + "                     \"sb_link\": null\n" + "}\n" + "]";
+            paymentDetails = mapper.readValue(content, new TypeReference<List<PaymentDetailDto>>() {
+            });
+        } catch (Exception e) {
+            logger.error("Error Parsing payment Modes : {}", e.getMessage());
+        }
+        return paymentDetails;
+    }
+
+    public Map<String, Object> initiateTxn(MetaDTO meta, SimInfo simInfo, Double amount, String appHash, String orderId, String token, String beneficiaryName, String paymentSource) {
+        Map<String, Object> result = new HashMap<>();
+        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        try {
+            Map<String, Object> requestParams = generateBPBRequest(meta, simInfo, amount, appHash, orderId, beneficiaryName, paymentSource);
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.BP_BALANCE_CREATE_TXN_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("token", token);
+            headers.set("hash", hash);
+            headers.set("clientName", CLIENT);
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            result.put("request", mapper.writeValueAsString(entity));
+            long startTime = System.currentTimeMillis();
+            int retryCount=0;
+            while(retryCount<3) {
+                try {
+                    ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    if (response.getBody() != null) {
+                        result.put("response", mapper.writeValueAsString(response.getBody()));
+                        logger.info("Response : {} ", mapper.writeValueAsString(response.getBody()));
+                        result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+                        if (responseData != null) {
+                            result.put("otp_flow", responseData.get("otp_flow"));
+                            result.put("auth_mode", responseData.get("auth_mode"));
+                            result.put("bp_txn_id", responseData.get("bp_txn_id"));
+                        }
+                        logger.info("Successfully created txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                    }
+                } catch (Exception e) {
+                    logger.error("Error Starting txn for BP Balance info---", e);
+                }
+                retryCount++;
+            }
+        } catch (HttpClientErrorException e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error Starting txn for BP Balance info---", e);
+        } catch (Exception e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error parsing details from BP Balance---", e);
+        }
+        return result;
+    }
+
+    private Map<String, Object> generateBPBRequest(MetaDTO meta, SimInfo simInfo, Double amount, String appHash, String orderId, String beneficiaryName, String paymentSource) {
+        Map<String, Object> requestParams = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> commonParams = new HashMap<>();
+        Map<String, Object> deviceInfo = new HashMap<>();
+        List<Map<String, Object>> sims = new ArrayList<>();
+        for (SimInfo.Sim sim : simInfo.getSims()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("slot", sim.getSlot());
+            map.put("sim_id", sim.getSimId());
+            map.put("carrier_name", sim.getCarrierName());
+            map.put("phone", sim.getPhone());
+            sims.add(map);
+        }
+        commonParams.put("app_version", meta.getAppVersion());
+        commonParams.put("client", meta.getClient());
+        commonParams.put("lat", meta.getLatitude());
+        commonParams.put("lon", meta.getLongitude());
+        commonParams.put("ip", meta.getIp());
+        commonParams.put("device_id", meta.getDeviceId());
+        deviceInfo.put("os", meta.getDeviceInfo().getOs());
+        deviceInfo.put("manufacturer", meta.getDeviceInfo().getManufacturer());
+        deviceInfo.put("device", meta.getDeviceInfo().getDevice());
+        deviceInfo.put("is_virtual", meta.getDeviceInfo().getIsVirtual());
+        commonParams.put("device_info", deviceInfo);
+        params.put("amount", amount);
+        params.put("order_id", orderId);
+        params.put("beneficiary_name", beneficiaryName);
+        params.put("source", paymentSource);
+        if (appHash != null) {
+            params.put("app_hash", appHash);
+        }
+        params.put("install_id", simInfo.getInstallId());
+        params.put("device_id", simInfo.getDeviceId());
+        params.put("sims", sims);
+        requestParams.put("common_params", commonParams);
+        requestParams.put("params", params);
+        return requestParams;
+    }
+
+    public LendingVirtualAccount createLendingVAN(Long merchantId, Long loanId) {
+        LendingVirtualAccount lendingVirtualAccount = lendingVirtualAccountDao.findByMerchantIdAndLoanId(merchantId, loanId);
+        if (lendingVirtualAccount != null) {
+            return lendingVirtualAccount;
+        }
+        logger.info("Creating virtual account for merchant:{}", merchantId);
+        try {
+            Map<String, String> requestParams = new HashMap<>();
+            requestParams.put("type", "LOAN_PREPAYMENT");
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getMid());
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
+            logger.info("create virtual account request: {}", mapper.writeValueAsString(request));
+            int retryCount = 0;
+            String response = null;
+            while(retryCount < 3) {
+                try {
+                    response = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("create.van.url")), request, String.class);
+                    logger.info("Response received from create VAN API {}", mapper.writeValueAsString(response));
+                } catch (Exception e) {
+                    logger.error("Exception in createVPA", e);
+                }
+                retryCount++;
+            }
+            if (response != null) {
+                Map<String, String> responseMap = mapper.readValue(response, new TypeReference<Map<String, String>>(){});
+                if (responseMap != null && responseMap.containsKey("status") && "OK".equalsIgnoreCase(responseMap.get("status"))) {
+                    return lendingVirtualAccountDao.save(new LendingVirtualAccount(merchantId, loanId, responseMap.get("accountNumber"), responseMap.get("ifsc")));
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("Exception in create virtual account", ex);
+        }
+        return null;
+    }
+
+    public Map<String, Object> sendOTP(RequestDTO<PaymentResendOTP> requestDTO, String token) {
+        Map<String, Object> result = new HashMap<>();
+        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        try {
+            Map<String, Object> requestParams = generateSendMoneyVerify(requestDTO);
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.BP_BALANCE_RESEND_OTP_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("token", token);
+            headers.set("hash", hash);
+            headers.set("clientName", CLIENT);
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            result.put("request", mapper.writeValueAsString(entity));
+            long startTime = System.currentTimeMillis();
+            int retryCount=0;
+            while(retryCount<3) {
+                try {
+                    ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    result.put("response", mapper.writeValueAsString(response.getBody()));
+                    logger.info("Response : {} ", mapper.writeValueAsString(response.getBody()));
+                    if(response.getBody()!=null) {
+                        result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                    }
+                }
+                catch(Exception e) {
+                    logger.error("Error occured while sending otp",e);
+                }
+                retryCount++;
+            }
+        } catch (HttpClientErrorException e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error resend otp for BP Balance info---", e);
+        } catch (Exception e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error parsing details from BP Balance---", e);
+        }
+        return result;
+    }
+
+    private Map<String, Object> generateSendMoneyVerify(RequestDTO<PaymentResendOTP> requestDTO) {
+        Map<String, Object> requestParams = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> commonParams = new HashMap<>();
+        Map<String, Object> deviceInfo = new HashMap<>();
+        commonParams.put("app_version", requestDTO.getMeta().getAppVersion());
+        commonParams.put("client", requestDTO.getMeta().getClient());
+        commonParams.put("lat", requestDTO.getMeta().getLatitude());
+        commonParams.put("lon", requestDTO.getMeta().getLongitude());
+        commonParams.put("ip", requestDTO.getMeta().getIp());
+        commonParams.put("device_id", requestDTO.getMeta().getDeviceId());
+        deviceInfo.put("os", requestDTO.getMeta().getDeviceInfo().getOs());
+        deviceInfo.put("manufacturer", requestDTO.getMeta().getDeviceInfo().getManufacturer());
+        deviceInfo.put("device", requestDTO.getMeta().getDeviceInfo().getDevice());
+        deviceInfo.put("is_virtual", requestDTO.getMeta().getDeviceInfo().getIsVirtual());
+        commonParams.put("device_info", deviceInfo);
+        if (requestDTO.getPayload().getOtp() != null) {
+            params.put("otp", requestDTO.getPayload().getOtp());
+        }
+        if (requestDTO.getPayload().getAppHash() != null) {
+            params.put("app_hash", requestDTO.getPayload().getAppHash());
+        }
+        params.put("order_id", requestDTO.getPayload().getOrderId());
+        requestParams.put("common_params", commonParams);
+        requestParams.put("params", params);
+        return requestParams;
+    }
+
+    public Map<String, Object> verifyTxn(RequestDTO<PaymentResendOTP> requestDTO, String token) {
+        Map<String, Object> result = new HashMap<>();
+        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        try {
+            Map<String, Object> requestParams = generateSendMoneyVerify(requestDTO);
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.BP_BALANCE_CONFIRM_TXN_URL).build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("token", token);
+            headers.set("hash", hash);
+            headers.set("clientName", CLIENT);
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
+            result.put("request", mapper.writeValueAsString(entity));
+            long startTime = System.currentTimeMillis();
+            int retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
+                    if (response.getBody() != null) {
+                        result.put("response", mapper.writeValueAsString(response.getBody()));
+                        logger.info("Response : {} ", mapper.writeValueAsString(response.getBody()));
+                        result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
+                        Map<String, Object> responseData = (Map<String, Object>) ((Map<String, Object>) response.getBody()).get("data");
+                        if (responseData != null) {
+                            result.put("order_id", responseData.get("order_id"));
+                            result.put("amount", responseData.get("amount"));
+                            result.put("status", responseData.get("status"));
+                        }
+                        logger.info("Successfully verified txn for BP Balance in {} ms", System.currentTimeMillis() - startTime);
+                        return result;
+                    }
+                } catch (Exception e) {
+                    logger.error("Error occured while verifying txn", e);
+                }
+                retryCount++;
+            }
+        } catch (HttpClientErrorException e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error Verifying txn for BP Balance info---", e);
+        } catch (Exception e) {
+            result.put("success", Boolean.FALSE);
+            logger.error("Error parsing details from BP Balance---", e);
+        }
+        return result;
     }
 
     public void signZyPanGst(Long merchantId) {

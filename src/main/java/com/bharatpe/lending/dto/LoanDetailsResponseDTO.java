@@ -68,6 +68,7 @@ public class LoanDetailsResponseDTO {
 		private String tempClosed;
 		private Boolean bharatSwipe=false;
 		private  Double bharatSwipeAmount;
+		private boolean activeLoan = false;
 
 
 		@JsonProperty(value = "loan_history")
@@ -247,6 +248,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setBharatSwipeAmount(Double bharatSwipeAmount) {
 			this.bharatSwipeAmount = bharatSwipeAmount;
+		}
+
+		public boolean isActiveLoan() {
+			return activeLoan;
+		}
+
+		public void setActiveLoan(boolean activeLoan) {
+			this.activeLoan = activeLoan;
 		}
 
 		@Override

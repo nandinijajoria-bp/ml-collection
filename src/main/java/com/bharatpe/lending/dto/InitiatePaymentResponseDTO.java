@@ -67,16 +67,24 @@ public class InitiatePaymentResponseDTO {
 		private String paymentLink;
 		private List<String> psps;
 		private String orderId;
+		private Boolean otpFlow;
+		private String authMode;
+		private String accountNumber;
+		private String ifsc;
 
 		public Data() {
 			
 		}
 		
-		public Data(String vpa, String intent, String paymentLink, String orderId) {
+		public Data(String vpa, String intent, String paymentLink, String orderId, Boolean otpFlow, String authMode, String accountNumber, String ifsc) {
 			this.vpa = vpa;
 			this.intent = intent;
 			this.paymentLink = paymentLink;
 			this.orderId = orderId;
+			this.otpFlow = otpFlow;
+			this.authMode = authMode;
+			this.accountNumber = accountNumber;
+			this.ifsc = ifsc;
 		}
 
 		public String getVpa() {
@@ -117,6 +125,38 @@ public class InitiatePaymentResponseDTO {
 
 		public void setOrderId(String orderId) {
 			this.orderId = orderId;
+		}
+
+		public Boolean getOtpFlow() {
+			return otpFlow;
+		}
+
+		public void setOtpFlow(Boolean otpFlow) {
+			this.otpFlow = otpFlow;
+		}
+
+		public String getAuthMode() {
+			return authMode;
+		}
+
+		public void setAuthMode(String authMode) {
+			this.authMode = authMode;
+		}
+
+		public String getAccountNumber() {
+			return accountNumber;
+		}
+
+		public void setAccountNumber(String accountNumber) {
+			this.accountNumber = accountNumber;
+		}
+
+		public String getIfsc() {
+			return ifsc;
+		}
+
+		public void setIfsc(String ifsc) {
+			this.ifsc = ifsc;
 		}
 
 		@Override

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class PaymentCallbackRequestDTO {
 
 	private Double amount;
+	private String paymentType;
 	private String orderId;
 	private String paymentVpa;
 	private String transactionId;
@@ -34,6 +35,14 @@ public class PaymentCallbackRequestDTO {
 
 	public void setOrderId(String orderId) {
 		this.orderId = orderId;
+	}
+
+	public String getPaymentType() {
+		return paymentType;
+	}
+
+	public void setPaymentType(String paymentType) {
+		this.paymentType = paymentType;
 	}
 
 	public String getPaymentVpa() {
@@ -97,6 +106,6 @@ public class PaymentCallbackRequestDTO {
 		return "PaymentCallbackRequestDTO [amount=" + amount + ", orderId=" + orderId + ", paymentVpa=" + paymentVpa
 				+ ", transactionId=" + transactionId + ", bankReferenceNumber=" + bankReferenceNumber
 				+ ", transactionDate=" + transactionDate + ", status=" + status + ", customerName=" + customerName
-				+ ", transactionMessage=" + transactionMessage + "]";
+				+ ", transactionMessage=" + transactionMessage + ", paymentType=" + paymentType + "]";
 	}
 }
