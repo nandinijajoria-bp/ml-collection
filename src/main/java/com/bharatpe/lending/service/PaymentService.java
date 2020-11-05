@@ -113,6 +113,14 @@ public class PaymentService {
 				logger.info("No active loan found for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
+			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
+				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
+				if (lendingVirtualAccount != null) {
+					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc());
+					return new InitiatePaymentResponseDTO(data);
+				}
+				return new InitiatePaymentResponseDTO("Something went wrong.");
+			}
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
@@ -153,14 +161,7 @@ public class PaymentService {
 				paymentSuccess = (Boolean) result.get("success");
 				otpFlow = (Boolean) result.get("otp_flow");
 				authMode = (String) result.get("auth_mode");
-			} else if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
-				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
-				if (lendingVirtualAccount != null) {
-					paymentSuccess = true;
-					accountNumber = lendingVirtualAccount.getAccountNumber();
-					ifsc = lendingVirtualAccount.getIfsc();
-				}
-			} else {
+			} else { //UPI
 				Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
 				if(vpaResponse != null && vpaResponse.get("status") != null && "OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
 					paymentSuccess = true;
