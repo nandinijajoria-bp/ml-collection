@@ -41,7 +41,7 @@ public class PaymentController {
         return new ResponseEntity<>(paymentService.getStatus(orderId, merchant), HttpStatus.OK);
     }
 
-    @RequestMapping(value="/modes", method = RequestMethod.GET, produces="application/json")
+    @RequestMapping(value="/modes", method = RequestMethod.POST, produces="application/json")
     public ResponseEntity<ResponseDTO> paymentModes(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<CreditSpendRequestDTO> requestDTO) {
         logger.info("paymentModes request : {} for merchant:{}", requestDTO, merchant.getId());
         try {
