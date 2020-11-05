@@ -1,0 +1,92 @@
+package com.bharatpe.lending.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Date;
+import java.util.List;
+
+public class CreditScoreResponseDto {
+    @JsonProperty("pan_number")
+    private  String panNumber;
+
+    private String bureau;
+
+    @JsonProperty("credit_date")
+    private Date creditDate;
+
+    private Double score;
+
+    private String message;
+
+    @JsonProperty("pan_name")
+    private String panName;
+
+    @JsonProperty("is_experian")
+    private boolean isExperian;
+
+    private List<LoanEligibilityDTO> eligibility;
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber;
+    }
+
+    public String getBureau() {
+        return bureau;
+    }
+
+    public void setBureau(String bureau) {
+        this.bureau = bureau;
+    }
+
+    public Date getCreditDate() {
+        return creditDate;
+    }
+
+    public void setCreditDate(Date creditDate) {
+        this.creditDate = creditDate;
+    }
+
+    public Double getScore() {
+        return score;
+    }
+
+    public void setScore(Double score) {
+        this.score = score;
+    }
+
+    public String getPanName() {
+        return panName;
+    }
+
+    public void setPanName(String panName) {
+        this.panName = panName;
+    }
+
+    public List<LoanEligibilityDTO> getEligibility() {
+        return eligibility;
+    }
+
+    public void setEligibility(List<LoanEligibilityDTO> eligibility) {
+        this.eligibility = eligibility;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public boolean isExperian() {
+        return isExperian;
+    }
+
+    public void setExperian(boolean experian) {
+        isExperian = experian;
+    }
+}

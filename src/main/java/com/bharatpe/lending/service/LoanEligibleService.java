@@ -246,6 +246,7 @@ public class LoanEligibleService {
             if (experian.getResponse() != null) {
                 responseUtil = getCreditBureauResponse(experian);
                 reportDate = responseUtil.getReportDate();
+                experian.setReportDate(reportDate);
                 isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             }
             if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
@@ -332,6 +333,8 @@ public class LoanEligibleService {
     private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard) {
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        logger.info("Experian Skip:{}",experian.isSkip());
+        logger.info("pancard :{}",pancard);
         if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
             experian.setNoExperian(true);

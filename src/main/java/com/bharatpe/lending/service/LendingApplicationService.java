@@ -5,9 +5,11 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.ExperianSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
 import com.bharatpe.lending.common.dao.LendingBBSSnapshotDao;
+import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
 import com.bharatpe.lending.common.entity.ExperianSnapshot;
 import com.bharatpe.lending.common.entity.LendingBBS;
 import com.bharatpe.lending.common.entity.LendingBBSSnapshot;
+import com.bharatpe.lending.common.entity.LendingPartnerOffers;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -52,6 +54,9 @@ public class LendingApplicationService {
 	MerchantSummaryDao merchantSummaryDao;
 
 	@Autowired
+	LoanEligibleService loanEligibleService;
+
+	@Autowired
 	EligibleLoanDao eligibleLoanDao;
 
 	@Value("${experian.enable:true}")
@@ -61,7 +66,19 @@ public class LendingApplicationService {
 	GupShupOTPHandler gupShupOTPHandler;
 
 	@Autowired
+	BankListDao bankListDao;
+
+	@Autowired
+	LendingPartnerOffersDao lendingPartnerOffersDao;
+
+	@Autowired
 	MerchantDao merchantDao;
+
+	@Autowired
+	LendingPancardDao lendingPancardDao;
+
+	@Autowired
+	ENachService eNachService;
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -71,6 +88,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
+
+	@Autowired
+	MerchantSummaryLendingDao merchantSummaryLendingDao;
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
@@ -1471,5 +1491,78 @@ public class LendingApplicationService {
 			logger.error("Error Fos Loan Details API", ex);
 			return responseDTO;
 		}
+	}
+
+	public ResponseDTO creditScore(Merchant merchant,RequestDTO<CreditScoreRequestDto> requestDTO,String clientIp){
+
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		CreditScoreResponseDto creditScoreResponseDto = new CreditScoreResponseDto();
+		creditScoreResponseDto.setExperian(false);
+		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
+		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
+		List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartnerAndMobile(merchant.getId(), "ZOMATO", merchant.getMobile());
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
+		String bankCode = null;
+		boolean yellowPincode=false;
+		bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
+		LendingCities lendingCity = null;
+		LendingRedCities redCity = null;
+		List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
+		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+
+		String pancard = creditScoreRequestDto.getPanNumber();
+		Integer pincode = creditScoreRequestDto.getPinCode() != null ?creditScoreRequestDto.getPinCode() : null ;
+		if(pincode != null){
+			lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
+			redCity = lendingRedCitiesDao.findByPincode(pincode);
+		}
+		if(lendingCity == null && redCity == null){
+			 yellowPincode=true;
+		}
+		if(experian != null){
+
+			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+			creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
+			creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName():experian.getMerchantName());
+			creditScoreResponseDto.setScore(experian.getExperianScore());
+			creditScoreResponseDto.setCreditDate(experian.getReportDate());
+			creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
+			if(!pancard.equals(experian.getPancardNumber())){
+				 	creditScoreResponseDto.setMessage("Pan Card Number Mismatch!");
+					responseDTO.setData(creditScoreResponseDto);
+					return responseDTO;
+			}
+			if("1".equals(experian.getRejected()) || experian.getReason() != null){
+				creditScoreResponseDto.setMessage("merchant Not Eligible For Loan!");
+				responseDTO.setData(creditScoreResponseDto);
+				return responseDTO;
+			}
+			if(lendingApplicationList != null || lendingPaymentSchedule!= null){
+				responseDTO.setData(creditScoreResponseDto);
+				return  responseDTO;
+			}
+			loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail,false, pancard, merchantSummaryLending, false,"NORMAL", yellowPincode,false, null));
+			if(loanEligibilityDTOs == null){
+				creditScoreResponseDto.setExperian(true);
+			}
+			creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
+			responseDTO.setData(creditScoreResponseDto);
+			return  responseDTO;
+		}else{
+			experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, pancard, (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, pincode));
+			loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail,true, pancard, merchantSummaryLending, false,"NORMAL", false,false, bankCode));
+			if(loanEligibilityDTOs == null){
+				creditScoreResponseDto.setExperian(true);
+			}
+			creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
+		}
+		creditScoreResponseDto.setPanNumber(pancard);
+		responseDTO.setData(creditScoreResponseDto);
+
+		return  responseDTO;
 	}
 }
