@@ -465,11 +465,7 @@ public class PaymentService {
 						if (principleAdjusted >= balance) {
 							double extraAmount = principleAdjusted - balance;
 							if (extraAmount > 0) {
-								LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
-								lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
-								lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
-								lastSchedule.setTotalEdi(((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest())));
-								lendingEDIScheduleDao.save(lastSchedule);
+								activeLoan.setAdjustedDueAmount(activeLoan.getAdjustedDueAmount() != null ? activeLoan.getAdjustedDueAmount() + extraAmount : extraAmount);
 								principleAdjusted -= extraAmount;
 							}
 							break;
@@ -481,6 +477,12 @@ public class PaymentService {
 						activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
 						activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + totalPaid);
 						activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
+					}
+					if (activeLoan.getEdiRemainingCount() == 0 && activeLoan.getAdjustedDueAmount() != null && activeLoan.getAdjustedDueAmount() > 0D) {
+						activeLoan.setDueAmount(activeLoan.getDueAmount() + activeLoan.getAdjustedDueAmount());
+						activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() + activeLoan.getAdjustedDueAmount());
+						createLendingLedger(activeLoan, -1*activeLoan.getAdjustedDueAmount(), -1*activeLoan.getAdjustedDueAmount(), 0D, "ADJUSTED_DUE_AMOUNT");
+						activeLoan.setAdjustedDueAmount(0D);
 					}
 				}
 				paidPrincipalAmount+=totalPaid;

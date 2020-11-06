@@ -261,9 +261,9 @@ public class LendingApplicationService {
 		newApplication.setStreetAddress(prevLoan.getStreetAddress());
 		newApplication.setArea(prevLoan.getArea());
 		newApplication.setLandmark(prevLoan.getLandmark());
-		newApplication.setPincode(prevLoan.getPincode());
-		newApplication.setCity(prevLoan.getCity());
-		newApplication.setState(prevLoan.getState());
+//		newApplication.setPincode(prevLoan.getPincode());
+//		newApplication.setCity(prevLoan.getCity());
+//		newApplication.setState(prevLoan.getState());
 		newApplication.setBusinessName(prevLoan.getBusinessName());
 		newApplication.setStatus("draft");
 		newApplication.setMode("AUTO");
