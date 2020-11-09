@@ -18,6 +18,12 @@ public class CreditScoreResponseDto {
 
     private String message;
 
+    @JsonProperty("application_pending")
+    private boolean applicationPending;
+
+    @JsonProperty("active_loan")
+    private boolean activeLoan;
+
     @JsonProperty("pan_name")
     private String panName;
 
@@ -88,5 +94,21 @@ public class CreditScoreResponseDto {
 
     public void setExperian(boolean experian) {
         isExperian = experian;
+    }
+
+    public boolean isApplicationPending() {
+        return applicationPending;
+    }
+
+    public void setApplicationPending(boolean applicationPending) {
+        this.applicationPending = applicationPending;
+    }
+
+    public boolean isActiveLoan() {
+        return activeLoan;
+    }
+
+    public void setActiveLoan(boolean activeLoan) {
+        this.activeLoan = activeLoan;
     }
 }
