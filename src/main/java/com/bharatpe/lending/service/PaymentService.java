@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.entity.LendingClPayment;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.dto.*;
@@ -70,6 +71,9 @@ public class PaymentService {
 	
 	@Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
+
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -114,6 +118,8 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
+				String sms = "Dear Khushal Virmani,\nThis is to inform you that your daily transactions have fallen to Rs.0 in last 3 days. Continue transacting on your BharatPe QR to pay your EDI of Rs.100 on time. Payment defaults can impact your credit score.";
+				whatsappNotificationService.sendWithImage(merchant, null, sms, new ArrayList<String>(){{add("919971011197");}}, null, "https://merchant-qr.s3.ap-south-1.amazonaws.com/v2/8d0cd6a2-3493-4096-a416-98c9331e39f2.png");
 				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
 				if (lendingVirtualAccount != null) {
 					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
