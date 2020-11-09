@@ -158,7 +158,7 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/creditScore", method= RequestMethod.POST,produces = "application/json")
-	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody RequestDTO<CreditScoreRequestDto> requestDTO){
+	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<CreditScoreRequestDto> requestDTO){
 		return new ResponseEntity<>(loanDetailsService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
 	}
 }

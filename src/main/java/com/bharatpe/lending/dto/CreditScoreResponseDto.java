@@ -11,6 +11,9 @@ public class CreditScoreResponseDto {
 
     private String bureau;
 
+    @JsonProperty("pin_code")
+    private  Integer pinCode;
+
     @JsonProperty("credit_date")
     private Date creditDate;
 
@@ -27,8 +30,13 @@ public class CreditScoreResponseDto {
     @JsonProperty("pan_name")
     private String panName;
 
-    @JsonProperty("is_experian")
-    private boolean isExperian;
+    @JsonProperty("no_experian")
+    private boolean noExperian;
+
+    private boolean timeout;
+
+    @JsonProperty("masked_mobile")
+    private List<String> maskedMobiles;
 
     private List<LoanEligibilityDTO> eligibility;
 
@@ -88,12 +96,12 @@ public class CreditScoreResponseDto {
         this.message = message;
     }
 
-    public boolean isExperian() {
-        return isExperian;
+    public boolean isNoExperian() {
+        return noExperian;
     }
 
-    public void setExperian(boolean experian) {
-        isExperian = experian;
+    public void setNoExperian(boolean noExperian) {
+        this.noExperian = noExperian;
     }
 
     public boolean isApplicationPending() {
@@ -110,5 +118,29 @@ public class CreditScoreResponseDto {
 
     public void setActiveLoan(boolean activeLoan) {
         this.activeLoan = activeLoan;
+    }
+
+    public List<String> getMaskedMobiles() {
+        return maskedMobiles;
+    }
+
+    public void setMaskedMobiles(List<String> maskedMobiles) {
+        this.maskedMobiles = maskedMobiles;
+    }
+
+    public boolean isTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(boolean timeout) {
+        this.timeout = timeout;
+    }
+
+    public Integer getPinCode() {
+        return pinCode;
+    }
+
+    public void setPinCode(Integer pinCode) {
+        this.pinCode = pinCode;
     }
 }
