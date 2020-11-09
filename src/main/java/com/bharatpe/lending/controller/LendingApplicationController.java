@@ -36,6 +36,9 @@ public class LendingApplicationController {
 	LendingApplicationService lendingApplicationService;
 
 	@Autowired
+	LoanDetailsService loanDetailsService;
+
+	@Autowired
 	UploadDocumentService uploadDocumentService;
 
 	@Autowired
@@ -156,6 +159,6 @@ public class LendingApplicationController {
 
 	@RequestMapping(value="/creditScore", method= RequestMethod.POST,produces = "application/json")
 	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody RequestDTO<CreditScoreRequestDto> requestDTO){
-		return new ResponseEntity<>(lendingApplicationService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
+		return new ResponseEntity<>(loanDetailsService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
 	}
 }
