@@ -33,6 +33,18 @@ public class LendingApplicationRequestDTO {
 
     private String state;
 
+    private String entityType;
+
+    private String experience;
+
+    private String salary;
+
+    private Boolean hasGST;
+
+    private String gstNumber;
+
+    private String businessCategory;
+
     @JsonProperty("offer_type")
     private String offerType;
 
@@ -164,6 +176,54 @@ public class LendingApplicationRequestDTO {
 
     public void setAlternativeContact(AlternateContact alternativeContact) {
         this.alternativeContact = alternativeContact;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
+    }
+
+    public String getExperience() {
+        return experience;
+    }
+
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
+
+    public String getSalary() {
+        return salary;
+    }
+
+    public void setSalary(String salary) {
+        this.salary = salary;
+    }
+
+    public Boolean getHasGST() {
+        return hasGST;
+    }
+
+    public void setHasGST(Boolean hasGST) {
+        this.hasGST = hasGST;
+    }
+
+    public String getGstNumber() {
+        return gstNumber;
+    }
+
+    public void setGstNumber(String gstNumber) {
+        this.gstNumber = gstNumber;
+    }
+
+    public String getBusinessCategory() {
+        return businessCategory;
+    }
+
+    public void setBusinessCategory(String businessCategory) {
+        this.businessCategory = businessCategory;
     }
 
     @Override

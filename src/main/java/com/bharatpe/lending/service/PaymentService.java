@@ -1,18 +1,18 @@
 package com.bharatpe.lending.service;
 
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.lending.common.entity.LendingClPayment;
+import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.dto.*;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
@@ -35,6 +35,9 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class PaymentService {
@@ -102,21 +105,25 @@ public class PaymentService {
 		return new PaymentDetailsResponseDTO("Something went wrong.");
 	}
 	
-	public InitiatePaymentResponseDTO initiatePayment(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request) {
+	public InitiatePaymentResponseDTO initiatePayment(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
 		logger.info("Received initiate payment request  for merchant {} : {}", merchant.getId(), request);
 		try {
-			
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
-			
 			if(activeLoan == null) {
 				logger.info("No active loan found for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
-			
+			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
+				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
+				if (lendingVirtualAccount != null) {
+					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc());
+					return new InitiatePaymentResponseDTO(data);
+				}
+				return new InitiatePaymentResponseDTO("Something went wrong.");
+			}
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
-			List<String> psps = Arrays.asList("com.google.android.apps.nbu.paisa.user","net.one97.paytm","in.org.npci.upiapp","com.csam.icici.bank.imobile","com.mobikwik_new","com.myairtelapp","com.phonepe.app","com.olacabs.customer");
 			Integer amount = 0;
 			if("CUSTOM".equalsIgnoreCase(request.getPayload().getPaymentType())) {
 				amount = request.getPayload().getAmount();
@@ -125,12 +132,12 @@ public class PaymentService {
 			} else {
 				amount = overdueAmount;
 			}
-			
-			if(amount < 1 || amount > 99999) {
-				logger.info("Amount not between 1-99999 for merchant id {}", merchant.getId());
-				return new InitiatePaymentResponseDTO("Amount shoule be between 1-99999.");
+			List<String> psps = Arrays.asList("com.google.android.apps.nbu.paisa.user","net.one97.paytm","in.org.npci.upiapp","com.csam.icici.bank.imobile","com.mobikwik_new","com.myairtelapp","com.phonepe.app","com.olacabs.customer");
+			if(amount < 1 || amount > 100000) {
+				logger.info("Amount not between 1-100000 for merchant id {}", merchant.getId());
+				return new InitiatePaymentResponseDTO("Amount should be between 1-100000.");
 			}
-			if (amount > 2000 && request.getPayload().getVpa() == null) {
+			if (amount > 2000 && request.getPayload().getVpa() == null && request.getPayload().getType() == null) {
 				logger.info("VPA missing for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("VPA missing");
 			}
@@ -141,45 +148,42 @@ public class PaymentService {
 			order.setOwnerId(activeLoan.getId());
 			order.setAmount(Double.valueOf(amount));
 			order.setStatus("INIT");
-			
 			order = loanPaymentOrderDao.save(order);
-			
-			String orderId = "LOAN" + (10000000L + order.getId()); 
-			
+			String orderId = "LOAN" + (10000000L + order.getId());
 			order.setOrderId(orderId);
-			
-			Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
-			
-			if(vpaResponse == null) {
-				logger.info("API generation response failed, Retrying.");
-				vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
+			boolean paymentSuccess = false;
+			Boolean otpFlow = null;
+			String authMode = null;
+			String accountNumber = null;
+			String ifsc = null;
+			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BPB)) {
+				Map<String, Object> result = apiGatewayService.initiateTxn(request.getMeta(), request.getSimInfo(), Double.valueOf(amount), null, orderId, token, "BharatPe Loans", request.getPayload().getSource().name());
+				paymentSuccess = (Boolean) result.get("success");
+				otpFlow = (Boolean) result.get("otp_flow");
+				authMode = (String) result.get("auth_mode");
+			} else { //UPI
+				Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
+				if(vpaResponse != null && vpaResponse.get("status") != null && "OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
+					paymentSuccess = true;
+					order.setVpa((String) vpaResponse.get("bharatpeTxnId"));
+					order.setShortLink((String) vpaResponse.get("paymentLink"));
+					order.setUpiIntent((String) vpaResponse.get("upiString"));
+					order.setMid((String) vpaResponse.get("mid"));
+				}
 			}
-			
-			if(vpaResponse == null || !"OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
-				logger.error("Create VPA not successful, retuning failure.");
+			if (!paymentSuccess) {
 				order.setStatus("FAILED");
-				order.setDescription("Create Dynamic VPA API Failed");
+				order.setDescription("Unable to initiate txn");
 				loanPaymentOrderDao.save(order);
 				return new InitiatePaymentResponseDTO("Something went wrong.");
 			}
-			
-			String vpa = (String) vpaResponse.get("bharatpeTxnId");
-			String paymentLink = (String) vpaResponse.get("paymentLink");
-			String intent = (String) vpaResponse.get("upiString");
-			String mid = (String) vpaResponse.get("mid");
-			
 			order.setStatus("PENDING");
-			order.setVpa(vpa);
-			order.setShortLink(paymentLink);
-			order.setUpiIntent(intent);
-			order.setMid(mid);
 			loanPaymentOrderDao.save(order);
-			
-			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(vpa, intent, paymentLink, order.getOrderId());
+			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc);
 			data.setPsps(psps);
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
-			logger.error("Execption while initiating payment for merchant id {}, Exception is {}", merchant.getId(), ex);
+			logger.error("Exception while initiating payment for merchant id {}", merchant.getId(), ex);
 		}
 		return new InitiatePaymentResponseDTO("Something went wrong.");
 	}
@@ -187,31 +191,24 @@ public class PaymentService {
 	public String handleCallback(PaymentCallbackRequestDTO request) {
 		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
 		try {
-			
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
-			
 			if(order == null) {
 				logger.error("No order for order id {}", request.getOrderId());
 				return "OK";
 			}
-			
-			if("SUCCESS".equalsIgnoreCase(order.getStatus())) {
-				logger.error("Payment for merchant id {} and order id {} is already successful", order.getMerchant().getId(), request.getOrderId());
+			if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
+				logger.error("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
 				return "OK";
 			}
-			
 			if(request.getAmount() == null || request.getAmount() <= 0D) {
 				logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchant().getId(), request.getAmount());
 				return "OK";
 			}
-
-			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId()).get();
-
-			if(activeLoan == null) {
+			Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId());
+			if(!activeLoan.isPresent()) {
 				logger.error("No active loan found for id {}", order.getOwnerId());
 				return "OK";
 			}
-			
 			if(order.getAmount()  - request.getAmount() < -1 || order.getAmount() - request.getAmount() > 1) { 
 				logger.error("Amount mismatch for the merchant {} and order id {}", order.getMerchant().getId(), request.getOrderId());
 				order.setStatus("FAILED");
@@ -219,157 +216,12 @@ public class PaymentService {
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
-			
+			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber());
 			order.setBankRefNo(request.getBankReferenceNumber());
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
- 			
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
-			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
-			
-			Double paidInterestAmount = 0D;
-			Double paidPrincipalAmount = 0D;
-			
-			if(principalDueAmount + ediHolidayInterestAmount - request.getAmount() <= 1D) {
-				
-				paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
-				paidPrincipalAmount = request.getAmount() - paidInterestAmount;
-				
-				if(activeLoan.getDueAmount() >= 0) {
-					createLendingLedger(activeLoan, -1 * (request.getAmount() - activeLoan.getDueAmount()) , -1 * (request.getAmount() - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
-				} else {
-					createLendingLedger(activeLoan, -1 * request.getAmount() , -1 * request.getAmount() - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
-				}
-				
-				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + request.getAmount());
-				activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
-				activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
-
-				activeLoan.setDueAmount(0D);
-				activeLoan.setDueInterest(0D);
-				activeLoan.setDuePrinciple(0D);
-				
-				activeLoan.setStatus("CLOSED");
-			} else {
-				Double balance=request.getAmount();
-				if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
-					Double paidAmount=balance>=activeLoan.getDueOtherCharges()?activeLoan.getDueOtherCharges():balance;		
-					activeLoan.setDueOtherCharges(activeLoan.getDueOtherCharges()-paidAmount);
-					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
-					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
-					activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges()+paidAmount);
-					balance-=paidAmount;
-				}
-				if(balance>0D && activeLoan.getDuePenalty()!=null && activeLoan.getDuePenalty()>0D) {
-					Double paidAmount=balance>=activeLoan.getDuePenalty()?activeLoan.getDuePenalty():balance;		
-					activeLoan.setDuePenalty(activeLoan.getDuePenalty()-paidAmount);
-					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
-					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
-					activeLoan.setPaidPenalty(activeLoan.getPaidPenalty()+paidAmount);
-					balance-=paidAmount;
-				}
-				if(balance>0D && activeLoan.getDueInterest()!=null && activeLoan.getDueInterest()>0D) {
-					Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():balance;		
-					activeLoan.setDueInterest(activeLoan.getDueInterest()-paidAmount);
-					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
-					activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0)+paidAmount);
-					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
-					paidInterestAmount+=paidAmount;
-					balance-=paidAmount;
-					
-				}
-				if(balance>0D && activeLoan.getDuePrinciple()!=null && activeLoan.getDuePrinciple()>0D) {
-					Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():balance;		
-					activeLoan.setDuePrinciple(activeLoan.getDuePrinciple()-paidAmount);
-					activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
-					activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0)+paidAmount);
-					activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
-					paidPrincipalAmount+=paidAmount;
-					balance-=paidAmount;
-					
-				}
-				if(balance>0D) {
-		            logger.info("Adjusting principle tl for account:{}", activeLoan.getId());
-                    double totalPaid = 0d;
-                    if ((activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0)) <= balance) {
-                        logger.info("Closing loan:{}", activeLoan.getId());
-                        totalPaid = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
-                        activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
-                        activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
-						activeLoan.setDueAmount(0D);
-						activeLoan.setDueInterest(0D);
-						activeLoan.setDuePrinciple(0D);
-						activeLoan.setStatus("CLOSED");
-                    } else {
-                        List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
-                        if (ediSchedules == null || ediSchedules.isEmpty()) {
-                            logger.error("Edi Schedule not found for loan id:{}", activeLoan.getId());
-                        }
-                        ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
-                        int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
-                        double principleAdjusted = 0d;
-                        double interestAdjusted = 0d;
-                        int ediCount = 0;
-                        for (LendingEDISchedule ediSchedule : ediSchedules) {
-                            if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
-                                continue;
-                            }
-                            principleAdjusted += ediSchedule.getPrinciple();
-                            interestAdjusted += ediSchedule.getInterest();
-                            ediCount++;
-                            if (principleAdjusted >= balance) {
-                                double extraAmount = principleAdjusted - balance;
-                                if (extraAmount > 0) {
-                                    LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
-                                    lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
-                                    lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
-                                    lastSchedule.setTotalEdi(((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest())));
-                                    lendingEDIScheduleDao.save(lastSchedule);
-                                    principleAdjusted -= extraAmount;
-                                }
-                                break;
-                            }
-                        }
-                        if (principleAdjusted > 0) {
-                            totalPaid = principleAdjusted;
-                            activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - ediCount);
-                            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
-                            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + totalPaid);
-                            activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
-                        }
-                    }
-                    paidPrincipalAmount+=totalPaid;
-                    createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT");
-		        }
-			}
-					
-			createLendingLedger(activeLoan, request.getAmount(), paidPrincipalAmount, paidInterestAmount,  getDescription(request.getBankReferenceNumber()));
-			lendingPaymentScheduleDao.save(activeLoan);
-			
-			boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
-			
-			notificationExecutor.submit(() -> sendSMS(order.getMerchant(), request.getAmount(), isLoanClosed));
-
-			if(isLoanClosed) {
-				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(order.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
-	                    .amount(request.getAmount())
-	                    .merchantStoreId(null)
-	                    .transactionId(activeLoan.getId())
-                    .build();
-				
-				loyaltyService.pushToKafka(requestBean);
-			} 
-			
-			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(order.getMerchant().getId(), LoyaltyTransactionType.LENDING_EDI)
-	                    .amount(request.getAmount())
-	                    .merchantStoreId(null)
-	                    .transactionId(activeLoan.getId())
-                    .build();
-			
-			loyaltyService.pushToKafka(requestBean);
-
 		} catch(Exception ex) {
-			logger.error("Execption whilehandling payment callback for order id {}, Exception is {}", request.getOrderId(), ex);
+			logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
 		}
 		return "OK";
 	}
@@ -458,5 +310,246 @@ public class PaymentService {
 			logger.error("Exception in payment status check", e);
 			return new PaymentStatusResponseDTO(false, "Something went wrong");
 		}
+	}
+
+	public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
+		List<PaymentDetailDto> paymentDetails = apiGatewayService.getPaymentModes(requestDTO, token);
+		paymentDetails.add(getBankTransferMode());
+		paymentDetails.add(getGPAYMode());
+		ResponseDTO responseDTO = new ResponseDTO();
+		paymentDetails.removeIf(paymentDetailDto -> paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount());
+		if (paymentDetails.isEmpty()) {
+			responseDTO.setSuccess(false);
+			responseDTO.setMessage("No Payment Mode Found");
+		} else {
+			responseDTO.setSuccess(true);
+			responseDTO.setData(paymentDetails);
+		}
+		return responseDTO;
+	}
+
+	private PaymentDetailDto getBankTransferMode() {
+		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
+		paymentDetailDto.setName("Pay by Account Transfer");
+		paymentDetailDto.setType("BT");
+		paymentDetailDto.setFundSource("BT");
+		paymentDetailDto.setAuthRequired(false);
+		paymentDetailDto.setEnable(true);
+		paymentDetailDto.setInitiate_sb(false);
+		paymentDetailDto.setDefault(false);
+		return paymentDetailDto;
+	}
+
+	private PaymentDetailDto getGPAYMode() {
+		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
+		paymentDetailDto.setName("Google Pay");
+		paymentDetailDto.setType("UPI");
+		paymentDetailDto.setFundSource("UPI");
+		paymentDetailDto.setAmountLimit(100000D);
+		paymentDetailDto.setAuthRequired(false);
+		paymentDetailDto.setEnable(true);
+		paymentDetailDto.setInitiate_sb(false);
+		paymentDetailDto.setDefault(false);
+		return paymentDetailDto;
+	}
+
+	public ResponseDTO resendOTP(RequestDTO<PaymentResendOTP> requestDTO, Merchant merchant, String token) {
+		LoanPaymentOrder loanPaymentOrder = loanPaymentOrderDao.findByOrderId(requestDTO.getPayload().getOrderId());
+		if (loanPaymentOrder == null) {
+			return new ResponseDTO(false, "Order not found");
+		}
+		Map<String, Object> result = apiGatewayService.sendOTP(requestDTO, token);
+		Boolean success = (Boolean) result.get("success");
+		if (success) {
+			return new ResponseDTO(true, "success");
+		}
+		return new ResponseDTO(false, "Unable to resend otp");
+	}
+
+	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo) {
+		logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
+		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
+		Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
+
+		Double paidInterestAmount = 0D;
+		Double paidPrincipalAmount = 0D;
+
+		if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
+
+			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
+			paidPrincipalAmount = amount - paidInterestAmount;
+
+			if(activeLoan.getDueAmount() >= 0) {
+				createLendingLedger(activeLoan, -1 * (amount - activeLoan.getDueAmount()) , -1 * (amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
+			} else {
+				createLendingLedger(activeLoan, -1 * amount , -1 * amount - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
+			}
+
+			activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount);
+			activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
+			activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
+
+			activeLoan.setDueAmount(0D);
+			activeLoan.setDueInterest(0D);
+			activeLoan.setDuePrinciple(0D);
+
+			activeLoan.setStatus("CLOSED");
+		} else {
+			double balance=amount;
+			if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
+				Double paidAmount=balance>=activeLoan.getDueOtherCharges()?activeLoan.getDueOtherCharges():balance;
+				activeLoan.setDueOtherCharges(activeLoan.getDueOtherCharges()-paidAmount);
+				activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+				activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges()+paidAmount);
+				balance-=paidAmount;
+			}
+			if(balance>0D && activeLoan.getDuePenalty()!=null && activeLoan.getDuePenalty()>0D) {
+				Double paidAmount=balance>=activeLoan.getDuePenalty()?activeLoan.getDuePenalty():balance;
+				activeLoan.setDuePenalty(activeLoan.getDuePenalty()-paidAmount);
+				activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+				activeLoan.setPaidPenalty(activeLoan.getPaidPenalty()+paidAmount);
+				balance-=paidAmount;
+			}
+			if(balance>0D && activeLoan.getDueInterest()!=null && activeLoan.getDueInterest()>0D) {
+				Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():balance;
+				activeLoan.setDueInterest(activeLoan.getDueInterest()-paidAmount);
+				activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+				activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0)+paidAmount);
+				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+				paidInterestAmount+=paidAmount;
+				balance-=paidAmount;
+
+			}
+			if(balance>0D && activeLoan.getDuePrinciple()!=null && activeLoan.getDuePrinciple()>0D) {
+				Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():balance;
+				activeLoan.setDuePrinciple(activeLoan.getDuePrinciple()-paidAmount);
+				activeLoan.setDueAmount(activeLoan.getDueAmount()-paidAmount);
+				activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0)+paidAmount);
+				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
+				paidPrincipalAmount+=paidAmount;
+				balance-=paidAmount;
+
+			}
+			if(balance>0D) {
+				logger.info("Adjusting principle tl for account:{}", activeLoan.getId());
+				double totalPaid = 0d;
+				if ((activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0)) <= balance) {
+					logger.info("Closing loan:{}", activeLoan.getId());
+					totalPaid = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
+					activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
+					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
+					activeLoan.setDueAmount(0D);
+					activeLoan.setDueInterest(0D);
+					activeLoan.setDuePrinciple(0D);
+					activeLoan.setStatus("CLOSED");
+				} else {
+					List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
+					if (ediSchedules == null || ediSchedules.isEmpty()) {
+						logger.error("Edi Schedule not found for loan id:{}", activeLoan.getId());
+						throw new RuntimeException("EDI Schedule Not Found");
+					}
+					ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
+					int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
+					double principleAdjusted = 0d;
+					double interestAdjusted = 0d;
+					int ediCount = 0;
+					for (LendingEDISchedule ediSchedule : ediSchedules) {
+						if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
+							continue;
+						}
+						principleAdjusted += ediSchedule.getPrinciple();
+						interestAdjusted += ediSchedule.getInterest();
+						ediCount++;
+						if (principleAdjusted >= balance) {
+							double extraAmount = principleAdjusted - balance;
+							if (extraAmount > 0) {
+								LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
+								lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
+								lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
+								lastSchedule.setTotalEdi(((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest())));
+								lendingEDIScheduleDao.save(lastSchedule);
+								principleAdjusted -= extraAmount;
+							}
+							break;
+						}
+					}
+					if (principleAdjusted > 0) {
+						totalPaid = principleAdjusted;
+						activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - ediCount);
+						activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
+						activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + totalPaid);
+						activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
+					}
+				}
+				paidPrincipalAmount+=totalPaid;
+				createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT");
+			}
+		}
+
+		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo));
+		lendingPaymentScheduleDao.save(activeLoan);
+
+		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
+
+		notificationExecutor.submit(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));
+
+		if(isLoanClosed) {
+			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
+					.amount(amount)
+					.merchantStoreId(null)
+					.transactionId(activeLoan.getId())
+					.build();
+
+			loyaltyService.pushToKafka(requestBean);
+		}
+
+		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.LENDING_EDI)
+				.amount(amount)
+				.merchantStoreId(null)
+				.transactionId(activeLoan.getId())
+				.build();
+
+		loyaltyService.pushToKafka(requestBean);
+	}
+
+	public ResponseDTO verifyPayment(RequestDTO<PaymentResendOTP> requestDTO, Merchant merchant, String token) {
+		LoanPaymentOrder loanPaymentOrder = loanPaymentOrderDao.findByOrderId(requestDTO.getPayload().getOrderId());
+		if (loanPaymentOrder == null) {
+			return new ResponseDTO(false, "Order not found");
+		}
+		if(!"PENDING".equalsIgnoreCase(loanPaymentOrder.getStatus())) {
+			logger.error("Payment for merchant id {} and order id {} is already processed", loanPaymentOrder.getMerchant().getId(), loanPaymentOrder.getOrderId());
+			return new ResponseDTO(false, "Duplicate request");
+		}
+		Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanPaymentOrder.getOwnerId());
+		if(!activeLoan.isPresent()) {
+			logger.error("No active loan found for id {}", loanPaymentOrder.getOwnerId());
+			return new ResponseDTO(false, "Active Loan not found");
+		}
+		try {
+			Map<String, Object> result = apiGatewayService.verifyTxn(requestDTO, token);
+			Boolean success = (Boolean) result.get("success");
+			if (success) {
+				Double paymentAmount = (Double) result.get("amount");
+				String paymentStatus = (String) result.get("status");
+				String orderId = (String) result.get("order_id");
+				if (CreditConstants.PaymentStatus.FAILED.name().equals(paymentStatus) || !orderId.equals(loanPaymentOrder.getOrderId()) || !loanPaymentOrder.getAmount().equals(paymentAmount)) {
+					loanPaymentOrder.setStatus("FAILED");
+					loanPaymentOrderDao.save(loanPaymentOrder);
+				} else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
+					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null);
+					loanPaymentOrder.setStatus("SUCCESS");
+					loanPaymentOrderDao.save(loanPaymentOrder);
+				}
+				return new ResponseDTO(true, "success");
+			} else {
+				logger.error("BPB verification failed for loan payment order:{}", loanPaymentOrder.getOrderId());
+			}
+		} catch (Exception e) {
+			logger.error("Exception in payment verify", e);
+		}
+		return new ResponseDTO(false, "Payment verification Failed");
 	}
 }

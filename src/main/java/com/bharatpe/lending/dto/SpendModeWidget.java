@@ -11,7 +11,7 @@ public class SpendModeWidget {
 	private String sendMoney="bharatpe://sendmoney?resultCode=true";
 	
 	@JsonProperty(value = "BILL_PAYMENT")
-	private String billPayment="bharatpe://dynamic?key=bill-payment-prod&resultCode=true";
+	private String billPayment="bharatpe://dynamic?key=bill-pay&resultCode=true";
 	
 //	@JsonProperty(value = "SHOPPING")
 //	private String shopping="bharatpe://shopping";

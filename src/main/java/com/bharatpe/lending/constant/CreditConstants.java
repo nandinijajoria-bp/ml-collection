@@ -35,12 +35,14 @@ public interface CreditConstants {
 	enum PaymentSource {
 		FP,
 		UNSETTLED,
-		UPI
+		UPI,
+		BT
 	}
 
 	enum PaymentMode {
 		BPB,
-		UPI
+		UPI,
+		BT
 	}
 
 	enum AccountStatus {

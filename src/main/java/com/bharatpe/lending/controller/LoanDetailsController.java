@@ -6,13 +6,14 @@ import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
 import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
+import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
-import com.bharatpe.lending.service.ActiveLoansService;
+import com.bharatpe.lending.service.MerchantLoansService;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.LendingAgreementService;
 import com.bharatpe.lending.service.LendingOffersService;
@@ -57,7 +58,7 @@ public class LoanDetailsController {
 	ImageURLService imageURLService;
 
 	@Autowired
-	ActiveLoansService activeLoansService;
+	MerchantLoansService merchantLoansService;
 	
 	@Autowired
 	VerifyDocService verifyDocService;
@@ -101,9 +102,9 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
 		try {
-			return new ResponseEntity<>(loanDetailsService.getSettlements(merchant), HttpStatus.OK);
+			return new ResponseEntity<>(loanDetailsService.getSettlements(merchant, loanId), HttpStatus.OK);
 		} catch (Exception e) {
 			logger.error("Exception in settlement---", e);
 			return new ResponseEntity<>(new SettlementResponseDTO(false, "Something went wrong"), HttpStatus.OK);
@@ -116,7 +117,7 @@ public class LoanDetailsController {
 			@RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
 		logger.info("activeLoans request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
 				requestMerchantStoreId);
-		return new ResponseEntity<>(activeLoansService.getActiveLoans(requestMerchantId, requestMerchantStoreId), HttpStatus.OK);
+		return new ResponseEntity<>(merchantLoansService.getActiveLoans(requestMerchantId, requestMerchantStoreId), HttpStatus.OK);
 
 	}
 
@@ -158,5 +159,13 @@ public class LoanDetailsController {
 	@RequestParam(name = "application_id") Long applicationId) {
 		logger.info("derogMerchantExperian request with merchant_id: {}, applicationId: {}", merchantId, applicationId);
 		return new ResponseEntity<>(loanEligibleService.processDerogSince(merchantId, applicationId, LendingConstants.APPLICATION_DEROG_RECHECK_MIN_DAYS), HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute Merchant merchant) {
+		logger.info("merchantLoans request merchant_id: {}", merchant.getId());
+		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchant.getId());
+		logger.info("merchantLoans response : {}", resp);
+		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
 }

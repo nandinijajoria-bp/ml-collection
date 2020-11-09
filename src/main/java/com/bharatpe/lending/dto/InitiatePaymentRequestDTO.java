@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.lending.constant.CreditConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -13,6 +14,8 @@ public class InitiatePaymentRequestDTO {
 	private Integer amount;
 	private String paymentType;
 	private String vpa;
+	private CreditConstants.PaymentMode type;
+	private CreditConstants.PaymentSource source;
 
 	public Integer getAmount() {
 		return amount;
@@ -36,6 +39,22 @@ public class InitiatePaymentRequestDTO {
 
 	public void setVpa(String vpa) {
 		this.vpa = vpa;
+	}
+
+	public CreditConstants.PaymentMode getType() {
+		return type;
+	}
+
+	public void setType(CreditConstants.PaymentMode type) {
+		this.type = type;
+	}
+
+	public CreditConstants.PaymentSource getSource() {
+		return source;
+	}
+
+	public void setSource(CreditConstants.PaymentSource source) {
+		this.source = source;
 	}
 
 	@Override

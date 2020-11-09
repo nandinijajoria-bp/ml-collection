@@ -739,7 +739,7 @@ public class LoanEligibleService {
                     if (ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
                         logger.info("Calculating regular loan using previous NTB loan amount for merchant:{}", merchantId);
                         LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
-                        LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, loanType, false, false);
+                        LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
                         if (loanEligibilityDTO != null) {
                             logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
                             loanEligibilityDTOList.add(loanEligibilityDTO);
@@ -808,11 +808,16 @@ public class LoanEligibleService {
     }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
+        Experian experian = experianDao.getByMerchantId(merchantId);
+        boolean isNTC = isNTC(experian);
+        Merchant merchant = merchantDao.findById(merchantId).get();
+        double bureauScore = experian != null && experian.getExperianScore() != null ? experian.getExperianScore() : 0;
         Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
-        Integer maxAmount = lendingCategories.getMaxTpvAmount();
+        logger.info("score:{} for merchant:{}", bureauScore, merchantId);
+        Integer maxAmount = bureauScore > 0 && bureauScore < 700 ? new Integer(300000) : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
@@ -821,42 +826,31 @@ public class LoanEligibleService {
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
-                if (yellowPincode) {
-                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 50000);
-                } else {
-                    prevLoanAmount = Math.min(roundUp(prevLoanAmount), 200000);
-                }
+                maxAmount = 200000;
             } else {
-                prevLoanAmount = Math.min(roundUp(prevLoanAmount), 700000);
+                maxAmount = bureauScore > 0 && bureauScore < 700 ? 300000 : 700000;
+            }
+            prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
+            if (prevLoanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
+                prevLoanAmount = 35000 + ((prevLoanAmount - 35000)/2);
             }
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
         } else {
-            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories);
+            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories, isNTC, merchant);
         }
         if (!isZomato) {
-            if ("NTB".equalsIgnoreCase(loanType) && breakup.getLoanAmount() < 25000) {
-                logger.info("NTB loan amount is less than 25000 for merchant: {}", merchantId);
-                return null;
-            }
+//            if ("NTB".equalsIgnoreCase(loanType) && breakup.getLoanAmount() < 25000) {
+//                logger.info("NTB loan amount is less than 25000 for merchant: {}", merchantId);
+//                return null;
+//            }
             if (color != null && color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType) && !"OGL".equalsIgnoreCase(loanType)) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
             } else if (breakup.getLoanAmount() < 10000) {
                 logger.info("loan amount is less than 10000 for merchant: {}", merchantId);
                 return null;
-            }
-            if (breakup.getLoanAmount() > 300000) {
-                Experian experian = experianDao.getByMerchantId(merchantId);
-                if (experian.getExperianScore() != null && experian.getExperianScore() < 700) {
-                    logger.info("experian score is less than 700 for merchant: {}", merchantId);
-                    experian.setReason(ExperianConstants.LOW_BUREAU_SCORE);
-                    experian.setCategory("1N");
-                    experian.setColor(ExperianConstants.COLOR.RED.name());
-                    experianDao.save(experian);
-                    return null;
-                }
             }
         }
         logger.info("saving eligible loan for merchant: {}", merchantId);
@@ -866,7 +860,7 @@ public class LoanEligibleService {
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
 
-    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories){
+    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories, boolean isNTC, Merchant merchant){
         int tenure = tenureMonth - ioTenure;
         int ediDays, disbursementAmount, ioInterestAmount, principleEdiTenure, repayment;
         double loanAmount, edi, totalInterestAmount, ioEdi;
@@ -874,6 +868,9 @@ public class LoanEligibleService {
         edi = (avgTpv * percentage);
         repayment = (int)Math.round(ediDays * edi);
         loanAmount = Math.min(roundUp(repayment / (1 + (interest/100)*tenure)), maxAmount);// round down
+        if (loanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
+            loanAmount = 35000 + ((loanAmount - 35000)/2);
+        }
         int processingFee = LoanCalculationUtil.getProcessingFee(loanAmount, categories);
         edi = Math.ceil((loanAmount * (1 + (interest/100)*tenure)) / ediDays);
         disbursementAmount = (int)loanAmount - processingFee;
@@ -1000,11 +997,11 @@ public class LoanEligibleService {
         else if (bpScore < 20) { row = 1;}
         else if (bpScore <= 25) { row = 2;}
         else { row = 3;}
-        if (bureauVintage <= 3){
+        if (bureauVintage < 6){
             return m1[row][col];
-        } else if (bureauVintage <= 6) {
-            return m2[row][col];
         } else if (bureauVintage <= 12) {
+            return m2[row][col];
+        } else if (bureauVintage <= 24) {
             return m3[row][col];
         } else {
             return m4[row][col];
