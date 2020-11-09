@@ -312,7 +312,7 @@ public class PaymentService {
 				logger.info("No order found for orderId:{}", orderId);
 				return new PaymentStatusResponseDTO(false, "Order not found");
 			}
-			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo());
+			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo(), order.getUpdatedAt());
 		} catch (Exception e) {
 			logger.error("Exception in payment status check", e);
 			return new PaymentStatusResponseDTO(false, "Something went wrong");
