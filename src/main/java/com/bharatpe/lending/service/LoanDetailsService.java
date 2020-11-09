@@ -1301,6 +1301,7 @@ public class LoanDetailsService {
 		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
 		CreditScoreResponseDto creditScoreResponseDto = new CreditScoreResponseDto();
 		creditScoreResponseDto.setTimeout(Boolean.FALSE);
+		creditScoreResponseDto.setNTC(Boolean.FALSE);
 		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
 		String pancard = creditScoreRequestDto.getPanNumber();
 		Integer pincode = creditScoreRequestDto.getPinCode() != null ?creditScoreRequestDto.getPinCode() : null ;
@@ -1415,6 +1416,9 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setMaskedMobiles(maskedMobiles);
 			creditScoreResponseDto.setNoExperian(noExperian);
 			if (rejected || experian.getReason() != null) {
+				if("NTC".equals(experian.getReason())){
+					creditScoreResponseDto.setNTC(Boolean.TRUE);
+				}
 				creditScoreResponseDto.setMessage(experian.getReason());
 				responseDTO.setData(creditScoreResponseDto);
 				return responseDTO;

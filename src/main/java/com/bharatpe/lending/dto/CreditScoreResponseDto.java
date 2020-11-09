@@ -30,6 +30,9 @@ public class CreditScoreResponseDto {
     @JsonProperty("pan_name")
     private String panName;
 
+    @JsonProperty("is_ntc")
+    private boolean isNTC;
+
     @JsonProperty("no_experian")
     private boolean noExperian;
 
@@ -142,5 +145,13 @@ public class CreditScoreResponseDto {
 
     public void setPinCode(Integer pinCode) {
         this.pinCode = pinCode;
+    }
+
+    public boolean isNTC() {
+        return isNTC;
+    }
+
+    public void setNTC(boolean NTC) {
+        isNTC = NTC;
     }
 }
