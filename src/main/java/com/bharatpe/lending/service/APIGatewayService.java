@@ -586,20 +586,20 @@ public class APIGatewayService {
             HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
             logger.info("create virtual account request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
-            String response = null;
+            VANResponseDTO response = null;
             while(retryCount < 3) {
                 try {
-                    response = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("create.van.url")), request, String.class);
-                    logger.info("Response received from create VAN API {}", mapper.writeValueAsString(response));
+                    response = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("create.van.url")), request, VANResponseDTO.class);
+                    logger.info("Response received from create VAN API {}", response);
+                    break;
                 } catch (Exception e) {
                     logger.error("Exception in createVPA", e);
                 }
                 retryCount++;
             }
             if (response != null) {
-                Map<String, String> responseMap = mapper.readValue(response, new TypeReference<Map<String, String>>(){});
-                if (responseMap != null && responseMap.containsKey("status") && "OK".equalsIgnoreCase(responseMap.get("status"))) {
-                    return lendingVirtualAccountDao.save(new LendingVirtualAccount(merchantId, loanId, responseMap.get("accountNumber"), responseMap.get("ifsc")));
+                if (response.getStatus() != null && "OK".equalsIgnoreCase(response.getStatus())) {
+                    return lendingVirtualAccountDao.save(new LendingVirtualAccount(merchantId, loanId, response.getAccountNumber(), response.getIfsc()));
                 }
             }
         } catch (Exception ex) {
