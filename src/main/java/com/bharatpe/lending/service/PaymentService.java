@@ -116,7 +116,8 @@ public class PaymentService {
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
 				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
 				if (lendingVirtualAccount != null) {
-					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc());
+					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc(), merchantBankDetail.getBeneficiaryName());
 					return new InitiatePaymentResponseDTO(data);
 				}
 				return new InitiatePaymentResponseDTO("Something went wrong.");
@@ -179,7 +180,7 @@ public class PaymentService {
 			}
 			order.setStatus("PENDING");
 			loanPaymentOrderDao.save(order);
-			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc);
+			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
 			data.setPsps(psps);
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
