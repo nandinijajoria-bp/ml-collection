@@ -1333,7 +1333,7 @@ public class LoanDetailsService {
 		if(lendingCity == null && redCity == null){
 			yellowPincode=true;
 		}
-		if(requestDTO.getPayload().getPanNumber() == null) {
+		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
 			creditScoreResponseDto.setPanNumber("null");
 			creditScoreResponseDto.setPinCode(0);
 			responseDTO.setData(creditScoreRequestDto);
