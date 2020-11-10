@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.entity.LendingClPayment;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.dto.*;
@@ -70,6 +71,9 @@ public class PaymentService {
 	
 	@Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
+
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -114,9 +118,12 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
+				String sms = "Dear Khushal Virmani,\nThis is to inform you that your daily transactions have fallen to Rs.0 in last 3 days. Continue transacting on your BharatPe QR to pay your EDI of Rs.100 on time. Payment defaults can impact your credit score.";
+				whatsappNotificationService.sendWithImage(merchant, null, sms, new ArrayList<String>(){{add("919971011197");}}, null, "https://merchant-qr.s3.ap-south-1.amazonaws.com/v2/8d0cd6a2-3493-4096-a416-98c9331e39f2.png");
 				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
 				if (lendingVirtualAccount != null) {
-					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc());
+					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc(), merchantBankDetail.getBeneficiaryName());
 					return new InitiatePaymentResponseDTO(data);
 				}
 				return new InitiatePaymentResponseDTO("Something went wrong.");
@@ -179,7 +186,7 @@ public class PaymentService {
 			}
 			order.setStatus("PENDING");
 			loanPaymentOrderDao.save(order);
-			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc);
+			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
 			data.setPsps(psps);
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
@@ -305,7 +312,7 @@ public class PaymentService {
 				logger.info("No order found for orderId:{}", orderId);
 				return new PaymentStatusResponseDTO(false, "Order not found");
 			}
-			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo());
+			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo(), order.getUpdatedAt());
 		} catch (Exception e) {
 			logger.error("Exception in payment status check", e);
 			return new PaymentStatusResponseDTO(false, "Something went wrong");
@@ -465,11 +472,7 @@ public class PaymentService {
 						if (principleAdjusted >= balance) {
 							double extraAmount = principleAdjusted - balance;
 							if (extraAmount > 0) {
-								LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
-								lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
-								lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
-								lastSchedule.setTotalEdi(((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest())));
-								lendingEDIScheduleDao.save(lastSchedule);
+								activeLoan.setAdjustedDueAmount(activeLoan.getAdjustedDueAmount() != null ? activeLoan.getAdjustedDueAmount() + extraAmount : extraAmount);
 								principleAdjusted -= extraAmount;
 							}
 							break;
@@ -481,6 +484,12 @@ public class PaymentService {
 						activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
 						activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + totalPaid);
 						activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
+					}
+					if (activeLoan.getEdiRemainingCount() == 0 && activeLoan.getAdjustedDueAmount() != null && activeLoan.getAdjustedDueAmount() > 0D) {
+						activeLoan.setDueAmount(activeLoan.getDueAmount() + activeLoan.getAdjustedDueAmount());
+						activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() + activeLoan.getAdjustedDueAmount());
+						createLendingLedger(activeLoan, -1*activeLoan.getAdjustedDueAmount(), -1*activeLoan.getAdjustedDueAmount(), 0D, "ADJUSTED_DUE_AMOUNT");
+						activeLoan.setAdjustedDueAmount(0D);
 					}
 				}
 				paidPrincipalAmount+=totalPaid;

@@ -71,12 +71,13 @@ public class InitiatePaymentResponseDTO {
 		private String authMode;
 		private String accountNumber;
 		private String ifsc;
+		private String beneficiaryName;
 
 		public Data() {
 			
 		}
 		
-		public Data(String vpa, String intent, String paymentLink, String orderId, Boolean otpFlow, String authMode, String accountNumber, String ifsc) {
+		public Data(String vpa, String intent, String paymentLink, String orderId, Boolean otpFlow, String authMode, String accountNumber, String ifsc, String beneficiaryName) {
 			this.vpa = vpa;
 			this.intent = intent;
 			this.paymentLink = paymentLink;
@@ -85,6 +86,7 @@ public class InitiatePaymentResponseDTO {
 			this.authMode = authMode;
 			this.accountNumber = accountNumber;
 			this.ifsc = ifsc;
+			this.beneficiaryName = beneficiaryName;
 		}
 
 		public String getVpa() {
@@ -157,6 +159,14 @@ public class InitiatePaymentResponseDTO {
 
 		public void setIfsc(String ifsc) {
 			this.ifsc = ifsc;
+		}
+
+		public String getBeneficiaryName() {
+			return beneficiaryName;
+		}
+
+		public void setBeneficiaryName(String beneficiaryName) {
+			this.beneficiaryName = beneficiaryName;
 		}
 
 		@Override
