@@ -1346,6 +1346,7 @@ public class LoanDetailsService {
 				experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
 				experian.setPincode(requestDTO.getPayload().getPinCode());
 				experianDao.save(experian);
+				experian = experianDao.getByMerchantId(merchant.getId());
 			} else {
 				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, pancard, (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, pincode));
 			}
@@ -1363,6 +1364,7 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setMessage(experian.getReason());
 		}
 		if (experian.getRetryCount() == 1) {
+			creditScoreResponseDto.setMessage(experian.getReason());
 			creditScoreResponseDto.setTimeout(Boolean.TRUE);
 		}
 		if (experian.isNoExperian()) {
