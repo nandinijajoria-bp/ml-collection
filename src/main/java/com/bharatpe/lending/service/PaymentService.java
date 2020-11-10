@@ -155,7 +155,9 @@ public class PaymentService {
 			order.setOwnerId(activeLoan.getId());
 			order.setAmount(Double.valueOf(amount));
 			order.setStatus("INIT");
-			order.setSource(request.getPayload().getSource().name());
+			if (request.getPayload().getSource() != null) {
+				order.setSource(request.getPayload().getSource().name());
+			}
 			order = loanPaymentOrderDao.save(order);
 			String orderId = "LOAN" + (10000000L + order.getId());
 			order.setOrderId(orderId);
