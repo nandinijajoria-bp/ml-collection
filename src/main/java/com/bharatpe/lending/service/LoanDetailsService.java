@@ -202,16 +202,6 @@ public class LoanDetailsService {
 			LendingBharatswipeOffers lendingBharatswipeOffers=getSwipeLoanOffer(merchant);
 			Boolean isFromSwipe=lendingBharatswipeOffers!=null;
 			Double bharatSwipeAmount = lendingBharatswipeOffers !=null ? lendingBharatswipeOffers.getLoanAmount() : 0D;
-//			if (experian != null && experian.getPincode() == null) {
-//				logger.error("pincode bug, deleting experian entry for merchant:{}", merchant.getId());
-//				emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");
-//					add("mihit@bharatpe.com");add("anubhav.mathur@bharatpe.com");}}, "Pincode Bug", "merchant id: " + merchant.getId() + ", mid:" + merchant.getMid());
-//				experianDao.deleteByMerchantId(merchant.getId());
-//				LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();
-//				response1.setSuccess(false);
-//				response1.setMessage("Pincode not found");
-//				return response1;
-//			}
 			if (requestDTO.getPayload().getPanCard() != null) {
 				if (requestDTO.getPayload().getPincode() == null) {
 					logger.info("pincode bug for merchant:{}", merchant.getId());
@@ -222,12 +212,13 @@ public class LoanDetailsService {
 					response1.setMessage("Pincode not found");
 					return response1;
 				}
-				//experianDao.deleteByMerchantId(merchant.getId());
 				panCard = requestDTO.getPayload().getPanCard();
 				if (experian != null) {
 					experian.setPancardNumber(requestDTO.getPayload().getPanCard());
 					experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
 					experian.setPincode(requestDTO.getPayload().getPincode());
+					experian.setResponse(null);
+					experian.setBureau(null);
 					experianDao.save(experian);
 				} else {
 					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));

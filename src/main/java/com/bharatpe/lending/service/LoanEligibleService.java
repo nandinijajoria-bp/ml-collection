@@ -238,7 +238,7 @@ public class LoanEligibleService {
             experian.setReason(null);
         }
         JsonNode creditBureauResponse = null;
-        ResponseUtil responseUtil = getCreditBureauResponse(experian);
+        ResponseUtil responseUtil;
         boolean isBureauExperian = false;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
@@ -252,7 +252,7 @@ public class LoanEligibleService {
                 responseUtil = getCreditBureauResponse(experian);
                 creditBureauResponse = objectMapper.readTree(experian.getResponse());
                 isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
-            } else if ((reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
+            } else if (pancard != null || (reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
                     experian.setRetryCount(0);
