@@ -155,6 +155,7 @@ public class PaymentService {
 			order.setOwnerId(activeLoan.getId());
 			order.setAmount(Double.valueOf(amount));
 			order.setStatus("INIT");
+			order.setSource(request.getPayload().getSource().name());
 			order = loanPaymentOrderDao.save(order);
 			String orderId = "LOAN" + (10000000L + order.getId());
 			order.setOrderId(orderId);
@@ -349,7 +350,7 @@ public class PaymentService {
 
 	private PaymentDetailDto getGPAYMode() {
 		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
-		paymentDetailDto.setName("Google Pay");
+		paymentDetailDto.setName("Pay Using Google Pay");
 		paymentDetailDto.setType("UPI");
 		paymentDetailDto.setFundSource("UPI");
 		paymentDetailDto.setAmountLimit(100000D);

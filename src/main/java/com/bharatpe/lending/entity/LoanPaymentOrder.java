@@ -55,6 +55,8 @@ public class LoanPaymentOrder extends BaseEntity {
     @Column(name = "mid")
     private String mid;
 
+    private String source;
+
 	public Merchant getMerchant() {
 		return merchant;
 	}
@@ -157,6 +159,14 @@ public class LoanPaymentOrder extends BaseEntity {
 
 	public void setMid(String mid) {
 		this.mid = mid;
+	}
+
+	public String getSource() {
+		return source;
+	}
+
+	public void setSource(String source) {
+		this.source = source;
 	}
 
 	@Override
