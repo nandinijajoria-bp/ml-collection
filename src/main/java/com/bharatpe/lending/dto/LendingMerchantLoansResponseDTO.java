@@ -46,6 +46,7 @@ public class LendingMerchantLoansResponseDTO {
         private String loanType;
         private String status;
         private Double paidAmount;
+        private Double lastEdiPaid;
 
         public Loan() {
         }
@@ -188,6 +189,14 @@ public class LendingMerchantLoansResponseDTO {
 
         public void setPaidAmount(Double paidAmount) {
             this.paidAmount = paidAmount;
+        }
+
+        public Double getLastEdiPaid() {
+            return lastEdiPaid;
+        }
+
+        public void setLastEdiPaid(Double lastEdiPaid) {
+            this.lastEdiPaid = lastEdiPaid;
         }
 
         public Loan loanId(Long loanId) {

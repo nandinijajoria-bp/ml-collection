@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.lending.dao.LendingLedgerDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -21,6 +23,9 @@ public class MerchantLoansService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingLedgerDao lendingLedgerDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -57,6 +62,14 @@ public class MerchantLoansService {
         } else {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
+            for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
+                LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
+                if (lendingLedger != null) {
+                    loan.setLastEdiPaid(lendingLedger.getAmount());
+                } else {
+                    loan.setLastEdiPaid(0D);
+                }
+            }
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
             responseDTO.setMessage("Successfully fetched merchant loans");
             responseDTO.setSuccess(true);
