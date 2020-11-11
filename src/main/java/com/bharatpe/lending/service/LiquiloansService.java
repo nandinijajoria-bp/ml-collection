@@ -297,24 +297,25 @@ public class LiquiloansService {
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
 			lendingApplication.setDisburseTimestamp(new Date());
-			lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender())? "NBFC_FUNDS" : "INVESTOR_FUNDS");
+//			lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender())? "NBFC_FUNDS" : "INVESTOR_FUNDS");
+			lendingApplication.setAccountType("INVESTOR_FUNDS");
     		lendingApplicationDao.save(lendingApplication);
 
-			if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
-				try {
-					Long merchantId= lendingApplication.getMerchant().getId();
-					Long applicationId = lendingApplication.getId();
-					Map<String,Long> detailMap=new HashMap<String, Long>(){{
-						put("merchantId",merchantId);
-						put("applicationId",applicationId);
-					}};
-					kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
-					logger.info("Pushed "+detailMap+" to topic create_gst_invoice");
-				}
-				catch(Exception e) {
-					logger.error("Error occured while pushing to toipc create_gst_invoice",e);
-				}
-			}
+//			if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
+//				try {
+//					Long merchantId= lendingApplication.getMerchant().getId();
+//					Long applicationId = lendingApplication.getId();
+//					Map<String,Long> detailMap=new HashMap<String, Long>(){{
+//						put("merchantId",merchantId);
+//						put("applicationId",applicationId);
+//					}};
+//					kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
+//					logger.info("Pushed "+detailMap+" to topic create_gst_invoice");
+//				}
+//				catch(Exception e) {
+//					logger.error("Error occured while pushing to toipc create_gst_invoice",e);
+//				}
+//			}
 
     		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
     		if (lendingPaymentSchedule != null) {
