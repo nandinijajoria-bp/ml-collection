@@ -10,10 +10,7 @@ import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.CrifDao;
 import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
 import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
-import com.bharatpe.lending.common.entity.CreditLineMerchant;
-import com.bharatpe.lending.common.entity.Crif;
-import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
-import com.bharatpe.lending.common.entity.LendingPartnerOffers;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -166,6 +163,9 @@ public class LoanDetailsService {
 	@Autowired
 	APIGatewayService apiGatewayService;
 
+	@Autowired
+	BPEnachDao bpEnachDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -195,6 +195,11 @@ public class LoanDetailsService {
 			String panCard = null;
 			String tempClosed = null;
 			LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
+			BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			if (bpEnach != null && bpEnach.getAccountNumber() != null && !bpEnach.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+				enachSuccess = null;
+			}
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 			Integer pincode = null;
@@ -268,7 +273,6 @@ public class LoanDetailsService {
 				}
 				return response;
 			}
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 			//check for payments bank
 			boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
