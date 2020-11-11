@@ -133,7 +133,7 @@ public class LoanUtil {
 			shopDetails.setGstNumber(lendingGstDetail.getGstNumber());
 			shopDetails.setHasGST(lendingGstDetail.getGst());
 			shopDetails.setBusinessCategory(lendingGstDetail.getBusinessCategory());
-			shopDetails.setSalary(lendingGstDetail.getSalary());
+			shopDetails.setSalary(lendingGstDetail.getSalary() != null ? String.valueOf(lendingGstDetail.getSalary()) : "");
 			shopDetails.setExperience(lendingGstDetail.getExperience());
 		}
 		return shopDetails;
