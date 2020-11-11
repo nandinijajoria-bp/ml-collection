@@ -12,4 +12,7 @@ public interface LoanAgreementDao extends JpaRepository<LoanAgreement,Long> {
     @Query(nativeQuery = true, value = "select * from loan_agreement where application_id=:id and type='agreement' order by id desc limit 1")
     LoanAgreement findByApplicationId(Long id);
 
+    @Query(nativeQuery = true, value = "select * from loan_agreement where  type='invoice' order by id desc limit 1")
+    LoanAgreement findByLastId();
+
  }
