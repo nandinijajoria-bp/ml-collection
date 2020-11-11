@@ -24,6 +24,12 @@ public class LoanAgreement extends BaseEntity {
 	
 	private String keyword;
 
+	@Column(name = "type")
+	private String type;
+
+	@Column(name = "invoice_id")
+	private Integer invoiceId;
+
 	public Long getMerchantId() {
 		return merchantId;
 	}
@@ -62,6 +68,22 @@ public class LoanAgreement extends BaseEntity {
 
 	public void setKeyword(String keyword) {
 		this.keyword = keyword;
+	}
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
+
+	public Integer getInvoiceId() {
+		return invoiceId;
+	}
+
+	public void setInvoiceId(Integer invoiceId) {
+		this.invoiceId = invoiceId;
 	}
 
 	@Override
