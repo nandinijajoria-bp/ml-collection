@@ -69,6 +69,7 @@ public class LoanDetailsResponseDTO {
 		private Boolean bharatSwipe=false;
 		private  Double bharatSwipeAmount;
 		private boolean activeLoan = false;
+		private boolean syncContacts = false;
 
 
 		@JsonProperty(value = "loan_history")
@@ -256,6 +257,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setActiveLoan(boolean activeLoan) {
 			this.activeLoan = activeLoan;
+		}
+
+		public boolean isSyncContacts() {
+			return syncContacts;
+		}
+
+		public void setSyncContacts(boolean syncContacts) {
+			this.syncContacts = syncContacts;
 		}
 
 		@Override

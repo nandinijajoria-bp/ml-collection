@@ -166,6 +166,9 @@ public class LoanDetailsService {
 	@Autowired
 	BPEnachDao bpEnachDao;
 
+	@Autowired
+	PhonebookDao phonebookDao;
+
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -472,7 +475,14 @@ public class LoanDetailsService {
 			
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchant.getId());
+				boolean syncContacts = false;
+				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+				if (!phonebook.isPresent() && activeLoan.getLoanApplication() != null && "NTB".equals(activeLoan.getLoanApplication().getLoanType())) {
+					logger.info("Contacts not synced for merchant:{}", merchant.getId());
+					syncContacts = true;
+				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setSyncContacts(syncContacts);
 				loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 				loanDetailsDTO.setHistory(orignalHistoryDTOs);
 				loanDetailsDTO.setEligible(true);
@@ -521,21 +531,16 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-//			if (merchant.getId().equals(2411647L)) {
-//				enach = "bharatpe://enachdigio";
-//			}
-//			if (enach == null) {
-//				if (enachSuccess != null) {
-//					enach = "success";
-//				} else if (lendingEnach != null && lendingEnach.getSkip() != null && lendingEnach.getSkip()) {
-//					enach = "skipped";
-//				} else {
-//					enach = "false";
-//				}
-//			}
 			
 			if(lendingApplication != null && !eligibleFlag) {
+				boolean syncContacts = false;
+				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+				if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
+					logger.info("Contacts not synced for merchant:{}", merchant.getId());
+					syncContacts = true;
+				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setSyncContacts(syncContacts);
 				loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 				loanDetailsDTO.setHistory(loanHistoryDTOs);
 				loanDetailsDTO.setLoanApplication(loanApplicationDTO);

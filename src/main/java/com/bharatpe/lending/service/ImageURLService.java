@@ -3,15 +3,13 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.common.dao.PhonebookDao;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.Phonebook;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.LendingEkyc;
@@ -47,6 +45,9 @@ public class ImageURLService {
 	@Autowired
 	LendingEkycDao lendingEkycDao;
 
+	@Autowired
+	PhonebookDao phonebookDao;
+
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 	
@@ -80,6 +81,11 @@ public class ImageURLService {
 	}
 
 	private boolean allowRoute(LendingApplication lendingApplication, Merchant merchant, Boolean isEkycDone) {
+		Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
+			logger.info("Contacts not synced for merchant:{}", merchant.getId());
+			return false;
+		}
 		boolean selfie = false;
 		boolean pancard = false;
 		boolean poa = false;
