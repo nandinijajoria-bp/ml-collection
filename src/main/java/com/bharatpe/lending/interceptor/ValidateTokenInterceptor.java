@@ -38,7 +38,8 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         
         try {
         	if(StringUtils.isEmpty(token)) {
-	            logger.error("Token Value is Blank or Empty for request {}", request);
+				InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper(request);
+	            logger.error("Token Value is Blank or Empty for request {}", interceptorRequestWrapper.getRequestURI());
 	            sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
     			return false;
         	} else {
