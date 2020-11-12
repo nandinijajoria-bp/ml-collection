@@ -464,8 +464,8 @@ public class LiquiloansService {
 			}
 		}
 		sms1="Hi "+merchantBankDetail.getBeneficiaryName()+"\n"+
-				"Your BharatPe Loan of Rs."+lendingApplication.getDisbursalAmount()+" is successfully disbursed." +
-				"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
+				"Your BharatPe Loan of Rs."+lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
+				"Here is a copy of the Loan agreement for your reference:"+shortUrl;
 
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";

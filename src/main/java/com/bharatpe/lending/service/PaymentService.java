@@ -74,6 +74,9 @@ public class PaymentService {
 
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
+
+	@Autowired
+	RedisNotificationService redisNotificationService;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -502,7 +505,9 @@ public class PaymentService {
 
 		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo));
 		lendingPaymentScheduleDao.save(activeLoan);
-
+		if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+			redisNotificationService.sendRepaymentNudge(activeLoan.getMerchant(), activeLoan.getLoanApplication().getProcessingFee());
+		}
 		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
 		notificationExecutor.submit(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));

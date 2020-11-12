@@ -177,4 +177,20 @@ public class RedisNotificationService {
 			logger.error("Error occured while sending redis based pending enach notification for merchant {}",merchant,e);
 		}
 	}
+
+	public void sendRepaymentNudge(Merchant merchant, Double processingFee) {
+		try {
+			logger.info("Sending PF repayment nudge for merchant {}", merchant.getId());
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			String message = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nSpecial offer on repaying your BharatPe Loan through QR Transactions - Get Processing Fees Charges of Rs." + processingFee + " refunded. Start accepting payments through BharatPe QR and repay your loan easily.";
+			InstantNotificationDto notificationDto=new InstantNotificationDto();
+			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMessageCategory("LENDING_PF_NUDGE");
+			notificationDto.setMessage(message);
+			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "pf_nudge_"+merchant.getId().toString(), 5*60);
+		}
+		catch(Exception e ) {
+			logger.error("Error occured while sending pf nudge for merchant {}", merchant.getId(), e);
+		}
+	}
 }
