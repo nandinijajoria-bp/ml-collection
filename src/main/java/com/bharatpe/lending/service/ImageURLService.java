@@ -72,12 +72,15 @@ public class ImageURLService {
 			result.put("success", false);
 			return result;
 		}
-		Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-		if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
-			logger.info("Contacts not synced for merchant:{}", merchant.getId());
-			result.put("success", false);
-			result.put("message", "CONTACTS_NOT_SYNCED");
-			return result;
+		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
+		if (finalCall) {
+			Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+			if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
+				logger.info("Contacts not synced for merchant:{}", merchant.getId());
+				result.put("success", false);
+				result.put("message", "CONTACTS_NOT_SYNCED");
+				return result;
+			}
 		}
 		result.put("isEKYC",ekycDone);
 		result.put("allow_route", allowRoute(lendingApplication, merchant, ekycDone));
