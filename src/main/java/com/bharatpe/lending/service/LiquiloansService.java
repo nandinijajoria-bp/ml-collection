@@ -463,21 +463,9 @@ public class LiquiloansService {
 				e.printStackTrace();
 			}
 		}
-		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-			sms1= "Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
-					"Your BharatPe Loan of Rs."+ lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
-		}
-		else if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
-			sms1="Congratulations!\nYour Loan of Rs."+lendingApplication.getDisbursalAmount()+" is disbursed to your "+merchantBankDetail.getBankName()+" A/c Successfully! \n" + 
-					"Daily Installment of Rs."+lendingApplication.getEdi()+" will be deducted from your BharatPe Settlement everyday.\n\n" +
-					"Transact on BharatPe QR everyday to ensure timely repayment.";
-		}
-		else {
-			sms1="Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
-					"Your BharatPe Loan of Rs."+lendingApplication.getLoanAmount()+" is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
-		}
+		sms1="Hi "+merchantBankDetail.getBeneficiaryName()+"\n"+
+				"Your BharatPe Loan of Rs."+lendingApplication.getDisbursalAmount()+" is successfully disbursed." +
+				"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
 
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
@@ -495,6 +483,11 @@ public class LiquiloansService {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
+		if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
+			String newMessage = "Hi "+merchantBankDetail.getBeneficiaryName()+"\nRs. " + lendingApplication.getDisbursalAmount() + " Loan is transferred to your A/c net of Rs." + lendingApplication.getProcessingFee() + " processing fees. Repay loan timely through QR Txns to get PF charges refunded.";
+			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, newMessage, NotificationProvider.SMS.GUPSHUP);
+			whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, null);
+		}
 	}
          
 	 public Date getDateAfterNMonths(Date startDate, int month){
