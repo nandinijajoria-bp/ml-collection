@@ -31,11 +31,7 @@ public class RedisNotificationService {
 	Logger logger=LoggerFactory.getLogger(RedisNotificationService.class);
 	
 	public void sendNotificationForAppliedApplication(Long merchantId, LendingApplication lendingApplication) {
-		if (true) return;
 		try {
-			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE")) {
-				return;
-			}
 			logger.info("Pushing notification of application applied but not confirmend for merchant {} and application {}",merchantId,lendingApplication);
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(lendingApplication.getId());
@@ -43,22 +39,10 @@ public class RedisNotificationService {
 			notificationDto.setMessageCategory("APPLIED_APPLICATION");
 			MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 			String bankName=bankDetail!=null?bankDetail.getBankName():"";
-			notificationDto.setMessage("Transfer Rs."+lendingApplication.getLoanAmount()+" to your "+bankName+" A/c Now!\n" + 
-					"Just 2 minutes to complete your loan application");
+			notificationDto.setMessage("Your Loan is Waiting for you!\n" +
+					"Complete your application to get instant money in your " + bankName + " A/c");
 			//String messageString30min=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_30min_"+lendingApplication.getId(), 15*60);
-//			notificationDto.setMessage("Just 2 minutes away from Rs."+lendingApplication.getLoanAmount()+" Loan \n" + 
-//					"Complete application now and get money in your "+bankName+" A/c");
-//			//String messageString1day=objectMapper.writeValueAsString(notificationDto);
-//			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_1day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 1));
-//			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
-//					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
-//			//String messageString3day=objectMapper.writeValueAsString(notificationDto);
-//			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,"applied_application_3day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 3));
-//			notificationDto.setMessage("Complete your Loan Application in 2 Minutes! \n" + 
-//					"Get Rs."+lendingApplication.getLoanAmount()+" in your "+bankName+" A/c  Now & Grow your Business.");
-//			//String messageString5day=objectMapper.writeValueAsString(notificationDto);
-//			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5day_"+lendingApplication.getId(), DateTimeUtil.getSecondsTillTime(13, 5));
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5min_"+lendingApplication.getId(), 5*60);
 		} catch (Exception e) {
 			logger.error("Error occured while sending notification",e);
 		}

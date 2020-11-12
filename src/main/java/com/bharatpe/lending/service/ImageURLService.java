@@ -48,6 +48,9 @@ public class ImageURLService {
 	@Autowired
 	PhonebookDao phonebookDao;
 
+	@Autowired
+	RedisNotificationService redisNotificationService;
+
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 	
@@ -87,6 +90,9 @@ public class ImageURLService {
 		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
 		result.put("proofs", data);
 		result.put("success", true);
+		if (finalCall) {
+			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), lendingApplication);
+		}
 		return result;
 	}
 

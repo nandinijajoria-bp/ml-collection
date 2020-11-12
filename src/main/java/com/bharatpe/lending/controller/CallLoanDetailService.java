@@ -5,11 +5,10 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.common.dao.*;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.dao.ExperianDummyDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -22,9 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.LoanDetailsService;
@@ -68,6 +64,15 @@ public class CallLoanDetailService {
 
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
+
+	@Autowired
+	PhonebookDao phonebookDao;
+
+	@Autowired
+	PushNotificationHandler pushNotificationHandler;
+
+	@Autowired
+	MerchantFcmTokenDao merchantFcmTokenDao;
 
 	public void sendSMS() {
 		List<Long> merchantIds = Arrays.asList(129024L, 4605772L, 2109566L, 5655934L, 787876L, 3202404L, 4577387L,
@@ -305,7 +310,11 @@ public class CallLoanDetailService {
 					lastBatchProcessed = true;
 				}
 				for (LendingApplication lendingApplication : lendingApplications) {
-					executorService.submit(() -> test(lendingApplication.getMerchant()));
+					Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
+					if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
+						logger.info("Contacts not synced for merchant:{}", lendingApplication.getMerchant().getId());
+						executorService.submit(() -> test(lendingApplication.getMerchant(), lendingApplication.getLoanAmount()));
+					}
 				}
 			} catch (Exception e) {
 				logger.error("Exception---", e);
@@ -314,11 +323,13 @@ public class CallLoanDetailService {
 		logger.info("Loan Details Script Ended");
 	}
 
-	private void test(Merchant merchant) {
+	private void test(Merchant merchant, Double loanAmount) {
 		try {
-			Experian experian = experianDao.getByMerchantId(merchant.getId());
-			ResponseUtil creditBureauResponseUtil = loanEligibleService.getCreditBureauResponse(experian);
-			creditBureauResponseUtil.isDerog(merchant, false, experian);
+			String message = "Check your Rs." + loanAmount + " Loan Status Now!";
+			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
+			if(merchantFcmToken != null) {
+				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=loan");
+			}
 		} catch (Exception e) {
 			logger.error("Exception---", e);
 		}
