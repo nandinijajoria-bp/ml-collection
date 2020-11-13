@@ -564,7 +564,9 @@ public class PaymentService {
 				}
 				return new ResponseDTO(true, "success");
 			} else {
-				logger.error("BPB verification failed for loan payment order:{}", loanPaymentOrder.getOrderId());
+				logger.info("BPB verification failed for loan payment order:{}", loanPaymentOrder.getOrderId());
+				loanPaymentOrder.setStatus("FAILED");
+				loanPaymentOrderDao.save(loanPaymentOrder);
 			}
 		} catch (Exception e) {
 			logger.error("Exception in payment verify", e);
