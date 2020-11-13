@@ -2,8 +2,11 @@ package com.bharatpe.lending.util.creditresponse;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
+import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -62,6 +65,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             "staff loan", "business loan unsecured");
     List<String> categoryC = Arrays.asList("housing loan", "property loan");
     ExperianDao experianDao;
+    LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     SimpleDateFormat dateFormat = new SimpleDateFormat(CrifConstants.DATE_FORMAT);
 
@@ -70,10 +74,11 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         this.experianDao = experianDao;
     }
 
-    public CrifResponseUtil(JsonNode response, ExperianDao experianDao) {
+    public CrifResponseUtil(JsonNode response, ExperianDao experianDao, LendingMerchantDropoffDao lendingMerchantDropoffDao) {
         this.type = "CRIF";
         this.response = response;
         this.experianDao = experianDao;
+        this.lendingMerchantDropoffDao = lendingMerchantDropoffDao;
     }
 
     @Override
@@ -250,15 +255,21 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 return true;
             }
         }
-        // Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
-        if (!isRepeatLoanNoDerog && countUnsecuredLoanEnquiriesInLast6Months() > 4) {
-            logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}",
-                    merchant.getId());
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(CrifConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
-            experianDao.save(experian);
-            return true;
+        // Not more than 8 unsecured loan enquiries in the last 6 months --- Derog check
+        if (!isRepeatLoanNoDerog) {
+            int unsecuredEnquiries = countUnsecuredLoanEnquiriesInLast6Months();
+            if (unsecuredEnquiries > 8) {
+                logger.info("Derog more than 8 unsecured loan enquiries in the last 6 months, rejecting merchant: {}",
+                        merchant.getId());
+                experian.setRejected(true);
+                experian.setRejectedDate(new Date());
+                experian.setReason(CrifConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
+                experianDao.save(experian);
+                return true;
+            }
+            if (unsecuredEnquiries > 4) {
+                lendingMerchantDropoffDao.save(new LendingMerchantDropoff(merchant.getId(), "DEROG", CrifConstants.DEROG_UNSECURED_LOAN_ENQUIRY, String.valueOf(unsecuredEnquiries)));
+            }
         }
         // Not more than 6 enquiries in the last 3 months ( across all product types)
         // --- Derog check
@@ -287,12 +298,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         }
         // Check for Derog DPD Last 3 months
         if (!isRepeatLoanNoDerog && checkDPDLastXmonths(jsonNode, 3, reportDate)) {
-            logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(CrifConstants.DEROG_DPD_LAST_3_MONTHS);
-            experianDao.save(experian);
-            return true;
+            lendingMerchantDropoffDao.save(new LendingMerchantDropoff(merchantId, "DEROG", CrifConstants.DEROG_DPD_LAST_3_MONTHS, String.valueOf(countDPDLastXmonths(jsonNode, 3, reportDate))));
         }
         // Check for Derog DPD Last 6 months
         if (!isRepeatLoanNoDerog && checkDPDLastXmonths(jsonNode, 6, reportDate)) {

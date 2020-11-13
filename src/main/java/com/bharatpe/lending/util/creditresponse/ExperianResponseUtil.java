@@ -2,6 +2,8 @@ package com.bharatpe.lending.util.creditresponse;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
+import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.util.LoanUtil;
@@ -32,6 +34,8 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
             43, 51, 52, 53, 54, 55, 56, 57, 58, 61);
     ExperianDao experianDao;
 
+    LendingMerchantDropoffDao lendingMerchantDropoffDao;
+
     SimpleDateFormat dateFormat = new SimpleDateFormat(ExperianConstants.DATE_FORMAT);
 
     public ExperianResponseUtil(ExperianDao experianDao) {
@@ -39,10 +43,11 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         this.experianDao = experianDao;
     }
 
-    public ExperianResponseUtil(JsonNode response, ExperianDao experianDao) {
+    public ExperianResponseUtil(JsonNode response, ExperianDao experianDao, LendingMerchantDropoffDao lendingMerchantDropoffDao) {
         this.type = "EXPERIAN";
         this.response = response;
         this.experianDao = experianDao;
+        this.lendingMerchantDropoffDao = lendingMerchantDropoffDao;
     }
 
     @Override
@@ -193,15 +198,21 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                 return true;
             }
         }
-        // Not more than 4 unsecured loan enquiries in the last 6 months --- Derog check
-        if (!isRepeatLoanNoDerog && countUnsecuredLoanEnquiriesInLast6Months() == 1) {
-            logger.info("Derog more than 4 unsecured loan enquiries in the last 6 months, rejecting merchant: {}",
-                    merchant.getId());
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
-            experianDao.save(experian);
-            return true;
+        // Not more than 8 unsecured loan enquiries in the last 6 months --- Derog check
+        if (!isRepeatLoanNoDerog) {
+            int unsecuredEnquiries = countUnsecuredLoanEnquiriesInLast6Months();
+            if (unsecuredEnquiries > 8) {
+                logger.info("Derog more than 8 unsecured loan enquiries in the last 6 months, rejecting merchant: {}",
+                        merchant.getId());
+                experian.setRejected(true);
+                experian.setRejectedDate(new Date());
+                experian.setReason(ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY);
+                experianDao.save(experian);
+                return true;
+            }
+            if (unsecuredEnquiries > 4) {
+                lendingMerchantDropoffDao.save(new LendingMerchantDropoff(merchant.getId(), "DEROG", ExperianConstants.DEROG_UNSECURED_LOAN_ENQUIRY, String.valueOf(unsecuredEnquiries)));
+            }
         }
         // Not more than 6 enquiries in the last 3 months ( across all product types)
         // --- Derog check
@@ -231,12 +242,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         // Check for Derog DPD Last 3 months
         if (!isRepeatLoanNoDerog && jsonNode.get(ExperianConstants.ACCT_HOLDER_TYPE_CODE).asInt() != 7
                 && checkDPDLastXmonths(jsonNode, 3, reportDate)) {
-            logger.info("Derog DPD Last 3 months check failed, rejecting merchant: {}", merchantId);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experian.setReason(ExperianConstants.DEROG_DPD_LAST_3_MONTHS);
-            experianDao.save(experian);
-            return true;
+            lendingMerchantDropoffDao.save(new LendingMerchantDropoff(merchantId, "DEROG", ExperianConstants.DEROG_DPD_LAST_3_MONTHS, String.valueOf(countDPDLastXmonths(jsonNode, 3, reportDate))));
         }
         // Check for Derog DPD Last 6 months
         if (jsonNode.get(ExperianConstants.ACCT_HOLDER_TYPE_CODE).asInt() != 7
@@ -740,10 +746,9 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         Date reportDate = getReportDate();
         if (response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
-                        .get("TotalCAPSLast180Days") != null
-                && response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
-                        .get("TotalCAPSLast180Days").asInt() <= 4) {
-            return 0;
+                        .get("TotalCAPSLast180Days") != null) {
+            return response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
+                    .get("TotalCAPSLast180Days").asInt();
         }
         Calendar c = Calendar.getInstance();
         c.setTime(reportDate);

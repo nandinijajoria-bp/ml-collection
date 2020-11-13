@@ -6,10 +6,7 @@ import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
-import com.bharatpe.lending.common.dao.CrifDao;
-import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
-import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -139,6 +136,9 @@ public class LoanEligibleService {
 
     @Autowired
     CrifRequestResponseDao crifRequestResponseDao;
+
+    @Autowired
+    LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
@@ -1261,11 +1261,11 @@ public class LoanEligibleService {
         if(experian != null){
             bureauResponse = parseStringResponse(experian.getResponse());
             if(experian.getBureau() != null && experian.getBureau().equalsIgnoreCase("crif")){
-                return new CrifResponseUtil(bureauResponse, experianDao);
+                return new CrifResponseUtil(bureauResponse, experianDao, lendingMerchantDropoffDao);
             } else {
-                return new ExperianResponseUtil(bureauResponse, experianDao);
+                return new ExperianResponseUtil(bureauResponse, experianDao, lendingMerchantDropoffDao);
             }
         }
-        return new ExperianResponseUtil(bureauResponse, experianDao);
+        return new ExperianResponseUtil(bureauResponse, experianDao, lendingMerchantDropoffDao);
     }
 }

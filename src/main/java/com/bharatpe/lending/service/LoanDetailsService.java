@@ -6,10 +6,7 @@ import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.dao.CrifDao;
-import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
-import com.bharatpe.lending.common.dao.LendingPartnerOffersDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
@@ -168,6 +165,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	PhonebookDao phonebookDao;
+
+	@Autowired
+	LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
@@ -607,6 +607,9 @@ public class LoanDetailsService {
 						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 						logger.error("Exception---", e);
 						emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Eligible Loan Exception", "");
+					}
+					if (!experian.getRejected() && experian.getReason() != null) {
+						lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
 					}
 					if (experian.getRejected()) {
 						rejected = true;
