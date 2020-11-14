@@ -47,6 +47,7 @@ public class LendingMerchantLoansResponseDTO {
         private String status;
         private Double paidAmount;
         private Double lastEdiPaid;
+        private boolean showPaynow = false;
 
         public Loan() {
         }
@@ -197,6 +198,14 @@ public class LendingMerchantLoansResponseDTO {
 
         public void setLastEdiPaid(Double lastEdiPaid) {
             this.lastEdiPaid = lastEdiPaid;
+        }
+
+        public boolean isShowPaynow() {
+            return showPaynow;
+        }
+
+        public void setShowPaynow(boolean showPaynow) {
+            this.showPaynow = showPaynow;
         }
 
         public Loan loanId(Long loanId) {
