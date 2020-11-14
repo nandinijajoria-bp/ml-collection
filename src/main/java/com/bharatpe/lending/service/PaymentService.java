@@ -208,7 +208,7 @@ public class PaymentService {
 				return "OK";
 			}
 			if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
-				logger.error("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
+				logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
 				return "OK";
 			}
 			if(request.getAmount() == null || request.getAmount() <= 0D) {
@@ -332,7 +332,7 @@ public class PaymentService {
 		paymentDetails.add(getBankTransferMode());
 		paymentDetails.add(getGPAYMode());
 		ResponseDTO responseDTO = new ResponseDTO();
-		paymentDetails.removeIf(paymentDetailDto -> (paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount()) || (paymentDetailDto.getAmountLimit() != null && paymentDetailDto.getAmountLimit() < requestDTO.getPayload().getAmount()));
+		paymentDetails.removeIf(paymentDetailDto -> (paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount()));
 		if (paymentDetails.isEmpty()) {
 			responseDTO.setSuccess(false);
 			responseDTO.setMessage("No Payment Mode Found");
