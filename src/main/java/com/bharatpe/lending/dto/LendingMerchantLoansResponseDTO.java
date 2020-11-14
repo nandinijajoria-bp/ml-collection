@@ -7,6 +7,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -47,6 +48,7 @@ public class LendingMerchantLoansResponseDTO {
         private String status;
         private Double paidAmount;
         private Double lastEdiPaid;
+        @JsonProperty(value = "showPaynow")
         private boolean showPaynow = false;
 
         public Loan() {
