@@ -332,7 +332,7 @@ public class PaymentService {
 		paymentDetails.add(getBankTransferMode());
 		paymentDetails.add(getGPAYMode());
 		ResponseDTO responseDTO = new ResponseDTO();
-		paymentDetails.removeIf(paymentDetailDto -> paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount());
+		paymentDetails.removeIf(paymentDetailDto -> (paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount()) || (paymentDetailDto.getAmountLimit() != null && paymentDetailDto.getAmountLimit() < requestDTO.getPayload().getAmount()));
 		if (paymentDetails.isEmpty()) {
 			responseDTO.setSuccess(false);
 			responseDTO.setMessage("No Payment Mode Found");
