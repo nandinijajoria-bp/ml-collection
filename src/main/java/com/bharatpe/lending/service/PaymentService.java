@@ -539,7 +539,7 @@ public class PaymentService {
 			return new ResponseDTO(false, "Order not found");
 		}
 		if(!"PENDING".equalsIgnoreCase(loanPaymentOrder.getStatus())) {
-			logger.error("Payment for merchant id {} and order id {} is already processed", loanPaymentOrder.getMerchant().getId(), loanPaymentOrder.getOrderId());
+			logger.info("Payment for merchant id {} and order id {} is already processed", loanPaymentOrder.getMerchant().getId(), loanPaymentOrder.getOrderId());
 			return new ResponseDTO(false, "Duplicate request");
 		}
 		Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanPaymentOrder.getOwnerId());
