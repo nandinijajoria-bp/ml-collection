@@ -90,7 +90,10 @@ public class ENachService {
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion){
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
-        final double LOAN_AMOUNT = 100000d;
+        double LOAN_AMOUNT = 100000d;
+        if (merchant.getId().equals(3612680L)) {
+            LOAN_AMOUNT = 700000d;
+        }
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
         if(lendingApplication == null) {
