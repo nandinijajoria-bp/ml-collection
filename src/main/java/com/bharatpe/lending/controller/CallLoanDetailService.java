@@ -10,6 +10,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.dao.ExperianDummyDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.service.LoanEligibleService;
@@ -73,6 +74,9 @@ public class CallLoanDetailService {
 
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
+
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
 
 	public void sendSMS() {
 		List<Long> merchantIds = Arrays.asList(129024L, 4605772L, 2109566L, 5655934L, 787876L, 3202404L, 4577387L,
@@ -310,11 +314,7 @@ public class CallLoanDetailService {
 					lastBatchProcessed = true;
 				}
 				for (LendingApplication lendingApplication : lendingApplications) {
-					Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
-					if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
-						logger.info("Contacts not synced for merchant:{}", lendingApplication.getMerchant().getId());
-						executorService.submit(() -> test(lendingApplication.getMerchant(), lendingApplication.getLoanAmount()));
-					}
+					executorService.submit(() -> test(lendingApplication.getMerchant(), lendingApplication.getLoanAmount()));
 				}
 			} catch (Exception e) {
 				logger.error("Exception---", e);
@@ -325,11 +325,15 @@ public class CallLoanDetailService {
 
 	private void test(Merchant merchant, Double loanAmount) {
 		try {
-			String message = "Check your Rs." + loanAmount + " Loan Status Now!";
+			logger.info("Sending Pending Enach Push to merchant:{}", merchant.getId());
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			String message = "Register eNACH to fast-track your application process of Rs." + loanAmount + " in your " + merchantBankDetail.getBankName() + " A/C.";
 			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 			if(merchantFcmToken != null) {
 				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=loan");
 			}
+			String whatsapp = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nRegister eNACH to fast-track your application process of Rs." + loanAmount + " in your " + merchantBankDetail.getBankName() + " A/C.\nClick here: bharatpe.in/loan~";
+			whatsappNotificationService.send(merchant, null, whatsapp, new ArrayList<String>(){{add(merchant.getMobile());}}, null);
 		} catch (Exception e) {
 			logger.error("Exception---", e);
 		}
