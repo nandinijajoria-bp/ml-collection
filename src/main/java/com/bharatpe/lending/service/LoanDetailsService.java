@@ -1296,7 +1296,6 @@ public class LoanDetailsService {
 		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
 		String pancard = creditScoreRequestDto.getPanNumber();
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
-		Integer pincode = creditScoreRequestDto.getPinCode() != null ?creditScoreRequestDto.getPinCode() : experian.getPincode() ;
 		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 		List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartnerAndMobile(merchant.getId(), "ZOMATO", merchant.getMobile());
@@ -1315,19 +1314,20 @@ public class LoanDetailsService {
 		LendingRedCities redCity = null;
 		List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
 		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
-		
+
+		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
+			creditScoreResponseDto.setPanNumber("null");
+			creditScoreResponseDto.setPinCode(0);
+			responseDTO.setData(creditScoreRequestDto);
+			return  responseDTO;
+		}
+		Integer pincode = creditScoreRequestDto.getPinCode() != null ?creditScoreRequestDto.getPinCode() : experian.getPincode()
 		if(pincode != null){
 			lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
 			redCity = lendingRedCitiesDao.findByPincode(pincode);
 		}
 		if(lendingCity == null && redCity == null){
 			yellowPincode=true;
-		}
-		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
-			creditScoreResponseDto.setPanNumber("null");
-			creditScoreResponseDto.setPinCode(0);
-			responseDTO.setData(creditScoreRequestDto);
-			return  responseDTO;
 		}
 
 		if(requestDTO.getPayload().getPanNumber() != null){
