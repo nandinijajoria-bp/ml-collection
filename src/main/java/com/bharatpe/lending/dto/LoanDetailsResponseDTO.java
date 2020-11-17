@@ -59,7 +59,7 @@ public class LoanDetailsResponseDTO {
 		private List<String> maskedMobiles;
 		private boolean ogl = false;
 		private boolean accountDetails = false;
-		private boolean skipEnatch = true;
+		private boolean skipEnatch = false;
 		@JsonProperty(value = "isZomato")
 		private boolean isZomato = false;
 		private String enach;

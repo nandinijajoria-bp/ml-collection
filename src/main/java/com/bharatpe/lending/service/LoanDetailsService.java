@@ -191,7 +191,7 @@ public class LoanDetailsService {
 			boolean rejected = false;
 			boolean noExperian = false;
 			boolean accountDetails = false;
-			boolean skipEnatch = true;
+			boolean skipEnatch = false;
 			String enach = null;
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
@@ -254,9 +254,6 @@ public class LoanDetailsService {
 				lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
 				redCity = lendingRedCitiesDao.findByPincode(pincode);
 			}
-			if (lendingCity == null && redCity == null) {
-				skipEnatch = false;
-			}
 			
 			if(stores != null && !stores.isEmpty()) {
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
@@ -279,25 +276,6 @@ public class LoanDetailsService {
 			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 			//check for payments bank
 			boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
-//			if (bankList != null && bankList.getIsPaymentBank()) {
-//				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-//				loanDetailsDTO.setEligibility(new ArrayList<>());
-//				loanDetailsDTO.setHistory(new ArrayList<>());
-//				loanDetailsDTO.setEligible(false);
-//				loanDetailsDTO.setRejected(false);
-//				loanDetailsDTO.setRejectReason(null);
-//				loanDetailsDTO.setPanCard(panCard);
-//				loanDetailsDTO.setZomato(isZomato);
-//				loanDetailsDTO.setBharatSwipe(isFromSwipe);
-//				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
-//				loanDetailsDTO.setPincode(pincode);
-//				response.setDetails(loanDetailsDTO);
-//				response.setSuccess(true);
-//				if (experian != null) {
-//					loanUtil.auditExperian(experian);
-//				}
-//				return response;
-//			}
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 					rejected = true;
@@ -440,9 +418,6 @@ public class LoanDetailsService {
 						enach = null;
 						skipEnatch = true;
 					}
-					if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && (enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())))) {
-						skipEnatch = false;
-					}
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 					if (enach != null) {
@@ -471,6 +446,12 @@ public class LoanDetailsService {
 					eligibleFlag = false;
 					loanHistoryDTOs = null;
 				}
+			}
+			if (lendingApplication != null && lendingApplication.getAgreementAt() != null && "REGULAR".equals(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3) {
+				skipEnatch = true;
+			}
+			if (lendingApplication != null && "BHARAT_SWIPE".equals(lendingApplication.getLoanType())) {
+				skipEnatch = true;
 			}
 			
 			if(activeLoan != null) {
