@@ -1295,8 +1295,8 @@ public class LoanDetailsService {
 		creditScoreResponseDto.setNTC(Boolean.FALSE);
 		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
 		String pancard = creditScoreRequestDto.getPanNumber();
-		Integer pincode = creditScoreRequestDto.getPinCode() != null ?creditScoreRequestDto.getPinCode() : null ;
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		Integer pincode = creditScoreRequestDto.getPinCode() != null ?creditScoreRequestDto.getPinCode() : experian.getPincode() ;
 		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 		List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartnerAndMobile(merchant.getId(), "ZOMATO", merchant.getMobile());
