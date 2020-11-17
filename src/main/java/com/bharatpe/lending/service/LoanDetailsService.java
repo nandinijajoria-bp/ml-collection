@@ -650,7 +650,7 @@ public class LoanDetailsService {
 						experian.setCategory("1N");
 						experian.setColor(ExperianConstants.COLOR.RED.name());
 						experianDao.save(experian);
-					} else if (paymentsBank) {
+					} else if (paymentsBank || merchantBankDetail.getBankCode().equalsIgnoreCase("LAVB38")) {
 						logger.info("Payments bank pancard:{}", experian.getPancardNumber());
 						loanEligibilityDTOs.clear();
 						experian.setReason(ExperianConstants.ENACH);
