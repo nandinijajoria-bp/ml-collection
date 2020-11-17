@@ -805,6 +805,7 @@ public class LoanEligibleService {
     }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
+        LendingPaymentSchedule previousLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "CLOSED");
         Experian experian = experianDao.getByMerchantId(merchantId);
         boolean isNTC = isNTC(experian);
         Merchant merchant = merchantDao.findById(merchantId).get();
@@ -827,6 +828,9 @@ public class LoanEligibleService {
             } else {
                 maxAmount = bureauScore > 0 && bureauScore < 700 ? 300000 : 700000;
             }
+            if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount()) {
+                maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();
+            }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
             if (prevLoanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
                 prevLoanAmount = 35000 + ((prevLoanAmount - 35000)/2);
@@ -835,13 +839,9 @@ public class LoanEligibleService {
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
         } else {
-            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories, isNTC, merchant);
+            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays,lendingCategories, isNTC, merchant, previousLoan);
         }
         if (!isZomato) {
-//            if ("NTB".equalsIgnoreCase(loanType) && breakup.getLoanAmount() < 25000) {
-//                logger.info("NTB loan amount is less than 25000 for merchant: {}", merchantId);
-//                return null;
-//            }
             if (color != null && color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType) && !"OGL".equalsIgnoreCase(loanType)) {
                 logger.info("loan amount is less than 20000 for merchant: {}", merchantId);
                 return null;
@@ -857,7 +857,7 @@ public class LoanEligibleService {
         return createLoanEligibilityDTO(breakup, payableConverter, category);
     }
 
-    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories, boolean isNTC, Merchant merchant){
+    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories, boolean isNTC, Merchant merchant, LendingPaymentSchedule previousLoan){
         int tenure = tenureMonth - ioTenure;
         int ediDays, disbursementAmount, ioInterestAmount, principleEdiTenure, repayment;
         double loanAmount, edi, totalInterestAmount, ioEdi;
@@ -867,6 +867,9 @@ public class LoanEligibleService {
         loanAmount = Math.min(roundUp(repayment / (1 + (interest/100)*tenure)), maxAmount);// round down
         if (loanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
             loanAmount = 35000 + ((loanAmount - 35000)/2);
+        }
+        if (previousLoan != null && loanAmount > previousLoan.getLoanAmount() && loanAmount > 2.5 * previousLoan.getLoanAmount()) {
+            loanAmount = 2.5 * previousLoan.getLoanAmount();
         }
         int processingFee = LoanCalculationUtil.getProcessingFee(loanAmount, categories);
         edi = Math.ceil((loanAmount * (1 + (interest/100)*tenure)) / ediDays);
