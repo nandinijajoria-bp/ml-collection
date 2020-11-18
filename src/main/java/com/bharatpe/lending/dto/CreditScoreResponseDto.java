@@ -30,7 +30,7 @@ public class CreditScoreResponseDto {
     @JsonProperty("pan_name")
     private String panName;
 
-    @JsonProperty("is_ntc")
+    @JsonProperty("ntc")
     private boolean isNTC;
 
     @JsonProperty("no_experian")

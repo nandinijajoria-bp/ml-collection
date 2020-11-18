@@ -453,7 +453,7 @@ public class LendingApplicationService {
 			lendingGstDetail.setExperience(lendingApplicationRequest.getExperience());
 			lendingGstDetail.setGst(lendingApplicationRequest.getHasGST());
 			lendingGstDetail.setGstNumber(lendingApplicationRequest.getGstNumber());
-			lendingGstDetail.setSalary(lendingApplicationRequest.getSalary());
+			lendingGstDetail.setSalary(Double.valueOf(lendingApplicationRequest.getSalary()));
 			lendingGstDao.save(lendingGstDetail);
 		}
 	}
