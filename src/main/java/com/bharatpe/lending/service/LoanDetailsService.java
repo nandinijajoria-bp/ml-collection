@@ -637,7 +637,7 @@ public class LoanDetailsService {
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.YELLOW);
 							experianDao.save(experian);
-						} else {
+						} else if (bankCode != null && experian.getResponse() != null && !yellowPincode) {
 							List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode);
 							if (!ntbLoans.isEmpty()) {
 								if (loanEligibilityDTOs.isEmpty()) {
