@@ -645,7 +645,7 @@ public class LoanDetailsService {
 								} else if (loanEligibilityDTOs.get(0).getAmount() < ntbLoans.get(0).getAmount()) {
 									loanEligibilityDTOs.clear();
 									loanEligibilityDTOs.addAll(ntbLoans);
-									lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", "High Loan Amount For NTB", null));
+									lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", "High Loan Amount For NTB", String.valueOf(loanEligibilityDTOs.get(0).getAmount())));
 								}
 							}
 						}
