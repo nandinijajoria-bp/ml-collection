@@ -616,30 +616,38 @@ public class LoanDetailsService {
 						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 					}
 					//fetching NTB loans
-					if (!rejected && loanEligibilityDTOs.isEmpty()) {
-						Crif crif = crifDao.findByMerchantId(merchant.getId());
+					if (!rejected && !isFromSwipe && !isZomato) {
 						experian.setReason(null);
 						experianDao.save(experian);
-						if (bankCode == null) {
+						if (bankCode == null && loanEligibilityDTOs.isEmpty()) {
 							logger.info("Non enachable bank code, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 							experian.setCategory("1N");
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.ENACH);
 							experianDao.save(experian);
-						} else if (experian.getResponse() == null && (crif == null || crif.getResponse() == null)) {
+						} else if (experian.getResponse() == null && loanEligibilityDTOs.isEmpty()) {
 							logger.info("NTC merchant, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 							experian.setCategory("1N");
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.NTC);
 							experianDao.save(experian);
-						} else if (yellowPincode) {
+						} else if (yellowPincode && loanEligibilityDTOs.isEmpty()) {
 							logger.info("Yellow pincode, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 							experian.setCategory("1N");
 							experian.setColor(ExperianConstants.COLOR.RED.name());
 							experian.setReason(ExperianConstants.YELLOW);
 							experianDao.save(experian);
 						} else {
-							loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));
+							List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode);
+							if (!ntbLoans.isEmpty()) {
+								if (loanEligibilityDTOs.isEmpty()) {
+									loanEligibilityDTOs.addAll(ntbLoans);
+								} else if (loanEligibilityDTOs.get(0).getAmount() < ntbLoans.get(0).getAmount()) {
+									loanEligibilityDTOs.clear();
+									loanEligibilityDTOs.addAll(ntbLoans);
+									lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", "High Loan Amount For NTB", null));
+								}
+							}
 						}
 					}
 					LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
