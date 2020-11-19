@@ -678,9 +678,9 @@ public class LoanDetailsService {
 					if(!isFromSwipe) {
 						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 					}
-					if (!loanEligibilityDTOs.isEmpty()) {
-						executorService.submit(() -> apiGatewayService.signZyPanGst(merchant.getId()));
-					}
+//					if (!loanEligibilityDTOs.isEmpty()) {
+//						executorService.submit(() -> apiGatewayService.signZyPanGst(merchant.getId()));
+//					}
 				}
 //			}
 			boolean ogl = false;
