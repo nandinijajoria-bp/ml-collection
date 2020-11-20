@@ -7,6 +7,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -46,6 +47,9 @@ public class LendingMerchantLoansResponseDTO {
         private String loanType;
         private String status;
         private Double paidAmount;
+        private Double lastEdiPaid;
+        @JsonProperty(value = "showPaynow")
+        private boolean showPaynow = false;
 
         public Loan() {
         }
@@ -190,6 +194,22 @@ public class LendingMerchantLoansResponseDTO {
             this.paidAmount = paidAmount;
         }
 
+        public Double getLastEdiPaid() {
+            return lastEdiPaid;
+        }
+
+        public void setLastEdiPaid(Double lastEdiPaid) {
+            this.lastEdiPaid = lastEdiPaid;
+        }
+
+        public boolean isShowPaynow() {
+            return showPaynow;
+        }
+
+        public void setShowPaynow(boolean showPaynow) {
+            this.showPaynow = showPaynow;
+        }
+
         public Loan loanId(Long loanId) {
             this.loanId = loanId;
             return this;
@@ -305,12 +325,12 @@ public class LendingMerchantLoansResponseDTO {
         String endDate = lendingPaymentSchedule.getTentativeClosingDate() != null
                 ? lendingPaymentSchedule.getTentativeClosingDate().toString()
                 : "";
-        String loanType = application.getLoanType() != null ? application.getLoanType() : "";
+        String loanType = application != null && application.getLoanType() != null ? application.getLoanType() : "";
         String status = lendingPaymentSchedule.getStatus() != null ? lendingPaymentSchedule.getStatus() : "ACTIVE";
-        Double interestRate = application.getInterestRate() != null ? application.getInterestRate() : 0d;
-        Double processingFee = application.getProcessingFee() != null ? application.getProcessingFee() : 0d;
+        Double interestRate = application != null && application.getInterestRate() != null ? application.getInterestRate() : 0d;
+        Double processingFee = application != null && application.getProcessingFee() != null ? application.getProcessingFee() : 0d;
         Double disbursedAmount = loanAmount - processingFee;
-        String tenure = application.getTenure() != null ? application.getTenure() : "";
+        String tenure = application != null && application.getTenure() != null ? application.getTenure() : "";
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
                 disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount());

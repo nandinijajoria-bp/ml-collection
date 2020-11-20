@@ -1,8 +1,6 @@
 package com.bharatpe.lending.service;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
@@ -90,6 +88,9 @@ public class LiquiloansService {
     
     @Autowired
 	LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+	LoanAgreementDao loanAgreementDao;
     
     @Autowired
     LendingPancardDao lendingPancardDao;
@@ -114,8 +115,6 @@ public class LiquiloansService {
 
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
-    @Autowired
-	LoanAgreementDao loanAgreementDao;
 
     @Autowired
 	S3BucketHandler s3BucketHandler;
@@ -298,8 +297,24 @@ public class LiquiloansService {
     		logger.info("Changing loan_disbursal_status to 'DISBURSED'");
     		lendingApplication.setLoanDisbursalStatus("DISBURSED");
 			lendingApplication.setDisburseTimestamp(new Date());
-			lendingApplication.setAccountType("INVESTOR_FUNDS");
+			lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender())? "NBFC_FUNDS" : "INVESTOR_FUNDS");
     		lendingApplicationDao.save(lendingApplication);
+
+			if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
+				try {
+					Long merchantId= lendingApplication.getMerchant().getId();
+					Long applicationId = lendingApplication.getId();
+					Map<String,Long> detailMap=new HashMap<String, Long>(){{
+						put("merchantId",merchantId);
+						put("applicationId",applicationId);
+					}};
+					kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
+					logger.info("Pushed "+detailMap+" to topic create_gst_invoice");
+				}
+				catch(Exception e) {
+					logger.error("Error occured while pushing to toipc create_gst_invoice",e);
+				}
+			}
 
     		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
     		if (lendingPaymentSchedule != null) {
@@ -448,21 +463,9 @@ public class LiquiloansService {
 				e.printStackTrace();
 			}
 		}
-		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-			sms1= "Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
-					"Your BharatPe Loan of Rs."+ lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:"+shortUrl;
-		}
-		else if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
-			sms1="Congratulations!\nYour Loan of Rs."+lendingApplication.getDisbursalAmount()+" is disbursed to your "+merchantBankDetail.getBankName()+" A/c Successfully! \n" + 
-					"Daily Installment of Rs."+lendingApplication.getEdi()+" will be deducted from your BharatPe Settlement everyday.\n\n" +
-					"Transact on BharatPe QR everyday to ensure timely repayment.";
-		}
-		else {
-			sms1="Hi  "+merchantBankDetail.getBeneficiaryName()+"\n"+
-					"Your BharatPe Loan of Rs."+lendingApplication.getLoanAmount()+" is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:"+shortUrl + ". To ensure timely repayment,Please do sufficient transactions on BharatPe QR on Daily basis.";
-		}
+		sms1="Hi "+merchantBankDetail.getBeneficiaryName()+"\n"+
+				"Your BharatPe Loan of Rs."+lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
+				"Here is a copy of the Loan agreement for your reference:"+shortUrl;
 
 		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
@@ -480,6 +483,11 @@ public class LiquiloansService {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
+		if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
+			String newMessage = "Hi "+merchantBankDetail.getBeneficiaryName()+"\nRs. " + lendingApplication.getDisbursalAmount() + " Loan is transferred to your A/c net of Rs." + lendingApplication.getProcessingFee() + " processing fees. Repay loan timely through QR Txns to get PF charges refunded.";
+			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, newMessage, NotificationProvider.SMS.GUPSHUP);
+			whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, null);
+		}
 	}
          
 	 public Date getDateAfterNMonths(Date startDate, int month){
@@ -945,6 +953,5 @@ public class LiquiloansService {
 		bd = bd.setScale(2, RoundingMode.HALF_UP);
 		return bd.doubleValue();
 	}
-
 
 }

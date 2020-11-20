@@ -301,7 +301,6 @@ public class SignAgreementService {
 				lendingApplicationService.createBBSSnapshot(newApplication);
 			}
 			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
-			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), newApplication);
 		}
 		return response;
 	}

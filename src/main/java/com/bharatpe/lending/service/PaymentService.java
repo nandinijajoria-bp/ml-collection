@@ -74,6 +74,9 @@ public class PaymentService {
 
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
+
+	@Autowired
+	RedisNotificationService redisNotificationService;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -118,8 +121,6 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
-				String sms = "Dear Khushal Virmani,\nThis is to inform you that your daily transactions have fallen to Rs.0 in last 3 days. Continue transacting on your BharatPe QR to pay your EDI of Rs.100 on time. Payment defaults can impact your credit score.";
-				whatsappNotificationService.sendWithImage(merchant, null, sms, new ArrayList<String>(){{add("919971011197");}}, null, "https://merchant-qr.s3.ap-south-1.amazonaws.com/v2/8d0cd6a2-3493-4096-a416-98c9331e39f2.png");
 				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
 				if (lendingVirtualAccount != null) {
 					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
@@ -155,6 +156,9 @@ public class PaymentService {
 			order.setOwnerId(activeLoan.getId());
 			order.setAmount(Double.valueOf(amount));
 			order.setStatus("INIT");
+			if (request.getPayload().getSource() != null) {
+				order.setSource(request.getPayload().getSource().name());
+			}
 			order = loanPaymentOrderDao.save(order);
 			String orderId = "LOAN" + (10000000L + order.getId());
 			order.setOrderId(orderId);
@@ -204,7 +208,7 @@ public class PaymentService {
 				return "OK";
 			}
 			if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
-				logger.error("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
+				logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
 				return "OK";
 			}
 			if(request.getAmount() == null || request.getAmount() <= 0D) {
@@ -223,7 +227,7 @@ public class PaymentService {
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
-			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber());
+			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource());
 			order.setBankRefNo(request.getBankReferenceNumber());
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
@@ -258,7 +262,7 @@ public class PaymentService {
 		return "PREPAYMENT : " + bankRRN;
 	}
 	
-	private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle, Double interest, String description) {
+	private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle, Double interest, String description, String source) {
         if(amount == 0) {
             return;
         }
@@ -277,8 +281,12 @@ public class PaymentService {
         lendingLedger.setOtherCharges(0D);
         lendingLedger.setPenalty(0D);
         lendingLedger.setPrinciple(principle);
-        lendingLedger.setAdjustmentMode("UPI");
-        
+        if (source != null) {
+			lendingLedger.setAdjustmentMode(source);
+		} else {
+			lendingLedger.setAdjustmentMode("UPI");
+		}
+
         lendingLedger.setDescription(description);
         
         lendingLedgerDao.save(lendingLedger);
@@ -324,7 +332,7 @@ public class PaymentService {
 		paymentDetails.add(getBankTransferMode());
 		paymentDetails.add(getGPAYMode());
 		ResponseDTO responseDTO = new ResponseDTO();
-		paymentDetails.removeIf(paymentDetailDto -> paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount());
+		paymentDetails.removeIf(paymentDetailDto -> (paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount()));
 		if (paymentDetails.isEmpty()) {
 			responseDTO.setSuccess(false);
 			responseDTO.setMessage("No Payment Mode Found");
@@ -349,7 +357,7 @@ public class PaymentService {
 
 	private PaymentDetailDto getGPAYMode() {
 		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
-		paymentDetailDto.setName("Google Pay");
+		paymentDetailDto.setName("Pay Using Google Pay");
 		paymentDetailDto.setType("UPI");
 		paymentDetailDto.setFundSource("UPI");
 		paymentDetailDto.setAmountLimit(100000D);
@@ -373,7 +381,7 @@ public class PaymentService {
 		return new ResponseDTO(false, "Unable to resend otp");
 	}
 
-	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo) {
+	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source) {
 		logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
 		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 		Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
@@ -387,9 +395,9 @@ public class PaymentService {
 			paidPrincipalAmount = amount - paidInterestAmount;
 
 			if(activeLoan.getDueAmount() >= 0) {
-				createLendingLedger(activeLoan, -1 * (amount - activeLoan.getDueAmount()) , -1 * (amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
+				createLendingLedger(activeLoan, -1 * (amount - activeLoan.getDueAmount()) , -1 * (amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			} else {
-				createLendingLedger(activeLoan, -1 * amount , -1 * amount - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT");
+				createLendingLedger(activeLoan, -1 * amount , -1 * amount - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			}
 
 			activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount);
@@ -488,18 +496,20 @@ public class PaymentService {
 					if (activeLoan.getEdiRemainingCount() == 0 && activeLoan.getAdjustedDueAmount() != null && activeLoan.getAdjustedDueAmount() > 0D) {
 						activeLoan.setDueAmount(activeLoan.getDueAmount() + activeLoan.getAdjustedDueAmount());
 						activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() + activeLoan.getAdjustedDueAmount());
-						createLendingLedger(activeLoan, -1*activeLoan.getAdjustedDueAmount(), -1*activeLoan.getAdjustedDueAmount(), 0D, "ADJUSTED_DUE_AMOUNT");
+						createLendingLedger(activeLoan, -1*activeLoan.getAdjustedDueAmount(), -1*activeLoan.getAdjustedDueAmount(), 0D, "ADJUSTED_DUE_AMOUNT", source);
 						activeLoan.setAdjustedDueAmount(0D);
 					}
 				}
 				paidPrincipalAmount+=totalPaid;
-				createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT");
+				createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT", source);
 			}
 		}
 
-		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo));
+		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo), source);
 		lendingPaymentScheduleDao.save(activeLoan);
-
+		if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+			redisNotificationService.sendRepaymentNudge(activeLoan.getMerchant(), activeLoan.getLoanApplication().getProcessingFee());
+		}
 		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
 		notificationExecutor.submit(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));
@@ -529,7 +539,7 @@ public class PaymentService {
 			return new ResponseDTO(false, "Order not found");
 		}
 		if(!"PENDING".equalsIgnoreCase(loanPaymentOrder.getStatus())) {
-			logger.error("Payment for merchant id {} and order id {} is already processed", loanPaymentOrder.getMerchant().getId(), loanPaymentOrder.getOrderId());
+			logger.info("Payment for merchant id {} and order id {} is already processed", loanPaymentOrder.getMerchant().getId(), loanPaymentOrder.getOrderId());
 			return new ResponseDTO(false, "Duplicate request");
 		}
 		Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanPaymentOrder.getOwnerId());
@@ -548,13 +558,15 @@ public class PaymentService {
 					loanPaymentOrder.setStatus("FAILED");
 					loanPaymentOrderDao.save(loanPaymentOrder);
 				} else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
-					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null);
+					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null, loanPaymentOrder.getSource());
 					loanPaymentOrder.setStatus("SUCCESS");
 					loanPaymentOrderDao.save(loanPaymentOrder);
 				}
 				return new ResponseDTO(true, "success");
 			} else {
-				logger.error("BPB verification failed for loan payment order:{}", loanPaymentOrder.getOrderId());
+				logger.info("BPB verification failed for loan payment order:{}", loanPaymentOrder.getOrderId());
+				loanPaymentOrder.setStatus("FAILED");
+				loanPaymentOrderDao.save(loanPaymentOrder);
 			}
 		} catch (Exception e) {
 			logger.error("Exception in payment verify", e);

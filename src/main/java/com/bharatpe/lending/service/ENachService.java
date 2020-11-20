@@ -90,7 +90,6 @@ public class ENachService {
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion){
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
-        final double LOAN_AMOUNT = 100000d;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
         if(lendingApplication == null) {
@@ -118,9 +117,9 @@ public class ENachService {
             logger.error("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
-        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode, LOAN_AMOUNT, mandateDate, merchant.getMid());
+        LendingEnach lendingEnach = new LendingEnach(merchant.getId(), lendingApplication.getId(), bankCode, lendingApplication.getLoanAmount(), mandateDate, merchant.getMid());
         lendingEnach = lendingEnachDao.save(lendingEnach);
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingEnach.getId(), lendingEnach.getId(), bankCode, lendingApplication.getLoanAmount(), mandateDate, lendingApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
         return responseDTO;
     }
 

@@ -3,15 +3,13 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.common.dao.PhonebookDao;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.Phonebook;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.LendingEkyc;
@@ -47,6 +45,12 @@ public class ImageURLService {
 	@Autowired
 	LendingEkycDao lendingEkycDao;
 
+	@Autowired
+	PhonebookDao phonebookDao;
+
+	@Autowired
+	RedisNotificationService redisNotificationService;
+
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 	
@@ -71,11 +75,24 @@ public class ImageURLService {
 			result.put("success", false);
 			return result;
 		}
+		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
+		if (finalCall) {
+			Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+			if (!phonebook.isPresent() && "NTB".equals(lendingApplication.getLoanType())) {
+				logger.info("Contacts not synced for merchant:{}", merchant.getId());
+				result.put("success", false);
+				result.put("message", "CONTACTS_NOT_SYNCED");
+				return result;
+			}
+		}
 		result.put("isEKYC",ekycDone);
 		result.put("allow_route", allowRoute(lendingApplication, merchant, ekycDone));
 		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
 		result.put("proofs", data);
 		result.put("success", true);
+		if (finalCall) {
+			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), lendingApplication);
+		}
 		return result;
 	}
 

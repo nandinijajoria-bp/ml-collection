@@ -133,7 +133,7 @@ public class LoanUtil {
 			shopDetails.setGstNumber(lendingGstDetail.getGstNumber());
 			shopDetails.setHasGST(lendingGstDetail.getGst());
 			shopDetails.setBusinessCategory(lendingGstDetail.getBusinessCategory());
-			shopDetails.setSalary(String.valueOf(lendingGstDetail.getSalary()));
+			shopDetails.setSalary(lendingGstDetail.getSalary() != null ? String.valueOf(lendingGstDetail.getSalary()) : "");
 			shopDetails.setExperience(lendingGstDetail.getExperience());
 		}
 		return shopDetails;
@@ -199,6 +199,14 @@ public class LoanUtil {
 		put("REFUND", "Refund");
 		put("BHARATPE_NACH", "NACH");
 		put("UPI","UPI");
+		put("SCHEME2","Waiver");
+		put("SCHEME1","Waiver");
+		put("SCHEME3","Waiver");
+		put("FP","Interest A/c");
+		put("UNSETTLED","QR Txns.");
+		put("DIRECT_TRANSFER","Offline");
+		put("EXCEPTION","Offline");
+		put("QR_SETTLEMENT","QR Txns.");
 	}};
 
 	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData){

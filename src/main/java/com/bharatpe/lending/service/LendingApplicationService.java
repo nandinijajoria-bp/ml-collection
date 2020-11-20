@@ -171,7 +171,6 @@ public class LendingApplicationService {
 			createMerchantScoreSnapshot(lendingApplication);
 			createStatusAuditTrail(lendingApplication);
 		}
-		redisNotificationService.sendNotificationForAppliedApplication(merchantId, lendingApplication);
 		logger.info("Loan Application saved : {}",lendingApplication);
 		return prepareAPIResponse(lendingApplication,false);
 	}
@@ -233,7 +232,6 @@ public class LendingApplicationService {
 			}
 			lendingApplicationDao.save(newApplication);
 			signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
-			redisNotificationService.sendNotificationForAppliedApplication(prevLoan.getMerchant().getId(), newApplication);
 			return prepareAPIResponse(newApplication,true);
 		}
 		catch(Exception e) {
@@ -430,7 +428,7 @@ public class LendingApplicationService {
 			lendingGstDetail.setExperience(lendingApplicationRequest.getExperience());
 			lendingGstDetail.setGst(lendingApplicationRequest.getHasGST());
 			lendingGstDetail.setGstNumber(lendingApplicationRequest.getGstNumber());
-			lendingGstDetail.setSalary(Double.valueOf(lendingApplicationRequest.getSalary()));
+			lendingGstDetail.setSalary(lendingApplicationRequest.getSalary() != null && !lendingApplicationRequest.getSalary().trim().equals("") ? Double.parseDouble(lendingApplicationRequest.getSalary()) : 0D);
 			lendingGstDao.save(lendingGstDetail);
 		}
 	}
