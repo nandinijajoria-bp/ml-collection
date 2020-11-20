@@ -48,17 +48,12 @@ public class LendingApplicationService {
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
 
-	@Autowired
-	LoanEligibleService loanEligibleService;
 
 	@Autowired
 	LendingGstDao lendingGstDao;
 
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;
-
-	@Autowired
-	CrifDao crifDao;
 
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
@@ -67,35 +62,17 @@ public class LendingApplicationService {
 	GupShupOTPHandler gupShupOTPHandler;
 
 	@Autowired
-	BankListDao bankListDao;
-
-	@Autowired
-	LendingPartnerOffersDao lendingPartnerOffersDao;
-
-	@Autowired
 	MerchantDao merchantDao;
-
-	@Autowired
-	LendingPancardDao lendingPancardDao;
-
-	@Autowired
-	ENachService eNachService;
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-	@Autowired
-	NewToBharatpeService newToBharatpeService;
-	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
 
-	@Autowired
-	MerchantSummaryLendingDao merchantSummaryLendingDao;
-	
 	@Autowired
 	RedisNotificationService redisNotificationService;
 	
@@ -1545,7 +1522,4 @@ public class LendingApplicationService {
 			return responseDTO;
 		}
 	}
-
-
-
 }

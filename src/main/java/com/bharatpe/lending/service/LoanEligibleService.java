@@ -337,8 +337,6 @@ public class LoanEligibleService {
     private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard) {
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-        logger.info("Experian Skip:{}",experian.isSkip());
-        logger.info("pancard :{}",pancard);
         if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
             experian.setNoExperian(true);
