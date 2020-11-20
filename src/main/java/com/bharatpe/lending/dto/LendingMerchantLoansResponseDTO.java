@@ -48,6 +48,7 @@ public class LendingMerchantLoansResponseDTO {
         private String status;
         private Double paidAmount;
         private Double lastEdiPaid;
+        private Double repaymentAmount;
         @JsonProperty(value = "showPaynow")
         private boolean showPaynow = false;
 
@@ -56,7 +57,7 @@ public class LendingMerchantLoansResponseDTO {
 
         public Loan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
-                String startDate, String endDate, String loanType, String status, Double paidAmount) {
+                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount) {
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -72,6 +73,7 @@ public class LendingMerchantLoansResponseDTO {
             this.loanType = loanType;
             this.status = status;
             this.paidAmount = paidAmount;
+            this.repaymentAmount = repaymentAmount;
         }
 
         public Long getLoanId() {
@@ -210,6 +212,14 @@ public class LendingMerchantLoansResponseDTO {
             this.showPaynow = showPaynow;
         }
 
+        public Double getRepaymentAmount() {
+            return repaymentAmount;
+        }
+
+        public void setRepaymentAmount(Double repaymentAmount) {
+            this.repaymentAmount = repaymentAmount;
+        }
+
         public Loan loanId(Long loanId) {
             this.loanId = loanId;
             return this;
@@ -333,7 +343,7 @@ public class LendingMerchantLoansResponseDTO {
         String tenure = application != null && application.getTenure() != null ? application.getTenure() : "";
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount());
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount());
     }
 
     public boolean getSuccess() {
