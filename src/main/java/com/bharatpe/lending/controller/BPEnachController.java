@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.annotation.RequestScope;
 
 import javax.servlet.http.HttpServletRequest;
-//import javax.xml.ws.RequestWrapper;
+import javax.xml.ws.RequestWrapper;
 
 @RestController
 @RequestMapping("bpenach")
