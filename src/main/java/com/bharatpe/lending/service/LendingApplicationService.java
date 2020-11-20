@@ -2,13 +2,10 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.dao.ExperianSnapshotDao;
-import com.bharatpe.lending.common.dao.LendingBBSDao;
-import com.bharatpe.lending.common.dao.LendingBBSSnapshotDao;
-import com.bharatpe.lending.common.entity.ExperianSnapshot;
-import com.bharatpe.lending.common.entity.LendingBBS;
-import com.bharatpe.lending.common.entity.LendingBBSSnapshot;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -51,6 +48,7 @@ public class LendingApplicationService {
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
 
+
 	@Autowired
 	LendingGstDao lendingGstDao;
 
@@ -69,13 +67,12 @@ public class LendingApplicationService {
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
-	
+
 	@Autowired
 	RedisNotificationService redisNotificationService;
 	

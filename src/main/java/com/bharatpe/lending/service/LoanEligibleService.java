@@ -246,6 +246,7 @@ public class LoanEligibleService {
             if (experian.getResponse() != null) {
                 responseUtil = getCreditBureauResponse(experian);
                 reportDate = responseUtil.getReportDate();
+                experian.setReportDate(reportDate);
                 isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             }
             if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
@@ -277,6 +278,10 @@ public class LoanEligibleService {
                 experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
             }
             responseUtil = getCreditBureauResponse(experian);
+            if(responseUtil != null && responseUtil.getReportDate() != null){
+                experian.setReportDate(responseUtil.getReportDate());
+                experianDao.save(experian);
+            }
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
                 String email = responseUtil.getEmail();
                 Double bureauScore = responseUtil.getBureauScore();
