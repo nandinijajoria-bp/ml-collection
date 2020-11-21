@@ -278,10 +278,10 @@ public class LoanEligibleService {
                 experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
             }
             responseUtil = getCreditBureauResponse(experian);
-            if(responseUtil != null && responseUtil.getReportDate() != null){
-                experian.setReportDate(responseUtil.getReportDate());
-                experianDao.save(experian);
-            }
+//            if(responseUtil != null && responseUtil.getReportDate() != null){
+//                experian.setReportDate(responseUtil.getReportDate());
+//                experianDao.save(experian);
+//            }
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
                 String email = responseUtil.getEmail();
                 Double bureauScore = responseUtil.getBureauScore();
