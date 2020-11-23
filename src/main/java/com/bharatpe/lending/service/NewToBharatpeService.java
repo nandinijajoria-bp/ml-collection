@@ -73,7 +73,7 @@ public class NewToBharatpeService {
     private static final double CREDIT_HISTORY_WEIGHT = 0.1;
     private static final double BBS_MULTIPLIER = 300;
 
-    public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian, boolean yellowPincode) {
+    public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian, boolean yellowPincode, boolean hasRegularLoan) {
 		logger.info("Fetching NTB loans for merchant:{}", experian.getMerchantId());
 //        if (experian.getResponse() == null) {
 //            logger.info("Merchant:{} not eligible for BBS", merchant.getId());
@@ -89,56 +89,66 @@ public class NewToBharatpeService {
 				return new ArrayList<>();
 			}
 			logger.info("BBS:{} for merchant:{}", lendingBBS.getBbs(), experian.getMerchantId());
-        	if (!baseChecks(lendingBBS, merchant, experian, yellowPincode)) {
+        	if (!baseChecks(lendingBBS, merchant, experian, yellowPincode, hasRegularLoan)) {
 				logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
 				return new ArrayList<>();
 			}
-			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode);
+			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode, hasRegularLoan);
         } catch (Exception e) {
             logger.error("Exception in BBS---", e);
             return new ArrayList<>();
         }
     }
 
-    private boolean baseChecks(LendingBBS lendingBBS, Merchant merchant, Experian experian, boolean yellowPincode) {
+    private boolean baseChecks(LendingBBS lendingBBS, Merchant merchant, Experian experian, boolean yellowPincode, boolean hasRegularLoan) {
 		if (lendingBBS.getBbs() < 500) {
 			logger.info("BBS less than 500, rejecting merchant:{}", merchant.getId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.LOW_BBS);
-			experianDao.save(experian);
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.LOW_BBS);
+				experianDao.save(experian);
+			}
 			return false;
 		}
 		if (checkVintage(merchant) < 30 && ((yellowPincode && lendingBBS.getBbs() < 700) || (!yellowPincode && lendingBBS.getBbs() < 650))) {
 			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-			experianDao.save(experian);
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+				experianDao.save(experian);
+			}
 			return false;
 		}
 		if (checkVintage(merchant) < 60 && ((yellowPincode && lendingBBS.getBbs() < 650) || (!yellowPincode && lendingBBS.getBbs() < 600))) {
 			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-			experianDao.save(experian);
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+				experianDao.save(experian);
+			}
 			return false;
 		}
 		if (checkVintage(merchant) < 90 && ((yellowPincode && lendingBBS.getBbs() < 600) || (!yellowPincode && lendingBBS.getBbs() < 550))) {
 			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-			experianDao.save(experian);
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+				experianDao.save(experian);
+			}
 			return false;
 		}
 		if (checkVintage(merchant) >= 90 && ((yellowPincode && lendingBBS.getBbs() < 550) || (!yellowPincode && lendingBBS.getBbs() < 500))) {
 			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-			experianDao.save(experian);
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+				experianDao.save(experian);
+			}
 			return false;
 		}
 		return true;
@@ -194,16 +204,18 @@ public class NewToBharatpeService {
         return lendingBBS;
     }
 
-	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS, boolean yellowPincode){
+	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS, boolean yellowPincode, boolean hasRegularLoan){
 		try {
 			logger.info("Calculating ntb loan for merchant:{}", experian.getMerchantId());
 			double netFreeIncomePercent = lendingBBS.getIncome() > 0 ? (lendingBBS.getNetFreeIncome() / lendingBBS.getIncome()) * 100 : 0d;
 			if(netFreeIncomePercent < 10.0D) {
 				logger.info("NFI less than 10%, rejecting merchant:{}", merchant.getId());
-				experian.setCategory("1N");
-				experian.setColor(ExperianConstants.COLOR.RED.name());
-				experian.setReason(ExperianConstants.LOW_NFI);
-				experianDao.save(experian);
+				if (!hasRegularLoan) {
+					experian.setCategory("1N");
+					experian.setColor(ExperianConstants.COLOR.RED.name());
+					experian.setReason(ExperianConstants.LOW_NFI);
+					experianDao.save(experian);
+				}
 				return new ArrayList<>();
 			}
 			double extraPercent = netFreeIncomePercent - 10D;
@@ -218,7 +230,7 @@ public class NewToBharatpeService {
 			experian.setCategory(category);
 			experian.setColor(ExperianConstants.COLOR_TO_CATEGORY.get(category));
 			experianDao.save(experian);
-			return getEligibleLoans(merchant, category, amountToServe, experian, yellowPincode, lendingBBS.getBbs());
+			return getEligibleLoans(merchant, category, amountToServe, experian, yellowPincode, lendingBBS.getBbs(), hasRegularLoan);
 		}
 		catch(Exception e) {
 			logger.error("Error occurred while fetching loan for BBS",e);
@@ -226,7 +238,7 @@ public class NewToBharatpeService {
 		return new ArrayList<>();
 	}
 
-	private List<LoanEligibilityDTO> getEligibleLoans(Merchant merchant,String category, Double amountToServe,Experian experian, boolean yellowPincode, double bbs){
+	private List<LoanEligibilityDTO> getEligibleLoans(Merchant merchant,String category, Double amountToServe,Experian experian, boolean yellowPincode, double bbs, boolean hasRegularLoan){
 		List<LendingCategories> lendingCategories=lendingCategoryDao.getByMasterCategoryForConstruct1(category);
 		if(lendingCategories==null || lendingCategories.isEmpty()) {
 			logger.error("No active lending category found for merchant: {}", merchant.getId());
@@ -290,7 +302,7 @@ public class NewToBharatpeService {
 		if (!loanEligibilityDTOList.isEmpty()) {
 			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
 		}
-		if (loanEligibilityDTOList.isEmpty()) {
+		if (loanEligibilityDTOList.isEmpty() && !hasRegularLoan) {
 			logger.info("Low ATS, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 			experian.setCategory("1N");
 			experian.setColor(ExperianConstants.COLOR.RED.name());

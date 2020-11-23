@@ -641,7 +641,7 @@ public class LoanDetailsService {
 							experian.setReason(ExperianConstants.YELLOW);
 							experianDao.save(experian);
 						} else if (bankCode != null && experian.getResponse() != null && !yellowPincode) {
-							List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode);
+							List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode, !loanEligibilityDTOs.isEmpty());
 							if (!ntbLoans.isEmpty()) {
 								if (loanEligibilityDTOs.isEmpty()) {
 									loanEligibilityDTOs.addAll(ntbLoans);
@@ -1431,7 +1431,7 @@ public class LoanDetailsService {
 				experian.setReason(ExperianConstants.YELLOW);
 				experianDao.save(experian);
 			} else {
-				loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode));
+				loanEligibilityDTOs.addAll(newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode, false));
 			}
 		}
 
