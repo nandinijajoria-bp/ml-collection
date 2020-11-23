@@ -646,9 +646,14 @@ public class LoanDetailsService {
 								if (loanEligibilityDTOs.isEmpty()) {
 									loanEligibilityDTOs.addAll(ntbLoans);
 								} else if (loanEligibilityDTOs.get(0).getAmount() < ntbLoans.get(0).getAmount()) {
+									logger.info("Deleting Non NTB eligible loans for merchant: {}", merchant.getId());
+									eligibleLoanDao.deleteNonNTB(merchant.getId());
 									lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", "High Loan Amount For NTB", String.valueOf(loanEligibilityDTOs.get(0).getAmount())));
 									loanEligibilityDTOs.clear();
 									loanEligibilityDTOs.addAll(ntbLoans);
+								} else {
+									logger.info("Deleting NTB eligible loans for merchant: {}", merchant.getId());
+									eligibleLoanDao.deleteByMerchantIdAndLoanType(merchant.getId(), "NTB");
 								}
 							}
 						}

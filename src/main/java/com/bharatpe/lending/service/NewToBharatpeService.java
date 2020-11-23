@@ -234,8 +234,8 @@ public class NewToBharatpeService {
 		}
 		List<LoanEligibilityDTO> loanEligibilityDTOList = new LinkedList<>();
 		String loanType = "NTB";
-		logger.info("Deleting eligible loans for merchant: {}", merchant.getId());
-		eligibleLoanDao.deleteByMerchantId(merchant.getId());
+		logger.info("Deleting NTB eligible loans for merchant: {}", merchant.getId());
+		eligibleLoanDao.deleteByMerchantIdAndLoanType(merchant.getId(), "NTB");
 		for (LendingCategories lendingCategory : lendingCategories) {
 			double loanAmount = (amountToServe * lendingCategory.getTenureMonths());
 			if (bbs >= 500 && bbs <= 600) {
