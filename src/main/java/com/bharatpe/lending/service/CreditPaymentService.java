@@ -616,11 +616,7 @@ public class CreditPaymentService {
                             if (principleAdjusted >= remainingAmount) {
                                 double extraAmount = principleAdjusted - remainingAmount;
                                 if (extraAmount > 0) {
-                                    LendingEDISchedule lastSchedule = ediSchedules.get(ediSchedules.size()-1);
-                                    lastSchedule.setPrinciple(lastSchedule.getPrinciple() + extraAmount);
-                                    lastSchedule.setInterest(lastSchedule.getInterest() + ediSchedule.getInterest());
-                                    lastSchedule.setTotalEdi((int)(double)(lastSchedule.getPrinciple()+lastSchedule.getInterest()));
-                                    lendingEDIScheduleDao.save(lastSchedule);
+                                    lendingPaymentSchedule.setAdjustedDueAmount(lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() + extraAmount : extraAmount);
                                     principleAdjusted -= extraAmount;
                                 }
                                 break;
@@ -635,6 +631,12 @@ public class CreditPaymentService {
                             lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + totalPaid);
                             lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + totalPaid);
                             lendingPaymentSchedule.setTotalPayableAmount(lendingPaymentSchedule.getTotalPayableAmount() - interestAdjusted);
+                        }
+                        if (lendingPaymentSchedule.getEdiRemainingCount() == 0 && lendingPaymentSchedule.getAdjustedDueAmount() != null && lendingPaymentSchedule.getAdjustedDueAmount() > 0D) {
+                            lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() + lendingPaymentSchedule.getAdjustedDueAmount());
+                            lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() + lendingPaymentSchedule.getAdjustedDueAmount());
+                            lendingLedgers.add(createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), Status.LendingTransactionType.EDI.toString(), -1*lendingPaymentSchedule.getAdjustedDueAmount(), -1*lendingPaymentSchedule.getAdjustedDueAmount(), 0d, 0d, 0d, "ADJUSTED_DUE_AMOUNT", lendingClTransaction.getSubType()));
+                            lendingPaymentSchedule.setAdjustedDueAmount(0D);
                         }
                     }
                     if (totalPaid > 0) {
