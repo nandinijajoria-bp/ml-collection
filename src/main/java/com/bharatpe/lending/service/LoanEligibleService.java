@@ -820,7 +820,7 @@ public class LoanEligibleService {
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
         logger.info("score:{} for merchant:{}", bureauScore, merchantId);
-        Integer maxAmount = bureauScore > 0 && bureauScore < 700 ? new Integer(300000) : lendingCategories.getMaxTpvAmount();
+        Integer maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? new Integer(300000) : lendingCategories.getMaxTpvAmount();
         int ioPayableDays = lendingCategories.getIoPayableDays();
         String construct = lendingCategories.getLoanConstruct();
         String category = lendingCategories.getCategory();
@@ -831,9 +831,9 @@ public class LoanEligibleService {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 200000;
             } else {
-                maxAmount = bureauScore > 0 && bureauScore < 700 ? 300000 : 700000;
+                maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : 700000;
             }
-            if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount()) {
+            if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode) {
                 maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
