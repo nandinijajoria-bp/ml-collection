@@ -409,6 +409,7 @@ public class PaymentService {
 			activeLoan.setDuePrinciple(0D);
 
 			activeLoan.setStatus("CLOSED");
+			activeLoan.setClosingDate(new Date());
 		} else {
 			double balance=amount;
 			if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
@@ -459,6 +460,7 @@ public class PaymentService {
 					activeLoan.setDueInterest(0D);
 					activeLoan.setDuePrinciple(0D);
 					activeLoan.setStatus("CLOSED");
+					activeLoan.setClosingDate(new Date());
 				} else {
 					List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
 					if (ediSchedules == null || ediSchedules.isEmpty()) {
