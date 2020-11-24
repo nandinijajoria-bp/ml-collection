@@ -278,10 +278,6 @@ public class LoanEligibleService {
                 experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
             }
             responseUtil = getCreditBureauResponse(experian);
-//            if(responseUtil != null && responseUtil.getReportDate() != null){
-//                experian.setReportDate(responseUtil.getReportDate());
-//                experianDao.save(experian);
-//            }
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
                 String email = responseUtil.getEmail();
                 Double bureauScore = responseUtil.getBureauScore();
@@ -289,6 +285,7 @@ public class LoanEligibleService {
                 if(bureauScore != null) experian.setExperianScore(bureauScore);
                 experian.setResponse(responseUtil.getResponse());
                 experian.setBureau(responseUtil.getType());
+                experian.setReportDate(responseUtil.getReportDate());
                 experianDao.save(experian);
             } else if (goToExperianV2(experian, merchant, pancard)) {
                 return new ArrayList<>();
@@ -337,11 +334,11 @@ public class LoanEligibleService {
     private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard) {
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-        if ((!experian.isSkip() && experianDetails == null) || pancard != null) {
+        if ((!experian.isSkip() && experianDetails == null) || pancard != null || (experianDetails != null && LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
             experian.setNoExperian(true);
             return true;
-        } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+        } else if (!experian.isSkip() && experianDetails != null && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
             experian.setNoExperian(true);
             String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
