@@ -525,14 +525,6 @@ public class PaymentService {
 
 			loyaltyService.pushToKafka(requestBean);
 		}
-
-		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.LENDING_EDI)
-				.amount(amount)
-				.merchantStoreId(null)
-				.transactionId(activeLoan.getId())
-				.build();
-
-		loyaltyService.pushToKafka(requestBean);
 	}
 
 	public ResponseDTO verifyPayment(RequestDTO<PaymentResendOTP> requestDTO, Merchant merchant, String token) {
