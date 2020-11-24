@@ -135,6 +135,7 @@ public class VerifyOTPService {
 			return finalResponse;
 		}
 
+
 		return verifyOTP(otp, merchant, lendingApplication, commonAPIRequest.getMeta());
 	}
 	
@@ -242,11 +243,31 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+
+		if(merchant.getId().equals(1141505L) || merchant.getId().equals(2097359L)){
+			sendLatLong(merchant.getId(),lendingApplication.getId());
+		}
+
+
 		if (lendingApplication.getLoanAmount() <= 200000 && !lendingApplication.getLoanType().equalsIgnoreCase("NTB"))
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
+	}
+
+	public void sendLatLong(Long merchantId,Long applicationId){
+		try {
+			Map<String,Long> detailMap=new HashMap<String, Long>(){{
+				put("merchantId", merchantId);
+				put("applicationId",applicationId);
+			}};
+			kafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
+			logger.info("Pushed "+detailMap+" to topic find_lat_long");
+		}
+		catch(Exception e) {
+			logger.error("Error occured while pushing to topic find_lat_long",e);
+		}
 	}
 	
 	public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
