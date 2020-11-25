@@ -1323,6 +1323,7 @@ public class LoanDetailsService {
 		List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 
 		String bankCode = null;
+		Boolean sms = Boolean.FALSE;
 		bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 
 		//Bharat Swipe Loan Offers
@@ -1356,16 +1357,36 @@ public class LoanDetailsService {
 				experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
 				experian.setPincode(requestDTO.getPayload().getPinCode());
 				experianDao.save(experian);
+				if(!experian.getSource().equals("CREDIT_SCORE")){
+					sms = Boolean.TRUE;
+				}
 			} else {
 				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, pancard, (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, pincode));
 				experian.setSource("CREDIT_SCORE");
 				experianDao.save(experian);
+				sms = Boolean.TRUE;
 			}
+		}
+		BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
+		boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
+		LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+		if (lendingBlockedPancard != null) {
+			logger.info("Blocked pancard:{}", experian.getPancardNumber());
+			loanEligibilityDTOs.clear();
+			experian.setReason(ExperianConstants.BLOCKED_PANCARD);
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experianDao.save(experian);
+		} else if (paymentsBank) {
+			logger.info("Payments bank pancard:{}", experian.getPancardNumber());
+			loanEligibilityDTOs.clear();
+			experian.setReason(ExperianConstants.ENACH);
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experianDao.save(experian);
 		}
 
 		loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, false, pancard, merchantSummaryLending, isZomato, "NORMAL", yellowPincode, isFromSwipe, bankCode));
-		BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
-		boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
 
 		boolean rejected = false;
 		boolean noExperian = false;
@@ -1385,16 +1406,18 @@ public class LoanDetailsService {
 				maskedMobiles = experian.getMaskedMobiles();
 			}
 		}
-		//Fetch Zomato Loan
-		if (isZomato && !rejected) {
-			loanEligibilityDTOs.clear();
-			loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
-		}
+		if(experian.getResponse() != null && experian.getExperianScore() > 300D && experian.getExperianScore()!= null ){
+			//Fetch Zomato Loan
+			if (isZomato && !rejected) {
+				loanEligibilityDTOs.clear();
+				loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
+			}
 
-		//Fetch Bharat_Swipe Loan
-		if (isFromSwipe && !rejected) {
-			loanEligibilityDTOs.clear();
-			loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant, experian, lendingBharatswipeOffers));
+			//Fetch Bharat_Swipe Loan
+			if (isFromSwipe && !rejected) {
+				loanEligibilityDTOs.clear();
+				loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant, experian, lendingBharatswipeOffers));
+			}
 		}
 
 		if (!rejected && loanEligibilityDTOs.isEmpty()) {
@@ -1424,22 +1447,6 @@ public class LoanDetailsService {
 			}
 		}
 
-		LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
-		if (lendingBlockedPancard != null) {
-			logger.info("Blocked pancard:{}", experian.getPancardNumber());
-			loanEligibilityDTOs.clear();
-			experian.setReason(ExperianConstants.BLOCKED_PANCARD);
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experianDao.save(experian);
-		} else if (paymentsBank) {
-			logger.info("Payments bank pancard:{}", experian.getPancardNumber());
-			loanEligibilityDTOs.clear();
-			experian.setReason(ExperianConstants.ENACH);
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experianDao.save(experian);
-		}
 
 //		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 //		loanUtil.auditExperian(experian);
@@ -1459,17 +1466,22 @@ public class LoanDetailsService {
 			}
 			creditScoreResponseDto.setMessage(experian.getReason());
 			responseDTO.setData(creditScoreResponseDto);
-			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-					"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
-			sendSms(message,merchant);
+			if(sms){
+				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+						"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
+				sendSms(message,merchant);
+			}
 			return responseDTO;
 		}
 		if (!lendingApplicationList.isEmpty() || lendingApplicationList == null) {
 			creditScoreResponseDto.setApplicationPending(Boolean.TRUE);
 			responseDTO.setData(creditScoreResponseDto);
-			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-			sendSms(message,merchant);
+			if(sms){
+				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+						"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
+				sendSms(message,merchant);
+			}
+
 			return responseDTO;
 		}
 		if(stores != null && !stores.isEmpty()) {
@@ -1479,19 +1491,23 @@ public class LoanDetailsService {
 		if (lendingPaymentSchedule != null) {
 			creditScoreResponseDto.setActiveLoan(Boolean.TRUE);
 			responseDTO.setData(creditScoreResponseDto);
-			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-			sendSms(message,merchant);
+			if(sms){
+				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+						"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
+				sendSms(message,merchant);
+			}
 			return responseDTO;
 		}
-		if(experian.getExperianScore().equals(0D) || experian.getExperianScore() < 300D){
+		if(experian.getExperianScore().equals(0D) || experian.getExperianScore() < 300D || experian.getExperianScore() == null){
 			creditScoreResponseDto.setNTC(Boolean.TRUE);
 			loanEligibilityDTOs.clear();
 			creditScoreResponseDto.setMessage("CRIF");
 			responseDTO.setData(creditScoreResponseDto);
-			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-					"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
-			sendSms(message,merchant);
+			if(sms){
+				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+						"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
+				sendSms(message,merchant);
+			}
 			return responseDTO;
 		}
 
@@ -1499,9 +1515,12 @@ public class LoanDetailsService {
 			experian.setSource("CREDIT_SCORE");
 			experianDao.save(experian);
 		}
-		String message = "Dear "+lendingPancard != null ? lendingPancard.getName() : experian.getMerchantName()+",\n"+
-				"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-		sendSms(message,merchant);
+		if(sms){
+			String message = "Dear "+lendingPancard != null ? lendingPancard.getName() : experian.getMerchantName()+",\n"+
+					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
+			sendSms(message,merchant);
+		}
+
 		redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 		creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
 		responseDTO.setData(creditScoreResponseDto);
