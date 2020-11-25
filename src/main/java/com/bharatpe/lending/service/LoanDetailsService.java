@@ -1357,7 +1357,7 @@ public class LoanDetailsService {
 				experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
 				experian.setPincode(requestDTO.getPayload().getPinCode());
 				experianDao.save(experian);
-				if(experian.getSource() != null ||!experian.getSource().equals("CREDIT_SCORE")){
+				if(experian.getSource() == null || !experian.getSource().equals("CREDIT_SCORE")){
 					sms = Boolean.TRUE;
 				}
 			} else {
