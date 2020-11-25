@@ -3,9 +3,11 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.MerchantCategory;
+import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -55,6 +57,9 @@ public class LoanDetailsService {
 	
 	@Autowired
 	AvailableLoanDao availableLoanDao;
+
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
 	
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
@@ -1302,6 +1307,7 @@ public class LoanDetailsService {
 		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
 		String pancard = creditScoreRequestDto.getPanNumber();
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		String key="bharatpe://dynamic?key=credit-score";
 
 		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
 			creditScoreResponseDto.setPanNumber("null");
@@ -1344,7 +1350,6 @@ public class LoanDetailsService {
 		List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
 		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
 
-
 		if(requestDTO.getPayload().getPanNumber() != null){
 			if (experian != null ) {
 				experian.setPancardNumber(requestDTO.getPayload().getPanNumber());
@@ -1362,22 +1367,6 @@ public class LoanDetailsService {
 		BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 		boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
 
-		LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
-		if (lendingBlockedPancard != null) {
-			logger.info("Blocked pancard:{}", experian.getPancardNumber());
-			loanEligibilityDTOs.clear();
-			experian.setReason(ExperianConstants.BLOCKED_PANCARD);
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experianDao.save(experian);
-		} else if (paymentsBank) {
-			logger.info("Payments bank pancard:{}", experian.getPancardNumber());
-			loanEligibilityDTOs.clear();
-			experian.setReason(ExperianConstants.ENACH);
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experianDao.save(experian);
-		}
 		boolean rejected = false;
 		boolean noExperian = false;
 		List<String> maskedMobiles = null;
@@ -1435,8 +1424,25 @@ public class LoanDetailsService {
 			}
 		}
 
-		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
-		loanUtil.auditExperian(experian);
+		LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+		if (lendingBlockedPancard != null) {
+			logger.info("Blocked pancard:{}", experian.getPancardNumber());
+			loanEligibilityDTOs.clear();
+			experian.setReason(ExperianConstants.BLOCKED_PANCARD);
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experianDao.save(experian);
+		} else if (paymentsBank) {
+			logger.info("Payments bank pancard:{}", experian.getPancardNumber());
+			loanEligibilityDTOs.clear();
+			experian.setReason(ExperianConstants.ENACH);
+			experian.setCategory("1N");
+			experian.setColor(ExperianConstants.COLOR.RED.name());
+			experianDao.save(experian);
+		}
+
+//		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
+//		loanUtil.auditExperian(experian);
 
 		LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
 		creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
@@ -1453,11 +1459,17 @@ public class LoanDetailsService {
 			}
 			creditScoreResponseDto.setMessage(experian.getReason());
 			responseDTO.setData(creditScoreResponseDto);
+			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+					"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
+			sendSms(message,merchant);
 			return responseDTO;
 		}
 		if (!lendingApplicationList.isEmpty() || lendingApplicationList == null) {
 			creditScoreResponseDto.setApplicationPending(Boolean.TRUE);
 			responseDTO.setData(creditScoreResponseDto);
+			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
+			sendSms(message,merchant);
 			return responseDTO;
 		}
 		if(stores != null && !stores.isEmpty()) {
@@ -1467,13 +1479,39 @@ public class LoanDetailsService {
 		if (lendingPaymentSchedule != null) {
 			creditScoreResponseDto.setActiveLoan(Boolean.TRUE);
 			responseDTO.setData(creditScoreResponseDto);
+			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
+			sendSms(message,merchant);
+			return responseDTO;
+		}
+		if(experian.getExperianScore().equals(0D) || experian.getExperianScore() < 300D){
+			creditScoreResponseDto.setNTC(Boolean.TRUE);
+			loanEligibilityDTOs.clear();
+			creditScoreResponseDto.setMessage("CRIF");
+			responseDTO.setData(creditScoreResponseDto);
+			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
+					"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
+			sendSms(message,merchant);
 			return responseDTO;
 		}
 
+		if(!loanEligibilityDTOs.isEmpty()){
+			experian.setSource("CREDIT_SCORE");
+			experianDao.save(experian);
+		}
+		String message = "Dear "+lendingPancard != null ? lendingPancard.getName() : experian.getMerchantName()+",\n"+
+				"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
+		sendSms(message,merchant);
 		redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
 		creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
 		responseDTO.setData(creditScoreResponseDto);
 
 		return  responseDTO;
+	}
+
+	private void sendSms(String messageForSms, Merchant merchant) {
+		List<String> mobiles=new LinkedList<>();
+		mobiles.add(merchant.getMobile());
+		smsServiceHandler.sendSMS(mobiles, messageForSms, NotificationProvider.SMS.GUPSHUP);
 	}
 }
