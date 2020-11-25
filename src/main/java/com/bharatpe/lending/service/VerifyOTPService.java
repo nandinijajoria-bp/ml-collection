@@ -244,10 +244,7 @@ public class VerifyOTPService {
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 
-		if(merchant.getId().equals(1141505L) || merchant.getId().equals(2097359L)){
-			sendLatLong(merchant.getId(),lendingApplication.getId());
-		}
-
+		sendLatLong(merchant.getId(),lendingApplication.getId());
 
 		if (lendingApplication.getLoanAmount() <= 200000 && !lendingApplication.getLoanType().equalsIgnoreCase("NTB"))
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
