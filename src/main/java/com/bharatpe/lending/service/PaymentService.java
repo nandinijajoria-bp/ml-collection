@@ -395,7 +395,7 @@ public class PaymentService {
 			paidPrincipalAmount = amount - paidInterestAmount;
 
 			if(activeLoan.getDueAmount() >= 0) {
-				createLendingLedger(activeLoan, -1 * (amount - activeLoan.getDueAmount()) , -1 * (amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
+				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			} else {
 				createLendingLedger(activeLoan, -1 * amount , -1 * amount - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			}
