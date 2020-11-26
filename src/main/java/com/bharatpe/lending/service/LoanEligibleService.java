@@ -276,6 +276,8 @@ public class LoanEligibleService {
             if(creditBureauResponse != null){
                 experian.setResponse(creditBureauResponse.toString());
                 experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
+            } else if (goToExperianV2(experian, merchant, pancard)) {
+                return new ArrayList<>();
             }
             responseUtil = getCreditBureauResponse(experian);
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
@@ -287,8 +289,6 @@ public class LoanEligibleService {
                 experian.setBureau(responseUtil.getType());
                 experian.setReportDate(responseUtil.getReportDate());
                 experianDao.save(experian);
-            } else if (goToExperianV2(experian, merchant, pancard)) {
-                return new ArrayList<>();
             }
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
                 try {
