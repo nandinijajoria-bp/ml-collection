@@ -38,6 +38,8 @@ public class CreditScoreResponseDto {
 
     private boolean timeout;
 
+    private boolean eligible;
+
     @JsonProperty("masked_mobile")
     private List<String> maskedMobiles;
 
@@ -153,5 +155,13 @@ public class CreditScoreResponseDto {
 
     public void setNTC(boolean NTC) {
         isNTC = NTC;
+    }
+
+    public boolean isEligible() {
+        return eligible;
+    }
+
+    public void setEligible(boolean eligible) {
+        this.eligible = eligible;
     }
 }
