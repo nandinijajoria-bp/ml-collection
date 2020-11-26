@@ -1304,10 +1304,11 @@ public class LoanDetailsService {
 		CreditScoreResponseDto creditScoreResponseDto = new CreditScoreResponseDto();
 		creditScoreResponseDto.setTimeout(Boolean.FALSE);
 		creditScoreResponseDto.setNTC(Boolean.FALSE);
+		creditScoreResponseDto.setEligible(Boolean.FALSE);
 		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
 		String pancard = creditScoreRequestDto.getPanNumber();
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
-		String key="bharatpe://dynamic?key=credit-score";
+		String key="bharatpe.in/creditscore";
 
 		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
 			creditScoreResponseDto.setPanNumber("null");
@@ -1348,7 +1349,7 @@ public class LoanDetailsService {
 		}
 
 		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
-		List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
+		LendingApplication lendingApplicationList = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
 		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
 
 		if(requestDTO.getPayload().getPanNumber() != null){
@@ -1458,7 +1459,7 @@ public class LoanDetailsService {
 		LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
 		creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
 		creditScoreResponseDto.setPinCode(experian.getPincode());
-		creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : experian.getMerchantName());
+		creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : merchant.getBeneficiaryName());
 		creditScoreResponseDto.setScore(experian.getExperianScore());
 		creditScoreResponseDto.setCreditDate(experian.getReportDate());
 		creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
@@ -1477,8 +1478,10 @@ public class LoanDetailsService {
 			}
 			return responseDTO;
 		}
-		if (!lendingApplicationList.isEmpty()) {
+		if (lendingApplicationList!= null) {
 			creditScoreResponseDto.setApplicationPending(Boolean.TRUE);
+			creditScoreResponseDto.setEligible(Boolean.TRUE);
+			creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
 			responseDTO.setData(creditScoreResponseDto);
 			if(sms){
 				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
@@ -1522,6 +1525,7 @@ public class LoanDetailsService {
 		}
 
 		redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
+		creditScoreResponseDto.setEligible(Boolean.TRUE);
 		creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
 		responseDTO.setData(creditScoreResponseDto);
 
