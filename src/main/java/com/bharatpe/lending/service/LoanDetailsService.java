@@ -688,9 +688,9 @@ public class LoanDetailsService {
 					experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 					loanUtil.auditExperian(experian);
 					//send instant notification
-					if(!isFromSwipe) {
-						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
-					}
+//					if(!isFromSwipe) {
+//						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
+//					}
 //					if (!loanEligibilityDTOs.isEmpty()) {
 //						executorService.submit(() -> apiGatewayService.signZyPanGst(merchant.getId()));
 //					}

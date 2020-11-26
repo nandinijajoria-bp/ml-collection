@@ -49,7 +49,6 @@ public class RedisNotificationService {
 	}
 	
 	public void sendNotificationForSeenOffer(Long merchantId, List<LoanEligibilityDTO> eligibleLoan) {
-		if (true) return;
 		try {
 			logger.info("Pushing notification of seen offer for merchant {}",merchantId);
 			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
