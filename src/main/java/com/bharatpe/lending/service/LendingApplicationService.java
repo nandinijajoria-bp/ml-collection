@@ -230,7 +230,15 @@ public class LendingApplicationService {
 			else {
 				newApplication.setLender("LDC");
 			}
-			lendingApplicationDao.save(newApplication);
+			newApplication = lendingApplicationDao.save(newApplication);
+			if(merchantSummary != null) {
+				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
+			}
+			createExperianSnapshot(newApplication.getMerchant(), newApplication);
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				createBBSSnapshot(newApplication);
+			}
+			createMerchantScoreSnapshot(newApplication);
 			signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
 			return prepareAPIResponse(newApplication,true);
 		}
