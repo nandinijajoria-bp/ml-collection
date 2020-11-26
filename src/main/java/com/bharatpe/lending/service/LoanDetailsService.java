@@ -1308,7 +1308,7 @@ public class LoanDetailsService {
 		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
 		String pancard = creditScoreRequestDto.getPanNumber();
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
-		String key="bharatpe://dynamic?key=credit-score";
+		String key="bharatpe.in/creditscore";
 
 		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
 			creditScoreResponseDto.setPanNumber("null");
