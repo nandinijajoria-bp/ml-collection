@@ -14,7 +14,7 @@ import org.springframework.util.CollectionUtils;
 public class LoanSurveyQuestionAnswerDto {
   String question;
   String answer;
-  Boolean isSelect;
+  Boolean select;
   Map<String, String> metaData;
 
   public String getMetaData() {
@@ -47,12 +47,12 @@ public class LoanSurveyQuestionAnswerDto {
     this.answer = answer;
   }
 
-  public Boolean isSelect() {
-    return isSelect == null ? Boolean.FALSE : isSelect;
+  public Boolean getSelect() {
+    return select;
   }
 
-  public void setSelect(boolean select) {
-    isSelect = select;
+  public void setSelect(Boolean select) {
+    this.select = select;
   }
 
   public void setMetaData(Map<String, String> metaData) {

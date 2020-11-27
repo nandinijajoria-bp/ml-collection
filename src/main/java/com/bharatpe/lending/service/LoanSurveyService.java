@@ -66,7 +66,7 @@ public class LoanSurveyService {
             loanSurvey.setApplicationId(lendingApplication.getId());
             loanSurvey.setMerchantId(merchant.getId());
             if(data != null) {
-                loanSurvey.setSelect(data.isSelect());
+                loanSurvey.setSelect(data.getSelect());
                 loanSurvey.setQuestion(data.getQuestion());
                 loanSurvey.setAnswer(data.getAnswer());
                 loanSurvey.setPayload(data.getMetaData());
