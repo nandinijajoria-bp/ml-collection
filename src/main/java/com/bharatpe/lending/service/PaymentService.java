@@ -135,7 +135,7 @@ public class PaymentService {
 			Integer amount = 0;
 			if("CUSTOM".equalsIgnoreCase(request.getPayload().getPaymentType())) {
 				amount = request.getPayload().getAmount();
-			} else if("PRINCIPAL".equalsIgnoreCase(request.getPayload().getPaymentType())) {
+			} else if("PRINCIPAL".equalsIgnoreCase(request.getPayload().getPaymentType()) || "TOTAL_AMOUNT".equalsIgnoreCase(request.getPayload().getPaymentType())) {
 				amount = principalDueAmount + ediHolidayInterestAmount;
 			} else {
 				amount = overdueAmount;
