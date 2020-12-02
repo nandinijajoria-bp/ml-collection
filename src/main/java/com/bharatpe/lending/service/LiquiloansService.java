@@ -1,87 +1,52 @@
 package com.bharatpe.lending.service;
 
-import java.io.*;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
-import com.bharatpe.lending.constant.LendingConstants;
-
-import com.bharatpe.lending.handlers.LiquiloansHandler;
+import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.Finance;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.dao.DisbursalSettlementDao;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.LoanAgreementDao;
-import com.bharatpe.lending.dao.SettlementScheduleDao;
-import com.bharatpe.lending.dao.ValidateDao;
-import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
-import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
-import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
-import com.bharatpe.lending.dto.PayloadDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.entity.LoanAgreement;
-import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
 
 @Component
 public class LiquiloansService {
 	
-    private Logger logger = LoggerFactory.getLogger(LiquiloansService.class);
-
-    @Autowired
-    ExternalGatewayDao externalGatewayDao;
+    private final Logger logger = LoggerFactory.getLogger(LiquiloansService.class);
 
     @Autowired
     HmacCalculator hmacCalculator;
-    
-    @Autowired
-    AesEncryption aesEncryption;
     
     @Autowired
     RestTemplate restTemplate;
@@ -91,10 +56,7 @@ public class LiquiloansService {
 
     @Autowired
 	LoanAgreementDao loanAgreementDao;
-    
-    @Autowired
-    LendingPancardDao lendingPancardDao;
-    
+
     @Autowired
     MerchantDao merchantDao;
     
@@ -103,10 +65,7 @@ public class LiquiloansService {
     
     @Autowired
     Environment env;
-    
-    @Autowired
-    LendingCategoryDao lendingCategoryDao;
-    
+
     @Autowired
     DisbursalSettlementDao disbursalSettlementDao;
 
@@ -135,7 +94,7 @@ public class LiquiloansService {
 	SettlementScheduleDao settlementScheduleDao;
     
     @Autowired
-    private KafkaTemplate<String, Object> kafkaTemplate;
+	KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
 	CreditApplicationDao creditApplicationDao;
@@ -171,65 +130,11 @@ public class LiquiloansService {
 	LendingEDIScheduleDao lendingEDIScheduleDao;
 
     @Autowired
-	LiquiloansHandler liquiloansHandler;
-
-    @Autowired
 	LdcVirtualAccountDao ldcVirtualAccountDao;
-
-	ExecutorService executorService = Executors.newFixedThreadPool(5);
 
 	private static String secretKey;
 
 	private static String SID;
-    
-    public LendingPancard fetchNameOnPancard(String pancardNumber, Long merchantId) {
-        String name = null;
-        String apiResponse = null;
-        try {
-            ExternalGateway externalGateway = externalGatewayDao.findByGatewayNameAndTypeAndStatus("LIQUILOANS", null, "ACTIVE");
-            if (externalGateway != null) {
-                Map<String, String> requestParams = new HashMap<>();
-                Date currentTime = new Date();
-                String payload = pancardNumber + "||" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(currentTime);
-                String checksum = hmacCalculator.calculateHMACHexEncoded(payload, aesEncryption.decrypt(externalGateway.getSecret()));
-                logger.info("Liquiloans Checksum:{} for payload: {} for merchant:{}, PAN: {}", checksum, payload, merchantId, pancardNumber);
-                requestParams.put("MID", externalGateway.getMbid());
-                requestParams.put("Pan", pancardNumber);
-                requestParams.put("Timestamp", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(currentTime));
-                requestParams.put("Checksum", checksum);
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.setCacheControl(CacheControl.noCache());
-                HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
-                try {
-                    long startTime = System.currentTimeMillis();
-                    Map response = restTemplate.postForObject("https://api.liquiloans.com/api/apiintegration/v3/VerifyPanNumber", request, Map.class);
-                    logger.info("Liquloans PAN validation API response: {}, response time: {}ms", response, (System.currentTimeMillis() - startTime));
-                    if (response != null && response.containsKey("status")) {
-                        apiResponse= response.toString();
-                        boolean status = (boolean) response.get("status");
-                        Map responseDataMap = (Map) response.get("data");
-                        String statusCode = (String) responseDataMap.get("status-code");
-                        if (status && statusCode.equals("101")) {
-                            Map responseResultMap = (Map) responseDataMap.get("result");
-                            name = (String) responseResultMap.get("name");
-                            logger.info("Liquiloans Set status success for merchant: {}", merchantId);
-                        } else {
-                            logger.info("Liquiloans Set status failed Response params status : {}, status code: {} for merchant: {}", status, statusCode.equals("101"), merchantId);
-                        }
-                    } else {
-                        logger.info("Liquiloans Set status failed response not contain status for merchant: {}", merchantId);
-                    }
-                } catch (RestClientException e) {
-                    logger.error("RestClient Exception accrue in Liquiloans API calling", e);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Exception while fetching name from liquiloans for merchant: {}", merchantId);
-            logger.error("Exception---", e);
-        }
-        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
-    }
 
 	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse) {
 		logger.info("Fetching lending application for given application_id:{} and nbfc_id:{}", callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());

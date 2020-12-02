@@ -52,6 +52,9 @@ public class LendingApplicationController {
 	
 	@Autowired
 	CallLoanDetailService callLoanDetailService;
+
+	@Autowired
+	AdhaarMaskService adhaarMaskService;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -160,5 +163,10 @@ public class LendingApplicationController {
 	@RequestMapping(value="/creditScore", method= RequestMethod.POST,produces = "application/json")
 	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<CreditScoreRequestDto> requestDTO){
 		return new ResponseEntity<>(loanDetailsService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/adhaar_mask", method= RequestMethod.POST,produces = "application/json")
+	public ResponseEntity<CommonResponse> maskAdhaar(@RequestBody AdhaarMaskRequest requestDTO){
+		return new ResponseEntity<>(adhaarMaskService.maskAdhaar(requestDTO), HttpStatus.OK);
 	}
 }

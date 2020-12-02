@@ -1,6 +1,7 @@
 package com.bharatpe.lending.handlers;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.time.Duration;
@@ -115,4 +116,33 @@ public class S3BucketHandler {
 		    }
 	}
 
+	public InputStream getObject(String key, String bucket) {
+		try {
+			logger.info("Fetching object for key:{}", key);
+			Instant start = Instant.now();
+			AmazonS3 s3client = createS3BucketConnection();
+			InputStream inputStream = s3client.getObject(bucket, key).getObjectContent();
+			Instant end = Instant.now();
+			logger.info("Time Taken by AWS S3 getObject API : {} miliseconds", Duration.between(start, end).toMillis());
+			return inputStream;
+		}
+		catch(Exception e) {
+			logger.error("Exception while fetching object from s3", e);
+		}
+		return null;
+	}
+
+	public void uploadFileToS3(File file, String bucket, String fileName) {
+		Instant start = Instant.now();
+		AmazonS3 s3client = createS3BucketConnection();
+		try {
+			if(s3client != null) {
+				s3client.putObject(bucket, fileName, file);
+			}
+		}catch(Exception e) {
+			logger.info("Exception while uploading file to S3", e);
+		}
+		Instant end = Instant.now();
+		logger.info("Time Taken by AWS S3 File upload API : {} miliseconds", Duration.between(start, end).toMillis());
+	}
 }
