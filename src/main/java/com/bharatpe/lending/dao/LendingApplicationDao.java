@@ -49,8 +49,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value="select count(*) from lending_application where created_at between :startDate and :endDate and lender='LDC'", nativeQuery = true)
 	Long getLDCApplicationCountBetweenDate(Date startDate,Date endDate);
 
-	@Query(value = "select l from LendingApplication l where l.id in ?1")
-	List<LendingApplication> getApplications(List<Long> ids);
+	@Query(value = "select * from lending_application where status='draft' and merchant_id=3612680", nativeQuery = true)
+	List<LendingApplication> getApplications();
 
 	@Query(value="select * from lending_application where id=:id and nbfc_id=:nbfcId and status='approved' and lender='LDC' and loan_disbursal_status='PENDING' and disbursal_partner='BHARATPE'", nativeQuery = true)
 	LendingApplication findByIdAndNbfcId(Long id, String nbfcId);
