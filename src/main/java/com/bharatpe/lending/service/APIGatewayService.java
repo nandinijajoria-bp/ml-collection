@@ -790,6 +790,26 @@ public class APIGatewayService {
         }
     }
 
+    public String getEnachProvider(String token, Long merchantId) {
+        logger.info("Fetching enach provider for merchant:{}", merchantId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("token", token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> request = new HttpEntity<>(headers);
+        try {
+            logger.info("Enach provider request:{} for merchant:{}", request, merchantId);
+            ResponseEntity<Object> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL, HttpMethod.GET, request, Object.class);
+            logger.info("Enach provider response:{} for merchant:{}", response.getBody(), merchantId);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, String> responseData = (Map<String, String>) ((Map<String, Object>) response.getBody()).get("data");
+                return responseData.get("deep_link");
+            }
+        } catch (Exception e) {
+            logger.error("Exception while fetching enach provider for merchant:{}", merchantId, e);
+        }
+        return null;
+    }
+
     public String signzySnoop(String itemId, String accessToken, String task, Long merchantId, String module, HashMap<String, String> essentials) {
         logger.info("Calling Signzy Snoop Api for itemId:{} and task:{}", itemId, task);
         try {
@@ -828,6 +848,58 @@ public class APIGatewayService {
             logger.error("Exception in Signzy Snoop Api", e);
         }
         return null;
+    }
+
+    public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
+        logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("token", requestDTO.getToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> body = new HashMap<String, Object>(){{
+            put("application_id", requestDTO.getApplicationId());
+            put("client_name", requestDTO.getClientName());
+            put("nach_amount", requestDTO.getNachAmount());
+            put("enach_provider", requestDTO.getEnachProvider());
+        }};
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        try {
+            logger.info("Enach initiate request:{} for merchant:{}", request, merchantId);
+            ResponseEntity<ENachIntitiationResponseDTO> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_INITIATE_URL, HttpMethod.POST, request, ENachIntitiationResponseDTO.class);
+            logger.info("Enach initiate response:{} for merchant:{}", responseEntity, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
+                responseEntity.getBody().setResponse(responseEntity.getBody().isSuccess());
+                return responseEntity.getBody();
+            }
+        } catch (Exception e) {
+            logger.error("Exception while initiating enach for merchant:{}", requestDTO.getMerchantId(), e);
+        }
+        return null;
+    }
+
+    public void submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId) {
+        logger.info("Enach submit request:{} for merchant:{}", requestDTO, merchantId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("token", token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> body = new HashMap<String, Object>() {{
+            put("application_id", requestDTO.getApplicationId());
+            put("client_name", "LENDING");
+            put("identifier", requestDTO.getIdentifier());
+            put("mandate_id", requestDTO.getMandateId());
+            put("enach_provider", requestDTO.getProvider());
+            put("status", requestDTO.getStatus());
+            put("status_message", requestDTO.getStatusMessage());
+            put("response", requestDTO.getResponse());
+            put("transaction_identifier", requestDTO.getTransactionIdentifier());
+        }};
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        try {
+            logger.info("Enach submit request:{} for merchant:{}", request, merchantId);
+            ResponseEntity<String> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL, HttpMethod.POST, request, String.class);
+            logger.info("Submit enach response:{} for merchant:{}", response.getBody(), merchantId);
+        } catch (Exception e) {
+            logger.error("Exception in enach submit for merchant:{}", merchantId, e);
+        }
     }
 
     public String getTemporarySignzyURL(String base64File) {

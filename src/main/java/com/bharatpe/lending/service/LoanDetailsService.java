@@ -105,9 +105,6 @@ public class LoanDetailsService {
 
 	@Autowired
 	ENachService eNachService;
-
-	@Autowired
-	LendingEnachDao lendingEnachDao;
 	
 	@Autowired
 	TopupLoanEligibleService topupLoanEligibleService;
@@ -120,9 +117,6 @@ public class LoanDetailsService {
 
 	@Autowired
 	MerchantSummaryLendingDao merchantSummaryLendingDao;
-
-	@Value("${enach.provider}")
-	private String enachServiceToUse;
 
 	@Autowired
 	LendingPrebookTargetDao lendingPrebookTargetDao;
@@ -163,8 +157,6 @@ public class LoanDetailsService {
 	@Autowired
 	CrifDao crifDao;
 
-	ExecutorService executorService = Executors.newFixedThreadPool(5);
-
 	@Autowired
 	APIGatewayService apiGatewayService;
 
@@ -177,8 +169,11 @@ public class LoanDetailsService {
 	@Autowired
 	LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
+	@Autowired
+	BharatPeEnachDao bharatPeEnachDao;
+
 //	@Transactional
-	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp) {
+	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 			if(isMerchantFromCreditLine(merchant)) {
@@ -205,10 +200,9 @@ public class LoanDetailsService {
 			String rejectReason = null;
 			String panCard = null;
 			String tempClosed = null;
-			LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
-			BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+			BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-			if (bpEnach != null && bpEnach.getAccountNumber() != null && !bpEnach.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			if (enachSuccess != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 				enachSuccess = null;
 			}
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
@@ -349,7 +343,8 @@ public class LoanDetailsService {
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 			if(lendingApplication != null) {
-				LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+				BharatPeEnach lendingEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+				if (lendingEnach != null && lendingEnach.getSkip() == null) lendingEnach.setSkip(false);
 				if ((enachSuccess != null && repeatLoan) || (enachSuccess != null && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
 					loanApplicationDTO.setSelfVerification(false);
 				}
@@ -381,12 +376,8 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null) {
-						if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
-							enach = "bharatpe://enachdigio";//set deep link for enach digio
-						} else {
-							enach = "bharatpe://enachtp";//set deep link for enach techprocess
-						}
+					if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getSuccess() != null && lendingEnach.getSuccess()) && bankCode != null) {
+						enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 						skipEnatch = true;
 					}
 					if ("PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
@@ -396,7 +387,7 @@ public class LoanDetailsService {
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Approved");
 						loanApplicationDTO.setStatusTitle("Loan Approved");
-						if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
+						if (enachSuccess != null && repeatLoan) {
 							loanApplicationDTO.setStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in 24 hours.");
 						} else {
 							loanApplicationDTO.setStatusMessage("The amount will reflect in your Bank A/c in the next 7-10 days. Keep transacting on BharatPe QR to get money in your Account faster.");
@@ -405,21 +396,13 @@ public class LoanDetailsService {
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
 					try {
 						//enach not success and not skipped and bankcode enachable
-						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
-							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
-								enach = "bharatpe://enachdigio";//set deep link for enach digio
-							} else {
-								enach = "bharatpe://enachtp";//set deep link for enach techprocess
-							}
+						if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
+							enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 						}
 					} catch (Exception e) {// exception due to undefined app version
 						logger.info("Exception while checking enach bank", e);
-						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
-							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
-								enach = "bharatpe://enachdigio";//set deep link for enach digio
-							} else {
-								enach = "bharatpe://enachtp";//set deep link for enach techprocess
-							}
+						if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
+							enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 						}
 					}
 					if(enachSuccess != null && "OGL".equalsIgnoreCase(lendingApplication.getLoanType())) {
@@ -438,7 +421,7 @@ public class LoanDetailsService {
 						loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 72 hours after verification.");
 					} else {
 						loanApplicationDTO.setStatusHeader("Loan Applied Successfully");
-						if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
+						if (enachSuccess != null) {
 							accountDetails = true;
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
@@ -461,9 +444,9 @@ public class LoanDetailsService {
 			if (lendingApplication != null && "BHARAT_SWIPE".equals(lendingApplication.getLoanType())) {
 				skipEnatch = true;
 			}
-			if (merchant.getId().equals(3612680L)) {
-				enach = "bharatpe://enachdigio";
-			}
+//			if (merchant.getId().equals(3612680L)) {
+//				enach = "bharatpe://enachdigio";
+//			}
 			
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchant.getId());
@@ -492,13 +475,9 @@ public class LoanDetailsService {
 						double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
 						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
 						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
-						LendingEnach lendingEnach = lendingEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-						if ((enachSuccess == null || (enachSuccess.getIdentifier() != null && "LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()))) && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getStatus() != null && lendingEnach.getStatus()) && bankCode != null) {
-							if (enachServiceToUse != null && enachServiceToUse.equalsIgnoreCase("digio")) {
-								enach = "bharatpe://enachdigio";//set deep link for enach digio
-							} else {
-								enach = "bharatpe://enachtp";//set deep link for enach techprocess
-							}
+						BharatPeEnach lendingEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+						if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getSuccess() != null && lendingEnach.getSuccess()) && bankCode != null) {
+							enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 							loanDetailsDTO.getTopupLoan().get(0).setEnach(enach);
 							experian = experianDao.getByMerchantId(merchant.getId());
 //							if ("approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) && (experian == null || (experian.getColor() != null && !"AMBER".equalsIgnoreCase(experian.getColor())))) {
@@ -1117,7 +1096,7 @@ public class LoanDetailsService {
 		return lendingCategoryDetails;
 	}
 	
-	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, LendingEnach enachSuccess, boolean showTarget, double targetTpv) {
+	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, BpEnach enachSuccess, boolean showTarget, double targetTpv) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
 		if(activeLoan == null && application != null && "approved".equals(application.getStatus()) && !"disbursed".equalsIgnoreCase(application.getLoanDisbursalStatus())) {
@@ -1141,7 +1120,7 @@ public class LoanDetailsService {
 			} else {
 				history.setLoanStatusHeader("Loan Approved");
 				history.setLoanStatusTitle("Loan Approved");
-				if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier()) && repeatLoan) {
+				if (enachSuccess != null && repeatLoan) {
 					history.setLoanStatusMessage("Net Banking / Debit Card Linked Successfully!\nAmount will reflect in your A/c in next 10 days.");
 				} else {
 					history.setLoanStatusMessage("The amount will reflect in your Bank A/c in the next 7-10 days. Keep transacting on BharatPe QR to get money in your Account faster.");

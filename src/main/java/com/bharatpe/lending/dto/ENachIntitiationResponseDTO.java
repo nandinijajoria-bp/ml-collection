@@ -15,6 +15,8 @@ public class ENachIntitiationResponseDTO {
 
     private boolean response = true;
 
+    private boolean success;
+
     private String message = "success";
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -312,7 +314,14 @@ public class ENachIntitiationResponseDTO {
         this.message = message;
     }
 
-    
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
     @Override
     public String toString() {
         return "ENachIntitiationResponseDTO{" +

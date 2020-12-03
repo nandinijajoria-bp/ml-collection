@@ -12,6 +12,7 @@ import com.bharatpe.common.enums.LoyaltyTransactionType;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
+import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -82,22 +83,14 @@ public class VerifyOTPService {
 
 	@Autowired
 	LendingPrebookLoansDao lendingPrebookLoansDao;
-
-	@Autowired
-	ENachService eNachService;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
-
-	ExecutorService preBookExecutor = Executors.newFixedThreadPool(5);
 
 	@Autowired
 	LoyaltyService loyaltyService;
 
 	@Autowired
 	LendingPrebookTargetDao lendingPrebookTargetDao;
-
-	@Autowired
-	LendingEnachDao lendingEnachDao;
 
 	@Autowired
 	LendingCitiesDao lendingCitiesDao;
@@ -116,6 +109,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	KafkaTemplate<String, Object> kafkaTemplate;
+
+	@Autowired
+	BPEnachDao bpEnachDao;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -156,7 +152,7 @@ public class VerifyOTPService {
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
-		LendingEnach enachSuccess = lendingEnachDao.findSuccessEnach(merchant.getId());
+		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		LendingCities lendingCities = null;
 		if (lendingApplication.getPincode() != null) {
 			lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
@@ -174,10 +170,10 @@ public class VerifyOTPService {
 			lendingApplication.setIp(meta.getIp());
 		}
 		lendingApplication.setExternalLoanId(loanId);
-		if (enachSuccess != null && !"LIQUILOANS".equalsIgnoreCase(enachSuccess.getIdentifier())) {
+		if (enachSuccess != null) {
 			lendingApplication.setNachType("ENACH");
 			lendingApplication.setNachLender("BHARATPE");
-			lendingApplication.setNachReferenceNumber(enachSuccess.getMid());
+			lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
 			lendingApplication.setNachStatus("APPROVED");
 		}
 		if (oglLoans != null) {

@@ -67,10 +67,10 @@ public class LoanDetailsController {
 	LoanEligibleService loanEligibleService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO) {
+	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO, @RequestHeader("token") String token) {
 		logger.info("loanDetails request : {}", requestDTO);
 
-		LoanDetailsResponseDTO resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO, clientIp);
+		LoanDetailsResponseDTO resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO, clientIp, token);
 		if (resp == null){
 			logger.info("Sending gateway timeout for merchant: {}", merchant.getId());
 			LoanDetailsResponseDTO response1 = new LoanDetailsResponseDTO();

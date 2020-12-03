@@ -469,15 +469,15 @@ public class CallLoanDetailService {
 		}
 	}
 
-	public void callLoanDetailFunction(Merchant merchant) {
-		try {
-			RequestDTO<IneligibleRequestDTO> requestDTO = new RequestDTO<>();
-			requestDTO.setPayload(new IneligibleRequestDTO());
-			requestDTO.getPayload().setSkip(false);
-			logger.info("Calling loan details for merchant:{}", merchant.getId());
-			loanDetailsService.fetchLoanDetails(merchant, requestDTO, null);
-		} catch (Exception e) {
-			logger.error("Exception---", e);
-		}
-	}
+//	public void callLoanDetailFunction(Merchant merchant) {
+//		try {
+//			RequestDTO<IneligibleRequestDTO> requestDTO = new RequestDTO<>();
+//			requestDTO.setPayload(new IneligibleRequestDTO());
+//			requestDTO.getPayload().setSkip(false);
+//			logger.info("Calling loan details for merchant:{}", merchant.getId());
+//			loanDetailsService.fetchLoanDetails(merchant, requestDTO, null);
+//		} catch (Exception e) {
+//			logger.error("Exception---", e);
+//		}
+//	}
 }

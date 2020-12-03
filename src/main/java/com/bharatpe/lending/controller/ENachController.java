@@ -25,29 +25,14 @@ public class ENachController {
 
 	@Autowired
 	ENachService eNachService;
-	
-	@Value("${enach.provider}")
-	private String enachServiceToUse;
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion) {
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestHeader("token") String token, @RequestParam(name = "provider", required = false) String provider, @RequestParam(name = "app_version", required = false) String appVersion) {
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
-//			if (merchant.getId().equals(2411647L)) {
-//				return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant), HttpStatus.OK);
-//			}
-			if(enachServiceToUse==null || (!enachServiceToUse.equals("digio") && !enachServiceToUse.equals("techprocess"))){
-				responseDTO.setMessage("Incorrect Enach service provider mentioned");
-				return new ResponseEntity<>(responseDTO, HttpStatus.OK);
-			}
-			else if(enachServiceToUse.equals("techprocess")) {
-				return new ResponseEntity<>(eNachService.eNachInitiate(merchant, appVersion), HttpStatus.OK);
-			} 
-			else {
-				return new ResponseEntity<>(eNachService.enachInititateForDigio(merchant), HttpStatus.OK);
-			}
-		 }
+			return new ResponseEntity<>(eNachService.eNachInitiate(merchant, token, provider), HttpStatus.OK);
+		}
 		catch (Exception e) {
 			logger.error("Exception while initiating enach", e);
 			responseDTO.setMessage("Something went wrong");
@@ -56,24 +41,8 @@ public class ENachController {
 	}
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
-//		logger.info("Enach Submit request : {}", body);
-//		if (merchant.getId().equals(2411647L)) {
-//			return new ResponseEntity<>(eNachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
-//		}
-		if(enachServiceToUse.equals("techprocess")) {
-			return new ResponseEntity<>(eNachService.submitEnach(merchant, body), HttpStatus.OK);
-		}
-		else if(enachServiceToUse.equals("digio")){
-			return new ResponseEntity<>(eNachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
-		}
-		else {
-			logger.error("Mentioned wrong enach service provider");
-			ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-			responseDTO.setResponse(false);
-			responseDTO.setMessage("Wrong enach serive provider");
-			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
-		}
+	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body, @RequestHeader("token") String token) {
+		return new ResponseEntity<>(eNachService.submitEnach(merchant, body, token), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/skip",method = RequestMethod.GET, consumes="application/json", produces="application/json")
