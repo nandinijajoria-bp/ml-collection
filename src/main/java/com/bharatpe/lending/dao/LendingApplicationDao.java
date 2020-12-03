@@ -60,4 +60,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	@Query(value="select * from lending_application where merchant_id=:merchantId and loan_type='NTB' and status='approved' and loan_disbursal_status='DISBURSED' order by id desc limit 1", nativeQuery = true)
 	LendingApplication getPreviousNTBLoan(Long merchantId);
+
+	@Query(value="select * from lending_application where id=:id and merchant_id=:merchantId order by id desc limit 1", nativeQuery = true)
+	LendingApplication findByIdAndMerchantId(Long id, Long merchantId);
 }

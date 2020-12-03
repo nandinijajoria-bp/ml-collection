@@ -20,7 +20,9 @@ import com.bharatpe.lending.common.entity.SignzyRequestResponse;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.RandomStringUtils;
@@ -42,7 +44,10 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -180,10 +185,10 @@ public class APIGatewayService {
         return MID;
     }
 
-    public Map<String,String> signzyIdentityDetails(String proofType, Long merchantId) {
+    public Map<String,String> signzyIdentityDetails(String proofType, Long merchantId, String signzyModule, String signzyPurpose, List<String> images) {
         logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
         try {
-            SignzyCredential signzyCredential = signzyCredentialDao.findByModule("PAN");
+            SignzyCredential signzyCredential = signzyCredentialDao.findByModuleAndPurpose(signzyModule, signzyPurpose);
             if (signzyCredential == null) {
                 logger.info("signzy credentials not found");
                 return null;
@@ -192,7 +197,7 @@ public class APIGatewayService {
             body.put("type", proofType);
             body.put("email", "admin@signzy.com");
             body.put("callbackUrl", "https://your-domain.com/your-callback-system");
-            body.put("images", new ArrayList<>());
+            body.put("images", images);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("Authorization", signzyCredential.getAccessId());
@@ -783,5 +788,66 @@ public class APIGatewayService {
         } catch (Exception e) {
             logger.error("Exception in Signzy GST flow Api", e);
         }
+    }
+
+    public String signzySnoop(String itemId, String accessToken, String task, Long merchantId, String module, HashMap<String, String> essentials) {
+        logger.info("Calling Signzy Snoop Api for itemId:{} and task:{}", itemId, task);
+        try {
+            Map<String, Object> body = new HashMap<String,Object>() {{
+                put("service", "Identity");
+                put("itemId", itemId);
+                put("task", task);
+                put("accessToken", accessToken);
+                put("essentials", essentials);
+            }};
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
+            logger.info("Signzy Snoop URL:{} and request:{}", URL, request);
+            int retryCount = 0;
+            while(retryCount < 3) {
+                try {
+                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+                    logger.info("Response for Signzy Snoop: {}", responseEntity);
+                    if(responseEntity.getStatusCode().is2xxSuccessful()) {
+                        insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
+                        return responseEntity.getBody();
+                    } else {
+                        insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "FAILED", mapper.writeValueAsString(request), responseEntity.getBody(), module);
+                    }
+                    break;
+                } catch (Exception e) {
+                    logger.info("Error occurred while calling signzy snoop api", e);
+                    insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "FAILED", mapper.writeValueAsString(request), e.getMessage(), module);
+                    retryCount++;
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            logger.error("Exception in Signzy Snoop Api", e);
+        }
+        return null;
+    }
+
+    public String getTemporarySignzyURL(String base64File) {
+        Map<String, Object> body = new HashMap<>();
+        body.put( "base64String",base64File);
+        body.put("mimetype", "image/jpeg");
+        body.put("ttl", "7 days");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        try {
+            String response = restTemplate.postForObject("https://persist.signzy.tech/api/base64", request, String.class);
+            logger.info("signzy image URL response:{}", response);
+            Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+            Map<String,Object> res = ( Map<String,Object>)responseMap.get("file");
+            return (String)res.get("directURL");
+        }
+        catch(Exception e) {
+            logger.info("Exception in signzy image URL", e);
+        }
+        return null;
     }
 }
