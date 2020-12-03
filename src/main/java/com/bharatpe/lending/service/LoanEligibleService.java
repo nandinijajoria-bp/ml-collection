@@ -809,7 +809,7 @@ public class LoanEligibleService {
         boolean cpvCity = false;
         if (experian != null && experian.getPincode() != null) {
             PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
-            cpvCity = pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
+            cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
         }
         boolean isNTC = isNTC(experian);
         Merchant merchant = merchantDao.findById(merchantId).get();
