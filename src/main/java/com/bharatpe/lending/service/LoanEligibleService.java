@@ -826,11 +826,11 @@ public class LoanEligibleService {
         LoanCalculationUtil.LoanBreakupDetail breakup;
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
-                maxAmount = 200000;
+                maxAmount = 100000;
             } else {
                 maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : 700000;
             }
-            if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode) {
+            if (!"NTB".equalsIgnoreCase(loanType) && previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode) {
                 maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
