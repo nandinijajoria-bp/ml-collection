@@ -120,12 +120,6 @@ public class LoanEligibleService {
     APIGatewayService apiGatewayService;
 
     @Autowired
-    CrifDao crifDao;
-
-    @Autowired
-    CrifAuditTrailDao crifAuditTrailDao;
-
-    @Autowired
     MerchantBankDetailDao merchantBankDetailDao;
 
     @Autowired
@@ -139,6 +133,9 @@ public class LoanEligibleService {
 
     @Autowired
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
+
+    @Autowired
+    PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
@@ -809,6 +806,11 @@ public class LoanEligibleService {
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
         LendingPaymentSchedule previousLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "CLOSED");
         Experian experian = experianDao.getByMerchantId(merchantId);
+        boolean cpvCity = false;
+        if (experian != null && experian.getPincode() != null) {
+            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+            cpvCity = pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
+        }
         boolean isNTC = isNTC(experian);
         Merchant merchant = merchantDao.findById(merchantId).get();
         double bureauScore = experian != null && experian.getExperianScore() != null ? experian.getExperianScore() : 0;
@@ -824,10 +826,14 @@ public class LoanEligibleService {
         String payableConverter = lendingCategories.getPayableConverter();
         int ioEdiDays = lendingCategories.getIoEdiDays();
         LoanCalculationUtil.LoanBreakupDetail breakup;
+        // Capping first loan and Non CPV city
+        if (previousLoan == null && !cpvCity) {
+            maxAmount = 100000;
+        }
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 100000;
-            } else {
+            } else if (!(previousLoan == null && !cpvCity)) {
                 maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : 700000;
             }
             if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode) {

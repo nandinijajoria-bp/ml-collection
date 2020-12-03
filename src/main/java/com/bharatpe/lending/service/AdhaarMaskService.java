@@ -86,7 +86,7 @@ public class AdhaarMaskService {
 
     private boolean updateAdhaarImage(JsonNode result, DocumentsIdProof documentsIdProof, Long merchantId) {
         boolean success = false;
-        if (result.hasNonNull("response") && result.get("response").hasNonNull("result") && result.get("response").get("result").hasNonNull("maskedImages")) {
+        if (result.hasNonNull("response") && result.get("response").hasNonNull("result") && result.get("response").get("result").hasNonNull("maskedImages") && result.get("response").get("result").get("isMasked") != null && result.get("response").get("result").get("isMasked").textValue().equalsIgnoreCase("yes")) {
             logger.info("Updating masked adhaar image for application:{}", documentsIdProof.getLendingApplication().getId());
             try {
                 String url = result.get("response").get("result").get("maskedImages").get(0).textValue();
