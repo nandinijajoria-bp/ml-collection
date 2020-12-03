@@ -830,7 +830,7 @@ public class LoanEligibleService {
             } else {
                 maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : 700000;
             }
-            if (!"NTB".equalsIgnoreCase(loanType) && previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode) {
+            if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode) {
                 maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
