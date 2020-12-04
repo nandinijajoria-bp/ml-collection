@@ -40,6 +40,8 @@ public class LoanEligibilityDTO {
 
 	private boolean skipEnatch = true;
 	private String enach;
+	@JsonIgnore
+	private String loanType;
 
 	
 	public Integer getProcessingFee() {
@@ -143,6 +145,14 @@ public class LoanEligibilityDTO {
 
 	public void setEnach(String enach) {
 		this.enach = enach;
+	}
+
+	public String getLoanType() {
+		return loanType;
+	}
+
+	public void setLoanType(String loanType) {
+		this.loanType = loanType;
 	}
 
 	@Override

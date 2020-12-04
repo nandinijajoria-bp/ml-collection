@@ -661,6 +661,12 @@ public class LoanDetailsService {
 						experian.setColor(ExperianConstants.COLOR.RED.name());
 						experianDao.save(experian);
 					}
+					if (!loanEligibilityDTOs.isEmpty()) {
+						experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
+						experian.setEligibleTenure(loanEligibilityDTOs.get(0).getPrincipleEdiTenure().toString());
+						experian.setLoanType(loanEligibilityDTOs.get(0).getLoanType());
+						experianDao.save(experian);
+					}
 					if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
 						experian.setEligibleAmount(null);
 						experian.setEligibleTenure(null);
@@ -1446,6 +1452,12 @@ public class LoanDetailsService {
 
 		if(stores != null && !stores.isEmpty()) {
 			loanEligibilityDTOs.clear();
+		}
+		if (!loanEligibilityDTOs.isEmpty()) {
+			experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
+			experian.setEligibleTenure(loanEligibilityDTOs.get(0).getPrincipleEdiTenure().toString());
+			experian.setLoanType(loanEligibilityDTOs.get(0).getLoanType());
+			experianDao.save(experian);
 		}
 		if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
 			experian.setEligibleAmount(null);

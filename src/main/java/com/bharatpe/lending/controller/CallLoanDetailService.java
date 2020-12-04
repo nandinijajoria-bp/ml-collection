@@ -348,7 +348,7 @@ public class CallLoanDetailService {
 		if(merchantFcmToken != null) {
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=survey-merchant-lending");
 		}
-		String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.";
+		String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.\nhttps://bharatpe.in/Uy9AX";
 		whatsappNotificationService.send(merchant, null, whatsapp, new ArrayList<String>(){{add(merchant.getMobile());}}, null);
 	}
 
