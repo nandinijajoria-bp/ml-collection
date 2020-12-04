@@ -327,23 +327,29 @@ public class CallLoanDetailService {
 		ExecutorService executorService = Executors.newFixedThreadPool(10);
 		try {
 			// query returns integer in merchant_id
-			List<LendingApplication> lendingApplications = lendingApplicationDao.getApplications();
-			for (LendingApplication lendingApplication : lendingApplications) {
-				executorService.submit(() -> sendPush(lendingApplication));
-			}
+			Experian experian = experianDao.getByMerchantId(3612680L);
+			sendPush(experian);
+//			for (Experian experian1 : lendingApplications) {
+//				executorService.submit(() -> sendPush(lendingApplication));
+//			}
 		} catch (Exception e) {
 			logger.error("Exception---", e);
 		}
 		logger.info("Loan Details Script Ended");
 	}
 
-	private void sendPush(LendingApplication lendingApplication) {
-		logger.info("Sending loan survey to merchant:{}", lendingApplication.getMerchant().getId());
-		String message = "We saw that you haven't completed your loan application of Rs." + lendingApplication.getLoanAmount() + ". Please fill this survey form to let us know what we can do to serve you better.";
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(lendingApplication.getMerchant().getId());
+	private void sendPush(Experian experian) {
+		Optional<Merchant> merchantOptional = merchantDao.findById(experian.getMerchantId());
+		Merchant merchant = merchantOptional.get();
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		logger.info("Sending loan survey to merchant:{}", merchant.getId());
+		String message = "We saw that you haven't completed your loan application of Rs." + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.";
+		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 		if(merchantFcmToken != null) {
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=survey-merchant-lending");
 		}
+		String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.";
+		whatsappNotificationService.send(merchant, null, whatsapp, new ArrayList<String>(){{add(merchant.getMobile());}}, null);
 	}
 
 	public void orderQrCode(LendingApplication lendingApplication) {

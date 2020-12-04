@@ -2,11 +2,14 @@ package com.bharatpe.lending.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
+
+import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanSurveyDao;
 import com.bharatpe.lending.common.entity.LoanSurvey;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.LoanSurveyHeaderDto;
 import com.bharatpe.lending.dto.LoanSurveyQuestionAnswerDto;
 import com.bharatpe.lending.dto.LoanSurveyRequestDto;
@@ -26,24 +29,39 @@ public class LoanSurveyService {
     @Autowired
     LoanSurveyDao loanSurveyDao;
 
+    @Autowired
+    LendingCategoryDao lendingCategoryDao;
+
+    @Autowired
+    EligibleLoanDao eligibleLoanDao;
+
     public LoanSurveyHeaderDto getSurveyMerchantHeader(Merchant merchant) {
         if(merchant == null) return null;
-        StringBuilder amount = new StringBuilder();
-        StringBuilder interestRate = new StringBuilder();
+        logger.info("Fetching Loan Survey Data for merchant:{}", merchant.getId());
+        String amount;
+        String interestRate;
         LendingApplication loanApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
-        if (loanApplication == null) {
+        EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchant.getId());
+        if (loanApplication == null && eligibleLoan == null) {
             return LoanSurveyHeaderDto.builder()
                     .success(false)
-                    .message("Loan application not found")
+                    .message("Loan application/Offer not found")
                     .build();
         }
-        logger.info("Loan application for merchant {} with application id {}", merchant, loanApplication.getId());
+        if (loanApplication != null) {
+            amount = String.valueOf(loanApplication.getLoanAmount());
+            interestRate = String.valueOf(loanApplication.getInterestRate());
+        } else {
+            LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
+            amount = String.valueOf(eligibleLoan.getAmount());
+            interestRate = String.valueOf(lendingCategories.getInterestRate());
+        }
         return LoanSurveyHeaderDto
             .builder()
             .success(Boolean.TRUE)
             .name(merchant.getMerchantName())
-            .amount(amount.append(loanApplication.getLoanAmount()).toString())
-            .interestRate(interestRate.append(loanApplication.getInterestRate()).toString())
+            .amount(amount)
+            .interestRate(interestRate)
             .build();
     }
 
@@ -53,17 +71,11 @@ public class LoanSurveyService {
 
         LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
         builder.success(false);
-        if (lendingApplication == null) {
-            return builder.message("Application Id is missing!")
-                .build();
-        }
-        logger.info("loan survey for merchant {} with lending application id {}", merchant, lendingApplication.getId());
 
         List<LoanSurvey> loanSurveys = new ArrayList<>();
-
         for(LoanSurveyQuestionAnswerDto data:dto.getSurveyData()) {
             LoanSurvey loanSurvey = new LoanSurvey();
-            loanSurvey.setApplicationId(lendingApplication.getId());
+            loanSurvey.setApplicationId(lendingApplication != null ? lendingApplication.getId() : null);
             loanSurvey.setMerchantId(merchant.getId());
             if(data != null) {
                 loanSurvey.setSelect(data.getSelect());
