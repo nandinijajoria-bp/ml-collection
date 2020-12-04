@@ -80,8 +80,9 @@ public class AdhaarMaskService {
             }
         } catch (Exception e) {
             logger.error("Exception while masking adhaar", e);
+            return new CommonResponse(false, "Something went wrong");
         }
-        return new CommonResponse(false, "Something went wrong");
+        return new CommonResponse(false, "Invalid image");
     }
 
     private boolean updateAdhaarImage(JsonNode result, DocumentsIdProof documentsIdProof, Long merchantId) {
