@@ -106,6 +106,9 @@ public class LendingApplicationService {
 	@Autowired
 	SignAgreementService signAgreementService;
 
+	@Autowired
+	LendingMerchantDropoffDao lendingMerchantDropoffDao;
+
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -170,6 +173,7 @@ public class LendingApplicationService {
 			}
 			createMerchantScoreSnapshot(lendingApplication);
 			createStatusAuditTrail(lendingApplication);
+			lendingMerchantDropoffDao.updateApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
 		}
 		logger.info("Loan Application saved : {}",lendingApplication);
 		return prepareAPIResponse(lendingApplication,false);
@@ -239,6 +243,7 @@ public class LendingApplicationService {
 				createBBSSnapshot(newApplication);
 			}
 			createMerchantScoreSnapshot(newApplication);
+			lendingMerchantDropoffDao.updateApplicationId(newApplication.getMerchant().getId(), newApplication.getId());
 			signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
 			return prepareAPIResponse(newApplication,true);
 		}

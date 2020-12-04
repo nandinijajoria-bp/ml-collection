@@ -6,8 +6,10 @@ import com.bharatpe.common.dao.PaymentTransactionNewDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingBBSAuditDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
+import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingBBS;
 import com.bharatpe.lending.common.entity.LendingBBSAudit;
+import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -39,9 +41,6 @@ public class NewToBharatpeService {
 	LendingBBSAuditDao lendingBBSAuditDao;
 
     @Autowired
-    ObjectMapper objectMapper;
-
-    @Autowired
 	ExperianDao experianDao;
 
     @Autowired
@@ -59,11 +58,8 @@ public class NewToBharatpeService {
     @Autowired
 	LendingApplicationDao lendingApplicationDao;
 
-    SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
-
-    List<Integer> unsecuredLoan = Arrays.asList(0,5,6,8,9,10,11,12,14,16,18,19,20,31,35,36,37,38,39,43,51,52,53,54,55,56,57,58,61);
-
-	List<Integer> activeStatusList=Arrays.asList(11, 21, 22, 23, 24, 25, 71, 78, 80, 82, 83, 84);
+    @Autowired
+	LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     private static final double LOAN_ENQUIRY_WEIGHT = 0.2;
     private static final double DELINQUENCY_WEIGHT = 0.2;
@@ -75,10 +71,6 @@ public class NewToBharatpeService {
 
     public List<LoanEligibilityDTO> fetchBBSLoans(Merchant merchant, Experian experian, boolean yellowPincode, boolean hasRegularLoan) {
 		logger.info("Fetching NTB loans for merchant:{}", experian.getMerchantId());
-//        if (experian.getResponse() == null) {
-//            logger.info("Merchant:{} not eligible for BBS", merchant.getId());
-//            return new ArrayList<>();
-//        }
         try {
         	LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(merchant.getId());
         	if (lendingBBS == null || LoanUtil.getDateDiffInDays(lendingBBS.getCreatedAt(), new Date()) > 45) {
@@ -89,11 +81,21 @@ public class NewToBharatpeService {
 				return new ArrayList<>();
 			}
 			logger.info("BBS:{} for merchant:{}", lendingBBS.getBbs(), experian.getMerchantId());
+			boolean ntbLite = false;
         	if (!baseChecks(lendingBBS, merchant, experian, yellowPincode, hasRegularLoan)) {
-				logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
-				return new ArrayList<>();
+        		if (experian.getExperianScore() != null && experian.getExperianScore() >= 750) {
+					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", experian.getReason(), null));
+        			ntbLite = true;
+					experian.setCategory(null);
+					experian.setColor(null);
+					experian.setReason(null);
+					experianDao.save(experian);
+				} else {
+					logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
+					return new ArrayList<>();
+				}
 			}
-			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode, hasRegularLoan);
+			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode, hasRegularLoan, ntbLite);
         } catch (Exception e) {
             logger.error("Exception in BBS---", e);
             return new ArrayList<>();
@@ -204,19 +206,28 @@ public class NewToBharatpeService {
         return lendingBBS;
     }
 
-	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS, boolean yellowPincode, boolean hasRegularLoan){
+	private List<LoanEligibilityDTO> getBBSLoans(Merchant merchant, Experian experian, LendingBBS lendingBBS, boolean yellowPincode, boolean hasRegularLoan, boolean ntbLite){
 		try {
 			logger.info("Calculating ntb loan for merchant:{}", experian.getMerchantId());
 			double netFreeIncomePercent = lendingBBS.getIncome() > 0 ? (lendingBBS.getNetFreeIncome() / lendingBBS.getIncome()) * 100 : 0d;
 			if(netFreeIncomePercent < 10.0D) {
-				logger.info("NFI less than 10%, rejecting merchant:{}", merchant.getId());
-				if (!hasRegularLoan) {
-					experian.setCategory("1N");
-					experian.setColor(ExperianConstants.COLOR.RED.name());
-					experian.setReason(ExperianConstants.LOW_NFI);
-					experianDao.save(experian);
+				if (experian.getExperianScore() != null && experian.getExperianScore() >= 750) {
+					ntbLite = true;
+					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", ExperianConstants.LOW_NFI, String.valueOf(netFreeIncomePercent)));
+				} else {
+					logger.info("NFI less than 10%, rejecting merchant:{}", merchant.getId());
+					if (!hasRegularLoan) {
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experian.setReason(ExperianConstants.LOW_NFI);
+						experianDao.save(experian);
+					}
+					return new ArrayList<>();
 				}
-				return new ArrayList<>();
+			}
+			if (ntbLite) {
+				logger.info("Fetching NTB Lite loan for merchant:{}", merchant.getId());
+				return getNTBLiteLoans(merchant, experian);
 			}
 			double extraPercent = netFreeIncomePercent - 10D;
 			double amountToServe = lendingBBS.getIncome() * (extraPercent/100);
@@ -268,19 +279,19 @@ public class NewToBharatpeService {
 				logger.info("loan offer is null for merchant: {}", merchant.getId());
 			}
 		}
-		if (loanEligibilityDTOList.isEmpty() && bbs > 600) {
-			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
-			for (LendingCategories lendingCategory : lendingCategories) {
-				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
-					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
-					if (loanEligibilityDTO != null) {
-						loanEligibilityDTOList.add(loanEligibilityDTO);
-					} else {
-						logger.info("loan offer is null for merchant: {}", merchant.getId());
-					}
-				}
-			}
-		}
+//		if (loanEligibilityDTOList.isEmpty() && bbs > 600) {
+//			logger.info("No NTB loan for merchant:{}, fetching 10k loans", merchant.getId());
+//			for (LendingCategories lendingCategory : lendingCategories) {
+//				if (lendingCategory.getTenureMonths().equals(1F) || lendingCategory.getTenureMonths().equals(3F)) {
+//					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), 10000D, experian.getColor(), "2", loanType, false, yellowPincode);
+//					if (loanEligibilityDTO != null) {
+//						loanEligibilityDTOList.add(loanEligibilityDTO);
+//					} else {
+//						logger.info("loan offer is null for merchant: {}", merchant.getId());
+//					}
+//				}
+//			}
+//		}
 		loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
 		try {
 			LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchant.getId());
@@ -299,15 +310,48 @@ public class NewToBharatpeService {
 		} catch (Exception e) {
 			logger.error("Exception in ntb loan", e);
 		}
-		if (!loanEligibilityDTOList.isEmpty()) {
-			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
-		}
-		if (loanEligibilityDTOList.isEmpty() && !hasRegularLoan) {
+		if (loanEligibilityDTOList.isEmpty() && experian.getExperianScore() != null && experian.getExperianScore() >= 750 && !hasRegularLoan) {
+			lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", ExperianConstants.LOW_ATS, null));
+			logger.info("Fetching NTB Lite loan for merchant:{}", merchant.getId());
+			loanEligibilityDTOList.addAll(getNTBLiteLoans(merchant, experian));
+		} else if (loanEligibilityDTOList.isEmpty() && !hasRegularLoan) {
 			logger.info("Low ATS, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 			experian.setCategory("1N");
 			experian.setColor(ExperianConstants.COLOR.RED.name());
 			experian.setReason(ExperianConstants.LOW_ATS);
 			experianDao.save(experian);
+		}
+		if (!loanEligibilityDTOList.isEmpty()) {
+			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
+		}
+		return loanEligibilityDTOList;
+	}
+
+	private List<LoanEligibilityDTO> getNTBLiteLoans(Merchant merchant, Experian experian) {
+    	String masterCategory = experian.getExperianScore() <= 800 ? "NTBLITE1" : "NTBLITE2";
+		experian.setCategory(masterCategory);
+		experian.setColor(ExperianConstants.COLOR.AMBER.name());
+		experianDao.save(experian);
+		List<LendingCategories> lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1(masterCategory);
+		if(lendingCategories==null || lendingCategories.isEmpty()) {
+			logger.error("No active lending category found for merchant: {}", merchant.getId());
+			return new ArrayList<>();
+		}
+		List<LoanEligibilityDTO> loanEligibilityDTOList = new LinkedList<>();
+		String loanType = "NTB";
+		logger.info("Deleting NTB eligible loans for merchant: {}", merchant.getId());
+		eligibleLoanDao.deleteByMerchantIdAndLoanType(merchant.getId(), "NTB");
+		for (LendingCategories lendingCategory : lendingCategories) {
+			LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(lendingCategory, 0D, null, experian.getMerchantId(), experian.getId(), lendingCategory.getMaxTpvAmount(), experian.getColor(), "2", loanType, false, false);
+			if (loanEligibilityDTO != null) {
+				loanEligibilityDTOList.add(loanEligibilityDTO);
+			} else {
+				logger.info("loan offer is null for merchant: {}", merchant.getId());
+			}
+		}
+		loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+		if (!loanEligibilityDTOList.isEmpty()) {
+			experianDao.updateEligibleAmount(experian.getId(), loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), "NTB");
 		}
 		return loanEligibilityDTOList;
 	}
