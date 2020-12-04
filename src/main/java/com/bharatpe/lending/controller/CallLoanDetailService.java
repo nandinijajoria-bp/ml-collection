@@ -324,17 +324,26 @@ public class CallLoanDetailService {
 
 	public void callLoanDetail() {
 		logger.info("Loan Details Script Started");
+		long offset = 0;
+		boolean lastBatchProcessed = false;
 		ExecutorService executorService = Executors.newFixedThreadPool(10);
-		try {
-			// query returns integer in merchant_id
-			Experian experian = experianDao.getByMerchantId(3612680L);
-			sendPush(experian);
-//			for (Experian experian1 : lendingApplications) {
-//				executorService.submit(() -> sendPush(lendingApplication));
+//		while (!lastBatchProcessed) {
+//			try {
+//				// query returns integer in merchant_id
+//				List<Experian> experians = experianDao.getMerchantList(offset);
+//				offset += 1000;
+//				if (experians.size() < 1000) {
+//					lastBatchProcessed = true;
+//				}
+//				for (Experian experian : experians) {
+//					executorService.submit(() -> sendPush(experian));
+//				}
+//			} catch (Exception e) {
+//				logger.error("Exception---", e);
 //			}
-		} catch (Exception e) {
-			logger.error("Exception---", e);
-		}
+//		}
+		Experian experian = experianDao.getByMerchantId(3612680L);
+		sendPush(experian);
 		logger.info("Loan Details Script Ended");
 	}
 
@@ -348,7 +357,7 @@ public class CallLoanDetailService {
 		if(merchantFcmToken != null) {
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=survey-merchant-lending");
 		}
-		String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.\nhttps://bharatpe.in/Uy9AX";
+		String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better. Click here:https://bharatpe.in/Uy9AX";
 		whatsappNotificationService.send(merchant, null, whatsapp, new ArrayList<String>(){{add(merchant.getMobile());}}, null);
 	}
 
