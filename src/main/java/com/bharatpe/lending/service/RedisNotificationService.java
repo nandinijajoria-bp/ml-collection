@@ -57,24 +57,9 @@ public class RedisNotificationService {
 				notificationDto.setMerchantId(merchantId);
 				notificationDto.setMessageCategory("ELIGIBLE");
 				MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-				String bankName=bankDetail!=null?bankDetail.getBankName():"";
-				
-				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is ready to be transferred to your "+bankName+" A/c\n" + 
+				notificationDto.setMessage("Dear " + bankDetail.getBeneficiaryName() + ". Rs. "+highestLoan.getAmount()+" is ready to be transferred to your " + bankDetail.getBankName() + " A/c\n" +
 						"Quick Disbursal. Pay only Rs."+highestLoan.getEdi()+" Daily Instalment\n");
-				//String messageString30min=objectMapper.writeValueAsString(notificationDto);
 				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_"+merchantId, 5*60);
-				
-//				notificationDto.setMessage("Transfer Rs. "+highestLoan.getAmount()+" to your "+bankName+" A/c Now\n" + 
-//						"Pay only Rs. "+highestLoan.getEdi()+" Daily from your QR Settlement");
-//				//String messageString1Day=objectMapper.writeValueAsString(notificationDto);
-//				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_1day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 1));
-//				
-//				notificationDto.setMessage("Rs. "+highestLoan.getAmount()+" is waiting to be transferred to your "+bankName+" A/c\n" + 
-//						"Pay only Rs. "+highestLoan.getEdi()+". Daily from your QR Settlement.");
-//				//String messageString3days=objectMapper.writeValueAsString(notificationDto);
-//				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_3day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 3));
-//				//message of day 3 and day 5 are same
-//				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_5day_"+merchantId, DateTimeUtil.getSecondsTillTime(12, 5));
 			}
 		}
 		catch(Exception e) {

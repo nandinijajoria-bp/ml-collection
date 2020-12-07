@@ -33,7 +33,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	List<LendingApplication> fetchLatestOpenApplication(Merchant merchant);
 
-	@Query(value = "select * from lending_application where merchant_id=?1 and status='pending_verification' order by id desc limit 1", nativeQuery = true)
+	@Query(value = "select * from lending_application where merchant_id=?1 and status in ('draft','pending_verification') order by id desc limit 1", nativeQuery = true)
 	LendingApplication getLatestPendingApplication(Long merchantId);
 	
 	@Modifying
