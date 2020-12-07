@@ -57,8 +57,8 @@ public class RedisNotificationService {
 				notificationDto.setMerchantId(merchantId);
 				notificationDto.setMessageCategory("ELIGIBLE");
 				MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-				notificationDto.setMessage("Dear " + bankDetail.getBeneficiaryName() + ". Rs. "+highestLoan.getAmount()+" is ready to be transferred to your " + bankDetail.getBankName() + " A/c\n" +
-						"Quick Disbursal. Pay only Rs."+highestLoan.getEdi()+" Daily Instalment\n");
+				notificationDto.setMessage("Dear " + bankDetail.getBeneficiaryName() + ". Rs. "+highestLoan.getAmount()+" quick loan is ready to be disbursed to your " + bankDetail.getBankName() + " A/C.\n" +
+						" Daily repayment of only Rs."+highestLoan.getEdi()+" \n");
 				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_"+merchantId, 5*60);
 			}
 		}
