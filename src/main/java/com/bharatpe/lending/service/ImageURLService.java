@@ -78,7 +78,7 @@ public class ImageURLService {
 		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
 		if (finalCall) {
 			Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-			if (!phonebook.isPresent()) {
+			if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
 				logger.info("Contacts not synced for merchant:{}", merchant.getId());
 				result.put("success", false);
 				result.put("message", "CONTACTS_NOT_SYNCED");

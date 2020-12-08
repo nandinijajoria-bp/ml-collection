@@ -452,7 +452,7 @@ public class LoanDetailsService {
 				logger.info("Active loan found for merchant with ID {}", merchant.getId());
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-				if (!phonebook.isPresent()) {
+				if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
 					logger.info("Contacts not synced for merchant:{}", merchant.getId());
 					syncContacts = true;
 				}
@@ -506,7 +506,7 @@ public class LoanDetailsService {
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-				if (!phonebook.isPresent()) {
+				if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
 					logger.info("Contacts not synced for merchant:{}", merchant.getId());
 					syncContacts = true;
 				}
