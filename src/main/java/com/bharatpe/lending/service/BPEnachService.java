@@ -85,7 +85,7 @@ public class BPEnachService {
     
     private static String drfDeepLinkStr = "drf-onboard";
 
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type,String referenceNumber) {
+    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type,String referenceNumber, String ownerId) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
         final double LOAN_AMOUNT = nachAmount;
@@ -121,7 +121,9 @@ public class BPEnachService {
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
                 BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString(), bankBranch
         );
-
+        if (ownerId != null) {
+            bpEnach.setOwnerId(Long.parseLong(ownerId));
+        }
         bpEnach = bpEnachDao.save(bpEnach);
         responseDTO.setData(new ENachIntitiationResponseDTO.Data(bpEnach.getId(), bpEnach.getId(), bankCode, LOAN_AMOUNT, sdf.format(mandateDate), bpEnach.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
         return responseDTO;

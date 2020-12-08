@@ -38,7 +38,7 @@ public class BPEnachController {
     BPEnachRawRequestDao bpEnachRawRequestDao;
 
     @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion, @RequestParam(name = "platform", required = true) String module, @RequestParam(name = "loan_amount", required = true) String amount, @RequestParam(name = "type", required = true) String type, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
+    public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion, @RequestParam(name = "platform", required = true) String module, @RequestParam(name = "loan_amount", required = true) String amount, @RequestParam(name = "type", required = true) String type, @RequestParam(name = "reference_number", required = true) String referenceNumber, @RequestParam(name = "owner_id", required = false) String ownerId) {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setResponse(false);
 
@@ -53,7 +53,7 @@ public class BPEnachController {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
             } else {
-                finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount, type, referenceNumber), HttpStatus.OK);
+                finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount, type, referenceNumber, ownerId), HttpStatus.OK);
             }
 //            disabled for now
 //            if (enachServiceToUse.equals("techprocess")) {
