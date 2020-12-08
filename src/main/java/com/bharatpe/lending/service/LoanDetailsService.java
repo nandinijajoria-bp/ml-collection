@@ -631,6 +631,7 @@ public class LoanDetailsService {
 							List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode, !loanEligibilityDTOs.isEmpty());
 							if (!ntbLoans.isEmpty()) {
 								if (loanEligibilityDTOs.isEmpty()) {
+									eligibleLoanDao.deleteNonNTB(merchant.getId());
 									loanEligibilityDTOs.addAll(ntbLoans);
 								} else if (loanEligibilityDTOs.get(0).getAmount() < ntbLoans.get(0).getAmount()) {
 									logger.info("Deleting Non NTB eligible loans for merchant: {}", merchant.getId());
