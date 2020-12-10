@@ -70,6 +70,7 @@ public class LoanDetailsResponseDTO {
 		private  Double bharatSwipeAmount;
 		private boolean activeLoan = false;
 		private boolean syncContacts = false;
+		private boolean hasExperian = false;
 
 
 		@JsonProperty(value = "loan_history")
@@ -265,6 +266,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setSyncContacts(boolean syncContacts) {
 			this.syncContacts = syncContacts;
+		}
+
+		public boolean isHasExperian() {
+			return hasExperian;
+		}
+
+		public void setHasExperian(boolean hasExperian) {
+			this.hasExperian = hasExperian;
 		}
 
 		@Override

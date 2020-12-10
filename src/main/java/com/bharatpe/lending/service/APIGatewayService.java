@@ -111,6 +111,8 @@ public class APIGatewayService {
     LendingVirtualAccountDao lendingVirtualAccountDao;
 
     private final String CLIENT = "LENDING";
+
+    private static String clientSecret;
     
     @PostConstruct
     public void init() {
@@ -921,5 +923,47 @@ public class APIGatewayService {
             logger.info("Exception in signzy image URL", e);
         }
         return null;
+    }
+
+    public MerchantInfoDTO getMerchantAddress(Long merchantId) {
+        logger.info("Fetching address for merchant:{}", merchantId);
+        Map<String, String> requestParams = new HashMap<String, String>(){{
+            put("scopes", "address");
+            put("merchantids", String.valueOf(merchantId));
+        }};
+        String payload = hmacCalculator.getPayload(requestParams);
+        String hash =hmacCalculator.calculateHMACHexEncoded(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Hash",hash);
+        headers.set("Client-Name","LENDING");
+        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+        logger.info("Fetch merchant address request:{}", request);
+        int retryCount=0;
+        while(retryCount<3) {
+            try {
+                ResponseEntity<MerchantInfoDTO> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("merchantinfo.endpoint")) + "?scopes=address&merchantids=" + merchantId, HttpMethod.GET, request, MerchantInfoDTO.class);
+                logger.info("Merchant address response:{}", responseEntity.getBody());
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getStatus()) {
+                    return responseEntity.getBody();
+                }
+                break;
+            }
+            catch(Exception e) {
+                logger.error("Error occurred while fetching merchant address ",e);
+            }
+            retryCount++;
+        }
+        return null;
+    }
+
+    private String getInternalSecret() {
+        if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
+            InternalClient client = internalClientDao.findByClientName(CLIENT);
+            if (client != null) {
+                clientSecret = aesEncryption.decrypt(client.getSecret());
+            }
+        }
+        return clientSecret;
     }
 }

@@ -10,6 +10,7 @@ import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -155,7 +156,7 @@ public class LoanDetailsService {
 	BankListDao bankListDao;
 
 	@Autowired
-	CrifDao crifDao;
+	MerchantDocumentProofDao merchantDocumentProofDao;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -467,6 +468,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setActiveLoan(isActiveLoan);
+				loanDetailsDTO.setHasExperian(experian != null);
 				if(!(pincode != null && lendingCity == null) && !isZomato) {
 					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.fetchTopupLoans(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, bankCode);
 					loanDetailsDTO.setTopupLoan(topupLoans == null || topupLoans.isEmpty() ? null : topupLoans);
@@ -526,6 +528,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
 				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+				loanDetailsDTO.setHasExperian(experian != null);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -551,6 +554,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setOgl(true);
 				loanDetailsDTO.setPincode(pincode);
+				loanDetailsDTO.setHasExperian(experian != null);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setBharatSwipe(isFromSwipe);
@@ -715,7 +719,17 @@ public class LoanDetailsService {
 				tempClosed = "INELIGIBLE";
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "INELIGIBLE"));
 			}
-			
+			boolean hasExperian;
+			if (panCard == null && pincode == null) {
+				hasExperian = false;
+				MerchantDocumentProof merchantDocumentProof = merchantDocumentProofDao.findVerifiedProofType(merchant.getId(), "pancard");
+				if (merchantDocumentProof != null && merchantDocumentProof.getProofNumber() != null) {
+					panCard = merchantDocumentProof.getProofNumber();
+				}
+				pincode = fetchPincode(merchant.getId());
+			} else {
+				hasExperian = true;
+			}
 			LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 			loanDetailsDTO.setEligibility(loanEligibilityDTOs);
 			loanDetailsDTO.setHistory(loanHistoryDTOs);
@@ -736,6 +750,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setBharatSwipe(isFromSwipe);
 			loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
+			loanDetailsDTO.setHasExperian(hasExperian);
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 			} else {
@@ -750,7 +765,20 @@ public class LoanDetailsService {
 		}
 		return response;
 	}
-	
+
+	private Integer fetchPincode(Long merchantId) {
+		logger.info("Fetching pincode for merchant:{}", merchantId);
+		MerchantInfoDTO merchantInfoDTO = apiGatewayService.getMerchantAddress(merchantId);
+		if (merchantInfoDTO != null && merchantInfoDTO.getData() != null && merchantInfoDTO.getData().get(0).getAddressDetail() != null) {
+			for (MerchantInfoDTO.AddressDetail addressDetail : merchantInfoDTO.getData().get(0).getAddressDetail()) {
+				if (addressDetail.getPinCode() != null && !addressDetail.getPinCode().trim().equalsIgnoreCase("")) {
+					return Integer.parseInt(addressDetail.getPinCode());
+				}
+			}
+		}
+		return null;
+	}
+
 	private LendingBharatswipeOffers getSwipeLoanOffer(Merchant merchant) {
 		LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
 		if(lendingBharatswipeOffers!=null && !isOfferExpired(lendingBharatswipeOffers) && lendingBharatswipeOffers.getTpv()!=null && lendingBharatswipeOffers.getTpv()>0) {

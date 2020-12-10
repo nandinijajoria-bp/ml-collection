@@ -4,17 +4,25 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,14 +63,8 @@ public class LendingApplicationService {
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;
 
-	@Value("${experian.enable:true}")
-	Boolean EXPERIAN_ENABLED;
-
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
-
-	@Autowired
-	MerchantDao merchantDao;
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -72,9 +74,6 @@ public class LendingApplicationService {
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
-
-	@Autowired
-	RedisNotificationService redisNotificationService;
 	
 	@Autowired
 	ExperianDao experianDao;
@@ -109,6 +108,24 @@ public class LendingApplicationService {
 	@Autowired
 	LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
+	@Autowired
+	APIGatewayService apiGatewayService;
+
+	@Autowired
+	DocumentsIdProofDao documentsIdProofDao;
+
+	@Autowired
+	MerchantDocumentProofDao merchantDocumentProofDao;
+
+	@Value("${aws.s3.bucket.kyc.documents}")
+	String kycBucket;
+
+	@Value("${aws.s3.bucket}")
+	String imageBucket;
+
+	@Autowired
+	S3BucketHandler s3BucketHandler;
+
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -136,7 +153,7 @@ public class LendingApplicationService {
 				}
 				else {
 					logger.info("Not details received from frontend and no prev loan found for merchant:{} ",merchant.getId());
-					return new LendingApplicationResponseDTO(true,"Details missing");
+					return prepopulateData(merchant, requestDTO);
 				}
 			}
 			else {
@@ -178,7 +195,140 @@ public class LendingApplicationService {
 		logger.info("Loan Application saved : {}",lendingApplication);
 		return prepareAPIResponse(lendingApplication,false);
 	}
-	
+
+	private LendingApplicationResponseDTO prepopulateData(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+		logger.info("Pre populating data for merchant:{}", merchant.getId());
+		try {
+			String selectedCategory = requestDTO.getPayload().getCategory();
+			if(selectedCategory==null || selectedCategory.isEmpty()) {
+				logger.error("Loan category not found in the request:{}", requestDTO.toString());
+				return new LendingApplicationResponseDTO(false, "Category missing");
+			}
+			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), selectedCategory, requestDTO.getPayload().getOfferType());
+			if(eligibleLoans.isEmpty()) {
+				logger.error("No eligible loan found for merchant:{}", merchant.getId());
+				return new LendingApplicationResponseDTO(false,"No eligible loan found");
+			}
+			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			EligibleLoan eligibleLoan = eligibleLoans.get(0);
+			MerchantInfoDTO merchantInfoDTO = apiGatewayService.getMerchantAddress(merchant.getId());
+			String address = fetchMerchantAddress(merchantInfoDTO);
+			LendingApplicationRequestDTO lendingApplicationRequestDTO = requestDTO.getPayload();
+			lendingApplicationRequestDTO.setStreetAddress(address);
+			if (merchantInfoDTO != null && merchantInfoDTO.getData() != null && merchantInfoDTO.getData().get(0).getMerchantDetail() != null) {
+				lendingApplicationRequestDTO.setBusinessName(merchantInfoDTO.getData().get(0).getMerchantDetail().getBussinessName());
+			}
+			if (experian != null && experian.getPincode() != null) {
+				PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+				lendingApplicationRequestDTO.setPincode(pincodeCityStateMapping.getPincode().longValue());
+				lendingApplicationRequestDTO.setCity(pincodeCityStateMapping.getCity());
+				lendingApplicationRequestDTO.setState(pincodeCityStateMapping.getState());
+			}
+			LendingApplication newApplication = createApplication(merchant, eligibleLoan, requestDTO.getPayload());
+			if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
+				newApplication.setLatitude(requestDTO.getMeta().getLatitude());
+			if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
+				newApplication.setLongitude(requestDTO.getMeta().getLongitude());
+			newApplication.setIp(requestDTO.getMeta().getIp());
+			newApplication.setTotalLoansCount(merchantSummary != null && merchantSummary.getTotalLoansCount() != null ? merchantSummary.getTotalLoansCount() : 0);
+			if(newApplication.getLoanType()!=null && (newApplication.getLoanType().equalsIgnoreCase("ZOMATO") || newApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE"))) {
+				newApplication.setLender("HINDON");
+			}
+			else {
+				newApplication.setLender("LDC");
+			}
+			newApplication = lendingApplicationDao.save(newApplication);
+			if(merchantSummary != null) {
+				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
+			}
+			createExperianSnapshot(newApplication.getMerchant(), newApplication);
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
+				createBBSSnapshot(newApplication);
+			}
+			createMerchantScoreSnapshot(newApplication);
+			lendingMerchantDropoffDao.updateApplicationId(newApplication.getMerchant().getId(), newApplication.getId());
+			replicateDocumentsForNewApplication(newApplication, merchant, requestDTO.getMeta());
+			return prepareAPIResponse(newApplication,true);
+		} catch (Exception e) {
+			logger.error("Exception in application pre populate---",e);
+		}
+		return new LendingApplicationResponseDTO(false, "Something went wrong");
+	}
+
+	private String fetchMerchantAddress(MerchantInfoDTO merchantInfoDTO) {
+//		List<String> definedOrder = Arrays.asList("CPV", "FOS", "SELF", "REVISIT");
+		if (merchantInfoDTO != null && merchantInfoDTO.getData() != null && !merchantInfoDTO.getData().isEmpty() && merchantInfoDTO.getData().get(0).getAddressDetail() != null) {
+//			List<MerchantInfoDTO.AddressDetail> addressDetails = new ArrayList<>();
+			for (MerchantInfoDTO.AddressDetail addressDetail : merchantInfoDTO.getData().get(0).getAddressDetail()) {
+				if (addressDetail.getType() != null && addressDetail.getType().equalsIgnoreCase("CPV") && addressDetail.getAddress() != null && !addressDetail.getAddress().trim().equalsIgnoreCase("")) {
+					return addressDetail.getAddress();
+				}
+			}
+//			addressDetails.sort(Comparator.comparing(c -> definedOrder.indexOf(c.getType())));
+//			if (addressDetails.get(0) != null) {
+//				return addressDetails.get(0).getAddress();
+//			}
+		}
+		return null;
+	}
+
+	public void replicateDocumentsForNewApplication(LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
+		MerchantDocumentProof selfie = merchantDocumentProofDao.findVerifiedProofType(merchant.getId(), "selfie");
+		MerchantDocumentProof pancard = merchantDocumentProofDao.findVerifiedProofType(merchant.getId(), "pancard");
+		MerchantDocumentProof poa = merchantDocumentProofDao.findVerifiedPOA(merchant.getId());
+		List<MerchantDocumentProof> merchantDocumentProofs = new ArrayList<MerchantDocumentProof>() {{
+			add(selfie);
+			add(pancard);
+			add(poa);
+		}};
+		merchantDocumentProofs.removeAll(Collections.singleton(null));
+		for(MerchantDocumentProof documentsIdProof  : merchantDocumentProofs) {
+			String frontUrl = documentsIdProof.getProofFrontSide();
+			String backUrl = documentsIdProof.getProofBackSide();
+			if (!documentsIdProof.getOwnerType().equalsIgnoreCase("LENDING")) {
+				frontUrl = uploadDocumentInLending(frontUrl, merchant.getId(), kycBucket);
+				if (backUrl != null) {
+					backUrl = uploadDocumentInLending(backUrl, merchant.getId(), kycBucket);
+				}
+			}
+			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
+			toSaveDocuments.setMerchant(merchant);
+			toSaveDocuments.setProofType(documentsIdProof.getProofType());
+			toSaveDocuments.setProofFrontSide(frontUrl);
+			toSaveDocuments.setProofBackSide(backUrl);
+			toSaveDocuments.setLendingApplication(newApplication);
+			toSaveDocuments.setStatus("pending_verification");
+			int singleProofDoc;
+			if(documentsIdProof.getProofBackSide() != null) {
+				singleProofDoc = 0;
+			} else {
+				singleProofDoc = 1;
+			}
+			toSaveDocuments.setSinglePage(singleProofDoc);
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLongitude(meta.getLongitude());
+			toSaveDocuments.setIp(meta.getIp());
+			documentsIdProofDao.save(toSaveDocuments);
+		}
+	}
+
+	private String uploadDocumentInLending(String frontUrl, Long merchantId, String bucket) {
+		try {
+			String imageURL = s3BucketHandler.getPreSignedPublicURL(frontUrl, bucket);
+			String fileName = merchantId + "" + ((int) (Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			File file = new File("/tmp/" + fileName);
+			FileUtils.copyURLToFile(new URL(imageURL), file);
+			s3BucketHandler.uploadFileToS3(file, imageBucket, fileName);
+			return fileName;
+		} catch (Exception e) {
+			logger.error("Error while uploading image in lending bucket", e);
+		}
+		return null;
+	}
+
 	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO, String offerType) {
 		try {
 			if(prevLoan.getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
@@ -200,7 +350,7 @@ public class LendingApplicationService {
 	}
 	
 	private List<EligibleLoan> fetchEligibleLoansForCreateApplication(Long merchantId, String category, String offerType){
-		if(offerType != null && "CUSTOM".equalsIgnoreCase(offerType)){
+		if("CUSTOM".equalsIgnoreCase(offerType)){
 			return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
 		}
 		return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
@@ -254,7 +404,7 @@ public class LendingApplicationService {
 	}
 	
 	private LendingApplication copyApplicationDataWhenExperianEnabled(EligibleLoan eligibleLoan, LendingCategories selectedCategoriesData, LendingApplication prevLoan,String selectedCategory) {
-		
+		Experian experian = experianDao.getByMerchantId(prevLoan.getMerchant().getId());
 		LendingApplication newApplication=new LendingApplication();
 		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
@@ -269,9 +419,12 @@ public class LendingApplicationService {
 		newApplication.setStreetAddress(prevLoan.getStreetAddress());
 		newApplication.setArea(prevLoan.getArea());
 		newApplication.setLandmark(prevLoan.getLandmark());
-//		newApplication.setPincode(prevLoan.getPincode());
-//		newApplication.setCity(prevLoan.getCity());
-//		newApplication.setState(prevLoan.getState());
+		if (experian != null && experian.getPincode() != null) {
+			PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+			newApplication.setPincode(pincodeCityStateMapping.getPincode().longValue());
+			newApplication.setCity(pincodeCityStateMapping.getCity());
+			newApplication.setState(pincodeCityStateMapping.getState());
+		}
 		newApplication.setBusinessName(prevLoan.getBusinessName());
 		newApplication.setStatus("draft");
 		newApplication.setMode("AUTO");
@@ -428,7 +581,7 @@ public class LendingApplicationService {
 
 
 	private void createGstDetail(Merchant merchant,LendingApplicationRequestDTO lendingApplicationRequest){
-		if(lendingApplicationRequest.getApplicationId() != null){
+		if(lendingApplicationRequest.getApplicationId() != null && lendingApplicationRequest.getEntityType() != null){
 			logger.info("gettinf GST NUmber{}",lendingApplicationRequest.getGstNumber());
 			LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(lendingApplicationRequest.getApplicationId());
 			if(lendingGstDetail == null){
