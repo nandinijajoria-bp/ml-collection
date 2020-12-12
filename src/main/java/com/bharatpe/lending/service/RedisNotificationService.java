@@ -127,6 +127,7 @@ public class RedisNotificationService {
 	
 	public void sendPromotionalNotificationForCreditLine(Merchant merchant, CreditAccount creditAccount) {
 		try {
+			if (true) return;
 			logger.info("Sending promotional notification got merchant {}",merchant);
 			MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
