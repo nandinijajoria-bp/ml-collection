@@ -445,9 +445,9 @@ public class LoanDetailsService {
 			if (lendingApplication != null && "BHARAT_SWIPE".equals(lendingApplication.getLoanType())) {
 				skipEnatch = true;
 			}
-//			if (merchant.getId().equals(3612680L)) {
-//				enach = "bharatpe://enachdigio";
-//			}
+			if (merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L) || merchant.getId().equals(6518986L)) {
+				enach = "bharatpe://enachdigio";
+			}
 			
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchant.getId());
