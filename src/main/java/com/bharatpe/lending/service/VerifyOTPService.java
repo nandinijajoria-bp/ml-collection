@@ -214,7 +214,7 @@ public class VerifyOTPService {
 		lendingApplicationDao.save(lendingApplication);
 		if(lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
 			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);	
-//			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 		}
 		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
 				.amount(0D)
