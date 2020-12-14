@@ -768,13 +768,17 @@ public class LoanDetailsService {
 
 	private Integer fetchPincode(Long merchantId) {
 		logger.info("Fetching pincode for merchant:{}", merchantId);
-		MerchantInfoDTO merchantInfoDTO = apiGatewayService.getMerchantAddress(merchantId);
-		if (merchantInfoDTO != null && merchantInfoDTO.getData() != null && merchantInfoDTO.getData().get(0).getAddressDetail() != null) {
-			for (MerchantInfoDTO.AddressDetail addressDetail : merchantInfoDTO.getData().get(0).getAddressDetail()) {
-				if (addressDetail.getPinCode() != null && !addressDetail.getPinCode().trim().equalsIgnoreCase("")) {
-					return Integer.parseInt(addressDetail.getPinCode());
+		try {
+			MerchantInfoDTO merchantInfoDTO = apiGatewayService.getMerchantAddress(merchantId);
+			if (merchantInfoDTO != null && merchantInfoDTO.getData() != null && merchantInfoDTO.getData().get(0).getAddressDetail() != null) {
+				for (MerchantInfoDTO.AddressDetail addressDetail : merchantInfoDTO.getData().get(0).getAddressDetail()) {
+					if (addressDetail.getPinCode() != null && !addressDetail.getPinCode().trim().equalsIgnoreCase("")) {
+						return Integer.parseInt(addressDetail.getPinCode());
+					}
 				}
 			}
+		} catch (Exception e) {
+			logger.info("Exception while fetching pincode for merchant:{}", merchantId, e);
 		}
 		return null;
 	}

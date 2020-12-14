@@ -206,7 +206,7 @@ public class LendingApplicationService {
 			}
 			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), selectedCategory, requestDTO.getPayload().getOfferType());
 			if(eligibleLoans.isEmpty()) {
-				logger.error("No eligible loan found for merchant:{}", merchant.getId());
+				logger.info("No eligible loan found for merchant:{}", merchant.getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
@@ -221,9 +221,11 @@ public class LendingApplicationService {
 			}
 			if (experian != null && experian.getPincode() != null) {
 				PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
-				lendingApplicationRequestDTO.setPincode(pincodeCityStateMapping.getPincode().longValue());
-				lendingApplicationRequestDTO.setCity(pincodeCityStateMapping.getCity());
-				lendingApplicationRequestDTO.setState(pincodeCityStateMapping.getState());
+				if (pincodeCityStateMapping != null) {
+					lendingApplicationRequestDTO.setPincode(pincodeCityStateMapping.getPincode().longValue());
+					lendingApplicationRequestDTO.setCity(pincodeCityStateMapping.getCity());
+					lendingApplicationRequestDTO.setState(pincodeCityStateMapping.getState());
+				}
 			}
 			LendingApplication newApplication = createApplication(merchant, eligibleLoan, requestDTO.getPayload());
 			if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
@@ -324,7 +326,7 @@ public class LendingApplicationService {
 			s3BucketHandler.uploadFileToS3(file, imageBucket, fileName);
 			return fileName;
 		} catch (Exception e) {
-			logger.error("Error while uploading image in lending bucket", e);
+			logger.info("Error while uploading image in lending bucket", e);
 		}
 		return null;
 	}
@@ -421,9 +423,11 @@ public class LendingApplicationService {
 		newApplication.setLandmark(prevLoan.getLandmark());
 		if (experian != null && experian.getPincode() != null) {
 			PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
-			newApplication.setPincode(pincodeCityStateMapping.getPincode().longValue());
-			newApplication.setCity(pincodeCityStateMapping.getCity());
-			newApplication.setState(pincodeCityStateMapping.getState());
+			if (pincodeCityStateMapping != null) {
+				newApplication.setPincode(pincodeCityStateMapping.getPincode().longValue());
+				newApplication.setCity(pincodeCityStateMapping.getCity());
+				newApplication.setState(pincodeCityStateMapping.getState());
+			}
 		}
 		newApplication.setBusinessName(prevLoan.getBusinessName());
 		newApplication.setStatus("draft");
