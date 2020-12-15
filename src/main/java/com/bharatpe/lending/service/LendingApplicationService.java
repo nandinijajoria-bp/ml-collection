@@ -286,34 +286,38 @@ public class LendingApplicationService {
 		}};
 		merchantDocumentProofs.removeAll(Collections.singleton(null));
 		for(MerchantDocumentProof documentsIdProof  : merchantDocumentProofs) {
-			String frontUrl = documentsIdProof.getProofFrontSide();
-			String backUrl = documentsIdProof.getProofBackSide();
-			if (!documentsIdProof.getOwnerType().equalsIgnoreCase("LENDING")) {
-				frontUrl = uploadDocumentInLending(frontUrl, merchant.getId(), kycBucket);
-				if (backUrl != null) {
-					backUrl = uploadDocumentInLending(backUrl, merchant.getId(), kycBucket);
+			try {
+				String frontUrl = documentsIdProof.getProofFrontSide();
+				String backUrl = documentsIdProof.getProofBackSide();
+				if (!documentsIdProof.getOwnerType().equalsIgnoreCase("LENDING")) {
+					frontUrl = uploadDocumentInLending(frontUrl, merchant.getId(), kycBucket);
+					if (backUrl != null) {
+						backUrl = uploadDocumentInLending(backUrl, merchant.getId(), kycBucket);
+					}
 				}
+				DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
+				toSaveDocuments.setMerchant(merchant);
+				toSaveDocuments.setProofType(documentsIdProof.getProofType());
+				toSaveDocuments.setProofFrontSide(frontUrl);
+				toSaveDocuments.setProofBackSide(backUrl);
+				toSaveDocuments.setLendingApplication(newApplication);
+				toSaveDocuments.setStatus("pending_verification");
+				int singleProofDoc;
+				if (documentsIdProof.getProofBackSide() != null) {
+					singleProofDoc = 0;
+				} else {
+					singleProofDoc = 1;
+				}
+				toSaveDocuments.setSinglePage(singleProofDoc);
+				if (!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+					toSaveDocuments.setLatitude(meta.getLatitude());
+				if (!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+					toSaveDocuments.setLongitude(meta.getLongitude());
+				toSaveDocuments.setIp(meta.getIp());
+				documentsIdProofDao.save(toSaveDocuments);
+			} catch (Exception e) {
+				logger.info("Exception while replicating doc for merchant:{}", merchant.getId(), e);
 			}
-			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
-			toSaveDocuments.setMerchant(merchant);
-			toSaveDocuments.setProofType(documentsIdProof.getProofType());
-			toSaveDocuments.setProofFrontSide(frontUrl);
-			toSaveDocuments.setProofBackSide(backUrl);
-			toSaveDocuments.setLendingApplication(newApplication);
-			toSaveDocuments.setStatus("pending_verification");
-			int singleProofDoc;
-			if(documentsIdProof.getProofBackSide() != null) {
-				singleProofDoc = 0;
-			} else {
-				singleProofDoc = 1;
-			}
-			toSaveDocuments.setSinglePage(singleProofDoc);
-			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
-				toSaveDocuments.setLatitude(meta.getLatitude());
-			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
-				toSaveDocuments.setLongitude(meta.getLongitude());
-			toSaveDocuments.setIp(meta.getIp());
-			documentsIdProofDao.save(toSaveDocuments);
 		}
 	}
 
