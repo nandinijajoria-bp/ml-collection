@@ -1695,6 +1695,10 @@ public class LendingApplicationService {
 	public ResponseDTO applicationStatus(Merchant merchant,RequestDTO<ApplicationStatusRequestDTO> requestDTO,String clientIp, String token) {
 		Long application_id = requestDTO.getPayload().getApplicationId();
 		logger.info("Appplication Id :{}", application_id);
+		if (application_id == null) {
+			logger.info("Application id is null for merchant:{}", merchant.getId());
+			return new ResponseDTO(Boolean.FALSE, "Application not found");
+		}
 		Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(application_id);
 		ResponseDTO responseDTO = new ResponseDTO(Boolean.TRUE, "");
 		ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
