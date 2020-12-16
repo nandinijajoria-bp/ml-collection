@@ -12,12 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestAttribute;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.PincodeCityStateMapping;
 import com.bharatpe.common.objects.CommonAPIRequest;
@@ -163,6 +158,11 @@ public class LendingApplicationController {
 	@RequestMapping(value="/creditScore", method= RequestMethod.POST,produces = "application/json")
 	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<CreditScoreRequestDto> requestDTO){
 		return new ResponseEntity<>(loanDetailsService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/applicationStatus", method= RequestMethod.POST,produces = "application/json")
+	public ResponseEntity<ResponseDTO> applicationStatus(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<ApplicationStatusRequestDTO> requestDTO, @RequestHeader("token") String token) {
+		return new ResponseEntity<>(lendingApplicationService.applicationStatus(merchant, requestDTO, clientIp, token), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/adhaar_mask", method= RequestMethod.POST,produces = "application/json")

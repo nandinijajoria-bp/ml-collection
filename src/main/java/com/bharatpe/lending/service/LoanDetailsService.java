@@ -344,8 +344,7 @@ public class LoanDetailsService {
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 			if(lendingApplication != null) {
-				BharatPeEnach lendingEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-				if (lendingEnach != null && lendingEnach.getSkip() == null) lendingEnach.setSkip(false);
+				BharatPeEnach enachSkipped = bharatPeEnachDao.isSkipped(merchant.getId(), lendingApplication.getId());
 				if ((enachSuccess != null && repeatLoan) || (enachSuccess != null && lendingApplication.getLoanAmount() < 100000) || (lendingApplication.getPhysicalVerificationStatus() != null && !lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null"))) {
 					loanApplicationDTO.setSelfVerification(false);
 				}
@@ -377,7 +376,7 @@ public class LoanDetailsService {
 				} else if ("approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
 					eligibleFlag = false;
 					accountDetails = true;
-					if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getSuccess() != null && lendingEnach.getSuccess()) && bankCode != null) {
+					if (enachSuccess == null && enachSkipped == null && bankCode != null) {
 						enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 						skipEnatch = true;
 					}
@@ -395,16 +394,9 @@ public class LoanDetailsService {
 						}
 					}
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
-					try {
-						//enach not success and not skipped and bankcode enachable
-						if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
-							enach = apiGatewayService.getEnachProvider(token, merchant.getId());
-						}
-					} catch (Exception e) {// exception due to undefined app version
-						logger.info("Exception while checking enach bank", e);
-						if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && bankCode != null) {
-							enach = apiGatewayService.getEnachProvider(token, merchant.getId());
-						}
+					//enach not success and not skipped and bankcode enachable
+					if (enachSuccess == null && enachSkipped == null && bankCode != null) {
+						enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 					}
 					if(enachSuccess != null && "OGL".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						enach = null;
@@ -426,7 +418,7 @@ public class LoanDetailsService {
 							accountDetails = true;
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card Linked Successfully!");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Loan will be transferred in 24-48 hours after document verification.");
-						} else if (lendingEnach != null && !lendingEnach.getSkip()) {
+						} else if (enachSkipped == null) {
 							loanApplicationDTO.setStatusTitle("Net Banking / Debit Card could not be Linked!");
 							loanApplicationDTO.setStatusMessage("Your Application ID is " + lendingApplication.getExternalLoanId() + ". Our executive will visit you for verification in the next 3 days. Please keep a cheque of your bank A/c & a proof of ownership ready. Your loan will be disbursed within 24 hours after verification.");
 						} else {
@@ -474,8 +466,8 @@ public class LoanDetailsService {
 						double prevLoanUnpaidAmount = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) + activeLoan.getDueInterest();
 						Integer disbursementAmount = loanDetailsDTO.getLoanApplication().getSelectedLoan().getDisbursementAmount() - (int) prevLoanUnpaidAmount;
 						loanDetailsDTO.getLoanApplication().getSelectedLoan().setDisbursementAmount(disbursementAmount);
-						BharatPeEnach lendingEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-						if (enachSuccess == null && (lendingEnach == null || !lendingEnach.getSkip()) && !(lendingEnach != null && lendingEnach.getSuccess() != null && lendingEnach.getSuccess()) && bankCode != null) {
+						BharatPeEnach enachSkipped = bharatPeEnachDao.isSkipped(merchant.getId(), lendingApplication.getId());
+						if (enachSuccess == null && enachSkipped == null && bankCode != null) {
 							enach = apiGatewayService.getEnachProvider(token, merchant.getId());
 							loanDetailsDTO.getTopupLoan().get(0).setEnach(enach);
 							experian = experianDao.getByMerchantId(merchant.getId());

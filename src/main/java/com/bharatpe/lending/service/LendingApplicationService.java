@@ -56,6 +56,8 @@ public class LendingApplicationService {
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
 
+	@Autowired
+	LendingDisbursalStageDao lendingDisbursalStageDao;
 
 	@Autowired
 	LendingGstDao lendingGstDao;
@@ -107,6 +109,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	LendingMerchantDropoffDao lendingMerchantDropoffDao;
+
+	@Autowired
+	BPEnachDao bpEnachDao;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -1680,18 +1685,225 @@ public class LendingApplicationService {
 					responseDTO.setData(data);
 					return  responseDTO;
 				}
-
-//				if("deleted".equals(lendingApplication.getStatus()) || "rejected".equals(lendingApplication.getStatus()) || "closed".equals(lendingApplication.getStatus())){
-//					data.put("message","Merchant Loan Application Is Rejected State.");
-//					data.put("applicationPending", Boolean.FALSE);
-//					data.put("applicationRejected",Boolean.TRUE);
-//					responseDTO.setData(data);
-//					return  responseDTO;
-//				}
 			}
 		}catch(Exception ex){
 			logger.error("Error Fos Loan Details API", ex);
 			return responseDTO;
 		}
+	}
+
+	public ResponseDTO applicationStatus(Merchant merchant,RequestDTO<ApplicationStatusRequestDTO> requestDTO,String clientIp, String token) {
+		Long application_id = requestDTO.getPayload().getApplicationId();
+		logger.info("Appplication Id :{}", application_id);
+		Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(application_id);
+		ResponseDTO responseDTO = new ResponseDTO(Boolean.TRUE, "");
+		ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
+		if (!lendingApplication.isPresent()) {
+			return new ResponseDTO(Boolean.FALSE, "Application not found");
+		}
+		if("draft".equalsIgnoreCase(lendingApplication.get().getStatus()) || "deleted".equalsIgnoreCase(lendingApplication.get().getStatus())){
+			return new ResponseDTO(Boolean.FALSE, "Application not in pending state");
+		}
+		BpEnach successEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+		List<ApplicationDTO> applicationDTO = new ArrayList<>();
+		ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
+		applicationLoanDetailsDTO.setAmount(lendingApplication.get().getLoanAmount());
+		applicationLoanDetailsDTO.setFailedMsg("");
+		applicationLoanDetailsDTO.setOrderID(lendingApplication.get().getExternalLoanId());
+		applicationLoanDetailsDTO.setTransferDays("8 Days");
+		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
+		logger.info("get Agreement:{}", lendingApplication.get().getAgreement());
+		if ("1".equals(String.valueOf(lendingApplication.get().getAgreement()))) {
+			ApplicationDTO applicationDTO1 = new ApplicationDTO();
+			applicationDTO1.setStatus("APPROVED");
+			applicationDTO1.setText("Application Submitted");
+			ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+			dateDTO.setDay(lendingApplication.get().getAgreementAt().toString());
+			dateDTO.setTime(lendingApplication.get().getAgreementAt().toString());
+			applicationDTO1.setDateDTO(dateDTO);
+			applicationDTO.add(applicationDTO1);
+		}
+
+		ApplicationDTO applicationDTO2 = new ApplicationDTO();
+		if (successEnach != null) {
+			applicationDTO2.setStatus(successEnach.getStatus());
+			applicationDTO2.setText("eNACH Done");
+			applicationDTO2.setButtonContextDTO(null);
+			ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+			dateDTO.setDay(successEnach.getCreatedAt().toString());
+			dateDTO.setTime(successEnach.getCreatedAt().toString());
+			applicationDTO2.setDateDTO(dateDTO);
+			applicationDTO.add(applicationDTO2);
+		} else if ("pending_verification".equalsIgnoreCase(lendingApplication.get().getStatus())){
+			applicationDTO2.setStatus("PENDING");
+			applicationDTO2.setText("eNACH Pending");
+			applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
+			ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
+			buttonContextDTO.setAction("Enach");
+			buttonContextDTO.setText("Do eNACH");
+			buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, merchant.getId()));
+			applicationDTO2.setButtonContextDTO(buttonContextDTO);
+			applicationDTO.add(applicationDTO2);
+		}
+		boolean enachMandatory = true;
+		if (successEnach != null) {
+			enachMandatory = false;
+		} else if (lendingApplication.get().getAgreementAt() != null && "REGULAR".equals(lendingApplication.get().getLoanType()) && lendingApplication.get().getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.get().getAgreementAt(), new Date()) > 3) {
+			enachMandatory = false;
+		} else if ("BHARAT_SWIPE".equals(lendingApplication.get().getLoanType())) {
+			enachMandatory = false;
+		}
+		String kycStatus = lendingApplication.get().getManualKyc() != null && (lendingApplication.get().getManualKyc().equalsIgnoreCase("APPROVED") || lendingApplication.get().getManualKyc().equalsIgnoreCase("REJECTED")) ? lendingApplication.get().getManualKyc() : "PENDING";
+		String kycComment = null;
+		if (lendingApplication.get().getManualKycReason() != null) {
+			kycComment = lendingApplication.get().getManualKycReason();
+		} else if ("PENDING".equalsIgnoreCase(kycStatus)) {
+			kycComment = "(We're verifying documents submitted by you)";
+		}
+		if ("REJECTED".equalsIgnoreCase(lendingApplication.get().getManualCibil())) {
+			kycStatus = "REJECTED";
+			kycComment = lendingApplication.get().getManualCibilReason();
+		}
+		ApplicationDTO applicationDTO3 = new ApplicationDTO();
+		applicationDTO3.setText("Document Verification");
+		applicationDTO3.setDisabled(enachMandatory);
+		if (kycStatus.equalsIgnoreCase("APPROVED") || kycStatus.equalsIgnoreCase("REJECTED")) {
+			applicationDTO3.setDisabled(false);
+		}
+		applicationDTO3.setStatus(kycStatus);
+//		applicationDTO3.setComment(kycComment);
+		if (lendingApplication.get().getManualKyc() != null && !"null".equalsIgnoreCase(lendingApplication.get().getManualKyc()) && lendingApplication.get().getKycApprovedDate() != null) {
+			ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+			dateDTO.setDay(lendingApplication.get().getKycApprovedDate().toString());
+			dateDTO.setTime(lendingApplication.get().getKycApprovedDate().toString());
+			applicationDTO3.setDateDTO(dateDTO);
+		} else if ("REJECTED".equalsIgnoreCase(lendingApplication.get().getManualCibil()) && lendingApplication.get().getCibilApprovedDate() != null) {
+			ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+			dateDTO.setDay(lendingApplication.get().getCibilApprovedDate().toString());
+			dateDTO.setTime(lendingApplication.get().getCibilApprovedDate().toString());
+			applicationDTO3.setDateDTO(dateDTO);
+		}
+		applicationDTO.add(applicationDTO3);
+		boolean cpvRequired = !canSkipCpv(merchant.getId(), lendingApplication.get().getLoanAmount(), lendingApplication.get().getLoanType(), successEnach);
+		LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(application_id);
+		if ((cpvRequired && !"REJECTED".equalsIgnoreCase(kycStatus)) || "REJECTED".equalsIgnoreCase(lendingApplication.get().getPhysicalVerificationStatus())) {
+			String cpvComment;
+			if (lendingApplication.get().getPhysicalVerificationStatus() == null || lendingApplication.get().getPhysicalVerificationStatus().equalsIgnoreCase("null") || lendingApplication.get().getPhysicalVerificationStatus().equalsIgnoreCase("ASSIGNED")) {
+				cpvComment = "(Our agent will be visiting your shop in the next 3-4 days to verify & collect documents)";
+			} else if (lendingApplication.get().getPhysicalVerificationStatus() != null && !lendingApplication.get().getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") && !lendingApplication.get().getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) {
+				cpvComment = "(Documents collected from your shop by our agent are being verified by us)";
+			} else {
+				cpvComment = lendingApplication.get().getPhysicalReason();
+			}
+			ApplicationDTO applicationDTO4 = new ApplicationDTO();
+			applicationDTO4.setStatus(lendingApplication.get().getPhysicalVerificationStatus() != null && (lendingApplication.get().getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || lendingApplication.get().getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ? lendingApplication.get().getPhysicalVerificationStatus() : "PENDING");
+//			applicationDTO4.setComment(cpvComment);
+			applicationDTO4.setText("Physical verification");
+			applicationDTO4.setDisabled(!"APPROVED".equalsIgnoreCase(kycStatus));
+			if (lendingApplication.get().getPhysicalVerificationStatus() != null && !"null".equalsIgnoreCase(lendingApplication.get().getPhysicalVerificationStatus()) && lendingApplication.get().getPhysicalApprovedDate() != null) {
+				ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+				dateDTO.setTime(lendingApplication.get().getPhysicalApprovedDate().toString());
+				dateDTO.setDay(lendingApplication.get().getPhysicalApprovedDate().toString());
+				applicationDTO4.setDateDTO(dateDTO);
+			}
+			applicationDTO.add(applicationDTO4);
+		}
+		String applicationStatus = lendingApplication.get().getStatus();
+		if ("NTB".equalsIgnoreCase(lendingApplication.get().getLoanType()) && (!"rejected".equalsIgnoreCase(lendingApplication.get().getStatus()) || lendingDisbursalStage != null)) {
+			ApplicationDTO applicationDTO5 = new ApplicationDTO();
+			applicationDTO5.setDisabled(!"approved".equalsIgnoreCase(lendingApplication.get().getStatus()));
+			applicationDTO5.setText("Disbursal Review & Calling");
+			if (lendingDisbursalStage != null) {
+				String callingStatus;
+				if ("YES".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
+					callingStatus = "APPROVED";
+				} else if ("NO".equalsIgnoreCase(lendingDisbursalStage.getReadyStage())) {
+					callingStatus = "REJECTED";
+//					applicationDTO5.setComment("Credit Review failed");
+				} else if ("NO".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
+					callingStatus = "REJECTED";
+//					applicationDTO5.setComment("Call not picked");
+				} else if ("rejected".equalsIgnoreCase(lendingApplication.get().getStatus())) {
+					callingStatus = "REJECTED";
+				} else {
+					callingStatus = "PENDING";
+					applicationStatus = "PENDING";
+				}
+				ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+				dateDTO.setDay(lendingDisbursalStage.getCallTimestamp());
+				dateDTO.setTime(lendingDisbursalStage.getCallTimestamp());
+				applicationDTO5.setDateDTO(dateDTO);
+				applicationDTO5.setStatus(callingStatus);
+				applicationDTO5.setDisabled(Boolean.FALSE);
+			} else if ("approved".equalsIgnoreCase(lendingApplication.get().getStatus())) {
+				applicationDTO5.setStatus("PENDING");
+				applicationStatus = "PENDING";
+			}
+			applicationLoanDetailsDTO.setStatus(applicationDTO5.getStatus());
+			applicationDTO.add(applicationDTO5);
+		}
+
+		if (!"rejected".equalsIgnoreCase(lendingApplication.get().getStatus())) {
+			ApplicationDTO applicationDTO6 = new ApplicationDTO();
+			applicationDTO6.setDisabled(!applicationStatus.equalsIgnoreCase("approved"));
+			applicationDTO6.setText("Disbursal!");
+			applicationDTO.add(applicationDTO6);
+			if (!applicationDTO6.isDisabled()) {
+				applicationDTO6.setStatus("PENDING");
+			}
+		}
+		applicationLoanDetailsDTO.setStatus(applicationStatus);
+		ApplicationStatusResponseDTO.HeaderDTO headerDTO = new ApplicationStatusResponseDTO.HeaderDTO();
+		if (applicationLoanDetailsDTO.getStatus().equalsIgnoreCase("REJECTED")) {
+			headerDTO.setTitle("Loan Verification Failed");
+			headerDTO.setComment("Loan has not been approved");
+		} else if (applicationLoanDetailsDTO.getStatus().equalsIgnoreCase("APPROVED")) {
+			headerDTO.setTitle("Congratulations");
+			headerDTO.setComment("Application is Approved & Pending Disbursal");
+		} else {
+			headerDTO.setTitle("Congratulations");
+			headerDTO.setComment("Application Submitted & Pending Verification");
+		}
+		applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);
+		applicationStatusResponseDTO.setHeader(headerDTO);
+		applicationStatusResponseDTO.setApplicationDTOList(applicationDTO);
+		responseDTO.setData(applicationStatusResponseDTO);
+		return responseDTO;
+	}
+
+	public boolean canSkipCpv(Long merchantId, Double amount, String loanType, BpEnach lendingEnach) {
+
+		if(lendingEnach != null && lendingEnach.getInternalNachType().equalsIgnoreCase("ENACH")) {
+			if ("BHARAT_SWIPE".equals(loanType)) {
+				return true;
+			}
+			boolean isNTC = isNTC(merchantId);
+			if(isFirstLoan(merchantId)) {
+				if(isNTC && amount<=50000D) {
+					return true;
+				} else if(!isNTC && amount<=100000D) {//etc
+					return true;
+				}
+			}
+			else return amount <= 300000D;
+		}
+		return false;
+	}
+
+	public boolean isFirstLoan(Long merchantId) {
+		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, false);
+		return prevLoans.isEmpty();
+	}
+
+	public boolean isNTC(Long merchantId) {
+		Experian experian = experianDao.getByMerchantId(merchantId);
+		if (experian == null || experian.getCategory() == null) {
+			return true;
+		}
+		if (experian.getReason() != null && experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
+			return false;
+		}
+		List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
+		return ntcCategories.contains(experian.getCategory());
 	}
 }
