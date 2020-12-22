@@ -142,6 +142,7 @@ public class LoanEligibleService {
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
         Set<String> categorySet = new HashSet<>();
+        eligibleLoanDao.deleteCustomOffers(merchantId);
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndGreaterThanAmount(merchantId, queryAmount);
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
         for(EligibleLoan eligibleLoan : eligibleLoans){
