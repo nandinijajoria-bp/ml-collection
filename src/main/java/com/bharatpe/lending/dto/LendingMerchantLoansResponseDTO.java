@@ -50,7 +50,9 @@ public class LendingMerchantLoansResponseDTO {
         private Double lastEdiPaid;
         private Double repaymentAmount;
         @JsonProperty(value = "showPaynow")
-        private boolean showPaynow = false;
+        private boolean showPaynow = true;
+        @JsonProperty(value = "showCustomAmount")
+        private boolean showCustomAmount = false;
 
         public Loan() {
         }
@@ -210,6 +212,14 @@ public class LendingMerchantLoansResponseDTO {
 
         public void setShowPaynow(boolean showPaynow) {
             this.showPaynow = showPaynow;
+        }
+
+        public boolean isShowCustomAmount() {
+            return showCustomAmount;
+        }
+
+        public void setShowCustomAmount(boolean showCustomAmount) {
+            this.showCustomAmount = showCustomAmount;
         }
 
         public Double getRepaymentAmount() {

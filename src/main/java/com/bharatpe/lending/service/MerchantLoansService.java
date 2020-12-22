@@ -76,7 +76,7 @@ public class MerchantLoansService {
                 }
                 LendingEDISchedule lendingEDISchedule = lendingEDIScheduleDao.getLatestByLoanId(loan.getLoanId());
                 if(lendingEDISchedule != null){
-                    loan.setShowPaynow(true);
+                    loan.setShowCustomAmount(true);
                 }
             }
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
