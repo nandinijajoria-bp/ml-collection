@@ -5,6 +5,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
+import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingClPayment;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.dto.*;
@@ -77,6 +79,9 @@ public class PaymentService {
 
 	@Autowired
 	RedisNotificationService redisNotificationService;
+
+	@Autowired
+	LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -448,62 +453,55 @@ public class PaymentService {
 				balance-=paidAmount;
 
 			}
-			if(balance>0D) {
-				logger.info("Adjusting principle tl for account:{}", activeLoan.getId());
-				double totalPaid = 0d;
-				if ((activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0)) <= balance) {
-					logger.info("Closing loan:{}", activeLoan.getId());
-					totalPaid = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest());
-					activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
-					activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + totalPaid);
-					activeLoan.setDueAmount(0D);
-					activeLoan.setDueInterest(0D);
-					activeLoan.setDuePrinciple(0D);
-					activeLoan.setStatus("CLOSED");
-					activeLoan.setClosingDate(new Date());
-				} else {
-					List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
-					if (ediSchedules == null || ediSchedules.isEmpty()) {
-						logger.error("Edi Schedule not found for loan id:{}", activeLoan.getId());
-						throw new RuntimeException("EDI Schedule Not Found");
+			if(balance > 0D) {
+				logger.info("Adjusting extra amount:{} for loan:{}", balance, activeLoan.getId());
+				int adjustedEdiCount = 0;
+				double extraAmount = 0d;
+				double principle = 0d;
+				double interest = 0d;
+				List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
+				ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
+				int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
+				for (LendingEDISchedule ediSchedule : ediSchedules) {
+					if (balance <= 0d) {
+						break;
 					}
-					ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
-					int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
-					double principleAdjusted = 0d;
-					double interestAdjusted = 0d;
-					int ediCount = 0;
-					for (LendingEDISchedule ediSchedule : ediSchedules) {
-						if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
-							continue;
-						}
-						principleAdjusted += ediSchedule.getPrinciple();
-						interestAdjusted += ediSchedule.getInterest();
-						ediCount++;
-						if (principleAdjusted >= balance) {
-							double extraAmount = principleAdjusted - balance;
-							if (extraAmount > 0) {
-								activeLoan.setAdjustedDueAmount(activeLoan.getAdjustedDueAmount() != null ? activeLoan.getAdjustedDueAmount() + extraAmount : extraAmount);
-								principleAdjusted -= extraAmount;
-							}
-							break;
-						}
+					if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
+						continue;
 					}
-					if (principleAdjusted > 0) {
-						totalPaid = principleAdjusted;
-						activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - ediCount);
-						activeLoan.setPaidAmount(activeLoan.getPaidAmount() + totalPaid);
-						activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + totalPaid);
-						activeLoan.setTotalPayableAmount(activeLoan.getTotalPayableAmount() - interestAdjusted);
-					}
-					if (activeLoan.getEdiRemainingCount() == 0 && activeLoan.getAdjustedDueAmount() != null && activeLoan.getAdjustedDueAmount() > 0D) {
-						activeLoan.setDueAmount(activeLoan.getDueAmount() + activeLoan.getAdjustedDueAmount());
-						activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() + activeLoan.getAdjustedDueAmount());
-						createLendingLedger(activeLoan, -1*activeLoan.getAdjustedDueAmount(), -1*activeLoan.getAdjustedDueAmount(), 0D, "ADJUSTED_DUE_AMOUNT", source);
-						activeLoan.setAdjustedDueAmount(0D);
+					if (balance >= ediSchedule.getTotalEdi()) {
+						balance -= ediSchedule.getTotalEdi();
+						principle += ediSchedule.getPrinciple();
+						interest += ediSchedule.getInterest();
+						adjustedEdiCount++;
+					} else if (balance > ediSchedule.getPrinciple()){
+						principle += ediSchedule.getPrinciple();
+						interest += balance - ediSchedule.getPrinciple();
+						extraAmount += balance;
+						balance = 0d;
+					} else {
+						principle += balance;
+						extraAmount += balance;
+						balance = 0d;
 					}
 				}
-				paidPrincipalAmount+=totalPaid;
-				createLendingLedger(activeLoan, -1*totalPaid, -1*totalPaid, 0D, "PREPAYMENT", source);
+				activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - adjustedEdiCount);
+				activeLoan.setAdjustedPaidAmount(activeLoan.getAdjustedPaidAmount() != null ? activeLoan.getAdjustedPaidAmount() + extraAmount : extraAmount);
+				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + principle + interest);
+				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + principle);
+				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + interest);
+				paidPrincipalAmount += principle;
+				paidInterestAmount += interest;
+				createLendingLedger(activeLoan, -1*(principle + interest), -1*principle, -1*interest, "PREPAYMENT", source);
+				int extraEdiCount = activeLoan.getAdjustedPaidAmount() != null ? (int) (activeLoan.getAdjustedPaidAmount()/activeLoan.getEdiAmount()) : 0;
+				if (extraEdiCount > 0) {
+					activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - extraEdiCount);
+					activeLoan.setAdjustedPaidAmount(activeLoan.getAdjustedPaidAmount() % activeLoan.getEdiAmount());
+				}
+				if (activeLoan.getEdiRemainingCount() == 0 && activeLoan.getAdjustedDueAmount() != null && activeLoan.getAdjustedDueAmount() > 0D) {
+					createAdjustedSchedule(activeLoan, activeLoan.getAdjustedDueAmount());
+					activeLoan.setAdjustedDueAmount(0D);
+				}
 			}
 		}
 
@@ -566,5 +564,63 @@ public class PaymentService {
 			logger.error("Exception in payment verify", e);
 		}
 		return new ResponseDTO(false, "Payment verification Failed");
+	}
+
+	public int createAdjustedSchedule(LendingPaymentSchedule lendingPaymentSchedule, double amount) {
+		try {
+			logger.info("Creating Adjusted Edi Schedule for loan:{} and amount:{}", lendingPaymentSchedule.getId(), amount);
+			if (amount <= 0) {
+				logger.error("Adjusted Amount is less than 0");
+				return 0;
+			}
+			List<LendingAdjustedEDISchedule> ediScheduleList = new ArrayList<>();
+			int installmentNo = 1;
+			Calendar calendar = Calendar.getInstance();
+			calendar.add(Calendar.DAY_OF_MONTH, 1);
+			int ediCount = (int) (amount/lendingPaymentSchedule.getEdiAmount());
+			double extraAmount = amount % lendingPaymentSchedule.getEdiAmount();
+			while (installmentNo <= ediCount) {
+				if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+					calendar.add(Calendar.DAY_OF_MONTH, 1);
+					continue;
+				}
+				LendingAdjustedEDISchedule ediSchedule = new LendingAdjustedEDISchedule();
+				ediSchedule.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+				ediSchedule.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+				ediSchedule.setLoanId(lendingPaymentSchedule.getId());
+				ediSchedule.setApplicationId(lendingPaymentSchedule.getLoanApplication() != null ? lendingPaymentSchedule.getLoanApplication().getId() : null);
+				ediSchedule.setDate(calendar.getTime());
+				ediSchedule.setInstallmentNumber(installmentNo);
+				ediSchedule.setTotalEdi(lendingPaymentSchedule.getEdiAmount());
+				ediSchedule.setPrinciple(lendingPaymentSchedule.getEdiAmount());
+				ediSchedule.setInterest(0D);
+				ediScheduleList.add(ediSchedule);
+				calendar.add(Calendar.DAY_OF_MONTH, 1);
+				installmentNo++;
+			}
+			if (extraAmount > 0) {
+				if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+					calendar.add(Calendar.DAY_OF_MONTH, 1);
+				}
+				LendingAdjustedEDISchedule ediSchedule = new LendingAdjustedEDISchedule();
+				ediSchedule.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+				ediSchedule.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+				ediSchedule.setLoanId(lendingPaymentSchedule.getId());
+				ediSchedule.setApplicationId(lendingPaymentSchedule.getLoanApplication() != null ? lendingPaymentSchedule.getLoanApplication().getId() : null);
+				ediSchedule.setDate(calendar.getTime());
+				ediSchedule.setInstallmentNumber(installmentNo);
+				ediSchedule.setTotalEdi(extraAmount);
+				ediSchedule.setPrinciple(extraAmount);
+				ediSchedule.setInterest(0D);
+				ediScheduleList.add(ediSchedule);
+			}
+			if (!ediScheduleList.isEmpty()) {
+				lendingAdjustedEDIScheduleDao.saveAll(ediScheduleList);
+				return ediScheduleList.size();
+			}
+		} catch (Exception e) {
+			logger.error("Exception while creating adjusted schedule", e);
+		}
+		return 0;
 	}
 }
