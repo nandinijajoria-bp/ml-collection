@@ -63,7 +63,7 @@ public class LendingApplicationController {
 			return lendingApplicationResponse;
 		}
 		
-		logger.info("Create Application request : {}",requestDTO);
+		logger.info("Create Application request : {} for merchant:{}",requestDTO, merchant.getId());
 		if(requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
 			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));

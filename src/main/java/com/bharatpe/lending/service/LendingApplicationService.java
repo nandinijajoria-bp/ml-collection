@@ -154,6 +154,7 @@ public class LendingApplicationService {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 				createGstDetail(merchant,lendingApplicationRequest);
 				if(prevApplication!=null) {
+					logger.info("Replicating previous application for merchant:{}", merchant.getId());
 					return createApplicationFromPrevLoan(prevApplication,requestDTO, lendingApplicationRequest.getOfferType());
 				}
 				else {
