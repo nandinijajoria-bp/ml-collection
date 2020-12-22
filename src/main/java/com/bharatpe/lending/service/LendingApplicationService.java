@@ -284,11 +284,14 @@ public class LendingApplicationService {
 		MerchantDocumentProof selfie = merchantDocumentProofDao.findVerifiedProofType(merchant.getId(), "selfie");
 		MerchantDocumentProof pancard = merchantDocumentProofDao.findVerifiedProofType(merchant.getId(), "pancard");
 		MerchantDocumentProof poa = merchantDocumentProofDao.findVerifiedPOA(merchant.getId());
+		DocumentsIdProof eAadhar = documentsIdProofDao.findLatestEadhar(merchant.getId());
 		List<MerchantDocumentProof> merchantDocumentProofs = new ArrayList<MerchantDocumentProof>() {{
 			add(selfie);
 			add(pancard);
-			add(poa);
 		}};
+		if (eAadhar == null) {
+			merchantDocumentProofs.add(poa);
+		}
 		merchantDocumentProofs.removeAll(Collections.singleton(null));
 		for(MerchantDocumentProof documentsIdProof  : merchantDocumentProofs) {
 			try {
@@ -323,6 +326,28 @@ public class LendingApplicationService {
 			} catch (Exception e) {
 				logger.info("Exception while replicating doc for merchant:{}", merchant.getId(), e);
 			}
+		}
+		if (eAadhar != null) {
+			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
+			toSaveDocuments.setMerchant(merchant);
+			toSaveDocuments.setProofType(eAadhar.getProofType());
+			toSaveDocuments.setProofFrontSide(eAadhar.getProofFrontSide());
+			toSaveDocuments.setProofBackSide(eAadhar.getProofBackSide());
+			toSaveDocuments.setLendingApplication(newApplication);
+			toSaveDocuments.setStatus("pending_verification");
+			int singleProofDoc;
+			if (eAadhar.getProofBackSide() != null) {
+				singleProofDoc = 0;
+			} else {
+				singleProofDoc = 1;
+			}
+			toSaveDocuments.setSinglePage(singleProofDoc);
+			if (!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLatitude(meta.getLatitude());
+			if (!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				toSaveDocuments.setLongitude(meta.getLongitude());
+			toSaveDocuments.setIp(meta.getIp());
+			documentsIdProofDao.save(toSaveDocuments);
 		}
 	}
 
