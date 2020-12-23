@@ -115,15 +115,13 @@ public class ImageURLService {
 	
 	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
 		try{
-			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
-			if(lendingEkyc!=null){
-				return true;
-			}
-			return false;
+			LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
+			DocumentsIdProof ekycDoc = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchant.getId(), applicationId, "eAadhar");
+			return lendingEkyc != null && ekycDoc != null;
 		}
 		catch(Exception e) {
 			logger.error("Error occured while checking for ekyc status",e);
-			return null;
+			return false;
 		}
 	}
 	
