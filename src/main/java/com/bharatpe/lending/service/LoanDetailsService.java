@@ -704,7 +704,7 @@ public class LoanDetailsService {
 				eligibleFlag = false;
 				ogl = true;
 
-			} else if (!eligibleFlag) {
+			} else if (!eligibleFlag && !rejected) {
 				tempClosed = "INELIGIBLE";
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "INELIGIBLE"));
 			}
