@@ -131,6 +131,9 @@ public class LendingApplicationService {
 	@Autowired
 	S3BucketHandler s3BucketHandler;
 
+	@Autowired
+	ENachService eNachService;
+
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -1726,6 +1729,8 @@ public class LendingApplicationService {
 			return new ResponseDTO(Boolean.FALSE, "Application not found");
 		}
 		Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(application_id);
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 		ResponseDTO responseDTO = new ResponseDTO(Boolean.TRUE, "");
 		ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
 		if (!lendingApplication.isPresent()) {
@@ -1764,7 +1769,7 @@ public class LendingApplicationService {
 			dateDTO.setTime(successEnach.getCreatedAt().toString());
 			applicationDTO2.setDateDTO(dateDTO);
 			applicationDTO.add(applicationDTO2);
-		} else if ("pending_verification".equalsIgnoreCase(lendingApplication.get().getStatus())){
+		} else if ("pending_verification".equalsIgnoreCase(lendingApplication.get().getStatus()) && bankCode != null){
 			applicationDTO2.setStatus("PENDING");
 			applicationDTO2.setText("eNACH Pending");
 			applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
