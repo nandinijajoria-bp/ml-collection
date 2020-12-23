@@ -729,7 +729,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setPanCard(panCard);
 			loanDetailsDTO.setNoExperian(noExperian);
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
-			loanDetailsDTO.setTempClosed(tempClosed);
+			loanDetailsDTO.setTempClosed(hasExperian ? tempClosed : null);
 			loanDetailsDTO.setAccountDetails(accountDetails);
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setZomato(isZomato);
