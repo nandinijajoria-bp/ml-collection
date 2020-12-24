@@ -192,14 +192,8 @@ public class NewToBharatpeService {
 		logger.info("Calculating debt and income for merchant:{}", experian.getMerchantId());
 		Double debt = debtAndIncome.getOrDefault("debt", 0D);
 		Double income = debtAndIncome.getOrDefault("income", 0D);
-		if(income < 10000) {
-			income = debtAndIncome.getOrDefault("otherIncome", 0D);
-		}
 		double netFreeIncome = getNetFreeIncome(income, debt);
-		double netFreeIncomePercent = income > 0 ? (netFreeIncome / income) * 100 : 0d;
-		double extraPercent = netFreeIncomePercent - 10D;
-		double amountToServe = income * (extraPercent/100);
-        LendingBBS lendingBBS = new LendingBBS(experian.getMerchantId(), reportDate, loanEnquires3mon, loanEnquiries3monScore, delinquencyCount6mon, delinquencyCount6monScore, loanSanctioned3mon, loanSanctioned3monScore, typesOfLoan, typesOfLoanScore, unsecuredLoanRatio6mon, unsecuredLoanRatio6monScore, creditHistory, creditHistoryScore, bbs, debt, income, netFreeIncome, amountToServe);
+        LendingBBS lendingBBS = new LendingBBS(experian.getMerchantId(), reportDate, loanEnquires3mon, loanEnquiries3monScore, delinquencyCount6mon, delinquencyCount6monScore, loanSanctioned3mon, loanSanctioned3monScore, typesOfLoan, typesOfLoanScore, unsecuredLoanRatio6mon, unsecuredLoanRatio6monScore, creditHistory, creditHistoryScore, bbs, debt, income, netFreeIncome, netFreeIncome);
 		lendingBBSDao.deleteByMerchantId(experian.getMerchantId());
         lendingBBS = lendingBBSDao.save(lendingBBS);
         lendingBBSAuditDao.save(LendingBBSAudit.createObject(lendingBBS));
@@ -229,10 +223,8 @@ public class NewToBharatpeService {
 				logger.info("Fetching NTB Lite loan for merchant:{}", merchant.getId());
 				return getNTBLiteLoans(merchant, experian);
 			}
-			double extraPercent = netFreeIncomePercent - 10D;
-			double amountToServe = lendingBBS.getIncome() * (extraPercent/100);
-			logger.info("amount to serve:{} for merchant:{}", amountToServe, merchant.getId());
-			String category = getCategory(extraPercent, lendingBBS);
+			logger.info("amount to serve:{} for merchant:{}", lendingBBS.getNetFreeIncome(), merchant.getId());
+			String category = getCategory(netFreeIncomePercent, lendingBBS);
 			logger.info("Category:{} found for merchant:{}", category, merchant.getId());
 			if(category==null) {
 				logger.error("No category found for merchant {}",merchant);
@@ -241,7 +233,7 @@ public class NewToBharatpeService {
 			experian.setCategory(category);
 			experian.setColor(ExperianConstants.COLOR_TO_CATEGORY.get(category));
 			experianDao.save(experian);
-			return getEligibleLoans(merchant, category, amountToServe, experian, yellowPincode, lendingBBS.getBbs(), hasRegularLoan);
+			return getEligibleLoans(merchant, category, lendingBBS.getNetFreeIncome(), experian, yellowPincode, lendingBBS.getBbs(), hasRegularLoan);
 		}
 		catch(Exception e) {
 			logger.error("Error occurred while fetching loan for BBS",e);

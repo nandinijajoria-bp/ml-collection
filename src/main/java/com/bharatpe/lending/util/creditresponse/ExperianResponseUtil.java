@@ -490,11 +490,9 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         Map<String, Double> debtAndIncome = new HashMap<>();
         double debt = 0D;
         double income = 0D;
-        Double otherIncome = 0D;
         if (loan.get(ExperianConstants.ACCT_TYPE) == null) {
             debtAndIncome.put("debt", debt);
             debtAndIncome.put("income", income);
-            debtAndIncome.put("otherIncome", otherIncome);
             return debtAndIncome;
         }
         int loanTypeNumber = loan.get(ExperianConstants.ACCT_TYPE).asInt();
@@ -502,98 +500,13 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         boolean isLoanClosed = isLoanClosed(loan);
         boolean isLoanClosedWithinAYear = isLoanClosedWithinOneYear(loan);
         String loanType = getLoanType(loanTypeNumber);
-        if (loanAmount > 10000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
-            switch (loanType) {
-                case "AL": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("AL");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("AL") / CreditConstants.DBI.get("AL");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("AL", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("AL")
-                            : otherIncome;
-                }
-                    break;
-                case "PL": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("PL");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("PL") / CreditConstants.DBI.get("PL");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("PL", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("PL")
-                            : otherIncome;
-                }
-                    break;
-                case "HL": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("HL");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("HL") / CreditConstants.DBI.get("HL");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("HL", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("HL")
-                            : otherIncome;
-                }
-                    break;
-                case "BL": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("BL");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("BL") / CreditConstants.DBI.get("BL");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("BL", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("BL")
-                            : otherIncome;
-                }
-                    break;
-                case "CC": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("CC");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("CC") / CreditConstants.DBI.get("CC");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("CC", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("CC")
-                            : otherIncome;
-                }
-                    break;
-                case "TW": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("TW");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("TW") / CreditConstants.DBI.get("TW");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("TW", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("TW")
-                            : otherIncome;
-                }
-                    break;
-                case "CD": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("CD");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("CD") / CreditConstants.DBI.get("CD");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("CD", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("CD")
-                            : otherIncome;
-                }
-                    break;
-                case "GL": {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("GL");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("GL") / CreditConstants.DBI.get("GL");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("GL", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("GL")
-                            : otherIncome;
-                }
-                    break;
-                default: {
-                    if (!isLoanClosedWithinAYear) {
-                        debt += loanAmount * CreditConstants.EMI.get("Other");
-                    }
-                    income += loanAmount * CreditConstants.EMI.get("Other") / CreditConstants.DBI.get("Other");
-                    otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("Other", 0D) > otherIncome
-                            ? CreditConstants.OTHER_INCOME.get("Other")
-                            : otherIncome;
-                }
-                    break;
+        if (loanAmount >= 5000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
+            if (!isLoanClosedWithinAYear) {
+                debt += loanAmount * CreditConstants.EMI.get(loanType);
+            }
+            income += loanAmount * CreditConstants.EMI.get(loanType) / CreditConstants.DBI.get(loanType);
+            if (income < CreditConstants.OTHER_INCOME.getOrDefault(loanType, 0D)) {
+                income = CreditConstants.OTHER_INCOME.getOrDefault(loanType, 0D);
             }
             logger.info(
                     "loanStatus: {}, loanAmount:{}, isLoanClosed: {}, isLoanClosedWithinAYear: {}, loanType: {}, income:{}, debt:{}",
@@ -602,15 +515,13 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         }
         debtAndIncome.put("debt", debt);
         debtAndIncome.put("income", income);
-        debtAndIncome.put("otherIncome", otherIncome);
         return debtAndIncome;
     }
 
     private Map<String, Double> getDebtAndIncome(ArrayNode loanDetails) {
         Map<String, Double> debtAndIncome = new HashMap<>();
-        double income = 0D;
+        Map<String, Double> incomeMap = new HashMap<>();
         double debt = 0D;
-        Double otherIncome = 0D;
         for (JsonNode loan : loanDetails) {
             if (loan.get(ExperianConstants.ACCT_TYPE) == null) {
                 continue;
@@ -620,108 +531,24 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
             boolean isLoanClosed = isLoanClosed(loan);
             boolean isLoanClosedWithinAYear = isLoanClosedWithinOneYear(loan);
             String loanType = getLoanType(loanTypeNumber);
-            if (loanAmount > 10000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
-                switch (loanType) {
-                    case "AL": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("AL");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("AL") / CreditConstants.DBI.get("AL");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("AL", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("AL")
-                                : otherIncome;
-                    }
-                        break;
-                    case "PL": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("PL");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("PL") / CreditConstants.DBI.get("PL");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("PL", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("PL")
-                                : otherIncome;
-                    }
-                        break;
-                    case "HL": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("HL");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("HL") / CreditConstants.DBI.get("HL");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("HL", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("HL")
-                                : otherIncome;
-                    }
-                        break;
-                    case "BL": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("BL");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("BL") / CreditConstants.DBI.get("BL");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("BL", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("BL")
-                                : otherIncome;
-                    }
-                        break;
-                    case "CC": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("CC");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("CC") / CreditConstants.DBI.get("CC");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("CC", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("CC")
-                                : otherIncome;
-                    }
-                        break;
-                    case "TW": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("TW");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("TW") / CreditConstants.DBI.get("TW");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("TW", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("TW")
-                                : otherIncome;
-                    }
-                        break;
-                    case "CD": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("CD");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("CD") / CreditConstants.DBI.get("CD");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("CD", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("CD")
-                                : otherIncome;
-                    }
-                        break;
-                    case "GL": {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("GL");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("GL") / CreditConstants.DBI.get("GL");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("GL", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("GL")
-                                : otherIncome;
-                    }
-                        break;
-                    default: {
-                        if (!isLoanClosedWithinAYear) {
-                            debt += loanAmount * CreditConstants.EMI.get("Other");
-                        }
-                        income += loanAmount * CreditConstants.EMI.get("Other") / CreditConstants.DBI.get("Other");
-                        otherIncome = CreditConstants.OTHER_INCOME.getOrDefault("Other", 0D) > otherIncome
-                                ? CreditConstants.OTHER_INCOME.get("Other")
-                                : otherIncome;
-                    }
-                        break;
+            if (loanAmount >= 5000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
+                double income = loanAmount * CreditConstants.EMI.get(loanType) / CreditConstants.DBI.get(loanType);
+                incomeMap.put(loanType, incomeMap.getOrDefault(loanType, 0D) + income);
+                if (!isLoanClosedWithinAYear) {
+                    debt += loanAmount * CreditConstants.EMI.get(loanType);
                 }
+                logger.info(
+                        "loanStatus: {}, loanAmount:{}, isLoanClosed: {}, isLoanClosedWithinAYear: {}, loanType: {}, income:{}, debt:{}",
+                        loan.get(ExperianConstants.ACCT_STATUS), loanAmount, isLoanClosed, isLoanClosedWithinAYear,
+                        loanType, income, debt);
             }
-            logger.info(
-                    "loanStatus: {}, loanAmount:{}, isLoanClosed: {}, isLoanClosedWithinAYear: {}, loanType: {}, income:{}, debt:{}",
-                    loan.get(ExperianConstants.ACCT_STATUS), loanAmount, isLoanClosed, isLoanClosedWithinAYear,
-                    loanType, income, debt);
+        }
+        double totalIncome = 0d;
+        for (String loanType : incomeMap.keySet()) {
+            totalIncome += Math.max(incomeMap.get(loanType), CreditConstants.OTHER_INCOME.getOrDefault(loanType, 0D));
         }
         debtAndIncome.put("debt", debt);
-        debtAndIncome.put("income", income);
-        debtAndIncome.put("otherIncome", otherIncome);
+        debtAndIncome.put("income", totalIncome);
         return debtAndIncome;
     }
 
