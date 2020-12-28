@@ -135,7 +135,7 @@ public class ImageURLService {
 			}
 			Map<String, Object> proof = new LinkedHashMap<>();
 			proof.put("proof_type",documentsIdProof.getProofType());
-			proof.put("single_page_document", documentsIdProof.getSinglePage() != null && documentsIdProof.getSinglePage() == 1);
+			proof.put("single_page_document", documentsIdProof.getSinglePage() == null || documentsIdProof.getSinglePage() == 1);
 
 			List<String> imageURL = new ArrayList<>();
 			try {
