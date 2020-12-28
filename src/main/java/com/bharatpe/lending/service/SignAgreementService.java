@@ -142,7 +142,7 @@ public class SignAgreementService {
 		}
 
 		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
-		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantAndStatusOrderByIdDesc(merchant, "APPROVED");
 
 		if(prevLendingSchedule == null || prevApplication == null) {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
