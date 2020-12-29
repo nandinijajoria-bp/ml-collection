@@ -132,8 +132,10 @@ public class LendingApplicationService {
 	S3BucketHandler s3BucketHandler;
 
 	@Autowired
-	ENachService eNachService;
+	BharatPeEnachDao bharatPeEnachDao;
 
+	@Autowired
+	ENachService eNachService;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -1781,11 +1783,14 @@ public class LendingApplicationService {
 			applicationDTO.add(applicationDTO2);
 		}
 		boolean enachMandatory = true;
+		BharatPeEnach enachSkipped = bharatPeEnachDao.isSkipped(merchant.getId(), lendingApplication.get().getId());
 		if (successEnach != null) {
 			enachMandatory = false;
 		} else if (lendingApplication.get().getAgreementAt() != null && "REGULAR".equals(lendingApplication.get().getLoanType()) && lendingApplication.get().getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.get().getAgreementAt(), new Date()) > 3) {
 			enachMandatory = false;
 		} else if ("BHARAT_SWIPE".equals(lendingApplication.get().getLoanType())) {
+			enachMandatory = false;
+		} else if(Objects.nonNull(enachSkipped)){
 			enachMandatory = false;
 		}
 		String kycStatus = lendingApplication.get().getManualKyc() != null && (lendingApplication.get().getManualKyc().equalsIgnoreCase("APPROVED") || lendingApplication.get().getManualKyc().equalsIgnoreCase("REJECTED")) ? lendingApplication.get().getManualKyc() : "PENDING";
@@ -1806,7 +1811,9 @@ public class LendingApplicationService {
 			applicationDTO3.setDisabled(false);
 		}
 		applicationDTO3.setStatus(kycStatus);
-//		applicationDTO3.setComment(kycComment);
+		if(kycComment.equals("eNACH Failure")){
+			applicationDTO3.setComment("Your application is rejected due to enach failure");
+		}
 		if (lendingApplication.get().getManualKyc() != null && !"null".equalsIgnoreCase(lendingApplication.get().getManualKyc()) && lendingApplication.get().getKycApprovedDate() != null) {
 			ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
 			dateDTO.setDay(lendingApplication.get().getKycApprovedDate().toString());

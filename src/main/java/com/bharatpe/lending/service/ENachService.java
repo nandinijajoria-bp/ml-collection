@@ -1,12 +1,11 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.LendingEnachDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
-import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
@@ -16,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Objects;
 
 @Service
 public class ENachService {
@@ -39,6 +40,9 @@ public class ENachService {
 
     @Autowired
     MerchantBankDetailDao merchantBankDetailDao;
+
+    @Autowired
+    EnachErrorHandingService enachErrorHandingService;
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -67,6 +71,7 @@ public class ENachService {
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
         BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
         if (bharatPeEnach == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Enach not initiated");
@@ -75,7 +80,6 @@ public class ENachService {
         if (requestDTO.getStatus()) {
             logger.info("Enach success for merchant:{}", merchant.getId());
             // Update Lending Application for ENACH
-            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
             if (lendingApplication == null) {
                 responseDTO.setResponse(false);
                 responseDTO.setMessage("Loan Application not found");
@@ -90,8 +94,64 @@ public class ENachService {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
         }
+
         apiGatewayService.submitEnach(requestDTO, token, merchant.getId());
+
+        if(Objects.nonNull(requestDTO)){
+            checkForApplicationRejection(merchant, requestDTO, lendingApplication);
+        }
         return responseDTO;
+    }
+
+    public String checkForApplicationRejection(Merchant merchant, ENachSubmitRequestDTO response, LendingApplication lendingApplication){
+        logger.info("check for Application need to reject on Enach failure for Merchant - {}", merchant.getId());
+
+        try{
+            if(!response.getStatus()){
+                switch (response.getStatusMessage()){
+                    case ErrorMessages.MANDATE_REGISTRATION_FAILED:
+                    case ErrorMessages.EMPTY_RESPONSE:
+                    case ErrorMessages.AUTHENTICATION_FAILED:
+                    case ErrorMessages.INVALID_CREDENTIAL:
+                    case ErrorMessages.REJECT_CONFIRMATION:
+                    case ErrorMessages.MERCHANT_SIGNATURE_VALIDATION_FAILED:
+                    case ErrorMessages.MENDATE_VERIFICATION_FAILED:
+                    case ErrorMessages.NO_RESPONSE_ON_MANDATE:
+                    case ErrorMessages.MULTIPLE_ERROR:
+                    case ErrorMessages.CHECKSUM_VALIDATION_FAILED:
+                    case ErrorMessages.NO_RESPONSE_FROM_CUSTOMER:
+                    case ErrorMessages.MENDATE_NOT_REGISTERED:
+                    case ErrorMessages.DUPICATE_BANK_MANDATE_ID:
+                    case ErrorMessages.CARD_VALIDATION_FAILED:
+                    case ErrorMessages.DUPLICATE_BANK_MSGID:
+                    case ErrorMessages.TECH_ERROR_OR_ISSUE_AT_BANK:
+                    case ErrorMessages.REGS_FAILED:
+                    case ErrorMessages.BANK_ERROR_XML:
+                    case ErrorMessages.TXN_CNACALLED_AT_BANK:
+                        return enachErrorHandingService.retryPage(response, lendingApplication);
+                    case ErrorMessages.MENDATE_NOT_REGISTERED_REQ_BALANC:
+                    case ErrorMessages.BRANCH_KYC_NOT_COMPLETED:
+                    case ErrorMessages.INVALIED_CREDENTIAL:
+                    case ErrorMessages.NO_ACCONT:
+                    case ErrorMessages.INORRECT_MERCHANT_DEBITOR:
+                    case ErrorMessages.MENDATE_DIFF_FROM_CBS:
+                    case ErrorMessages.ACCOUNT_INOPERATIVE:
+                    case ErrorMessages.MD_REGS_NOT_ALLOWED:
+                        return enachErrorHandingService.sendForCpvOrReject(response, lendingApplication);
+                    case ErrorMessages.AC_NOT_REGISTERED:
+                    case ErrorMessages.AC_NUMBER_NOT_REGISTERED_WITH_NET_BANKING:
+                    case ErrorMessages.VIEW_RIGHTS_ACCOUNT:
+                        return enachErrorHandingService.sendForCpvOrRejectOrDebitScreenOnBankSupport(merchant, response, lendingApplication);
+                    default:
+                        return null;
+                }
+        }
+        }catch(Exception ex){
+            logger.error("Error Orrocured while Checking Application Rejection , Error - {}", ex);
+            return null;
+        }
+
+        return "Success";
     }
 
     //changing skip status to true

@@ -38,6 +38,12 @@ public class LoanApplicationDTO {
 	@JsonProperty(value = "status_header")
 	private String statusHeader = "";
 
+	@JsonProperty(value = "enach_error_response")
+	private EnachErrorMessageDTO enachErrorResponse;
+
+	@JsonProperty(value = "enach_rejected_comment")
+	private String enachRejectedComment;
+
 	public boolean isSelfVerification() {
 		return selfVerification;
 	}
@@ -124,6 +130,22 @@ public class LoanApplicationDTO {
 
 	public void setStatusHeader(String statusHeader) {
 		this.statusHeader = statusHeader;
+	}
+
+	public EnachErrorMessageDTO getEnachErrorResponse() {
+		return enachErrorResponse;
+	}
+
+	public void setEnachErrorResponse(EnachErrorMessageDTO enachErrorResponse) {
+		this.enachErrorResponse = enachErrorResponse;
+	}
+
+	public String getEnachRejectedComment() {
+		return enachRejectedComment;
+	}
+
+	public void setEnachRejectedComment(String enachRejectedComment) {
+		this.enachRejectedComment = enachRejectedComment;
 	}
 
 	@Override

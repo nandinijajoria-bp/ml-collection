@@ -20,6 +20,7 @@ import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
+import org.apache.commons.lang.BooleanUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,6 +173,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	BharatPeEnachDao bharatPeEnachDao;
+
+	@Autowired
+	EnachErrorHandingService enachErrorHandingService;
 
 //	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
@@ -394,6 +398,16 @@ public class LoanDetailsService {
 						}
 					}
 				} else if ("pending_verification".equals(lendingApplication.getStatus())) {
+
+					BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+
+					if(Objects.nonNull(bharatPeEnach) && !bharatPeEnach.getSuccess()){
+
+						EnachErrorMessageDTO enachMessage = enachErrorHandingService.enachErrorResponse(bharatPeEnach, merchant, lendingApplication, experian);
+						loanApplicationDTO.setEnachErrorResponse(enachMessage);
+						skipEnatch = enachMessage.getSkipEnach();
+					}
+
 					//enach not success and not skipped and bankcode enachable
 					if (enachSuccess == null && enachSkipped == null && bankCode != null) {
 						enach = apiGatewayService.getEnachProvider(token, merchant.getId());
