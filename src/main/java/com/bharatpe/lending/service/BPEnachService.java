@@ -144,7 +144,8 @@ public class BPEnachService {
         	
         	
         }else {
-        	responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() + "&&wroute=status");
+            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() 
+            + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
         }
         
         
