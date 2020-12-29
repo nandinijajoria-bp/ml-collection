@@ -50,6 +50,9 @@ public class LendingApplicationController {
 
 	@Autowired
 	AdhaarMaskService adhaarMaskService;
+
+	@Autowired
+	LendingEdiScheduleService lendingEdiScheduleService;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -168,5 +171,10 @@ public class LendingApplicationController {
 	@RequestMapping(value="/adhaar_mask", method= RequestMethod.POST,produces = "application/json")
 	public ResponseEntity<CommonResponse> maskAdhaar(@RequestBody AdhaarMaskRequest requestDTO){
 		return new ResponseEntity<>(adhaarMaskService.maskAdhaar(requestDTO), HttpStatus.OK);
+	}
+
+	@GetMapping(value="/edi_schedule", produces = "application/json")
+	public ResponseEntity<CommonResponse> getEdiSchedule(@RequestParam Long merchantId, @RequestParam Long applicationId){
+		return new ResponseEntity<>(lendingEdiScheduleService.getEdiSchedule(merchantId, applicationId), HttpStatus.OK);
 	}
 }

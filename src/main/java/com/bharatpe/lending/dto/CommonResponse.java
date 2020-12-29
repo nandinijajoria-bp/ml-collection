@@ -19,6 +19,12 @@ public class CommonResponse {
     public CommonResponse() {
     }
 
+    public CommonResponse(boolean success, String message, Object data) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+    }
+
     public boolean isSuccess() {
         return success;
     }
