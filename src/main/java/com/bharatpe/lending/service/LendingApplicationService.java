@@ -1811,7 +1811,7 @@ public class LendingApplicationService {
 			applicationDTO3.setDisabled(false);
 		}
 		applicationDTO3.setStatus(kycStatus);
-		if(kycComment.equals("eNACH Failure")){
+		if(kycComment != null && kycComment.equals("eNACH Failure")){
 			applicationDTO3.setComment("Your application is rejected due to enach failure");
 		}
 		if (lendingApplication.get().getManualKyc() != null && !"null".equalsIgnoreCase(lendingApplication.get().getManualKyc()) && lendingApplication.get().getKycApprovedDate() != null) {
