@@ -54,8 +54,8 @@ public class LendingEdiScheduleService {
                     currentSchedule.setProcessingFee(0D);
                     currentSchedule.setTotalEdi(lendingApplication.getIoEdi().intValue());
                     currentSchedule.setOtherCharges(0D);
-                    currentSchedule.setMerchant(lendingApplication.getMerchant());
-                    currentSchedule.setLoanApplication(lendingApplication);
+                    currentSchedule.setMerchant(null);
+                    currentSchedule.setLoanApplication(null);
                     currentSchedule.setLendingPaymentSchedule(null);
                     ediSchedules.add(currentSchedule);
                     totalInterest = totalInterest + lendingApplication.getIoEdi();
@@ -88,8 +88,8 @@ public class LendingEdiScheduleService {
                 currentSchedule.setProcessingFee(0D);
                 currentSchedule.setTotalEdi(lendingApplication.getEdi().intValue());
                 currentSchedule.setOtherCharges(0D);
-                currentSchedule.setMerchant(lendingApplication.getMerchant());
-                currentSchedule.setLoanApplication(lendingApplication);
+                currentSchedule.setMerchant(null);
+                currentSchedule.setLoanApplication(null);
                 currentSchedule.setLendingPaymentSchedule(null);
                 ediSchedules.add(currentSchedule);
                 openingBalance = openingBalance - principal;
@@ -115,8 +115,8 @@ public class LendingEdiScheduleService {
         schedule.setOtherCharges(0D);
         schedule.setProcessingFee(procFee);
         schedule.setTotalEdi(procFee.intValue());
-        schedule.setMerchant(lendingApplication.getMerchant());
-        schedule.setLoanApplication(lendingApplication);
+        schedule.setMerchant(null);
+        schedule.setLoanApplication(null);
         schedule.setLendingPaymentSchedule(null);
         return schedule;
     }
