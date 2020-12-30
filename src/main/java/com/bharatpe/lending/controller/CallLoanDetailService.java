@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
@@ -103,6 +104,12 @@ public class CallLoanDetailService {
 	@Autowired
 	RestTemplate restTemplate;
 
+	@Autowired
+	EcollectTransactionDao ecollectTransactionDao;
+
+	@Autowired
+	KafkaTemplate<String, Object> kafkaTemplate;
+
 	public void sendSMS() {
 		List<Long> merchantIds = Arrays.asList(129024L);
 		Iterable<Merchant> merchants = merchantDao.findAllById(merchantIds);
@@ -121,30 +128,37 @@ public class CallLoanDetailService {
 		logger.info("SMS script ended");
 	}
 
+	public void startScript() {
+		ExecutorService executorService = Executors.newFixedThreadPool(1);
+		executorService.submit(this::callLoanDetail);
+	}
+
 	public void callLoanDetail() {
-		logger.info("Loan Details Script Started");
-		long offset = 0;
-		boolean lastBatchProcessed = false;
-		ExecutorService executorService = Executors.newFixedThreadPool(10);
-		while (!lastBatchProcessed) {
-			try {
-				// query returns integer in merchant_id
-				List<Experian> experians = experianDao.getMerchantList(offset);
-				offset += 1000;
-				if (experians.size() < 1000) {
-					lastBatchProcessed = true;
-				}
-				for (Experian experian : experians) {
-					if (internalMerchants.contains(experian.getMerchantId())) {
-						continue;
-					}
-					executorService.submit(() -> sendPush(experian));
-				}
-			} catch (Exception e) {
-				logger.error("Exception---", e);
+		logger.info("Call Loan Details Script Started");
+		try {
+			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
+			logger.info("Sending ecollect push to {} merchants", ecollectTransactions.size());
+			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
+//				if (internalMerchants.contains(merchantId.longValue())) {
+//					continue;
+//				}
+//				sendPush(ecollectTransaction);
+				pushToKafka(ecollectTransaction);
 			}
+		} catch (Exception e) {
+			logger.error("Exception---", e);
 		}
-		logger.info("Loan Details Script Ended");
+		logger.info("Call Loan Details Script Ended");
+	}
+
+	private void pushToKafka(EcollectTransaction ecollectTransaction) {
+		logger.info("Sending ecollect to account:{} and amount:{}", ecollectTransaction.getVirtualAccountNumber(), ecollectTransaction.getAmount());
+		Map<String, String> data = new HashMap<>();
+		data.put("transaction_id", ecollectTransaction.getId().toString());
+		data.put("bank_reference_no", ecollectTransaction.getBankReferenceNo());
+		data.put("account_number", ecollectTransaction.getVirtualAccountNumber());
+		data.put("amount", ecollectTransaction.getAmount().toString());
+		kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchant().getId().toString(), data);
 	}
 
 	private void sendPush(Experian experian) {
