@@ -358,7 +358,7 @@ public class LoanDetailsService {
 					if(auditTrialList != null && !auditTrialList.isEmpty()){
 						auditTrial = auditTrialList.get(0);
 					}
-					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(auditTrial, 7)) {
+					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(lendingApplication, 7)) {
 						eligibleFlag = false;
 						loanHistoryDTOs = null;
 						loanApplicationDTO.setStatusHeader("Loan Application Submitted");
@@ -969,22 +969,28 @@ public class LoanDetailsService {
 		return response;
 	}
 
-	private boolean rejectedInLastNDays(LendingAuditTrial auditTrial, int nDays) {
+	private boolean rejectedInLastNDays(LendingApplication lendingApplication, int nDays) {
 		try {
-			if(auditTrial == null) {
+			if (!"rejected".equals(lendingApplication.getStatus())) {
 				return false;
 			}
-			
-			Date rejectedTimestamp = auditTrial.getCreatedAt();
-			Date nDaysBeforeTimestamp = new Date(System.currentTimeMillis() - (long) nDays * 24 * 3600 * 1000);
-			
-			if(rejectedTimestamp.compareTo(nDaysBeforeTimestamp) > 0) {
-				logger.info("Application with id {} has been rejected in last {} days", auditTrial.getApplicationId(), nDays);
-				return true;
+			Date rejectedTimestamp = null;
+			if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc()) && lendingApplication.getKycApprovedDate() != null) {
+				rejectedTimestamp = lendingApplication.getKycApprovedDate();
+			} else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) && lendingApplication.getCibilApprovedDate() != null) {
+				rejectedTimestamp = lendingApplication.getCibilApprovedDate();
+			} else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus()) && lendingApplication.getPhysicalApprovedDate() != null) {
+				rejectedTimestamp = lendingApplication.getPhysicalApprovedDate();
 			}
-			
+			if (rejectedTimestamp != null) {
+				Date nDaysBeforeTimestamp = new Date(System.currentTimeMillis() - (long) nDays * 24 * 3600 * 1000);
+				if(rejectedTimestamp.compareTo(nDaysBeforeTimestamp) > 0) {
+					logger.info("Application with id {} has been rejected in last {} days", lendingApplication.getId(), nDays);
+					return true;
+				}
+			}
 		} catch(Exception ex) {
-			logger.error("Exception while checking if rejected in n days for application id {}, Exception is {}", auditTrial.getApplicationId(), ex);
+			logger.error("Exception while checking if rejected in n days for application id {}, Exception is {}", lendingApplication.getId(), ex);
 		}
 		
 		return false;
