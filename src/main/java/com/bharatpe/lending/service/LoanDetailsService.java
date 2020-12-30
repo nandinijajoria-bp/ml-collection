@@ -2,25 +2,20 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.MerchantCategory;
 import com.bharatpe.common.enums.NotificationProvider;
-import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
-import com.bharatpe.lending.util.LoanCalculationUtil;
-import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
-import org.apache.commons.lang.BooleanUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,58 +27,42 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Service
 public class LoanDetailsService {
-	private Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
-	
-	List<String> validAgentCities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi", "Noida", "Gurgaon", "Mumbai", "Visakhapatnam", "Vijaywada", "New Delhi");
-	List<String> validDIYCities = Arrays.asList("Bengaluru", "Pune", "Delhi", "Noida", "Gurgaon", "Faridabad", "Ghaziabad", "Thane", "Mumbai","Hyderabad", "Visakhapatnam", "Vijaywada", "New Delhi");
-	
+
+	private final Logger logger = LoggerFactory.getLogger(LoanDetailsService.class);
+
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
-	
+
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
-	
+
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
-	
+
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 
 	@Autowired
 	LendingGstDao lendingGstDao;
-	
-	@Autowired
-	AvailableLoanDao availableLoanDao;
 
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
-	
+
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
-	
+
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
-	
-	@Autowired
-	AgentDao agentDao;
 
 	@Autowired
 	LendingPancardDao lendingPancardDao;
 
 	@Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
-	
-	@Autowired
-	MerchantAddressDao merchantAddressDao;
-	
-	@Autowired
-	LendingAuditTrialDao lendingAuditTrialDao;
-	
+
 	@Autowired
 	MerchantStoreDao merchantStoreDao;
 
@@ -107,7 +86,7 @@ public class LoanDetailsService {
 
 	@Autowired
 	ENachService eNachService;
-	
+
 	@Autowired
 	TopupLoanEligibleService topupLoanEligibleService;
 
@@ -137,10 +116,10 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
-	
+
 	@Autowired
 	RedisNotificationService redisNotificationService;
-	
+
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
 
@@ -149,7 +128,7 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingBlockedPancardDao lendingBlockedPancardDao;
-	
+
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
 
@@ -177,7 +156,6 @@ public class LoanDetailsService {
 	@Autowired
 	EnachErrorHandingService enachErrorHandingService;
 
-//	@Transactional
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
@@ -256,12 +234,12 @@ public class LoanDetailsService {
 			} else if (experian != null && experian.getPincode() != null) {
 				pincode = experian.getPincode();
 			}
-			
+
 			if (pincode != null) {
 				lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
 				redCity = lendingRedCitiesDao.findByPincode(pincode);
 			}
-			
+
 			if(stores != null && !stores.isEmpty()) {
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -303,7 +281,7 @@ public class LoanDetailsService {
 			boolean isActiveLoan = activeLoan != null;
 
 			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
-			
+
 			LendingApplication lendingApplication = null;
 			if(lendingApplicationList != null && !lendingApplicationList.isEmpty()) {
 				lendingApplication = lendingApplicationList.get(0);
@@ -353,11 +331,6 @@ public class LoanDetailsService {
 					loanApplicationDTO.setSelfVerification(false);
 				}
 				if("rejected".equals(lendingApplication.getStatus())) {
-					List<LendingAuditTrial> auditTrialList = lendingAuditTrialDao.findByMerchantIdAndApplicationIdAndNewStatus(lendingApplication.getMerchant().getId(), lendingApplication.getId(), "REJECTED");
-					LendingAuditTrial auditTrial = null;
-					if(auditTrialList != null && !auditTrialList.isEmpty()){
-						auditTrial = auditTrialList.get(0);
-					}
 					if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) || rejectedInLastNDays(lendingApplication, 7)) {
 						eligibleFlag = false;
 						loanHistoryDTOs = null;
@@ -366,7 +339,7 @@ public class LoanDetailsService {
 						if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
 							loanApplicationDTO.setStatusMessage("We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment. Please write to us on  support@bharatpe.com to apply again.");
 						} else {
-							Date rejecetdAt = auditTrial.getCreatedAt();
+							Date rejecetdAt = lendingApplication.getUpdatedAt();
 							Calendar calender = Calendar.getInstance();
 							calender.setTime(rejecetdAt);
 							calender.add(Calendar.DATE, 7);
@@ -451,7 +424,7 @@ public class LoanDetailsService {
 			if (lendingApplication != null && "BHARAT_SWIPE".equals(lendingApplication.getLoanType())) {
 				skipEnatch = true;
 			}
-			
+
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchant.getId());
 				boolean syncContacts = false;
@@ -507,7 +480,7 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			
+
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -575,141 +548,125 @@ public class LoanDetailsService {
 			if (!isZomato && lendingCity == null && redCity == null) {
 				yellowPincode = true;
 			}
-			
-//			if((isValidFOSMerchant(merchant.getReferalCode()) || isValidDIYMerchant(merchant)) && !rejected) {
-				if (EXPERIAN_ENABLED && experian != null && !rejected) {
-					
-					try {
-						loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe, bankCode));
-					} catch (Exception e) {
-						logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
-						logger.error("Exception---", e);
-						emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Eligible Loan Exception", "");
+
+			if (EXPERIAN_ENABLED && experian != null && !rejected) {
+
+				try {
+					loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe, bankCode));
+				} catch (Exception e) {
+					logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
+					logger.error("Exception---", e);
+					emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Eligible Loan Exception", "");
+				}
+				if (!experian.getRejected() && experian.getReason() != null) {
+					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
+				}
+				if (experian.getRejected()) {
+					rejected = true;
+					rejectReason = experian.getReason();
+				}
+				if (experian.getRetryCount() == 1) {//experian timeout
+					return null;
+				}
+				if (experian.isNoExperian()) {
+					noExperian = true;
+					if (experian.getMaskedMobiles() != null && !experian.getMaskedMobiles().isEmpty()) {
+						maskedMobiles = experian.getMaskedMobiles();
 					}
-					if (!experian.getRejected() && experian.getReason() != null) {
-						lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
-					}
-					if (experian.getRejected()) {
-						rejected = true;
-						rejectReason = experian.getReason();
-					}
-					if (experian.getRetryCount() == 1) {//experian timeout
-						return null;
-					}
-					if (experian.isNoExperian()) {
-						noExperian = true;
-						if (experian.getMaskedMobiles() != null && !experian.getMaskedMobiles().isEmpty()) {
-							maskedMobiles = experian.getMaskedMobiles();
-						}
-					}
-					//fetching Bharat Swipe loans
-					if(isFromSwipe && !rejected) {
-						loanEligibilityDTOs.clear();
-						loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian,lendingBharatswipeOffers));
-					}
-					//fetching Zomato loans
-					if (isZomato && !rejected) {
-						loanEligibilityDTOs.clear();
-						loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
-					}
-					//fetching NTB loans
-					if (!rejected && !isFromSwipe && !isZomato) {
-						experian.setReason(null);
+				}
+				//fetching Bharat Swipe loans
+				if(isFromSwipe && !rejected) {
+					loanEligibilityDTOs.clear();
+					loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian,lendingBharatswipeOffers));
+				}
+				//fetching Zomato loans
+				if (isZomato && !rejected) {
+					loanEligibilityDTOs.clear();
+					loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
+				}
+				//fetching NTB loans
+				if (!rejected && !isFromSwipe && !isZomato) {
+					experian.setReason(null);
+					experianDao.save(experian);
+					if (bankCode == null && loanEligibilityDTOs.isEmpty()) {
+						logger.info("Non enachable bank code, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experian.setReason(ExperianConstants.ENACH);
 						experianDao.save(experian);
-						if (bankCode == null && loanEligibilityDTOs.isEmpty()) {
-							logger.info("Non enachable bank code, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
-							experian.setCategory("1N");
-							experian.setColor(ExperianConstants.COLOR.RED.name());
-							experian.setReason(ExperianConstants.ENACH);
-							experianDao.save(experian);
-						} else if (experian.getResponse() == null && loanEligibilityDTOs.isEmpty()) {
-							logger.info("NTC merchant, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
-							experian.setCategory("1N");
-							experian.setColor(ExperianConstants.COLOR.RED.name());
-							experian.setReason(ExperianConstants.NTC);
-							experianDao.save(experian);
-						} else if (yellowPincode && loanEligibilityDTOs.isEmpty()) {
-							logger.info("Yellow pincode, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
-							experian.setCategory("1N");
-							experian.setColor(ExperianConstants.COLOR.RED.name());
-							experian.setReason(ExperianConstants.YELLOW);
-							experianDao.save(experian);
-						} else if (bankCode != null && experian.getResponse() != null && !yellowPincode) {
-							List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode, !loanEligibilityDTOs.isEmpty());
-							if (!ntbLoans.isEmpty()) {
-								if (loanEligibilityDTOs.isEmpty()) {
-									eligibleLoanDao.deleteNonNTB(merchant.getId());
-									loanEligibilityDTOs.addAll(ntbLoans);
-								} else if (loanEligibilityDTOs.get(0).getAmount() < ntbLoans.get(0).getAmount()) {
-									logger.info("Deleting Non NTB eligible loans for merchant: {}", merchant.getId());
-									eligibleLoanDao.deleteNonNTB(merchant.getId());
-									lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", "High Loan Amount For NTB", String.valueOf(loanEligibilityDTOs.get(0).getAmount())));
-									loanEligibilityDTOs.clear();
-									loanEligibilityDTOs.addAll(ntbLoans);
-								} else {
-									logger.info("Deleting NTB eligible loans for merchant: {}", merchant.getId());
-									eligibleLoanDao.deleteByMerchantIdAndLoanType(merchant.getId(), "NTB");
-								}
+					} else if (experian.getResponse() == null && loanEligibilityDTOs.isEmpty()) {
+						logger.info("NTC merchant, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experian.setReason(ExperianConstants.NTC);
+						experianDao.save(experian);
+					} else if (yellowPincode && loanEligibilityDTOs.isEmpty()) {
+						logger.info("Yellow pincode, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experian.setReason(ExperianConstants.YELLOW);
+						experianDao.save(experian);
+					} else if (bankCode != null && experian.getResponse() != null && !yellowPincode) {
+						List<LoanEligibilityDTO> ntbLoans = newToBharatpeService.fetchBBSLoans(merchant, experian, yellowPincode, !loanEligibilityDTOs.isEmpty());
+						if (!ntbLoans.isEmpty()) {
+							if (loanEligibilityDTOs.isEmpty()) {
+								eligibleLoanDao.deleteNonNTB(merchant.getId());
+								loanEligibilityDTOs.addAll(ntbLoans);
+							} else if (loanEligibilityDTOs.get(0).getAmount() < ntbLoans.get(0).getAmount()) {
+								logger.info("Deleting Non NTB eligible loans for merchant: {}", merchant.getId());
+								eligibleLoanDao.deleteNonNTB(merchant.getId());
+								lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", "High Loan Amount For NTB", String.valueOf(loanEligibilityDTOs.get(0).getAmount())));
+								loanEligibilityDTOs.clear();
+								loanEligibilityDTOs.addAll(ntbLoans);
+							} else {
+								logger.info("Deleting NTB eligible loans for merchant: {}", merchant.getId());
+								eligibleLoanDao.deleteByMerchantIdAndLoanType(merchant.getId(), "NTB");
 							}
 						}
 					}
-					LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
-					if (lendingBlockedPancard != null) {
-						logger.info("Blocked pancard:{}", experian.getPancardNumber());
-						loanEligibilityDTOs.clear();
-						experian.setReason(ExperianConstants.BLOCKED_PANCARD);
-						experian.setCategory("1N");
-						experian.setColor(ExperianConstants.COLOR.RED.name());
-						experianDao.save(experian);
-					} else if (paymentsBank || (merchantBankDetail.getBankCode() != null && merchantBankDetail.getBankCode().equalsIgnoreCase("LAVB38"))) {
-						logger.info("Payments bank pancard:{}", experian.getPancardNumber());
-						loanEligibilityDTOs.clear();
-						experian.setReason(ExperianConstants.ENACH);
-						experian.setCategory("1N");
-						experian.setColor(ExperianConstants.COLOR.RED.name());
-						experianDao.save(experian);
-					}
-					if (!loanEligibilityDTOs.isEmpty()) {
-						experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
-						experian.setEligibleTenure(loanEligibilityDTOs.get(0).getPrincipleEdiTenure().toString());
-						experian.setLoanType(loanEligibilityDTOs.get(0).getLoanType());
-						experianDao.save(experian);
-					}
-					if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
-						experian.setEligibleAmount(null);
-						experian.setEligibleTenure(null);
-						experian.setLoanType(null);
-						experianDao.save(experian);
-					}
-					experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
-					loanUtil.auditExperian(experian);
-					//send instant notification
-//					if(!isFromSwipe) {
-//						redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
-//					}
-//					if (!loanEligibilityDTOs.isEmpty()) {
-//						executorService.submit(() -> apiGatewayService.signZyPanGst(merchant.getId()));
-//					}
 				}
-//			}
+				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+				if (lendingBlockedPancard != null) {
+					logger.info("Blocked pancard:{}", experian.getPancardNumber());
+					loanEligibilityDTOs.clear();
+					experian.setReason(ExperianConstants.BLOCKED_PANCARD);
+					experian.setCategory("1N");
+					experian.setColor(ExperianConstants.COLOR.RED.name());
+					experianDao.save(experian);
+				} else if (paymentsBank || (merchantBankDetail.getBankCode() != null && merchantBankDetail.getBankCode().equalsIgnoreCase("LAVB38"))) {
+					logger.info("Payments bank pancard:{}", experian.getPancardNumber());
+					loanEligibilityDTOs.clear();
+					experian.setReason(ExperianConstants.ENACH);
+					experian.setCategory("1N");
+					experian.setColor(ExperianConstants.COLOR.RED.name());
+					experianDao.save(experian);
+				}
+				if (!loanEligibilityDTOs.isEmpty()) {
+					experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
+					experian.setEligibleTenure(loanEligibilityDTOs.get(0).getPrincipleEdiTenure().toString());
+					experian.setLoanType(loanEligibilityDTOs.get(0).getLoanType());
+					experianDao.save(experian);
+				}
+				if (experian.getEligibleAmount() != null && loanEligibilityDTOs.isEmpty()) {
+					experian.setEligibleAmount(null);
+					experian.setEligibleTenure(null);
+					experian.setLoanType(null);
+					experianDao.save(experian);
+				}
+				experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
+				loanUtil.auditExperian(experian);
+			}
 			boolean ogl = false;
-			if(lendingApplication != null 
+			if(lendingApplication != null
 					&& (("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && !"REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()))
 					|| "approved".equalsIgnoreCase(lendingApplication.getStatus()))) {
 				loanApplicationDTO.setShowReapply(true);
-//				loanHistoryDTOs = null;
 				loanApplicationDTO.setApplicationId(null);
 			}
 			if(loanHistoryDTOs.isEmpty() && loanEligibilityDTOs.isEmpty()) {
-				eligibleFlag = false;	
+				eligibleFlag = false;
 			}
-			if (eligibleFlag && isYesBank(merchant, merchantBankDetail)) {
-				tempClosed = "YBL";
-				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "YBL"));
-			} else if (eligibleFlag && isLoanClosed(experian, merchant)  && !isZomato) {
-				tempClosed = "CORONA";
-				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "CORONA"));
-			} else if (experian != null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)  && !isZomato) {
+			if (experian != null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)  && !isZomato) {
 				tempClosed = "FRAUD";
 				eligibleFlag = true;
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "FRAUD"));
@@ -761,7 +718,7 @@ public class LoanDetailsService {
 			}
 			response.setDetails(loanDetailsDTO);
 			response.setSuccess(true);
-			
+
 		} catch(Exception ex) {
 			logger.error("Exception while checking loan details for merchant id {}", merchant.getId(), ex);
 			return createFailureResponse();
@@ -793,12 +750,11 @@ public class LoanDetailsService {
 		}
 		return null;
 	}
-	
+
 	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian,LendingBharatswipeOffers lendingBharatswipeOffers) {
 		logger.info("Fetching loan details for bharat swipe for merchant {}",merchant);
 		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
 		if(!lendingCategoriesList.isEmpty()) {
-		//	LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
 			if(lendingBharatswipeOffers!=null) {
 				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
 				eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
@@ -810,74 +766,16 @@ public class LoanDetailsService {
 					experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOs.get(0).getAmount().doubleValue(), eligibilityDTOs.get(0).getPrincipleEdiTenure().toString(), "BHARAT_SWIPE");
 				}
 				return eligibilityDTOs;
-			}	
+			}
 		}
 		return new ArrayList<>();
 	}
-	
+
 	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
 		if(offer!=null && offer.getExpiryDate()!=null) {
 			return offer.getExpiryDate().compareTo(new Date())<=0;
 		}
 		return true;
-	}
-
-	private List<LoanEligibilityDTO> fetchOglOffers(Experian experian, MerchantSummary merchantSummary, Merchant merchant, String bankCode) {
-		boolean ntc = loanEligibleService.isNTC(experian);
-		if (bankCode == null) {
-			logger.info("Non enachable bank code, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.ENACH);
-			experianDao.save(experian);
-			return new ArrayList<>();
-		}
-		if ((ntc && merchantSummary.getBpScore() < 15) || (!ntc && merchantSummary.getBpScore() < 13)) {
-			logger.info("Low bp score, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.LOW_BP_SCORE);
-			experianDao.save(experian);
-			return new ArrayList<>();
-		}
-		if (merchant.getBusinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBusinessCategory())) {
-			logger.info("F&B category, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.BUSINESS_CATEGORY);
-			experianDao.save(experian);
-			return new ArrayList<>();
-		}
-		PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
-		if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 90) {
-			logger.info("Vintage less than 3 months, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.VINTAGE);
-			experianDao.save(experian);
-			return new ArrayList<>();
-		}
-		List<LendingCategories> categories = lendingCategoryDao.findByBureau("OGL");
-		if (categories.isEmpty()) {
-			logger.info("No OGL lending category found, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-			experian.setCategory("1N");
-			experian.setColor(ExperianConstants.COLOR.RED.name());
-			experian.setReason(ExperianConstants.OGL);
-			experianDao.save(experian);
-			return new ArrayList<>();
-		}
-		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
-		eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
-		for (LendingCategories category : categories) {
-			if ((ntc && category.getCategory().contains("NTC")) || (!ntc && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-				eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(category, 0, null, experian.getMerchantId(), experian.getId(), category.getMaxTpvAmount(), experian.getColor(), "2", "OGL", false, false));
-			}
-		}
-		if (!eligibilityDTOS.isEmpty()) {
-			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "OGL");
-		}
-		return eligibilityDTOS;
 	}
 
 	private List<LoanEligibilityDTO> fetchZomatoOffers(Experian experian, List<LendingPartnerOffers> lendingPartnerOffers) {
@@ -909,51 +807,6 @@ public class LoanDetailsService {
 			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "ZOMATO");
 		}
 		return eligibilityDTOS;
-	}
-
-	private boolean isLoanClosed(Experian experian, Merchant merchant) {
-//		List<String> closedCategories = Arrays.asList("7","8","19","20");
-//		List<ExperianAuditTrail> experianAuditTrailList = experianAuditTrailDao.findByMerchantId(merchant.getId());
-//		List<LendingClosedAudit> lendingClosedAuditList = lendingClosedAuditDao.findByMerchantIdAndType(merchant.getId(), "CORONA");
-//		if (lendingClosedAuditList != null && !lendingClosedAuditList.isEmpty()) {
-//			return true;
-//		}
-//		if (experianAuditTrailList != null && experianAuditTrailList.size() > 1) {
-//			return false;
-//		}
-//		if (experian != null && experian.getColor() != null && experian.getColor().equalsIgnoreCase(ExperianConstants.COLOR.AMBER.name())) {
-//			return true;
-//		}
-//		return experian != null && experian.getCategory() != null && closedCategories.contains(experian.getCategory());
-		return false;
-	}
-
-	private boolean isYesBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
-//		try {
-//			if(merchantBankDetail == null) {
-//				logger.error("No merchant bank detail found for merchant id {}", merchant.getId());
-//				return false;
-//			}
-//			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
-//				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
-//				return false;
-//			}
-//			if (merchantBankDetail.getIfscCode().substring(0,4).equalsIgnoreCase("YESB")) {
-//				return true;
-//			}
-////			List<MerchantStaticVpa> merchantStaticVpas = merchantStaticVpaDao.findAllByMerchant(merchant.getId());
-////			if (merchantStaticVpas != null && !merchantStaticVpas.isEmpty()) {
-////				for (MerchantStaticVpa merchantStaticVpa : merchantStaticVpas) {
-////					if (merchantStaticVpa.getFullVpa().contains("icic")) {
-////						return false;
-////					}
-////				}
-////				return true;
-////			}
-//		} catch(Exception ex) {
-//			logger.error("Exception while checking if merchant's bank is yes bank with merchant id {}, Exception is {}", merchant.getId(), ex);
-//		}
-		return false;
 	}
 
 	private LoanDetailsResponseDTO createFailureResponse() {
@@ -992,158 +845,10 @@ public class LoanDetailsService {
 		} catch(Exception ex) {
 			logger.error("Exception while checking if rejected in n days for application id {}, Exception is {}", lendingApplication.getId(), ex);
 		}
-		
+
 		return false;
 	}
 
-	private Boolean isValidFOSMerchant(String referalCode) {
-		boolean responseFlag = false;
-		
-		if(!StringUtils.isEmpty(referalCode)) {
-			Agent agent = agentDao.fetchByReferalCode(referalCode);
-			if(agent != null && validAgentCities.contains(agent.getCity())) {
-				responseFlag = true;
-			} else {
-				logger.info("Not valid FOS Merchant with referral code {}, returning false.", referalCode);
-			}
-		}
-		return responseFlag;
-	}
-	
-	private Boolean isValidDIYMerchant(Merchant merchant) {
-		boolean responseFlag = false;
-		
-		MerchantAddress merchantAddress = merchantAddressDao.findBymerchantIdAndType(merchant.getId(), "SELF");
-		if(merchantAddress != null && validDIYCities.contains(merchantAddress.getCity())) {
-			responseFlag = true;
-		} else {
-			logger.info("Not valid DIY Merchant with merchant id {}, returning false.", merchant.getId());
-		}
-		
-		return responseFlag;
-	}
-	
-//	private Boolean isInvalidAgentReferalCode(String agentReferalCode) {
-//		Boolean flag = false;
-//		
-//		Agent agent = agentDao.fetchByReferalCode(agentReferalCode);
-//		if(agent != null) {
-//			flag = true;
-//		}
-//		
-//		return flag;
-//	}
-	
-	private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant merchant) {
-		
-		List<LoanEligibilityDTO> availableLoanDTOList = new ArrayList<>();
-		
-//		List<AvailableLoan> availableLoanList = null;
-		List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");;
-		
-//		if(merchant.getId() % 2 == 0) {
-//			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_2");
-//		} else {
-//			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");
-//		}
-		if(availableLoanList == null || availableLoanList.isEmpty()) {
-			availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_1");
-			
-			if(availableLoanList != null && !availableLoanList.isEmpty()) {
-				availableLoanList = sort(availableLoanList);
-			}
-		}
-		
-		if(availableLoanList == null || availableLoanList.isEmpty()) {
-			logger.error("No available loan found for merchant id {}", merchant.getId());
-			return availableLoanDTOList;
-		}
-		
-		List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByStatus(GeneralStatus.ACTIVE.toString());
-		for(AvailableLoan availableLoan : availableLoanList) {
-			LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
-			if(lendingCategoryDetail != null) {
-				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
-				LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategoryDetail, null);
-				
-				loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
-				loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
-				loanEligibilityDTO.setAmount(availableLoan.getAmount().intValue());
-				loanEligibilityDTO.setCategory(lendingCategoryDetail.getCategory());
-				loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
-				loanEligibilityDTO.setEdi(breakup.getEdi());
-				loanEligibilityDTO.setRepayment(breakup.getRepayment());
-				loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
-				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter());
-				loanEligibilityDTO.setConstruct(availableLoan.getLoanConstruct());
-				loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
-				loanEligibilityDTO.setType(breakup.getType());
-				loanEligibilityDTO.setPrincipleEdiTenure(breakup.getPrincipleEdiTenure());
-				loanEligibilityDTO.setOptionEnable(true);
-
-				availableLoanDTOList.add(loanEligibilityDTO);
-			} else {
-				logger.error("No lending category found for merchant {} and category {}", merchant.getId(), availableLoan.getCategory());
-			}
-		}
-		return availableLoanDTOList;
-	}
-
-	private List<AvailableLoan> sort(List<AvailableLoan> availableLoanList) {
-		List<AvailableLoan> sortedAvailableLoans = new ArrayList<>();
-		try {
-			String maxCategory = null;
-			
-//			1st loan in the list is with the maximum amount
-			for(AvailableLoan current : availableLoanList) {
-				if(maxCategory == null) {
-					if(MerchantCategory.AA3.toString().equals(current.getCategory()) || MerchantCategory.AA1.toString().equals(current.getCategory())) {
-						maxCategory = MerchantCategory.AA.toString();
-						break;
-					} else if (MerchantCategory.BB6.toString().equals(current.getCategory()) || MerchantCategory.BB3.toString().equals(current.getCategory())) {
-						maxCategory = MerchantCategory.BB.toString();
-						break;
-					} else if (MerchantCategory.CC12.toString().equals(current.getCategory()) || MerchantCategory.CC6.toString().equals(current.getCategory()) || MerchantCategory.CC3.toString().equals(current.getCategory())) {
-						maxCategory = MerchantCategory.CC.toString();
-						break;
-					}
-				}
-			}
-			
-			if(maxCategory == null) {
-				logger.info("Max category is null, returning all loans.");
-				return availableLoanList;
-			}
-			
-			for(AvailableLoan current : availableLoanList) {
-				if(current.getCategory().startsWith(maxCategory)) {
-					sortedAvailableLoans.add(current);
-				}
-			}
-			
-			return sortedAvailableLoans;
-		} catch(Exception ex) {
-			logger.error("Exception while soring available loans returning all, Exception is {}", ex);
-			return availableLoanList;
-		}
-		
-	}
-
-	private LendingCategories fetchCategoryDetails(List<LendingCategories> lendingCategoriesList, String loanCategory) {
-		LendingCategories lendingCategoryDetails = null;
-		
-		if(lendingCategoriesList.size() > 0) {
-			for(LendingCategories categoryDetails : lendingCategoriesList) {
-				if(categoryDetails.getCategory().equalsIgnoreCase(loanCategory)) {
-					lendingCategoryDetails = categoryDetails;
-					break;
-				}
-			}
-		}
-		
-		return lendingCategoryDetails;
-	}
-	
 	private List<LoanHistoryDTO> fetchLoanHistory(LendingApplication application, List<LendingPaymentSchedule> lendingPaymentScheduleList, LendingPaymentSchedule activeLoan, boolean repeatLoan, BpEnach enachSuccess, boolean showTarget, double targetTpv) {
 		List<LoanHistoryDTO> loanHistoryList = new ArrayList<>();
 
@@ -1222,34 +927,32 @@ public class LoanDetailsService {
 
 	private LoanApplicationDTO fetchLoanApplication(Merchant merchant, LendingApplication application) {
 		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
-	    if(application != null) {
+		if(application != null) {
 			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(application.getCategory());
 			LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(application.getId());
 			logger.info("Open application found for merchant ID {}", merchant.getId());
-	        ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application,lendingGstDetail);
-	        SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application, lendingCategories);
-	        List<DocumentDTO> documents = fetchDocuments(application, merchant);
-	        
-	        loanApplicationDTO.setApplicationId(String.valueOf(application.getId()));
-	        loanApplicationDTO.setShopDetails(shopDetails);
-	        loanApplicationDTO.setSelectedLoan(selectedLoan);
-	        loanApplicationDTO.setDocuments(documents);
-	        loanApplicationDTO.setApplicationStatus(application.getStatus());
+			ShopDetailsDTO shopDetails = LoanUtil.prepareShopDetailsDTO(application,lendingGstDetail);
+			SelectedLoanDTO selectedLoan = LoanUtil.prepareSelectedLoanDTO(application, lendingCategories);
+			List<DocumentDTO> documents = fetchDocuments(application, merchant);
 
-	    } else {
-	    	 loanApplicationDTO.setShopDetails(new ShopDetailsDTO());
-	        loanApplicationDTO.setSelectedLoan(new SelectedLoanDTO());
-	        logger.info("No open lending application found for merchant id {}", merchant.getId());
-	    }
-	    return loanApplicationDTO;
+			loanApplicationDTO.setApplicationId(String.valueOf(application.getId()));
+			loanApplicationDTO.setShopDetails(shopDetails);
+			loanApplicationDTO.setSelectedLoan(selectedLoan);
+			loanApplicationDTO.setDocuments(documents);
+			loanApplicationDTO.setApplicationStatus(application.getStatus());
+
+		} else {
+			loanApplicationDTO.setShopDetails(new ShopDetailsDTO());
+			loanApplicationDTO.setSelectedLoan(new SelectedLoanDTO());
+			logger.info("No open lending application found for merchant id {}", merchant.getId());
+		}
+		return loanApplicationDTO;
 	}
-	
+
 	private LendingPaymentSchedule getActiveLoan(List<LendingPaymentSchedule> lendingPaymentScheduleList) {
 		if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.size() == 0) {
 			return null;
 		}
-		
-		
 		for(LendingPaymentSchedule schedule : lendingPaymentScheduleList) {
 			if(LendingStatus.ACTIVE.toString().equals(schedule.getStatus())) {
 				return schedule;
@@ -1268,32 +971,6 @@ public class LoanDetailsService {
 			document.setSinglePageDocument(documentsIdProof.getSinglePage() != null && documentsIdProof.getSinglePage() == 0 ? false : true);
 		}
 		return documents;
-	}
-	
-	private boolean isPaymentBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
-//		try {
-//			if(merchantBankDetail == null) {
-//				logger.error("No merchnat bank detail found for merchant id {}", merchant.getId());
-//				return true;
-//			}
-//
-//			if(StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
-//				logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchant.getId());
-//				return true;
-//			}
-//
-//			List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(merchantBankDetail.getIfscCode().substring(0,4));
-//
-//			if (nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
-//				return false;
-//			} else {
-//				logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfscCode());
-//				return true;
-//			}
-//		} catch(Exception ex) {
-//			logger.error("Exception while checking if merchant's bank is payment bank with merchant id {}, Exception is {}", merchant.getId(), ex);
-//		}
-		return false;
 	}
 
 	public SettlementResponseDTO getSettlements(Merchant merchant, Long loanId) {
@@ -1321,7 +998,7 @@ public class LoanDetailsService {
 		settlementResponseDTO.setSettlement(settlementList);
 		return settlementResponseDTO;
 	}
-	
+
 	public boolean isMerchantFromCreditLine(Merchant merchant) {
 		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
 		return creditLineMerchant != null;
