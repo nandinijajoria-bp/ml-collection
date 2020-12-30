@@ -49,12 +49,11 @@ import java.util.*;
 @Service
 public class LoanEligibleService {
 
-    List<Integer> derogAccountStatus = Arrays.asList(93,89,93,97,97,97,97,30,31,32,33,35,37,38,39,41,42,43,44,45,47,49,50,51,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,77,79,81,85,86,87,88,94,90,91);
-    List<Integer> derogUnsecuredProducts = Arrays.asList(5,10,36,37,38,39,43,51,52,53,54,55,56,57,58,60,61);
-    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com", "puneet.arora@bharatpe.com");
+    List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com");
+
     List<Long> exemptMerchant = Arrays.asList(139533L,1812311L,1709295L);
 
-    private Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
+    private final Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -136,8 +135,6 @@ public class LoanEligibleService {
 
     @Autowired
     PincodeCityStateMappingDao pincodeCityStateMappingDao;
-
-    SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
@@ -253,7 +250,7 @@ public class LoanEligibleService {
                 isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             } else if (pancard != null || (reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
-                    creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                    creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail);
                     experian.setRetryCount(0);
                 } catch (Exception e) {
                     logger.info("Experian not responding---", e);
@@ -266,7 +263,7 @@ public class LoanEligibleService {
                         //emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
                         return new ArrayList<>();
                     } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
-                        creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail);
+                        creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail);
                     }
                 }
                 isBureauExperian = true;
@@ -403,7 +400,7 @@ public class LoanEligibleService {
             }
             MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
             Double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D;
-            bureauResponse = getLatestExperianDetails(merchant.getMobile(), experian.getPancardNumber(), merchant.getId(), bpScore, merchantBankDetail, 3);
+            bureauResponse = getLatestExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail, 3);
             if(bureauResponse != null){
                 experian.setResponse(bureauResponse.toString());
                 experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
@@ -440,12 +437,12 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    private JsonNode getLatestExperianDetails(String contact, String panCard, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, int maxExperianRetryCount){
+    private JsonNode getLatestExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, int maxExperianRetryCount){
         int retryCount = 0;
         JsonNode experianResponse = null;
         while(retryCount < maxExperianRetryCount){
             try {
-                experianResponse = fetchExperianDetails(contact, panCard, merchantId, bpScore, merchantBankDetail);
+                experianResponse = fetchExperianDetails(contact, experian, merchantId, bpScore, merchantBankDetail);
                 break;
             } catch (Exception e) {
                 logger.info("Exception occured, sending for retry --- ", e);
@@ -1089,11 +1086,18 @@ public class LoanEligibleService {
     }
 
 
-    public JsonNode fetchExperianDetails(String contact, String panCard, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail) {
+    public JsonNode fetchExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail) {
+        JsonNode refreshResponse = null;
+        if (experian.getHitId() != null) {
+            refreshResponse = apiGatewayService.experianRefreshApi(merchantId, experian.getHitId());
+        }
+        if (refreshResponse != null) {
+            return refreshResponse;
+        }
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
         if (lendingPancard == null || lendingPancard.getName() == null) {// get data from signzy
             try {
-                lendingPancard = fetchNameFromSignzy(panCard, merchantId);
+                lendingPancard = fetchNameFromSignzy(experian.getPancardNumber(), merchantId);
             } catch (Exception e) {
                 logger.error("Exception in Signzy pan fetch API---", e);
             }
@@ -1113,36 +1117,26 @@ public class LoanEligibleService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        setExperianApiParams(body, firstName, lastName, contact, panCard);
+        setExperianApiParams(body, firstName, lastName, contact, experian.getPancardNumber());
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body,headers);
         Long a = DateTime.now().getMillis();
-        logger.info("Experian request for merchant: {} is {}", merchantId, body.toString());
+        logger.info("Experian request for merchant: {} is {}", merchantId, body);
         String response = restTemplate.postForObject(ExperianConstants.SHORT_API_URL, request, String.class);
         Long b = DateTime.now().getMillis();
-        logger.info("Experian API response time---" + (b-a) + "ms");
+        logger.info("Experian Short API response time---{}ms", (b-a));
         try {
             JsonNode jsonNode = objectMapper.readTree(response);
             if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
-                try {
-                    experianService.insertExperianCallRecord(null, "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
-                } catch (Exception e) {
-                    logger.error("Error occured while inserting experian call record",e);
-                }
+                experianService.insertExperianCallRecord(null, "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, experian.getPancardNumber(), contact);
                 return null;
             }
             String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").asText().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
-            //String xmlResponse = new String(Files.readAllBytes(Paths.get("/Users/admin/codebase/Lending/src/main/resources/experian_sample.txt")));
             JSONObject jsonObject = XML.toJSONObject(xmlResponse);
-            try {
-                experianService.insertExperianCallRecord(objectMapper.readTree(jsonObject.toString()).toString(), "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, panCard, contact);
-            } catch (Exception e) {
-                logger.error("Error occured while inserting experian call record",e);
-            }
+            experian.setHitId(jsonNode.get("stageOneId_").asText());
+            experianService.insertExperianCallRecord(objectMapper.readTree(jsonObject.toString()).toString(), "SHORT_API_URL", objectMapper.writeValueAsString(request), merchantId, bpScore, experian.getPancardNumber(), contact);
             return objectMapper.readTree(jsonObject.toString());
         } catch (Exception e) {
-            emailHandler.sendEmail(new ArrayList<String>(){{add("khushal.virmani@bharatpe.com");}}, "Experian Short API Exception", "");
             logger.info("Exception while parsing experian response", e);
-            logger.info("Experian response is---" + response);
             return null;
         }
     }

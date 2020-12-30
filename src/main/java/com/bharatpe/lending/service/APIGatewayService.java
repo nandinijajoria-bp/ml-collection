@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.entity.SignzyCredential;
 import com.bharatpe.lending.common.entity.SignzyRequestResponse;
 import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -27,6 +28,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
 import org.slf4j.Logger;
@@ -36,6 +38,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
@@ -53,35 +57,32 @@ import java.util.*;
 @Service
 public class APIGatewayService {
 
-    private static Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
-
-    @Value("${create.vpa.endpoint}")
-    String createVPAEndpoint;
+    private static final Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
     
     @Value("${internal.merchant.id}")
     long merchantId;
 
     @Autowired
-    private HmacCalculator hmacCalculator;
+    HmacCalculator hmacCalculator;
 
     @Autowired
-    private AesEncryption aesEncryption;
+    AesEncryption aesEncryption;
     
     @Autowired
-    private MerchantDao merchantDao;
+    MerchantDao merchantDao;
 
 
     @Autowired
-    private LendingPancardDao lendingPancardDao;
+    LendingPancardDao lendingPancardDao;
 
     @Autowired
-    private PincodeCityStateMappingDao pincodeCityStateMappingDao;
+    PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
     @Autowired
-    private SignzyCredentialDao signzyCredentialDao;
+    SignzyCredentialDao signzyCredentialDao;
 
     @Autowired
-    private ExperianDao experianDao;
+    ExperianDao experianDao;
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
@@ -109,6 +110,9 @@ public class APIGatewayService {
 
     @Autowired
     LendingVirtualAccountDao lendingVirtualAccountDao;
+
+    @Autowired
+    ExperianService experianService;
 
     private final String CLIENT = "LENDING";
 
@@ -968,5 +972,31 @@ public class APIGatewayService {
             }
         }
         return clientSecret;
+    }
+
+    public JsonNode experianRefreshApi(Long merchantId, String hitId) {
+        logger.info("Calling Experian Refresh API for merchant:{} with hitId:{}", merchantId, hitId);
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("clientName", ExperianConstants.CLIENT_NAME);
+        body.add("hitId", hitId);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body);
+        Long a = DateTime.now().getMillis();
+        String response = restTemplate.postForObject(ExperianConstants.REFRESH_API_URL, request, String.class);
+        Long b = DateTime.now().getMillis();
+        logger.info("Experian Refresh API response time---{}ms", (b-a));
+        try {
+            JsonNode jsonNode = mapper.readTree(response);
+            if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
+                experianService.insertExperianCallRecord(null, "REFRESH_API_URL", mapper.writeValueAsString(request), merchantId, null, null, null);
+                return null;
+            }
+            String xmlResponse = jsonNode.get("showHtmlReportForCreditReport").asText().replaceAll("&amp;", "&").replaceAll("&gt;", ">").replaceAll("&lt;", "<").replaceAll("&quot;", "\"");
+            JSONObject jsonObject = XML.toJSONObject(xmlResponse);
+            experianService.insertExperianCallRecord(mapper.readTree(jsonObject.toString()).toString(), "REFRESH_API_URL", mapper.writeValueAsString(request), merchantId, null, null, null);
+            return mapper.readTree(jsonObject.toString());
+        } catch (Exception e) {
+            logger.info("Exception while parsing experian refresh api response", e);
+            return null;
+        }
     }
 }

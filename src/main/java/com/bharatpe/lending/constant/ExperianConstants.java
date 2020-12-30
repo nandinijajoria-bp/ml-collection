@@ -17,6 +17,7 @@ public interface ExperianConstants {
     String LONG_API_URL = "https://consumer.experian.in:8443/ECV-P2/content/singleAction.action";
     String MASKED_MOBILE_URL = "https://consumer.experian.in:8443/ECV-P2/content/generateMaskedDeliveryData.action";
     String AUTHENTICATE_MOBILE_URL = "https://consumer.experian.in:8443/ECV-P2/content/authenticateDeliveryData.action";
+    String REFRESH_API_URL = "https://consumer.experian.in:8443/ECV-P2/content/onDemandRefresh.action";
     String CLIENT_NAME = "BHARATPE_EM";
     String VOUCHER_CODE = "BharatPe214K2";
     String CREDIT_LINE_CATEGORY = "CREDIT_LINE_CATEGORY";
