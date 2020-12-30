@@ -142,11 +142,16 @@ public class LiquiloansService {
 		liquiloansDirectDisbursalRawResponse.setRequest(callbackRequestDto.toString());
 		try {
 			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndNbfcId(Long.parseLong(callbackRequestDto.getApplicationId()), callbackRequestDto.getNbfcId());
+			if (callbackRequestDto.getNbfcId() == null && lendingApplication == null) {
+				lendingApplication = lendingApplicationDao.findByMamtaLoan(Long.parseLong(callbackRequestDto.getApplicationId()));
+			}
 			if(lendingApplication==null) {
+				logger.info("Approve loan not found for loanId:{}", callbackRequestDto.getApplicationId());
 				return new ResponseDTO(false,"loan application not found",null);
 			}
 			LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
 			if (ldcVirtualAccount == null) {
+				logger.info("LDC Virtual account not found for merchant:{}", lendingApplication.getMerchant().getId());
 				return new ResponseDTO(false,"ldc virtual account not found",null);
 			}
 			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
