@@ -128,10 +128,10 @@ public class ENachService {
                     case ErrorMessages.REGS_FAILED:
                     case ErrorMessages.BANK_ERROR_XML:
                     case ErrorMessages.TXN_CNACALLED_AT_BANK:
+                    case ErrorMessages.INVALIED_CREDENTIAL:
                         return enachErrorHandingService.retryPage(response, lendingApplication);
                     case ErrorMessages.MENDATE_NOT_REGISTERED_REQ_BALANC:
                     case ErrorMessages.BRANCH_KYC_NOT_COMPLETED:
-                    case ErrorMessages.INVALIED_CREDENTIAL:
                     case ErrorMessages.NO_ACCONT:
                     case ErrorMessages.INORRECT_MERCHANT_DEBITOR:
                     case ErrorMessages.MENDATE_DIFF_FROM_CBS:
