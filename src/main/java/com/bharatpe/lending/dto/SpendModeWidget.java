@@ -7,11 +7,11 @@ public class SpendModeWidget {
 	@JsonProperty(value = "BANK_TRANSFER")
 	private String bankTransfer="bharatpe://bankTransfer";
 	
-	@JsonProperty(value = "SEND_MONEY")
-	private String sendMoney="bharatpe://sendmoney?resultCode=true";
-	
-	@JsonProperty(value = "BILL_PAYMENT")
-	private String billPayment="bharatpe://dynamic?key=bill-pay&resultCode=true";
+//	@JsonProperty(value = "SEND_MONEY")
+//	private String sendMoney="bharatpe://sendmoney?resultCode=true";
+//
+//	@JsonProperty(value = "BILL_PAYMENT")
+//	private String billPayment="bharatpe://dynamic?key=bill-pay&resultCode=true";
 	
 //	@JsonProperty(value = "SHOPPING")
 //	private String shopping="bharatpe://shopping";
@@ -24,21 +24,21 @@ public class SpendModeWidget {
 		this.bankTransfer = bankTransfer;
 	}
 
-	public String getSendMoney() {
-		return sendMoney;
-	}
-
-	public void setSendMoney(String sendMoney) {
-		this.sendMoney = sendMoney;
-	}
-
-	public String getBillPayment() {
-		return billPayment;
-	}
-
-	public void setBillPayment(String billPayment) {
-		this.billPayment = billPayment;
-	}
+//	public String getSendMoney() {
+//		return sendMoney;
+//	}
+//
+//	public void setSendMoney(String sendMoney) {
+//		this.sendMoney = sendMoney;
+//	}
+//
+//	public String getBillPayment() {
+//		return billPayment;
+//	}
+//
+//	public void setBillPayment(String billPayment) {
+//		this.billPayment = billPayment;
+//	}
 
 //	public String getShopping() {
 //		return shopping;
