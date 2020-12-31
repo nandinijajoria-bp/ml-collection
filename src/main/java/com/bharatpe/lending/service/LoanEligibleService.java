@@ -244,13 +244,13 @@ public class LoanEligibleService {
                 experian.setReportDate(reportDate);
                 isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             }
-            if (experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
+            if (pancard == null && experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
                 responseUtil = getCreditBureauResponse(experian);
                 creditBureauResponse = objectMapper.readTree(experian.getResponse());
                 isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             } else if (pancard != null || (reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
-                    creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail);
+                    creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail, pancard == null);
                     experian.setRetryCount(0);
                 } catch (Exception e) {
                     logger.info("Experian not responding---", e);
@@ -263,7 +263,7 @@ public class LoanEligibleService {
                         //emailHandler.sendEmail(emails, "Experian APIs failing on PROD", "");
                         return new ArrayList<>();
                     } else if (experian.getRetryCount() != null && experian.getRetryCount() == 1) {
-                        creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail);
+                        creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail, pancard == null);
                     }
                 }
                 isBureauExperian = true;
@@ -442,7 +442,7 @@ public class LoanEligibleService {
         JsonNode experianResponse = null;
         while(retryCount < maxExperianRetryCount){
             try {
-                experianResponse = fetchExperianDetails(contact, experian, merchantId, bpScore, merchantBankDetail);
+                experianResponse = fetchExperianDetails(contact, experian, merchantId, bpScore, merchantBankDetail, true);
                 break;
             } catch (Exception e) {
                 logger.info("Exception occured, sending for retry --- ", e);
@@ -1086,9 +1086,9 @@ public class LoanEligibleService {
     }
 
 
-    public JsonNode fetchExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail) {
+    public JsonNode fetchExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, boolean callRefreshApi) {
         JsonNode refreshResponse = null;
-        if (experian.getHitId() != null) {
+        if (experian.getHitId() != null && callRefreshApi) {
             refreshResponse = apiGatewayService.experianRefreshApi(merchantId, experian.getHitId());
         }
         if (refreshResponse != null) {
