@@ -86,11 +86,10 @@ public class EnachErrorHandingService {
         cpbApplicable.put(ErrorMessages.REGS_FAILED.toLowerCase(), "initiateRetry");
         cpbApplicable.put(ErrorMessages.BANK_ERROR_XML.toLowerCase(), "initiateRetry");
         cpbApplicable.put(ErrorMessages.TXN_CNACALLED_AT_BANK.toLowerCase(), "initiateRetry");
-
+        cpbApplicable.put(ErrorMessages.INVALIED_CREDENTIAL.toLowerCase(), "initiateRetry");
 
         cpbApplicable.put(ErrorMessages.MENDATE_NOT_REGISTERED_REQ_BALANC.toLowerCase(), "initiatePopup");
         cpbApplicable.put(ErrorMessages.BRANCH_KYC_NOT_COMPLETED.toLowerCase(), "initiatePopup");
-        cpbApplicable.put(ErrorMessages.INVALIED_CREDENTIAL.toLowerCase(), "initiatePopup");
         cpbApplicable.put(ErrorMessages.NO_ACCONT.toLowerCase(), "initiatePopup");
         cpbApplicable.put(ErrorMessages.INORRECT_MERCHANT_DEBITOR.toLowerCase(), "initiatePopup");
         cpbApplicable.put(ErrorMessages.MENDATE_DIFF_FROM_CBS.toLowerCase(), "initiatePopup");
