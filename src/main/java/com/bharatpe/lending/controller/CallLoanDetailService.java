@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -110,6 +111,9 @@ public class CallLoanDetailService {
 	@Autowired
 	KafkaTemplate<String, Object> kafkaTemplate;
 
+	@Autowired
+	Environment env;
+
 	public void sendSMS() {
 		List<Long> merchantIds = Arrays.asList(129024L);
 		Iterable<Merchant> merchants = merchantDao.findAllById(merchantIds);
@@ -136,19 +140,33 @@ public class CallLoanDetailService {
 	public void callLoanDetail() {
 		logger.info("Call Loan Details Script Started");
 		try {
-			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
-			logger.info("Sending ecollect push to {} merchants", ecollectTransactions.size());
-			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
+			List<LendingApplication> lendingApplications = lendingApplicationDao.getApplications();
+			logger.info("Sending payout push to {} merchants", lendingApplications.size());
+			for (LendingApplication lendingApplication : lendingApplications) {
 //				if (internalMerchants.contains(merchantId.longValue())) {
 //					continue;
 //				}
 //				sendPush(ecollectTransaction);
-				pushToKafka(ecollectTransaction);
+//				pushToKafka(ecollectTransaction);
+				publishForDisbursal(lendingApplication.getId());
 			}
 		} catch (Exception e) {
 			logger.error("Exception---", e);
 		}
 		logger.info("Call Loan Details Script Ended");
+	}
+
+	public void publishForDisbursal(Long lendingAppId){
+
+		Map<String, String> payloadMap =new HashMap<>();
+		try {
+			logger.info("Publishing aaplication_id: {} of loan pending for disbursal to kafka", lendingAppId);
+			payloadMap.put("lending_application_id",lendingAppId.toString());
+			kafkaTemplate.send(Objects.requireNonNull(env.getProperty("kafka.topic.lending.payout")), lendingAppId.toString(), payloadMap);
+		}
+		catch(Exception e){
+			logger.error("Error publishing lending application: {} to kafka for disbursal",lendingAppId);
+		}
 	}
 
 	private void pushToKafka(EcollectTransaction ecollectTransaction) {
