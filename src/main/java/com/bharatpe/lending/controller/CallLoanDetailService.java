@@ -140,15 +140,15 @@ public class CallLoanDetailService {
 	public void callLoanDetail() {
 		logger.info("Call Loan Details Script Started");
 		try {
-			List<LendingApplication> lendingApplications = lendingApplicationDao.getApplications();
-			logger.info("Sending payout push to {} merchants", lendingApplications.size());
-			for (LendingApplication lendingApplication : lendingApplications) {
+			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
+			logger.info("Sending ecollect push to {} merchants", ecollectTransactions.size());
+			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
 //				if (internalMerchants.contains(merchantId.longValue())) {
 //					continue;
 //				}
 //				sendPush(ecollectTransaction);
-//				pushToKafka(ecollectTransaction);
-				publishForDisbursal(lendingApplication.getId());
+				pushToKafka(ecollectTransaction);
+//				publishForDisbursal(lendingApplication.getId());
 			}
 		} catch (Exception e) {
 			logger.error("Exception---", e);
