@@ -85,7 +85,10 @@ public class BPEnachService {
     
     private static String drfDeepLinkStr = "drf-onboard";
 
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion, String module, Double nachAmount, String type,String referenceNumber, String ownerId) {
+    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion,
+                                                     String module, Double nachAmount,
+                                                     String type,String referenceNumber,
+                                                     String ownerId, String clientName) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
         final double LOAN_AMOUNT = nachAmount;
@@ -117,7 +120,7 @@ public class BPEnachService {
             return responseDTO;
         }
 
-        BpEnach bpEnach = new BpEnach(merchant.getId(), referenceNumber, type, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
+        BpEnach bpEnach = new BpEnach(merchant.getId(), referenceNumber, clientName, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
                 merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
                 BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString(), bankBranch
         );
@@ -143,10 +146,16 @@ public class BPEnachService {
         		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.get().getToken());
         	
         	
-        }else {
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + bpEnachEnum.toString().toLowerCase() 
-            + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
+        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.LENDING.name())) {
+
+            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.LOAN.name()
+                + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
+
+        } else{
+                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.RETAILER_FINANCE.name().toLowerCase()
+                    + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
         }
+
         
         
 
