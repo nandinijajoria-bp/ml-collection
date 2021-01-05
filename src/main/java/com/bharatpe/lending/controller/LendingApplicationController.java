@@ -158,6 +158,11 @@ public class LendingApplicationController {
 		return new ResponseEntity<>(lendingApplicationService.fosLoan(merchantId), HttpStatus.OK);
 	}
 
+	@RequestMapping(value="/fos/loan/v2", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<ResponseDTO> fosnewLoanDetails(@RequestParam Long merchantId) {
+		return new ResponseEntity<>(lendingApplicationService.fosnewLoan(merchantId), HttpStatus.OK);
+	}
+
 	@RequestMapping(value="/creditScore", method= RequestMethod.POST,produces = "application/json")
 	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<CreditScoreRequestDto> requestDTO){
 		return new ResponseEntity<>(loanDetailsService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
