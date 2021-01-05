@@ -333,6 +333,13 @@ public class PaymentService {
 	}
 
 	public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
+		if (requestDTO.getPayload().getAmount() > 100000) {
+			ResponseDTO responseDTO = new ResponseDTO();
+			List<PaymentDetailDto> paymentDetails = new ArrayList<PaymentDetailDto>(){{add(getBankTransferMode());}};
+			responseDTO.setSuccess(true);
+			responseDTO.setData(paymentDetails);
+			return responseDTO;
+		}
 		List<PaymentDetailDto> paymentDetails = apiGatewayService.getPaymentModes(requestDTO, token);
 		paymentDetails.add(getBankTransferMode());
 		paymentDetails.add(getGPAYMode());
