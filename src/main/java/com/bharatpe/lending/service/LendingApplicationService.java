@@ -1818,9 +1818,9 @@ public class LendingApplicationService {
 					loanData.put("agreement_at",lendingApplication.getAgreementAt().toString());
 					if(!"APPROVED".equals(lendingApplication.getNachStatus())){
 						BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId,lendingApplication.getId());
-						List<BharatPeEnach> bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
+						Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
 						if(bharatPeEnachSkipped == null && bharatPeEnach != null){
-							if(bharatPeEnach.size() > 2){
+							if(bharatPeEnach > 2){
 								loanData.put("limited_cpv_required",Boolean.TRUE);
 							}
 						}
