@@ -118,7 +118,7 @@ public class SignAgreementService {
 		if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
 			return response;
 		}
-		response =  sendOTP(merchant.getMobile(), appSign, lendingApplication.getLoanAmount());
+		response =  sendOTP(merchant.getMobile(), appSign);
 		response.put("application_id", applicationId);
 		return response;
 	}
@@ -291,7 +291,7 @@ public class SignAgreementService {
 			}
 
 			Instant start = Instant.now();
-			response = sendOTP(merchant.getMobile(), requestDTO.getPayload().getAppSign(), newApplication.getLoanAmount());
+			response = sendOTP(merchant.getMobile(), requestDTO.getPayload().getAppSign());
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
@@ -392,13 +392,14 @@ public class SignAgreementService {
 		docAuthenticationDao.save(docAuthentication);
 	}
 	
-	private Map<String, Object> sendOTP(String mobile, String appSign, Double loanAmount) {
+	private Map<String, Object> sendOTP(String mobile, String appSign) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 		
 		if(mobile.length() == 12) {
-			String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + loanAmount + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + appSign;
+			String hash = appSign != null ? appSign : "";
+			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 //			String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobile, message);
 			if(isOTPSent) {
