@@ -12,6 +12,8 @@ public class SignAgreementDTO {
 	@JsonProperty(value = "application_id", required = false)
 	private Long applicationId;
 
+	private String appSign;
+
 	public Boolean getAgreement() {
 		return agreement;
 	}
@@ -36,10 +38,21 @@ public class SignAgreementDTO {
 		this.category = category;
 	}
 
+	public String getAppSign() {
+		return appSign;
+	}
+
+	public void setAppSign(String appSign) {
+		this.appSign = appSign;
+	}
+
 	@Override
 	public String toString() {
-		return "SignAgreementDTO [agreement=" + agreement + ", applicationId=" + applicationId + ", category="
-				+ category + "]";
+		return "SignAgreementDTO{" +
+				"agreement=" + agreement +
+				", category='" + category + '\'' +
+				", applicationId=" + applicationId +
+				", appSign='" + appSign + '\'' +
+				'}';
 	}
-	
 }
