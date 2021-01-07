@@ -5,6 +5,7 @@ import javax.servlet.http.HttpServletResponse;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.creditresponse.ResponseUtilBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -227,5 +228,32 @@ public class CreditLineController {
 			logger.error("Exception---", e);
 			return new ResponseEntity<>(new PaymentCancellationResponseDto(false, "Something went wrong",null,null), HttpStatus.OK);
 		}
+	}
+
+	@RequestMapping(value="/detail_report", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<CreditScoreReportDetailDTO> detailReport(@RequestHeader("token") String token, @RequestAttribute Merchant merchant){
+
+		CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+		try{
+			return new ResponseEntity<>(creditLineService.getReportDetails(merchant), HttpStatus.OK);
+		}catch (Exception ex){
+			logger.error("Exception---", ex);
+
+		}
+
+		return new ResponseEntity<>(new CreditScoreReportDetailDTO(), HttpStatus.BAD_REQUEST);
+	}
+
+
+	@RequestMapping(value="/loan_creditcard_details", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<LoanAndCreditCardDetailDTO> getLoanAndCreditCardDetails(@RequestHeader("token") String token, @RequestAttribute Merchant merchant){
+
+		try{
+			return new ResponseEntity<>(creditLineService.getLoanAndCreditCardDetails(merchant), HttpStatus.OK);
+		}catch (Exception ex){
+			logger.error("Exception---", ex);
+		}
+
+		return new ResponseEntity<>(new LoanAndCreditCardDetailDTO(), HttpStatus.BAD_REQUEST);
 	}
 }

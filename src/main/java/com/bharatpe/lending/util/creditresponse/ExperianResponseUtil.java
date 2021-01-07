@@ -6,6 +6,8 @@ import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
+import com.bharatpe.lending.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -69,7 +71,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
     public Date getReportDate() {
         try {
             return dateFormat
-                    .parse(response.get("INProfileResponse").get("CreditProfileHeader").get("ReportDate").asText());
+                    .parse(response.get(ExperianConstants.PROFILE_RESPONSE).get("CreditProfileHeader").get("ReportDate").asText());
         } catch (ParseException e) {
             logger.info("Exception in parsing report date", e);
             return null;
@@ -428,7 +430,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
             isClosed = !clsDate.after(new Date());
         }
         Integer accountStatus = loan.has(ExperianConstants.ACCT_STATUS)
-                && !loan.get(ExperianConstants.ACCT_STATUS).isNull() ? loan.get(ExperianConstants.ACCT_STATUS).asInt()
+                && !loan.get(ExperianConstants.ACCT_STATUS).isNull() ? (Integer) loan.get(ExperianConstants.ACCT_STATUS).asInt()
                         : null;
         return isClosed || !activeStatusList.contains(accountStatus);
     }
@@ -674,6 +676,498 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         res.put("minOpenDate", minOpenDate);
         res.put("loanTypes", loanTypes);
         return res;
+    }
+
+    public CreditScoreReportDetailDTO.CreditCardUtilization getCreditCardUtilization(JsonNode beruaeResponse) {
+
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+        CreditScoreReportDetailDTO.CreditCardUtilization creditCardUtilization = creditScoreReportDetailDTO.new CreditCardUtilization();
+        try{
+            boolean cardUtilizationUtilizationCheck = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS));
+            int cardLimit = 0;
+            int currentBalance = 0;
+            int totalUtilization = 0;
+            int limit = 0;
+            String impact = null;
+
+            if (cardUtilizationUtilizationCheck) {
+                JsonNode caisAccountDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS);
+
+                if (Objects.nonNull(caisAccountDetails) && caisAccountDetails.isObject() && caisAccountDetails.get(ExperianConstants.ACCT_TYPE).asInt() == 10 && !isLoanClosed(caisAccountDetails)) {
+                    if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount"))) {
+                        cardLimit = caisAccountDetails.get("Credit_Limit_Amount").asInt();
+                    }
+                    if (Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                        cardLimit = caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt();
+                    }
+                    if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                        cardLimit = Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt());
+                    }
+                    currentBalance = Math.max(caisAccountDetails.get("Current_Balance").asInt(), 0);
+
+
+                } else if (Objects.nonNull(caisAccountDetails) && caisAccountDetails.isArray()) {
+                    for (JsonNode caisAccountDetail : caisAccountDetails) {
+                        if (caisAccountDetail.get(ExperianConstants.ACCT_TYPE).asInt() == 10 && !isLoanClosed(caisAccountDetail)) {
+                            if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount"))) {
+                                limit = caisAccountDetail.get("Credit_Limit_Amount").asInt();
+                            }
+                            if (Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                                limit = caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt();
+                            }
+                            if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                                limit = Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt());
+                            }
+                            if(Objects.nonNull(caisAccountDetail.get("Current_Balance"))){
+                                currentBalance += caisAccountDetail.get("Current_Balance").asInt();
+                            }
+                            cardLimit+=limit;
+                        }
+                    }
+                }
+            }
+            if(cardLimit!=0){
+                totalUtilization = (currentBalance * 100) / cardLimit;
+            }
+
+            if(totalUtilization > 100){
+                totalUtilization = 100;
+            }
+
+            if(totalUtilization < 25){
+                impact = "excellent";
+            }else if(totalUtilization < 75){
+                impact = "average";
+            }else {
+                impact = "bad";
+            }
+            if(cardLimit == 0 && currentBalance == 0 && totalUtilization == 0){
+                return null;
+            }
+            creditCardUtilization.setCardUtilization(currentBalance);
+            creditCardUtilization.setCardLimit(cardLimit);
+            creditCardUtilization.setTotalUtilization(totalUtilization);
+            creditCardUtilization.setImpact(impact);
+            return creditCardUtilization;
+        }catch ( Exception ex){
+            logger.error("Error Occurred while calculating card utilization Error :{0}", ex);
+        }
+
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.PaymentHistory getPaymentHistory(JsonNode beruaeResponse){
+
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+        CreditScoreReportDetailDTO.PaymentHistory paymentHistory = creditScoreReportDetailDTO.new PaymentHistory();
+
+        try{
+            boolean paymentHistoryCheck = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS));
+            int totalPayment = 0;
+            int onTimePayment = 0;
+            int deqPayment = 0;
+            int timelyPayment = 0;
+            String impact = null;
+
+            if(paymentHistoryCheck){
+                JsonNode caisAccountDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS);
+                if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isObject()){
+                    JsonNode caisAccountHistories =  caisAccountDetails.get(ExperianConstants.ACCT_HISTORY);
+                    if(Objects.nonNull(caisAccountHistories)){
+                        totalPayment = caisAccountHistories.size();
+                        for(JsonNode caisAccountHistory : caisAccountHistories){
+                            if(Objects.isNull(caisAccountHistory.get(ExperianConstants.DPD)) || caisAccountHistory.get(ExperianConstants.DPD).intValue() == 0){
+                                onTimePayment+=1;
+                            }else if(Objects.nonNull(caisAccountHistory.get(ExperianConstants.DPD)) || caisAccountHistory.get(ExperianConstants.DPD).intValue()!=0){
+                                deqPayment+=1;
+                            }
+                        }
+                    }
+                } else if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isArray()){
+                    for(JsonNode caisAccountDetail: caisAccountDetails){
+                        JsonNode caisAccountHistories =  caisAccountDetail.get(ExperianConstants.ACCT_HISTORY);
+                        totalPayment += caisAccountHistories.size();
+                        for(JsonNode caisAccountHistory : caisAccountHistories){
+                            if(Objects.isNull(caisAccountHistory.get(ExperianConstants.DPD)) || caisAccountHistory.get(ExperianConstants.DPD).intValue() == 0){
+                                onTimePayment+=1;
+                            }else if(Objects.nonNull(caisAccountHistory.get(ExperianConstants.DPD)) || caisAccountHistory.get(ExperianConstants.DPD).intValue()!= 0){
+                                deqPayment+=1;
+                            }
+                        }
+                    }
+                }
+                timelyPayment = (onTimePayment*100)/totalPayment;
+            }
+
+            if(timelyPayment > 90){
+                impact = "excellent";
+            }else if(timelyPayment > 50 && timelyPayment <= 90){
+                impact = "average";
+            }else if(timelyPayment <= 50){
+                impact = "bad";
+            }
+
+            if(totalPayment == 0 && onTimePayment == 0 && timelyPayment == 0){
+                return null;
+            }
+            paymentHistory.setTotalPayment(totalPayment);
+            paymentHistory.setOntimePayment(onTimePayment);
+            paymentHistory.setTimelyPayment(timelyPayment);
+            paymentHistory.setImpact(impact);
+            return paymentHistory;
+        }catch ( Exception ex){
+            logger.error("Error Occurred while payment history, Error :{0}", ex);
+        }
+
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.AgeOfAccount getAgeOfAccount(JsonNode beruaeResponse){
+
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+        CreditScoreReportDetailDTO.AgeOfAccount ageOfAccount = creditScoreReportDetailDTO.new AgeOfAccount();
+
+        try{
+            boolean ageOfAccountCheck = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS));
+            int averageAge = 0;
+            int newestAccount = 0;
+            int oldestAccount = 0;
+            int currentDiff = 0;
+            int total = 0;
+            String impact = null;
+
+            if(ageOfAccountCheck){
+                JsonNode caisAccountDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS);
+                if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isObject()){
+                    JsonNode openDate = caisAccountDetails.get(ExperianConstants.OPEN_DATE) == null ? caisAccountDetails.get(ExperianConstants.DATE_ADDITION): caisAccountDetails.get(ExperianConstants.OPEN_DATE);
+                    Date dateReported = null;
+                    Date OpenDateType = null;
+                    try {
+                        if (caisAccountDetails.get(ExperianConstants.DATE_REPORTED) != null
+                                && !caisAccountDetails.get(ExperianConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                            dateReported = dateFormat.parse(caisAccountDetails.get(ExperianConstants.DATE_REPORTED).asText());
+                            OpenDateType = dateFormat.parse(openDate.asText());
+
+                            averageAge = (int) LoanUtil.getDateDiffInDays(OpenDateType, dateReported) / 365 ;
+                            newestAccount = averageAge;
+                            oldestAccount = averageAge;
+                        }
+                    } catch (Exception e) {
+                        logger.error("Exception:", e);
+                    }
+                }else if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isArray()){
+                    total = caisAccountDetails.size();
+                    for(JsonNode caisAccountDetail : caisAccountDetails){
+                        JsonNode openDate = caisAccountDetail.get(ExperianConstants.OPEN_DATE) == null ? caisAccountDetail.get(ExperianConstants.DATE_ADDITION): caisAccountDetail.get(ExperianConstants.OPEN_DATE);
+                        Date dateReported = null;
+                        Date OpenDateType = null;
+                        try {
+                            if (caisAccountDetail.get(ExperianConstants.DATE_REPORTED) != null
+                                    && !caisAccountDetail.get(ExperianConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                                dateReported = dateFormat.parse(caisAccountDetail.get(ExperianConstants.DATE_REPORTED).asText());
+                                OpenDateType = dateFormat.parse(openDate.asText());
+
+                                currentDiff = (int) LoanUtil.getDateDiffInDays(OpenDateType, dateReported) / 365 ;
+                                newestAccount = Math.min(newestAccount == 0 ? Integer.MAX_VALUE : newestAccount , currentDiff);
+                                oldestAccount = Math.max( oldestAccount, currentDiff);
+                                averageAge += currentDiff;
+                            }
+                        } catch (Exception e) {
+                            logger.error("Exception:", e);
+                        }
+                    }
+                    averageAge = averageAge/total;
+                }
+            }
+            if(averageAge < 1){
+                impact = "average";
+            }else {
+                impact = "excellent";
+            }
+
+            if(newestAccount == 0 && oldestAccount == 0 && averageAge == 0){
+                return null;
+            }
+
+            ageOfAccount.setNewestAccount(newestAccount);
+            ageOfAccount.setOldestAccount(oldestAccount);
+            ageOfAccount.setAverageAge(averageAge);
+            ageOfAccount.setImpact(impact);
+
+            return ageOfAccount;
+        }catch ( Exception ex){
+            logger.error("Error Occurred while checking age of account, Error :{0}", ex);
+        }
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.TotalAccount getTotalAccount(JsonNode beruaeResponse){
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+        CreditScoreReportDetailDTO.TotalAccount totalAccount = creditScoreReportDetailDTO.new TotalAccount();
+
+        try{
+            boolean totalAccountCheck = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS));
+
+            int totalNumAccount = 0;
+            int activeAccount = 0;
+            int closedAccount = 0;
+            String impact = null;
+
+            if(totalAccountCheck){
+                JsonNode caisAccountDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS);
+                if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isObject()){
+                    if(isLoanClosed(caisAccountDetails)){
+                        closedAccount +=1;
+                    }else{
+                        activeAccount+=1;
+                    }
+                    totalNumAccount = closedAccount + activeAccount;
+                }else if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isArray()){
+                    for(JsonNode caisAccountDetail : caisAccountDetails){
+                        if(isLoanClosed(caisAccountDetail)){
+                            closedAccount +=1;
+                        }else{
+                            activeAccount+=1;
+                        }
+                    }
+                    totalNumAccount = closedAccount + activeAccount;
+                }
+            }
+
+            if(activeAccount <= 10){
+                impact = "excellent";
+            }else if(activeAccount <= 20){
+                impact = "average";
+            }else {
+                impact = "bad";
+            }
+
+            if(totalNumAccount == 0 && activeAccount == 0 && closedAccount == 0){
+                return null;
+            }
+
+            totalAccount.setTotalAccount(totalNumAccount);
+            totalAccount.setActiveAccount(activeAccount);
+            totalAccount.setClosedAccount(closedAccount);
+            totalAccount.setImpact(impact);
+            return totalAccount;
+        }catch ( Exception ex){
+            logger.error("Error Occurred while checking total account, Error :{0}", ex);
+        }
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.CreditEnquries getCreditEnquiries(JsonNode beruaeResponse){
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+        CreditScoreReportDetailDTO.CreditEnquries creditEnquries = creditScoreReportDetailDTO.new CreditEnquries();
+
+        try{
+            boolean creditEnquriesCheck = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get("Current_Application")) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get("Current_Application").get("Current_Application_Details"));
+
+            int totalEnquries = 0;
+            int creditCardEnquries= 0;
+            int loanEnqueries = 0;
+            String impact = null;
+
+            if(creditEnquriesCheck) {
+                JsonNode currentApplicationDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get("Current_Application").get("Current_Application_Details");
+                if (currentApplicationDetails.isObject()) {
+                    JsonNode enquiryReason = currentApplicationDetails.get("Enquiry_Reason");
+                    if (enquiryReason.asText().equals("7")) {
+                        creditCardEnquries += 1;
+                    }else{
+                        loanEnqueries +=1;
+                    }
+                } else if (currentApplicationDetails.isArray()) {
+                    for (JsonNode currentApplicationDetail : currentApplicationDetails) {
+                        JsonNode enquiryReason = currentApplicationDetail.get("Enquiry_Reason");
+                        if (enquiryReason.asInt() == 7) {
+                            creditCardEnquries += 1;
+                        } else {
+                            loanEnqueries += 1;
+                        }
+                    }
+                }
+
+                if (beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY) != null
+                        && beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
+                        .get("TotalCAPSLast180Days") != null) {
+                    totalEnquries = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
+                            .get("TotalCAPSLast180Days").asInt();
+                }
+                totalEnquries = Math.max(totalEnquries, creditCardEnquries+loanEnqueries);
+            }
+
+
+            if(totalEnquries <= 2){
+                impact = "excellent";
+            }else if(totalEnquries > 3 && totalEnquries <= 6){
+                impact = "average";
+            }else{
+                impact = "bad";
+            }
+
+            if(totalEnquries == 0 && loanEnqueries == 0 && creditCardEnquries == 0){
+                return null;
+            }
+
+            creditEnquries.setTotalEnquiries(totalEnquries);
+            creditEnquries.setLoanEnquiries(loanEnqueries);
+            creditEnquries.setCreditCardEnquiries(creditCardEnquries);
+            creditEnquries.setImpact(impact);
+            return creditEnquries;
+        }catch ( Exception ex){
+            logger.error("Error Occurred while checking credit enquries, Error :{0}", ex);
+        }
+        return null;
+    }
+
+    public String getExperianNumber(JsonNode beruaeResponse){
+        String experianNumber = null;
+        boolean experianHeaderDetails = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get("CreditProfileHeader"));
+        if(experianHeaderDetails){
+            JsonNode headerDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get("CreditProfileHeader");
+            if(Objects.nonNull(headerDetails.get("ReportNumber"))){
+                experianNumber = headerDetails.get("ReportNumber").asText();
+            }
+        }
+
+        return experianNumber;
+    }
+
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse){
+
+        LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO = new LoanAndCreditCardDetailDTO();
+        LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
+        LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
+
+        List<LoanAndCreditCardDetailDTO.CreditCardDetail> creditCardDetails = new ArrayList<>();
+        List<LoanAndCreditCardDetailDTO.LoanDetail> loanDetails = new ArrayList<>();
+
+        try{
+            boolean totalAccountCheck = Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)) && Objects.nonNull(beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS));
+            int senctionedAmount=0;
+
+            if(totalAccountCheck) {
+                JsonNode caisAccountDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS);
+                if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isObject()){
+                    if(caisAccountDetails.get(ExperianConstants.ACCT_TYPE).asInt() == 10){
+                        creditCardDetail.setBankName(caisAccountDetails.get("Subscriber_Name").asText());
+                        creditCardDetail.setStatus(!isLoanClosed(caisAccountDetails));
+                        creditCardDetail.setCreditCardNumber(caisAccountDetails.get("Account_Number").asText());
+                        if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount"))) {
+                            creditCardDetail.setCardLimit(Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), 0));
+                        }
+                        if (Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                            creditCardDetail.setCardLimit(Math.max(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt(), 0));
+                        }
+                        if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                            creditCardDetail.setCardLimit(Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt()));
+                        }
+                        creditCardDetail.setBalance(caisAccountDetails.get("Current_Balance").asInt());
+
+                        creditCardDetails.add(creditCardDetail);
+                    }else{
+                        if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount"))) {
+                            senctionedAmount = caisAccountDetails.get("Credit_Limit_Amount").asInt();
+                        }
+                        if (Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                            senctionedAmount = caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt();
+                        }
+                        if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                            senctionedAmount = Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt());
+                        }
+                        loanDetail.setAccountNumber(caisAccountDetails.get("Account_Number").asText());
+                        loanDetail.setBankName(caisAccountDetails.get("Subscriber_Name").asText());
+                        loanDetail.setSanctionedAmount(senctionedAmount);
+                        loanDetail.setTenure(caisAccountDetails.get("Repayment_Tenure").asText());
+                        loanDetail.setStatus(!isLoanClosed(caisAccountDetails));
+                        loanDetail.setCurrentBalance(caisAccountDetails.get("Current_Balance").asText());
+                        loanDetail.setRateOfInterest(caisAccountDetails.get("Rate_of_Interest").asText());
+                        loanDetails.add(loanDetail);
+                    }
+                }else if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isArray()){
+                    for (JsonNode caisAccountDetail: caisAccountDetails){
+                        creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
+                        loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
+                        if(caisAccountDetail.get(ExperianConstants.ACCT_TYPE).asInt() == 10){
+                            creditCardDetail.setBankName(caisAccountDetail.get("Subscriber_Name").asText());
+
+                            creditCardDetail.setStatus(!isLoanClosed(caisAccountDetail));
+                            creditCardDetail.setCreditCardNumber(caisAccountDetail.get("Account_Number").asText());
+                            if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount"))) {
+                                creditCardDetail.setCardLimit(Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), 0));
+                            }
+                            if (Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                                creditCardDetail.setCardLimit(Math.max(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt(), 0));
+                            }
+                            if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                                creditCardDetail.setCardLimit(Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt()));
+                            }
+                            creditCardDetail.setBalance(Math.max(caisAccountDetail.get("Current_Balance").asInt(), 0));
+
+
+                            creditCardDetails.add(creditCardDetail);
+                        }else{
+                            if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount"))) {
+                                senctionedAmount = caisAccountDetail.get("Credit_Limit_Amount").asInt();
+                            }
+                            if (Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                                senctionedAmount = caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt();
+                            }
+                            if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
+                                senctionedAmount = Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt());
+                            }
+                            loanDetail.setAccountNumber(caisAccountDetail.get("Account_Number").asText());
+                            loanDetail.setStatus(!isLoanClosed(caisAccountDetail));
+                            loanDetail.setBankName(caisAccountDetail.get("Subscriber_Name").asText());
+                            loanDetail.setSanctionedAmount(senctionedAmount);
+                            loanDetail.setTenure(caisAccountDetail.get("Repayment_Tenure").asText());
+                            loanDetail.setCurrentBalance(caisAccountDetail.get("Current_Balance").asText());
+                            loanDetail.setRateOfInterest(caisAccountDetail.get("Rate_of_Interest").asText());
+                            loanDetails.add(loanDetail);
+                        }
+                    }
+                }
+            }
+            if(!loanDetails.isEmpty()){
+                loanAndCreditCardDetailDTO.setLoanDetail(loanDetails);
+            }
+            if(!creditCardDetails.isEmpty()){
+                loanAndCreditCardDetailDTO.setCreditCardDetail(creditCardDetails);
+            }
+            loanAndCreditCardDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
+
+        }catch ( Exception ex){
+            logger.error("Error Occurred while checking loan and credit details, Error :{0}", ex);
+        }
+
+        return loanAndCreditCardDetailDTO;
+    }
+
+    public CreditScoreReportDetailDTO getCreditDetailReport(JsonNode beruaeResponse){
+
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+
+        try{
+            CreditScoreReportDetailDTO.CreditCardUtilization creditCardUtilization = getCreditCardUtilization(beruaeResponse);
+            CreditScoreReportDetailDTO.PaymentHistory paymentHistory = getPaymentHistory(beruaeResponse);
+            CreditScoreReportDetailDTO.AgeOfAccount ageOfAccount = getAgeOfAccount(beruaeResponse);
+            CreditScoreReportDetailDTO.TotalAccount totalAccount = getTotalAccount(beruaeResponse);
+            CreditScoreReportDetailDTO.CreditEnquries creditEnquries= getCreditEnquiries(beruaeResponse);
+
+            creditScoreReportDetailDTO.setCreditEnquries(creditEnquries);
+            creditScoreReportDetailDTO.setCreditCardUtilization(creditCardUtilization);
+            creditScoreReportDetailDTO.setAgeOfAccount(ageOfAccount);
+            creditScoreReportDetailDTO.setTotalAccount(totalAccount);
+            creditScoreReportDetailDTO.setPaymentHistory(paymentHistory);
+            creditScoreReportDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
+        }catch ( Exception ex){
+            logger.error("Error Occurred while checking loan and credit details, Error :{0}", ex);
+        }
+
+
+        return creditScoreReportDetailDTO;
     }
 
 }
