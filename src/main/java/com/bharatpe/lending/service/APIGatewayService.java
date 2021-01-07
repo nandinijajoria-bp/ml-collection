@@ -798,9 +798,9 @@ public class APIGatewayService {
 
     public String getEnachProvider(String token, Long merchantId) {
         logger.info("Fetching enach provider for merchant:{}", merchantId);
-//        if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L)) {
-//            return "bharatpe://enachdigio";
-//        }
+        if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L) || merchantId.equals(4340760L) || merchantId.equals(2097359L) || merchantId.equals(7090157L) || merchantId.equals(5358374L)) {
+            return "bharatpe://enachdigio";
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
         headers.setContentType(MediaType.APPLICATION_JSON);

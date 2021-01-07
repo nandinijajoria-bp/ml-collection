@@ -7,6 +7,8 @@ import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
+import com.bharatpe.lending.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -725,5 +727,473 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         res.put("minOpenDate", minOpenDate);
         res.put("loanTypes", loanTypes);
         return res;
+    }
+
+
+    public CreditScoreReportDetailDTO.CreditCardUtilization getCreditCardUtilization(JsonNode beruaeResponse){
+
+        try{
+            boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
+            int cardLimit = 0;
+            int currentBalance = 0;
+            int totalUtilization = 0;
+            String impact = null;
+
+            if(responseCheck){
+                JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
+
+                if(responses.isObject() && (responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card")) && !isLoanClosed(responses.get(CrifConstants.LOAN_DETAILS))){
+                    if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                        cardLimit += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0);
+                    }else if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                        cardLimit += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0);
+                    }
+                    if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL"))){
+                        currentBalance += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL").asText().replace(",", "")), 0);
+                    }
+                }else if(responses.isArray()){
+                    for(JsonNode response: responses){
+                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)) && (response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card") && !isLoanClosed(response.get(CrifConstants.LOAN_DETAILS)))){
+                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                                cardLimit += Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0);
+                            }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                                cardLimit += Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0);
+                            }
+                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL"))){
+                                currentBalance += Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL").asText().replace(",", "")), 0);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(cardLimit !=0){
+                totalUtilization = (currentBalance * 100)/cardLimit;
+            }
+
+            if(totalUtilization < 25){
+                impact = "excellent";
+            }else if(totalUtilization < 75){
+                impact = "average";
+            }else {
+                impact = "bad";
+            }
+            CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+            CreditScoreReportDetailDTO.CreditCardUtilization creditCardUtilization = creditScoreReportDetailDTO.new CreditCardUtilization();
+
+            if(totalUtilization == 0 && currentBalance == 0 && cardLimit == 0){
+                return null;
+            }
+            creditCardUtilization.setTotalUtilization(totalUtilization);
+            creditCardUtilization.setCardUtilization(currentBalance);
+            creditCardUtilization.setCardLimit(cardLimit);
+            creditCardUtilization.setImpact(impact);
+
+            return creditCardUtilization;
+        }catch(Exception ex){
+            logger.error("Error Occurred while calculating card utilization Error :{0}", ex);
+        }
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.PaymentHistory getPaymentHistory(JsonNode beruaeResponse){
+
+        try{
+            boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
+            int totalPayment = 0;
+            int onTimePayment = 0;
+            int deqPayment = 0;
+            int timelyPayment = 0;
+            String impact = null;
+
+            if(responseCheck) {
+                JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
+
+                if (responses.isObject() && Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS))) {
+                    JsonNode paymentHistory = responses.get(CrifConstants.LOAN_DETAILS).get("COMBINED-PAYMENT-HISTORY");
+
+                    if (paymentHistory != null && !paymentHistory.toString().equalsIgnoreCase("\"\"")) {
+                        List<String> loanHistory = Arrays.asList(paymentHistory.asText().split("\\|"));
+                        totalPayment = loanHistory.size();
+                        for (String monthNode : loanHistory) {
+                            String date = monthNode.split(",")[0];
+                            String code1 = monthNode.split(",")[1].split("/")[0];
+                            String code2 = monthNode.split(",")[1].split("/")[1];
+                            if(delinquentDPDStatus.contains(code2)){
+                                deqPayment+=1;
+                            }
+                        }
+                        onTimePayment = totalPayment - deqPayment;
+                    }
+                }else if(responses.isArray()){
+                    for(JsonNode response: responses){
+                        JsonNode paymentHistory = response.get(CrifConstants.LOAN_DETAILS).get("COMBINED-PAYMENT-HISTORY");
+
+                        if (paymentHistory != null && !paymentHistory.toString().equalsIgnoreCase("\"\"")) {
+                            List<String> loanHistory = Arrays.asList(paymentHistory.asText().split("\\|"));
+                            totalPayment += loanHistory.size();
+                            for (String monthNode : loanHistory) {
+                                String date = monthNode.split(",")[0];
+                                String code1 = monthNode.split(",")[1].split("/")[0];
+                                String code2 = monthNode.split(",")[1].split("/")[1];
+                                if(delinquentDPDStatus.contains(code2)){
+                                    deqPayment+=1;
+                                }
+                            }
+                            onTimePayment += loanHistory.size() - deqPayment;
+                        }
+                    }
+                }
+            }
+
+            if(totalPayment!=0){
+                timelyPayment = (onTimePayment*100)/totalPayment;
+            }
+
+            if(onTimePayment > 90){
+                impact = "excellent";
+            }else if(onTimePayment > 50 && onTimePayment <= 90){
+                impact = "average";
+            }else if(timelyPayment <= 50){
+                impact = "bad";
+            }
+
+            CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+            CreditScoreReportDetailDTO.PaymentHistory paymentHistory = creditScoreReportDetailDTO.new PaymentHistory();
+
+            if(totalPayment == 0){
+                return null;
+            }
+
+            paymentHistory.setTotalPayment(totalPayment);
+            paymentHistory.setOntimePayment(onTimePayment);
+            // NEED TO CHECK WHEN NO PAYMENT HISTORY
+            paymentHistory.setTimelyPayment(timelyPayment);
+            paymentHistory.setImpact(impact);
+
+            return paymentHistory;
+        }catch (Exception ex){
+            logger.error("Error Occurred while checking payment history Error :{0}", ex);
+        }
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.AgeOfAccount getAgeOfAccount(JsonNode beruaeResponse){
+
+        try{
+            boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
+            int averageAge = 0;
+            int newestAccount = 0;
+            int oldestAccount = 0;
+            int currentDiff = 0;
+            int totalAge = 0;
+            String impact = null;
+
+            if(responseCheck) {
+                JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
+
+                if (responses.isObject() && Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS))) {
+                    JsonNode loanDetail = responses.get(CrifConstants.LOAN_DETAILS);
+                    JsonNode openDate = responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_DT);
+                    Date dateReported = null;
+                    Date OpenDateType = null;
+                    try {
+                        if (loanDetail.get(CrifConstants.DATE_REPORTED) != null
+                                && !loanDetail.get(CrifConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                            dateReported = dateFormat.parse(loanDetail.get(CrifConstants.DATE_REPORTED).asText());
+                            OpenDateType = dateFormat.parse(openDate.asText());
+
+                            averageAge = (int)LoanUtil.getDateDiffInDays(OpenDateType, dateReported) / 365 ;
+                            newestAccount = averageAge;
+                            oldestAccount = averageAge;
+                        }
+                    } catch (Exception e) {
+                        logger.error("Exception:", e);
+                    }
+                }else if(responses.isArray()){
+                    int total = responses.size();
+                    for(JsonNode response : responses){
+                        JsonNode loanDetail = response.get(CrifConstants.LOAN_DETAILS);
+                        JsonNode openDate = response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_DT);
+                        Date dateReported = null;
+                        Date OpenDateType = null;
+                        try {
+                            if (loanDetail.get(CrifConstants.DATE_REPORTED) != null
+                                    && !loanDetail.get(CrifConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                                dateReported = dateFormat.parse(loanDetail.get(CrifConstants.DATE_REPORTED).asText());
+                                OpenDateType = dateFormat.parse(openDate.asText());
+
+                                currentDiff = (int)LoanUtil.getDateDiffInDays(OpenDateType, dateReported) / 365 ;
+                                newestAccount = Math.min(newestAccount == 0 ? Integer.MAX_VALUE : newestAccount , currentDiff);
+                                oldestAccount = Math.max( oldestAccount, currentDiff);
+                                totalAge += currentDiff;
+                            }
+                        } catch (Exception e) {
+                            logger.error("Exception:", e);
+                        }
+                    }
+                    if(total!= 0){
+                        averageAge = totalAge/total;
+                    }
+                }
+            }
+
+            if(averageAge < 1){
+                impact = "average";
+            }else {
+                impact = "excellent";
+            }
+            CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+            CreditScoreReportDetailDTO.AgeOfAccount ageOfAccount = creditScoreReportDetailDTO.new AgeOfAccount();
+
+            ageOfAccount.setNewestAccount(newestAccount);
+            ageOfAccount.setOldestAccount(oldestAccount);
+            ageOfAccount.setAverageAge(averageAge);
+            ageOfAccount.setImpact(impact);
+            return ageOfAccount;
+        }catch (Exception ex){
+            logger.error("Error Occurred while checking age of account Error :{0}", ex);
+        }
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.TotalAccount getTotalAccount(JsonNode beruaeResponse){
+
+        try{
+            boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
+
+            int totalNumAccount = 0;
+            int activeAccount = 0;
+            int closedAccount = 0;
+            String impact = null;
+
+            if(responseCheck){
+                JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
+                if (responses.isObject() && Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS))) {
+                    JsonNode loanDetail = responses.get(CrifConstants.LOAN_DETAILS);
+                    if(isLoanClosed(loanDetail)){
+                        closedAccount +=1;
+                    }
+                    totalNumAccount = closedAccount;
+                }else if(responses.isArray()){
+                    for(JsonNode response : responses){
+                        JsonNode loanDetail = response.get(CrifConstants.LOAN_DETAILS);
+                        if(isLoanClosed(loanDetail)){
+                            closedAccount +=1;
+                        }else{
+                            activeAccount+=1;
+                        }
+                    }
+                    totalNumAccount = closedAccount + activeAccount;
+                }
+            }
+
+            if(activeAccount <= 10){
+                impact = "excellent";
+            }else if(activeAccount <= 20){
+                impact = "average";
+            }else {
+                impact = "bad";
+            }
+
+            CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+            CreditScoreReportDetailDTO.TotalAccount totalAccount = creditScoreReportDetailDTO.new TotalAccount();
+
+            if(totalNumAccount==0 && activeAccount==0 && closedAccount==0){
+                return null;
+            }
+
+            totalAccount.setTotalAccount(totalNumAccount);
+            totalAccount.setActiveAccount(activeAccount);
+            totalAccount.setClosedAccount(closedAccount);
+            totalAccount.setImpact(impact);
+            return totalAccount;
+        }catch(Exception ex){
+            logger.error("Error Occurred while checking total account, Error :{0}", ex);
+
+        }
+        return null;
+    }
+
+    public CreditScoreReportDetailDTO.CreditEnquries getCreditEnquiries(JsonNode beruaeResponse){
+
+        try{
+            boolean creditEnquriesCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get("ACCOUNTS-SUMMARY"));
+
+            int totalEnquries = 0;
+            int creditCardEnquries= 0;
+            int loanEnqueries = 0;
+            String impact = null;
+
+            if(creditEnquriesCheck) {
+                JsonNode accountSummaries = beruaeResponse.get(CrifConstants.REPORT_HEADER).get("ACCOUNTS-SUMMARY");
+                if (accountSummaries.isObject()) {
+                    JsonNode enquiryReason = accountSummaries.get("DERIVED-ATTRIBUTES");
+                    if (Objects.nonNull(enquiryReason)) {
+                        creditCardEnquries += enquiryReason.get("INQURIES-IN-LAST-SIX-MONTHS").asLong();
+                    }
+                } else if (accountSummaries.isArray()) {
+                    for (JsonNode accountSummary : accountSummaries) {
+                        JsonNode enquiryReason = accountSummaries.get("DERIVED-ATTRIBUTES");
+                        if (Objects.nonNull(enquiryReason)) {
+                            creditCardEnquries += enquiryReason.get("INQURIES-IN-LAST-SIX-MONTHS").asLong();
+                        }
+                    }
+                }
+                totalEnquries = creditCardEnquries + loanEnqueries;
+            }
+
+            if(totalEnquries <= 2){
+                impact = "excellent";
+            }else if(totalEnquries > 3 && totalEnquries <= 6){
+                impact = "average";
+            }else if(totalEnquries >= 7){
+                impact = "bad";
+            }
+
+            CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+            CreditScoreReportDetailDTO.CreditEnquries creditEnquries = creditScoreReportDetailDTO.new CreditEnquries();
+
+            creditEnquries.setTotalEnquiries(totalEnquries);
+            creditEnquries.setLoanEnquiries(loanEnqueries);
+            creditEnquries.setCreditCardEnquiries(creditCardEnquries);
+            creditEnquries.setImpact(impact);
+            return creditEnquries;
+        }catch(Exception ex){
+            logger.error("Error Occurred while checking total enquries, Error :{0}", ex);
+
+        }
+        return null;
+
+    }
+
+    public String getExperianNumber(JsonNode beruaeResponse){
+        String experianNumber = null;
+        boolean experianHeaderDetails = Objects.nonNull(beruaeResponse.get("B2C-REPORT")) && Objects.nonNull(beruaeResponse.get("B2C-REPORT").get("HEADER"));
+        if(experianHeaderDetails){
+            JsonNode headerDetails = beruaeResponse.get("B2C-REPORT").get("HEADER");
+            if(Objects.nonNull(headerDetails.get("REPORT-ID"))){
+                experianNumber = headerDetails.get("REPORT-ID").asText();
+            }
+        }
+
+        return experianNumber;
+    }
+
+
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse){
+        try{
+            boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
+
+
+            List<LoanAndCreditCardDetailDTO.CreditCardDetail> creditCardDetails = new ArrayList<>();
+            List<LoanAndCreditCardDetailDTO.LoanDetail> loanDetails = new ArrayList<>();
+            LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO = new LoanAndCreditCardDetailDTO();
+
+            if(responseCheck) {
+                JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
+                if(responses.isObject()){
+                    JsonNode loan = responses.get(CrifConstants.LOAN_DETAILS);
+                    LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
+                    LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
+                    if(Objects.nonNull(loan) && (loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || loan.get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card"))){
+                        creditCardDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                        creditCardDetail.setStatus(!isLoanClosed(loan));
+                        creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
+                        creditCardDetail.setBalance( Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
+
+                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
+                        }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
+                        }
+                        creditCardDetails.add(creditCardDetail);
+                    }else{
+                        loanDetail.setAccountNumber(loan.get("ACCT-NUMBER").asText());
+                        loanDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                        loanDetail.setStatus(!isLoanClosed(loan));
+                        if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                            loanDetail.setSanctionedAmount(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")));
+                        }
+                        if(Objects.nonNull(loan.get("ORIGINAL-TERM"))){
+                            loanDetail.setTenure(loan.get("ORIGINAL-TERM").asText());
+                        }
+                        loanDetail.setCurrentBalance(loan.get("CURRENT-BAL").asText());
+                        if(Objects.nonNull(loan.get("INTEREST-RATE"))) {
+                            loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
+                        }
+                        loanDetails.add(loanDetail);
+                    }
+                }else if(responses.isArray()){
+                    for (JsonNode response: responses) {
+                        JsonNode loan = response.get(CrifConstants.LOAN_DETAILS);
+                        LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
+                        LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
+                        if(Objects.nonNull(loan) && (loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || loan.get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card"))){
+                            creditCardDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                            creditCardDetail.setStatus(!isLoanClosed(loan));
+                            creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
+                            creditCardDetail.setBalance(Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
+                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                                creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
+                            }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                                creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
+                            }
+
+                            creditCardDetails.add(creditCardDetail);
+                        }else{
+                            loanDetail.setAccountNumber(loan.get("ACCT-NUMBER").asText());
+                            loanDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                                loanDetail.setSanctionedAmount(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")));
+                            }
+                            if(Objects.nonNull(loan.get("ORIGINAL-TERM"))){
+                                loanDetail.setTenure(loan.get("ORIGINAL-TERM").asText());
+                            }
+                            loanDetail.setStatus(!isLoanClosed(loan));
+                            loanDetail.setCurrentBalance(loan.get("CURRENT-BAL").asText());
+                            if(Objects.nonNull(loan.get("INTEREST-RATE"))){
+                                loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
+                            }
+                            loanDetails.add(loanDetail);
+                        }
+
+                    }
+                }
+            }
+
+            loanAndCreditCardDetailDTO.setLoanDetail(loanDetails);
+            loanAndCreditCardDetailDTO.setCreditCardDetail(creditCardDetails);
+            loanAndCreditCardDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
+            return loanAndCreditCardDetailDTO;
+        }catch(Exception ex){
+            logger.error("Error Occurred while checking loan and credit card details, Error :{0}", ex);
+
+        }
+        return null;
+
+    }
+
+    public CreditScoreReportDetailDTO getCreditDetailReport(JsonNode beruaeResponse){
+
+        CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+        try{
+            CreditScoreReportDetailDTO.CreditCardUtilization creditCardUtilization = getCreditCardUtilization(beruaeResponse);
+            CreditScoreReportDetailDTO.PaymentHistory paymentHistory = getPaymentHistory(beruaeResponse);
+            CreditScoreReportDetailDTO.AgeOfAccount ageOfAccount = getAgeOfAccount(beruaeResponse);
+            CreditScoreReportDetailDTO.TotalAccount totalAccount = getTotalAccount(beruaeResponse);
+            CreditScoreReportDetailDTO.CreditEnquries creditEnquries= getCreditEnquiries(beruaeResponse);
+            creditScoreReportDetailDTO.setCreditEnquries(creditEnquries);
+            creditScoreReportDetailDTO.setCreditCardUtilization(creditCardUtilization);
+            creditScoreReportDetailDTO.setAgeOfAccount(ageOfAccount);
+            creditScoreReportDetailDTO.setTotalAccount(totalAccount);
+            creditScoreReportDetailDTO.setPaymentHistory(paymentHistory);
+            creditScoreReportDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
+        }catch(Exception ex){
+            logger.error("Error Occurred , Error :{0}", ex);
+
+        }
+
+        return creditScoreReportDetailDTO;
     }
 }

@@ -270,11 +270,11 @@ public class VerifyOTPService {
 				put("applicationId",applicationId);
 				put("isCreditLine",isCreditLine?1L:0L);
 			}};
-			kafkaTemplate.send("verify_kyc_details", merchantId.toString(), detailMap);
-			logger.info("Pushed "+detailMap+" to topic verify_kyc_details");
+			kafkaTemplate.send("auto_kyc", merchantId.toString(), detailMap);
+			logger.info("Pushed "+detailMap+" to topic auto_kyc");
 		}
 		catch(Exception e) {
-			logger.error("Error occured while pushing to toipc verify_kyc_details",e);
+			logger.error("Error occured while pushing to toipc auto_kyc",e);
 		}
 	}
 

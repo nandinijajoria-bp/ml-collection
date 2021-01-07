@@ -1,10 +1,6 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.IfscDao;
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantFcmTokenDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
@@ -25,6 +21,11 @@ import com.bharatpe.lending.dto.DailySettlementResponseDto.DailyRepayment;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.util.creditresponse.CrifResponseUtil;
+import com.bharatpe.lending.util.creditresponse.ExperianResponseUtil;
+import com.bharatpe.lending.util.creditresponse.ResponseUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -140,11 +142,17 @@ public class CreditLineService {
 	@Autowired
 	CreditLineTransaction creditLineTransaction;
 
+	@Autowired
+	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+
+	@Autowired
+	LendingCityCreditScoreDao lendingCityCreditScoreDao;
+
 	@Value("${cl.deeplink}")
 	private String clDeeplink;
 	
 	private final DecimalFormat df = new DecimalFormat("#.##");
-	
+
 	@Autowired
 	RedisNotificationService redisNotificationService;
 
@@ -856,5 +864,99 @@ public class CreditLineService {
 		errorResponse.setMessage(message);
 		return errorResponse;
 		
+	}
+
+	private JsonNode parseStringResponse(String response){
+		if (response == null || response.isEmpty()) return null;
+		try {
+			return objectMapper.readTree(response);
+		} catch (Exception e) {
+			logger.info("Exception while parsing string response ", e);
+			return null;
+		}
+	}
+
+	public  CreditScoreReportDetailDTO.AverageCreditScore getAverageCreditScore(Merchant merchant, Experian experian){
+		CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
+		CreditScoreReportDetailDTO.AverageCreditScore averageCreditScore = creditScoreReportDetailDTO.new AverageCreditScore();
+		try{
+			PincodeCityStateMapping pincodeCityState = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+
+			Double averageCountryScore = lendingCityCreditScoreDao.getAverageCreditScoreForCountry();
+			Double averageStateScore = lendingCityCreditScoreDao.getAverageCreditScoreForState(pincodeCityState.getState());
+			Integer totalMerchantInState = lendingCityCreditScoreDao.getTotalMerchantInStateByPercentile(pincodeCityState.getState());
+
+			if(Objects.isNull(averageStateScore) || totalMerchantInState < 30){
+				averageStateScore = averageCountryScore == 0 ? averageCountryScore : averageCountryScore - 1;
+			}
+			Double averageCityScore = lendingCityCreditScoreDao.getAverageCreditScoreForCity(pincodeCityState.getCity());
+			Integer totalMerchantInCity = lendingCityCreditScoreDao.getTotalMerchantInCityByPercentile(pincodeCityState.getCity());
+
+			if(Objects.isNull(averageCityScore) || totalMerchantInCity < 30){
+				averageCityScore = averageStateScore == 0 ? averageStateScore : averageStateScore - 1;
+			}
+
+			Double countryPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCountry(experian.getExperianScore());
+			Double statePercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByState(pincodeCityState.getState(), experian.getExperianScore());
+			if(Objects.isNull(statePercentileScore) || totalMerchantInState < 30){
+				averageStateScore = countryPercentileScore == 0 ? countryPercentileScore : countryPercentileScore - 1;
+			}
+			Double cityPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCity(pincodeCityState.getCity(), experian.getExperianScore());
+			if(Objects.isNull(cityPercentileScore) || totalMerchantInCity < 30){
+				cityPercentileScore = statePercentileScore == 0 ? statePercentileScore : statePercentileScore - 1;
+			}
+
+
+			averageCreditScore.setCity(pincodeCityState.getCity());
+			averageCreditScore.setState(pincodeCityState.getState());
+			averageCreditScore.setCountry("India");
+			averageCreditScore.setCityAverageScore(averageCityScore);
+			averageCreditScore.setStateAverageScore(averageStateScore);
+			averageCreditScore.setCountryAverageScore(averageCountryScore);
+			averageCreditScore.setCityPercentile(cityPercentileScore);
+			averageCreditScore.setStatePercentile(statePercentileScore);
+			averageCreditScore.setCountryPercentile(countryPercentileScore);
+
+			return averageCreditScore;
+		}catch (Exception ex){
+			logger.error("Error occured while fetching Average and oercentile",ex);
+		}
+		return averageCreditScore;
+	}
+
+	public CreditScoreReportDetailDTO getReportDetails(Merchant merchant){
+		Experian experian = experianDao.getByMerchantId(merchant.getId());
+		JsonNode bureauResponse = parseStringResponse(experian.getResponse());;
+		if (bureauResponse == null) {
+			return new CreditScoreReportDetailDTO();
+		}
+		ResponseUtil responseUtil;
+		if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
+			responseUtil = new CrifResponseUtil(experianDao);
+		} else {
+			responseUtil = new ExperianResponseUtil(experianDao);
+		}
+		CreditScoreReportDetailDTO creditScoreReportDetailDTO =  responseUtil.getCreditDetailReport(bureauResponse);
+		creditScoreReportDetailDTO.setAverageCreditScore(getAverageCreditScore(merchant,experian));
+		return creditScoreReportDetailDTO;
+	}
+
+	public LoanAndCreditCardDetailDTO getLoanAndCreditCardDetails(Merchant merchant){
+		LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO = new LoanAndCreditCardDetailDTO();
+		Experian experian = experianDao.getByMerchantId(merchant.getId());
+
+		JsonNode bureauResponse = parseStringResponse(experian.getResponse());;
+		if (bureauResponse == null) {
+			return loanAndCreditCardDetailDTO;
+		}
+		ResponseUtil responseUtil;
+		if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
+			responseUtil = new CrifResponseUtil(experianDao);
+		} else {
+			responseUtil = new ExperianResponseUtil(experianDao);
+		}
+
+		 loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse);
+		return loanAndCreditCardDetailDTO;
 	}
 }
