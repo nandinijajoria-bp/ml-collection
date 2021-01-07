@@ -329,11 +329,11 @@ public class LoanEligibleService {
     private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard) {
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-        if ((!experian.isSkip() && experianDetails == null) || pancard != null || (experianDetails != null && LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
+        if (experianDetails == null || pancard != null || (LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
             experian.setNoExperian(true);
             return true;
-        } else if (!experian.isSkip() && experianDetails != null && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+        } else if (experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
             experian.setNoExperian(true);
             String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
