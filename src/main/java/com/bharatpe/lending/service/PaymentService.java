@@ -466,30 +466,59 @@ public class PaymentService {
 				double extraAmount = 0d;
 				double principle = 0d;
 				double interest = 0d;
-				List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
-				ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
-				int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
-				for (LendingEDISchedule ediSchedule : ediSchedules) {
-					if (balance <= 0d) {
-						break;
+				List<LendingAdjustedEDISchedule> lendingAdjustedEDISchedules = lendingAdjustedEDIScheduleDao.findByLoanId(activeLoan.getId());
+				if (!lendingAdjustedEDISchedules.isEmpty()) {
+					lendingAdjustedEDISchedules.sort(Comparator.comparing(LendingAdjustedEDISchedule::getInstallmentNumber));
+					int ediPaidCount = lendingAdjustedEDISchedules.size() - activeLoan.getEdiRemainingCount();
+					for (LendingAdjustedEDISchedule ediSchedule : lendingAdjustedEDISchedules) {
+						if (balance <= 0d) {
+							break;
+						}
+						if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
+							continue;
+						}
+						if (balance >= ediSchedule.getTotalEdi()) {
+							balance -= ediSchedule.getTotalEdi();
+							principle += ediSchedule.getPrinciple();
+							interest += ediSchedule.getInterest();
+							adjustedEdiCount++;
+						} else if (balance > ediSchedule.getPrinciple()){
+							principle += ediSchedule.getPrinciple();
+							interest += balance - ediSchedule.getPrinciple();
+							extraAmount += balance;
+							balance = 0d;
+						} else {
+							principle += balance;
+							extraAmount += balance;
+							balance = 0d;
+						}
 					}
-					if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
-						continue;
-					}
-					if (balance >= ediSchedule.getTotalEdi()) {
-						balance -= ediSchedule.getTotalEdi();
-						principle += ediSchedule.getPrinciple();
-						interest += ediSchedule.getInterest();
-						adjustedEdiCount++;
-					} else if (balance > ediSchedule.getPrinciple()){
-						principle += ediSchedule.getPrinciple();
-						interest += balance - ediSchedule.getPrinciple();
-						extraAmount += balance;
-						balance = 0d;
-					} else {
-						principle += balance;
-						extraAmount += balance;
-						balance = 0d;
+				} else {
+					List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
+					ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
+					int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
+					for (LendingEDISchedule ediSchedule : ediSchedules) {
+						if (balance <= 0d) {
+							break;
+						}
+						if (ediSchedule.getInstallmentNumber() <= ediPaidCount) {
+							continue;
+						}
+						if (balance >= ediSchedule.getTotalEdi()) {
+							balance -= ediSchedule.getTotalEdi();
+							principle += ediSchedule.getPrinciple();
+							interest += ediSchedule.getInterest();
+							adjustedEdiCount++;
+						} else if (balance > ediSchedule.getPrinciple()){
+							principle += ediSchedule.getPrinciple();
+							interest += balance - ediSchedule.getPrinciple();
+							extraAmount += balance;
+							balance = 0d;
+						} else {
+							principle += balance;
+							extraAmount += balance;
+							balance = 0d;
+						}
 					}
 				}
 				activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - adjustedEdiCount);
