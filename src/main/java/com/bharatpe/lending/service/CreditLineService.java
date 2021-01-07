@@ -877,45 +877,50 @@ public class CreditLineService {
 	}
 
 	public  CreditScoreReportDetailDTO.AverageCreditScore getAverageCreditScore(Merchant merchant, Experian experian){
-		PincodeCityStateMapping pincodeCityState = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
-
-		Double averageCountryScore = lendingCityCreditScoreDao.getAverageCreditScoreForCountry();
-		Double averageStateScore = lendingCityCreditScoreDao.getAverageCreditScoreForState(pincodeCityState.getState());
-		Integer totalMerchantInState = lendingCityCreditScoreDao.getTotalMerchantInStateByPercentile(pincodeCityState.getState());
-
-		if(Objects.isNull(averageStateScore) || totalMerchantInState < 30){
-			averageStateScore = averageCountryScore == 0 ? averageCountryScore : averageCountryScore - 1;
-		}
-		Double averageCityScore = lendingCityCreditScoreDao.getAverageCreditScoreForCity(pincodeCityState.getCity());
-		Integer totalMerchantInCity = lendingCityCreditScoreDao.getTotalMerchantInCityByPercentile(pincodeCityState.getCity());
-
-		if(Objects.isNull(averageCityScore) || totalMerchantInCity < 30){
-			averageCityScore = averageStateScore == 0 ? averageStateScore : averageStateScore - 1;
-		}
-
-		Double countryPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCountry(experian.getExperianScore());
-		Double statePercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByState(pincodeCityState.getState(), experian.getExperianScore());
-		if(Objects.isNull(statePercentileScore) || totalMerchantInState < 30){
-			averageStateScore = countryPercentileScore == 0 ? countryPercentileScore : countryPercentileScore - 1;
-		}
-		Double cityPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCity(pincodeCityState.getCity(), experian.getExperianScore());
-		if(Objects.isNull(cityPercentileScore) || totalMerchantInCity < 30){
-			cityPercentileScore = statePercentileScore == 0 ? statePercentileScore : statePercentileScore - 1;
-		}
-
 		CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
 		CreditScoreReportDetailDTO.AverageCreditScore averageCreditScore = creditScoreReportDetailDTO.new AverageCreditScore();
+		try{
+			PincodeCityStateMapping pincodeCityState = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
 
-		averageCreditScore.setCity(pincodeCityState.getCity());
-		averageCreditScore.setState(pincodeCityState.getState());
-		averageCreditScore.setCountry("India");
-		averageCreditScore.setCityAverageScore(averageCityScore);
-		averageCreditScore.setStateAverageScore(averageStateScore);
-		averageCreditScore.setCountryAverageScore(averageCountryScore);
-		averageCreditScore.setCityPercentile(cityPercentileScore);
-		averageCreditScore.setStatePercentile(statePercentileScore);
-		averageCreditScore.setCountryPercentile(countryPercentileScore);
+			Double averageCountryScore = lendingCityCreditScoreDao.getAverageCreditScoreForCountry();
+			Double averageStateScore = lendingCityCreditScoreDao.getAverageCreditScoreForState(pincodeCityState.getState());
+			Integer totalMerchantInState = lendingCityCreditScoreDao.getTotalMerchantInStateByPercentile(pincodeCityState.getState());
 
+			if(Objects.isNull(averageStateScore) || totalMerchantInState < 30){
+				averageStateScore = averageCountryScore == 0 ? averageCountryScore : averageCountryScore - 1;
+			}
+			Double averageCityScore = lendingCityCreditScoreDao.getAverageCreditScoreForCity(pincodeCityState.getCity());
+			Integer totalMerchantInCity = lendingCityCreditScoreDao.getTotalMerchantInCityByPercentile(pincodeCityState.getCity());
+
+			if(Objects.isNull(averageCityScore) || totalMerchantInCity < 30){
+				averageCityScore = averageStateScore == 0 ? averageStateScore : averageStateScore - 1;
+			}
+
+			Double countryPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCountry(experian.getExperianScore());
+			Double statePercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByState(pincodeCityState.getState(), experian.getExperianScore());
+			if(Objects.isNull(statePercentileScore) || totalMerchantInState < 30){
+				averageStateScore = countryPercentileScore == 0 ? countryPercentileScore : countryPercentileScore - 1;
+			}
+			Double cityPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCity(pincodeCityState.getCity(), experian.getExperianScore());
+			if(Objects.isNull(cityPercentileScore) || totalMerchantInCity < 30){
+				cityPercentileScore = statePercentileScore == 0 ? statePercentileScore : statePercentileScore - 1;
+			}
+
+
+			averageCreditScore.setCity(pincodeCityState.getCity());
+			averageCreditScore.setState(pincodeCityState.getState());
+			averageCreditScore.setCountry("India");
+			averageCreditScore.setCityAverageScore(averageCityScore);
+			averageCreditScore.setStateAverageScore(averageStateScore);
+			averageCreditScore.setCountryAverageScore(averageCountryScore);
+			averageCreditScore.setCityPercentile(cityPercentileScore);
+			averageCreditScore.setStatePercentile(statePercentileScore);
+			averageCreditScore.setCountryPercentile(countryPercentileScore);
+
+			return averageCreditScore;
+		}catch (Exception ex){
+			logger.error("Error occured while fetching Average and oercentile",ex);
+		}
 		return averageCreditScore;
 	}
 

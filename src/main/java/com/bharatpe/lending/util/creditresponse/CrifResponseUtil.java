@@ -1119,7 +1119,9 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                             loanDetail.setTenure(loan.get("ORIGINAL-TERM").asText());
                         }
                         loanDetail.setCurrentBalance(loan.get("CURRENT-BAL").asText());
-                        loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
+                        if(Objects.nonNull(loan.get("INTEREST-RATE"))) {
+                            loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
+                        }
                         loanDetails.add(loanDetail);
                     }
                 }else if(responses.isArray()){
