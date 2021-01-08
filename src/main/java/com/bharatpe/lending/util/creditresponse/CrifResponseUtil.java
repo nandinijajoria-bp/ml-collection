@@ -899,7 +899,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                     Date OpenDateType = null;
                     try {
                         if (loanDetail.get(CrifConstants.DATE_REPORTED) != null
-                                && !loanDetail.get(CrifConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                                && !loanDetail.get(CrifConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate) && !openDate.asText().equalsIgnoreCase("")) {
                             dateReported = dateFormat.parse(loanDetail.get(CrifConstants.DATE_REPORTED).asText());
                             OpenDateType = dateFormat.parse(openDate.asText());
 
@@ -919,7 +919,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                         Date OpenDateType = null;
                         try {
                             if (loanDetail.get(CrifConstants.DATE_REPORTED) != null
-                                    && !loanDetail.get(CrifConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                                    && !loanDetail.get(CrifConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate) && !openDate.asText().equalsIgnoreCase("")) {
                                 dateReported = dateFormat.parse(loanDetail.get(CrifConstants.DATE_REPORTED).asText());
                                 OpenDateType = dateFormat.parse(openDate.asText());
 
