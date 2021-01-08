@@ -1790,6 +1790,8 @@ public class LendingApplicationService {
 				return responseDTO;
 			}
 			if(lendingApplication != null){
+				MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
+				logger.info("Merchant bank Detais",merchantBankDetail);
 				if("draft".equals(lendingApplication.getStatus())){
 					loanData.put("applicationPending",Boolean.TRUE);
 					loanData.put("loan_applied",Boolean.TRUE);
@@ -1807,6 +1809,12 @@ public class LendingApplicationService {
 					loanData.put("header","Merchant Application is approved state.");
 					loanData.put("message","It will take 3 - 5 days to process the disbursal.");
 					data.put("loan_data",loanData);
+					data.put("external_loan_id",lendingApplication.getExternalLoanId());
+					data.put("loan_amount",lendingApplication.getLoanAmount());
+					data.put("beneficiary_name",lendingApplication.getMerchant().getBeneficiaryName());
+					data.put("bank_name",merchantBankDetail.getBankName());
+					data.put("account_number",merchantBankDetail.getAccountNumber());
+					data.put("ifsc_code",merchantBankDetail.getIfscCode());
 					responseDTO.setData(data);
 					return  responseDTO;
 				}
@@ -1830,6 +1838,12 @@ public class LendingApplicationService {
 						loanData.put("nachStatus",lendingApplication.getNachStatus().toLowerCase());
 					}
 					data.put("loan_data",loanData);
+					data.put("external_loan_id",lendingApplication.getExternalLoanId());
+					data.put("loan_amount",lendingApplication.getLoanAmount());
+					data.put("beneficiary_name",lendingApplication.getMerchant().getBeneficiaryName());
+					data.put("bank_name",merchantBankDetail.getBankName());
+					data.put("account_number",merchantBankDetail.getAccountNumber());
+					data.put("ifsc_code",merchantBankDetail.getIfscCode());
 					responseDTO.setData(data);
 					return  responseDTO;
 				}else{
