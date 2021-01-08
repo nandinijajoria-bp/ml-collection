@@ -1102,10 +1102,10 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                         creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
                         creditCardDetail.setBalance( Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
 
-                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
-                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
-                        }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
-                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
+                        if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
+                        }else if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
                         }
                         creditCardDetails.add(creditCardDetail);
                     }else{
