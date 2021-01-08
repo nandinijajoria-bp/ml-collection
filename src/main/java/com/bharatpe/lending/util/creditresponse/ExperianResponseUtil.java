@@ -844,7 +844,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                     Date OpenDateType = null;
                     try {
                         if (caisAccountDetails.get(ExperianConstants.DATE_REPORTED) != null
-                                && !caisAccountDetails.get(ExperianConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                                && !caisAccountDetails.get(ExperianConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate) && !openDate.asText().equalsIgnoreCase("")) {
                             dateReported = dateFormat.parse(caisAccountDetails.get(ExperianConstants.DATE_REPORTED).asText());
                             OpenDateType = dateFormat.parse(openDate.asText());
 
@@ -863,7 +863,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                         Date OpenDateType = null;
                         try {
                             if (caisAccountDetail.get(ExperianConstants.DATE_REPORTED) != null
-                                    && !caisAccountDetail.get(ExperianConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate)) {
+                                    && !caisAccountDetail.get(ExperianConstants.DATE_REPORTED).asText().equalsIgnoreCase("") && Objects.nonNull(openDate) && !openDate.asText().equalsIgnoreCase("")) {
                                 dateReported = dateFormat.parse(caisAccountDetail.get(ExperianConstants.DATE_REPORTED).asText());
                                 OpenDateType = dateFormat.parse(openDate.asText());
 
