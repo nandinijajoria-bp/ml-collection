@@ -799,7 +799,7 @@ public class APIGatewayService {
     public String getEnachProvider(String token, Long merchantId) {
         logger.info("Fetching enach provider for merchant:{}", merchantId);
         Long digioFailedCount = bharatPeEnachDao.isDigioFailed(merchantId);
-        if (digioFailedCount != null && digioFailedCount > LendingConstants.DIGIO_FAILED_LIMIT) {
+        if (digioFailedCount != null && digioFailedCount >= LendingConstants.DIGIO_FAILED_LIMIT) {
             return "bharatpe://enachtp";
         }
         if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L) || merchantId.equals(4340760L) || merchantId.equals(2097359L) || merchantId.equals(7090157L) || merchantId.equals(5358374L)) {
