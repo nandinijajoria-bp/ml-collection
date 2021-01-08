@@ -742,13 +742,21 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             if(responseCheck){
                 JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
 
-                if(responses.isObject() && responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") && !isLoanClosed(responses.get(CrifConstants.LOAN_DETAILS))){
-                    cardLimit += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0);
-                    currentBalance += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL").asText().replace(",", "")), 0);
+                if(responses.isObject() && (responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card")) && !isLoanClosed(responses.get(CrifConstants.LOAN_DETAILS))){
+                    if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                        cardLimit += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0);
+                    }else if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                        cardLimit += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0);
+                    }
+                    if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL"))){
+                        currentBalance += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL").asText().replace(",", "")), 0);
+                    }
                 }else if(responses.isArray()){
                     for(JsonNode response: responses){
-                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)) && response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") && !isLoanClosed(response.get(CrifConstants.LOAN_DETAILS))){
-                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)) && (response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card") && !isLoanClosed(response.get(CrifConstants.LOAN_DETAILS)))){
+                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                                cardLimit += Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0);
+                            }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
                                 cardLimit += Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0);
                             }
                             if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get("CURRENT-BAL"))){
@@ -1088,13 +1096,16 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                     JsonNode loan = responses.get(CrifConstants.LOAN_DETAILS);
                     LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
                     LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
-                    if(Objects.nonNull(loan) && loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card")){
+                    if(Objects.nonNull(loan) && (loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || loan.get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card"))){
                         creditCardDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
                         creditCardDetail.setStatus(!isLoanClosed(loan));
                         creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
                         creditCardDetail.setBalance( Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
-                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
-                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
+
+                        if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
+                        }else if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                            creditCardDetail.setCardLimit(Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
                         }
                         creditCardDetails.add(creditCardDetail);
                     }else{
@@ -1108,7 +1119,9 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                             loanDetail.setTenure(loan.get("ORIGINAL-TERM").asText());
                         }
                         loanDetail.setCurrentBalance(loan.get("CURRENT-BAL").asText());
-                        loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
+                        if(Objects.nonNull(loan.get("INTEREST-RATE"))) {
+                            loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
+                        }
                         loanDetails.add(loanDetail);
                     }
                 }else if(responses.isArray()){
@@ -1116,12 +1129,14 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                         JsonNode loan = response.get(CrifConstants.LOAN_DETAILS);
                         LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
                         LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
-                        if(Objects.nonNull(loan) && loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card")){
+                        if(Objects.nonNull(loan) && (loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || loan.get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card"))){
                             creditCardDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
                             creditCardDetail.setStatus(!isLoanClosed(loan));
                             creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
                             creditCardDetail.setBalance(Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
-                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
+                            if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
+                                creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
+                            }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
                                 creditCardDetail.setCardLimit(Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")), 0));
                             }
 
