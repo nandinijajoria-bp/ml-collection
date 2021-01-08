@@ -5,16 +5,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class EKycRequestDTO {
 
-  @JsonProperty("m_id")
-  private String mId;
-  @JsonProperty("status")
-  private Boolean status;
-  @JsonProperty("status_message")
-  private String statusMessage;
-  @JsonProperty("gender")
-  private String gender;
-  @JsonProperty( "dob")
-  private String dob;
+	@JsonProperty("m_id")
+	private String mId;
+	@JsonProperty("status")
+	private Boolean status;
+	@JsonProperty("status_message")
+	private String statusMessage;
+	@JsonProperty("gender")
+	private String gender;
+	@JsonProperty( "dob")
+	private String dob;
 	@JsonProperty( "name")
 	private String name;
 	@JsonProperty("address")
@@ -29,7 +29,9 @@ public class EKycRequestDTO {
 	private String response;
 	@JsonProperty("state")
 	private String state;
-  
+	@JsonProperty("xml_response")
+	private String xmlResponse;
+
 
 	public String getmId() {
 		return mId;
@@ -127,6 +129,14 @@ public class EKycRequestDTO {
 		this.state = state;
 	}
 
+	public String getXmlResponse() {
+		return xmlResponse;
+	}
+
+	public void setXmlResponse(String xmlResponse) {
+		this.xmlResponse = xmlResponse;
+	}
+
 	@Override
 	public String toString() {
 		return "EKycRequestDTO{" +
@@ -142,6 +152,7 @@ public class EKycRequestDTO {
 				", country='" + country + '\'' +
 				", response='" + response + '\'' +
 				", state='" + state + '\'' +
+				", xmlResponse='" + xmlResponse + '\'' +
 				'}';
 	}
 }
