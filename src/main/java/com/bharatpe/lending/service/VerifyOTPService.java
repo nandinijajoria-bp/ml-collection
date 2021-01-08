@@ -212,10 +212,8 @@ public class VerifyOTPService {
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		lendingApplicationDao.save(lendingApplication);
-		if(lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
-			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);	
-			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
-		}
+		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
+		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
 				.amount(0D)
 				.merchantStoreId(null)
@@ -242,7 +240,7 @@ public class VerifyOTPService {
 
 		sendLatLong(merchant.getId(),lendingApplication.getId());
 
-		if (lendingApplication.getLoanAmount() <= 200000 && !lendingApplication.getLoanType().equalsIgnoreCase("NTB"))
+		if (lendingApplication.getLoanAmount() <= 200000)
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
