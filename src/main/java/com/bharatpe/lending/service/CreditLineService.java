@@ -923,7 +923,7 @@ public class CreditLineService {
 		}catch (Exception ex){
 			logger.error("Error occured while fetching Average and percentile",ex);
 		}
-		return averageCreditScore;
+		return null;
 	}
 
 	public CreditScoreReportDetailDTO getReportDetails(Merchant merchant){
