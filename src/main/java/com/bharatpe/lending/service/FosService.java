@@ -183,7 +183,7 @@ public class FosService {
                 reason = "Merchant Bank A/C does Not Allow Enach.";
             }else if("OGL".equalsIgnoreCase(reason)){
                 reason = "Entered PIN Code is not Serviceable right now";
-            }else if("LOW_TPV".equalsIgnoreCase(reason)){
+            }else{
                 reason = "Keep Transacting With BharatPe To Become Eligible";
             }
             if(experian.getRejected() || experian.getReason() != null){
