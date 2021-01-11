@@ -900,7 +900,7 @@ public class CreditLineService {
 				Double countryPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCountry(experian.getExperianScore());
 				Double statePercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByState(pincodeCityState.getState(), experian.getExperianScore());
 				if (Objects.isNull(statePercentileScore) || totalMerchantInState < 30) {
-					averageStateScore = countryPercentileScore == 0 ? countryPercentileScore : countryPercentileScore - 1;
+					statePercentileScore = countryPercentileScore == 0 ? countryPercentileScore : countryPercentileScore - 1;
 				}
 				Double cityPercentileScore = lendingCityCreditScoreDao.getCreditScorePercentileByCity(pincodeCityState.getCity(), experian.getExperianScore());
 				if (Objects.isNull(cityPercentileScore) || totalMerchantInCity < 30) {
