@@ -2123,32 +2123,4 @@ public class LendingApplicationService {
 		List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
 		return ntcCategories.contains(experian.getCategory());
 	}
-
-	public ResponseDTO fosUpdate(Map<String,Object> requestDTO){
-		ResponseDTO responseDTO = new ResponseDTO();
-		Long merchantId = Long.valueOf(requestDTO.get("merchant_id").toString());
-		Long applicationId = Long.valueOf(requestDTO.get("application_id").toString());
-		try{
-			LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
-			if(lendingApplication == null){
-				responseDTO.setSuccess(Boolean.FALSE);
-				responseDTO.setMessage("Application Id And Merchant Id Not Validated");
-				return  responseDTO;
-			}
-			if(!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && !"approved".equalsIgnoreCase(lendingApplication.getStatus())){
-				lendingApplication.setNachReferenceNumber(lendingApplication.getExternalLoanId());
-				lendingApplication.setNachLender("BHARATPE");
-				lendingApplication.setNachType("EXTERNAL");
-				lendingApplication.setNachStatus("NOT_STARTED");
-				lendingApplicationDao.save(lendingApplication);
-			}
-			responseDTO.setMessage("Loan Application Updated Succesfully!");
-			responseDTO.setSuccess(Boolean.TRUE);
-		}catch(Exception ex){
-			logger.info("Fos Update API Exception",ex);
-			responseDTO.setMessage("Something Went Wrong!");
-			responseDTO.setSuccess(Boolean.FALSE);
-		}
-		return  responseDTO;
-	}
 }

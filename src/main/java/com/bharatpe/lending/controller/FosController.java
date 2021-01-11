@@ -29,7 +29,7 @@ public class FosController {
         return new ResponseEntity<>(fosService.fosnewLoan(merchantId), HttpStatus.OK);
     }
 
-    @RequestMapping(value="/loan/update", method = RequestMethod.POST, produces="application/json")
+    @RequestMapping(value="/nach/update", method = RequestMethod.POST, produces="application/json")
     public ResponseEntity<ResponseDTO> fosUpdate(@RequestBody Map<String,Object> requestDTO) {
         return new ResponseEntity<>(fosService.fosUpdate(requestDTO), HttpStatus.OK);
     }
