@@ -58,11 +58,11 @@ public class FosService {
             }
             String reason = experian.getReason();
             if("ENACH".equalsIgnoreCase(reason)){
-                reason = "Merchant's Bank A/C does Not Allow Enach.";
+                reason = "Merchant Bank A/C does Not Allow Enach.";
             }else if("OGL".equalsIgnoreCase(reason)){
-                reason = "PIN Code ares does Not Serviceable right now.";
-            }else if("LOW_TPV".equalsIgnoreCase(reason)){
-                reason = "Transact More to become Eligble Soon.";
+                reason = "Entered PIN Code Area is not Serviceable right now.";
+            }else{
+                reason = "Keep Transacting With BharatPe To Become Eligible.";
             }
 
             if(experian.getRejected()){
