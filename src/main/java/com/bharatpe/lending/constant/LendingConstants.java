@@ -40,6 +40,7 @@ public interface LendingConstants {
 	String NACH_INITIATE_URL = "/enach/initiate";
 	String NACH_SUBMIT_URL = "/enach/submit";
 	List<String> CPV_CITIES = Arrays.asList("Hyderabad", "Bengaluru", "Pune", "Delhi", "Warangal", "Jaipur", "Karimnagar", "Mumbai", "Chennai", "Kolkata", "Faridabad", "Gautam Buddh Nagar", "Ghaziabad", "Gurgaon");
+	Long DIGIO_FAILED_LIMIT = 3L;
 }
 
 

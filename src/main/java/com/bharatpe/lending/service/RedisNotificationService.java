@@ -146,7 +146,6 @@ public class RedisNotificationService {
 	}
 	
 	public void sendPendingEnachNotification(Merchant merchant, LendingApplication lendingApplication) {
-		if (true) return;
 		try {
 			logger.info("Sending pending enach notification for merchant {}",merchant);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");

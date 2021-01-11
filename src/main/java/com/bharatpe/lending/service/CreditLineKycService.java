@@ -232,9 +232,7 @@ public class CreditLineKycService {
 	}
 
 	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
-		logger.info("Ekyc response: {}", requestDTO.getPayload());
 		Map<String,Object>map=new HashMap<>();
-
 		String module="CREDIT_LINE";
 		EKycRequestDTO eKycRequestDTO=requestDTO.getPayload();
 		if(eKycRequestDTO==null)
@@ -243,13 +241,6 @@ public class CreditLineKycService {
 			map.put("message", "empty request");
 			return map;
 		}
-//		else if(eKycRequestDTO.getmId() == null || eKycRequestDTO.getmId().equals(""))
-//		{
-//			logger.error("MID not present in ekyc response for merchant:{}", merchant.getId());
-//			map.put("success", false);
-//			map.put("message", "invalid mid");
-//			return map;
-//		}
 		Long applicationId=null;
 		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 		LendingApplication lendingApplication=null;
@@ -281,7 +272,7 @@ public class CreditLineKycService {
 		lendingEkyc.setState(eKycRequestDTO.getState());
 		lendingEkyc.setStatus(eKycRequestDTO.getStatus());
 		lendingEkyc.setStatusMessage(eKycRequestDTO.getStatusMessage());
-		lendingEkyc.setResponse(eKycRequestDTO.getResponse());
+		lendingEkyc.setResponse(eKycRequestDTO.getXmlResponse() != null ? eKycRequestDTO.getXmlResponse() : eKycRequestDTO.getResponse());
 		lendingEkyc.setModule(module);
 		lendingEkyc.setMaskedAadhar(getMaskedAadhar(eKycRequestDTO.getResponse()));
 		String response=eKycRequestDTO.getResponse();
