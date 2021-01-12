@@ -289,10 +289,13 @@ public class FosService {
                         if(!"APPROVED".equals(lendingApplication.getNachStatus())){
                             BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId,lendingApplication.getId());
                             Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
+                            BharatPeEnach bharatPeEnachFailed = bharatPeEnachDao.findSpecificError(merchantId,lendingApplication.getId());
                             if(bharatPeEnachSkipped == null && bharatPeEnach != null){
-                                if(bharatPeEnach > 2){
+                                if(bharatPeEnach > 2 || bharatPeEnachFailed != null){
                                     loanData.put("limited_cpv_required",Boolean.TRUE);
                                 }
+                            }else if(bharatPeEnachSkipped != null){
+                                loanData.put("limited_cpv_required",Boolean.TRUE);
                             }
                             loanData.put("nachStatus","Pending");
                             loanData.put("header","Ask User To Complete eNACH");
