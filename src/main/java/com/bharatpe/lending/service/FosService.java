@@ -275,7 +275,7 @@ public class FosService {
                     loanData.put("limited_cpv_required",Boolean.FALSE);
                     loanData.put("eligible",Boolean.TRUE);
                     loanData.put("header","Loan applied Succesfully");
-                    loanData.put("color","#EAA003");
+                    loanData.put("color","#02A758");
                     loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
                     data.put("task_enable",Boolean.FALSE);
                     loanData.put("agreement_at",lendingApplication.getAgreementAt().toString());
@@ -286,7 +286,7 @@ public class FosService {
                         loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
                         data.put("task_enable",Boolean.FALSE);
                     }else{
-                        if(!"APPROVED".equals(lendingApplication.getNachStatus())){
+                        if(!"APPROVED".equals(lendingApplication.getNachStatus()) && !"NOT_STARTED".equalsIgnoreCase(lendingApplication.getNachStatus())){
                             BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId,lendingApplication.getId());
                             Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
                             BharatPeEnach bharatPeEnachFailed = bharatPeEnachDao.findSpecificError(merchantId,lendingApplication.getId());
@@ -298,6 +298,7 @@ public class FosService {
                                 loanData.put("limited_cpv_required",Boolean.TRUE);
                             }
                             loanData.put("nachStatus","Pending");
+                            loanData.put("color","#EAA003");
                             loanData.put("header","Ask User To Complete eNACH");
                             loanData.put("loan_applied",Boolean.FALSE);
                             loanData.put("message","Go To Loan Section On BharatPe Merchant App To  Start eNACH.");
