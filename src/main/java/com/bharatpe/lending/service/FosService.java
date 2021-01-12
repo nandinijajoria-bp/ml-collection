@@ -340,7 +340,7 @@ public class FosService {
         String accType =requestDTO.get("account_type").toString();
         try{
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
-            if(lendingApplication == null && "draft".equalsIgnoreCase(lendingApplication.getStatus())){
+            if(lendingApplication == null){
                 responseDTO.setSuccess(Boolean.FALSE);
                 responseDTO.setMessage("Application Id And Merchant Id Not Validated");
                 return  responseDTO;
