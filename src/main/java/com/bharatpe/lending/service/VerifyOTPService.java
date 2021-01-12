@@ -381,7 +381,7 @@ public class VerifyOTPService {
 			String sms =  "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\nYour Cash Advance application for INR " + loanAmount.intValue() + " has been received successfully." + "Your Application ID is " + lendingApplication.getExternalLoanId() + ". It should be processed in the next 7-10 days.";
 			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
 		} else {
-			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+" and this should get processed in the next 7 days.\nNote: Due to necessary precautions for coronavirus, there may be a delay in processing your application. We'll keep you posted.";
+			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+" and this should get processed in the next 7-10 days.";
 			smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
 		}
 		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
