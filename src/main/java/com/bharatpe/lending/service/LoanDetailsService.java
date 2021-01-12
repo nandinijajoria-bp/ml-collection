@@ -418,12 +418,12 @@ public class LoanDetailsService {
 					loanHistoryDTOs = null;
 				}
 			}
-			if (lendingApplication != null && lendingApplication.getAgreementAt() != null && "REGULAR".equals(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3) {
-				skipEnatch = true;
-			}
-			if (lendingApplication != null && "BHARAT_SWIPE".equals(lendingApplication.getLoanType())) {
-				skipEnatch = true;
-			}
+//			if (lendingApplication != null && lendingApplication.getAgreementAt() != null && "REGULAR".equals(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3) {
+//				skipEnatch = true;
+//			}
+//			if (lendingApplication != null && "BHARAT_SWIPE".equals(lendingApplication.getLoanType())) {
+//				skipEnatch = true;
+//			}
 
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchant.getId());
