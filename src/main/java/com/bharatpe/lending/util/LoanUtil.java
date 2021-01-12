@@ -246,4 +246,10 @@ public class LoanUtil {
 			logger.error("Exception in mongo publish", e);
 		}
 	}
+
+	public static String getRandomNumberString() {
+		Random rnd = new Random();
+		int number = rnd.nextInt(999);
+		return String.format("%03d", number);
+	}
 }

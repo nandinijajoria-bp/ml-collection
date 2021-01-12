@@ -18,6 +18,7 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -319,7 +320,7 @@ public class APIGatewayService {
         try {
             logger.info("Calling CRIF stage1 api for merchant:{} with pancard:{}", merchantId, pancard);
             String accessCode = generateAccessCode();
-            String orderId = RandomStringUtils.randomNumeric(6);
+            String orderId = LoanUtil.getRandomNumberString() + merchantId;
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_PLAIN);
             headers.set("orderId", orderId);
