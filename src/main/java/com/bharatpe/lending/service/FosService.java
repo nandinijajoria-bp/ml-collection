@@ -335,10 +335,15 @@ public class FosService {
 
     public ResponseDTO fosUpdate(Map<String,Object> requestDTO){
         ResponseDTO responseDTO = new ResponseDTO();
-        Long merchantId = Long.valueOf(requestDTO.get("merchant_id").toString());
-        Long applicationId = Long.valueOf(requestDTO.get("application_id").toString());
-        Long cpvAgentId =Long.valueOf(requestDTO.get("agent_id").toString());
-        String accType =requestDTO.get("account_type").toString();
+        Long merchantId = Long.valueOf(requestDTO.containsKey("merchant_id") ? requestDTO.get("merchant_id").toString() :"0");
+        Long applicationId = Long.valueOf(requestDTO.containsKey("application_id") ? requestDTO.get("application_id").toString() : "0");
+        Long cpvAgentId =Long.valueOf(requestDTO.containsKey("agent_id") ? requestDTO.get("agent_id").toString() : "0");
+        String accType =requestDTO.containsKey("account_type") ? requestDTO.get("account_type").toString() : null;
+        if(merchantId == 0 || applicationId == 0 || cpvAgentId == 0 || accType == null){
+            responseDTO.setSuccess(Boolean.FALSE);
+            responseDTO.setMessage("Require Parameter Missing In Request.");
+            return  responseDTO;
+        }
         try{
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
             if(lendingApplication == null){
