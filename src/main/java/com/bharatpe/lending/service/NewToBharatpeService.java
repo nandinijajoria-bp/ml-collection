@@ -83,17 +83,19 @@ public class NewToBharatpeService {
 			logger.info("BBS:{} for merchant:{}", lendingBBS.getBbs(), experian.getMerchantId());
 			boolean ntbLite = false;
         	if (!baseChecks(lendingBBS, merchant, experian, yellowPincode, hasRegularLoan)) {
-        		if (experian.getExperianScore() != null && experian.getExperianScore() >= 750) {
-					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", experian.getReason(), null));
-        			ntbLite = true;
-					experian.setCategory(null);
-					experian.setColor(null);
-					experian.setReason(null);
-					experianDao.save(experian);
-				} else {
-					logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
-					return new ArrayList<>();
-				}
+//        		if (experian.getExperianScore() != null && experian.getExperianScore() >= 700) {
+//					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", experian.getReason(), null));
+//        			ntbLite = true;
+//					experian.setCategory(null);
+//					experian.setColor(null);
+//					experian.setReason(null);
+//					experianDao.save(experian);
+//				} else {
+//					logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
+//					return new ArrayList<>();
+//				}
+				logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
+				return new ArrayList<>();
 			}
 			return getBBSLoans(merchant, experian, lendingBBS, yellowPincode, hasRegularLoan, ntbLite);
         } catch (Exception e) {
@@ -103,12 +105,32 @@ public class NewToBharatpeService {
     }
 
     private boolean baseChecks(LendingBBS lendingBBS, Merchant merchant, Experian experian, boolean yellowPincode, boolean hasRegularLoan) {
-		if (lendingBBS.getBbs() < 500) {
-			logger.info("BBS less than 500, rejecting merchant:{}", merchant.getId());
+		if (lendingBBS.getBbs() < 600) {
+			logger.info("BBS less than 600, rejecting merchant:{}", merchant.getId());
 			if (!hasRegularLoan) {
 				experian.setCategory("1N");
 				experian.setColor(ExperianConstants.COLOR.RED.name());
 				experian.setReason(ExperianConstants.LOW_BBS);
+				experianDao.save(experian);
+			}
+			return false;
+		}
+		if (experian.getExperianScore() != null && experian.getExperianScore() < 700) {
+			logger.info("Experian score less than 700, rejecting merchant:{}", merchant.getId());
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.LOW_BUREAU_SCORE);
+				experianDao.save(experian);
+			}
+			return false;
+		}
+		if (lendingBBS.getLoanEnquiries3mon() != null && lendingBBS.getLoanEnquiries3mon() > 4) {
+			logger.info("Loan enquiries 3 month more than 4, rejecting merchant:{}", merchant.getId());
+			if (!hasRegularLoan) {
+				experian.setCategory("1N");
+				experian.setColor(ExperianConstants.COLOR.RED.name());
+				experian.setReason(ExperianConstants.HIGH_LOAN_ENQUIRIES);
 				experianDao.save(experian);
 			}
 			return false;

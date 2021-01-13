@@ -67,6 +67,7 @@ public interface ExperianConstants {
     String LOW_ATS = "LOW_ATS";
     String LOW_BUREAU_SCORE = "LOW_BUREAU_SCORE";
     String PAYMENTS_BANK = "PAYMENTS_BANK";
+    String HIGH_LOAN_ENQUIRIES = "HIGH_LOAN_ENQUIRIES";
 
     List<String> RED = Arrays.asList("1","2","13","25");
     List<String> AMBER = Arrays.asList("3","4","5","6","14","15","16","17","18","26","27","28","29","37","38","39","40","41");
