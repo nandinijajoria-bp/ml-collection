@@ -385,8 +385,8 @@ public class CreditLineKycService {
 			if(response!=null && response.length()>0) {
 				JSONObject jsonObject = XML.toJSONObject(response);
 				JsonNode jsonNode = objectMapper.readTree(jsonObject.toString());
-				if(jsonNode != null && jsonNode.get("OfflinePaperlessKyc") != null && jsonNode.get("OfflinePaperlessKyc").get("_referenceId") != null) {
-					String aadhar = jsonNode.get("OfflinePaperlessKyc").get("_referenceId").asText();
+				if(jsonNode != null && jsonNode.get("OfflinePaperlessKyc") != null && jsonNode.get("OfflinePaperlessKyc").get("referenceId") != null) {
+					String aadhar = jsonNode.get("OfflinePaperlessKyc").get("referenceId").asText();
 					if(aadhar.length() > 4) {
 						return aadhar.substring(0,4);
 					}
