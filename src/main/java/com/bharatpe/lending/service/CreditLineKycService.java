@@ -14,6 +14,8 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 
 import org.apache.commons.lang.StringUtils;
+import org.json.JSONObject;
+import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -275,25 +277,29 @@ public class CreditLineKycService {
 		lendingEkyc.setStatusMessage(eKycRequestDTO.getStatusMessage());
 		lendingEkyc.setResponse(eKycRequestDTO.getXmlResponse() != null ? eKycRequestDTO.getXmlResponse() : eKycRequestDTO.getResponse());
 		lendingEkyc.setModule(module);
-		lendingEkyc.setMaskedAadhar(getMaskedAadhar(eKycRequestDTO.getResponse()));
-		String response=eKycRequestDTO.getResponse();
-		JsonNode rootNode=null;
-		if (response != null) {
-			try {
-				rootNode = objectMapper.readTree(response);
-			} catch (IOException e1) {
-				e1.printStackTrace();
+		if (eKycRequestDTO.getXmlResponse() != null) {
+			lendingEkyc.setMaskedAadhar(getMaskedAadharFromXML(eKycRequestDTO.getXmlResponse()));
+		} else {
+			lendingEkyc.setMaskedAadhar(getMaskedAadhar(eKycRequestDTO.getResponse()));
+		}
+		JsonNode uidData = null;
+		try {
+			if (eKycRequestDTO.getXmlResponse() != null) {
+				JSONObject jsonObject = XML.toJSONObject(eKycRequestDTO.getXmlResponse());
+				JsonNode jsonNode = objectMapper.readTree(jsonObject.toString());
+				if(jsonNode != null && jsonNode.get("OfflinePaperlessKyc") != null) {
+					uidData = jsonNode.get("OfflinePaperlessKyc").get("UidData");
+				}
+			} else if (eKycRequestDTO.getResponse() != null) {
+				JsonNode jsonNode = objectMapper.readTree(eKycRequestDTO.getResponse());
+				uidData = jsonNode.get("UidData");
 			}
+		} catch (Exception e) {
+			logger.error("Exception while parsing ekyc", e);
 		}
-		JsonNode uidData = (rootNode != null) ? rootNode.path("UidData") : null;
-		if(uidData != null) {
-			String pht = uidData.path("Pht").textValue();
-			String base64Encoded = processBase64String(pht);
-			String fileName = merchant.getId() + "" + ((int) (Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
-			String imagePath = s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
-			lendingEkyc.setImagePath(imagePath);
-			lendingEkycDao.save(lendingEkyc);
-		}
+		String imagePath = uploadAdhaarImage(uidData, merchant.getId());
+		lendingEkyc.setImagePath(imagePath);
+		lendingEkycDao.save(lendingEkyc);
 		if (lendingEkyc.getStatus() != null && lendingEkyc.getStatus()) {
 			if (module.equalsIgnoreCase("CREDIT_LINE")) {
 				MerchantDocumentProof merchantDocumentProof = insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
@@ -307,6 +313,16 @@ public class CreditLineKycService {
 		map.put("message", "ekyc created successfully");
 		return map;
 
+	}
+
+	private String uploadAdhaarImage(JsonNode uidData, Long merchantId) {
+		if(uidData != null) {
+			String pht = uidData.path("Pht").textValue();
+			String base64Encoded = processBase64String(pht);
+			String fileName = merchantId + "" + ((int) (Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			return s3BucketHandler.uploadToS3Bucket(base64Encoded, fileName, bucket);
+		}
+		return null;
 	}
 	
 	private MerchantDocumentProof insertInMerchantDocumentProof(Merchant merchant, LendingEkyc lendingEkyc,Long applicationId) {
@@ -353,6 +369,25 @@ public class CreditLineKycService {
 				if(responseMap!=null && responseMap.containsKey("referenceId")) {
 					String aadhar=responseMap.get("referenceId").toString();
 					if(aadhar.length()>4) {
+						return aadhar.substring(0,4);
+					}
+				}
+			}
+		}
+		catch(Exception e) {
+			logger.error("Error occured while getting masked aadhar ",e);
+		}
+		return null;
+	}
+
+	public String getMaskedAadharFromXML(String response) {
+		try {
+			if(response!=null && response.length()>0) {
+				JSONObject jsonObject = XML.toJSONObject(response);
+				JsonNode jsonNode = objectMapper.readTree(jsonObject.toString());
+				if(jsonNode != null && jsonNode.get("OfflinePaperlessKyc") != null && jsonNode.get("OfflinePaperlessKyc").get("_referenceId") != null) {
+					String aadhar = jsonNode.get("OfflinePaperlessKyc").get("_referenceId").asText();
+					if(aadhar.length() > 4) {
 						return aadhar.substring(0,4);
 					}
 				}
