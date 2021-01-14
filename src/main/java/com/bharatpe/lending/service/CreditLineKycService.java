@@ -232,6 +232,7 @@ public class CreditLineKycService {
 	}
 
 	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
+		logger.info("Ekyc response for merchant:{} is {}", merchant.getId(), requestDTO);
 		Map<String,Object>map=new HashMap<>();
 		String module="CREDIT_LINE";
 		EKycRequestDTO eKycRequestDTO=requestDTO.getPayload();
