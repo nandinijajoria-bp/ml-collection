@@ -48,7 +48,7 @@ public class LoanUtil {
 		selectedLoan.put("repayment", application.getRepayment().intValue());
 		selectedLoan.put("disbursement_amount", application.getLoanAmount().intValue() - application.getProcessingFee().intValue());
 		selectedLoan.put("interest_amount", application.getRepayment().intValue() - application.getLoanAmount().intValue());
-		selectedLoan.put("installment_details", prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
+		selectedLoan.put("installment_details", prepareLabels(application, lendingCategories != null ? lendingCategories.getIoTenureMonths().intValue() : 0));
 		
 		return selectedLoan;
 	}
