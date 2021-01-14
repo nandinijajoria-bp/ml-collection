@@ -170,7 +170,8 @@ public class LendingApplicationService {
 			else {
 				String offerType = lendingApplicationRequest.getOfferType();
 				List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchantId, lendingApplicationRequest.getCategory(), offerType);
-				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+				LendingCategories lendingCategory = lendingCategoryDao.getByCategory(lendingApplicationRequest.getCategory());
+				if(eligibleLoans == null || eligibleLoans.isEmpty() || lendingCategory == null) {
 					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
 					lendingApplicationResponse = new LendingApplicationResponseDTO();
 					lendingApplicationResponse.setSuccess(false);
@@ -216,7 +217,8 @@ public class LendingApplicationService {
 				return new LendingApplicationResponseDTO(false, "Category missing");
 			}
 			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), selectedCategory, requestDTO.getPayload().getOfferType());
-			if(eligibleLoans.isEmpty()) {
+			LendingCategories lendingCategory = lendingCategoryDao.getByCategory(selectedCategory);
+			if(eligibleLoans.isEmpty() || lendingCategory == null) {
 				logger.info("No eligible loan found for merchant:{}", merchant.getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
@@ -405,10 +407,10 @@ public class LendingApplicationService {
 				logger.error("Loan category not found in the request {}",requestDTO.toString());
 				return new LendingApplicationResponseDTO(false, "Category missing");
 			}
-			LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+			LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
 			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(prevLoan.getMerchant().getId(), selectedCategory, offerType);
-			if(eligibleLoans.isEmpty()) {
-				logger.error("No eligible loan found for merchant {}",prevLoan.getMerchant().getId());
+			if(eligibleLoans.isEmpty() || selectedCategoriesData == null) {
+				logger.error("No eligible loan/category found for merchant {}",prevLoan.getMerchant().getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(prevLoan.getMerchant().getId());
@@ -555,7 +557,7 @@ public class LendingApplicationService {
 	
 	private LendingApplication createApplication(Merchant merchant, EligibleLoan eligibleLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
-		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(eligibleLoan.getCategory()).get(0);
+		LendingCategories lendingCategory = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 		
 		//LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
 		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
@@ -585,7 +587,7 @@ public class LendingApplicationService {
 
 	private LendingApplication createApplication(Merchant merchant, AvailableLoan availableLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
-		LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
+		LendingCategories lendingCategory = lendingCategoryDao.getByCategory(availableLoan.getCategory());
 
 		LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, null);
 
@@ -1373,9 +1375,8 @@ public class LendingApplicationService {
 	}
 	
 	public Double getInterest(String category) {
-		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByCategory(category);
-		if(!lendingCategoriesList.isEmpty()) {
-			LendingCategories lendingCategories=lendingCategoriesList.get(0);
+		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(category);
+		if(lendingCategories != null) {
 			return lendingCategories.getInterestRate();
 		}
 		return null;

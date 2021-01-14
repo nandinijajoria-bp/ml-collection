@@ -715,9 +715,9 @@ public class LoanEligibleService {
             }
             loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
             if (!yellowPincode && lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
-                List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByCategory(lendingApplication.getCategory());
-                if (lendingCategoriesList != null && !lendingCategoriesList.isEmpty() && lendingCategoriesList.get(0).getLoanConstruct() != null && lendingCategoriesList.get(0).getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategoriesList.get(0), 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
+                LendingCategories category = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
+                if (category != null && category.getLoanConstruct() != null && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
+                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(category, 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
                     if (loanEligibilityDTO != null) {
                         logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
                         loanEligibilityDTOList.add(loanEligibilityDTO);

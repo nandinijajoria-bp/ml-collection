@@ -152,9 +152,9 @@ public class SignAgreementService {
 			logger.error("Topup loan already created for merchant:{}", merchant.getId());
 			return response;
 		}
-		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
 		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
-		if(eligibleLoans == null || eligibleLoans.isEmpty()) {
+		if(eligibleLoans == null || eligibleLoans.isEmpty() || selectedCategoriesData == null) {
 			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
 			return response;
 		}

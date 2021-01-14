@@ -188,7 +188,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 		catch(Exception e) {
 			logger.error("Error ocuured while checking loan eligibilty for pin code {}",Integer.valueOf(prevApplication.getPincode()));
 		}
-		LendingCategories selectedCategoriesData = lendingCategoryDao.findByCategory(selectedCategory).get(0);
+		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
 		CreditApplication newApplication = new CreditApplication();
 		CreditApplicationAddress newApplicationAddress=new CreditApplicationAddress();
 		if (EXPERIAN_ENABLED) {
