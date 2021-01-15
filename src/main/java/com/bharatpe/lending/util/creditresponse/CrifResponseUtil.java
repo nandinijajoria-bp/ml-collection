@@ -850,9 +850,9 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 timelyPayment = (onTimePayment*100)/totalPayment;
             }
 
-            if(onTimePayment > 90){
+            if(timelyPayment > 90){
                 impact = "excellent";
-            }else if(onTimePayment > 50 && onTimePayment <= 90){
+            }else if(timelyPayment > 50 && timelyPayment <= 90){
                 impact = "average";
             }else if(timelyPayment <= 50){
                 impact = "bad";

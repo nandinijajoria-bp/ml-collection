@@ -881,7 +881,7 @@ public class CreditLineService {
 		CreditScoreReportDetailDTO.AverageCreditScore averageCreditScore = creditScoreReportDetailDTO.new AverageCreditScore();
 		try{
 			PincodeCityStateMapping pincodeCityState = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
-			if(Objects.nonNull(pincodeCityState)) {
+			if(Objects.nonNull(pincodeCityState) && Objects.nonNull(experian.getExperianScore())) {
 
 				Double averageCountryScore = lendingCityCreditScoreDao.getAverageCreditScoreForCountry();
 				Double averageStateScore = lendingCityCreditScoreDao.getAverageCreditScoreForState(pincodeCityState.getState());
