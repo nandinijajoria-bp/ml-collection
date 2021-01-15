@@ -733,13 +733,15 @@ public class LoanEligibleService {
                     if (ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
                         logger.info("Calculating regular loan using previous NTB loan amount for merchant:{}", merchantId);
                         LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
-                        LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
-                        if (loanEligibilityDTO != null) {
-                            logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
-                            loanEligibilityDTOList.add(loanEligibilityDTO);
-                            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-                        } else {
-                            logger.info("loan offer is null for merchant: {}", merchantId);
+                        if (categories != null) {
+                            LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
+                            if (loanEligibilityDTO != null) {
+                                logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
+                                loanEligibilityDTOList.add(loanEligibilityDTO);
+                                loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+                            } else {
+                                logger.info("loan offer is null for merchant: {}", merchantId);
+                            }
                         }
                     }
                 } catch (Exception e) {

@@ -312,13 +312,15 @@ public class NewToBharatpeService {
 			if (!loanEligibilityDTOList.isEmpty() && ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
 				logger.info("Calculating ntb loan using previous NTB loan amount for merchant:{}", merchant.getId());
 				LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
-				LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(categories, 0D, null, experian.getMerchantId(), experian.getId(), ntbLoan.getLoanAmount() * 1.25, experian.getColor(), "2", loanType, false, yellowPincode);
-				if (loanEligibilityDTO != null) {
-					logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchant.getId());
-					loanEligibilityDTOList.add(loanEligibilityDTO);
-					loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-				} else {
-					logger.info("loan offer is null for merchant: {}", merchant.getId());
+				if (categories != null) {
+					LoanEligibilityDTO loanEligibilityDTO = loanEligibleService.calculateLoanBreakup(categories, 0D, null, experian.getMerchantId(), experian.getId(), ntbLoan.getLoanAmount() * 1.25, experian.getColor(), "2", loanType, false, yellowPincode);
+					if (loanEligibilityDTO != null) {
+						logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchant.getId());
+						loanEligibilityDTOList.add(loanEligibilityDTO);
+						loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+					} else {
+						logger.info("loan offer is null for merchant: {}", merchant.getId());
+					}
 				}
 			}
 		} catch (Exception e) {
