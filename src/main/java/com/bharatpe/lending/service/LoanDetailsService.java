@@ -655,6 +655,7 @@ public class LoanDetailsService {
 				}
 				experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 				loanUtil.auditExperian(experian);
+				apiGatewayService.updateGlobalLimit(merchant.getId());
 			}
 			boolean ogl = false;
 			if(lendingApplication != null

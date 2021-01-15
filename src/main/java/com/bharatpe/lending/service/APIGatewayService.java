@@ -33,8 +33,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -1002,6 +1004,67 @@ public class APIGatewayService {
         } catch (Exception e) {
             logger.info("Exception while parsing experian refresh api response", e);
             return null;
+        }
+    }
+
+    @Async
+    public void updateGlobalLimit(Long merchantId) {
+        logger.info("Updating global limit for merchant:{}", merchantId);
+        Map<String, Object> requestParams = new HashMap<String, Object>(){{
+            put("merchantId", merchantId);
+        }};
+        String payload = hmacCalculator.getObjectPayload(requestParams);
+        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+        logger.info("Get Global Limit request:{} for merchant:{}", request, merchantId);
+        int retryCount = 0;
+        while(retryCount < 3) {
+            try {
+                restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "?merchantId=" + merchantId, HttpMethod.GET, request, String.class);
+                break;
+            }
+            catch(Exception e) {
+                logger.error("Error occurred while updating global limit", e);
+            }
+            retryCount++;
+        }
+    }
+
+    public void globalLimitTxn(Long merchantId, String mode, Double amount) {
+        logger.info("Global limit txn for merchant:{}, mode:{} and amount:{}", merchantId, mode, amount);
+        Map<String, Object> requestBody = new HashMap<String, Object>(){{
+            put("merchant_id", merchantId);
+            put("amount", amount);
+            put("mode", mode);
+        }};
+        String payload = hmacCalculator.getObjectPayload(requestBody);
+        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
+        logger.info("Global Limit txn request:{} for merchant:{}", request, merchantId);
+        int retryCount = 0;
+        while(retryCount < 3) {
+            try {
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/txn", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+                logger.info("Global Limit txn response:{} for merchant:{}", responseEntity, merchantId);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
+                    logger.info("Global limit txn success for merchant:{}", merchantId);
+                } else {
+                    logger.info("Global limit txn failed for merchant:{}", merchantId);
+                }
+                break;
+            }
+            catch(Exception e) {
+                logger.error("Error occurred while global limit txn", e);
+            }
+            retryCount++;
         }
     }
 }

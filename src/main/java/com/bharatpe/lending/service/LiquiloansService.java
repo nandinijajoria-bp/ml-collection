@@ -132,6 +132,9 @@ public class LiquiloansService {
     @Autowired
 	LdcVirtualAccountDao ldcVirtualAccountDao;
 
+    @Autowired
+	APIGatewayService apiGatewayService;
+
 	private static String secretKey;
 
 	private static String SID;
@@ -328,6 +331,7 @@ public class LiquiloansService {
 				logger.error("Error occured while pushing to toipc create_gst_invoice",e);
 			}
 		}
+		apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "DEBIT", lendingPaymentSchedule.getLoanAmount());
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
     
