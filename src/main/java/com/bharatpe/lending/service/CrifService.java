@@ -179,15 +179,15 @@ public class CrifService {
             JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
                     .get(CrifConstants.PERSONAL_VARIATIONS);
             if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
-                return false;
+                return true;
             }
             if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
                     || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
-                return false;
+                return true;
             }
             if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
                     || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
-                return false;
+                return true;
             }
             List<JsonNode> panVariations = LoanUtil
                     .jsonNodeArrayUtil(personalData.get(CrifConstants.PAN_VARIATIONS).get(CrifConstants.VARIATION));
@@ -201,7 +201,7 @@ public class CrifService {
                 if(checkPan) break;
             }
             for (JsonNode phone : phoneVariations) {
-                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber);
+                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber) || phone.get("VALUE").asText().equalsIgnoreCase("91" + phoneNumber);
                 if(checkPhone) break;
             }
         }
