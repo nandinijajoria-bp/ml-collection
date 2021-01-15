@@ -333,7 +333,7 @@ public class LoanEligibleService {
             logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
             experian.setNoExperian(true);
             return true;
-        } else if (experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+        } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
             experian.setNoExperian(true);
             String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");

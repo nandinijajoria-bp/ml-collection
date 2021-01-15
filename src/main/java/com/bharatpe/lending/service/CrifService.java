@@ -1,22 +1,23 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.ExperianAuditTrailDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.dao.CrifAuditTrailDao;
-import com.bharatpe.lending.common.dao.CrifDao;
+import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingPancard;
+import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
-import com.bharatpe.lending.common.entity.Crif;
-import com.bharatpe.lending.common.entity.CrifAuditTrail;
+import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.dto.CrifResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.util.creditresponse.CrifResponseUtil;
+import com.bharatpe.lending.util.creditresponse.ResponseUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,9 @@ public class CrifService {
     @Autowired
     CrifRequestResponseDao crifRequestResponseDao;
 
+    @Autowired
+    LendingMerchantDropoffDao lendingMerchantDropoffDao;
+
     public CrifResponseDTO getCrif(Merchant merchant, String pancard) {
         try {
             Experian experian = experianDao.getByMerchantId(merchant.getId());
@@ -71,6 +75,10 @@ public class CrifService {
             } else if (crifResponse != null) {
                 experian.setResponse(crifResponse.toString());
                 experian.setBureau("CRIF");
+                ResponseUtil responseUtil = new CrifResponseUtil(crifResponse, experianDao, lendingMerchantDropoffDao);
+                Double bureauScore = responseUtil.getBureauScore();
+                if(bureauScore != null) experian.setExperianScore(bureauScore);
+                experian.setReportDate(responseUtil.getReportDate());
                 experianDao.save(experian);
                 loanUtil.auditExperian(experian);
             }
@@ -99,6 +107,10 @@ public class CrifService {
             } else if (crifResponse != null) {
                 experian.setResponse(crifResponse.toString());
                 experian.setBureau("CRIF");
+                ResponseUtil responseUtil = new CrifResponseUtil(crifResponse, experianDao, lendingMerchantDropoffDao);
+                Double bureauScore = responseUtil.getBureauScore();
+                if(bureauScore != null) experian.setExperianScore(bureauScore);
+                experian.setReportDate(responseUtil.getReportDate());
                 experianDao.save(experian);
                 loanUtil.auditExperian(experian);
             }
