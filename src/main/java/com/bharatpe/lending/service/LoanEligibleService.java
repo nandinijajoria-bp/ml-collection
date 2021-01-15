@@ -1097,7 +1097,7 @@ public class LoanEligibleService {
             return refreshResponse;
         }
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
-        if (lendingPancard == null || lendingPancard.getName() == null) {// get data from signzy
+        if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber())) {// get data from signzy
             try {
                 lendingPancard = fetchNameFromSignzy(experian.getPancardNumber(), merchantId);
             } catch (Exception e) {

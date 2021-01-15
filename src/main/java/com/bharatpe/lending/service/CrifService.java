@@ -62,7 +62,7 @@ public class CrifService {
                 logger.info("Experian entry not found for merchant:{}", merchant.getId());
                 return new CrifResponseDTO(true, null);
             }
-            Map<String, String> merchantName = getFirstLastName(merchant);
+            Map<String, String> merchantName = getFirstLastName(merchant, pancard);
             String firstName = merchantName.get("first");
             String lastName = merchantName.get("last");
             JsonNode crifResponse = getCrifReport(merchant.getMobile().substring(2), pancard, merchant.getId(), firstName, lastName);
@@ -109,12 +109,15 @@ public class CrifService {
         return new CrifResponseDTO(true, null);
     }
 
-    private Map<String, String> getFirstLastName(Merchant merchant) {
+    private Map<String, String> getFirstLastName(Merchant merchant, String pancard) {
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         String firstName;
         String lastName;
-        if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("")) {
+        if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
+            lendingPancard = loanEligibleService.fetchNameFromSignzy(pancard, merchant.getId());
+        }
+        if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
             firstName = loanEligibleService.getFirstName(lendingPancard.getName());
             lastName = loanEligibleService.getLastName(lendingPancard.getName());
         } else {
@@ -179,15 +182,15 @@ public class CrifService {
             JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
                     .get(CrifConstants.PERSONAL_VARIATIONS);
             if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
-                return true;
+                return false;
             }
             if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
                     || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
-                return true;
+                return false;
             }
             if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
                     || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
-                return true;
+                return false;
             }
             List<JsonNode> panVariations = LoanUtil
                     .jsonNodeArrayUtil(personalData.get(CrifConstants.PAN_VARIATIONS).get(CrifConstants.VARIATION));
