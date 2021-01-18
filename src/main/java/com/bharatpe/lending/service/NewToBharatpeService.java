@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZoneId;
@@ -60,6 +61,8 @@ public class NewToBharatpeService {
 
     @Autowired
 	LendingMerchantDropoffDao lendingMerchantDropoffDao;
+
+	private final DecimalFormat df = new DecimalFormat("#.##");
 
     private static final double LOAN_ENQUIRY_WEIGHT = 0.2;
     private static final double DELINQUENCY_WEIGHT = 0.2;
@@ -264,7 +267,8 @@ public class NewToBharatpeService {
 	}
 
 	private List<LoanEligibilityDTO> getEligibleLoans(Merchant merchant,String category, Double amountToServe,Experian experian, boolean yellowPincode, double bbs, boolean hasRegularLoan){
-		List<LendingCategories> lendingCategories=lendingCategoryDao.getByMasterCategoryForConstruct1(category);
+		bbs = Double.parseDouble(df.format(bbs));
+    	List<LendingCategories> lendingCategories=lendingCategoryDao.getByMasterCategoryForConstruct1(category);
 		if(lendingCategories==null || lendingCategories.isEmpty()) {
 			logger.error("No active lending category found for merchant: {}", merchant.getId());
 			return new ArrayList<>();
