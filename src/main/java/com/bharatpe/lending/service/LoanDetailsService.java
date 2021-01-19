@@ -965,7 +965,11 @@ public class LoanDetailsService {
 		List<SettlementResponseDTO.Settlement> settlementList = new ArrayList<>();
 		for (LendingLedger lendingLedger : lendingLedgers) {
 			if (lendingLedger.getAmount() > 0 && (lendingLedger.getAdjustmentMode() == null || !"TOPUP".equalsIgnoreCase(lendingLedger.getAdjustmentMode()))) {
-				settlementList.add(new SettlementResponseDTO.Settlement(lendingLedger.getDate(), lendingLedger.getAmount(), LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "Settlement")));
+				String mode = LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "QR Txns.");
+				if (lendingLedger.getSettlement() != null && lendingLedger.getSettlement().getSettlementMode() != null && "BHARATSWIPE".equalsIgnoreCase(lendingLedger.getSettlement().getSettlementMode())) {
+					mode = "Swipe Txns.";
+				}
+				settlementList.add(new SettlementResponseDTO.Settlement(lendingLedger.getDate(), lendingLedger.getAmount(), mode));
 			}
 		}
 		if (settlementList.isEmpty()) {
