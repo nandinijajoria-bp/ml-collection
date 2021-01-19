@@ -7,9 +7,10 @@ import java.util.*;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.common.dao.DocKycDetailsDao;
+import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.PhonebookDao;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Phonebook;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.LendingEkyc;
@@ -23,8 +24,6 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import org.springframework.util.StringUtils;
@@ -51,11 +50,18 @@ public class ImageURLService {
 	@Autowired
 	RedisNotificationService redisNotificationService;
 
+	@Autowired
+	MerchantBankDetailDao merchantBankDetailDao;
+
+	@Autowired
+	DocKycDetailsDao docKycDetailsDao;
+
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 	
 	public Map<String, Object> fetchAndWrapResult(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> result = new HashMap<String, Object>();
+		Map<String, String> panNameCheck = new HashMap<>();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		if(applicationId == null || applicationId <= 0) {
 			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
@@ -70,6 +76,10 @@ public class ImageURLService {
 		}
 
 		logger.info("Application: {}", lendingApplication);
+
+		panNameCheck = getBanificaryAndPanName(merchant, lendingApplication);
+		result.put("panNameCheck", panNameCheck);
+
 		Boolean ekycDone=isEkycDone(merchant, lendingApplication.getId());
 		if(ekycDone==null){
 			result.put("success", false);
@@ -94,6 +104,29 @@ public class ImageURLService {
 			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), lendingApplication);
 		}
 		return result;
+	}
+
+	public Map<String, String> getBanificaryAndPanName(Merchant merchant, LendingApplication lendingApplication){
+		Map<String, String> result = new HashMap<>();
+		DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchant.getId(), lendingApplication.getId(), "pancard");
+		if(Objects.nonNull(documentsIdProof) && Objects.nonNull(documentsIdProof.getPanNameMatch()) && !documentsIdProof.getPanNameMatch().isEmpty() && documentsIdProof.getPanNameMatch().equals("NO")){
+			DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestPanCardDetails(merchant.getId(), lendingApplication.getId());
+
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			String benificiaryName =  merchantBankDetail!= null ? (merchantBankDetail.getBeneficiaryName()!= null ? merchantBankDetail.getBeneficiaryName() : "") : "";
+			String nameInPan = docKycDetails != null && Objects.nonNull(docKycDetails.getPersonName()) ? docKycDetails.getPersonName() : "";
+
+			if(nameInPan.isEmpty()){
+				return null;
+			}
+
+			result.put("benificiaryName", benificiaryName);
+			result.put("nameInPan", nameInPan);
+
+			return result;
+		}
+
+		return null;
 	}
 
 	private boolean allowRoute(LendingApplication lendingApplication, Merchant merchant, Boolean isEkycDone) {
