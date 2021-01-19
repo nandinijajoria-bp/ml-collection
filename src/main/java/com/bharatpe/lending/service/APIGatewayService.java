@@ -892,7 +892,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public void submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId) {
+    public void submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider) {
         logger.info("Enach submit request:{} for merchant:{}", requestDTO, merchantId);
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
@@ -902,7 +902,7 @@ public class APIGatewayService {
             put("client_name", "LENDING");
             put("identifier", requestDTO.getIdentifier());
             put("mandate_id", requestDTO.getMandateId());
-            put("enach_provider", requestDTO.getProvider());
+            put("enach_provider", requestDTO.getProvider() != null ? requestDTO.getProvider() : provider);
             put("status", requestDTO.getStatus());
             put("status_message", requestDTO.getStatusMessage());
             put("response", requestDTO.getResponse());
