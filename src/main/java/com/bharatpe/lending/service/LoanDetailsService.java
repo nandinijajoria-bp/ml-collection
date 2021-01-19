@@ -1075,7 +1075,7 @@ public class LoanDetailsService {
 			}
 		}
 
-		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, false, pancard, null, isZomato, "NORMAL", yellowPincode, isFromSwipe, bankCode));
+		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), pancard, null, isZomato, "NORMAL", yellowPincode, isFromSwipe, bankCode));
 		if (!experian.getRejected() && experian.getReason() != null) {
 			lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
 		}

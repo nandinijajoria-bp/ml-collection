@@ -10,6 +10,8 @@ public class CreditScoreRequestDto {
     @JsonProperty("pin_code")
     private Integer pinCode;
 
+    private boolean skip;
+
     public String getPanNumber() {
         return panNumber;
     }
@@ -24,5 +26,13 @@ public class CreditScoreRequestDto {
 
     public void setPinCode(Integer pinCode) {
         this.pinCode = pinCode;
+    }
+
+    public boolean isSkip() {
+        return skip;
+    }
+
+    public void setSkip(boolean skip) {
+        this.skip = skip;
     }
 }

@@ -271,8 +271,15 @@ public class LoanEligibleService {
             if(creditBureauResponse != null){
                 experian.setResponse(creditBureauResponse.toString());
                 experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
-            } else if (goToExperianV2(experian, merchant, pancard)) {
+            } else if (goToExperianV2(experian, merchant, pancard, skip)) {
                 return new ArrayList<>();
+            } else {
+                logger.info("bureau response not found for merchant:{}", merchant.getId());
+                experian.setResponse(null);
+                experian.setBureau(null);
+                experian.setReportDate(null);
+                experian.setExperianScore(null);
+                experianDao.save(experian);
             }
             responseUtil = getCreditBureauResponse(experian);
             if (responseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())){
@@ -313,7 +320,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             logger.error("Exception while fetching experian details---", e);
         }
-        if (goToExperianV2(experian, merchant, pancard)) {
+        if (goToExperianV2(experian, merchant, pancard, skip)) {
             return new ArrayList<>();
         }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
@@ -326,14 +333,14 @@ public class LoanEligibleService {
         return calculateNTC(bpScore, merchant.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
     }
 
-    private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard) {
+    private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard, boolean skip) {
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if (experianDetails == null || pancard != null || (LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
             experian.setNoExperian(true);
             return true;
-        } else if (!experian.isSkip() && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+        } else if (!skip && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
             logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
             experian.setNoExperian(true);
             String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[","").replaceAll("\\]","").split(",");
