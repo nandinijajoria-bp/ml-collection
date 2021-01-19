@@ -182,4 +182,9 @@ public class LendingApplicationController {
 	public ResponseEntity<CommonResponse> getEdiSchedule(@RequestParam Long merchantId, @RequestParam Long applicationId){
 		return new ResponseEntity<>(lendingEdiScheduleService.getEdiSchedule(merchantId, applicationId), HttpStatus.OK);
 	}
+
+	@GetMapping(value="/edi_schedule/v2", produces = "application/json")
+	public ResponseEntity<CommonResponse> getEdiScheduleV2(@RequestParam Long merchantId, @RequestParam Long applicationId){
+		return new ResponseEntity<>(lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId), HttpStatus.OK);
+	}
 }
