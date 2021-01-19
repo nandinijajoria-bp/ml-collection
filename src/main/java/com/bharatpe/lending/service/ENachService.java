@@ -69,7 +69,7 @@ public class ENachService {
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO, String token){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
         if (bharatPeEnach == null) {
@@ -79,6 +79,7 @@ public class ENachService {
         }
         if (requestDTO.getStatus()) {
             logger.info("Enach success for merchant:{}", merchant.getId());
+            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
             // Update Lending Application for ENACH
             if (lendingApplication == null) {
                 responseDTO.setResponse(false);
