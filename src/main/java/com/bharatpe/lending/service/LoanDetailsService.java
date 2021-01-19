@@ -168,7 +168,6 @@ public class LoanDetailsService {
 				return response;
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
 			List<LendingPartnerOffers> lendingPartnerOffers = lendingPartnerOffersDao.findByMerchantIdAndPartnerAndMobile(merchant.getId(), "ZOMATO", merchant.getMobile());
 			LendingRedCities redCity = null;
 			boolean isZomato = false;
@@ -194,9 +193,6 @@ public class LoanDetailsService {
 			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
 			Integer pincode = null;
 			LendingCities lendingCity = null;
-			LendingBharatswipeOffers lendingBharatswipeOffers=getSwipeLoanOffer(merchant);
-			Boolean isFromSwipe=lendingBharatswipeOffers!=null;
-			Double bharatSwipeAmount = lendingBharatswipeOffers !=null ? lendingBharatswipeOffers.getLoanAmount() : 0D;
 			if (requestDTO.getPayload().getPanCard() != null) {
 				if (requestDTO.getPayload().getPincode() == null) {
 					logger.info("pincode bug for merchant:{}", merchant.getId());
@@ -221,14 +217,8 @@ public class LoanDetailsService {
 			}
 			if (experian != null && experian.getPancardNumber() != null) {
 				panCard = experian.getPancardNumber();
-				if (ExperianConstants.LOCKDOWN) {
-					if (merchantSummaryLending != null && merchantSummaryLending.getBpScore() != null) {
-						experian.setBpScore(merchantSummaryLending.getBpScore());
-					}
-				} else {
-					if (merchantSummary != null && merchantSummary.getBpScore() != null) {
-						experian.setBpScore(merchantSummary.getBpScore());
-					}
+				if (merchantSummary != null && merchantSummary.getBpScore() != null) {
+					experian.setBpScore(merchantSummary.getBpScore());
 				}
 			}
 			if (requestDTO.getPayload().getPincode() != null) {
@@ -251,8 +241,6 @@ public class LoanDetailsService {
 				loanDetailsDTO.setRejectReason(null);
 				loanDetailsDTO.setPanCard(null);
 				loanDetailsDTO.setZomato(isZomato);
-				loanDetailsDTO.setBharatSwipe(isFromSwipe);
-				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				if (experian != null) {
@@ -476,8 +464,6 @@ public class LoanDetailsService {
 				}
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setEnach(enach);
-				loanDetailsDTO.setBharatSwipe(isFromSwipe);
-				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -504,8 +490,6 @@ public class LoanDetailsService {
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
-				loanDetailsDTO.setBharatSwipe(isFromSwipe);
-				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				loanDetailsDTO.setHasExperian(experian != null);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
@@ -535,8 +519,6 @@ public class LoanDetailsService {
 				loanDetailsDTO.setHasExperian(experian != null);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
-				loanDetailsDTO.setBharatSwipe(isFromSwipe);
-				loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 				if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 					loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 				} else {
@@ -554,7 +536,7 @@ public class LoanDetailsService {
 			if (EXPERIAN_ENABLED && experian != null && !rejected) {
 
 				try {
-					loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), merchantSummaryLending, isZomato,"NORMAL", yellowPincode,isFromSwipe, bankCode));
+					loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), isZomato,"NORMAL", yellowPincode, bankCode));
 				} catch (Exception e) {
 					logger.error("Exception fetching eligible loan for merchant: {}", merchant.getId());
 					logger.error("Exception---", e);
@@ -576,18 +558,13 @@ public class LoanDetailsService {
 						maskedMobiles = experian.getMaskedMobiles();
 					}
 				}
-				//fetching Bharat Swipe loans
-				if(isFromSwipe && !rejected) {
-					loanEligibilityDTOs.clear();
-					loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant,experian,lendingBharatswipeOffers));
-				}
 				//fetching Zomato loans
 				if (isZomato && !rejected) {
 					loanEligibilityDTOs.clear();
 					loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 				}
 				//fetching NTB loans
-				if (!rejected && !isFromSwipe && !isZomato) {
+				if (!rejected && !isZomato) {
 					experian.setReason(null);
 					experianDao.save(experian);
 					if (bankCode == null && loanEligibilityDTOs.isEmpty()) {
@@ -711,8 +688,6 @@ public class LoanDetailsService {
 			loanDetailsDTO.setPincode(pincode);
 			loanDetailsDTO.setZomato(isZomato);
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
-			loanDetailsDTO.setBharatSwipe(isFromSwipe);
-			loanDetailsDTO.setBharatSwipeAmount(bharatSwipeAmount);
 			loanDetailsDTO.setHasExperian(hasExperian);
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
@@ -990,7 +965,7 @@ public class LoanDetailsService {
 		List<SettlementResponseDTO.Settlement> settlementList = new ArrayList<>();
 		for (LendingLedger lendingLedger : lendingLedgers) {
 			if (lendingLedger.getAmount() > 0 && (lendingLedger.getAdjustmentMode() == null || !"TOPUP".equalsIgnoreCase(lendingLedger.getAdjustmentMode()))) {
-				settlementList.add(new SettlementResponseDTO.Settlement(lendingLedger.getDate(), lendingLedger.getAmount(), LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "QR Txns.")));
+				settlementList.add(new SettlementResponseDTO.Settlement(lendingLedger.getDate(), lendingLedger.getAmount(), LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "Settlement")));
 			}
 		}
 		if (settlementList.isEmpty()) {
@@ -1035,10 +1010,6 @@ public class LoanDetailsService {
 		String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");;
 		Boolean sms = Boolean.FALSE;
 
-		//Bharat Swipe Loan Offers
-		LendingBharatswipeOffers lendingBharatswipeOffers = getSwipeLoanOffer(merchant);
-		boolean isFromSwipe = lendingBharatswipeOffers != null;
-
 		//Zomato Loan Offers
 		boolean isZomato = false;
 		if (lendingPartnerOffers != null && !lendingPartnerOffers.isEmpty()) {
@@ -1077,7 +1048,7 @@ public class LoanDetailsService {
 			}
 		}
 
-		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), pancard, null, isZomato, "NORMAL", yellowPincode, isFromSwipe, bankCode));
+		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), pancard, isZomato, "NORMAL", yellowPincode, bankCode));
 		if (!experian.getRejected() && experian.getReason() != null) {
 			lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
 		}
@@ -1105,15 +1076,9 @@ public class LoanDetailsService {
 				loanEligibilityDTOs.clear();
 				loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 			}
-
-			//Fetch Bharat_Swipe Loan
-			if (isFromSwipe && !rejected) {
-				loanEligibilityDTOs.clear();
-				loanEligibilityDTOs.addAll(fetchSwipeOffer(merchant, experian, lendingBharatswipeOffers));
-			}
 		}
 
-		if (!rejected && !isFromSwipe && !isZomato) {
+		if (!rejected && !isZomato) {
 			experian.setReason(null);
 			experianDao.save(experian);
 			if (bankCode == null && loanEligibilityDTOs.isEmpty()) {

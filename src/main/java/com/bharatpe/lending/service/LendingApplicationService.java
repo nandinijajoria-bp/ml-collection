@@ -137,6 +137,9 @@ public class LendingApplicationService {
 	@Autowired
 	ENachService eNachService;
 
+	@Autowired
+	BharatSwipeAccountDao bharatSwipeAccountDao;
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
 		LendingApplication lendingApplication=null;
@@ -729,6 +732,8 @@ public class LendingApplicationService {
 	public TncDto getTnc(Merchant merchant, long applicationId) {
 		String html=populateHtml(merchant, applicationId);
 		TncDto tnc=new TncDto();
+		BharatSwipeAccount bharatSwipeAccount = bharatSwipeAccountDao.findByMerchantId(merchant.getId());
+		tnc.setSwipe(bharatSwipeAccount != null);
 		if(html==null) {
 			tnc.setSuccess(false);
 			tnc.setMessage("Error occured while fetching tnc");

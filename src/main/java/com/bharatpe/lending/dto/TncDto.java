@@ -5,6 +5,7 @@ public class TncDto {
 	private boolean success=true;
     private String message;
 	private String htmlString;
+	private boolean isSwipe = false;
 	public boolean isSuccess() {
 		return success;
 	}
@@ -22,5 +23,13 @@ public class TncDto {
 	}
 	public void setHtmlString(String htmlString) {
 		this.htmlString = htmlString;
+	}
+
+	public boolean isSwipe() {
+		return isSwipe;
+	}
+
+	public void setSwipe(boolean swipe) {
+		isSwipe = swipe;
 	}
 }

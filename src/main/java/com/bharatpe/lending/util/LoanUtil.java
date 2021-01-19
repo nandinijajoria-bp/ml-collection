@@ -193,7 +193,7 @@ public class LoanUtil {
 	}
 
 	public static Map<String , String> settlementMode = new HashMap<String , String>() {{
-		put("SETTLEMENT", "QR Txns.");
+		put("SETTLEMENT", "Settlement");
 		put("EXTERNAL_NACH", "NACH");
 		put("INTEREST_ACCOUNT", "Interest A/c");
 		put("REFUND", "Refund");
@@ -206,7 +206,7 @@ public class LoanUtil {
 		put("UNSETTLED","QR Txns.");
 		put("DIRECT_TRANSFER","Offline");
 		put("EXCEPTION","Offline");
-		put("QR_SETTLEMENT","QR Txns.");
+		put("QR_SETTLEMENT","Settlement");
 	}};
 
 	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData){
