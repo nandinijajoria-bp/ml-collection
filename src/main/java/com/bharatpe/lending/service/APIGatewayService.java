@@ -1007,7 +1007,7 @@ public class APIGatewayService {
         }
     }
 
-    @Async
+//    @Async
     public void updateGlobalLimit(Long merchantId) {
         logger.info("Updating global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>(){{

@@ -27,6 +27,8 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class LoanDetailsService {
@@ -655,7 +657,10 @@ public class LoanDetailsService {
 				}
 				experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 				loanUtil.auditExperian(experian);
-				apiGatewayService.updateGlobalLimit(merchant.getId());
+				ExecutorService executor = Executors.newFixedThreadPool(1);
+				executor.submit(() -> {
+					apiGatewayService.updateGlobalLimit(merchant.getId());
+				});
 			}
 			boolean ogl = false;
 			if(lendingApplication != null
