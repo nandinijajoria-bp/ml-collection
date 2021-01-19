@@ -2,22 +2,23 @@ package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletResponse;
 
 import com.amazonaws.services.dynamodbv2.xspec.M;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.util.UploadDocumentUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -39,8 +40,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
 
 @Service
 public class UploadDocumentService {
@@ -69,6 +68,9 @@ public class UploadDocumentService {
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
+
+	@Autowired
+	UploadDocumentUtil uploadDocumentUtil;
 
 	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -141,9 +143,22 @@ public class UploadDocumentService {
 				documentResponse.setSinglePageDocument(singlePageDocument);
 				documentList.add(documentResponse);
 			}
+			sinzyCorrectPanCheck(documentsIdProof, proofType, merchant, lendingApplication.getId());
 			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
 		return documentList;
+	}
+	
+	public void sinzyCorrectPanCheck(DocumentsIdProof documentsIdProof ,String proofType, Merchant merchant, Long applicationId){
+
+		if(proofType.equals("pancard")){
+			new Thread(() -> {
+				Map<String,String> signzyApiDetails= uploadDocumentUtil.getDetailsOfSignzyApi();
+				if(Objects.nonNull(signzyApiDetails)){
+					uploadDocumentUtil.doOcrForPan(documentsIdProof, signzyApiDetails,proofType, merchant.getId(), applicationId);
+				}
+			}).start();
+		}
 	}
 	
 	private Map<String, String> processAndUploadProof(List<String> proof, Merchant merchant) {

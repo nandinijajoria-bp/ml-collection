@@ -16,6 +16,7 @@ public interface CreditConstants {
 	String PAYOUT_URL = "http://payout-java.bharatpe.in/lending/payout";
 	String APP_NOTIFICATION_DEEPLINK="bharatpe://dynamic?key=credit-line";
 	String MESSAGE_NOTIFICATION_LINK="bharatpe.in/creditline";
+	String SIGNZY_NAME_MATCH_URL="/v2/patrons/";
 
 	enum SpendMode {
 		BANK_TRANSFER, SEND_MONEY, BILL_PAYMENT, ECOMMERCE, CASH_WITHDRAWAL, QR_SETTLEMENT, INTEREST_ACCOUNT, UPI

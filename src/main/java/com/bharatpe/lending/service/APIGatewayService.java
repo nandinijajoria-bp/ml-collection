@@ -20,6 +20,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -306,6 +307,47 @@ public class APIGatewayService {
             logger.error("Exception in Signzy Pan Fetch Api", e);
         }
         return null;
+    }
+
+    public String getOcrResponse(Long merchantId, Map<String, String> identityDetails, String ocrType, Long applicationId) {
+        String response= null;
+        String itemId=identityDetails.get("itemId");
+        String accessToken=identityDetails.get("accessToken");
+        if(itemId!=null && accessToken!=null && !itemId.isEmpty() && !accessToken.isEmpty()) {
+            Map<String, Object> body = new HashMap<String,Object>() {{
+                put("service","Identity");
+                put("itemId",itemId);
+                put("task","autoRecognition");
+                put("accessToken",accessToken);
+                put("essentials",new HashMap<>());
+            }};
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+//	        headers.set("Authorization", authorization);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            String URL=SIGNZY_URL +CreditConstants.SIGNZY_SNOOP_URL;
+            logger.info("Signzy OCR URL {} request {}",URL,request);
+            int retryCount=0;
+            while(retryCount<3) {
+                try {
+                    response = restTemplate.postForObject(URL, request, String.class);
+                    logger.info("Response for pancard authentication {}",response);
+                    insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "SUCCESS", mapper.writeValueAsString(request), response, "LENDING");
+
+                    break;
+                }
+                catch(Exception e) {
+                    logger.error("Error occured while doing ocr",e);
+                    try {
+                        insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "FAILED", mapper.writeValueAsString(request), response, "LENDING");
+                    } catch (JsonProcessingException e1) {
+                        e1.printStackTrace();
+                    }
+                    retryCount++;
+                }
+            }
+        }
+        return response;
     }
 
     public void insertIntoSignzyReqRes(Long merchantId, Long applicationId,String apiName, String status, String request,String response, String module) {
@@ -1005,6 +1047,57 @@ public class APIGatewayService {
             logger.info("Exception while parsing experian refresh api response", e);
             return null;
         }
+    }
+
+    public Double getNameMatchPercentage(String authorization,String patronId, String name1,String name2,Long merchantId,Long applicationId) {
+        if (name1 == null || name1.isEmpty() || name2 == null || name2.isEmpty()) {
+            return 0D;
+        }
+        String response = null;
+        Map<String, Object> body = new HashMap<>();
+        body.put("task", "nameMatch");
+        body.put("essentials", new HashMap<String, Object>() {{
+            put("nameBlock", new HashMap<String, String>() {{
+                put("name1", name1);
+                put("name2", name2);
+            }});
+        }});
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", authorization);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        String URL = SIGNZY_URL + CreditConstants.SIGNZY_NAME_MATCH_URL + patronId + "/matchers";
+        int retryCount = 0;
+        while (retryCount < 3) {
+            try {
+                logger.info("Name match URL {} request {}", URL, mapper.writeValueAsString(request));
+                response = restTemplate.postForObject(URL, request, String.class);
+                logger.info("Name match response : {}", response);
+                JsonNode jsonNode = mapper.readTree(response);
+                if (jsonNode.has("result") && !jsonNode.get("result").isNull()) {
+                    JsonNode result = jsonNode.get("result");
+                    if (result.has("name1_vs_name2_matchScore") && !result.get("name1_vs_name2_matchScore").isNull()) {
+                        insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
+                        return result.get("name1_vs_name2_matchScore").asDouble();
+                    } else if (result.has("name2_vs_name1_matchScore") && !result.get("name2_vs_name1_matchScore").isNull()) {
+                        insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
+                        return result.get("name2_vs_name1_matchScore").asDouble();
+                    }
+                    break;
+                }
+            } catch (Exception e) {
+                try {
+                    insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
+                } catch (JsonProcessingException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                }
+                logger.error("Error occured while matching names", e);
+            }
+            retryCount++;
+        }
+        return 0D;
     }
 
 //    @Async
