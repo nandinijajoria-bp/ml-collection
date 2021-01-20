@@ -622,15 +622,15 @@ public class LoanDetailsService {
 					experianDao.save(experian);
 				}else if(!loanEligibilityDTOs.isEmpty() && isRegularLoanInEligible(experian, loanEligibilityDTOs.get(0).getAmount().doubleValue()) && Objects.isNull(bankCode)){
 					logger.info("isRegularLoanInEligible experianId: {} and amount: {}", experian.getId(), loanEligibilityDTOs.get(0).getAmount().doubleValue());
-						loanEligibilityDTOs.clear();
-						if(loanEligibilityDTOs.get(0).getAmount().doubleValue() < 50000){
-							experian.setReason(ExperianConstants.ENACH);
-						}else{
-							experian.setReason(ExperianConstants.NON_CPV_CITY);
-						}
-						experian.setCategory("1N");
-						experian.setColor(ExperianConstants.COLOR.RED.name());
-						experianDao.save(experian);
+					if(loanEligibilityDTOs.get(0).getAmount().doubleValue() < 50000){
+						experian.setReason(ExperianConstants.ENACH);
+					}else{
+						experian.setReason(ExperianConstants.NON_CPV_CITY);
+					}
+					experian.setCategory("1N");
+					experian.setColor(ExperianConstants.COLOR.RED.name());
+					experianDao.save(experian);
+					loanEligibilityDTOs.clear();
 				}
 				if (!loanEligibilityDTOs.isEmpty()) {
 					experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
