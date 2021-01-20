@@ -1,9 +1,6 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.dao.LendingNachBankDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.PartnerRetailersDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
@@ -64,7 +61,7 @@ public class BPEnachService {
 
 
     @Autowired
-    IfscNewDao ifscNewDao;
+    IfscDao ifscDao;
 
     @Value("${bpnach.register.endpoint}")
     public String BPNACH_REGISTER_URL;
@@ -207,9 +204,9 @@ public class BPEnachService {
 
     public String getBranchName(String ifscCode) {
         String branch = null;
-        List<IfscNew> bankList = ifscNewDao.findByIfsc(ifscCode);
-        if (bankList != null && bankList.size() > 0) {
-            branch = bankList.get(0).getBranch();
+        Ifsc ifsc = ifscDao.findTop1ByIfscOrderByIdDesc(ifscCode);
+        if (ifsc != null) {
+            branch = ifsc.getBranch();
         }
         return branch;
     }
