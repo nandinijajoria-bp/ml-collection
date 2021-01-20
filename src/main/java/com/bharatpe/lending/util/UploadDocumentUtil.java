@@ -135,12 +135,15 @@ public class UploadDocumentUtil {
         catch(Exception e) {
             logger.info("exception while signzy KYC API, file exchange : {}, Exception is {}", base64File, e);
         }
-
+        if(Objects.nonNull(response)){
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
         Map<String,Object>res= ( Map<String,Object>)responseMap.get("file");
         String url=(String)res.get("directURL");
         return url;
+        }
+
+        return null;
     }
 
     public DocKycDetails insertPanOcrDetailsInDocKycDetails(String response, DocumentsIdProof documentsIdProof, String proofType) {
