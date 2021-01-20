@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
@@ -619,6 +620,17 @@ public class LoanDetailsService {
 					experian.setCategory("1N");
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
+				}else if(!loanEligibilityDTOs.isEmpty() && isRegularLoanInEligible(experian, loanEligibilityDTOs.get(0).getAmount().doubleValue()) && Objects.isNull(bankCode)){
+					logger.info("isRegularLoanInEligible experianId: {} and amount: {}", experian.getId(), loanEligibilityDTOs.get(0).getAmount().doubleValue());
+						loanEligibilityDTOs.clear();
+						if(loanEligibilityDTOs.get(0).getAmount().doubleValue() < 50000){
+							experian.setReason(ExperianConstants.ENACH);
+						}else{
+							experian.setReason(ExperianConstants.NON_CPV_CITY);
+						}
+						experian.setCategory("1N");
+						experian.setColor(ExperianConstants.COLOR.RED.name());
+						experianDao.save(experian);
 				}
 				if (!loanEligibilityDTOs.isEmpty()) {
 					experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
@@ -747,6 +759,17 @@ public class LoanDetailsService {
 			}
 		}
 		return new ArrayList<>();
+	}
+
+	public boolean isRegularLoanInEligible(Experian experian, Double amount){
+		if (experian != null && experian.getPincode() != null && Objects.nonNull(amount) ) {
+			PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+			Boolean cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
+
+			return !cpvCity || amount < 50000;
+		}
+
+		return false;
 	}
 
 	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
