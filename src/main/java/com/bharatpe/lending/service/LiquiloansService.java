@@ -311,6 +311,7 @@ public class LiquiloansService {
     		
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
+		createEdiSchedule(lendingPaymentSchedule);
     	try {
 			sendSms(lendingApplication, lendingPaymentSchedule);
 		} catch (Exception e) {
@@ -752,7 +753,6 @@ public class LiquiloansService {
 					while(ioInstallmentNo <= paymentSchedule.getInterestOnlyEdiCount()) {
 						if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
 							cal.add(Calendar.DAY_OF_MONTH, 1);
-							continue;
 						} else {
 							LendingEDISchedule currentSchedule = new LendingEDISchedule();
 							currentSchedule.setConstruct(construct);
@@ -788,7 +788,6 @@ public class LiquiloansService {
 			while (normalEdIinstallmentNo <= ediCount) {
 				if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
 					cal.add(Calendar.DAY_OF_MONTH, 1);
-					continue;
 				} else {
 					Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * paymentSchedule.getLoanAmount()));
 					double interest = round(paymentSchedule.getEdiAmount().intValue() - principal);
