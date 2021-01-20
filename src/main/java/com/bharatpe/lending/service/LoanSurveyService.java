@@ -54,7 +54,7 @@ public class LoanSurveyService {
         } else {
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
             amount = String.valueOf(eligibleLoan.getAmount());
-            interestRate = String.valueOf(lendingCategories.getInterestRate());
+            interestRate = String.valueOf(lendingCategories != null ? lendingCategories.getInterestRate() : 2);
         }
         return LoanSurveyHeaderDto
             .builder()
