@@ -138,37 +138,7 @@ public class NewToBharatpeService {
 			}
 			return false;
 		}
-		if (checkVintage(merchant) < 30 && ((yellowPincode && lendingBBS.getBbs() < 700) || (!yellowPincode && lendingBBS.getBbs() < 650))) {
-			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			if (!hasRegularLoan) {
-				experian.setCategory("1N");
-				experian.setColor(ExperianConstants.COLOR.RED.name());
-				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-				experianDao.save(experian);
-			}
-			return false;
-		}
-		if (checkVintage(merchant) < 60 && ((yellowPincode && lendingBBS.getBbs() < 650) || (!yellowPincode && lendingBBS.getBbs() < 600))) {
-			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			if (!hasRegularLoan) {
-				experian.setCategory("1N");
-				experian.setColor(ExperianConstants.COLOR.RED.name());
-				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-				experianDao.save(experian);
-			}
-			return false;
-		}
-		if (checkVintage(merchant) < 90 && ((yellowPincode && lendingBBS.getBbs() < 600) || (!yellowPincode && lendingBBS.getBbs() < 550))) {
-			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			if (!hasRegularLoan) {
-				experian.setCategory("1N");
-				experian.setColor(ExperianConstants.COLOR.RED.name());
-				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-				experianDao.save(experian);
-			}
-			return false;
-		}
-		if (checkVintage(merchant) >= 90 && ((yellowPincode && lendingBBS.getBbs() < 550) || (!yellowPincode && lendingBBS.getBbs() < 500))) {
+		if (isLowBBSVintage(merchant, lendingBBS.getBbs())) {
 			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
 			if (!hasRegularLoan) {
 				experian.setCategory("1N");
@@ -179,6 +149,24 @@ public class NewToBharatpeService {
 			return false;
 		}
 		return true;
+	}
+
+	private boolean isLowBBSVintage(Merchant merchant, Double bbs) {
+    	long vintage = checkVintage(merchant);
+    	boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
+    	if (vintage < 7 && ((diy && bbs < 800) || (!diy && bbs < 750))) {
+    		return true;
+		}
+		if (vintage < 30 && ((diy && bbs < 750) || (!diy && bbs < 700))) {
+			return true;
+		}
+		if (vintage < 60 && ((diy && bbs < 700) || (!diy && bbs < 650))) {
+			return true;
+		}
+		if (vintage < 90 && ((diy && bbs < 650) || (!diy && bbs < 600))) {
+			return true;
+		}
+		return false;
 	}
 
     private long checkVintage(Merchant merchant) {
