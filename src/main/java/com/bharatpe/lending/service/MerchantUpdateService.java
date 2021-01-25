@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dto.PayloadDTO;
@@ -46,6 +47,9 @@ public class MerchantUpdateService {
 
 	@Value("${merchant.partialUpdate.api}")
     String merchantPartialUpdateApiUrl;
+
+	@Autowired
+	MongoPublisher mongoPublisher;
 
 	@PostConstruct
     public void init() {
@@ -115,5 +119,25 @@ public class MerchantUpdateService {
 			}
 		}
 		return this.clientSecret;
+	}
+
+	public void saveAlgo360Logs(Merchant merchant, String data){
+
+		logger.info("start processing logs for merchant_id: {}", merchant.getId());
+
+		try{
+			Map<String, Object> request = new HashMap<>();
+
+			request.put("body", data);
+			request.put("date", new Date());
+
+			mongoPublisher.publish("Lending", "algo360_logs", merchant.getId().toString(), new ArrayList<Map>(){{add(request);}});
+
+		}catch (Exception ex){
+			logger.error("Error Occurred while processing logs: {} for merchant_id: ", merchant.getId(), ex);
+
+		}
+
+		logger.info("processed logs for merchant_id: {}", merchant.getId());
 	}
 }
