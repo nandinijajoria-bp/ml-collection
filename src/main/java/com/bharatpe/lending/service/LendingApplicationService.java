@@ -2169,7 +2169,7 @@ public class LendingApplicationService {
 			responseDTO.setData(data);
 			return responseDTO;
 		}catch(Exception ex){
-			logger.error("Error Fos Loan Details API", ex);
+			logger.error("Error In Bank Account Change API", ex);
 			responseDTO.setSuccess(Boolean.FALSE);
 			responseDTO.setMessage(ex.toString());
 			return responseDTO;
