@@ -187,4 +187,9 @@ public class LendingApplicationController {
 	public ResponseEntity<CommonResponse> getEdiScheduleV2(@RequestParam Long merchantId, @RequestParam Long applicationId){
 		return new ResponseEntity<>(lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId), HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/bankaccount", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<ResponseDTO> bankAccount(@RequestParam Long merchantId) {
+		return new ResponseEntity<>(lendingApplicationService.bankAccountChange(merchantId), HttpStatus.OK);
+	}
 }
