@@ -13,10 +13,7 @@ import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SettlementResponseDTO;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
-import com.bharatpe.lending.service.MerchantLoansService;
-import com.bharatpe.lending.service.ImageURLService;
-import com.bharatpe.lending.service.LendingAgreementService;
-import com.bharatpe.lending.service.LendingOffersService;
+import com.bharatpe.lending.service.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +31,6 @@ import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.service.LoanDetailsService;
-import com.bharatpe.lending.service.LoanEligibleService;
-import com.bharatpe.lending.service.VerifyDocService;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -65,6 +59,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	LoanEligibleService loanEligibleService;
+
+	@Autowired
+	MerchantUpdateService merchantUpdateService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO, @RequestHeader("token") String token) {
@@ -167,5 +164,12 @@ public class LoanDetailsController {
 		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchant.getId());
 		logger.info("merchantLoans response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/algo360_logs", method=RequestMethod.POST, consumes="application/json", produces="application/json")
+	public ResponseEntity<String> processAlgo360Logs(@RequestAttribute Merchant merchant, @RequestBody String data, @RequestHeader("token") String token){
+
+		merchantUpdateService.saveAlgo360Logs(merchant, data);
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 }

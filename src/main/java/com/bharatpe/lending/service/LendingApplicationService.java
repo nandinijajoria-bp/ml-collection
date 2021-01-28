@@ -63,6 +63,9 @@ public class LendingApplicationService {
 	LendingGstDao lendingGstDao;
 
 	@Autowired
+	MerchantDao merchantDao;
+
+	@Autowired
 	EligibleLoanDao eligibleLoanDao;
 
 	@Autowired
@@ -2128,5 +2131,48 @@ public class LendingApplicationService {
 		}
 		List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
 		return ntcCategories.contains(experian.getCategory());
+	}
+
+	public ResponseDTO bankAccountChange(Long merchantId) {
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		try{
+			Map<String, Object> data = new HashMap<>();
+			Optional<Merchant> merchant = merchantDao.findById(merchantId);
+			data.put("bankAccountChange", Boolean.TRUE);
+			if (!merchant.isPresent()) {
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Merchant Not Found!");
+			}
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+			if (lendingPaymentSchedule != null) {
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Already Loan Active");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+
+			LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant.get());
+			if(lendingApplication == null){
+				data.put("bankAccountChange", Boolean.TRUE);
+				data.put("message", "Merchant Is Able To Change Bank Account!");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+			if ("approved".equalsIgnoreCase(lendingApplication.getStatus())) {
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Application is Under Process!");
+			}
+			if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Application Is Pending Verification State!");
+			}
+			responseDTO.setData(data);
+			return responseDTO;
+		}catch(Exception ex){
+			logger.error("Error In Bank Account Change API", ex);
+			responseDTO.setSuccess(Boolean.FALSE);
+			responseDTO.setMessage(ex.toString());
+			return responseDTO;
+		}
 	}
 }
