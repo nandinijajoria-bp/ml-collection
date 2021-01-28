@@ -51,7 +51,7 @@ public class LoanEligibleService {
 
     List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com");
 
-    List<Long> exemptMerchant = Arrays.asList(139533L,1812311L,1709295L);
+    List<Long> exemptMerchant = Arrays.asList(1210933L);
 
     private final Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 
