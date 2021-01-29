@@ -395,17 +395,17 @@ public class PaymentService {
 
 	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source) {
 		logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
-		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
+		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + (activeLoan.getAdjustedDueAmount() != null ? activeLoan.getAdjustedDueAmount() : 0) - (activeLoan.getAdjustedPaidAmount() != null ? activeLoan.getAdjustedPaidAmount() : 0));
 		Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 
 		Double paidInterestAmount = 0D;
 		Double paidPrincipalAmount = 0D;
 
 		if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
-
+			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
 			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
 			paidPrincipalAmount = amount - paidInterestAmount;
-
+			logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 			if(activeLoan.getDueAmount() >= 0) {
 				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			} else {
@@ -431,6 +431,7 @@ public class PaymentService {
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
 				activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges()+paidAmount);
 				balance-=paidAmount;
+				logger.info("Adjusted due other charges of amount:{} for loan:{}", paidAmount, activeLoan.getId());
 			}
 			if(balance>0D && activeLoan.getDuePenalty()!=null && activeLoan.getDuePenalty()>0D) {
 				Double paidAmount=balance>=activeLoan.getDuePenalty()?activeLoan.getDuePenalty():balance;
@@ -439,6 +440,7 @@ public class PaymentService {
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
 				activeLoan.setPaidPenalty(activeLoan.getPaidPenalty()+paidAmount);
 				balance-=paidAmount;
+				logger.info("Adjusted due penalty of amount:{} for loan:{}", paidAmount, activeLoan.getId());
 			}
 			if(balance>0D && activeLoan.getDueInterest()!=null && activeLoan.getDueInterest()>0D) {
 				Double paidAmount=balance>=activeLoan.getDueInterest()?activeLoan.getDueInterest():balance;
@@ -448,7 +450,7 @@ public class PaymentService {
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
 				paidInterestAmount+=paidAmount;
 				balance-=paidAmount;
-
+				logger.info("Adjusted due interest of amount:{} for loan:{}", paidAmount, activeLoan.getId());
 			}
 			if(balance>0D && activeLoan.getDuePrinciple()!=null && activeLoan.getDuePrinciple()>0D) {
 				Double paidAmount=balance>=activeLoan.getDuePrinciple()?activeLoan.getDuePrinciple():balance;
@@ -458,7 +460,7 @@ public class PaymentService {
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount()+paidAmount);
 				paidPrincipalAmount+=paidAmount;
 				balance-=paidAmount;
-
+				logger.info("Adjusted due principle of amount:{} for loan:{}", paidAmount, activeLoan.getId());
 			}
 			if(balance > 0D) {
 				logger.info("Adjusting extra amount:{} for loan:{}", balance, activeLoan.getId());
@@ -468,8 +470,10 @@ public class PaymentService {
 				double interest = 0d;
 				List<LendingAdjustedEDISchedule> lendingAdjustedEDISchedules = lendingAdjustedEDIScheduleDao.findByLoanId(activeLoan.getId());
 				if (!lendingAdjustedEDISchedules.isEmpty()) {
+					logger.info("Found adjusted edi schedule for loan:{}", activeLoan.getId());
 					lendingAdjustedEDISchedules.sort(Comparator.comparing(LendingAdjustedEDISchedule::getInstallmentNumber));
 					int ediPaidCount = lendingAdjustedEDISchedules.size() - activeLoan.getEdiRemainingCount();
+					logger.info("Edi Paid count:{} for loan:{}", ediPaidCount, activeLoan.getId());
 					for (LendingAdjustedEDISchedule ediSchedule : lendingAdjustedEDISchedules) {
 						if (balance <= 0d) {
 							break;
@@ -497,6 +501,7 @@ public class PaymentService {
 					List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
 					ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
 					int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
+					logger.info("Edi Paid count:{} for loan:{}", ediPaidCount, activeLoan.getId());
 					for (LendingEDISchedule ediSchedule : ediSchedules) {
 						if (balance <= 0d) {
 							break;
@@ -521,13 +526,21 @@ public class PaymentService {
 						}
 					}
 				}
+				logger.info("Adjusted principle:{} and interest:{} for loan:{}", principle, interest, activeLoan.getId());
+				paidPrincipalAmount += principle;
+				paidInterestAmount += interest;
+
+				if (amount > (paidPrincipalAmount + paidInterestAmount)) {
+					double remainingAmount = amount - (paidPrincipalAmount + paidInterestAmount);
+					logger.info("Balance remaining:{} for loan:{} after adjustment, adjusting this in principle", remainingAmount, activeLoan.getId());
+					principle += remainingAmount;
+					paidPrincipalAmount += remainingAmount;
+				}
 				activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - adjustedEdiCount);
 				activeLoan.setAdjustedPaidAmount(activeLoan.getAdjustedPaidAmount() != null ? activeLoan.getAdjustedPaidAmount() + extraAmount : extraAmount);
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + principle + interest);
 				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + principle);
 				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + interest);
-				paidPrincipalAmount += principle;
-				paidInterestAmount += interest;
 				createLendingLedger(activeLoan, -1*(principle + interest), -1*principle, -1*interest, "PREPAYMENT", source);
 				int extraEdiCount = activeLoan.getAdjustedPaidAmount() != null ? (int) (activeLoan.getAdjustedPaidAmount()/activeLoan.getEdiAmount()) : 0;
 				if (extraEdiCount > 0) {
@@ -535,12 +548,13 @@ public class PaymentService {
 					activeLoan.setAdjustedPaidAmount(activeLoan.getAdjustedPaidAmount() % activeLoan.getEdiAmount());
 				}
 				if (activeLoan.getEdiRemainingCount() == 0 && activeLoan.getAdjustedDueAmount() != null && activeLoan.getAdjustedDueAmount() > 0D) {
-					createAdjustedSchedule(activeLoan, activeLoan.getAdjustedDueAmount());
+					int newScheduleCount = createAdjustedSchedule(activeLoan, activeLoan.getAdjustedDueAmount());
+					activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() + newScheduleCount);
 					activeLoan.setAdjustedDueAmount(0D);
 				}
 			}
 		}
-
+		logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo), source);
 		lendingPaymentScheduleDao.save(activeLoan);
 		if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
