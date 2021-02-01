@@ -154,12 +154,12 @@ public class NewToBharatpeService {
 	private boolean isLowBBSVintage(Merchant merchant, Double bbs) {
     	long vintage = checkVintage(merchant);
     	boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
-    	if (vintage < 7 && ((diy && bbs < 800) || (!diy && bbs < 750))) {
-    		return true;
-		}
-		if (vintage < 30 && ((diy && bbs < 750) || (!diy && bbs < 700))) {
-			return true;
-		}
+//    	if (vintage < 7 && ((diy && bbs < 800) || (!diy && bbs < 750))) {
+//    		return true;
+//		}
+//		if (vintage < 30 && ((diy && bbs < 750) || (!diy && bbs < 700))) {
+//			return true;
+//		}
 		if (vintage < 60 && ((diy && bbs < 700) || (!diy && bbs < 650))) {
 			return true;
 		}
