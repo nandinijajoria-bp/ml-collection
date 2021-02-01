@@ -19,7 +19,7 @@ public interface ExperianConstants {
     String AUTHENTICATE_MOBILE_URL = "https://consumer.experian.in:8443/ECV-P2/content/authenticateDeliveryData.action";
     String REFRESH_API_URL = "https://consumer.experian.in:8443/ECV-P2/content/onDemandRefresh.action";
     String CLIENT_NAME = "BHARATPE_EM";
-    String VOUCHER_CODE = "BharatPe214K2";
+    String VOUCHER_CODE = "BharatPebxIYY";
     String CREDIT_LINE_CATEGORY = "CREDIT_LINE_CATEGORY";
     String INVALID_PANCARD = "INVALID_PANCARD";
     String LOW_BP_SCORE = "LOW_BP_SCORE";
