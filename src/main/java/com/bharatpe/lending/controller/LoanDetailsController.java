@@ -1,18 +1,7 @@
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dto.ApplicationDerogResponseDTO;
-import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
-import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
-import com.bharatpe.lending.dto.IneligibleRequestDTO;
-import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
-import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
-import com.bharatpe.lending.dto.LendingOffersResponseDTO;
-import com.bharatpe.lending.dto.LoanDetailsResponseDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.dto.SettlementResponseDTO;
-import com.bharatpe.lending.dto.VerifyPanCardDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
 
 import org.slf4j.Logger;
@@ -171,5 +160,11 @@ public class LoanDetailsController {
 
 		merchantUpdateService.saveAlgo360Logs(merchant, data);
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/check_new_merchant")
+	public ResponseEntity<CommonResponse> checkCoolOff(@RequestAttribute Merchant merchant, @RequestBody CoolOffRequestDTO requestDTO) {
+		logger.info("check_new_merchant request for merchantId: {}", merchant.getId());
+		return new ResponseEntity<>(lendingOffersService.checkCoolOffPeriod(merchant, requestDTO), HttpStatus.OK);
 	}
 }

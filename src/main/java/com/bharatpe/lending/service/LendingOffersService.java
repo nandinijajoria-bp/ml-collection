@@ -1,14 +1,22 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.OrderStickerDao;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
+import com.bharatpe.lending.common.dao.LendingCoolOffDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
+import com.bharatpe.lending.common.entity.LendingCoolOff;
+import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.dto.CommonResponse;
+import com.bharatpe.lending.dto.CoolOffRequestDTO;
+import com.bharatpe.lending.dto.CoolOffResponseDTO;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -34,6 +42,15 @@ public class LendingOffersService {
 
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
+
+	@Autowired
+	LendingCoolOffDao lendingCoolOffDao;
+
+	@Autowired
+	OrderStickerDao orderStickerDao;
+
+	@Autowired
+	ExperianDao experianDao;
 
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
@@ -92,5 +109,45 @@ public class LendingOffersService {
 			return offer.getExpiryDate().compareTo(new Date())<=0;
 		}
 		return true;
+	}
+
+	public CommonResponse checkCoolOffPeriod(Merchant merchant, CoolOffRequestDTO requestDTO) {
+		try {
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			if (experian != null) {
+				logger.info("Pancard already exist for merchant:{}", merchant.getId());
+				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(true, false, null, null);
+				return new CommonResponse(true, "success", responseDTO);
+			}
+			LendingCoolOff lendingCoolOff = lendingCoolOffDao.findByMerchantId(merchant.getId());
+			OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
+			boolean showOrderQr = orderSticker == null;
+			if (lendingCoolOff != null) {
+				logger.info("lending_cool_off entry already exist for merchant:{}", merchant.getId());
+				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(lendingCoolOff.isEligible(), showOrderQr, lendingCoolOff.getPancard(), lendingCoolOff.getPincode());
+				return new CommonResponse(true, "success", responseDTO);
+			}
+			if (requestDTO.getPanCard() == null) {
+				logger.info("First time merchant:{}, returning null pancard", merchant.getId());
+				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(false, false, null, null);
+				return new CommonResponse(true, "success", responseDTO);
+			}
+			boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
+			boolean isEligible = false;
+			if (!diy || LoanUtil.getDateDiffInDays(merchant.getCreatedAt(), new Date()) > 1) {
+				logger.info("Merchant:{} not DIY/created before 1 day, so eligible for cool off period", merchant.getId());
+				isEligible = true;
+			} else {
+				logger.info("Merchant:{} not eligible for cool off period", merchant.getId());
+			}
+			lendingCoolOff = new LendingCoolOff(merchant.getId(), requestDTO.getPanCard(), requestDTO.getPincode(), isEligible);
+			lendingCoolOff.setCreatedAt(merchant.getCreatedAt());
+			lendingCoolOffDao.save(lendingCoolOff);
+			CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(lendingCoolOff.isEligible(), showOrderQr, lendingCoolOff.getPancard(), lendingCoolOff.getPincode());
+			return new CommonResponse(true, "success", responseDTO);
+		} catch (Exception e) {
+			logger.error("Exception while checking cool off period for merchant:{}", merchant.getId(), e);
+		}
+		return new CommonResponse(false, "Something went wrong");
 	}
 }
