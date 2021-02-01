@@ -413,6 +413,8 @@ public class VerifyOTPService {
 				}
 			}
 		}
+		String message = "BharatPe Agents do not charge commissions for loan application & disbursal. Please be careful and submit your loan requests with BharatPe on your own accord only!";
+		smsServiceHandler.sendSMS(new ArrayList<String>(){{add(merchant.getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
 	}
 
 	private boolean isPaymentBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {
