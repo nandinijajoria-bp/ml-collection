@@ -51,11 +51,11 @@ public class SettlementResponseDTO {
     }
 
     public static class Settlement {
-        private Date date;
+        private String date;
         private Double amount;
         private String mode;
 
-        public Settlement(Date date, Double amount, String mode) {
+        public Settlement(String date, Double amount, String mode) {
             this.date = date;
             this.amount = amount;
             this.mode = mode;
@@ -64,11 +64,11 @@ public class SettlementResponseDTO {
         public Settlement() {
         }
 
-        public Date getDate() {
+        public String getDate() {
             return date;
         }
 
-        public void setDate(Date date) {
+        public void setDate(String date) {
             this.date = date;
         }
 

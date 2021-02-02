@@ -104,9 +104,6 @@ public class LoanDetailsService {
 	LendingClosedAuditDao lendingClosedAuditDao;
 
 	@Autowired
-	MerchantSummaryLendingDao merchantSummaryLendingDao;
-
-	@Autowired
 	LendingPrebookTargetDao lendingPrebookTargetDao;
 
 	@Autowired
@@ -163,7 +160,7 @@ public class LoanDetailsService {
 	@Autowired
 	EnachErrorHandingService enachErrorHandingService;
 
-//	@Transactional
+	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -991,6 +988,7 @@ public class LoanDetailsService {
 
 	public SettlementResponseDTO getSettlements(Merchant merchant, Long loanId) {
 		LendingPaymentSchedule lendingPaymentSchedule;
+		dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
 		if (loanId != null) {
 			lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchant.getId());
 		} else {
@@ -1007,7 +1005,7 @@ public class LoanDetailsService {
 				if (lendingLedger.getSettlement() != null && lendingLedger.getSettlement().getSettlementMode() != null && "BHARATSWIPE".equalsIgnoreCase(lendingLedger.getSettlement().getSettlementMode())) {
 					mode = "Swipe Txns.";
 				}
-				settlementList.add(new SettlementResponseDTO.Settlement(lendingLedger.getDate(), lendingLedger.getAmount(), mode));
+				settlementList.add(new SettlementResponseDTO.Settlement(dateFormat.format(lendingLedger.getDate()), lendingLedger.getAmount(), mode));
 			}
 		}
 		if (settlementList.isEmpty()) {
