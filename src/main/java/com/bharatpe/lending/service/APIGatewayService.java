@@ -1166,6 +1166,7 @@ public class APIGatewayService {
 
     public Map<String,Object> riskByPspApp(Merchant merchant){
         Map<String, Object> data = new HashMap<>();
+
         try{
             Map<String, Object> body = new HashMap<>();
             body.put("merchant_id", merchant.getId());

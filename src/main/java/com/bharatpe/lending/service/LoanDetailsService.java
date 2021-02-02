@@ -612,7 +612,7 @@ public class LoanDetailsService {
 					}
 				}
 				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
-				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
+//				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
 				if (lendingBlockedPancard != null) {
 					logger.info("Blocked pancard:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
@@ -638,14 +638,15 @@ public class LoanDetailsService {
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
 					loanEligibilityDTOs.clear();
-				}else if((Boolean)pspCheck.get("status")){
-					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
-					loanEligibilityDTOs.clear();
-					experian.setCategory("1N");
-					experian.setColor(ExperianConstants.COLOR.RED.name());
-					experian.setReason(pspCheck.get("reason").toString());
-					experianDao.save(experian);
 				}
+//				else if((Boolean)pspCheck.get("status")){
+//					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
+//					loanEligibilityDTOs.clear();
+//					experian.setCategory("1N");
+//					experian.setColor(ExperianConstants.COLOR.RED.name());
+//					experian.setReason(pspCheck.get("reason").toString());
+//					experianDao.save(experian);
+//				}
 				if (!loanEligibilityDTOs.isEmpty()) {
 					experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
 					experian.setEligibleTenure(loanEligibilityDTOs.get(0).getPrincipleEdiTenure().toString());
