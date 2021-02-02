@@ -164,7 +164,7 @@ public class LoanDetailsController {
 
 	@PostMapping(value = "/check_new_merchant")
 	public ResponseEntity<CommonResponse> checkCoolOff(@RequestAttribute Merchant merchant, @RequestBody CoolOffRequestDTO requestDTO) {
-		logger.info("check_new_merchant request for merchantId: {}", merchant.getId());
+		logger.info("check_new_merchant request:{} for merchantId: {}", requestDTO, merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.checkCoolOffPeriod(merchant, requestDTO), HttpStatus.OK);
 	}
 }
