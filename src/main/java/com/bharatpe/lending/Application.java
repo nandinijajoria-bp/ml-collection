@@ -14,6 +14,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import javax.annotation.PostConstruct;
+import java.util.TimeZone;
 
 @SpringBootApplication
 @ComponentScan(basePackages =  "com.bharatpe.*")
@@ -41,5 +42,6 @@ public class Application
 	@PostConstruct
 	public void init(){
 		Sentry.init(env.getProperty("sentry.dsn"));
+		TimeZone.setDefault(TimeZone.getTimeZone("IST"));
 	}
 }
