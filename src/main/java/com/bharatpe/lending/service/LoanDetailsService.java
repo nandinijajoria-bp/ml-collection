@@ -17,14 +17,18 @@ import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.util.Pair;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -158,6 +162,8 @@ public class LoanDetailsService {
 
 	@Autowired
 	EnachErrorHandingService enachErrorHandingService;
+
+//	@Transactional
 
 	public LoanDetailsResponseDTO fetchLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -606,6 +612,7 @@ public class LoanDetailsService {
 					}
 				}
 				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
 				if (lendingBlockedPancard != null) {
 					logger.info("Blocked pancard:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
@@ -631,6 +638,13 @@ public class LoanDetailsService {
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
 					loanEligibilityDTOs.clear();
+				}else if((Boolean)pspCheck.get("status")){
+					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
+					loanEligibilityDTOs.clear();
+					experian.setCategory("1N");
+					experian.setColor(ExperianConstants.COLOR.RED.name());
+					experian.setReason(pspCheck.get("reason").toString());
+					experianDao.save(experian);
 				}
 				if (!loanEligibilityDTOs.isEmpty()) {
 					experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
@@ -732,6 +746,7 @@ public class LoanDetailsService {
 		}
 		return null;
 	}
+
 
 	private LendingBharatswipeOffers getSwipeLoanOffer(Merchant merchant) {
 		LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());

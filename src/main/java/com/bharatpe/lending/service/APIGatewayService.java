@@ -63,6 +63,9 @@ public class APIGatewayService {
     @Value("${internal.merchant.id}")
     long merchantId;
 
+    @Value("${monget.api.dump}")
+    String MONGET_API;
+
     @Autowired
     HmacCalculator hmacCalculator;
 
@@ -1159,5 +1162,53 @@ public class APIGatewayService {
             }
             retryCount++;
         }
+    }
+
+    public Map<String,Object> riskByPspApp(Merchant merchant){
+        Map<String, Object> data = new HashMap<>();
+        try{
+            Map<String, Object> body = new HashMap<>();
+            body.put("merchant_id", merchant.getId());
+            body.put("limit", 1);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+
+            ResponseEntity<JsonNode[]> responseBody = restTemplate.exchange(MONGET_API+ "?collection_name=merchant_psp_dump", HttpMethod.POST, request, JsonNode[].class);
+            if(Objects.isNull(responseBody.getBody())){
+                data.put("status", false);
+                return data;
+            }
+            List<JsonNode> responseData = Arrays.asList(responseBody.getBody());
+
+            if(responseData.isEmpty()){
+                data.put("status", false);
+                return data;
+            }
+            HashSet <String> pspSet = new HashSet <String>();
+
+            for(JsonNode response: responseData.get(0).get("app_details")){
+                pspSet.add(response.get("appName").asText());
+            }
+            if(pspSet.contains("BharatPe FOS")){
+                data.put("status", true);
+                data.put("reason", ExperianConstants.FOS_APP);
+                return data;
+            }
+            pspSet.retainAll(LendingConstants.OTHER_LENDING_APPS);
+
+            if(pspSet.size() >= 10){
+                data.put("status", true);
+                data.put("reason", ExperianConstants.MULTIPLE_PSP_APPS);
+                return data;
+            }
+        }catch (Exception ex){
+            logger.error("Error occurred while fetching psp apps Error:", ex);
+            data.put("status", false);
+        }
+        data.put("status", false);
+
+        return data;
     }
 }
