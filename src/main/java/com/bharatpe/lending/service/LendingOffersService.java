@@ -114,6 +114,7 @@ public class LendingOffersService {
 	public CommonResponse checkCoolOffPeriod(Merchant merchant, CoolOffRequestDTO requestDTO) {
 		try {
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
 			if (experian != null) {
 				logger.info("Pancard already exist for merchant:{}", merchant.getId());
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(true, false, null, null);
@@ -124,6 +125,10 @@ public class LendingOffersService {
 			boolean showOrderQr = orderSticker == null;
 			if (lendingCoolOff != null) {
 				logger.info("lending_cool_off entry already exist for merchant:{}", merchant.getId());
+				if (!diy && !lendingCoolOff.isEligible()) {
+					lendingCoolOff.setEligible(true);
+					lendingCoolOffDao.save(lendingCoolOff);
+				}
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(lendingCoolOff.isEligible(), showOrderQr, lendingCoolOff.getPancard(), lendingCoolOff.getPincode());
 				return new CommonResponse(true, "success", responseDTO);
 			}
@@ -132,7 +137,6 @@ public class LendingOffersService {
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(false, false, null, null);
 				return new CommonResponse(true, "success", responseDTO);
 			}
-			boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
 			boolean isEligible = false;
 			if (!diy || LoanUtil.getDateDiffInDays(merchant.getCreatedAt(), new Date()) > 1) {
 				logger.info("Merchant:{} not DIY/created before 1 day, so eligible for cool off period", merchant.getId());
