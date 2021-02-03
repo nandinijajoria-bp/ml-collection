@@ -5,9 +5,11 @@ import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingCoolOffDao;
+import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.CoolOffRequestDTO;
 import com.bharatpe.lending.dto.CoolOffResponseDTO;
@@ -51,6 +53,12 @@ public class LendingOffersService {
 
 	@Autowired
 	ExperianDao experianDao;
+
+	@Autowired
+	BPEnachDao bpEnachDao;
+
+	@Autowired
+	LendingEkycDao lendingEkycDao;
 
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
@@ -153,5 +161,12 @@ public class LendingOffersService {
 			logger.error("Exception while checking cool off period for merchant:{}", merchant.getId(), e);
 		}
 		return new CommonResponse(false, "Something went wrong");
+	}
+
+	public void makeMeFresh(Merchant merchant) {
+		experianDao.deleteByMerchantId(merchant.getId());
+		lendingApplicationDao.deleteByMerchantId(merchant.getId());
+		bpEnachDao.deleteByMerchantId(merchant.getId());
+		lendingEkycDao.deleteByMerchantId(merchant.getId());
 	}
 }

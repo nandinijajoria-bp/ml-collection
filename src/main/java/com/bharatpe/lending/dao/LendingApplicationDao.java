@@ -13,7 +13,6 @@ import java.util.Date;
 import java.util.List;
 
 @Repository
-@Transactional
 public interface LendingApplicationDao extends CrudRepository<LendingApplication , Long> {
 	
 	LendingApplication findByIdAndMerchantAndStatus(Long id, Merchant merchant, String status);
@@ -35,7 +34,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	@Query(value = "select * from lending_application where merchant_id=?1 and status in ('draft','pending_verification') order by id desc limit 1", nativeQuery = true)
 	LendingApplication getLatestPendingApplication(Long merchantId);
-	
+
+	@Transactional
 	@Modifying
 	@Query(value="UPDATE lending_application SET manual_kyc=:status where id=:applicationId",nativeQuery = true)
 	void updateApplicationManualKyc(String status, Long applicationId);
@@ -68,4 +68,9 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	@Query(value="select * from lending_application where id=:id and status='approved' and lender='MAMTA' and loan_disbursal_status='PENDING' and disbursal_partner='BHARATPE'", nativeQuery = true)
 	LendingApplication findByMamtaLoan(Long id);
+
+	@Transactional
+	@Modifying
+	@Query(value = "DELETE FROM lending_application e where e.merchant_id = ?1", nativeQuery = true)
+	int deleteByMerchantId(Long merchantId);
 }

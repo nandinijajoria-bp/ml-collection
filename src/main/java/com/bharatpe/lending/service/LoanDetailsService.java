@@ -160,6 +160,8 @@ public class LoanDetailsService {
 	@Autowired
 	EnachErrorHandingService enachErrorHandingService;
 
+	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L);
+
 //	@Transactional
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -612,7 +614,7 @@ public class LoanDetailsService {
 				}
 				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
 				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
-				if (lendingBlockedPancard != null) {
+				if (!exemptMerchant.contains(merchant.getId()) && lendingBlockedPancard != null) {
 					logger.info("Blocked pancard:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
 					experian.setReason(ExperianConstants.BLOCKED_PANCARD);
@@ -637,7 +639,7 @@ public class LoanDetailsService {
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
 					loanEligibilityDTOs.clear();
-				}else if((Boolean)pspCheck.get("status")){
+				}else if(!exemptMerchant.contains(merchant.getId()) && (Boolean)pspCheck.get("status")){
 					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
 					experian.setCategory("1N");

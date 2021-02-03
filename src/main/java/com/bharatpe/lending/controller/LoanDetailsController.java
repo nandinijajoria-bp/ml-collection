@@ -167,4 +167,11 @@ public class LoanDetailsController {
 		logger.info("check_new_merchant request:{} for merchantId: {}", requestDTO, merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.checkCoolOffPeriod(merchant, requestDTO), HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/make_me_fresh", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<CommonResponse> fresh(@RequestAttribute Merchant merchant) {
+		logger.info("make me fresh request merchant_id: {}", merchant.getId());
+		lendingOffersService.makeMeFresh(merchant);
+		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
+	}
 }
