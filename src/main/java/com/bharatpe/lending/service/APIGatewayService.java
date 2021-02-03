@@ -1176,20 +1176,18 @@ public class APIGatewayService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
 
-            ResponseEntity<JsonNode[]> responseBody = restTemplate.exchange(MONGET_API+ "?collection_name=merchant_psp_dump", HttpMethod.POST, request, JsonNode[].class);
-            if(Objects.isNull(responseBody.getBody())){
-                data.put("status", false);
-                return data;
-            }
-            List<JsonNode> responseData = Arrays.asList(responseBody.getBody());
+            List<String> responseBody = restTemplate.postForObject(MONGET_API+ "?collection_name=merchant_psp_dump", request, List.class);
 
-            if(responseData.isEmpty()){
+            if(Objects.isNull(responseBody) || responseBody.isEmpty()){
                 data.put("status", false);
                 return data;
             }
+            JsonNode responseData = mapper.readTree(responseBody.get(0));
+            
+
             HashSet <String> pspSet = new HashSet <String>();
 
-            for(JsonNode response: responseData.get(0).get("app_details")){
+            for(JsonNode response: responseData.get("app_details")){
                 pspSet.add(response.get("appName").asText());
             }
             if(pspSet.contains("BharatPe FOS")){
