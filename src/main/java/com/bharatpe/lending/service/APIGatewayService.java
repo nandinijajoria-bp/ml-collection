@@ -1120,7 +1120,7 @@ public class APIGatewayService {
         int retryCount = 0;
         while(retryCount < 3) {
             try {
-                restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "?merchantId=" + merchantId, HttpMethod.GET, request, String.class);
+                restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, String.class);
                 break;
             }
             catch(Exception e) {
@@ -1148,7 +1148,7 @@ public class APIGatewayService {
         int retryCount = 0;
         while(retryCount < 3) {
             try {
-                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/txn", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/txn", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
                 logger.info("Global Limit txn response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                     logger.info("Global limit txn success for merchant:{}", merchantId);
