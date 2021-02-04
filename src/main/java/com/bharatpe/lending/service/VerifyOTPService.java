@@ -249,7 +249,7 @@ public class VerifyOTPService {
 
 		if (lendingApplication.getLoanAmount() <= 200000)
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
-		if (lendingApplication.getLoanType().equals("REGULAR") && lendingApplication.getLoanAmount() >= 50000 && lendingApplication.getPincode() != null && loanUtil.isCpvCity(lendingApplication.getPincode().intValue())) {
+		if (enachSuccess != null || (lendingApplication.getLoanType().equals("REGULAR") && lendingApplication.getLoanAmount() >= 50000 && lendingApplication.getPincode() != null && loanUtil.isCpvCity(lendingApplication.getPincode().intValue()))) {
 			logger.info("Checking priority for Regular application:{} in cpv city with amount>=50k", lendingApplication.getId());
 			apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
 		}
