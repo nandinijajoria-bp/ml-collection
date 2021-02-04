@@ -1212,6 +1212,7 @@ public class APIGatewayService {
     }
 
     public void updateApplicationPriority(Long merchantId, Long applicationId) {
+        if (true) return;
         logger.info("Updating application priority for merchant:{} and application:{}", merchantId, applicationId);
         Map<String, Object> requestBody = new HashMap<String, Object>(){{
             put("merchant_id", merchantId);
