@@ -3,14 +3,12 @@ package com.bharatpe.lending.util;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import com.bharatpe.common.entities.LendingCategories;
-import com.bharatpe.common.entities.LendingGstDetail;
+import com.bharatpe.common.dao.PincodeCityStateMappingDao;
+import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.LendingConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.bharatpe.common.dao.ExperianAuditTrailDao;
-import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.ExperianAuditTrail;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.entity.CreditApplication;
@@ -32,6 +30,9 @@ public class LoanUtil {
 
 	@Autowired
 	MongoPublisher mongoPublisher;
+
+	@Autowired
+	PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -251,5 +252,13 @@ public class LoanUtil {
 		Random rnd = new Random();
 		int number = rnd.nextInt(999);
 		return String.format("%03d", number);
+	}
+
+	public boolean isCpvCity(Integer pincode) {
+		if (pincode == null) {
+			return false;
+		}
+		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
 	}
 }

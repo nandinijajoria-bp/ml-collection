@@ -49,6 +49,9 @@ public class FosService {
     @Autowired
     BankListDao bankListDao;
 
+    @Autowired
+    APIGatewayService apiGatewayService;
+
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null);
         Map<String,Object> data= new HashMap<>();
@@ -365,6 +368,7 @@ public class FosService {
             BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchantId,applicationId);
             if(bharatPeEnach != null && !bharatPeEnach.getSuccess()){
                 bharatPeEnach.setSkip(Boolean.TRUE);
+                apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
                 bharatPeEnachDao.save(bharatPeEnach);
             }
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");

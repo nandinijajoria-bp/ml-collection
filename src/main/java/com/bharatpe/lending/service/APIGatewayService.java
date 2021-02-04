@@ -1210,4 +1210,37 @@ public class APIGatewayService {
 
         return data;
     }
+
+    public void updateApplicationPriority(Long merchantId, Long applicationId) {
+        logger.info("Updating application priority for merchant:{} and application:{}", merchantId, applicationId);
+        Map<String, Object> requestBody = new HashMap<String, Object>(){{
+            put("merchant_id", merchantId);
+            put("application_id", applicationId);
+        }};
+        String payload = hmacCalculator.getObjectPayload(requestBody);
+        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
+        logger.info("Application priority request:{} for merchant:{}", request, merchantId);
+        int retryCount = 0;
+        while(retryCount < 3) {
+            try {
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+                logger.info("Application priority response:{} for merchant:{}", responseEntity, merchantId);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
+                    logger.info("Application priority success for merchant:{}", merchantId);
+                } else {
+                    logger.info("Application priority failed for merchant:{}", merchantId);
+                }
+                break;
+            }
+            catch(Exception e) {
+                logger.error("Error occurred while Application priority", e);
+            }
+            retryCount++;
+        }
+    }
 }

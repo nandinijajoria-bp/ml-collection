@@ -94,6 +94,7 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
+            apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
         }
 
         apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider());
@@ -170,6 +171,7 @@ public class ENachService {
         }
         lendingEnach.setSkip(true);
         bharatPeEnachDao.save(lendingEnach);
+        apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
         return new ResponseDTO(true, null, null);
     }
 

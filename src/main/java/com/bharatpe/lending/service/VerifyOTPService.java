@@ -19,6 +19,7 @@ import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.OglLoans;
 import com.bharatpe.lending.util.LoanCalculationUtil;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -112,6 +113,12 @@ public class VerifyOTPService {
 
 	@Autowired
 	BPEnachDao bpEnachDao;
+
+	@Autowired
+	APIGatewayService apiGatewayService;
+
+	@Autowired
+	LoanUtil loanUtil;
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
@@ -242,6 +249,10 @@ public class VerifyOTPService {
 
 		if (lendingApplication.getLoanAmount() <= 200000)
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
+		if (lendingApplication.getLoanType().equals("REGULAR") && lendingApplication.getLoanAmount() >= 50000 && lendingApplication.getPincode() != null && loanUtil.isCpvCity(lendingApplication.getPincode().intValue())) {
+			logger.info("Checking priority for Regular application:{} in cpv city with amount>=50k", lendingApplication.getId());
+			apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+		}
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
