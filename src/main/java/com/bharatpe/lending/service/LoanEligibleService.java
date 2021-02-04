@@ -51,7 +51,7 @@ public class LoanEligibleService {
 
     List<String> emails = Arrays.asList("rajat.jain@bharatpe.com", "khushal.virmani@bharatpe.com");
 
-    List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L);
+    List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L);
 
     private final Logger logger = LoggerFactory.getLogger(LoanEligibleService.class);
 
@@ -208,6 +208,10 @@ public class LoanEligibleService {
         double tpvLast30Days = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() - selfTpv : 0D;
         int txnLast30Days = 30;
         double avgTpv = tpvLast30Days/txnLast30Days;
+        if (exemptMerchant.contains(merchant.getId())) {
+            avgTpv = 10000;
+            bpScore = 20D;
+        }
         List<LendingPaymentSchedule> prevLoans;
         if(lendingType.equalsIgnoreCase("CREDITLINE")) {
         	prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchant.getId(),true);
@@ -302,7 +306,7 @@ public class LoanEligibleService {
                     logger.error("Exception---", e);
                 }
                 //base checks
-                if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode, false, bankCode)) {
+                if (!exemptMerchant.contains(merchant.getId()) && !baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode, false, bankCode)) {
                     logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
                     return new ArrayList<>();
                 }
@@ -326,7 +330,7 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
         //base checks
-        if (!baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode, true, bankCode)) {
+        if (!exemptMerchant.contains(merchant.getId()) && !baseChecks(isZomato, merchant, merchantSummary, experian, lendingType, prevLoans, bpScore, yellowPincode, true, bankCode)) {
             logger.info("Base Checks Failed, so rejecting merchant: {}", merchant.getId());
             return new ArrayList<>();
         }
