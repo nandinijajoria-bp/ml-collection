@@ -23,6 +23,6 @@ public interface BPEnachDao extends CrudRepository<BpEnach, Long> {
 
     @Transactional
     @Modifying
-    @Query(value = "DELETE FROM merchant_nach_details e where e.merchant_id = ?1", nativeQuery = true)
+    @Query(value = "delete from merchant_nach_details where merchant_id = :merchantId", nativeQuery = true)
     int deleteByMerchantId(Long merchantId);
 }
