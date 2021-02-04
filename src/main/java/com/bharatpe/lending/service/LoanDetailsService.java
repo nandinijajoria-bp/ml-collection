@@ -621,14 +621,14 @@ public class LoanDetailsService {
 					experian.setCategory("1N");
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
-				} else if (paymentsBank || (merchantBankDetail.getBankCode() != null && merchantBankDetail.getBankCode().equalsIgnoreCase("LAVB38"))) {
+				} else if (!exemptMerchant.contains(merchant.getId()) && (paymentsBank || (merchantBankDetail.getBankCode() != null && merchantBankDetail.getBankCode().equalsIgnoreCase("LAVB38")))) {
 					logger.info("Payments bank pancard:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
 					experian.setReason(ExperianConstants.ENACH);
 					experian.setCategory("1N");
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
-				}else if(!loanEligibilityDTOs.isEmpty() && isRegularLoanInEligible(experian, loanEligibilityDTOs.get(0).getAmount().doubleValue()) && Objects.isNull(bankCode)){
+				}else if(!exemptMerchant.contains(merchant.getId()) && (!loanEligibilityDTOs.isEmpty() && isRegularLoanInEligible(experian, loanEligibilityDTOs.get(0).getAmount().doubleValue()) && Objects.isNull(bankCode))) {
 					logger.info("isRegularLoanInEligible experianId: {} and amount: {}", experian.getId(), loanEligibilityDTOs.get(0).getAmount().doubleValue());
 					if(loanEligibilityDTOs.get(0).getAmount().doubleValue() < 50000){
 						experian.setReason(ExperianConstants.ENACH);
