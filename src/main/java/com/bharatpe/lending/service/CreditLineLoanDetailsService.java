@@ -194,13 +194,14 @@ public class CreditLineLoanDetailsService {
 				}	
 			}
 			
-			if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
-				
-				response.getDetails().setRejected(true);
-				response.getDetails().setRejectReason(experian.getReason());
-				return response;
-
-			} else if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) >= 30) {
+//			if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
+//
+//				response.getDetails().setRejected(true);
+//				response.getDetails().setRejectReason(experian.getReason());
+//				return response;
+//
+//			}
+			if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) >= 30) {
 				experian.setRejected(false);
 				experian.setReason(null);
 				experian.setCreatedAt(new Date());
