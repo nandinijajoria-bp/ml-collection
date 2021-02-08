@@ -1939,6 +1939,7 @@ public class LendingApplicationService {
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
 		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
 		boolean showOrderQr = orderSticker == null;
+		boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5"));
 		int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
 		List<ApplicationDTO> applicationDTO = new ArrayList<>();
 		ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
@@ -1950,9 +1951,9 @@ public class LendingApplicationService {
 		String modalType = null;
 		if (showOrderQr && "NTB".equals(lendingApplication.get().getLoanType())) {
 			modalType = "QR";
-		} else if (lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5")) && merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
+		} else if (isLowPriority && merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
 			modalType = "TXNS";
-		} else if (merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
+		} else if (isLowPriority) {
 			modalType = "PAGE";
 		}
 		applicationLoanDetailsDTO.setModalType(modalType);
@@ -2112,6 +2113,12 @@ public class LendingApplicationService {
 		} else {
 			headerDTO.setTitle("Congratulations");
 			headerDTO.setComment("Application Submitted & Pending Verification");
+		}
+		if (isLowPriority) {
+			applicationLoanDetailsDTO.setTransferDays(null);
+			applicationLoanDetailsDTO.setStatus("On Hold");
+			headerDTO.setComment("Application is On Hold");
+			headerDTO.setTitle("Pending");
 		}
 		applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);
 		applicationStatusResponseDTO.setHeader(headerDTO);
