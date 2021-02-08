@@ -368,19 +368,19 @@ public class NewToBharatpeService {
 		if(lendingBBS!=null) {
 			double bbs=lendingBBS.getBbs();
 			if(nfiToServeCurrentLoanPercent<20D) {
-				if(bbs>=500 && bbs<650) return "BBS11";
-				else if(bbs>=650 && bbs<750) return "BBS12";
-				else if(bbs>=750) return "BBS13";
+				if(bbs>=500 && bbs<=700) return "BBS11";
+				else if(bbs>700 && bbs<=800) return "BBS12";
+				else if(bbs>800) return "BBS13";
 			}
 			else if(nfiToServeCurrentLoanPercent>=20D && nfiToServeCurrentLoanPercent<50D) {
-				if(bbs>=500 && bbs<650) return "BBS21";
-				else if(bbs>=650 && bbs<750) return "BBS22";
-				else if(bbs>=750) return "BBS23";
+				if(bbs>=500 && bbs<=700) return "BBS21";
+				else if(bbs>700 && bbs<=800) return "BBS22";
+				else if(bbs>800) return "BBS23";
 			}
 			else if(nfiToServeCurrentLoanPercent>=50D) {
-				if(bbs>=500 && bbs<650) return "BBS31";
-				else if(bbs>=650 && bbs<750) return "BBS32";
-				else if(bbs>=750) return "BBS33";
+				if(bbs>=500 && bbs<=700) return "BBS31";
+				else if(bbs>700 && bbs<=800) return "BBS32";
+				else if(bbs>800) return "BBS33";
 			}
 		}
 		return null;
