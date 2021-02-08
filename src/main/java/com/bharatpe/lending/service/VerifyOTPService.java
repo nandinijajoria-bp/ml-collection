@@ -120,6 +120,8 @@ public class VerifyOTPService {
 	@Autowired
 	LoanUtil loanUtil;
 
+	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L);
+
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -288,6 +290,9 @@ public class VerifyOTPService {
 	}
 
 	public void sendDetailsForContactsVerification(Long merchantId, Long applicationId) {
+		if (exemptMerchant.contains(merchantId)) {
+			return;
+		}
 		try {
 			Map<String, Long> detailMap = new HashMap<>();
 			detailMap.put("merchantId", merchantId);
