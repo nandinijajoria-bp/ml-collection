@@ -1948,7 +1948,7 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
 		String modalType = null;
-		if (showOrderQr) {
+		if (showOrderQr && "NTB".equals(lendingApplication.get().getLoanType())) {
 			modalType = "QR";
 		} else if (lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5")) && merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
 			modalType = "TXNS";
