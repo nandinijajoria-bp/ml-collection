@@ -53,6 +53,16 @@ public class ApplicationStatusResponseDTO {
         @JsonProperty(value = "order_id")
         private String orderID;
 
+        private String modalType;
+
+        public String getModalType() {
+            return modalType;
+        }
+
+        public void setModalType(String modalType) {
+            this.modalType = modalType;
+        }
+
         public Double getAmount() {
             return amount;
         }

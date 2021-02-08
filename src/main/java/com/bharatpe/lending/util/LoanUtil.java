@@ -5,6 +5,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
+import com.bharatpe.lending.common.entity.LendingApplicationPriority;
 import com.bharatpe.lending.constant.LendingConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,9 @@ public class LoanUtil {
 
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+
+	@Autowired
+	LendingApplicationPriorityDao lendingApplicationPriorityDao;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -260,5 +265,14 @@ public class LoanUtil {
 		}
 		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
+	}
+
+	public int getApplicationTAT(Long applicationId) {
+		int tat = 0;
+		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
+		if (lendingApplicationPriority != null) {
+			tat = (int)(lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getCreatedAt(), new Date())));
+		}
+		return tat;
 	}
 }

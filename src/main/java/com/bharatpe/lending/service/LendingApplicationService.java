@@ -143,6 +143,15 @@ public class LendingApplicationService {
 	@Autowired
 	BharatSwipeAccountDao bharatSwipeAccountDao;
 
+	@Autowired
+	OrderStickerDao orderStickerDao;
+
+	@Autowired
+	LendingApplicationPriorityDao lendingApplicationPriorityDao;
+
+	@Autowired
+	LoanUtil loanUtil;
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
 		LendingApplication lendingApplication=null;
@@ -1926,13 +1935,27 @@ public class LendingApplicationService {
 			return new ResponseDTO(Boolean.FALSE, "Application not in pending state");
 		}
 		BpEnach successEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+		OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
+		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
+		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+		boolean showOrderQr = orderSticker == null;
+		int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
 		List<ApplicationDTO> applicationDTO = new ArrayList<>();
 		ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
 		applicationLoanDetailsDTO.setAmount(lendingApplication.get().getLoanAmount());
 		applicationLoanDetailsDTO.setFailedMsg("");
 		applicationLoanDetailsDTO.setOrderID(lendingApplication.get().getExternalLoanId());
-		applicationLoanDetailsDTO.setTransferDays("8 Days");
+		applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
+		String modalType = null;
+		if (showOrderQr) {
+			modalType = "QR";
+		} else if (lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5")) && merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
+			modalType = "TXNS";
+		} else if (merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
+			modalType = "PAGE";
+		}
+		applicationLoanDetailsDTO.setModalType(modalType);
 		logger.info("get Agreement:{}", lendingApplication.get().getAgreement());
 		if ("1".equals(String.valueOf(lendingApplication.get().getAgreement()))) {
 			ApplicationDTO applicationDTO1 = new ApplicationDTO();
