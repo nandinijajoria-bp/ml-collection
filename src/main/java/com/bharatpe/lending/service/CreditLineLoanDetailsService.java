@@ -162,11 +162,11 @@ public class CreditLineLoanDetailsService {
 			Integer pincode=requestDTO.getPayload().getPincode();
 			String panCard=requestDTO.getPayload().getPanCard();
 			
-			if(checkForOrganizedMerchant(merchant,response)){
-				//response was changed inside above called function
-				return response;
-				
-			}
+//			if(checkForOrganizedMerchant(merchant,response)){
+//				//response was changed inside above called function
+//				return response;
+//
+//			}
 			CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
 			if (creditLineMerchant == null) {
 				logger.error("Merchant:{} not applicable for credit line", merchant.getId());
