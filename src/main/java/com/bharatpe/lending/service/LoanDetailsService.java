@@ -504,7 +504,7 @@ public class LoanDetailsService {
 				return response;
 			}
 			PincodeCityStateMapping pincodeCityStateMapping = null;
-			if ((pincode != null && lendingCity == null && redCity != null) || (lendingCity != null && lendingCity.getCategoriesAllowed() != null && !lendingCity.getCategoriesAllowed().contains(merchant.getBusinessCategory()))) {
+			if (!exemptMerchant.contains(merchant.getId()) && ((pincode != null && lendingCity == null && redCity != null) || (lendingCity != null && lendingCity.getCategoriesAllowed() != null && !lendingCity.getCategoriesAllowed().contains(merchant.getBusinessCategory())))) {
 				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				if (experian != null) {
@@ -572,7 +572,7 @@ public class LoanDetailsService {
 					loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 				}
 				//fetching NTB loans
-				if (!rejected && !isZomato) {
+				if (!rejected && !isZomato && !exemptMerchant.contains(merchant.getId())) {
 					experian.setReason(null);
 					experianDao.save(experian);
 					if (bankCode == null && loanEligibilityDTOs.isEmpty()) {
