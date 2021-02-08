@@ -275,6 +275,9 @@ public class VerifyOTPService {
 	}
 	
 	public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
+		if (exemptMerchant.contains(merchantId)) {
+			return;
+		}
 		try {
 			Map<String,Long> detailMap=new HashMap<String, Long>(){{
 				put("merchantId", merchantId);
