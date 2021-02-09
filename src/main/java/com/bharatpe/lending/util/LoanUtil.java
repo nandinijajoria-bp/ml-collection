@@ -270,8 +270,8 @@ public class LoanUtil {
 	public int getApplicationTAT(Long applicationId) {
 		int tat = 0;
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
-		if (lendingApplicationPriority != null) {
-			tat = (int)(lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getCreatedAt(), new Date())));
+		if (lendingApplicationPriority != null && lendingApplicationPriority.getTat() != null && lendingApplicationPriority.getTatStartTime() != null) {
+			tat = (int)(lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
 		}
 		return tat;
 	}
