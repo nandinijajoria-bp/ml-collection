@@ -1938,8 +1938,9 @@ public class LendingApplicationService {
 		OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
 		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-		boolean showOrderQr = orderSticker == null;
-		boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5"));
+		boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
+		boolean showOrderQr = (orderSticker == null && diy);
+		boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
 		int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
 		List<ApplicationDTO> applicationDTO = new ArrayList<>();
 		ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
@@ -1949,7 +1950,7 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
 		String modalType = null;
-		if (showOrderQr && "NTB".equals(lendingApplication.get().getLoanType())) {
+		if (isLowPriority && showOrderQr && "NTB".equals(lendingApplication.get().getLoanType())) {
 			modalType = "QR";
 		} else if (isLowPriority && merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
 			modalType = "TXNS";

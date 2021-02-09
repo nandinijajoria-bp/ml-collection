@@ -130,7 +130,7 @@ public class LendingOffersService {
 			}
 			LendingCoolOff lendingCoolOff = lendingCoolOffDao.findByMerchantId(merchant.getId());
 			OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
-			boolean showOrderQr = orderSticker == null;
+			boolean showOrderQr = (orderSticker == null && diy);
 			if (lendingCoolOff != null) {
 				logger.info("lending_cool_off entry already exist for merchant:{}", merchant.getId());
 				if (!diy && !lendingCoolOff.isEligible()) {
