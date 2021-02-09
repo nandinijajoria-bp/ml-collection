@@ -1256,6 +1256,8 @@ public class LoanEligibleService {
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());
             experian.setReason(ExperianConstants.OVERDUE);
+            experian.setRejected(true);
+            experian.setRejectedDate(new Date());
             experianDao.save(experian);
             return false;
         }
