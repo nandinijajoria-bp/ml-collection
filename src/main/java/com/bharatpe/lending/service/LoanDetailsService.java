@@ -1286,7 +1286,8 @@ public class LoanDetailsService {
 
 	private void sendSms(String messageForSms, Merchant merchant) {
 		List<String> mobiles=new LinkedList<>();
-		mobiles.add(merchant.getMobile());
-		smsServiceHandler.sendSMS(mobiles, messageForSms, NotificationProvider.SMS.GUPSHUP);
+
+			mobiles.add(merchant.getMobile());
+			smsServiceHandler.sendSMS(mobiles, messageForSms, NotificationProvider.SMS.GUPSHUP);
 	}
 }
