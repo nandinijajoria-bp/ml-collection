@@ -2064,15 +2064,25 @@ public class LendingApplicationService {
 			ApplicationDTO applicationDTO5 = new ApplicationDTO();
 			applicationDTO5.setDisabled(!"approved".equalsIgnoreCase(lendingApplication.get().getStatus()));
 			applicationDTO5.setText("Disbursal Review & Calling");
+			ApplicationDTO.DateDTO dateDTO = null;
 			if (lendingDisbursalStage != null) {
 				String callingStatus;
 				if ("YES".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
 					callingStatus = "APPROVED";
+					dateDTO = new ApplicationDTO.DateDTO();
+					dateDTO.setDay(lendingDisbursalStage.getCallTimestamp());
+					dateDTO.setTime(lendingDisbursalStage.getCallTimestamp());
 				} else if ("NO".equalsIgnoreCase(lendingDisbursalStage.getReadyStage())) {
 					callingStatus = "REJECTED";
+					dateDTO = new ApplicationDTO.DateDTO();
+					dateDTO.setDay(lendingDisbursalStage.getReadyTimestamp());
+					dateDTO.setTime(lendingDisbursalStage.getReadyTimestamp());
 //					applicationDTO5.setComment("Credit Review failed");
 				} else if ("NO".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
 					callingStatus = "REJECTED";
+					dateDTO = new ApplicationDTO.DateDTO();
+					dateDTO.setDay(lendingDisbursalStage.getCallTimestamp());
+					dateDTO.setTime(lendingDisbursalStage.getCallTimestamp());
 //					applicationDTO5.setComment("Call not picked");
 				} else if ("rejected".equalsIgnoreCase(lendingApplication.get().getStatus())) {
 					callingStatus = "REJECTED";
@@ -2080,9 +2090,6 @@ public class LendingApplicationService {
 					callingStatus = "PENDING";
 					applicationStatus = "PENDING";
 				}
-				ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
-				dateDTO.setDay(lendingDisbursalStage.getCallTimestamp());
-				dateDTO.setTime(lendingDisbursalStage.getCallTimestamp());
 				applicationDTO5.setDateDTO(dateDTO);
 				applicationDTO5.setStatus(callingStatus);
 				applicationDTO5.setDisabled(Boolean.FALSE);
