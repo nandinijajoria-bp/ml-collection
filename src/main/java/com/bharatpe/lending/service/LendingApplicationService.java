@@ -2119,7 +2119,7 @@ public class LendingApplicationService {
 			applicationLoanDetailsDTO.setTransferDays(null);
 			applicationLoanDetailsDTO.setStatus("On Hold");
 			headerDTO.setComment("Application is On Hold");
-			headerDTO.setTitle("Pending");
+			headerDTO.setTitle("On Hold");
 		}
 		applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);
 		applicationStatusResponseDTO.setHeader(headerDTO);
