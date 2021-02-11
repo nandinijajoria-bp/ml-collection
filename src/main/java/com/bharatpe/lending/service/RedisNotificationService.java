@@ -1,7 +1,10 @@
 package com.bharatpe.lending.service;
 
 import java.util.List;
+import java.util.Objects;
 
+import com.bharatpe.cache.DTO.AddCacheDto;
+import com.bharatpe.cache.service.LendingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +30,9 @@ public class RedisNotificationService {
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
+
+	@Autowired
+	LendingCache lendingCache;
 	
 	Logger logger=LoggerFactory.getLogger(RedisNotificationService.class);
 	
@@ -51,15 +57,27 @@ public class RedisNotificationService {
 	public void sendNotificationForSeenOffer(Long merchantId, List<LoanEligibilityDTO> eligibleLoan) {
 		try {
 			logger.info("Pushing notification of seen offer for merchant {}",merchantId);
-			if(eligibleLoan!=null && !eligibleLoan.isEmpty()) {
-				LoanEligibilityDTO highestLoan=eligibleLoan.get(0);
-				InstantNotificationDto notificationDto=new InstantNotificationDto();
-				notificationDto.setMerchantId(merchantId);
-				notificationDto.setMessageCategory("ELIGIBLE");
-				MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-				notificationDto.setMessage("Dear " + bankDetail.getBeneficiaryName() + ". Rs. "+highestLoan.getAmount()+" quick loan is ready to be disbursed to your " + bankDetail.getBankName() + " A/C.\n" +
-						" Daily repayment of only Rs."+highestLoan.getEdi()+" \n");
-				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_"+merchantId, 5*60);
+			String key = "CREDIT_SCORE_MESSAGE_"+ merchantId;
+			Object cache_data = lendingCache.get(key);
+			logger.info("get key: {}, cache_data : {}",key, cache_data);
+			if(Objects.isNull(cache_data)) {
+				if (eligibleLoan != null && !eligibleLoan.isEmpty()) {
+					LoanEligibilityDTO highestLoan = eligibleLoan.get(0);
+					InstantNotificationDto notificationDto = new InstantNotificationDto();
+					notificationDto.setMerchantId(merchantId);
+					notificationDto.setMessageCategory("ELIGIBLE");
+					MerchantBankDetail bankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+					notificationDto.setMessage("Dear " + bankDetail.getBeneficiaryName() + ". Rs. " + highestLoan.getAmount() + " quick loan is ready to be disbursed to your " + bankDetail.getBankName() + " A/C.\n" +
+							" Daily repayment of only Rs." + highestLoan.getEdi() + " \n");
+					delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_" + merchantId, 5 * 60);
+
+					AddCacheDto addCacheDto = new AddCacheDto();
+					addCacheDto.setKey(key);
+					addCacheDto.setTtl(24);
+					addCacheDto.setValue(true);
+					lendingCache.add(addCacheDto);
+					logger.info("add key: {}, cache_data : {}",key, cache_data);
+				}
 			}
 		}
 		catch(Exception e) {

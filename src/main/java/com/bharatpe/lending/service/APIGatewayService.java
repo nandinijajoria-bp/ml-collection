@@ -1187,9 +1187,16 @@ public class APIGatewayService {
 
             HashSet <String> pspSet = new HashSet <String>();
 
-            for(JsonNode response: responseData.get("app_details")){
-                pspSet.add(response.get("appName").asText());
+            if(Objects.nonNull(responseData.get("app_details"))){
+                for(JsonNode response: responseData.get("app_details")){
+                    if(Objects.nonNull(response.get("appName"))){
+                        pspSet.add(response.get("appName").asText());
+                    }else if(Objects.nonNull(response.get("app_name"))){
+                        pspSet.add(response.get("app_name").asText());
+                    }
+                }
             }
+
             if(pspSet.contains("BharatPe FOS")){
                 data.put("status", true);
                 data.put("reason", ExperianConstants.FOS_APP);
