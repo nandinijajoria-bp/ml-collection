@@ -472,6 +472,7 @@ public class LoanDetailsService {
 				}
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setEnach(enach);
+				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -499,6 +500,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setHasExperian(experian != null);
+				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				return response;
@@ -527,6 +529,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setHasExperian(experian != null);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
+				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 				if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 					loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 				} else {
@@ -724,6 +727,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setZomato(isZomato);
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setHasExperian(hasExperian);
+			loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 			} else {

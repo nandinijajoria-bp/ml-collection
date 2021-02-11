@@ -71,6 +71,7 @@ public class LoanDetailsResponseDTO {
 		private boolean activeLoan = false;
 		private boolean syncContacts = false;
 		private boolean hasExperian = false;
+		private Double bureauScore;
 
 
 		@JsonProperty(value = "loan_history")
@@ -274,6 +275,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setHasExperian(boolean hasExperian) {
 			this.hasExperian = hasExperian;
+		}
+
+		public Double getBureauScore() {
+			return bureauScore;
+		}
+
+		public void setBureauScore(Double bureauScore) {
+			this.bureauScore = bureauScore;
 		}
 
 		@Override
