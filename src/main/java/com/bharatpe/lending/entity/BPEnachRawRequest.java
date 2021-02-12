@@ -47,6 +47,9 @@ public class BPEnachRawRequest extends BaseEntity {
         this.apiName = apiName;
     }
 
+    public BPEnachRawRequest() {
+    }
+
     public Long getMerchantId() {
         return merchantId;
     }
