@@ -73,4 +73,6 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Modifying
 	@Query(value = "delete from lending_application where merchant_id = :merchantId", nativeQuery = true)
 	int deleteByMerchantId(Long merchantId);
+
+	LendingApplication findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(Long merchantId);
 }
