@@ -1952,7 +1952,7 @@ public class LendingApplicationService {
 		String modalType = null;
 		if (isLowPriority && showOrderQr && "NTB".equals(lendingApplication.get().getLoanType())) {
 			modalType = "QR";
-		} else if (isLowPriority && merchantSummary != null && merchantSummary.getTxnDayCount1Mon() < 5) {
+		} else if (isLowPriority && merchantSummary != null && (merchantSummary.getTxnDayCount1Mon() == null || merchantSummary.getTxnDayCount1Mon() < 5)) {
 			modalType = "TXNS";
 		} else if (isLowPriority) {
 			modalType = "PAGE";
