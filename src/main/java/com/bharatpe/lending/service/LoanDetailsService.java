@@ -642,7 +642,7 @@ public class LoanDetailsService {
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
 					loanEligibilityDTOs.clear();
-				}else if(!exemptMerchant.contains(merchant.getId()) && (Boolean)pspCheck.get("status")){
+				}else if(!merchant.getId().equals(6603108L) && !exemptMerchant.contains(merchant.getId()) && (Boolean)pspCheck.get("status")){
 					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
 					experian.setCategory("1N");
