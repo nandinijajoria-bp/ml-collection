@@ -615,7 +615,7 @@ public class LoanDetailsService {
 						}
 					}
 				}
-				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.getByPancardOrMerchanIdOrMobileNumber(experian.getPancardNumber(), merchant.getId(), merchant.getMobile());
 				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
 				if (!exemptMerchant.contains(merchant.getId()) && lendingBlockedPancard != null) {
 					logger.info("Blocked pancard:{}", experian.getPancardNumber());
@@ -1176,7 +1176,7 @@ public class LoanDetailsService {
 
 		BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 		boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
-		LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+		LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.getByPancardOrMerchanIdOrMobileNumber(experian.getPancardNumber(), merchant.getId(), merchant.getMobile());
 		if (lendingBlockedPancard != null) {
 			logger.info("Blocked pancard:{}", experian.getPancardNumber());
 			loanEligibilityDTOs.clear();
