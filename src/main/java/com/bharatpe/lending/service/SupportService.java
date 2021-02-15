@@ -323,7 +323,7 @@ public class SupportService {
                         supportLoanResponseDTO.setApplicationStatus(SupportConstants.VERIFICATION_CALLING_READY);
                         if(!isLowPriority) {
                             supportLoanResponseDTO.setMessage("NA");
-                            supportLoanResponseDTO.setConditionalMessage("NA");
+                            supportLoanResponseDTO.setConditionalMessage(SupportConstants.VERIFICATION_CALLING_READY_MESSAGE.replace("<Priority_Message>",getPriorityMessage(lendingApplicationPriority, lendingApplication)));
                         } else {
                             supportLoanResponseDTO.setMessage(getPriorityMessage(lendingApplicationPriority, lendingApplication));
                             supportLoanResponseDTO.setConditionalMessage("NA");
