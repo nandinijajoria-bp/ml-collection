@@ -201,14 +201,14 @@ public class LoanUtil {
 	public static Map<String , String> settlementMode = new HashMap<String , String>() {{
 		put("SETTLEMENT", "QR Txns.");
 		put("EXTERNAL_NACH", "NACH");
-		put("INTEREST_ACCOUNT", "Interest A/c");
+		put("INTEREST_ACCOUNT", "Investment A/c");
 		put("REFUND", "Refund");
 		put("BHARATPE_NACH", "NACH");
 		put("UPI","UPI");
 		put("SCHEME2","Waiver");
 		put("SCHEME1","Waiver");
 		put("SCHEME3","Waiver");
-		put("FP","Interest A/c");
+		put("FP","Investment A/c");
 		put("UNSETTLED","QR Txns.");
 		put("DIRECT_TRANSFER","Offline");
 		put("EXCEPTION","Offline");
