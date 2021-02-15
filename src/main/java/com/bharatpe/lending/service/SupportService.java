@@ -77,6 +77,7 @@ public class SupportService {
                 supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_CREDIT_LINE);
                 supportLoanResponseDTO.setCreditLineAccount(Boolean.TRUE);
                 responseDTO.setData(supportLoanResponseDTO);
+                logger.info("CreditLine merchant found for merchantId: {}", merchantId);
                 return responseDTO;
             }
             supportLoanResponseDTO.setMerchantId(merchantId);
@@ -88,6 +89,7 @@ public class SupportService {
 
             Experian experian = experianDao.getByMerchantId(merchantId);
             if (ObjectUtils.isEmpty(experian)) {
+                logger.info("PAN not entered so eligibility is not checked for the merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.PAN_NOT_ENTERED);
                 supportLoanResponseDTO.setMessage(SupportConstants.PAN_NOT_ENTERED_MESSAGE);
                 supportLoanResponseDTO.setConditionalMessage("NA");
@@ -97,6 +99,7 @@ public class SupportService {
             }
 
             if (experian.getRejected()) {
+                logger.info("Experian Rejected for merchantId: {}, experianId: {}", merchantId, experian.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
                 supportLoanResponseDTO.setMessage("NA");
                 supportLoanResponseDTO.setConditionalMessage(experian.getReason() != null ? getExperianReason(experian.getReason()) : getExperianReason(""));
@@ -106,6 +109,7 @@ public class SupportService {
             }
 
             if (!StringUtils.isEmpty(experian.getReason())) {
+                logger.info("Experian Rejected Reason found for merchanID: {}, Reason: {}", merchantId, experian.getReason());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
                 supportLoanResponseDTO.setMessage("NA");
                 supportLoanResponseDTO.setConditionalMessage(getExperianReason(experian.getReason()));
@@ -116,6 +120,7 @@ public class SupportService {
 
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             if (ObjectUtils.isEmpty(eligibleLoan)) {
+                logger.info("Eligible loan offer not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
                 supportLoanResponseDTO.setMessage("NA");
                 supportLoanResponseDTO.setConditionalMessage(SupportConstants.NOT_ELIGIBLE_MESSAGE);
@@ -127,6 +132,7 @@ public class SupportService {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus()) && ObjectUtils.isEmpty(lendingApplication)) {
+                logger.info("Previous Loan status is CLOSED and new loan application not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_APPLIED);
                 supportLoanResponseDTO.setMessage("NA");
                 supportLoanResponseDTO.setConditionalMessage(SupportConstants.NOT_APPLIED_MESSAGE);
@@ -136,6 +142,7 @@ public class SupportService {
             }
 
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule) && "INACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus()) && ObjectUtils.isEmpty(lendingApplication)) {
+                logger.info("Previous Loan status is INACTIVE and new loan application not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_APPLIED);
                 supportLoanResponseDTO.setMessage("NA");
                 supportLoanResponseDTO.setConditionalMessage(SupportConstants.INACTIVE_LOAN_MESSAGE);
@@ -145,6 +152,7 @@ public class SupportService {
             }
 
             if (ObjectUtils.isEmpty(lendingPaymentSchedule) && ObjectUtils.isEmpty(lendingApplication)) {
+                logger.info("Previous loan or loan application not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.ELIGIBLE_NOT_APPLIED);
                 supportLoanResponseDTO.setMessage(SupportConstants.ELIGIBLE_NOT_APPLIED_MESSAGE);
                 supportLoanResponseDTO.setConditionalMessage("NA");
@@ -162,6 +170,7 @@ public class SupportService {
             }
 
             if (ObjectUtils.isEmpty(lendingApplication)) {
+                logger.info("Application not found with pending disbursal for merchantId: {}", merchantId);
                 responseDTO.setData(supportLoanResponseDTO);
                 return responseDTO;
             }
@@ -179,6 +188,7 @@ public class SupportService {
             supportLoanResponseDTO.setLoanApplication(loanApplication);
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), Status.GeneralStatus.ACTIVE.name());
             if (!ObjectUtils.isEmpty(merchantBankDetail)) {
+                logger.info("Merchant Bank Details not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setBeneficiaryName(merchantBankDetail.getBeneficiaryName());
                 String bankAccount = merchantBankDetail.getAccountNumber();
                 supportLoanResponseDTO.setBankAccount(new StringBuilder(bankAccount).replace(0, bankAccount.length() - 4, new String(new char[bankAccount.length() - 4]).replace("\0", "X")).toString());
@@ -193,8 +203,10 @@ public class SupportService {
             Boolean nachMandatory = Boolean.FALSE;
             supportLoanResponseDTO.setNachMandatory(false);
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
-            if (ObjectUtils.isEmpty(lendingApplicationPriority)) {
-                if ("NTB".equalsIgnoreCase(loanType) || "OGL".equalsIgnoreCase(loanType) || "BHARAT_SWIPE".equalsIgnoreCase(loanType) || ("REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()) && 50000D > lendingApplication.getLoanAmount())) {
+            if (ObjectUtils.isEmpty(lendingApplicationPriority) && !ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+                logger.info("Application priority not found for merchantId: {}, applicationId: {}", merchantId, lendingApplication.getId());
+                if ("NTB".equalsIgnoreCase(loanType) || "OGL".equalsIgnoreCase(loanType) || "BHARAT_SWIPE".equalsIgnoreCase(loanType) || ("REGULAR".equalsIgnoreCase(loanType) && 50000D > lendingApplication.getLoanAmount())) {
+                    logger.info("Application found with loan type: {}, and loan amount: {}, for merchantId: {}, and applicationId: {}", loanType, lendingApplication.getLoanAmount(), merchantId, lendingApplication.getId());
                     supportLoanResponseDTO.setApplicationStatus(SupportConstants.ENACH_PENDING);
                     supportLoanResponseDTO.setMessage(SupportConstants.ENACH_PENDING_MESSAGE);
                     supportLoanResponseDTO.setConditionalMessage("NA");
@@ -203,9 +215,11 @@ public class SupportService {
             }
 
             boolean isLowPriority = lendingApplicationPriority != null && (ObjectUtils.isEmpty(lendingApplicationPriority) || lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
+            logger.info("Application found in low priority stage: {}", isLowPriority);
 
             supportLoanResponseDTO.setNachMandatory(nachMandatory);
             if (nachMandatory) {
+                logger.info("ENACH is mandatory for merchantId: {} and applicationId: {}", merchantId, lendingApplication.getId());
                 if (!ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getNachStatus())) {
                     supportLoanResponseDTO.setApplicationStatus(SupportConstants.ENACH_PENDING);
                     supportLoanResponseDTO.setMessage(SupportConstants.ENACH_PENDING_MESSAGE);
@@ -216,6 +230,7 @@ public class SupportService {
             }
 
             if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+                logger.info("Application status is in DRAFT for merchantId: {}, and applicationId: {}", merchantId, lendingApplication.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED);
                 supportLoanResponseDTO.setMessage(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED_MESSAGE);
                 supportLoanResponseDTO.setConditionalMessage("NA");
@@ -226,6 +241,7 @@ public class SupportService {
             if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
 
                 if (!ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualKyc()) && !ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                    logger.info("Application Kyc Status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getManualKyc(), merchantId, lendingApplication.getId());
                     supportLoanResponseDTO.setApplicationStatus(SupportConstants.KYC_VERIFICATION);
                     if(!isLowPriority) {
                         supportLoanResponseDTO.setMessage("NA");
@@ -237,6 +253,7 @@ public class SupportService {
                 }
 
                 if (ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                    logger.info("Application Kyc Status is: {}, for merchantId: {}, applcationId: {}", lendingApplication.getManualKyc(), merchantId, lendingApplication.getId());
                     supportLoanResponseDTO.setApplicationStatus(SupportConstants.KYC_VERIFICATION);
                     if(!isLowPriority) {
                         supportLoanResponseDTO.setMessage("NA");
@@ -247,10 +264,11 @@ public class SupportService {
                     }
 
                     if (!ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus()) && !ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus()) && !"PENDING".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                        logger.info("Application CPV Status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getPhysicalVerificationStatus(), merchantId, lendingApplication.getId());
                         supportLoanResponseDTO.setApplicationStatus(SupportConstants.CPV_VERIFICATION);
                         if(!isLowPriority) {
-                            supportLoanResponseDTO.setMessage(SupportConstants.CPV_VERIFICATION_MESSAGE);
-                            supportLoanResponseDTO.setConditionalMessage(getPriorityMessage(lendingApplicationPriority, lendingApplication));
+                            supportLoanResponseDTO.setMessage("NA");
+                            supportLoanResponseDTO.setConditionalMessage(SupportConstants.CPV_VERIFICATION_MESSAGE.replace("<Priority_Message>", getPriorityMessage(lendingApplicationPriority, lendingApplication)));
                         } else {
                             supportLoanResponseDTO.setMessage(getPriorityMessage(lendingApplicationPriority, lendingApplication));
                             supportLoanResponseDTO.setConditionalMessage("NA");
@@ -258,6 +276,7 @@ public class SupportService {
                     }
 
                     if ("PENDING".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                        logger.info("Application CPV Status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getPhysicalVerificationStatus(), merchantId, lendingApplication.getId());
                         supportLoanResponseDTO.setApplicationStatus(SupportConstants.CPV_VERIFICATION);
                         if(!isLowPriority){
                             supportLoanResponseDTO.setMessage("NA");
@@ -269,6 +288,7 @@ public class SupportService {
                     }
 
                     if (ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                        logger.info("Application CPV Status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getPhysicalVerificationStatus(), merchantId, lendingApplication.getId());
                         supportLoanResponseDTO.setApplicationStatus(SupportConstants.CPV_VERIFICATION);
                         if(!isLowPriority){
                             supportLoanResponseDTO.setMessage("NA");
@@ -279,6 +299,7 @@ public class SupportService {
                         }
 
                         if (!ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getManualCibil()) && !ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualCibil())) {
+                            logger.info("Application CIBIL Status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getManualCibil(), merchantId, lendingApplication.getId());
                             supportLoanResponseDTO.setApplicationStatus(SupportConstants.CIBIL_VERIFICATION);
                             supportLoanResponseDTO.setMessage(SupportConstants.CIBIL_VERIFICATION_MESSAGE);
                             supportLoanResponseDTO.setConditionalMessage("NA");
@@ -290,17 +311,19 @@ public class SupportService {
             }
 
             if (ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+                logger.info("Application Status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getStatus(), merchantId, lendingApplication.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.APPROVED_VERIFICATION_CALLING_PENDING);
-                supportLoanResponseDTO.setMessage(SupportConstants.APPROVED_VERIFICATION_CALLING_PENDING_MESSAGE);
+                supportLoanResponseDTO.setMessage(SupportConstants.APPROVED_VERIFICATION_CALLING_PENDING_MESSAGE.replace("<Priority_Message>",getPriorityMessage(lendingApplicationPriority, lendingApplication)));
                 supportLoanResponseDTO.setConditionalMessage("NA");
 
                 LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
                 if (!ObjectUtils.isEmpty(lendingDisbursalStage)) {
+                    logger.info("Application ready stage status is: {}, for merchantId: {}, applicationId: {}", lendingDisbursalStage.getReadyStage(), merchantId, lendingApplication.getId());
                     if ("YES".equalsIgnoreCase(lendingDisbursalStage.getReadyStage())) {
                         supportLoanResponseDTO.setApplicationStatus(SupportConstants.VERIFICATION_CALLING_READY);
                         if(!isLowPriority) {
-                            supportLoanResponseDTO.setMessage(SupportConstants.VERIFICATION_CALLING_READY_MESSAGE.replace("<Priority_Message>", getPriorityMessage(lendingApplicationPriority, lendingApplication)));
-                            supportLoanResponseDTO.setConditionalMessage("NA");
+                            supportLoanResponseDTO.setMessage("NA");
+                            supportLoanResponseDTO.setConditionalMessage(SupportConstants.VERIFICATION_CALLING_READY_MESSAGE.replace("<Priority_Message>",getPriorityMessage(lendingApplicationPriority, lendingApplication)));
                         } else {
                             supportLoanResponseDTO.setMessage(getPriorityMessage(lendingApplicationPriority, lendingApplication));
                             supportLoanResponseDTO.setConditionalMessage("NA");
@@ -308,11 +331,12 @@ public class SupportService {
                     }
 
                     if ("NTB".equalsIgnoreCase(lendingApplication.getLoanType())) {
+                        logger.info("Application calling stage status is: {}, for merchantId: {}, applicationId: {}", lendingDisbursalStage.getCallStage(), merchantId, lendingApplication.getId());
                         if (!StringUtils.isEmpty(lendingDisbursalStage.getCallStage()) && !"YES".equalsIgnoreCase(lendingDisbursalStage.getCallStage()) && !"NO".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
                             supportLoanResponseDTO.setApplicationStatus(SupportConstants.NTB_VERIFICATION_CALLING_PENDING);
                             if(!isLowPriority) {
-                                supportLoanResponseDTO.setMessage(SupportConstants.NTB_VERIFICATION_CALLING_PENDING_MESSAGE.replace("<Priority_Message>", getPriorityMessage(lendingApplicationPriority, lendingApplication)));
-                                supportLoanResponseDTO.setConditionalMessage("NA");
+                                supportLoanResponseDTO.setMessage("NA");
+                                supportLoanResponseDTO.setConditionalMessage(SupportConstants.NTB_VERIFICATION_CALLING_PENDING_MESSAGE.replace("<Priority_Message>", getPriorityMessage(lendingApplicationPriority, lendingApplication)));
                             }  else {
                                 supportLoanResponseDTO.setMessage(getPriorityMessage(lendingApplicationPriority, lendingApplication));
                                 supportLoanResponseDTO.setConditionalMessage("NA");
@@ -326,18 +350,19 @@ public class SupportService {
             }
 
             if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+                logger.info("Application status is: {}, for merchantId: {}, applicationId: {}", lendingApplication.getStatus(), merchantId, lendingApplication.getId());
                 supportLoanResponseDTO.setApplicationStatus(ApplicationStatus.REJECTED.name());
                 supportLoanResponseDTO.setMessage(SupportConstants.REJECTED_MESSAGE);
                 supportLoanResponseDTO.setConditionalMessage("NA");
 
                 if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                    supportLoanResponseDTO.setMessage("NA");
-                    supportLoanResponseDTO.setConditionalMessage(SupportConstants.KYC_VERIFICATION_REJECTED);
+                    supportLoanResponseDTO.setMessage(SupportConstants.KYC_VERIFICATION_REJECTED);
+                    supportLoanResponseDTO.setConditionalMessage("NA");
                 }
 
                 if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
-                    supportLoanResponseDTO.setMessage("NA");
-                    supportLoanResponseDTO.setConditionalMessage(SupportConstants.CPV_VERIFICATION_REJECTED);
+                    supportLoanResponseDTO.setMessage(SupportConstants.CPV_VERIFICATION_REJECTED);
+                    supportLoanResponseDTO.setConditionalMessage("NA");
                 }
 
                 if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualCibil())) {
@@ -412,12 +437,14 @@ public class SupportService {
     private SupportLoanResponseDTO getLoanDetail(SupportLoanResponseDTO supportLoanResponseDTO, Long merchantId) {
         LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.APPROVED.name());
         if (ObjectUtils.isEmpty(lendingApplication)) {
+            logger.info("No any APPROVED loan found for merchantId: {}",merchantId);
             return supportLoanResponseDTO;
         }
 
         LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, lendingApplication.getId());
         if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
             if (Status.GeneralStatus.ACTIVE.name().equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
+                logger.info("Active Loan found for merchantId: {}, and applicationId: {}", merchantId, lendingApplication.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.ACTIVE_LOAN);
                 supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_LOAN_MESSAGE);
                 supportLoanResponseDTO.setConditionalMessage(SupportConstants.ACTIVE_LOAN_CONDITIONAL_MESSAGE);
@@ -427,7 +454,7 @@ public class SupportService {
             List<Map<String, Object>> loanHistoryList = new ArrayList<>();
             List<LendingPaymentSchedule> lendingPaymentScheduleNew = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, Boolean.FALSE);
             for (LendingPaymentSchedule lendingPaymentSchedule1 : lendingPaymentScheduleNew) {
-
+                logger.info("Loan found in payment schedule for merchant id: {}, and applicationId: {}, with status: {}", merchantId, lendingPaymentSchedule1.getLoanApplication().getId(), lendingPaymentSchedule1.getStatus());
                 List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
                 List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDescAmountAsc(lendingPaymentSchedule1);
                 for (LendingLedger lendingLedger1 : lendingLedgerList) {
