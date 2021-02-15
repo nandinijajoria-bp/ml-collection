@@ -203,7 +203,7 @@ public class SupportService {
             Boolean nachMandatory = Boolean.FALSE;
             supportLoanResponseDTO.setNachMandatory(false);
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
-            if (ObjectUtils.isEmpty(lendingApplicationPriority)) {
+            if (ObjectUtils.isEmpty(lendingApplicationPriority) && !ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 logger.info("Application priority not found for merchantId: {}, applicationId: {}", merchantId, lendingApplication.getId());
                 if ("NTB".equalsIgnoreCase(loanType) || "OGL".equalsIgnoreCase(loanType) || "BHARAT_SWIPE".equalsIgnoreCase(loanType) || ("REGULAR".equalsIgnoreCase(loanType) && 50000D > lendingApplication.getLoanAmount())) {
                     logger.info("Application found with loan type: {}, and loan amount: {}, for merchantId: {}, and applicationId: {}", loanType, lendingApplication.getLoanAmount(), merchantId, lendingApplication.getId());
