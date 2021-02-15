@@ -38,7 +38,9 @@ public class PaymentController {
 
     @RequestMapping(value="/status", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
-        return new ResponseEntity<>(paymentService.getStatus(orderId, merchant), HttpStatus.OK);
+        PaymentStatusResponseDTO responseDTO = paymentService.getStatus(orderId, merchant);
+        logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
 
     @RequestMapping(value="/modes", method = RequestMethod.POST, produces="application/json")
