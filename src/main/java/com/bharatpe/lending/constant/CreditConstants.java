@@ -76,8 +76,8 @@ public interface CreditConstants {
 		put("ECOMMERCE", "E-commerce");
 		put("CASH_WITHDRAWAL", "Cash Withdrawal");
 		put("QR_SETTLEMENT", "QR Settlement");
-		put("INTEREST_ACCOUNT", "Interest Account");
-		put("FP", "Interest Account");
+		put("INTEREST_ACCOUNT", "Investment Account");
+		put("FP", "Investment Account");
 		put("UPI", "UPI");
 		put("upi", "UPI");
 		put("Upi", "UPI");
