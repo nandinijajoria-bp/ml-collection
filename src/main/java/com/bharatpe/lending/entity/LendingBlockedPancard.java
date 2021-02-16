@@ -6,7 +6,11 @@ import javax.persistence.*;
 @Table(name = "lending_blocked_pancard")
 public class LendingBlockedPancard {
 
+    @GeneratedValue(strategy= GenerationType.IDENTITY)
+    @Column(name="id")
     @Id
+    private Long id;
+
     private String pancard;
 
     @Column(name = "merchant_id")
@@ -48,5 +52,13 @@ public class LendingBlockedPancard {
 
     public void setAadharNumber(String aadharNumber) {
         this.aadharNumber = aadharNumber;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 }
