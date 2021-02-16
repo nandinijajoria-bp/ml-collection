@@ -1286,7 +1286,7 @@ public class LoanDetailsService {
 		}
 
 		redisNotificationService.sendNotificationForSeenOffer(merchant.getId(), loanEligibilityDTOs);
-		creditScoreResponseDto.setEligible(Boolean.TRUE);
+		creditScoreResponseDto.setEligible(!loanEligibilityDTOs.isEmpty());
 		creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
 		responseDTO.setData(creditScoreResponseDto);
 
