@@ -1085,7 +1085,7 @@ public class LoanDetailsService {
 
 		LendingApplication lendingApplicationList = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
 		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
-
+		LendingApplication latestApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
 		if(requestDTO.getPayload().getPanNumber() != null){
 			if (experian != null ) {
 				experian.setPancardNumber(requestDTO.getPayload().getPanNumber());
@@ -1195,6 +1195,11 @@ public class LoanDetailsService {
 
 		if(stores != null && !stores.isEmpty()) {
 			loanEligibilityDTOs.clear();
+		}
+		if(latestApplication != null && "rejected".equals(latestApplication.getStatus())) {
+			if("REJECTED".equalsIgnoreCase(latestApplication.getManualCibil()) || rejectedInLastNDays(latestApplication, 7)) {
+				loanEligibilityDTOs.clear();
+			}
 		}
 		if (!loanEligibilityDTOs.isEmpty()) {
 			experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
