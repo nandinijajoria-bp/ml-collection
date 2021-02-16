@@ -2138,7 +2138,7 @@ public class LendingApplicationService {
 	public boolean canSkipCpv(Long merchantId, Double amount, String loanType, BpEnach lendingEnach) {
 
 		if(lendingEnach != null && lendingEnach.getInternalNachType().equalsIgnoreCase("ENACH")) {
-			if ("BHARAT_SWIPE".equals(loanType)) {
+			if ("BHARAT_SWIPE".equals(loanType) || "OGL".equals(loanType)) {
 				return true;
 			}
 			boolean isNTC = isNTC(merchantId);
