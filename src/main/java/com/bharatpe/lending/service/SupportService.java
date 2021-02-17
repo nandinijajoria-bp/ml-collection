@@ -460,7 +460,7 @@ public class SupportService {
                 for (LendingLedger lendingLedger1 : lendingLedgerList) {
                     Map<String, Object> lendingLedgerDetail = new HashMap<>();
                     lendingLedgerDetail.put("amount", lendingLedger1.getAmount());
-                    lendingLedgerDetail.put("createdAt", lendingLedger1.getDate().toString());
+                    lendingLedgerDetail.put("createdAt", lendingLedger1.getDate() == null ? lendingLedger1.getCreatedAt().toString() : lendingLedger1.getDate().toString());
                     lendingLedgerDetail.put("id", lendingLedger1.getId());
                     lendingLedgerDetail.put("transactionType", lendingLedger1.getTxnType());
                     lendingLedgerDetailList.add(lendingLedgerDetail);
