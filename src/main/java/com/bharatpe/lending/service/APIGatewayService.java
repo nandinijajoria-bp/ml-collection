@@ -7,6 +7,8 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Gateway;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
@@ -17,6 +19,7 @@ import com.bharatpe.lending.common.entity.SignzyRequestResponse;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -120,6 +123,15 @@ public class APIGatewayService {
 
     @Autowired
     BharatPeEnachDao bharatPeEnachDao;
+
+    @Autowired
+    TokenVerificationDao tokenVerificationDao;
+
+    @Autowired
+    MerchantBankDetailDao merchantBankDetailDao;
+
+    @Autowired
+    SmsServiceHandler smsServiceHandler;
 
     private final String CLIENT = "LENDING";
 
@@ -1249,6 +1261,43 @@ public class APIGatewayService {
             }
             retryCount++;
         }
+    }
+
+    public void sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan){
+
+        if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())){
+            logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchant().getId());
+            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(activeLoan.getMerchant().getId());
+            if (tokenVerification == null) {
+                logger.info("Token not found for merchant:{}", activeLoan.getMerchant().getId());
+                return;
+            }
+            try {
+                Map<String, Object> body = new HashMap<>();
+                body.putIfAbsent("meta", new HashMap<>());
+                body.putIfAbsent("payload", new HashMap<String, Object>(){});
+                logger.info("Calling loan details api from Lending for merchant: {}", activeLoan.getMerchant().getId());
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("token", tokenVerification.getAccessToken());
+                HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+                ResponseEntity<LoanDetailsResponseDTO> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("loan.details.url")), HttpMethod.POST, request, LoanDetailsResponseDTO.class);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getDetails() != null && responseEntity.getBody().getDetails().isEligible() && responseEntity.getBody().getDetails().getEligibility() != null && !responseEntity.getBody().getDetails().getEligibility().isEmpty()) {
+                    logger.info("Eligibility found from Lending for merchant:{}", activeLoan.getMerchant().getId());
+                    sendComm(activeLoan.getMerchant().getId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getEdi());
+                }
+            } catch (Exception e) {
+                logger.error("Unable to call loan details api for merchant:{}", activeLoan.getMerchant().getId(), e);
+            }
+        }
+    }
+
+    private void sendComm(Long merchantId, Integer amount, Integer edi) {
+        Merchant merchant = merchantDao.getById(merchantId);
+        MerchantBankDetail bankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+        String message = "Dear " + bankDetail.getBeneficiaryName() + ". Rs. " + amount + " quick loan is ready to be disbursed to your " + bankDetail.getBankName() + " A/C.\n" +
+                " Daily repayment of only Rs." + edi;
+        smsServiceHandler.sendSMS(Arrays.asList(merchant.getMobile()), message, NotificationProvider.SMS.GUPSHUP);
     }
 
     public LendingPayoutResponse lendingPayout(LendingPayoutRequest lendingPayoutRequest) {

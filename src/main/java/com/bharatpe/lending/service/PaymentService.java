@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
@@ -14,18 +15,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.LendingEDISchedule;
-import com.bharatpe.common.entities.LendingLedger;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status;
@@ -82,7 +77,7 @@ public class PaymentService {
 
 	@Autowired
 	LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
-	
+
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
@@ -562,7 +557,10 @@ public class PaymentService {
 		}
 		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
-		notificationExecutor.submit(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));
+		notificationExecutor.submit(() -> {
+			sendSMS(activeLoan.getMerchant(), amount, isLoanClosed);
+			apiGatewayService.sendCommunicationForNewOffer(activeLoan);
+		});
 
 		if(isLoanClosed) {
 			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
