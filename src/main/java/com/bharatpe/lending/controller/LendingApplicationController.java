@@ -53,6 +53,9 @@ public class LendingApplicationController {
 
 	@Autowired
 	LendingEdiScheduleService lendingEdiScheduleService;
+
+	@Autowired
+	RefundService refundService;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -191,5 +194,13 @@ public class LendingApplicationController {
 	@RequestMapping(value="/allow_bankaccount_change", method = RequestMethod.GET, produces="application/json")
 	public ResponseEntity<ResponseDTO> bankAccount(@RequestParam Long merchantId) {
 		return new ResponseEntity<>(lendingApplicationService.bankAccountChange(merchantId), HttpStatus.OK);
+	}
+
+	@PostMapping(value = "/nach_refund")
+	public ResponseEntity<CommonResponse> nachRefund(@RequestBody NachRefundRequest refundRequest) {
+		logger.info("Nach refund request:{}", refundRequest);
+		CommonResponse response = refundService.nachRefund(refundRequest);
+		logger.info("Nach refund response:{}", response);
+		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 }

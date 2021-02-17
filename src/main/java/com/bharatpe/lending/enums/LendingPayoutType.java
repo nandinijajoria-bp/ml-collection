@@ -1,0 +1,5 @@
+package com.bharatpe.lending.enums;
+
+public enum LendingPayoutType {
+    UPI_REFUND,LENDING_NACH_REFUND,LENDING_ECOLLECT_REFUND,BBPS_REFUND,LENDING_INCENTIVE,D2R_INCENITVE
+}

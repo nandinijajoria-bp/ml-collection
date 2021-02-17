@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.Finance;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,6 +40,8 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 public class LiquiloansService {
@@ -135,9 +138,14 @@ public class LiquiloansService {
     @Autowired
 	APIGatewayService apiGatewayService;
 
+    @Autowired
+	BharatPeEnachDao bharatPeEnachDao;
+
 	private static String secretKey;
 
 	private static String SID;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse) {
 		logger.info("Fetching lending application for given application_id:{} and nbfc_id:{}", callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());
@@ -298,7 +306,6 @@ public class LiquiloansService {
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);
-    		
     		logger.info("Changing loan_disbursal_status back to 'PENDING'");
     		if(lendingApplication!=null){
     			lendingApplication.setDisburseTimestamp(null);
@@ -307,36 +314,49 @@ public class LiquiloansService {
     			if (lendingPaymentSchedule != null) {
 					lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
 				}
-    		}		
-    		
+    		}
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
 		createEdiSchedule(lendingPaymentSchedule);
-    	try {
-			sendSms(lendingApplication, lendingPaymentSchedule);
-		} catch (Exception e) {
-    		logger.error("Exception while sending disbursal sms---", e);
-		}
+		LendingApplication finalLendingApplication = lendingApplication;
+		LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
+		executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
 		if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
-			try {
-				Long merchantId= lendingApplication.getMerchant().getId();
-				Long applicationId = lendingApplication.getId();
-				Map<String,Long> detailMap=new HashMap<String, Long>(){{
-					put("merchantId",merchantId);
-					put("applicationId",applicationId);
-				}};
-				kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
-				logger.info("Pushed "+detailMap+" to topic create_gst_invoice");
-			}
-			catch(Exception e) {
-				logger.error("Error occured while pushing to toipc create_gst_invoice",e);
-			}
+			executorService.execute(() -> createGSTInvoice(finalLendingApplication));
+			BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+//			if (bharatPeEnach != null) {
+//				executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
+//			}
 		}
-		apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "DEBIT", lendingPaymentSchedule.getLoanAmount());
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchant().getId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
-    
-    public void changeDeductionFromInstantToDaily(Merchant merchant) {
+
+	private void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
+		logger.info("Enach success on loanId:{}, processing Rs.100 cashback for merchant:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchant().getId());
+		Double cashbackAmount = 100D;
+		String orderId = "LENDINGPF" + System.currentTimeMillis();
+		LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchant().getId());
+		apiGatewayService.lendingPayout(lendingPayoutRequest);
+	}
+
+	private void createGSTInvoice(LendingApplication lendingApplication) {
+		try {
+			Long merchantId= lendingApplication.getMerchant().getId();
+			Long applicationId = lendingApplication.getId();
+			Map<String,Long> detailMap=new HashMap<String, Long>(){{
+				put("merchantId",merchantId);
+				put("applicationId",applicationId);
+			}};
+			kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
+			logger.info("Pushed "+detailMap+" to topic create_gst_invoice");
+		}
+		catch(Exception e) {
+			logger.error("Exception while pushing to topic create_gst_invoice for application:{}", lendingApplication.getId() , e);
+		}
+	}
+
+	public void changeDeductionFromInstantToDaily(Merchant merchant) {
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
 			List<PayloadDTO> merchantPayload = new ArrayList<>();
 			merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
@@ -362,45 +382,57 @@ public class LiquiloansService {
     }
 
 	private void sendSms(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
-		String sms1;String sms2 = null; String shortUrl="";
-		LoanAgreement loanAgreement=loanAgreementDao.findByApplicationId(lendingApplication.getId());
-		Merchant merchant=lendingApplication.getMerchant();
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-		if (merchantBankDetail == null) {
-			return;
-		}
-		if (loanAgreement != null) {
-			String fileName = loanAgreement.getAgreementName();
-			try {
-				shortUrl = getShorturl(fileName, loanAgreement);
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
+		try {
+			String sms1;
+			String sms2 = null;
+			String shortUrl = "";
+			LoanAgreement loanAgreement = loanAgreementDao.findByApplicationId(lendingApplication.getId());
+			Merchant merchant = lendingApplication.getMerchant();
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			if (merchantBankDetail == null) {
+				return;
 			}
-		}
-		sms1="Hi "+merchantBankDetail.getBeneficiaryName()+"\n"+
-				"Your BharatPe Loan of Rs."+lendingApplication.getDisbursalAmount()+" is successfully disbursed. " +
-				"Here is a copy of the Loan agreement for your reference:"+shortUrl;
+			if (loanAgreement != null) {
+				String fileName = loanAgreement.getAgreementName();
+				try {
+					shortUrl = getShorturl(fileName, loanAgreement);
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
+			}
+			sms1 = "Hi " + merchantBankDetail.getBeneficiaryName() + "\n" +
+					"Your BharatPe Loan of Rs." + lendingApplication.getDisbursalAmount() + " is successfully disbursed. " +
+					"Here is a copy of the Loan agreement for your reference:" + shortUrl;
 
-		if("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Your daily installment for BharatPe Loan is INR "+lendingApplication.getEdi()+". First installment date "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
-		} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR "+lendingApplication.getEdi()+" will start from "+lendingPaymentSchedule.getStartDate()+". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
-		} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
-			sms2 = "Your daily installment for 1st month is INR "+lendingPaymentSchedule.getInterestOnlyEdiAmount()+" (Only Interest). After that, it will be INR"+lendingApplication.getEdi()+". First installment date is "+lendingPaymentSchedule.getStartDate()+" Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
-		}
-		smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, sms1, NotificationProvider.SMS.GUPSHUP);
-		if (sms2 != null) {
+			if ("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
+				sms2 = "Your daily installment for BharatPe Loan is INR " + lendingApplication.getEdi() + ". First installment date " + lendingPaymentSchedule.getStartDate() + ". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
+			} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
+				sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR " + lendingApplication.getEdi() + " will start from " + lendingPaymentSchedule.getStartDate() + ". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
+			} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
+				sms2 = "Your daily installment for 1st month is INR " + lendingPaymentSchedule.getInterestOnlyEdiAmount() + " (Only Interest). After that, it will be INR" + lendingApplication.getEdi() + ". First installment date is " + lendingPaymentSchedule.getStartDate() + " Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
+			}
 			smsServiceHandler.sendSMS(new ArrayList<String>() {{
 				add(lendingApplication.getMerchant().getMobile());
-			}}, sms2, NotificationProvider.SMS.GUPSHUP);
-		}
-		List<String> mobiles = new ArrayList<> ();
-		mobiles.add(merchant.getMobile());
-		whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
-		if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
-			String newMessage = "Hi "+merchantBankDetail.getBeneficiaryName()+"\nRs. " + lendingApplication.getDisbursalAmount() + " Loan is transferred to your A/c net of Rs." + lendingApplication.getProcessingFee() + " processing fees. Repay loan timely through QR Txns to get PF charges refunded.";
-			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, newMessage, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, null);
+			}}, sms1, NotificationProvider.SMS.GUPSHUP);
+			if (sms2 != null) {
+				smsServiceHandler.sendSMS(new ArrayList<String>() {{
+					add(lendingApplication.getMerchant().getMobile());
+				}}, sms2, NotificationProvider.SMS.GUPSHUP);
+			}
+			List<String> mobiles = new ArrayList<>();
+			mobiles.add(merchant.getMobile());
+			whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
+			if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
+				String newMessage = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nRs. " + lendingApplication.getDisbursalAmount() + " Loan is transferred to your A/c net of Rs." + lendingApplication.getProcessingFee() + " processing fees. Repay loan timely through QR Txns to get PF charges refunded.";
+				smsServiceHandler.sendSMS(new ArrayList<String>() {{
+					add(lendingApplication.getMerchant().getMobile());
+				}}, newMessage, NotificationProvider.SMS.GUPSHUP);
+				whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>() {{
+					add(lendingApplication.getMerchant().getMobile());
+				}}, null);
+			}
+		} catch (Exception e) {
+			logger.error("Exception while sending disbursal sms---", e);
 		}
 	}
          
