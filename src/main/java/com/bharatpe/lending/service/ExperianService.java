@@ -105,9 +105,11 @@ public class ExperianService {
             experianDao.save(experian);
             loanUtil.auditExperian(experian);
             return new ResponseDTO(true, null, null);
-        } else if (!maskedMobiles.isEmpty()){
-            return new ResponseDTO(false, null, maskedMobiles);
-        } else {
+        }
+//        else if (!maskedMobiles.isEmpty()){
+//            return new ResponseDTO(false, null, null);
+//        }
+        else {
             ResponseDTO responseDTO = new ResponseDTO(true, null, null);
             responseDTO.setCrif(true);
             return responseDTO;
