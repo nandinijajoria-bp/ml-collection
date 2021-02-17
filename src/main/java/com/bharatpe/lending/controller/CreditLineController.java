@@ -232,7 +232,7 @@ public class CreditLineController {
 
 	@RequestMapping(value="/detail_report", method = RequestMethod.GET, produces="application/json")
 	public ResponseEntity<CreditScoreReportDetailDTO> detailReport(@RequestHeader("token") String token, @RequestAttribute Merchant merchant){
-
+		logger.info("Credit score detail_report request for merchant:{}", merchant.getId());
 		CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
 		try{
 			return new ResponseEntity<>(creditLineService.getReportDetails(merchant), HttpStatus.OK);
@@ -240,20 +240,20 @@ public class CreditLineController {
 			logger.error("Exception---", ex);
 
 		}
-
+		logger.info("Credit score detail_report returning bad request for merchant:{}", merchant.getId());
 		return new ResponseEntity<>(new CreditScoreReportDetailDTO(), HttpStatus.BAD_REQUEST);
 	}
 
 
 	@RequestMapping(value="/loan_creditcard_details", method = RequestMethod.GET, produces="application/json")
 	public ResponseEntity<LoanAndCreditCardDetailDTO> getLoanAndCreditCardDetails(@RequestHeader("token") String token, @RequestAttribute Merchant merchant){
-
+		logger.info("Credit score loan_creditcard_details request for merchant:{}", merchant.getId());
 		try{
 			return new ResponseEntity<>(creditLineService.getLoanAndCreditCardDetails(merchant), HttpStatus.OK);
 		}catch (Exception ex){
 			logger.error("Exception---", ex);
 		}
-
+		logger.info("Credit score loan_creditcard_details returning bad request for merchant:{}", merchant.getId());
 		return new ResponseEntity<>(new LoanAndCreditCardDetailDTO(), HttpStatus.BAD_REQUEST);
 	}
 }

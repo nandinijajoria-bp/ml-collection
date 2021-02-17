@@ -940,6 +940,7 @@ public class CreditLineService {
 		}
 		CreditScoreReportDetailDTO creditScoreReportDetailDTO =  responseUtil.getCreditDetailReport(bureauResponse);
 		creditScoreReportDetailDTO.setAverageCreditScore(getAverageCreditScore(merchant,experian));
+		logger.info("Credit score detail_report response for merchant:{} is:{}", merchant.getId(), creditScoreReportDetailDTO);
 		return creditScoreReportDetailDTO;
 	}
 
@@ -959,6 +960,7 @@ public class CreditLineService {
 		}
 
 		 loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse);
+		logger.info("Credit score loan_creditcard_details response for merchant:{} is:{}", merchant.getId(), loanAndCreditCardDetailDTO);
 		return loanAndCreditCardDetailDTO;
 	}
 }
