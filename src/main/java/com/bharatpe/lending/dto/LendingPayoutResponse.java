@@ -1,9 +1,7 @@
 package com.bharatpe.lending.dto;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.*;
 
 import java.util.Date;
 
@@ -11,6 +9,7 @@ import java.util.Date;
 @Setter
 @NoArgsConstructor
 @ToString
+@AllArgsConstructor
 public class LendingPayoutResponse {
 
     private boolean success;
@@ -22,10 +21,12 @@ public class LendingPayoutResponse {
     @Setter
     @NoArgsConstructor
     @ToString
+    @AllArgsConstructor
     public static class Data {
         private String transactionStatus;
         private String bankReferenceNo;
         private Long transactionId;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private Date transactionTimestamp;
     }
 }

@@ -1319,24 +1319,19 @@ public class APIGatewayService {
         headers.set("clientName", CLIENT);
         HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
         logger.info("Lending payout request:{} for merchant:{}", lendingPayoutRequest, lendingPayoutRequest.getMerchantId());
-        int retryCount = 0;
         String url = lendingPayoutRequest.getTxnType().name().contains("INCENTIVE") ? LendingConstants.LENDING_INCENTIVE_URL : LendingConstants.LENDING_REFUND_URL;
-        while(retryCount < 3) {
-            try {
-                ResponseEntity<LendingPayoutResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.refund.endpoint")) + url, HttpMethod.POST, request, LendingPayoutResponse.class);
-                logger.info("Lending payout response:{} for merchant:{}", responseEntity, lendingPayoutRequest.getMerchantId());
-                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess() && responseEntity.getBody().getData() != null && "SUCCESS".equals(responseEntity.getBody().getData().getTransactionStatus())) {
-                    logger.info("Lending payout success for merchant:{}", lendingPayoutRequest.getMerchantId());
-                    return responseEntity.getBody();
-                } else {
-                    logger.info("Lending payout failed for merchant:{}", lendingPayoutRequest.getMerchantId());
-                }
-                break;
+        try {
+            ResponseEntity<LendingPayoutResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.refund.endpoint")) + url, HttpMethod.POST, request, LendingPayoutResponse.class);
+            logger.info("Lending payout response:{} for merchant:{}", responseEntity, lendingPayoutRequest.getMerchantId());
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess() && responseEntity.getBody().getData() != null && "SUCCESS".equals(responseEntity.getBody().getData().getTransactionStatus())) {
+                logger.info("Lending payout success for merchant:{}", lendingPayoutRequest.getMerchantId());
+                return responseEntity.getBody();
+            } else {
+                logger.info("Lending payout failed for merchant:{}", lendingPayoutRequest.getMerchantId());
             }
-            catch(Exception e) {
-                logger.error("Error occurred while lending payout api", e);
-            }
-            retryCount++;
+        }
+        catch(Exception e) {
+            logger.error("Error occurred while lending payout api", e);
         }
         return null;
     }
