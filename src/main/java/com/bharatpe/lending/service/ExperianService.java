@@ -154,10 +154,10 @@ public class ExperianService {
                 String stageTwoId = jsonNode.get("stageTwoId_").textValue();
                 experianDetails.setStageOneId(stageOneId);
                 experianDetails.setStageTwoId(stageTwoId);
-                maskedMobiles.addAll(fetchMaskedMobileNumbers(stageOneId, stageTwoId, merchantId));
-                if (!maskedMobiles.isEmpty()) {
-                    experianDetails.setMaskedMobile(maskedMobiles.toString());
-                }
+//                maskedMobiles.addAll(fetchMaskedMobileNumbers(stageOneId, stageTwoId, merchantId));
+//                if (!maskedMobiles.isEmpty()) {
+//                    experianDetails.setMaskedMobile(maskedMobiles.toString());
+//                }
             }
             return null;
         } catch (ResourceAccessException e) {

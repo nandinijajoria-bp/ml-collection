@@ -113,8 +113,8 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
 	}
 
-	@RequestMapping(value = "/verify_pan_card/{panCard}",method = RequestMethod.GET)
-	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant,@PathVariable("panCard") String panCard) {
+	@RequestMapping(value = "/verify_pan_card", method = RequestMethod.GET)
+	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant,@RequestParam("panCard") String panCard) {
 		logger.info("verify pancard check request for merchant:{} and pancard:{}", merchant.getId(), panCard);
 		VerifyPanCardDto verifyPanCardDto =  verifyDocService.verifyPanCard(merchant, panCard);
 		logger.info("verify pancard check response for merchant:{} and pancard:{} is :{}", merchant.getId(), panCard, verifyPanCardDto);
