@@ -2122,7 +2122,7 @@ public class LendingApplicationService {
 			headerDTO.setTitle("Congratulations");
 			headerDTO.setComment("Application Submitted & Pending Verification");
 		}
-		if (isLowPriority) {
+		if (isLowPriority && !applicationLoanDetailsDTO.getStatus().equalsIgnoreCase("rejected")) {
 			applicationLoanDetailsDTO.setTransferDays(null);
 			applicationLoanDetailsDTO.setStatus("On Hold");
 			headerDTO.setComment("Application is On Hold");
