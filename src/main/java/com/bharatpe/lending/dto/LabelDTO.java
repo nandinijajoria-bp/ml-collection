@@ -10,6 +10,9 @@ public class LabelDTO {
 		this.value = value;
 	}
 
+	public LabelDTO() {
+	}
+
 	public String getLabel() {
 		return label;
 	}
