@@ -139,6 +139,9 @@ public class LiquiloansService {
 	APIGatewayService apiGatewayService;
 
     @Autowired
+	RedisNotificationService redisNotificationService;
+
+    @Autowired
 	BharatPeEnachDao bharatPeEnachDao;
 
 	private static String secretKey;
@@ -387,8 +390,8 @@ public class LiquiloansService {
 			String sms2 = null;
 			String shortUrl = "";
 			LoanAgreement loanAgreement = loanAgreementDao.findByApplicationId(lendingApplication.getId());
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");
 			Merchant merchant = lendingApplication.getMerchant();
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if (merchantBankDetail == null) {
 				return;
 			}
@@ -431,6 +434,11 @@ public class LiquiloansService {
 					add(lendingApplication.getMerchant().getMobile());
 				}}, null);
 			}
+
+			String postInstructionSms = "Dear "+merchantBankDetail.getBeneficiaryName()+", \nCongratulations on getting a Rs. "+ lendingApplication.getDisbursalAmount() +" loan from BharatPe.  Please read instructions on repaying your loan -Your Daily instalment is Rs "+lendingApplication.getEdi()+" which you have to pay every day for next "+lendingPaymentSchedule.getEdiCount()+" days. Sunday is an EDI holiday.\n\n-BharatPe";
+			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, postInstructionSms, NotificationProvider.SMS.GUPSHUP);
+
+			redisNotificationService.sendNotificationForPostDisbursalInstruction(lendingApplication);
 		} catch (Exception e) {
 			logger.error("Exception while sending disbursal sms---", e);
 		}

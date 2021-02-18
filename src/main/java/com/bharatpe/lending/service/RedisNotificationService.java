@@ -1,10 +1,13 @@
 package com.bharatpe.lending.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +36,9 @@ public class RedisNotificationService {
 
 	@Autowired
 	LendingCache lendingCache;
+
+	@Autowired
+	SmsServiceHandler smsServiceHandler;
 	
 	Logger logger=LoggerFactory.getLogger(RedisNotificationService.class);
 	
@@ -82,6 +88,24 @@ public class RedisNotificationService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while sending notification",e);
+		}
+	}
+
+	public void sendNotificationForPostDisbursalInstruction(LendingApplication lendingApplication) {
+		try {
+			logger.info("Pushing notification of Post Disbursal Instruction");
+
+			String sms = "Most convenient way to repay is by accepting payments through BharatPe QR. Your EDI will be deducted from the QR settlement amount at the end of the day.\nClick here: bharatpe.in/loanqr\n\n-BharatPe";
+//			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, sms, NotificationProvider.SMS.GUPSHUP);
+			InstantNotificationDto notificationDto = new InstantNotificationDto();
+			notificationDto.setMerchantId(lendingApplication.getMerchant().getId());
+			notificationDto.setMessageCategory("DISBURSAL_INSTRUCTION");
+			notificationDto.setMessage(sms);
+			delayedMessagePublisher.publish("lending_notify", lendingApplication.getMerchant().getId().toString(), notificationDto, "disbursal_instruction_" + lendingApplication.getMerchant().getId(), 15 * 60);
+
+		}
+		catch(Exception e) {
+			logger.error("Error occurred while sending Post Disbursal Instruction",e);
 		}
 	}
 	
