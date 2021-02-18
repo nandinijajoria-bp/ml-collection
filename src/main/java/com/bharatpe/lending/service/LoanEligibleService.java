@@ -11,10 +11,7 @@ import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.ApplicationDerogResponseDTO;
 import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
 import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
@@ -135,6 +132,9 @@ public class LoanEligibleService {
 
     @Autowired
     PincodeCityStateMappingDao pincodeCityStateMappingDao;
+
+    @Autowired
+    BharatSwipeAccountDao bharatSwipeAccountDao;
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
@@ -1282,7 +1282,9 @@ public class LoanEligibleService {
         }
         if (!isZomato) {
             PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
-            if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < 60) {
+            BharatSwipeAccount bharatSwipeAccount = bharatSwipeAccountDao.findByMerchantId(merchant.getId());
+            int vintageDays = bharatSwipeAccount != null ? 30 : 60;
+            if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < vintageDays) {
                 logger.info("Vintage less than 60 days, so rejecting merchant: {}", merchant.getId());
                 experian.setCategory("1N");
                 experian.setColor(ExperianConstants.COLOR.RED.name());
