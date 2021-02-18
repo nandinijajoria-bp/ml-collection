@@ -1957,6 +1957,9 @@ public class LendingApplicationService {
 		} else if (isLowPriority) {
 			modalType = "PAGE";
 		}
+		if (lendingApplication.get().getStatus().equalsIgnoreCase("rejected")) {
+			modalType = null;
+		}
 		applicationLoanDetailsDTO.setModalType(modalType);
 		logger.info("get Agreement:{}", lendingApplication.get().getAgreement());
 		if ("1".equals(String.valueOf(lendingApplication.get().getAgreement()))) {
