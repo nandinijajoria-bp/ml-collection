@@ -160,6 +160,16 @@ public class VerifyOTPService {
 	}
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		finalResponse.put("success",false);
+		finalResponse.put("agreement_verified",false);
+		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchant.getId());
+		if (openApplication != null) {
+			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
+			lendingApplication.setStatus("deleted");
+			lendingApplicationDao.save(lendingApplication);
+			return finalResponse;
+		}
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		LendingCities lendingCities = null;
@@ -167,7 +177,6 @@ public class VerifyOTPService {
 			lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
 		}
 		boolean cpvMandatory = lendingCities != null && lendingCities.getCpvMandatory();
-		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
@@ -217,9 +226,6 @@ public class VerifyOTPService {
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
-		
-		finalResponse.put("success",false);
-		finalResponse.put("agreement_verified",false);
 		lendingApplicationDao.save(lendingApplication);
 		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
 		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());

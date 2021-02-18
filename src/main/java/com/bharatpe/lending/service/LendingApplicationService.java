@@ -169,13 +169,6 @@ public class LendingApplicationService {
 			createGstDetail(merchant,lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
 		}else {
-			LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchantId);
-			if (openApplication != null) {
-				logger.info("Duplicate application request for merchant:{}", merchantId);
-				lendingApplicationResponse = new LendingApplicationResponseDTO();
-				lendingApplicationResponse.setSuccess(false);
-				return lendingApplicationResponse;
-			}
 			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if(requestDTO.getPayload().getPincode() == null) {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);

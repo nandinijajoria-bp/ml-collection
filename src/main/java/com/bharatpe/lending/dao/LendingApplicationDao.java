@@ -77,6 +77,6 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value="select * from lending_application where merchant_id=:merchantId and (loan_disbursal_status is null or loan_disbursal_status = 'null') order by id desc limit 1", nativeQuery = true)
 	LendingApplication findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(Long merchantId);
 
-	@Query(nativeQuery = true, value = "SELECT * FROM lending_application WHERE  merchant_id = :merchantId AND status NOT IN ('deleted','rejected') and NBFC_send_date is null and disburse_timestamp is null limit 1")
+	@Query(nativeQuery = true, value = "SELECT * FROM lending_application WHERE  merchant_id = :merchantId AND status IN ('pending_verification','approved') and NBFC_send_date is null and disburse_timestamp is null limit 1")
 	LendingApplication findOpenApplication(Long merchantId);
 }
