@@ -465,7 +465,13 @@ public class LendingApplicationService {
 	private LendingApplication copyApplicationDataWhenExperianEnabled(EligibleLoan eligibleLoan, LendingCategories selectedCategoriesData, LendingApplication prevLoan,String selectedCategory) {
 		Experian experian = experianDao.getByMerchantId(prevLoan.getMerchant().getId());
 		LendingApplication newApplication=new LendingApplication();
-		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+		// check here we need check or not
+		int processingFee;
+		if(apiGatewayService.eligibleForProcessingFee(prevLoan.getMerchant().getId())){
+			processingFee = 0;
+		}else {
+			processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 		newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
@@ -575,8 +581,12 @@ public class LendingApplicationService {
 		LendingCategories lendingCategory = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 		
 		//LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
-		int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
-
+		int processingFee;
+		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
+			processingFee = 0;
+		}else {
+			processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
+		}
 		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
 		lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));

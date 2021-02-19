@@ -174,6 +174,7 @@ public class LoanEligibleService {
         tenureDetails.setCategory(eligibleLoan.getCategory());
         tenureDetails.setEdi(breakup.getEdi());
         tenureDetails.setIoEdi(breakup.getIoEdi());
+        tenureDetails.setFinanceCharge(breakup.getProcessingFee());
         tenureDetails.setRateOfInterest(lendingCategory.getInterestRate());
         tenureDetails.setRepaymentAmount(breakup.getRepayment());
         return tenureDetails;
@@ -909,6 +910,7 @@ public class LoanEligibleService {
         repayment =  (int) Math.round((edi * ediDays) + ioInterestAmount);
         totalInterestAmount = repayment - loanAmount;
         principleEdiTenure = tenure;
+
         return new LoanCalculationUtil.LoanBreakupDetail(construct, (int)edi, (int)ioEdi, processingFee, ioInterestAmount, (int)totalInterestAmount,(int) totalInterestAmount,
                 ioTenure, principleEdiTenure, repayment, disbursementAmount, type, (int)loanAmount, interest);
     }

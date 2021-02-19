@@ -43,6 +43,7 @@ public class EligibleLendingOffersResponseDTO {
         private Integer repaymentAmount;
         private Integer edi;
         private Integer ioedi;
+        private Integer financeCharge;
 
         public TenureDetails() {
         }
@@ -102,6 +103,14 @@ public class EligibleLendingOffersResponseDTO {
 
         public void setIoEdi(Integer ioedi) {
             this.ioedi = ioedi;
+        }
+
+        public Integer getFinanceCharge() {
+            return financeCharge;
+        }
+
+        public void setFinanceCharge(Integer financeCharge) {
+            this.financeCharge = financeCharge;
         }
 
         @Override

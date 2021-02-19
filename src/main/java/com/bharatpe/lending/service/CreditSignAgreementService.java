@@ -104,6 +104,9 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
 
+	@Autowired
+	APIGatewayService apiGatewayService;
+
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
@@ -203,8 +206,12 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
-			 int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
-			   
+			int processingFee;
+			if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
+				processingFee = 0;
+			}else {
+				processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+			}
 			if (!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()))
 		 newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
 			newApplication.setMerchantId(merchant.getId());

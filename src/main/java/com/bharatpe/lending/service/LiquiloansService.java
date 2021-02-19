@@ -139,16 +139,24 @@ public class LiquiloansService {
 	APIGatewayService apiGatewayService;
 
     @Autowired
+	LendingCategoryDao lendingCategoryDao;
+
+    @Autowired
 	RedisNotificationService redisNotificationService;
 
     @Autowired
 	BharatPeEnachDao bharatPeEnachDao;
 
+
 	private static String secretKey;
 
 	private static String SID;
 
+	@Value("${loan.redemption.topic}")
+	String TOPIC;
+
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
+
 
 	public ResponseDTO checkLoanStatus(LiquiloanCallbackRequestDTO callbackRequestDto, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse) {
 		logger.info("Fetching lending application for given application_id:{} and nbfc_id:{}", callbackRequestDto.getApplicationId(), callbackRequestDto.getNbfcId());
@@ -332,8 +340,25 @@ public class LiquiloansService {
 //			}
 		}
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchant().getId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
+		executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
+
+    public void pushRedemptionInKafka(LendingApplication lendingApplication){
+
+		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
+		if(Objects.nonNull(selectedCategoriesData) && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchant().getId())) {
+			int processingFee = (int) Math.ceil(lendingApplication.getLoanAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+			Map<String, Object> body = new HashMap<>();
+			body.put("merchant_id", lendingApplication.getMerchant().getId());
+			body.put("ref_txn_id", lendingApplication.getId());
+			body.put("amount", processingFee);
+			body.put("narration", "Loan Arranger Fee");
+			body.put("source_module", "LOAN");
+
+			kafkaTemplate.send(TOPIC, body);
+		}
+	}
 
 	private void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
 		logger.info("Enach success on loanId:{}, processing Rs.100 cashback for merchant:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchant().getId());
@@ -360,6 +385,7 @@ public class LiquiloansService {
 	}
 
 	public void changeDeductionFromInstantToDaily(Merchant merchant) {
+
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
 			List<PayloadDTO> merchantPayload = new ArrayList<>();
 			merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
