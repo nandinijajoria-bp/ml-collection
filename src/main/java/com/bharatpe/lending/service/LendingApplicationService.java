@@ -2199,7 +2199,7 @@ public class LendingApplicationService {
 				responseDTO.setData(data);
 				return responseDTO;
 			}
-			if ("approved".equalsIgnoreCase(lendingApplication.getStatus())) {
+			if ("approved".equalsIgnoreCase(lendingApplication.getStatus()) && lendingApplication.getDisburseTimestamp() == null) {
 				data.put("bankAccountChange", Boolean.FALSE);
 				data.put("message", "Application is Under Process!");
 			}
