@@ -218,19 +218,20 @@ public class NewToBharatpeService {
 			logger.info("Calculating ntb loan for merchant:{}", experian.getMerchantId());
 			double netFreeIncomePercent = lendingBBS.getIncome() > 0 ? (lendingBBS.getNetFreeIncome() / lendingBBS.getIncome()) * 100 : 0d;
 			if(netFreeIncomePercent < 10.0D) {
-				if (experian.getExperianScore() != null && experian.getExperianScore() >= 750) {
-					ntbLite = true;
-					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", ExperianConstants.LOW_NFI, String.valueOf(netFreeIncomePercent)));
-				} else {
-					logger.info("NFI less than 10%, rejecting merchant:{}", merchant.getId());
-					if (!hasRegularLoan) {
-						experian.setCategory("1N");
-						experian.setColor(ExperianConstants.COLOR.RED.name());
-						experian.setReason(ExperianConstants.LOW_NFI);
-						experianDao.save(experian);
-					}
-					return new ArrayList<>();
+//				if (experian.getExperianScore() != null && experian.getExperianScore() >= 750) {
+//					ntbLite = true;
+//					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", ExperianConstants.LOW_NFI, String.valueOf(netFreeIncomePercent)));
+//				}
+//				else {
+				logger.info("NFI less than 10%, rejecting merchant:{}", merchant.getId());
+				if (!hasRegularLoan) {
+					experian.setCategory("1N");
+					experian.setColor(ExperianConstants.COLOR.RED.name());
+					experian.setReason(ExperianConstants.LOW_NFI);
+					experianDao.save(experian);
 				}
+				return new ArrayList<>();
+//				}
 			}
 			if (ntbLite) {
 				logger.info("Fetching NTB Lite loan for merchant:{}", merchant.getId());
