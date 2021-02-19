@@ -261,8 +261,13 @@ public class LoanDetailsService {
 			boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
-					rejected = true;
-					rejectReason = experian.getReason();
+
+					if(experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+						rejected = false;
+					}else{
+						rejected = true;
+						rejectReason = experian.getReason();
+					}
 				} else if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) >= 30) {
 					experian.setRejected(false);
 					experian.setReason(null);
@@ -557,8 +562,12 @@ public class LoanDetailsService {
 					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
 				}
 				if (experian.getRejected()) {
-					rejected = true;
-					rejectReason = experian.getReason();
+					if(experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+						rejected = false;
+					}else{
+						rejected = true;
+						rejectReason = experian.getReason();
+					}
 				}
 				if (experian.getRetryCount() == 1) {//experian timeout
 					return null;
@@ -645,19 +654,14 @@ public class LoanDetailsService {
 				}else if(!merchant.getId().equals(6603108L) && !exemptMerchant.contains(merchant.getId()) && (Boolean)pspCheck.get("status")){
 					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
 					loanEligibilityDTOs.clear();
+					experian.setRejected(true);
+					experian.setRejectedDate(new Date());
+					experian.setReason(pspCheck.get("reason").toString());
 					experian.setCategory("1N");
 					experian.setColor(ExperianConstants.COLOR.RED.name());
-					experian.setReason(pspCheck.get("reason").toString());
 					experianDao.save(experian);
 				}
-//				else if((Boolean)pspCheck.get("status")){
-//					logger.info("multiple psp app in merchant phone:{}", experian.getPancardNumber());
-//					loanEligibilityDTOs.clear();
-//					experian.setCategory("1N");
-//					experian.setColor(ExperianConstants.COLOR.RED.name());
-//					experian.setReason(pspCheck.get("reason").toString());
-//					experianDao.save(experian);
-//				}
+
 				if (!loanEligibilityDTOs.isEmpty()) {
 					experian.setEligibleAmount(loanEligibilityDTOs.get(0).getAmount().doubleValue());
 					experian.setEligibleTenure(loanEligibilityDTOs.get(0).getPrincipleEdiTenure().toString());
@@ -1113,7 +1117,11 @@ public class LoanDetailsService {
 		List<String> maskedMobiles = null;
 
 		if (experian.getRejected()) {
-			rejected = true;
+			if(experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+				rejected = false;
+			}else{
+				rejected = true;
+			}
 			creditScoreResponseDto.setMessage(experian.getReason());
 		}
 		if (experian.getRetryCount() == 1) {
