@@ -263,7 +263,7 @@ public class LoanDetailsService {
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 
-					if(Objects.nonNull(experian.getReason()) && experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+					if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 						rejected = false;
 					}else{
 						rejected = true;
@@ -566,7 +566,7 @@ public class LoanDetailsService {
 					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
 				}
 				if (experian.getRejected()) {
-					if(Objects.nonNull(experian.getReason()) && experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+					if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 						rejected = false;
 					}else{
 						rejected = true;
@@ -1122,7 +1122,7 @@ public class LoanDetailsService {
 		List<String> maskedMobiles = null;
 
 		if (experian.getRejected()) {
-			if(Objects.nonNull(experian.getReason()) && experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+			if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 				rejected = false;
 			}else{
 				rejected = true;
