@@ -209,6 +209,7 @@ public class LoanCalculationUtil {
 		public void setType(String type) {
 			this.type = type;
 		}
+
 		@Override
 		public String toString() {
 			return "LoanBreakupDetail [construct=" + construct + ", edi=" + edi + ", ioEdi=" + ioEdi

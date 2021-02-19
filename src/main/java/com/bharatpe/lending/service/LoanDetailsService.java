@@ -249,6 +249,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setRejectReason(null);
 				loanDetailsDTO.setPanCard(null);
 				loanDetailsDTO.setZomato(isZomato);
+				loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				if (experian != null) {
@@ -262,7 +263,7 @@ public class LoanDetailsService {
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 
-					if(experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+					if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 						rejected = false;
 					}else{
 						rejected = true;
@@ -477,6 +478,7 @@ public class LoanDetailsService {
 				}
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setEnach(enach);
+				loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
@@ -505,6 +507,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setHasExperian(experian != null);
+				loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
@@ -534,6 +537,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setHasExperian(experian != null);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
+				loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 				if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 					loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
@@ -562,7 +566,7 @@ public class LoanDetailsService {
 					lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "REGULAR", experian.getReason(), null));
 				}
 				if (experian.getRejected()) {
-					if(experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+					if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 						rejected = false;
 					}else{
 						rejected = true;
@@ -731,6 +735,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setZomato(isZomato);
 			loanDetailsDTO.setSkipEnatch(skipEnatch);
 			loanDetailsDTO.setHasExperian(hasExperian);
+			loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 			loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
@@ -1117,7 +1122,7 @@ public class LoanDetailsService {
 		List<String> maskedMobiles = null;
 
 		if (experian.getRejected()) {
-			if(experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS)) {
+			if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 				rejected = false;
 			}else{
 				rejected = true;

@@ -79,6 +79,9 @@ public class SignAgreementService {
 	Boolean EXPERIAN_ENABLED;
 
 	@Autowired
+	APIGatewayService apiGatewayService;
+
+	@Autowired
 	RedisNotificationService redisNotificationService;
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
@@ -183,7 +186,12 @@ public class SignAgreementService {
 				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}
-			int processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+			int processingFee;
+			if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
+				processingFee = 0;
+			}else {
+				processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+			}
 			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 			newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));

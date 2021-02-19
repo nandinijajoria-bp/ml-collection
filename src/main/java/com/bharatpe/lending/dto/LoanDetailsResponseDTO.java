@@ -71,6 +71,7 @@ public class LoanDetailsResponseDTO {
 		private boolean activeLoan = false;
 		private boolean syncContacts = false;
 		private boolean hasExperian = false;
+		private boolean bharatPeClubMember = false;
 		private Double bureauScore;
 
 
@@ -277,7 +278,15 @@ public class LoanDetailsResponseDTO {
 			this.hasExperian = hasExperian;
 		}
 
-		public Double getBureauScore() {
+		public boolean isBharatPeClubMember() {
+			return bharatPeClubMember;
+		}
+
+		public void setBharatPeClubMember(boolean bharatPeClubMember) {
+			this.bharatPeClubMember = bharatPeClubMember;
+		}
+
+		public Double getBureauScore(){
 			return bureauScore;
 		}
 

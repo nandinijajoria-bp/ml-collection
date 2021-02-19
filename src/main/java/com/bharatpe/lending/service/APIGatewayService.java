@@ -23,6 +23,7 @@ import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -93,6 +94,9 @@ public class APIGatewayService {
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
+
+    @Value("${club.url}")
+    public String BHARATPE_CLUB_URL;
     
     private static String SECRET;
     private static String MID;
@@ -1261,6 +1265,50 @@ public class APIGatewayService {
             }
             retryCount++;
         }
+    }
+
+    public Boolean eligibleForProcessingFee(Long merchantId){
+
+        try{
+            logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchant_id", merchantId);
+            }};
+            String payload = hmacCalculator.getObjectPayload(requestParams);
+            String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("clientName", CLIENT);
+            headers.set("hash", hash);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+
+            logger.info("processing fee redemption eligibility request:{} for merchant:{}", request, merchantId);
+
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+            logger.info("processing fee redemption eligibility response:{} for merchant:{}", responseEntity, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
+                JsonNode response = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
+                if(Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile")) && response.get("data").get("eligibile").asBoolean()){
+                    if(Objects.isNull(response.get("data").get("rewards"))){
+                        return true;
+                    }
+
+                    List<Map> rewards = mapper.convertValue(response.get("data").get("rewards"), List.class);
+                    System.out.println(rewards);
+                    for(Map reward: rewards){
+                        if(Objects.nonNull(reward.get("source_module")) && reward.get("source_module").toString().equals("LOAN")){
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+            }
+        }catch (Exception ex){
+            logger.error("Error occurred while checking processing fee redemption eligibility", ex);
+        }
+
+        return false;
     }
 
     public void sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan){
