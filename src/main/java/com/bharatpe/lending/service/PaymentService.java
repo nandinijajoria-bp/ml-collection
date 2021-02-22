@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -7,10 +8,13 @@ import java.util.concurrent.Executors;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
+import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingClPayment;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.LendingPayoutType;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +81,9 @@ public class PaymentService {
 
 	@Autowired
 	LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
+
+	@Autowired
+	LoanDpdDao loanDpdDao;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
 	
@@ -557,19 +564,95 @@ public class PaymentService {
 		}
 		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
-		notificationExecutor.submit(() -> {
-			sendSMS(activeLoan.getMerchant(), amount, isLoanClosed);
-			apiGatewayService.sendCommunicationForNewOffer(activeLoan);
-		});
+		notificationExecutor.execute(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));
 
 		if(isLoanClosed) {
-			LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
-					.amount(amount)
-					.merchantStoreId(null)
-					.transactionId(activeLoan.getId())
-					.build();
+			notificationExecutor.execute(() -> {
+				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
+						.amount(amount)
+						.merchantStoreId(null)
+						.transactionId(activeLoan.getId())
+						.build();
+				loyaltyService.pushToKafka(requestBean);
+				boolean eligible = apiGatewayService.sendCommunicationForNewOffer(activeLoan);
+				refundProcessingFee(activeLoan, eligible);
+				if (activeLoan.getDueAmount() < 0) {
+					logger.info("Extra amount:{} received for loanId:{}, initiating refund", activeLoan.getDueAmount(), activeLoan.getId());
+					refundExtraAmount(activeLoan);
+				}
+			});
+		}
+	}
 
-			loyaltyService.pushToKafka(requestBean);
+	private void refundExtraAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+		try {
+			logger.info("Refund due amount:{} for loan:{}", lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
+			String orderId = "ECOLLECT_REFUND" + System.currentTimeMillis();
+			Double refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
+			Double principle = -1 * lendingPaymentSchedule.getDuePrinciple();
+			Double interest = -1 * lendingPaymentSchedule.getDueInterest();
+			LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_ECOLLECT_REFUND, lendingPaymentSchedule.getMerchant().getId());
+			LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
+			if (lendingPayoutResponse != null) {
+				String bankRefNo = lendingPayoutResponse.getData() != null ? lendingPayoutResponse.getData().getBankReferenceNo() : null;
+				createRefundLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), "LOAN_REFUND", -refundAmount, -principle, -interest, 0D, 0D, bankRefNo, "REFUND");
+				lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() + refundAmount);
+				lendingPaymentSchedule.setDueInterest(lendingPaymentSchedule.getDueInterest() + interest);
+				lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() + principle);
+				lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+				MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),"ACTIVE");
+				String message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\n\nWe have refunded Rs." + refundAmount + " which was deducted extra against your BharatPe Loan in your " + merchantBankDetail.getBankName() + " bank account.";
+				smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in ECOLLECT Refund for loanId:{}", lendingPaymentSchedule.getId(), e);
+		}
+	}
+
+	public void createRefundLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
+		LendingLedger lendingLedger = new LendingLedger();
+		lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+		if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
+			lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+		}
+		lendingLedger.setLendingPaymentSchedule(lendingPaymentSchedule);
+		lendingLedger.setDate(date);
+		lendingLedger.setTxnType(txnType);
+		lendingLedger.setAmount(amount);
+		lendingLedger.setInterest(interest);
+		lendingLedger.setOtherCharges(otherCharges);
+		lendingLedger.setPenalty(penalty);
+		lendingLedger.setPrinciple(principle);
+		lendingLedger.setDescription(description);
+		lendingLedger.setAdjustmentMode(adjustmentMode);
+		lendingLedgerDao.save(lendingLedger);
+	}
+
+	private void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule, boolean eligible) {
+		try {
+			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
+				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
+				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
+				if (maxDpd.intValue() <= 5 && (dpd >= -5 && dpd <= 5)) {
+					logger.info("Closing dpd is between 5 days for loanId:{}, processing fee refund for amount:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getLoanApplication().getProcessingFee());
+					Double cashbackAmount = lendingPaymentSchedule.getLoanApplication().getProcessingFee();
+					String orderId = "PF_CASHBACK" + System.currentTimeMillis();
+					LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchant().getId());
+					LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
+					if (lendingPayoutResponse != null) {
+						MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),"ACTIVE");
+						String message;
+						if (eligible) {
+							message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\n\nYou have repaid your loan timely. As promised, we have refunded the Arranger Fee of Rs." + cashbackAmount + " in your " + merchantBankDetail.getBankName() + " bank account.\n\nA bigger loan at lower rate of interest is waiting for you. Apply Now! bharatpe.in/loan~";
+						} else {
+							message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\n\nYou have repaid your loan timely. As promised, we have refunded the Arranger Fee of Rs." + cashbackAmount + " in your " + merchantBankDetail.getBankName() + " bank account.";
+						}
+						smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+					}
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Exception in PF Refund for loanId:{}", lendingPaymentSchedule.getId(), e);
 		}
 	}
 

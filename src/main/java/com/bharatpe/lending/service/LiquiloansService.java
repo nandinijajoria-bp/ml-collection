@@ -334,10 +334,10 @@ public class LiquiloansService {
 		executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
 		if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
 			executorService.execute(() -> createGSTInvoice(finalLendingApplication));
-			BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-//			if (bharatPeEnach != null) {
-//				executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
-//			}
+		}
+		BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+		if (bharatPeEnach != null) {
+			executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
 		}
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchant().getId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
 		executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
@@ -363,9 +363,14 @@ public class LiquiloansService {
 	private void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
 		logger.info("Enach success on loanId:{}, processing Rs.100 cashback for merchant:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchant().getId());
 		Double cashbackAmount = 100D;
-		String orderId = "LENDINGPF" + System.currentTimeMillis();
+		String orderId = "NACH_CASHBACK" + System.currentTimeMillis();
 		LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchant().getId());
-		apiGatewayService.lendingPayout(lendingPayoutRequest);
+		LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
+		if (lendingPayoutResponse != null) {
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(), "ACTIVE");
+			String message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\nCongratulations !! BharatPe have credited Cashback of Rs.100 in your Bank A/C for registering mandatory ENACH against your Loan Application.\nHappy Selling!";
+			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+		}
 	}
 
 	private void createGSTInvoice(LendingApplication lendingApplication) {
@@ -460,10 +465,8 @@ public class LiquiloansService {
 					add(lendingApplication.getMerchant().getMobile());
 				}}, null);
 			}
-
 			String postInstructionSms = "Dear "+merchantBankDetail.getBeneficiaryName()+", \nCongratulations on getting a Rs. "+ lendingApplication.getDisbursalAmount() +" loan from BharatPe.  Please read instructions on repaying your loan -Your Daily instalment is Rs "+lendingApplication.getEdi()+" which you have to pay every day for next "+lendingPaymentSchedule.getEdiCount()+" days. Sunday is an EDI holiday.\n\n-BharatPe";
 			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, postInstructionSms, NotificationProvider.SMS.GUPSHUP);
-
 			redisNotificationService.sendNotificationForPostDisbursalInstruction(lendingApplication);
 		} catch (Exception e) {
 			logger.error("Exception while sending disbursal sms---", e);

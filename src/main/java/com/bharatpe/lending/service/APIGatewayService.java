@@ -1311,14 +1311,13 @@ public class APIGatewayService {
         return false;
     }
 
-    public void sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan){
-
+    public boolean sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan){
         if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())){
             logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchant().getId());
             TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(activeLoan.getMerchant().getId());
             if (tokenVerification == null) {
                 logger.info("Token not found for merchant:{}", activeLoan.getMerchant().getId());
-                return;
+                return false;
             }
             try {
                 Map<String, Object> body = new HashMap<>();
@@ -1333,11 +1332,13 @@ public class APIGatewayService {
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getDetails() != null && responseEntity.getBody().getDetails().isEligible() && responseEntity.getBody().getDetails().getEligibility() != null && !responseEntity.getBody().getDetails().getEligibility().isEmpty()) {
                     logger.info("Eligibility found from Lending for merchant:{}", activeLoan.getMerchant().getId());
                     sendComm(activeLoan.getMerchant().getId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getEdi());
+                    return true;
                 }
             } catch (Exception e) {
                 logger.error("Unable to call loan details api for merchant:{}", activeLoan.getMerchant().getId(), e);
             }
         }
+        return false;
     }
 
     private void sendComm(Long merchantId, Integer amount, Integer edi) {

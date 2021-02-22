@@ -54,7 +54,7 @@ public class RefundService {
                     lendingPaymentSchedule.setDuePrinciple(0D);
                     lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                 }
-            } else if (lendingPaymentSchedule.getDueAmount() < 0D) {
+            } else if (lendingPaymentSchedule.getDueAmount() < 0D && lendingPaymentSchedule.getStatus().equals("CLOSED")) {
                 logger.info("Refund due amount:{} for loan:{}",lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
                 String orderId = "NACH_REFUND" + System.currentTimeMillis();
                 Double refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
