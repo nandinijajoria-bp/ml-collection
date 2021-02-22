@@ -205,17 +205,15 @@ public class SupportService {
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if (ObjectUtils.isEmpty(lendingApplicationPriority) && !ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 logger.info("Application priority not found for merchantId: {}, applicationId: {}", merchantId, lendingApplication.getId());
-                if ("NTB".equalsIgnoreCase(loanType) || "OGL".equalsIgnoreCase(loanType) || "BHARAT_SWIPE".equalsIgnoreCase(loanType) || ("REGULAR".equalsIgnoreCase(loanType) && 50000D > lendingApplication.getLoanAmount())) {
-                    logger.info("Application found with loan type: {}, and loan amount: {}, for merchantId: {}, and applicationId: {}", loanType, lendingApplication.getLoanAmount(), merchantId, lendingApplication.getId());
-                    supportLoanResponseDTO.setApplicationStatus(SupportConstants.ENACH_PENDING);
-                    supportLoanResponseDTO.setMessage(SupportConstants.ENACH_PENDING_MESSAGE);
-                    supportLoanResponseDTO.setConditionalMessage("NA");
-                    nachMandatory = Boolean.TRUE;
-                }
+                logger.info("Application found with loan type: {}, and loan amount: {}, for merchantId: {}, and applicationId: {}", loanType, lendingApplication.getLoanAmount(), merchantId, lendingApplication.getId());
+                supportLoanResponseDTO.setApplicationStatus(SupportConstants.ENACH_PENDING);
+                supportLoanResponseDTO.setMessage(SupportConstants.ENACH_PENDING_MESSAGE);
+                supportLoanResponseDTO.setConditionalMessage("NA");
+                nachMandatory = Boolean.TRUE;
             }
 
             boolean isLowPriority = lendingApplicationPriority != null && (ObjectUtils.isEmpty(lendingApplicationPriority) || lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
-            logger.info("Application found in low priority stage: {}", isLowPriority);
+            logger.info("Application priority is: {}, applicationId: {}, merchantId: {}", isLowPriority, lendingApplication.getId(), merchantId);
 
             supportLoanResponseDTO.setNachMandatory(nachMandatory);
             if (nachMandatory) {
