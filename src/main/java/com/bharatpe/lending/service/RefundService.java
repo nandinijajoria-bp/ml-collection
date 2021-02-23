@@ -43,7 +43,7 @@ public class RefundService {
                 logger.info("Refund paid amount:{} for inactive loan:{}",lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getId());
                 String orderId = "INACTIVE_REFUND" + System.currentTimeMillis();
                 Double refundAmount = lendingPaymentSchedule.getPaidAmount();
-                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId());
+                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "NACH_REFUND");
                 LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
                 if (lendingPayoutResponse != null) {
                     success = true;
@@ -60,7 +60,7 @@ public class RefundService {
                 Double refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
                 Double principle = -1 * lendingPaymentSchedule.getDuePrinciple();
                 Double interest = -1 * lendingPaymentSchedule.getDueInterest();
-                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId());
+                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "NACH_REFUND");
                 LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
                 if (lendingPayoutResponse != null) {
                     success = true;

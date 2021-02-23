@@ -1359,6 +1359,7 @@ public class APIGatewayService {
             put("payment_txn_id", lendingPayoutRequest.getPaymentTxnId());
             put("merchant_id", lendingPayoutRequest.getMerchantId());
             put("merchant_store_id", lendingPayoutRequest.getMerchantStoreId());
+            put("message", lendingPayoutRequest.getMessage());
         }};
         String payload = hmacCalculator.getObjectPayload(requestBody);
         String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());

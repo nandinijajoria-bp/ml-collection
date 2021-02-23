@@ -152,6 +152,9 @@ public class LendingApplicationService {
 	@Autowired
 	LoanUtil loanUtil;
 
+	@Autowired
+	DocKycDetailsDao docKycDetailsDao;
+
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
 		LendingApplication lendingApplication=null;
@@ -370,8 +373,41 @@ public class LendingApplicationService {
 			if (!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
 				toSaveDocuments.setLongitude(meta.getLongitude());
 			toSaveDocuments.setIp(meta.getIp());
-			documentsIdProofDao.save(toSaveDocuments);
+			toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
+			DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestEAdharDetails(merchant.getId());
+			if (docKycDetails != null) {
+				insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
+			}
 		}
+	}
+
+	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {
+		DocKycDetails docKycDetails = new DocKycDetails();
+
+		docKycDetails.setMerchant(oldDocKycDetails.getMerchant());
+		docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
+		docKycDetails.setDocumentsIdProof(documentsIdProof);
+		docKycDetails.setDocType(documentsIdProof.getProofType());
+		docKycDetails.setQr(oldDocKycDetails.getQr());
+		docKycDetails.setPersonName(oldDocKycDetails.getPersonName());
+		docKycDetails.setDob(oldDocKycDetails.getDob());
+		docKycDetails.setGender(oldDocKycDetails.getGender());
+		docKycDetails.setFatherName(oldDocKycDetails.getFatherName());
+		docKycDetails.setYob(oldDocKycDetails.getYob());
+		docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
+		docKycDetails.setMotherName(oldDocKycDetails.getMotherName());
+		docKycDetails.setAddress(oldDocKycDetails.getAddress());
+		docKycDetails.setCity(oldDocKycDetails.getCity());
+		docKycDetails.setState(oldDocKycDetails.getState());
+		docKycDetails.setPincode(oldDocKycDetails.getPincode());
+		docKycDetails.setCountryCode(oldDocKycDetails.getCountryCode());
+		docKycDetails.setResponse(oldDocKycDetails.getResponse());
+		docKycDetails.setStatus("pending_verification");
+		docKycDetails.setModule(oldDocKycDetails.getModule());
+		docKycDetails.setMode(oldDocKycDetails.getMode());
+
+		docKycDetailsDao.save(docKycDetails);
+		return docKycDetails;
 	}
 
 	private String uploadDocumentInLending(String frontUrl, Long merchantId, String bucket) {

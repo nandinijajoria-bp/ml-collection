@@ -164,7 +164,8 @@ public class VerifyOTPService {
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchant.getId());
-		if (openApplication != null) {
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+		if (openApplication != null || activeLoan != null) {
 			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
 			lendingApplication.setStatus("deleted");
 			lendingApplicationDao.save(lendingApplication);

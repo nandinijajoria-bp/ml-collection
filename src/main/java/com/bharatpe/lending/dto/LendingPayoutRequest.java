@@ -23,12 +23,14 @@ public class LendingPayoutRequest {
     private Long paymentTxnId;
     private Long merchantId;
     private Long merchantStoreId;
+    private String message;
 
-    public LendingPayoutRequest(Long ownerId, String orderId, Double amount, LendingPayoutType txnType, Long merchantId) {
+    public LendingPayoutRequest(Long ownerId, String orderId, Double amount, LendingPayoutType txnType, Long merchantId, String message) {
         this.ownerId = ownerId;
         this.orderId = orderId;
         this.amount = amount;
         this.txnType = txnType;
         this.merchantId = merchantId;
+        this.message = message;
     }
 }
