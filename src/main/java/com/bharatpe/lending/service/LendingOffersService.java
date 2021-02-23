@@ -122,9 +122,10 @@ public class LendingOffersService {
 	public CommonResponse checkCoolOffPeriod(Merchant merchant, CoolOffRequestDTO requestDTO) {
 		try {
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
 			boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
-			if (experian != null) {
-				logger.info("Pancard already exist for merchant:{}", merchant.getId());
+			if (experian != null || activeLoan != null) {
+				logger.info("Pancard/Active Loan already exist for merchant:{}", merchant.getId());
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(true, false, null, null);
 				return new CommonResponse(true, "success", responseDTO);
 			}
