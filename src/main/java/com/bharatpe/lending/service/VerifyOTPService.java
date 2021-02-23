@@ -253,15 +253,15 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-
+		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
 
 		if (lendingApplication.getLoanAmount() <= 200000)
 			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
-		if (enachSuccess != null || (lendingApplication.getLoanType().equals("REGULAR") && lendingApplication.getLoanAmount() >= 50000 && lendingApplication.getPincode() != null && loanUtil.isCpvCity(lendingApplication.getPincode().intValue()))) {
-			logger.info("Checking priority for Regular application:{} in cpv city with amount>=50k", lendingApplication.getId());
-			apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-		}
+//		if (enachSuccess != null || (lendingApplication.getLoanType().equals("REGULAR") && lendingApplication.getLoanAmount() >= 50000 && lendingApplication.getPincode() != null && loanUtil.isCpvCity(lendingApplication.getPincode().intValue()))) {
+//			logger.info("Checking priority for Regular application:{} in cpv city with amount>=50k", lendingApplication.getId());
+//			apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+//		}
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
@@ -278,6 +278,20 @@ public class VerifyOTPService {
 		}
 		catch(Exception e) {
 			logger.error("Error occured while pushing to topic find_lat_long",e);
+		}
+	}
+
+	public void sendPennyDrop(Long merchantId,Long applicationId){
+		try {
+			Map<String,Long> detailMap = new HashMap<String, Long>(){{
+				put("merchantId", merchantId);
+				put("applicationId",applicationId);
+			}};
+			kafkaTemplate.send("check_pennydrop", merchantId.toString(), detailMap);
+			logger.info("Pushed "+detailMap+" to topic check_pennydrop");
+		}
+		catch(Exception e) {
+			logger.error("Error occured while pushing to topic check_pennydrop",e);
 		}
 	}
 	

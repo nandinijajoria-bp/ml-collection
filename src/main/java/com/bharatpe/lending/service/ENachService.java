@@ -4,7 +4,9 @@ import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
+import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.common.entity.LendingPennydrop;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
@@ -43,6 +45,9 @@ public class ENachService {
 
     @Autowired
     EnachErrorHandingService enachErrorHandingService;
+
+    @Autowired
+    LendingPennydropDao lendingPennydropDao;
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -94,7 +99,10 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            if (lendingPennydrop == null) {
+                apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            }
         }
 
         apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider());
@@ -171,7 +179,10 @@ public class ENachService {
         }
         lendingEnach.setSkip(true);
         bharatPeEnachDao.save(lendingEnach);
-        apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+        LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+        if (lendingPennydrop == null) {
+            apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+        }
         return new ResponseDTO(true, null, null);
     }
 

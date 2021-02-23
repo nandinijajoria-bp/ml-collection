@@ -4,7 +4,9 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
+import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.common.entity.LendingPennydrop;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -51,6 +53,9 @@ public class FosService {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    LendingPennydropDao lendingPennydropDao;
 
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null);
@@ -368,7 +373,10 @@ public class FosService {
             BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchantId,applicationId);
             if(bharatPeEnach != null && !bharatPeEnach.getSuccess()){
                 bharatPeEnach.setSkip(Boolean.TRUE);
-                apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                if (lendingPennydrop == null) {
+                    apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                }
                 bharatPeEnachDao.save(bharatPeEnach);
             }
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
