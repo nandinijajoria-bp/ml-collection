@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
+import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -154,6 +155,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
+
+	@Autowired
+	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -348,7 +352,15 @@ public class LendingApplicationService {
 				if (!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
 					toSaveDocuments.setLongitude(meta.getLongitude());
 				toSaveDocuments.setIp(meta.getIp());
-				documentsIdProofDao.save(toSaveDocuments);
+				toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
+				if (toSaveDocuments.getProofType().equalsIgnoreCase("e_aadhaar")) {
+					toSaveDocuments.setProofType("eAadhar");
+					toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
+					List<MerchantDocumentProofOcr> merchantDocumentProofOcrs = merchantDocumentProofOcrDao.findByDocumentId(documentsIdProof.getId());
+					if (!merchantDocumentProofOcrs.isEmpty()) {
+						insertIntoDocKycDetails(merchantDocumentProofOcrs.get(0), toSaveDocuments);
+					}
+				}
 			} catch (Exception e) {
 				logger.info("Exception while replicating doc for merchant:{}", merchant.getId(), e);
 			}
@@ -406,6 +418,26 @@ public class LendingApplicationService {
 		docKycDetails.setModule(oldDocKycDetails.getModule());
 		docKycDetails.setMode(oldDocKycDetails.getMode());
 
+		docKycDetailsDao.save(docKycDetails);
+		return docKycDetails;
+	}
+
+	private DocKycDetails insertIntoDocKycDetails(MerchantDocumentProofOcr merchantDocumentProofOcr, DocumentsIdProof documentsIdProof) {
+		DocKycDetails docKycDetails = new DocKycDetails();
+		docKycDetails.setMerchant(documentsIdProof.getMerchant());
+		docKycDetails.setDocumentsIdProof(documentsIdProof);
+		docKycDetails.setDocType(documentsIdProof.getProofType());
+		docKycDetails.setPersonName(merchantDocumentProofOcr.getName());
+		docKycDetails.setDob(merchantDocumentProofOcr.getDob());
+		docKycDetails.setGender(merchantDocumentProofOcr.getGender());
+		docKycDetails.setFatherName(merchantDocumentProofOcr.getFatherName());
+		docKycDetails.setMotherName(merchantDocumentProofOcr.getMotherName());
+		docKycDetails.setAddress(merchantDocumentProofOcr.getAddress());
+		docKycDetails.setCity(merchantDocumentProofOcr.getCity());
+		docKycDetails.setState(merchantDocumentProofOcr.getState());
+		docKycDetails.setPincode(merchantDocumentProofOcr.getPincode() != null ? Integer.valueOf(merchantDocumentProofOcr.getPincode()) : null);
+		docKycDetails.setStatus("pending_verification");
+		docKycDetails.setModule("LENDING");
 		docKycDetailsDao.save(docKycDetails);
 		return docKycDetails;
 	}
