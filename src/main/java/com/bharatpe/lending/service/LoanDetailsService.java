@@ -636,20 +636,26 @@ public class LoanDetailsService {
 					try {
 						logger.info("repeatLoanGlobalCheck success for merchant:{}", merchant.getId());
 						LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
-						List<LoanEligibilityDTO> removeList = new ArrayList<>();
-						for (LoanEligibilityDTO loanEligibilityDTO : loanEligibilityDTOs) {
-							if (loanEligibilityDTO.getAmount().doubleValue() > lendingPaymentSchedule.getLoanAmount()) {
-								removeList.add(loanEligibilityDTO);
+
+						if (lendingPaymentSchedule.getLoanAmount() >= 10000) {
+
+							List<LoanEligibilityDTO> removeList = new ArrayList<>();
+							for (LoanEligibilityDTO loanEligibilityDTO : loanEligibilityDTOs) {
+								if (loanEligibilityDTO.getAmount().doubleValue() > lendingPaymentSchedule.getLoanAmount()) {
+									removeList.add(loanEligibilityDTO);
+								}
 							}
+							if (!removeList.isEmpty()) {
+								loanEligibilityDTOs.removeAll(removeList);
+								LendingCategories lendingCategories = lendingCategoryDao.getByCategory(removeList.get(0).getCategory());
+								loanEligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, removeList.get(0).getType(), merchant.getId(), experian.getId(), lendingPaymentSchedule.getLoanAmount(), experian.getColor(), null, removeList.get(0).getLoanType(), false, yellowPincode));
+							}
+						}else {
+							loanEligibilityDTOs.clear();
 						}
-						if(!removeList.isEmpty()){
-							loanEligibilityDTOs.removeAll(removeList);
-							LendingCategories lendingCategories = lendingCategoryDao.getByCategory(removeList.get(0).getCategory());
-							loanEligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, removeList.get(0).getType(), merchant.getId(), experian.getId(), lendingPaymentSchedule.getLoanAmount(), experian.getColor(), null, removeList.get(0).getLoanType(), false, yellowPincode));
+						}catch(Exception ex){
+							logger.error("Error on repeatLoanGlobalCheck merchant_id: {}  Er:{}", merchant.getId(), ex);
 						}
-					}catch (Exception ex){
-						logger.error("Error on repeatLoanGlobalCheck merchant_id: {}  Er:{}", merchant.getId(), ex);
-					}
 				}
 				loanEligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
 
