@@ -628,6 +628,25 @@ public class LoanDetailsService {
 						}
 					}
 				}
+
+				if(!loanEligibilityDTOs.isEmpty() && repeatLoanGlobalCheck(merchant)){
+					try {
+						logger.info("repeatLoanGlobalCheck success for merchant:{}", merchant.getId());
+						LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+						Iterator<LoanEligibilityDTO> it = loanEligibilityDTOs.iterator();
+						while (it.hasNext()) {
+							LoanEligibilityDTO tempLoanEligibilityDTO = it.next();
+							if (tempLoanEligibilityDTO.getAmount().doubleValue() > lendingPaymentSchedule.getLoanAmount()) {
+								LendingCategories lendingCategories = lendingCategoryDao.getByCategory(tempLoanEligibilityDTO.getCategory());
+								loanEligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, tempLoanEligibilityDTO.getType(), merchant.getId(), experian.getId(), lendingPaymentSchedule.getLoanAmount(), experian.getColor(), null, tempLoanEligibilityDTO.getLoanType(), false, yellowPincode));
+								it.remove();
+							}
+						}
+					}catch (Exception ex){
+						logger.error("Error on repeatLoanGlobalCheck merchant_id: {}  Er:{}", merchant.getId(), ex);
+					}
+				}
+
 				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.getByPancardOrMerchanIdOrMobileNumber(experian.getPancardNumber(), merchant.getId(), merchant.getMobile());
 				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
 				if (!exemptMerchant.contains(merchant.getId()) && lendingBlockedPancard != null) {
@@ -806,6 +825,31 @@ public class LoanDetailsService {
 			return !cpvCity || amount < 50000;
 		}
 
+		return false;
+	}
+
+
+	public boolean repeatLoanGlobalCheck(Merchant merchant){
+
+		try {
+			logger.info("Checking repeat loan closure less than 65% for merchant:{}", merchant.getId());
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+			if(Objects.nonNull(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
+				Integer ledger = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
+				if (Objects.nonNull(ledger)) {
+
+					int totalEdis = lendingPaymentSchedule.getEdiCount();
+					int onTimePaymentPercentage = 0;
+					if (totalEdis != 0) {
+						onTimePaymentPercentage = (ledger * 100) / totalEdis;
+
+						return onTimePaymentPercentage <= 65;
+					}
+				}
+			}
+		}catch (Exception ex){
+			logger.error("Error Occurred while checking repeatLoanGlobalCheck for merchantId: {}, Er :{}", merchant.getId(), ex);
+		}
 		return false;
 	}
 

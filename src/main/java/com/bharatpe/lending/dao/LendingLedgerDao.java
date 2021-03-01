@@ -28,6 +28,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
 	 List<LendingLedger> findByMerchantIdOrderByDateDesc(Long id);
 
     List<LendingLedger> findByLendingPaymentScheduleOrderByDateAscAmountAsc(LendingPaymentSchedule lendingPaymentSchedule);
-    
-    
+
+    @Query(value = "select count(ll.id) from lending_ledger ll where ll.loan_id=:lpsId and ll.amount>=:ediAmount", nativeQuery = true)
+    Integer findLedgerCountOnAmountGreaterThanEdiAmount(Long lpsId, Double ediAmount);
 }
