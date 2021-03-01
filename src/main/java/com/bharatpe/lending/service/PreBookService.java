@@ -8,6 +8,7 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.PreBookResponseDTO;
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,7 @@ public class PreBookService {
     MerchantBankDetailDao merchantBankDetailDao;
 
     @Autowired
-    GupShupOTPHandler gupShupOTPHandler;
+    BharatPeOtpHandler bharatPeOtpHandler;
 
     private final String DEEP_LINK = "bharatpe://dynamic?key=loan";
 
@@ -49,8 +50,8 @@ public class PreBookService {
         return new PreBookResponseDTO(merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), lendingApplication.getLoanAmount(), lendingApplication.getEdi(), null);
     }
 
-    public PreBookResponseDTO verifyOTP(Merchant merchant, String otp) {
-        Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
+    public PreBookResponseDTO verifyOTP(Merchant merchant, String otp, String uuid) {
+        Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp,uuid);
         LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
         if (lendingPrebookLoans == null) {
             return new PreBookResponseDTO(false, "Merchant not applicable for pre book loan");

@@ -2,10 +2,12 @@ package com.bharatpe.lending.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,7 +95,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao ;
 	
 	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
+	BharatPeOtpHandler bharatPeOtpHandler;
 	
 	@Autowired
 	LendingApplicationService lendingApplicationService;
@@ -384,10 +386,15 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 		String mobileString = mobile.toString();
 		if(mobileString.length() == 12) {
 			String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobileString, message);
+			Map<String, Object> response = new HashMap<String, Object>();
+			response= bharatPeOtpHandler.sendOtp(mobileString, message);
+			Boolean isOTPSent = (Boolean) response.get("success");
+			String uuid = (String) response.get("uuid");
+			logger.info("OTP sent on mobile: {} ", uuid);
 			if(isOTPSent) {
 				finalResponse.put("success",true);
 				finalResponse.put("otp_flow",true);
+				finalResponse.put("uuid",uuid);
 			}
 		}
 		return finalResponse;

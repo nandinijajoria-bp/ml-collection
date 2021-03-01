@@ -11,6 +11,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -38,6 +39,9 @@ public class LendingApplicationService {
 	
 	@Autowired
 	LendingCitiesDao lendingCitiesDao;
+
+	@Autowired
+	BharatPeOtpHandler bharatPeOtpHandler;
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
@@ -808,15 +812,20 @@ public class LendingApplicationService {
 	}
 
 	public ResponseDTO sendOtp(Merchant merchant) {
-		String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
+		String message = "BharatPe: {otp} is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+		Map<String, Object> response = new HashMap<String, Object>();
+		response= bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+		Boolean otp = (Boolean) response.get("success");
+		String uuid = (String) response.get("uuid");
+		logger.info("OTP sent on mobile: {} ", uuid);
+
 		if (otp) {
 			logger.info("OTP sent on mobile: {} for merchant: {}", merchant.getMobile(), merchant.getId());
-			ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+			ResponseDTO responseDTO = new ResponseDTO(true, null, null,uuid);
 			responseDTO.setMobile(merchant.getMobile());
 			return responseDTO;
 		}
-		return new ResponseDTO(false, "Unable to send otp", null);
+		return new ResponseDTO(false, "Unable to send otp", null,uuid);
 	}
 
 	public TncDto getTnc(Merchant merchant, long applicationId) {
@@ -1711,7 +1720,7 @@ public class LendingApplicationService {
 	}
 
 	public ResponseDTO fosLoan(Long merchantId) {
-		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
 		Map<String,Object> data= new HashMap<>();
 		data.put("rejected",Boolean.FALSE);
 		data.put("merchantId",merchantId.toString());
@@ -1820,7 +1829,7 @@ public class LendingApplicationService {
 	}
 
 	public ResponseDTO fosnewLoan(Long merchantId) {
-		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
 		Map<String,Object> data= new HashMap<>();
 		Map<String,Object> loanData= new HashMap<>();
 		Map<String,Object> details= new HashMap<>();
@@ -2257,7 +2266,7 @@ public class LendingApplicationService {
 	}
 
 	public ResponseDTO bankAccountChange(Long merchantId) {
-		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
 		try{
 			Map<String, Object> data = new HashMap<>();
 			Optional<Merchant> merchant = merchantDao.findById(merchantId);

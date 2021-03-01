@@ -9,6 +9,16 @@ public class ResponseDTO {
 
     private boolean success;
 
+    public String getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
+    }
+
+    private String uuid;
+
     private String message;
 
     private Object data;
@@ -24,10 +34,11 @@ public class ResponseDTO {
         this.message = message;
     }
 
-    public ResponseDTO(boolean success, String message, List<String> maskedMobiles) {
+    public ResponseDTO(boolean success, String message, List<String> maskedMobiles, String uuid) {
         this.success = success;
         this.message = message;
         this.maskedMobiles = maskedMobiles;
+        this.uuid = uuid;
     }
 
     public ResponseDTO() {

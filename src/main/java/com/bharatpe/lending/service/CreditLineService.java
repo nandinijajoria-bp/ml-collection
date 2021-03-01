@@ -18,6 +18,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.CreditLineRepaymentHistoryResponseDto.Repayment;
 import com.bharatpe.lending.dto.DailySettlementResponseDto.DailyRepayment;
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -68,7 +69,7 @@ public class CreditLineService {
 	CreditLineCategoriesDao creditLineCategoriesDao;
 
 	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
+	BharatPeOtpHandler bharatPeOtpHandler;
 
 	@Autowired
 	LendingClTransactionDao lendingClTransactionDao;
@@ -161,7 +162,7 @@ public class CreditLineService {
 		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
 		if (creditLineMerchant == null) {
 			logger.error("Merchant:{} not applicable for credit line", merchant.getId());
-			return new ResponseDTO(false,"Merchant not applicable for credit line", null);
+			return new ResponseDTO(false,"Merchant not applicable for credit line", null,null);
 		}
 		
 		if(request.getApplicationId()!=null){
@@ -175,14 +176,14 @@ public class CreditLineService {
 				if(optionalCreditApplication==null || !optionalCreditApplication.isPresent()){
 					
 					logger.warn("Credit application not found for the application id {}",request.getApplicationId());
-					return new ResponseDTO(false,"No loan application found for the requested application id", null);
+					return new ResponseDTO(false,"No loan application found for the requested application id", null,null);
 				
 				}
 				
 				CreditApplication creditApplication=optionalCreditApplication.get();
 				if(creditApplication.getAccountCreated()) {
 					logger.info("Credit account already exists");
-					return new ResponseDTO(true,"Successful",null);
+					return new ResponseDTO(true,"Successful",null,null);
 				}
 				
 				logger.info("Fetching segment detail from experian table");
@@ -236,13 +237,13 @@ public class CreditLineService {
 					
 					sendActivationNotification(creditApplication, merchant);
 					redisNotificationService.sendPromotionalNotificationForCreditLine(merchant,creditAccount);
-					return new ResponseDTO(true,"Successful",null);
+					return new ResponseDTO(true,"Successful",null,null);
 				}
 				else {
 					
 					logger.error("Experian details or segment details not found");
 					
-					return new ResponseDTO(false,"Experian details not found",null);
+					return new ResponseDTO(false,"Experian details not found",null,null);
 				}
 				
 				
@@ -250,13 +251,13 @@ public class CreditLineService {
 			catch(Exception e) {
 				
 				logger.error("Error occured while creating new credit line account",e);
-				return new ResponseDTO(false,"Eroor occured while creating credit account",null);
+				return new ResponseDTO(false,"Eroor occured while creating credit account",null,null);
 			}
 			
 		}
 		else {
 			logger.error("Application id is absent in the request body");
-			return new ResponseDTO(false,"Application id missing from the request body", null);
+			return new ResponseDTO(false,"Application id missing from the request body", null,null);
 		}
 	}
 	
@@ -378,7 +379,7 @@ public class CreditLineService {
 		if (!validateSpendVerifyRequest(paymentRequest)) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid request");
 		}
-		if (!gupShupOTPHandler.verifyOTP(merchant.getMobile(), requestDTO.getOtp())) {
+		if (!bharatPeOtpHandler.verifyOtp(merchant.getMobile(), requestDTO.getOtp(), requestDTO.getUuid())) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
 		}
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
@@ -688,10 +689,16 @@ public class CreditLineService {
 		lendingClTransactionRequestDao.updateLoanTypeAndTenure(requestDTO.getLoanType(), requestDTO.getTenure(), paymentRequest.getId());
 		String hash = requestDTO.getAppHash() != null ? requestDTO.getAppHash() : "yltNeplA2JJ";
 		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
-		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
+		Map<String, Object> response = new HashMap<String, Object>();
+		response= bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+		Boolean otp = (Boolean) response.get("success");
+		String uuid = (String) response.get("uuid");
+		logger.info("OTP sent on mobile: {} ", uuid);
 		if (otp) {
 			CreditSpendResponseDTO responseDTO = new CreditSpendResponseDTO();
 			responseDTO.setAuthentication("OTP");
+			responseDTO.setUuid(uuid);
+			logger.info("verifyOTP response : {}", responseDTO);
 			return responseDTO;
 		} else {
 			return new CreditSpendResponseDTO(false, "Unable to send OTP");

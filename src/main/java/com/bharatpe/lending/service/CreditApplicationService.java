@@ -4,12 +4,11 @@ package com.bharatpe.lending.service;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,7 +79,7 @@ public class CreditApplicationService {
 	EligibleLoanDao eligibleLoanDao;
 	
 	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
+	BharatPeOtpHandler bharatPeOtpHandler;
 
 	@Value("${experian.enable:true}")
 	Boolean EXPERIAN_ENABLED;
@@ -364,15 +363,19 @@ public class CreditApplicationService {
 	}
 	
 	public ResponseDTO sendOtp(Merchant merchant) {
-		String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-		Boolean otp = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
+		String message = "BharatPe: {otp} is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+		Map<String, Object> response = new HashMap<String, Object>();
+		response= bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+		Boolean otp = (Boolean) response.get("success");
+		String uuid = (String) response.get("uuid");
+		logger.info("OTP sent on mobile: {} ", uuid);
 		if (otp) {
 			logger.info("OTP sent on mobile: {} for merchant: {}", merchant.getMobile(), merchant.getId());
-			ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+			ResponseDTO responseDTO = new ResponseDTO(true, null, null,uuid);
 			responseDTO.setMobile(merchant.getMobile());
 			return responseDTO;
 		}
-		return new ResponseDTO(false, "Unable to send otp", null);
+		return new ResponseDTO(false, "Unable to send otp", null,uuid);
 	}
 
 	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {

@@ -21,7 +21,7 @@ public class GupShupOTPHandler {
 	RestTemplate restTemplate;
 
 	public Boolean sendOTP(String mobile, String message) {
-		Boolean responseFlag = false;
+Boolean responseFlag = false;
 
 		Map<String, String> urlParams = new LinkedHashMap<>();
 		urlParams.put("userId", LendingConstants.GUPSHUP_OTP_API_USERID);

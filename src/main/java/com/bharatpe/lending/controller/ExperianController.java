@@ -28,33 +28,33 @@ public class ExperianController {
             return new ResponseEntity<>(experianService.updateDetails(experianDetailsDTO, merchant.getId(), merchant.getMobile()),HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception while updating experian details---", e);
-            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null,null), HttpStatus.OK);
         }
     }
 
     @RequestMapping(value="/sendOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
     public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant, @RequestBody SendOtpDTO requestDTO) {
         if (requestDTO.getMobile() == null) {
-            return new ResponseEntity<>(new ResponseDTO(false, "Invalid Request", null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(false, "Invalid Request", null,null), HttpStatus.OK);
         }
         try {
             return new ResponseEntity<>(experianService.sendOtp(requestDTO.getMobile(), merchant),HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception while sending otp---", e);
-            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null,null), HttpStatus.OK);
         }
     }
 
     @RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
     public ResponseEntity<ResponseDTO> verifyOTP(@RequestAttribute Merchant merchant, @RequestBody SendOtpDTO requestDTO) {
         if (requestDTO.getMobile() == null || requestDTO.getOtp() == null) {
-            return new ResponseEntity<>(new ResponseDTO(false, "Invalid Request", null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(false, "Invalid Request", null,null), HttpStatus.OK);
         }
         try {
             return new ResponseEntity<>(experianService.verifyOtp(requestDTO.getMobile(), merchant, requestDTO.getOtp(), requestDTO.isRetry()),HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception while sending otp---", e);
-            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null,null), HttpStatus.OK);
         }
     }
 }

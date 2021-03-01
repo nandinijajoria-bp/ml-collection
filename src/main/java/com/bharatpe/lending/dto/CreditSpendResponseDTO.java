@@ -15,6 +15,8 @@ public class CreditSpendResponseDTO {
 
     private boolean success = true;
 
+    private String uuid;
+
     private String message;
 
     private Long requestId;
@@ -156,7 +158,15 @@ public class CreditSpendResponseDTO {
 		this.availableCl = availableCl;
 	}
 
-	@Override
+    public String getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
+    }
+
+    @Override
     public String toString() {
         return "CreditSpendResponseDTO{" +
                 "success=" + success +

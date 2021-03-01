@@ -189,7 +189,7 @@ public class BPEnachService {
         BpEnach bpEnach = bpEnachDao.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         if (bpEnachSkip == null) {
-            return new ResponseDTO(false, "Loan Application not found", null);
+            return new ResponseDTO(false, "Loan Application not found", null,null);
         }
 
         bpEnachSkip.setSkip(true);
@@ -197,7 +197,7 @@ public class BPEnachService {
         bpEnachSkip.setMerchantStoreId(bpEnach.getMerchantStoreId());
         bpEnachSkip.setReferenceNumber(referenceNumber);
         bpEnachSkipDao.save(bpEnachSkip);
-        return new ResponseDTO(true, null, null);
+        return new ResponseDTO(true, null, null,null);
 
     }
 

@@ -280,7 +280,7 @@ public class CreditENachService {
     public ResponseDTO setEnachSkipStatus(Merchant merchant){
     	CreditApplication creditApplication = creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if (creditApplication == null) {
-            return new ResponseDTO(false, "Loan Application not found", null);
+            return new ResponseDTO(false, "Loan Application not found", null,null);
         }
         LendingClEnach lendingClEnach= lendingClEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), creditApplication.getId());
         if(lendingClEnach == null) {
@@ -290,7 +290,7 @@ public class CreditENachService {
         }
         lendingClEnach.setSkip(true);
         lendingClEnachDao.save(lendingClEnach);
-        return new ResponseDTO(true, null, null);
+        return new ResponseDTO(true, null, null,null);
     }
 
     // check if bank is supported or not

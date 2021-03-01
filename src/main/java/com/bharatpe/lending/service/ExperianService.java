@@ -73,7 +73,7 @@ public class ExperianService {
     public ResponseDTO updateDetails(ExperianDetailsDTO experianDetailsDTO, Long merchantId, String contact) {
         Experian experian = experianDao.getByMerchantId(merchantId);
         if (!validateRequest(experianDetailsDTO) || experian == null) {
-            return new ResponseDTO(false, "Invalid request", null);
+            return new ResponseDTO(false, "Invalid request", null,null);
         }
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
@@ -94,7 +94,7 @@ public class ExperianService {
         } catch (Exception e) {
             experianResponse = null;
             if (!experianDetailsDTO.isRetry()) {
-                return new ResponseDTO(false, "timeout", null);
+                return new ResponseDTO(false, "timeout", null,null);
             }
         }
         experianDetailsDao.deleteByMerchantId(merchantId);
@@ -104,13 +104,9 @@ public class ExperianService {
             experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             experianDao.save(experian);
             loanUtil.auditExperian(experian);
-            return new ResponseDTO(true, null, null);
-        }
-//        else if (!maskedMobiles.isEmpty()){
-//            return new ResponseDTO(false, null, null);
-//        }
-        else {
-            ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+            return new ResponseDTO(true, null, null,null);
+        } else {
+            ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
             responseDTO.setCrif(true);
             return responseDTO;
         }
@@ -240,7 +236,7 @@ public class ExperianService {
         if (otp2) {
             logger.info("OTP sent on mobile: {} for merchant: {}", merchant.getMobile(), merchant.getId());
         }
-        return new ResponseDTO(true, null, null);
+        return new ResponseDTO(true, null, null,null);
     }
 
     public ResponseDTO verifyOtp(String mobile, Merchant merchant, String otp, boolean retry) {
@@ -251,7 +247,7 @@ public class ExperianService {
                 boolean experianFound = authenticateExperian(merchant.getId(), mobile);
                 experianDetails.setOtpVerified(true);
                 experianDetailsDao.save(experianDetails);
-                ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+                ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
                 if (!experianFound) {
                     responseDTO.setCrif(true);
                 }
@@ -262,7 +258,7 @@ public class ExperianService {
                 boolean experianFound = authenticateExperian(merchant.getId(), mobile);
                 experianDetails.setOtpVerified(true);
                 experianDetailsDao.save(experianDetails);
-                ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+                ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
                 if (!experianFound) {
                     responseDTO.setCrif(true);
                 }
@@ -270,14 +266,14 @@ public class ExperianService {
             }
         } catch (Exception e) {
             if (!retry) {
-                return new ResponseDTO(false, "timeout", null);
+                return new ResponseDTO(false, "timeout", null,null);
             } else {
                 experianDetails.setOtpVerified(true);
                 experianDetailsDao.save(experianDetails);
-                return new ResponseDTO(true, null, null);
+                return new ResponseDTO(true, null, null,null);
             }
         }
-        return new ResponseDTO(false, "Invalid OTP", null);
+        return new ResponseDTO(false, "Invalid OTP", null,null);
     }
 
     private boolean authenticateExperian(Long merchantId, String mobile){

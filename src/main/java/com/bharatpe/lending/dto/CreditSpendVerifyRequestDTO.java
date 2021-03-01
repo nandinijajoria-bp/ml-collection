@@ -8,6 +8,7 @@ public class CreditSpendVerifyRequestDTO {
     private Long requestId;
     private String otp;
     private String appHash;
+    private String uuid;
 
     public Long getRequestId() {
         return requestId;
@@ -31,6 +32,14 @@ public class CreditSpendVerifyRequestDTO {
 
     public void setAppHash(String appHash) {
         this.appHash = appHash;
+    }
+
+    public String getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
     }
 
     @Override

@@ -18,6 +18,7 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.OglLoans;
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -42,6 +43,9 @@ public class VerifyOTPService {
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
+
+	@Autowired
+	BharatPeOtpHandler bharatPeOtpHandler;
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
@@ -129,6 +133,7 @@ public class VerifyOTPService {
 		
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		String otp =  commonAPIRequest.getPayload().get("otp") != null ? commonAPIRequest.getPayload().get("otp").toString() : null;
+		String uuid =  commonAPIRequest.getPayload().get("uuid") != null ? commonAPIRequest.getPayload().get("uuid").toString() : null;
 
 		if(applicationId == null || applicationId <= 0 || StringUtils.isEmpty(otp)) {
 			logger.info("No application found in draft status for given application id {}", applicationId);
@@ -141,16 +146,16 @@ public class VerifyOTPService {
 		}
 
 
-		return verifyOTP(otp, merchant, lendingApplication, commonAPIRequest.getMeta());
+		return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta());
 	}
 	
-	private Map<String, Boolean> verifyOTP(String otp, Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+	private Map<String, Boolean> verifyOTP(String otp, String uuid, Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
-		
+		logger.info("Mobile length: {}", merchant.getMobile().length());
 		if(merchant.getMobile().length() == 12) {
-			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
+			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp,uuid);
 			if(isOTPVerified || (merchant.getId().equals(3L) && otp.equals("1234"))) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
 				//createPrebookTarget(lendingApplication, merchant);

@@ -30,9 +30,9 @@ public class PreBookController {
     }
 
     @RequestMapping(value="/prebook/verifyOTP", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<PreBookResponseDTO> verifyOTP(@RequestAttribute Merchant merchant, @RequestParam String otp) {
+    public ResponseEntity<PreBookResponseDTO> verifyOTP(@RequestAttribute Merchant merchant, @RequestParam String otp, @RequestParam String uuid) {
         try {
-            return new ResponseEntity<>(preBookService.verifyOTP(merchant, otp),HttpStatus.OK);
+            return new ResponseEntity<>(preBookService.verifyOTP(merchant, otp, uuid),HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception while sending otp---", e);
             return new ResponseEntity<>(new PreBookResponseDTO(false, "Something went wrong"), HttpStatus.OK);

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,7 +89,7 @@ private Logger logger = LoggerFactory.getLogger(VerifyOTPService.class);
 	SmsServiceHandler smsServiceHandler;
 	
 	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
+	BharatPeOtpHandler bharatPeOtpHandler;
 	
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
@@ -131,6 +132,7 @@ private Logger logger = LoggerFactory.getLogger(VerifyOTPService.class);
 		
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		String otp =  commonAPIRequest.getPayload().get("otp") != null ? commonAPIRequest.getPayload().get("otp").toString() : null;
+		String uuid =  commonAPIRequest.getPayload().get("uuid") != null ? commonAPIRequest.getPayload().get("otp").toString() : null;
 
 		if(applicationId == null || applicationId <= 0 || StringUtils.isEmpty(otp)) {
 			logger.info("No application found in draft status for given application id {}", applicationId);
@@ -142,16 +144,16 @@ private Logger logger = LoggerFactory.getLogger(VerifyOTPService.class);
 			return finalResponse;
 		}
 
-		return verifyOTP(otp, merchant, creditApplication, commonAPIRequest.getMeta());
+		return verifyOTP(otp, merchant, creditApplication, commonAPIRequest.getMeta(),uuid);
 	}
 	
-	private Map<String, Boolean> verifyOTP(String otp, Merchant merchant, CreditApplication creditApplication, Meta meta) {
+	private Map<String, Boolean> verifyOTP(String otp, Merchant merchant, CreditApplication creditApplication, Meta meta, String uuid) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		
 		if(merchant.getMobile().length() == 12) {
-			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
+			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp,uuid);
 			if(isOTPVerified) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, creditApplication, meta);
 			}

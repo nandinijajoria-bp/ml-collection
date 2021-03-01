@@ -1042,7 +1042,7 @@ public class APIGatewayService {
         return clientSecret;
     }
 
-    public JsonNode experianRefreshApi(Long merchantId, String hitId) {
+    public JsonNode  experianRefreshApi(Long merchantId, String hitId) {
         logger.info("Calling Experian Refresh API for merchant:{} with hitId:{}", merchantId, hitId);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("clientName", ExperianConstants.CLIENT_NAME);

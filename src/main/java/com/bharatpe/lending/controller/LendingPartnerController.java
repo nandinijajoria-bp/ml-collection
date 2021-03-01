@@ -26,14 +26,14 @@ public class LendingPartnerController {
     public ResponseEntity<ResponseDTO> merchantDetails(@RequestBody PartnerDetailsRequestDTO requestDTO) {
         try {
             if (requestDTO == null || requestDTO.getPartner() == null || requestDTO.getMobile() == null) {
-                return new ResponseEntity<>(new ResponseDTO(false, "Invalid request", null), HttpStatus.OK);
+                return new ResponseEntity<>(new ResponseDTO(false, "Invalid request", null,null), HttpStatus.OK);
             }
             logger.info("Saving details for partner: {} with mobile: {}", requestDTO.getPartner(), requestDTO.getMobile());
             lendingPartnerService.saveDetails(requestDTO);
-            return new ResponseEntity<>(new ResponseDTO(true, null, null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(true, null, null,null), HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Exception while saving partner details", e);
-            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null), HttpStatus.OK);
+            return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null,null), HttpStatus.OK);
         }
     }
 }

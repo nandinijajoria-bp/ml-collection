@@ -58,7 +58,7 @@ public class FosService {
     LendingPennydropDao lendingPennydropDao;
 
     public ResponseDTO fosLoan(Long merchantId) {
-        ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+        ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
         Map<String,Object> data= new HashMap<>();
         data.put("rejected",Boolean.FALSE);
         data.put("merchantId",merchantId.toString());
@@ -167,7 +167,7 @@ public class FosService {
     }
 
     public ResponseDTO fosnewLoan(Long merchantId) {
-        ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+        ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
         Map<String,Object> data= new HashMap<>();
         Map<String,Object> loanData= new HashMap<>();
         Map<String,Object> details= new HashMap<>();

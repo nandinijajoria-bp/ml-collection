@@ -169,12 +169,12 @@ public class LiquiloansService {
 			}
 			if(lendingApplication==null) {
 				logger.info("Approve loan not found for loanId:{}", callbackRequestDto.getApplicationId());
-				return new ResponseDTO(false,"loan application not found",null);
+				return new ResponseDTO(false,"loan application not found",null,null);
 			}
 			LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
 			if (ldcVirtualAccount == null) {
 				logger.info("LDC Virtual account not found for merchant:{}", lendingApplication.getMerchant().getId());
-				return new ResponseDTO(false,"ldc virtual account not found",null);
+				return new ResponseDTO(false,"ldc virtual account not found",null,null);
 			}
 			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());
@@ -183,11 +183,11 @@ public class LiquiloansService {
 			lendingApplication.setLoanDisbursalStatus("PROCESSING");
 			lendingApplicationDao.save(lendingApplication);
 			publishForDisbursal(lendingApplication.getId());
-			return new ResponseDTO(true,null,null);
+			return new ResponseDTO(true,null,null,null);
 		}
 		catch(Exception e){
 			logger.error("Error occured while updating lending application disbursal status",e);
-			return new ResponseDTO(false,"Error occurred while updating loan",null);
+			return new ResponseDTO(false,"Error occurred while updating loan",null,null);
 		}
 	}
     
@@ -516,7 +516,7 @@ public class LiquiloansService {
 	    		
 	    		logger.info("Populating 'disbursal_settlement_id' field in table 'lending_payment_schedule' for loan id {}",loanDetail.getLoanId());
 	    		if(!updateDisbursalSettlementIdInLendingPaymentSchedule(loanDetail.getLoanId(),loanDetail.getUrn(),disbursalSettlement.getId(), liquiloansDirectDisbursalRawResponse)){
-	    			return new ResponseDTO(false,"Error occured while processing settlemet details",null);
+	    			return new ResponseDTO(false,"Error occured while processing settlemet details",null,null);
 	    		}
 	    	
 	    	}
@@ -524,10 +524,10 @@ public class LiquiloansService {
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating disbursal settlement details",e);
-    		return new ResponseDTO(false,"Error occured while processing settlemet details",null);
+    		return new ResponseDTO(false,"Error occured while processing settlemet details",null,null);
     	}
 
-    	return new ResponseDTO(true,null,null);
+    	return new ResponseDTO(true,null,null,null);
     }
     
     public boolean updateDisbursalSettlementIdInLendingPaymentSchedule(String loanId, String urnId, Integer settlementId, LiquiloansDirectDisbursalRawResponse liquiloansDirectDisbursalRawResponse){

@@ -1110,7 +1110,7 @@ public class LoanDetailsService {
 
 	public ResponseDTO creditScore(Merchant merchant,RequestDTO<CreditScoreRequestDto> requestDTO,String clientIp){
 
-		ResponseDTO responseDTO = new ResponseDTO(true, null, null);
+		ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
 		CreditScoreResponseDto creditScoreResponseDto = new CreditScoreResponseDto();
 		creditScoreResponseDto.setTimeout(Boolean.FALSE);
 		creditScoreResponseDto.setNTC(Boolean.FALSE);

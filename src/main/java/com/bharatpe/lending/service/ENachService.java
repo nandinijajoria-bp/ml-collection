@@ -168,7 +168,7 @@ public class ENachService {
     public ResponseDTO setEnachSkipStatus(Merchant merchant){
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
         if (lendingApplication == null) {
-            return new ResponseDTO(false, "Loan Application not found", null);
+            return new ResponseDTO(false, "Loan Application not found", null,null);
         }
         BharatPeEnach lendingEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
         if(lendingEnach == null) {
@@ -183,7 +183,7 @@ public class ENachService {
         if (lendingPennydrop == null) {
             apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
         }
-        return new ResponseDTO(true, null, null);
+        return new ResponseDTO(true, null, null, null);
     }
 
     // check if bank is supported or not
