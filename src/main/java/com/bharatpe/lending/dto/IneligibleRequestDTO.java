@@ -2,6 +2,7 @@ package com.bharatpe.lending.dto;
 
 import java.io.Serializable;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -14,6 +15,9 @@ public class IneligibleRequestDTO implements Serializable {
     private Integer pincode;
     
     private String loanSource;
+
+    @JsonProperty(value = "isIOS")
+    private Boolean isIOS;
 
     public String getPanCard() {
         return panCard;
@@ -47,7 +51,15 @@ public class IneligibleRequestDTO implements Serializable {
 		this.loanSource = loanSource;
 	}
 
-	@Override
+    public Boolean isIOS() {
+        return isIOS;
+    }
+
+    public void setIOS(Boolean IOS) {
+        isIOS = IOS;
+    }
+
+    @Override
 	public String toString() {
 		return "IneligibleRequestDTO [panCard=" + panCard + ", skip=" + skip + ", pincode=" + pincode + ", loanSource="
 				+ loanSource + "]";

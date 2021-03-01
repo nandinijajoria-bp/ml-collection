@@ -484,6 +484,10 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
+			if (requestDTO.getPayload().isIOS() != null && requestDTO.getPayload().isIOS()) {
+				logger.info("request from IOS for merchant:{}", merchant.getId());
+				enach = "bharatpe://enachtp";
+			}
 
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;

@@ -9,6 +9,8 @@ public class ApplicationStatusRequestDTO {
     @JsonProperty("application_id")
     private Long applicationId;
 
+    @JsonProperty(value = "isIOS")
+    private Boolean isIOS;
 
     public Long getApplicationId() {
         return applicationId;
@@ -16,5 +18,13 @@ public class ApplicationStatusRequestDTO {
 
     public void setApplicationId(Long applicationId) {
         this.applicationId = applicationId;
+    }
+
+    public Boolean getIOS() {
+        return isIOS;
+    }
+
+    public void setIOS(Boolean IOS) {
+        isIOS = IOS;
     }
 }

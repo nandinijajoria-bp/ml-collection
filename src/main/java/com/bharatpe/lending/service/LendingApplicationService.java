@@ -2068,7 +2068,11 @@ public class LendingApplicationService {
 			ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
 			buttonContextDTO.setAction("Enach");
 			buttonContextDTO.setText("Do eNACH");
-			buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, merchant.getId()));
+			if (requestDTO.getPayload().getIOS() != null && requestDTO.getPayload().getIOS()) {
+				buttonContextDTO.setDeeplink("bharatpe://enachtp");
+			} else {
+				buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, merchant.getId()));
+			}
 			applicationDTO2.setButtonContextDTO(buttonContextDTO);
 			applicationDTO.add(applicationDTO2);
 		}
