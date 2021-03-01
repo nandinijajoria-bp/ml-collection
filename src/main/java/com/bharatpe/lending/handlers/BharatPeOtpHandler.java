@@ -62,9 +62,9 @@ public class BharatPeOtpHandler{
         headers.set("Client-Name", CLIENT);
         HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
             try {
-                logger.info("Request: {}, URL: {}",request,Objects.requireNonNull(env.getProperty("lending.otp.endpoint")));
+                logger.info("Bharatpe send otp Request: {}, URL: {}",request,Objects.requireNonNull(env.getProperty("lending.otp.endpoint")));
                 ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.otp.endpoint")), HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
-                logger.info("Response: {}", responseEntity);
+                logger.info("Bharatpe send otp Response: {}", responseEntity);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("status")!=null && responseEntity.getBody().get("status").equals("success")) {
                     response.put("success", Boolean.TRUE);
                     Map<String, Object> body = responseEntity.getBody();
@@ -97,9 +97,9 @@ public class BharatPeOtpHandler{
         headers.set("Client-Name", CLIENT);
         HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
         try {
-            logger.info("Request: {}, URL: {}",request,Objects.requireNonNull(env.getProperty("lending.verifyOtp.endpoint")));
+            logger.info("Bharatpe verify otp Request: {}, URL: {}",request,Objects.requireNonNull(env.getProperty("lending.verifyOtp.endpoint")));
             ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.verifyOtp.endpoint")), HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
-            logger.info("Response: {}", responseEntity);
+            logger.info("Bharatpe verify otp Response: {}", responseEntity);
             Map<String,Object> body = responseEntity.getBody();
             Map<String,Object> data = (Map<String,Object>) body.get("data");
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("status")!=null && responseEntity.getBody().get("status").equals("success") && data.get("status")!=null && data.get("status").equals("verified")) {

@@ -409,7 +409,7 @@ public class SignAgreementService {
 		
 		if(mobile.length() == 12) {
 			String hash = appSign != null ? appSign : "";
-			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 //			String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 			Map<String, Object> response = new HashMap<String, Object>();
 			response= bharatPeOtpHandler.sendOtp(mobile, message);
