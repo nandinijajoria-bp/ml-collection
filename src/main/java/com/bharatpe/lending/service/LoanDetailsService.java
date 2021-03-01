@@ -629,18 +629,23 @@ public class LoanDetailsService {
 					}
 				}
 
+
+
+
 				if(!loanEligibilityDTOs.isEmpty() && repeatLoanGlobalCheck(merchant)){
 					try {
 						logger.info("repeatLoanGlobalCheck success for merchant:{}", merchant.getId());
 						LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
-						Iterator<LoanEligibilityDTO> it = loanEligibilityDTOs.iterator();
-						while (it.hasNext()) {
-							LoanEligibilityDTO tempLoanEligibilityDTO = it.next();
-							if (tempLoanEligibilityDTO.getAmount().doubleValue() > lendingPaymentSchedule.getLoanAmount()) {
-								LendingCategories lendingCategories = lendingCategoryDao.getByCategory(tempLoanEligibilityDTO.getCategory());
-								loanEligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, tempLoanEligibilityDTO.getType(), merchant.getId(), experian.getId(), lendingPaymentSchedule.getLoanAmount(), experian.getColor(), null, tempLoanEligibilityDTO.getLoanType(), false, yellowPincode));
-								it.remove();
+						List<LoanEligibilityDTO> removeList = new ArrayList<>();
+						for (LoanEligibilityDTO loanEligibilityDTO : loanEligibilityDTOs) {
+							if (loanEligibilityDTO.getAmount().doubleValue() > lendingPaymentSchedule.getLoanAmount()) {
+								removeList.add(loanEligibilityDTO);
 							}
+						}
+						if(!removeList.isEmpty()){
+							loanEligibilityDTOs.removeAll(removeList);
+							LendingCategories lendingCategories = lendingCategoryDao.getByCategory(removeList.get(0).getCategory());
+							loanEligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, removeList.get(0).getType(), merchant.getId(), experian.getId(), lendingPaymentSchedule.getLoanAmount(), experian.getColor(), null, removeList.get(0).getLoanType(), false, yellowPincode));
 						}
 					}catch (Exception ex){
 						logger.error("Error on repeatLoanGlobalCheck merchant_id: {}  Er:{}", merchant.getId(), ex);
