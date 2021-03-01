@@ -651,6 +651,7 @@ public class LoanDetailsService {
 						logger.error("Error on repeatLoanGlobalCheck merchant_id: {}  Er:{}", merchant.getId(), ex);
 					}
 				}
+				loanEligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
 
 				LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.getByPancardOrMerchanIdOrMobileNumber(experian.getPancardNumber(), merchant.getId(), merchant.getMobile());
 				Map<String, Object> pspCheck = apiGatewayService.riskByPspApp(merchant);
