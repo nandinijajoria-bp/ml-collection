@@ -15,4 +15,5 @@ import lombok.ToString;
 public class NachRefundRequest {
     private Long merchantId;
     private Long loanId;
+    private Double amount;
 }

@@ -2,6 +2,8 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.enums.NotificationProvider;
+import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -15,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
 
 @Service
@@ -31,6 +34,9 @@ public class RefundService {
     @Autowired
     LendingLedgerDao lendingLedgerDao;
 
+    @Autowired
+    SmsServiceHandler smsServiceHandler;
+
     public CommonResponse nachRefund(NachRefundRequest refundRequest) {
         try {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(refundRequest.getLoanId(), refundRequest.getMerchantId());
@@ -39,10 +45,22 @@ public class RefundService {
                 return new CommonResponse(false, "Loan not found");
             }
             boolean success = false;
-            if (lendingPaymentSchedule.getStatus().equals("INACTIVE") && lendingPaymentSchedule.getPaidAmount() > 0D) {
+            Double refundAmount = 0D;
+            if (refundRequest.getAmount() != null) {
+                logger.info("Manual refund amount:{} for loanId:{}", refundRequest.getAmount(), refundRequest.getLoanId());
+                String orderId = "REFUND" + System.currentTimeMillis();
+                refundAmount = refundRequest.getAmount();
+                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "MANUAL_REFUND");
+                LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
+                if (lendingPayoutResponse != null) {
+                    success = true;
+                    String bankRefNo = lendingPayoutResponse.getData() != null ? lendingPayoutResponse.getData().getBankReferenceNo() : null;
+                    createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), "LOAN_REFUND", -refundAmount, -refundAmount, 0D, 0D, 0D, bankRefNo, "REFUND");
+                }
+            } else if (lendingPaymentSchedule.getStatus().equals("INACTIVE") && lendingPaymentSchedule.getPaidAmount() > 0D) {
                 logger.info("Refund paid amount:{} for inactive loan:{}",lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getId());
                 String orderId = "INACTIVE_REFUND" + System.currentTimeMillis();
-                Double refundAmount = lendingPaymentSchedule.getPaidAmount();
+                refundAmount = lendingPaymentSchedule.getPaidAmount();
                 LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "NACH_REFUND");
                 LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
                 if (lendingPayoutResponse != null) {
@@ -57,7 +75,7 @@ public class RefundService {
             } else if (lendingPaymentSchedule.getDueAmount() < 0D && lendingPaymentSchedule.getStatus().equals("CLOSED")) {
                 logger.info("Refund due amount:{} for loan:{}",lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
                 String orderId = "NACH_REFUND" + System.currentTimeMillis();
-                Double refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
+                refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
                 Double principle = -1 * lendingPaymentSchedule.getDuePrinciple();
                 Double interest = -1 * lendingPaymentSchedule.getDueInterest();
                 LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "NACH_REFUND");
@@ -73,6 +91,8 @@ public class RefundService {
                 }
             }
             if (success) {
+                String message = "Dear Merchant,\nBharatPe has refunded amount of Rs." + refundAmount + " charged against Loan ID " + lendingPaymentSchedule.getId() + "  in your Bank A/c .";
+                smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
                 return new CommonResponse(true, "Loan refund success for loanId:" + lendingPaymentSchedule.getId());
             } else {
                 return new CommonResponse(false, "Loan refund failed for loanId:" + lendingPaymentSchedule.getId());
