@@ -155,7 +155,7 @@ public class VerifyOTPService {
 		finalResponse.put("agreement_verified",false);
 		logger.info("Mobile length: {}", merchant.getMobile().length());
 		if(merchant.getMobile().length() == 12) {
-			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp,uuid);
+			Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
 			if(isOTPVerified || (merchant.getId().equals(3L) && otp.equals("1234"))) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
 				//createPrebookTarget(lendingApplication, merchant);
