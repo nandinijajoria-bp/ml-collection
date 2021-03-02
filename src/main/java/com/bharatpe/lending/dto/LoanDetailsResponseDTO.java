@@ -73,6 +73,7 @@ public class LoanDetailsResponseDTO {
 		private boolean hasExperian = false;
 		private boolean bharatPeClubMember = false;
 		private Double bureauScore;
+		private Double minAmount;
 
 
 		@JsonProperty(value = "loan_history")
@@ -292,6 +293,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setBureauScore(Double bureauScore) {
 			this.bureauScore = bureauScore;
+		}
+
+		public Double getMinAmount() {
+			return minAmount;
+		}
+
+		public void setMinAmount(Double minAmount) {
+			this.minAmount = minAmount;
 		}
 
 		@Override
