@@ -265,8 +265,8 @@ public class PaymentService {
 		}
 	}
 	
-	private String getDescription(String bankRRN) {
-		return "PREPAYMENT : " + bankRRN;
+	private String getDescription(String bankRRN, boolean preclosure) {
+		return preclosure ? "PRECLOSER_UPI : " + bankRRN : "PREPAYMENT : " + bankRRN;
 	}
 	
 	private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle, Double interest, String description, String source) {
@@ -402,6 +402,7 @@ public class PaymentService {
 
 		Double paidInterestAmount = 0D;
 		Double paidPrincipalAmount = 0D;
+		boolean preclosure = false;
 
 		if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
 			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
@@ -424,6 +425,7 @@ public class PaymentService {
 
 			activeLoan.setStatus("CLOSED");
 			activeLoan.setClosingDate(new Date());
+			preclosure = true;
 		} else {
 			double balance=amount;
 			if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
@@ -557,7 +559,7 @@ public class PaymentService {
 			}
 		}
 		logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
-		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo), source);
+		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo, preclosure), source);
 		lendingPaymentScheduleDao.save(activeLoan);
 		if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
 			redisNotificationService.sendRepaymentNudge(activeLoan.getMerchant(), activeLoan.getLoanApplication().getProcessingFee());

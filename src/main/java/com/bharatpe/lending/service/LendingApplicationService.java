@@ -1495,6 +1495,7 @@ public class LendingApplicationService {
 				return null;
 			}
 			double effectiveInterestRate = ((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())) / (lendingApplication.getLoanAmount() * lendingApplication.getTenureInMonths()) * 100;
+			effectiveInterestRate = Math.round(effectiveInterestRate * 100.0) / 100.0;
 			detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
 			detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
 			detail.put("Rate of Interest", Double.toString(effectiveInterestRate * 12));
