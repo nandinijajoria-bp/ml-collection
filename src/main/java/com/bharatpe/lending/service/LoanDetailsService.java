@@ -773,7 +773,9 @@ public class LoanDetailsService {
 			loanDetailsDTO.setHasExperian(hasExperian);
 			loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 			loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
-			loanDetailsDTO.setMinAmount(Objects.isNull(bankCode) && !loanEligibilityDTOs.isEmpty() ? 50000D : null);
+			if(Objects.isNull(bankCode) && !loanEligibilityDTOs.isEmpty()){
+				loanDetailsDTO.setMinAmount(50000D);
+			}
 			if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
 				loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
 			} else {
