@@ -1494,10 +1494,11 @@ public class LendingApplicationService {
 				logger.error("Lending application not found for id {}",applicationId);
 				return null;
 			}
+			double effectiveInterestRate = ((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())) / (lendingApplication.getLoanAmount() * lendingApplication.getTenureInMonths()) * 100;
 			detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
 			detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
-			detail.put("Rate of Interest", Double.toString(lendingApplication.getInterestRate() * 12));
-			detail.put("Interest", Double.toString(lendingApplication.getInterestRate()));
+			detail.put("Rate of Interest", Double.toString(effectiveInterestRate * 12));
+			detail.put("Interest", Double.toString(effectiveInterestRate));
 			detail.put("Penal Interest", "NA");
 			detail.put("Loan ID", "Will be generated later");
 			detail.put("Date", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
@@ -1515,8 +1516,8 @@ public class LendingApplicationService {
 			detail.put("Lender",lendingApplication.getLender());
 			detail.put("Pancard", getPanCard(merchant));
 			Double monthlyRateOfInterest=getInterest(lendingApplication.getCategory());
-			detail.put("Monthly rate of interest", monthlyRateOfInterest==null?"":monthlyRateOfInterest.toString());
-			detail.put("Annual rate of interest", monthlyRateOfInterest==null?"":(monthlyRateOfInterest*12+""));
+			detail.put("Monthly rate of interest", monthlyRateOfInterest==null?"":Double.toString(effectiveInterestRate));
+			detail.put("Annual rate of interest", monthlyRateOfInterest==null?"":(effectiveInterestRate*12+""));
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
 				detail.put("Name of the Borrower",merchantBankDetail.getBeneficiaryName());
@@ -1677,8 +1678,13 @@ public class LendingApplicationService {
 				"    <p>24. SURVIVAL</p>\n" + 
 				"    <p>The Clauses of this Agreement which by their nature survive termination shall survive the expiry or termination of this Agreement.</p>\n" + 
 				"    <p>25. TIME IS THE ESSENCE</p>\n" + 
-				"    <p>The Parties hereby agree that time is the essence with respect to all dates and periods mentioned in this Loan Agreement (as may be modified/extended wherever permitted under this Loan Agreement), for performance of their respective obligations under this Loan Agreement.</p>\n" + 
-				"    <p>26. NOTICES</p>\n" + 
+				"    <p>The Parties hereby agree that time is the essence with respect to all dates and periods mentioned in this Loan Agreement (as may be modified/extended wherever permitted under this Loan Agreement), for performance of their respective obligations under this Loan Agreement.</p>\n" +
+				"    <p>26. Governing Law and Arbitration</p>\n" +
+				"    <p>(a) This Agreement shall be governed by and construed in accordance with the laws of India.</p>\n" +
+				"    <p>(b) If any dispute which have arisen or which may arise between the parties with respect to the Agreement including its validity, interpretation, implementation or alleged breach of any provision of this Agreement (“Dispute”), the disputing parties hereto shall endeavour to settle such Dispute amicably. The attempt to bring about an amicable settlement shall be considered to have failed if not resolved within 15 (fifteen) days from the date of the Dispute.</p>\n" +
+				"    <p>(c) Any  Dispute  which  is  not  resolved  pursuant  to  clause ____________(b)  within  a period  of  15  (fifteen)  days  from  the  day  on  which  the  Dispute  arose  and  which  a party  wishes  to  have  resolved,  shall  be  referred  to  arbitration.  The  Lender  shall appoint  a  sole  arbitrator  for  the  final  resolution  of  such  Dispute.  The  seat  of  the arbitration  shall  be  New  Delhi,  India.  The  language  of  this  arbitration  shall  be English.</p>\n" +
+				"    <p>(d)The arbitrator shall have the power to grant any legal or equitable remedy or relief available under applicable law, including injunctive relief (whether interim and/or final) and specific performance and any measures ordered by the arbitrator may be specifically enforced by any court of competent jurisdiction.</p>\n" +
+				"    <p>27. NOTICES</p>\n" +
 				"    <p>Any notice or demand to be given under this Loan Agreement shall be in writing; and shall be deemed to have been duly given if sent by email or by a courier service or registered A. D. or personally delivered. Each notice or demand shall be addressed to the other Parties at the address mentioned above and a notice or demand so given or made shall be deemed to be given or made on the day it was so left or; as the case may be, two business days following date on which it was so posted and shall be effectual notwithstanding that the same may be returned undelivered and notwithstanding the Borrower's change of address.</p>\n" + 
 				"    <p>THE PARTIES HERETO HAVE EXECUTED THESE PRESENTS ON THE DAY, MONTH AND YEAR FIRST HEREINABOVE WRITTEN. ELECTRONICALLY SIGNED by,</p>\n" + 
 				"    <p>Borrower: "+detail.getOrDefault("Name of the Borrower", "")+"</p>\n" +
