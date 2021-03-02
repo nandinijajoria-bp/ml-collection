@@ -1,4 +1,5 @@
 package com.bharatpe.lending.controller;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.FosService;
 import org.slf4j.Logger;
@@ -32,5 +33,13 @@ public class FosController {
     @RequestMapping(value="/nach/update", method = RequestMethod.POST, produces="application/json")
     public ResponseEntity<ResponseDTO> fosUpdate(@RequestBody Map<String,Object> requestDTO) {
         return new ResponseEntity<>(fosService.fosUpdate(requestDTO), HttpStatus.OK);
+    }
+
+    @RequestMapping(value="/get-address", method = RequestMethod.GET)
+    public ResponseEntity<ResponseDTO> getMerchantAddress(@RequestParam Long merchantId){
+
+        return new ResponseEntity<>(fosService.getMerchantAddress(merchantId), HttpStatus.OK);
+
+
     }
 }

@@ -49,4 +49,6 @@ public interface ResponseUtil {
     public CreditScoreReportDetailDTO.CreditEnquries getCreditEnquiries(JsonNode beruaeMap);
 
     public String getExperianNumber(JsonNode beruaeMap);
+
+//    public Object getLoanAddress(JsonNode beruaeMap);
 }

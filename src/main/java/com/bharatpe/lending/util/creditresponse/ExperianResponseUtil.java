@@ -1170,4 +1170,14 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         return creditScoreReportDetailDTO;
     }
 
+
+//    public Object getLoanAddress(JsonNode beruaeMap){
+//
+//        try{
+//
+//        }catch(Exception ex){
+//            logger.error("Error Occurred while checking loan address from experian, Error :{0}", ex);
+//        }
+//        return null;
+//    }
 }

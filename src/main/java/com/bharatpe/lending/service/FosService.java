@@ -10,7 +10,13 @@ import com.bharatpe.lending.common.entity.LendingPennydrop;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.util.creditresponse.CrifResponseUtil;
+import com.bharatpe.lending.util.creditresponse.ExperianResponseUtil;
+import com.bharatpe.lending.util.creditresponse.ResponseUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class FosService {
@@ -56,6 +63,21 @@ public class FosService {
 
     @Autowired
     LendingPennydropDao lendingPennydropDao;
+
+    @Autowired
+    DocumentsIdProofDao documentsIdProofDao;
+
+    @Autowired
+    DocKycDetailsDao docKycDetailsDao;
+
+    @Autowired
+    MerchantInferredLocationDao merchantInferredLocationDao;
+
+    @Autowired
+    MerchantDao merchantDao;
+
+    @Autowired
+    ObjectMapper objectMapper;
 
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
@@ -398,4 +420,143 @@ public class FosService {
         }
         return  responseDTO;
     }
+
+    public ResponseDTO getMerchantAddress(Long merchantId){
+        ResponseDTO responseDTO = new ResponseDTO();
+
+        Merchant merchant = merchantDao.findById(merchantId).get();
+
+        try{
+            Map<String, Object> addressResponse = new HashMap<>();
+            LendingApplication lendingApplication = lendingApplicationDao.findApplicableApplication(merchant.getId());
+            if(Objects.nonNull(lendingApplication)) {
+                Object experianAddress = getExperianAddress(merchant);
+                Object lendingAddress = getLendingAddress(lendingApplication);
+                Object documentIdProofAddress = getDocumentIdProofAddress(lendingApplication);
+                Object merchantInferredAddress = getMerchantInferredAddress(lendingApplication);
+
+                addressResponse.put("experian_address", experianAddress);
+                addressResponse.put("lending_address", lendingAddress);
+                addressResponse.put("document_id_proof_address", documentIdProofAddress);
+                addressResponse.put("merchant_inferred_address", merchantInferredAddress);
+
+                responseDTO.setMessage("Address");
+                responseDTO.setSuccess(Boolean.TRUE);
+                responseDTO.setData(addressResponse);
+
+                return responseDTO;
+            }
+        }catch (Exception ex){
+            logger.error("Error while sending Address to fos App for Merchant: {} Error: {}", merchant.getId(),ex);
+        }
+
+        responseDTO.setMessage("Something Went Wrong!");
+        responseDTO.setSuccess(Boolean.FALSE);
+        return responseDTO;
+    }
+
+
+    public Object getExperianAddress(Merchant merchant){
+//        Map<String, Object> experianAddress = new HashMap<>();
+//        Experian experian = experianDao.getByMerchantId(merchant.getId());
+//
+//        JsonNode bureauResponse = parseStringResponse(experian.getResponse());;
+//        if (bureauResponse == null) {
+//            return new CreditScoreReportDetailDTO();
+//        }
+//        ResponseUtil responseUtil;
+//        if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
+//            responseUtil = new CrifResponseUtil(experianDao);
+//        } else {
+//            responseUtil = new ExperianResponseUtil(experianDao);
+//        }
+
+        return null;
+    }
+
+    public Object getLendingAddress(LendingApplication lendingApplication){
+        try {
+            Map<String, Object> lendingAddress = new HashMap<>();
+
+            String address = Objects.isNull(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber()+ ",";
+            address += Objects.isNull(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress()+ ",";
+            address += Objects.isNull(lendingApplication.getArea()) ? "" : lendingApplication.getArea()+ ",";
+            address += Objects.isNull(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark()+ ",";
+
+            address += Objects.isNull(lendingApplication.getCity()) ? "" : lendingApplication.getCity()+ ",";
+            address += Objects.isNull(lendingApplication.getState()) ? "" : lendingApplication.getState()+ ",";
+
+            lendingAddress.put("address", address);
+            lendingAddress.put("pincode", lendingApplication.getPincode());
+            lendingAddress.put("lat", lendingApplication.getLatitude());
+            lendingAddress.put("long", lendingApplication.getLongitude());
+
+            return lendingAddress;
+        }catch (Exception ex){
+            logger.error("Error while sending LendingAddress to fos App for Application Id: {} Error: {}", lendingApplication.getId(),  ex);
+        }
+
+        return null;
+    }
+
+
+    public Object getDocumentIdProofAddress(LendingApplication lendingApplication){
+        try {
+
+            DocKycDetails docKycDetails =  docKycDetailsDao.getAadharAddress(lendingApplication.getId());
+            logger.error("check for getDocumentIdProofAddress :{}", docKycDetails);
+            if(Objects.nonNull(docKycDetails)) {
+                Map<String, Object> docAddress = new HashMap<>();
+
+                docAddress.put("pincode", docKycDetails.getPincode());
+                docAddress.put("city", docKycDetails.getCity());
+                docAddress.put("state", docKycDetails.getState());
+                docAddress.put("address", docKycDetails.getAddress());
+                docAddress.put("lat", docKycDetails.getDocumentsIdProof().getLatitude());
+                docAddress.put("long", docKycDetails.getDocumentsIdProof().getLongitude());
+
+                return docAddress;
+            }
+        }catch (Exception ex){
+            logger.error("Error while sending DocumentIdProof to fos App for Application Id: {} Error: {}", lendingApplication.getId(),ex);
+        }
+        return null;
+    }
+
+    public Object getMerchantInferredAddress(LendingApplication lendingApplication){
+        try {
+            MerchantInferredLocation merchantInferredLocation = merchantInferredLocationDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchant().getId());
+
+            if(Objects.nonNull(merchantInferredLocation)){
+                Map<String, Object> lendingAddress = new HashMap<>();
+
+                String address = Objects.isNull(merchantInferredLocation.getAddress()) ? "" : merchantInferredLocation.getAddress()+ ", ";
+                address += Objects.isNull(merchantInferredLocation.getCity()) ? "" : merchantInferredLocation.getCity()+ ", ";
+                address += Objects.isNull(merchantInferredLocation.getState()) ? "" : merchantInferredLocation.getState()+ ", ";
+
+                lendingAddress.put("address", address);
+                lendingAddress.put("initial_lat", merchantInferredLocation.getIntialLatitude());
+                lendingAddress.put("initial_long", merchantInferredLocation.getIntialLongitude());
+                lendingAddress.put("inferred_lat", merchantInferredLocation.getInferredLatitude());
+                lendingAddress.put("inferred_long", merchantInferredLocation.getInferredLongitude());
+//                lendingAddress.put("pincode", merchantInferredLocation.getPincode());
+
+                return lendingAddress;
+            }
+        }catch (Exception ex){
+            logger.error("Error while sending DocumentIdProof to fos App for Application Id: {} Error: {}", lendingApplication.getId(),ex);
+        }
+        return null;
+    }
+
+//    private JsonNode parseStringResponse(String response){
+//        if (response == null || response.isEmpty()) return null;
+//        try {
+//            return objectMapper.readTree(response);
+//        } catch (Exception e) {
+//            logger.info("Exception while parsing string response ", e);
+//            return null;
+//        }
+//    }
+
 }
