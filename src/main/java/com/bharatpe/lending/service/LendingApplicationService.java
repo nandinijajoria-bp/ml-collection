@@ -21,6 +21,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -162,6 +163,8 @@ public class LendingApplicationService {
 
 	@Autowired
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+
+	DecimalFormat df = new DecimalFormat("##.00");
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -1495,11 +1498,10 @@ public class LendingApplicationService {
 				return null;
 			}
 			double effectiveInterestRate = ((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())) / (lendingApplication.getLoanAmount() * lendingApplication.getTenureInMonths()) * 100;
-			effectiveInterestRate = Math.round(effectiveInterestRate * 100.0) / 100.0;
 			detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
 			detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
-			detail.put("Rate of Interest", Double.toString(effectiveInterestRate * 12));
-			detail.put("Interest", Double.toString(effectiveInterestRate));
+			detail.put("Rate of Interest",df.format(effectiveInterestRate * 12));
+			detail.put("Interest", df.format(effectiveInterestRate));
 			detail.put("Penal Interest", "NA");
 			detail.put("Loan ID", "Will be generated later");
 			detail.put("Date", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
@@ -1517,8 +1519,8 @@ public class LendingApplicationService {
 			detail.put("Lender",lendingApplication.getLender());
 			detail.put("Pancard", getPanCard(merchant));
 			Double monthlyRateOfInterest=getInterest(lendingApplication.getCategory());
-			detail.put("Monthly rate of interest", monthlyRateOfInterest==null?"":Double.toString(effectiveInterestRate));
-			detail.put("Annual rate of interest", monthlyRateOfInterest==null?"":(effectiveInterestRate*12+""));
+			detail.put("Monthly rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate));
+			detail.put("Annual rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate * 12));
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
 				detail.put("Name of the Borrower",merchantBankDetail.getBeneficiaryName());
