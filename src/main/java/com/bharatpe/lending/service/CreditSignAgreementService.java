@@ -385,7 +385,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 		
 		String mobileString = mobile.toString();
 		if(mobileString.length() == 12) {
-			String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+			String message = "BharatPe: {otp} is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 			Map<String, Object> response = new HashMap<String, Object>();
 			response= bharatPeOtpHandler.sendOtp(mobileString, message);
 			Boolean isOTPSent = (Boolean) response.get("success");

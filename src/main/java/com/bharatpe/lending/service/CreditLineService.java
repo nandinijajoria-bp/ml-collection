@@ -688,7 +688,7 @@ public class CreditLineService {
 		}
 		lendingClTransactionRequestDao.updateLoanTypeAndTenure(requestDTO.getLoanType(), requestDTO.getTenure(), paymentRequest.getId());
 		String hash = requestDTO.getAppHash() != null ? requestDTO.getAppHash() : "yltNeplA2JJ";
-		String message = "<#> BharatPe: %code% is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+		String message = "<#> BharatPe: {otp} is your OTP to complete payment for Rs." + paymentRequest.getAmount() + " using BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 		Map<String, Object> response = new HashMap<String, Object>();
 		response= bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
 		Boolean otp = (Boolean) response.get("success");
