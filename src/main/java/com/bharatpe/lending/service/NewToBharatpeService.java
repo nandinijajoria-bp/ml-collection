@@ -319,11 +319,7 @@ public class NewToBharatpeService {
 		} catch (Exception e) {
 			logger.error("Exception in ntb loan", e);
 		}
-		if (loanEligibilityDTOList.isEmpty() && experian.getExperianScore() != null && experian.getExperianScore() >= 750 && !hasRegularLoan) {
-			lendingMerchantDropoffDao.save(new LendingMerchantDropoff(experian.getMerchantId(), "NTB", ExperianConstants.LOW_ATS, null));
-			logger.info("Fetching NTB Lite loan for merchant:{}", merchant.getId());
-			loanEligibilityDTOList.addAll(getNTBLiteLoans(merchant, experian));
-		} else if (loanEligibilityDTOList.isEmpty() && !hasRegularLoan) {
+		if (loanEligibilityDTOList.isEmpty() && !hasRegularLoan) {
 			logger.info("Low ATS, so rejecting ntb loan for merchant: {}", experian.getMerchantId());
 			experian.setCategory("1N");
 			experian.setColor(ExperianConstants.COLOR.RED.name());
