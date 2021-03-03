@@ -1392,6 +1392,7 @@ public class LoanDetailsService {
 					Map<String, Object> repaymentHistory = new HashMap<>();
 					repaymentHistory.put("amount",loanPaymentOrder.getAmount());
 					repaymentHistory.put("mode",loanPaymentOrder.getSource());
+					repaymentHistory.put("order_id",loanPaymentOrder.getOrderId());
 					repaymentHistory.put("date",loanPaymentOrder.getCreatedAt());
 					repaymentHistory.put("status",loanPaymentOrder.getStatus());
 
