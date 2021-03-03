@@ -16,6 +16,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
+import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.joda.time.DateTime;
@@ -159,6 +160,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	EnachErrorHandingService enachErrorHandingService;
+
+	@Autowired
+	LoanPaymentOrderDao loanPaymentOrderDao;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -1375,5 +1379,30 @@ public class LoanDetailsService {
 
 			mobiles.add(merchant.getMobile());
 			smsServiceHandler.sendSMS(mobiles, messageForSms, NotificationProvider.SMS.GUPSHUP);
+	}
+
+	public CommonResponse getRepaymentHistory(Merchant merchant, String lendingPaymentScheduleId) {
+
+
+		try {
+			List<LoanPaymentOrder> loanPaymentOrders = loanPaymentOrderDao.findByOwnerIdAndMerchantId(lendingPaymentScheduleId, merchant.getId());
+			if(Objects.nonNull(loanPaymentOrders)){
+				List<Map<String, Object>> repaymentHistoryList = new ArrayList<>();
+				for(LoanPaymentOrder loanPaymentOrder: loanPaymentOrders){
+					Map<String, Object> repaymentHistory = new HashMap<>();
+					repaymentHistory.put("amount",loanPaymentOrder.getAmount());
+					repaymentHistory.put("mode",loanPaymentOrder.getSource());
+					repaymentHistory.put("date",loanPaymentOrder.getCreatedAt());
+					repaymentHistory.put("status",loanPaymentOrder.getStatus());
+
+					repaymentHistoryList.add(repaymentHistory);
+				}
+
+				return new CommonResponse(true, "Repayment History", repaymentHistoryList);
+			}
+		} catch (Exception ex) {
+			logger.error("Exception while repayment history for ApplicationId {} Error: {}", lendingPaymentScheduleId, ex);
+		}
+		return new CommonResponse(false, "SomeThing Went Wrong", null);
 	}
 }

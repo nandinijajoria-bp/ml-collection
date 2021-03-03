@@ -203,4 +203,12 @@ public class LendingApplicationController {
 		logger.info("Nach refund response:{}", response);
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/repayment_history", method = RequestMethod.GET)
+	public ResponseEntity<CommonResponse> repaymentHistory(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id") String lendingPaymentScheduleId){
+		logger.info("repayment History request for lendingPaymentScheduleId :{}", lendingPaymentScheduleId);
+		CommonResponse response = loanDetailsService.getRepaymentHistory(merchant, lendingPaymentScheduleId);
+		logger.info("repayment History Response: {}", response);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
 }
