@@ -853,6 +853,9 @@ public class LoanEligibleService {
         if (previousLoan == null && !cpvCity) {
             maxAmount = 100000;
         }
+        if (isNTC && !cpvCity) {
+            maxAmount = 50000;
+        }
         if (avgTpv == 0 && prevLoanAmount > 0) {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 100000;
@@ -861,6 +864,9 @@ public class LoanEligibleService {
             }
             if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode && !"NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();
+            }
+            if (isNTC && !cpvCity) {
+                maxAmount = 50000;
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
             if (prevLoanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
