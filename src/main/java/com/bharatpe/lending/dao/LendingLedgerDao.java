@@ -31,4 +31,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
 
     @Query(value = "select count(ll.id) from lending_ledger ll where ll.loan_id=:lpsId and ll.amount>=:ediAmount", nativeQuery = true)
     Integer findLedgerCountOnAmountGreaterThanEdiAmount(Long lpsId, Double ediAmount);
+
+    @Query(nativeQuery = true, value = "select * from lending_ledger where description like 'PRECLOSER%' and loan_id=:lpsId limit 1")
+    LendingLedger getForClosedLedger(Long lpsId);
 }

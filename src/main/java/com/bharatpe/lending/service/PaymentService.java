@@ -635,7 +635,8 @@ public class PaymentService {
 			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
 				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
 				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
-				if (maxDpd.intValue() <= 5 && (dpd >= -5 && dpd <= 5)) {
+				LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
+				if (maxDpd.intValue() <= 5 && (dpd <= 5 && Objects.isNull(lendingLedger))) {
 					logger.info("Closing dpd is between 5 days for loanId:{}, processing fee refund for amount:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getLoanApplication().getProcessingFee());
 					Double cashbackAmount = lendingPaymentSchedule.getLoanApplication().getProcessingFee();
 					String orderId = "PF_CASHBACK" + System.currentTimeMillis();
