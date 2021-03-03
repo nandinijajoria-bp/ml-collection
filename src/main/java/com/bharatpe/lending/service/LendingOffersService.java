@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.dao.DocKycDetailsDao;
+import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
@@ -59,6 +61,12 @@ public class LendingOffersService {
 
 	@Autowired
 	LendingEkycDao lendingEkycDao;
+
+	@Autowired
+	DocumentsIdProofDao documentsIdProofDao;
+
+	@Autowired
+	DocKycDetailsDao docKycDetailsDao;
 
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
@@ -169,5 +177,7 @@ public class LendingOffersService {
 		lendingApplicationDao.deleteByMerchantId(merchant.getId());
 		bpEnachDao.deleteByMerchantId(merchant.getId());
 		lendingEkycDao.deleteByMerchantId(merchant.getId());
+		documentsIdProofDao.deleteByMerchantId(merchant.getId());
+		docKycDetailsDao.deleteByMerchantId(merchant.getId());
 	}
 }
