@@ -191,8 +191,10 @@ public class ImageURLService {
 				logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", documentsIdProof.getProofBackSide(), e.getMessage());
 			}
 			proof.put("proof",imageURL);
+			proof.put("updated_at", documentsIdProof.getUpdatedAt());
 			finalResponse.add(proof);
 		}
+		finalResponse.sort(Comparator.comparing(o -> ((Date) o.get("updated_at"))));
 		return finalResponse;
 	}
 }
