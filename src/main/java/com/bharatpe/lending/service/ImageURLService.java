@@ -100,6 +100,7 @@ public class ImageURLService {
 		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
 		result.put("proofs", data);
 		result.put("success", true);
+		result.put("qrMandatory", !lendingApplication.getLoanType().equals("NTB"));
 		if (finalCall) {
 			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), lendingApplication);
 		}
@@ -160,7 +161,7 @@ public class ImageURLService {
 	
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
 
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {

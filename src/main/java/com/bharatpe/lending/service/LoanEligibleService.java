@@ -828,17 +828,17 @@ public class LoanEligibleService {
         double bureauScore = experian != null && experian.getExperianScore() != null ? experian.getExperianScore() : 0;
         Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
-        if ("S4A".equalsIgnoreCase(lendingCategories.getMasterCategory()) || "S4LG".equalsIgnoreCase(lendingCategories.getMasterCategory())) {
-            long dpd = getDPDInLastLoan(merchantId);
-            if (dpd > 5) {
-                interest = 2.75d;
-            }
-        } else if ("S4DG".equalsIgnoreCase(lendingCategories.getMasterCategory())) {
-            long dpd = getDPDInLastLoan(merchantId);
-            if (dpd > 10) {
-                interest = 2.25d;
-            }
-        }
+//        if ("S4A".equalsIgnoreCase(lendingCategories.getMasterCategory()) || "S4LG".equalsIgnoreCase(lendingCategories.getMasterCategory())) {
+//            long dpd = getDPDInLastLoan(merchantId);
+//            if (dpd > 5) {
+//                interest = 2.75d;
+//            }
+//        } else if ("S4DG".equalsIgnoreCase(lendingCategories.getMasterCategory())) {
+//            long dpd = getDPDInLastLoan(merchantId);
+//            if (dpd > 10) {
+//                interest = 2.25d;
+//            }
+//        }
         int tenure = Math.round(lendingCategories.getTenureMonths());
         int ioTenure = Math.round(lendingCategories.getIoTenureMonths());
         logger.info("score:{} for merchant:{}", bureauScore, merchantId);
