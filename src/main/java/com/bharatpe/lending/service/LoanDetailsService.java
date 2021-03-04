@@ -222,6 +222,7 @@ public class LoanDetailsService {
 					experian.setPincode(requestDTO.getPayload().getPincode());
 					experian.setResponse(null);
 					experian.setBureau(null);
+					experian.setHitId(null);
 					experianDao.save(experian);
 				} else {
 					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
