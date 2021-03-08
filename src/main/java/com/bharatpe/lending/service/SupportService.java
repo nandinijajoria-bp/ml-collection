@@ -7,11 +7,10 @@ import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.lending.common.dao.BharatPeEnachDao;
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
+import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -27,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.math.BigInteger;
 import java.util.*;
 
 @Service
@@ -65,6 +65,15 @@ public class SupportService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
+
+    @Autowired
+    LendingPayoutsDao lendingPayoutsDao;
+
+    @Autowired
+    LoanDpdDao loanDpdDao;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
 
@@ -185,6 +194,9 @@ public class SupportService {
             loanApplication.setTenure(lendingApplication.getTenure());
             loanApplication.setInterestRate(lendingApplication.getInterestRate());
             loanApplication.setRepayment(lendingApplication.getRepayment());
+            SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
+            loanArrangerFee.setFeeAmount(lendingApplication.getProcessingFee());
+            supportLoanResponseDTO.setLoanArrangerFee(loanArrangerFee);
             supportLoanResponseDTO.setLoanApplication(loanApplication);
             MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), Status.GeneralStatus.ACTIVE.name());
             if (!ObjectUtils.isEmpty(merchantBankDetail)) {
@@ -464,6 +476,17 @@ public class SupportService {
                     lendingLedgerDetailList.add(lendingLedgerDetail);
                 }
 
+                SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
+                loanArrangerFee.setFeeAmount(lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchant().getId(), lendingPaymentSchedule1.getId());
+                if(!ObjectUtils.isEmpty(lendingPayouts)) {
+                    loanArrangerFee.setArrangerFeeRefundEligible(true);
+                    loanArrangerFee.setArrangerFeeRefunded(true);
+                    loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
+                } else {
+                    boolean eligible = isArrangerFeeEligible(lendingPaymentSchedule1);
+                    loanArrangerFee.setArrangerFeeRefundEligible(eligible);
+                }
                 Map<String, Object> loanDetails = new HashMap<>();
                 loanDetails.put("agreementAt", lendingPaymentSchedule1.getLoanApplication().getAgreementAt());
                 loanDetails.put("loanStatus", lendingPaymentSchedule1.getStatus());
@@ -482,6 +505,7 @@ public class SupportService {
                 loanDetails.put("tentativeClosingDate", lendingPaymentSchedule1.getTentativeClosingDate());
                 loanDetails.put("tenure", lendingPaymentSchedule1.getLoanApplication().getTenure());
                 loanDetails.put("ledgerDetails", lendingLedgerDetailList);
+                loanDetails.put("loanArrangerFee",loanArrangerFee);
 
                 loanHistoryList.add(loanDetails);
             }
@@ -490,5 +514,17 @@ public class SupportService {
 
         }
         return supportLoanResponseDTO;
+    }
+
+    private Boolean isArrangerFeeEligible(LendingPaymentSchedule lendingPaymentSchedule){
+        if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
+            BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
+            long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
+            LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
+            if (maxDpd.intValue() <= 5 &&  dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger))) {
+                return true;
+            }
+        }
+        return false;
     }
 }

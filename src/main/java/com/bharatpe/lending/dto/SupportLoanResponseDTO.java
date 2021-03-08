@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dto;
 
+import org.joda.time.DateTime;
+
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ public class SupportLoanResponseDTO {
     private LoanApplication loanApplication;
     private Eligibility eligibility;
     private List<Map<String, Object>> loanDetailsList;
+    private LoanArrangerFee loanArrangerFee;
 
     public Long getMerchantId() {
         return merchantId;
@@ -178,6 +181,14 @@ public class SupportLoanResponseDTO {
         this.creditLineAccount = creditLineAccount;
     }
 
+    public LoanArrangerFee getLoanArrangerFee() {
+        return loanArrangerFee;
+    }
+
+    public void setLoanArrangerFee(LoanArrangerFee loanArrangerFee) {
+        this.loanArrangerFee = loanArrangerFee;
+    }
+
     @Override
     public String toString() {
         return "SupportLoanResponseDTO{" +
@@ -200,6 +211,7 @@ public class SupportLoanResponseDTO {
             ", loanApplication=" + loanApplication +
             ", eligibility=" + eligibility +
             ", loanDetailsList=" + loanDetailsList +
+            ", loanArrangerFee=" + loanArrangerFee +
             '}';
     }
 
@@ -327,6 +339,55 @@ public class SupportLoanResponseDTO {
                 ", tenure='" + tenure + '\'' +
                 ", interestRate=" + interestRate +
                 ", repayment=" + repayment +
+                '}';
+        }
+    }
+
+    public static class LoanArrangerFee {
+        private Double feeAmount;
+        private Boolean arrangerFeeRefundEligible;
+        private Boolean arrangerFeeRefunded;
+        private Date timestamp;
+
+        public Double getFeeAmount() {
+            return feeAmount;
+        }
+
+        public void setFeeAmount(Double feeAmount) {
+            this.feeAmount = feeAmount;
+        }
+
+        public Boolean getArrangerFeeRefundEligible() {
+            return arrangerFeeRefundEligible;
+        }
+
+        public void setArrangerFeeRefundEligible(Boolean arrangerFeeRefundEligible) {
+            this.arrangerFeeRefundEligible = arrangerFeeRefundEligible;
+        }
+
+        public Boolean getArrangerFeeRefunded() {
+            return arrangerFeeRefunded;
+        }
+
+        public void setArrangerFeeRefunded(Boolean arrangerFeeRefunded) {
+            this.arrangerFeeRefunded = arrangerFeeRefunded;
+        }
+
+        public Date getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(Date timestamp) {
+            this.timestamp = timestamp;
+        }
+
+        @Override
+        public String toString() {
+            return "LoanArrangerFee{" +
+                "feeAmount=" + feeAmount +
+                ", arrangerFeeRefundEligible=" + arrangerFeeRefundEligible +
+                ", arrangerFeeRefunded=" + arrangerFeeRefunded +
+                ", timestamp=" + timestamp +
                 '}';
         }
     }
