@@ -412,8 +412,8 @@ public class SignAgreementService {
 		
 		if(mobile.length() == 12) {
 			String hash = appSign != null ? appSign : "";
-			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
-//			String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+//			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobile, message);
 //			logger.info("OTP sent on mobile: {} ", uuid);
 			if(isOTPSent) {
