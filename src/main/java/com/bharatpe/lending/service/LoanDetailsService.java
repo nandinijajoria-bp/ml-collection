@@ -31,6 +31,7 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -164,6 +165,9 @@ public class LoanDetailsService {
 	@Autowired
 	LoanPaymentOrderDao loanPaymentOrderDao;
 
+	@Autowired
+	PartnersConfigurationDao partnersConfigurationDao;
+
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
 //	@Transactional
@@ -258,6 +262,33 @@ public class LoanDetailsService {
 				response.setDetails(loanDetailsDTO);
 				response.setSuccess(true);
 				if (experian != null) {
+					loanUtil.auditExperian(experian);
+				}
+				return response;
+			}
+			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchant.getId());
+			if (d2RMerchant == null) {
+				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchant.getId());
+			}
+			if (d2RMerchant != null) {
+				logger.info("D2R merchant:{}, rejecting", merchant.getId());
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<>());
+				loanDetailsDTO.setHistory(new ArrayList<>());
+				loanDetailsDTO.setEligible(false);
+				loanDetailsDTO.setRejected(false);
+				loanDetailsDTO.setRejectReason(null);
+				loanDetailsDTO.setPanCard(null);
+				loanDetailsDTO.setZomato(isZomato);
+				loanDetailsDTO.setBharatPeClubMember(false);
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				if (experian != null) {
+					experian.setReason(ExperianConstants.D2R);
+					experian.setEligibleAmount(null);
+					experian.setLoanType(null);
+					experian.setEligibleTenure(null);
+					experianDao.save(experian);
 					loanUtil.auditExperian(experian);
 				}
 				return response;

@@ -71,6 +71,7 @@ public interface ExperianConstants {
     String NON_CPV_CITY = "NON_CPV_CITY";
     String MULTIPLE_PSP_APPS = "MULTIPLE_PSP_APPS";
     String FOS_APP = "FOS_APP";
+    String D2R = "D2R";
 
     List<String> RED = Arrays.asList("1","2","13","25");
     List<String> AMBER = Arrays.asList("3","4","5","6","14","15","16","17","18","26","27","28","29","37","38","39","40","41");
