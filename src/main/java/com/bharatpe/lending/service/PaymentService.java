@@ -176,9 +176,9 @@ public class PaymentService {
 			String ifsc = null;
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BPB)) {
 				Map<String, Object> result = apiGatewayService.initiateTxn(request.getMeta(), request.getSimInfo(), Double.valueOf(amount), null, orderId, token, "BharatPe Loans", request.getPayload().getSource().name());
-				paymentSuccess = (Boolean) result.get("success");
-				otpFlow = (Boolean) result.get("otp_flow");
-				authMode = (String) result.get("auth_mode");
+				paymentSuccess = result.containsKey("success") ?  (Boolean) result.get("success") : false;
+				otpFlow = result.containsKey("otp_flow") ? (Boolean) result.get("otp_flow") : null;
+				authMode = result.containsKey("auth_mode") ? (String) result.get("auth_mode") : null;
 			} else { //UPI
 				Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
 				if(vpaResponse != null && vpaResponse.get("status") != null && "OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
