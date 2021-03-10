@@ -98,6 +98,21 @@ public class LendingApplicationController {
 		return uploadDocumentResponse;
 	}
 
+	@RequestMapping(value="/uploadMoreDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+	public UploadDocumentResponseDTO uploadMoreDocument(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequestDTO> requestDTO) {
+		logger.info("UploadDocument request : {}",requestDTO);
+		if(requestDTO.getPayload() == null) {
+			logger.info("Invalid request parameters : {}", requestDTO);
+			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+			return null;
+		}
+		requestDTO.getMeta().setIp(clientIp);
+		UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadMoreDocument(merchant, requestDTO);
+
+		logger.info("UploadDocument response : {}", uploadDocumentResponse);
+		return uploadDocumentResponse;
+	}
+
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp,  @RequestBody RequestDTO<SignAgreementDTO> requestDTO) {
 		logger.info("singAgreement request : {}",requestDTO);
