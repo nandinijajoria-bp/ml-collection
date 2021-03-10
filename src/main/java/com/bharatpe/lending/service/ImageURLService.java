@@ -3,7 +3,10 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.DocKycDetailsDao;
+import com.bharatpe.common.dao.DocumentsIdProofDao;
+import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.dao.PhonebookDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
@@ -156,7 +159,7 @@ public class ImageURLService {
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
-		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
+		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
