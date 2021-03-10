@@ -1,26 +1,20 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
-
-import javax.servlet.http.HttpServletResponse;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
-import com.bharatpe.lending.common.entity.CreditApplication;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
-import com.bharatpe.lending.common.entity.MerchantDocumentProof;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import org.springframework.util.StringUtils;
@@ -162,7 +156,7 @@ public class ImageURLService {
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
-		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantAndLendingApplication(merchant.getId(),lendingApplication.getId());
+		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
 
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {

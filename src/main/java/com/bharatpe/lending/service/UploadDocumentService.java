@@ -3,13 +3,9 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
-
-import javax.annotation.PostConstruct;
-import javax.servlet.http.HttpServletResponse;
-
-import com.amazonaws.services.dynamodbv2.xspec.M;
-import com.bharatpe.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.UploadDocumentUtil;
@@ -17,17 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -213,8 +203,8 @@ public class UploadDocumentService {
 
 	private LendingShopDocuments insertShopDocuments(String proofType, String frontSide, String backSide, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
 		LendingShopDocuments lendingShopDocuments = new LendingShopDocuments();
-		lendingShopDocuments.setMerchant(merchant);
-		lendingShopDocuments.setLendingApplication(lendingApplication);
+		lendingShopDocuments.setMerchantId(merchant.getId());
+		lendingShopDocuments.setApplicationId(lendingApplication.getId());
 		lendingShopDocuments.setProofType(proofType);
 		lendingShopDocuments.setProofFrontSide(frontSide);
 		lendingShopDocuments.setProofBackSide(backSide);
@@ -247,7 +237,7 @@ public class UploadDocumentService {
 	}
 
 	private LendingShopDocuments updateShopDocuments(String proofType, String frontSide, String backSide, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
-		LendingShopDocuments lendingShopDocuments = lendingShopDocumentsDao.findTop1ByMerchantAndLendingApplicationAndProofTypeOrderByIdDesc(merchant, lendingApplication, proofType);
+		LendingShopDocuments lendingShopDocuments = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(merchant.getId(), lendingApplication.getId(), proofType);
 
 		if(lendingShopDocuments != null) {
 			lendingShopDocuments.setProofFrontSide(frontSide);
@@ -553,7 +543,7 @@ public class UploadDocumentService {
 		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
-		List<LendingShopDocuments> shopDocumentsList =lendingShopDocumentsDao.findByMerchantAndLendingApplication(merchant,lendingApplication);
+		List<LendingShopDocuments> shopDocumentsList =lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
 
 		Boolean isUpdate = false;
 		if(shopDocumentsList.size() > 0) {
