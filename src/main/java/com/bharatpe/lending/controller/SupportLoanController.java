@@ -25,5 +25,12 @@ public class SupportLoanController {
         logger.info("Request received to get loan details for merchantId: {}", merchantId);
         return new ResponseEntity<>(supportService.supportLoan(merchantId), HttpStatus.OK);
     }
+
+    @RequestMapping(value="/lenderchange", method = RequestMethod.POST, produces="application/json")
+    public ResponseEntity<SupportResponseDTO> supportBulkLenderChange(@RequestParam Long merchantId,@RequestParam Long applicationId,@RequestParam Long fileId,@RequestParam Boolean flag,@RequestParam String lender){
+        logger.info("Request received to lender change for merchantId:{},applicationId:{} ,fileId:{},flag:{}", merchantId,applicationId,fileId,flag);
+
+        return new ResponseEntity<>(supportService.bulkLenderchange(merchantId,applicationId,fileId,flag,lender), HttpStatus.OK);
+    }
 }
 
