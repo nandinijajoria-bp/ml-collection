@@ -412,7 +412,6 @@ public class SignAgreementService {
 			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 //			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 			Boolean isOTPSent = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
-			whatsappNotificationService.send(merchant, null, message, new ArrayList<String>(){{add(merchant.getMobile());}}, null);
 			if(isOTPSent) {
 				finalResponse.put("success",true);
 				finalResponse.put("otp_flow",true);
