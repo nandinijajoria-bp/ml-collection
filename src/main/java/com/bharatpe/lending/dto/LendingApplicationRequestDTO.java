@@ -45,6 +45,8 @@ public class LendingApplicationRequestDTO {
 
     private String businessCategory;
 
+    private String shopType;
+
     @JsonProperty("offer_type")
     private String offerType;
 
@@ -224,6 +226,14 @@ public class LendingApplicationRequestDTO {
 
     public void setBusinessCategory(String businessCategory) {
         this.businessCategory = businessCategory;
+    }
+
+    public String getShopType() {
+        return shopType;
+    }
+
+    public void setShopType(String shopType) {
+        this.shopType = shopType;
     }
 
     @Override

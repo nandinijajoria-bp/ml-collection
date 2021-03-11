@@ -49,6 +49,9 @@ public class ShopDetailsDTO {
 	@JsonProperty("businessCategory")
 	private String businessCategory = "";
 
+	@JsonProperty("shopType")
+	private  String shopType = "";
+
 	public String getBusinessName() {
 		return businessName;
 	}
@@ -167,6 +170,14 @@ public class ShopDetailsDTO {
 
 	public void setAlternateContact(String alternateContact) {
 		this.alternateContact = alternateContact;
+	}
+
+	public String getShopType() {
+		return shopType;
+	}
+
+	public void setShopType(String shopType) {
+		this.shopType = shopType;
 	}
 
 	@Override

@@ -117,6 +117,7 @@ public class LoanUtil {
 			shopDetails.put("hasGST", lendingGstDetail.getGst() != null ? lendingGstDetail.getGst() : "");
 			shopDetails.put("experience", lendingGstDetail.getExperience() != null ? lendingGstDetail.getExperience() : "");
 			shopDetails.put("businessCategory", lendingGstDetail.getBusinessCategory() != null ? lendingGstDetail.getBusinessCategory() : "");
+			shopDetails.put("shopType",lendingGstDetail.getShopType() != null ? lendingGstDetail.getShopType() : "");
 		}
 		return shopDetails;
 	}
@@ -141,6 +142,7 @@ public class LoanUtil {
 			shopDetails.setBusinessCategory(lendingGstDetail.getBusinessCategory());
 			shopDetails.setSalary(lendingGstDetail.getSalary() != null ? String.valueOf(lendingGstDetail.getSalary()) : "");
 			shopDetails.setExperience(lendingGstDetail.getExperience());
+			shopDetails.setShopType(lendingGstDetail.getShopType());
 		}
 		return shopDetails;
 	}

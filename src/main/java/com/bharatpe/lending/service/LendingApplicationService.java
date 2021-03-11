@@ -740,6 +740,7 @@ public class LendingApplicationService {
 			lendingGstDetail.setExperience(lendingApplicationRequest.getExperience());
 			lendingGstDetail.setGst(lendingApplicationRequest.getHasGST());
 			lendingGstDetail.setGstNumber(lendingApplicationRequest.getGstNumber());
+			lendingGstDetail.setShopType(lendingApplicationRequest.getShopType());
 			lendingGstDetail.setSalary(lendingApplicationRequest.getSalary() != null && !lendingApplicationRequest.getSalary().trim().equals("") ? Double.parseDouble(lendingApplicationRequest.getSalary()) : 0D);
 			lendingGstDao.save(lendingGstDetail);
 		}
