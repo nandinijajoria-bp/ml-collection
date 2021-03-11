@@ -3,14 +3,11 @@ package com.bharatpe.lending.service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.objects.Meta;
+import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,9 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestBody;
-
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
@@ -43,6 +37,9 @@ public class SignAgreementService {
 	
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
+
+	@Autowired
+	WhatsappNotificationService whatsappNotificationService;
 
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
@@ -126,7 +123,7 @@ public class SignAgreementService {
 		if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
 			return response;
 		}
-		response =  sendOTP(merchant.getMobile(), appSign);
+		response =  sendOTP(merchant, appSign);
 		response.put("application_id", applicationId);
 		return response;
 	}
@@ -304,7 +301,7 @@ public class SignAgreementService {
 			}
 
 			Instant start = Instant.now();
-			response = sendOTP(merchant.getMobile(), requestDTO.getPayload().getAppSign());
+			response = sendOTP(merchant, requestDTO.getPayload().getAppSign());
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
@@ -405,21 +402,20 @@ public class SignAgreementService {
 		docAuthenticationDao.save(docAuthentication);
 	}
 	
-	private Map<String, Object> sendOTP(String mobile, String appSign) {
+	private Map<String, Object> sendOTP(Merchant merchant, String appSign) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 		
-		if(mobile.length() == 12) {
+		if(merchant.getMobile().length() == 12) {
 			String hash = appSign != null ? appSign : "";
-//			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
-			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-			Boolean isOTPSent = gupShupOTPHandler.sendOTP(mobile, message);
-//			logger.info("OTP sent on mobile: {} ", uuid);
+			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+//			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+			Boolean isOTPSent = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
+			whatsappNotificationService.send(merchant, null, message, new ArrayList<String>(){{add(merchant.getMobile());}}, null);
 			if(isOTPSent) {
 				finalResponse.put("success",true);
 				finalResponse.put("otp_flow",true);
-//				finalResponse.put("uuid",uuid);
 			}
 		}
 		return finalResponse;
