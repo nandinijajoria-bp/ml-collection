@@ -197,12 +197,12 @@ public class ImageURLService {
 			for(LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList){
 				Map<String, Object> moreDocument = new LinkedHashMap<>();
 				moreDocument.put("proof_type",lendingShopDocuments.getProofType());
-				moreDocument.put("single_page_document",1);
+				moreDocument.put("single_page_document",Boolean.TRUE);
 
 				List<String> imageURL = new ArrayList<>();
 				try {
 					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide())) {
-						logger.error("Empty front Url for documentsIdProof: {}", lendingShopDocuments.getId());
+						logger.error("Empty front Url for Shop Documents: {}", lendingShopDocuments.getId());
 						continue;
 					}
 					String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);
