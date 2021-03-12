@@ -277,7 +277,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setHistory(new ArrayList<>());
 				loanDetailsDTO.setEligible(false);
 				loanDetailsDTO.setRejected(false);
-				loanDetailsDTO.setRejectReason(null);
+				loanDetailsDTO.setRejectReason("D2R");
 				loanDetailsDTO.setPanCard(null);
 				loanDetailsDTO.setZomato(isZomato);
 				loanDetailsDTO.setBharatPeClubMember(false);
