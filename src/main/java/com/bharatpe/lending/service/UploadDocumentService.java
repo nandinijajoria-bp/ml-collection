@@ -3,12 +3,9 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
-
-import javax.annotation.PostConstruct;
-import javax.servlet.http.HttpServletResponse;
-
-import com.amazonaws.services.dynamodbv2.xspec.M;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.UploadDocumentUtil;
@@ -16,17 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -47,6 +38,9 @@ public class UploadDocumentService {
 	
 	@Autowired
 	DocumentsIdProofDao documentsIdProofdao;
+
+	@Autowired
+	LendingShopDocumentsDao lendingShopDocumentsDao;
 	
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
@@ -94,11 +88,16 @@ public class UploadDocumentService {
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofdao.findByMerchantAndLendingApplication(merchant, lendingApplication);
-		Boolean isUpdate = false;
+		List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
+		Boolean isUpdateDocument = false;
+		Boolean isUpdateMoreDocument = false;
 		if(documentsIdProofList.size() > 0) {
-			isUpdate = true;
+			isUpdateDocument = true;
 		}
-		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdate, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse);
+		if(lendingShopDocumentsList.size()>0){
+			isUpdateMoreDocument = true;
+		}
+		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse,isUpdateMoreDocument);
 
 		if(documentList.size() > 0) {
 			finalResponse.put("success", true);
@@ -109,7 +108,7 @@ public class UploadDocumentService {
 		return uploadDocumentResponse;
 	}
 	
-	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse) {
+	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse,Boolean isUpdateMoreDocument) {
 		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
 		for(UploadDocumentRequestDTO.Document document : documents) {
@@ -130,10 +129,19 @@ public class UploadDocumentService {
 			String backSide = proofSides.get("backSide");
 
 			DocumentsIdProof documentsIdProof = null;
-			if(isUpdate) {
-				documentsIdProof = updateDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
-			} else {
-				documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
+			LendingShopDocuments lendingShopDocuments = null;
+			if("shop-front".equalsIgnoreCase(proofType) || "shop-stock".equalsIgnoreCase(proofType) || "shop-qr".equalsIgnoreCase(proofType)){
+				if(isUpdateMoreDocument){
+					lendingShopDocuments = updateShopDocuments(proofType,frontSide,backSide,merchant,lendingApplication,meta);
+				}else{
+					lendingShopDocuments = insertShopDocuments(proofType,frontSide,backSide,merchant,lendingApplication,meta);
+				}
+			}else{
+				if(isUpdate) {
+					documentsIdProof = updateDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
+				} else {
+					documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
+				}
 			}
 
 			if(documentsIdProof != null) {
@@ -141,6 +149,14 @@ public class UploadDocumentService {
 				documentResponse.setProofId(documentsIdProof.getId());
 				documentResponse.setProofType(proofType);
 				documentResponse.setSinglePageDocument(singlePageDocument);
+				documentList.add(documentResponse);
+			}
+
+			if(lendingShopDocuments != null){
+				UploadDocumentResponseDTO.Document documentResponse = uploadDocumentResponse.new Document();
+				documentResponse.setProofId(lendingShopDocuments.getId());
+				documentResponse.setProofType(proofType);
+				documentResponse.setSinglePageDocument(1);
 				documentList.add(documentResponse);
 			}
 			sinzyCorrectPanCheck(documentsIdProof, proofType, merchant, lendingApplication.getId());
@@ -160,7 +176,7 @@ public class UploadDocumentService {
 			}).start();
 		}
 	}
-	
+
 	private Map<String, String> processAndUploadProof(List<String> proof, Merchant merchant) {
 		Map<String, String> proofSides = new LinkedHashMap<>();
 		proofSides.put("frontSide", "");
@@ -188,7 +204,7 @@ public class UploadDocumentService {
 		}
 		return base64EncodedString;
 	}
-	
+
 	private DocumentsIdProof insertDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
 		DocumentsIdProof documentsIdProof = new DocumentsIdProof();
 		documentsIdProof.setMerchant(merchant);
@@ -206,9 +222,34 @@ public class UploadDocumentService {
 		documentsIdProofdao.save(documentsIdProof);
 		return documentsIdProof;
 	}
+
+	private LendingShopDocuments insertShopDocuments(String proofType, String frontSide, String backSide, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
+		LendingShopDocuments lendingShopDocuments = new LendingShopDocuments();
+		lendingShopDocuments.setMerchantId(merchant.getId());
+		lendingShopDocuments.setApplicationId(lendingApplication.getId());
+		lendingShopDocuments.setProofType(proofType);
+		lendingShopDocuments.setProofFrontSide(frontSide);
+		lendingShopDocuments.setProofBackSide(backSide);
+		lendingShopDocuments.setStatus("pending_verification");
+		if (meta != null && meta.getLatitude() != null && !meta.getLatitude().trim().equalsIgnoreCase("") && !meta.getLatitude().trim().equalsIgnoreCase("undefined")) {
+			lendingShopDocuments.setLatitude(meta.getLatitude());
+			lendingShopDocuments.setLongitude(meta.getLongitude());
+			lendingShopDocuments.setIp(meta.getIp());
+		}
+		lendingShopDocumentsDao.save(lendingShopDocuments);
+		return lendingShopDocuments;
+	}
 	
 	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
-		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantAndLendingApplicationAndProofTypeOrderByIdDesc(merchant, lendingApplication, proofType);
+		if(!"pancard".equalsIgnoreCase(proofType) && !"selfie".equalsIgnoreCase(proofType)){
+			DocumentsIdProof poaDocument=documentsIdProofdao.fetchLatestAddressProof(merchant.getId(), lendingApplication.getId(), "LENDING");
+			if(poaDocument != null && !poaDocument.getProofType().equalsIgnoreCase(proofType)){
+				poaDocument.setDeletedAt(new Date());
+				documentsIdProofdao.save(poaDocument);
+			}
+		}
+
+		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant, lendingApplication, proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);
 			documentsIdProof.setProofBackSide(backSide);
@@ -223,6 +264,24 @@ public class UploadDocumentService {
 			documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
 		}
 		return documentsIdProof;
+	}
+
+	private LendingShopDocuments updateShopDocuments(String proofType, String frontSide, String backSide, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta) {
+		LendingShopDocuments lendingShopDocuments = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(merchant.getId(), lendingApplication.getId(), proofType);
+
+		if(lendingShopDocuments != null) {
+			lendingShopDocuments.setProofFrontSide(frontSide);
+			lendingShopDocuments.setProofBackSide(backSide);
+			if (meta != null && meta.getLatitude() != null && !meta.getLatitude().trim().equalsIgnoreCase("") && !meta.getLatitude().trim().equalsIgnoreCase("undefined")) {
+				lendingShopDocuments.setLatitude(meta.getLatitude());
+				lendingShopDocuments.setLongitude(meta.getLongitude());
+				lendingShopDocuments.setIp(meta.getIp());
+			}
+			lendingShopDocumentsDao.save(lendingShopDocuments);
+		} else {
+			lendingShopDocuments = insertShopDocuments(proofType, frontSide, backSide, merchant, lendingApplication, meta);
+		}
+		return lendingShopDocuments;
 	}
 
 	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {

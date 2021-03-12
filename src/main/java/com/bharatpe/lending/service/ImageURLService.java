@@ -1,29 +1,23 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 
-import javax.servlet.http.HttpServletResponse;
-
 import com.bharatpe.common.dao.DocKycDetailsDao;
+import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.PhonebookDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
-import com.bharatpe.lending.common.entity.CreditApplication;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
-import com.bharatpe.lending.common.entity.MerchantDocumentProof;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import org.springframework.util.StringUtils;
@@ -34,6 +28,9 @@ public class ImageURLService {
 	
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
+
+	@Autowired
+	LendingShopDocumentsDao lendingShopDocumentsDao;
 
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
@@ -162,6 +159,7 @@ public class ImageURLService {
 	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
+		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
@@ -194,6 +192,38 @@ public class ImageURLService {
 			proof.put("updated_at", documentsIdProof.getUpdatedAt());
 			finalResponse.add(proof);
 		}
+
+		if(lendingShopDocumentsList != null){
+			for(LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList){
+				Map<String, Object> moreDocument = new LinkedHashMap<>();
+				moreDocument.put("proof_type",lendingShopDocuments.getProofType());
+				moreDocument.put("single_page_document",Boolean.TRUE);
+
+				List<String> imageURL = new ArrayList<>();
+				try {
+					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide())) {
+						logger.error("Empty front Url for Shop Documents: {}", lendingShopDocuments.getId());
+						continue;
+					}
+					String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);
+					imageURL.add(frontURL);
+
+					if(!StringUtils.isEmpty(lendingShopDocuments.getProofBackSide())) {
+						String backURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofBackSide(), bucket);
+						imageURL.add(backURL);
+
+					}
+				} catch (FileNotFoundException e) {
+					logger.info("ImageURLService file not found in S3 bucket for key : {}", lendingShopDocuments.getProofBackSide());
+				} catch (Exception e) {
+					logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", lendingShopDocuments.getProofBackSide(), e.getMessage());
+				}
+				moreDocument.put("proof",imageURL);
+				moreDocument.put("updated_at", lendingShopDocuments.getUpdatedAt());
+				finalResponse.add(moreDocument);
+			}
+		}
+
 		finalResponse.sort(Comparator.comparing(o -> ((Date) o.get("updated_at"))));
 		return finalResponse;
 	}
