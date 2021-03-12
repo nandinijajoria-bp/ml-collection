@@ -36,8 +36,8 @@ public class VerifyDocService {
 	public VerifyPanCardDto verifyPanCard(Merchant merchant, String  panCard) {
 		try {
 			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
-			Experian experian =experianDao.getByPancardNumber(panCard);
-			if(!merchant.getId().equals(experian.getMerchantId())){
+			Experian experian =experianDao.getByPancardNumber(panCard, merchant.getId());
+			if(experian != null && !merchant.getId().equals(experian.getMerchantId())){
 				logger.info("Already Experian  Pull On this Pancard :{}",panCard);
 				return new VerifyPanCardDto(true,"PAN already exists, Please enter a different PAN Number",false);
 			}
