@@ -2,7 +2,9 @@ package com.bharatpe.lending.service;
 
 import java.util.List;
 
+import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
+import com.bharatpe.common.entities.Experian;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,10 +29,18 @@ public class VerifyDocService {
 
 	@Autowired
 	LendingPancardDao lendingPancardDao;
+
+	@Autowired
+	ExperianDao experianDao;
 	
 	public VerifyPanCardDto verifyPanCard(Merchant merchant, String  panCard) {
 		try {
 			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+			Experian experian =experianDao.getByPancardNumber(panCard);
+			if(!merchant.getId().equals(experian.getMerchantId())){
+				logger.info("Already Experian  Pull On this Pancard :{}",panCard);
+				return new VerifyPanCardDto(true,"PAN already exists, Please enter a different PAN Number",false);
+			}
 			if(lendingPancard == null || (lendingPancard.getPancardNumber()!=null && !lendingPancard.getPancardNumber().equalsIgnoreCase(panCard))||(lendingPancard.getPancardNumber()==null || lendingPancard.getPancardNumber().isEmpty())) {
 				lendingPancard=loanEligibleService.fetchNameFromSignzy(panCard,merchant.getId());
 			}
