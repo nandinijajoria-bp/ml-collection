@@ -277,4 +277,38 @@ public class LoanUtil {
 		}
 		return tat;
 	}
+
+	public static String getFirstName(String name){
+		if (name == null) {
+			return "";
+		}
+		int lastIndexOfSpace = name.lastIndexOf(" ");
+		if (lastIndexOfSpace != -1){
+			return name.substring(0, lastIndexOfSpace);
+		} else {
+			lastIndexOfSpace = name.lastIndexOf(".");
+			if (lastIndexOfSpace != -1) {
+				return name.substring(0, lastIndexOfSpace);
+			} else {
+				return name;
+			}
+		}
+	}
+
+	public static String getLastName(String name){
+		if (name == null) {
+			return "";
+		}
+		int lastIndexOfSpace = name.lastIndexOf(" ");
+		if (lastIndexOfSpace != -1){
+			return name.substring(lastIndexOfSpace + 1);
+		} else {
+			lastIndexOfSpace = name.lastIndexOf(".");
+			if (lastIndexOfSpace != -1) {
+				return name.substring(lastIndexOfSpace + 1);
+			} else {
+				return name;
+			}
+		}
+	}
 }

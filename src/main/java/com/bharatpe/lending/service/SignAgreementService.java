@@ -409,12 +409,13 @@ public class SignAgreementService {
 		
 		if(merchant.getMobile().length() == 12) {
 			String hash = appSign != null ? appSign : "";
-			String message = "<#> BharatPe: %code% is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
 //			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-			Boolean isOTPSent = gupShupOTPHandler.sendOTP(merchant.getMobile(), message);
-			if(isOTPSent) {
-				finalResponse.put("success",true);
+			Map<String, Object> response = bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+			if(response != null) {
+				finalResponse.put("success", response.get("success"));
 				finalResponse.put("otp_flow",true);
+				finalResponse.put("uuid",response.get("uuid"));
 			}
 		}
 		return finalResponse;
