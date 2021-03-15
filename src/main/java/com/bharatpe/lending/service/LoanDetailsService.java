@@ -717,7 +717,7 @@ public class LoanDetailsService {
 					experian.setCategory("1N");
 					experian.setColor(ExperianConstants.COLOR.RED.name());
 					experianDao.save(experian);
-				}else if(!exemptMerchant.contains(merchant.getId()) && (!loanEligibilityDTOs.isEmpty() && isRegularLoanInEligible(experian, loanEligibilityDTOs.get(0).getAmount().doubleValue()) && Objects.isNull(bankCode))) {
+				}else if(!exemptMerchant.contains(merchant.getId()) && (!loanEligibilityDTOs.isEmpty() && loanEligibilityDTOs.get(0) != null && isRegularLoanInEligible(experian, loanEligibilityDTOs.get(0).getAmount().doubleValue()) && Objects.isNull(bankCode))) {
 					logger.info("isRegularLoanInEligible experianId: {} and amount: {}", experian.getId(), loanEligibilityDTOs.get(0).getAmount().doubleValue());
 					if(loanEligibilityDTOs.get(0).getAmount().doubleValue() < 50000){
 						experian.setReason(ExperianConstants.ENACH);

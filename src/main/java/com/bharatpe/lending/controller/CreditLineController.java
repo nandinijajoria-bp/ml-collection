@@ -143,9 +143,11 @@ public class CreditLineController {
 
 	@RequestMapping(value="/spend/initiate", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<CreditSpendResponseDTO> spendInitiate(@RequestAttribute Merchant merchant, @RequestBody SpendInitiateRequestDTO requestDTO) {
-		logger.info("spend initiate request : {}", requestDTO);
+		logger.info("spend initiate request:{}", requestDTO);
 		try {
-			return new ResponseEntity<>(creditLineService.initiateSpend(merchant, requestDTO), HttpStatus.OK);
+			CreditSpendResponseDTO responseDTO = creditLineService.initiateSpend(merchant, requestDTO);
+			logger.info("spend initiate response:{} for merchant:{}", responseDTO, merchant.getId());
+			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
 		} catch (Exception e) {
 			logger.error("Exception---", e);
 			return new ResponseEntity<>(new CreditSpendResponseDTO(false, "Something went wrong"), HttpStatus.OK);
