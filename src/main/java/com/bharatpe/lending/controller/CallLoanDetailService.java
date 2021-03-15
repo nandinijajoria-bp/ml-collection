@@ -132,25 +132,25 @@ public class CallLoanDetailService {
 		logger.info("SMS script ended");
 	}
 
-	public void startScript() {
-		ExecutorService executorService = Executors.newFixedThreadPool(1);
-		executorService.submit(this::callLoanDetail);
-	}
+//	public void startScript() {
+//		ExecutorService executorService = Executors.newFixedThreadPool(1);
+//		executorService.submit(this::callLoanDetail);
+//	}
 
-	public void callLoanDetail() {
-		logger.info("Call Loan Details Script Started");
+	public void callLoanDetail(Long ecollectTxnId) {
+		logger.info("Call Loan Details Script Started for ecollect txn id {}", ecollectTxnId);
 		try {
-			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
+//			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
 //			List<LendingApplication> lendingApplicationList = lendingApplicationDao.getApplications();
-			logger.info("Sending ecollect push to {} merchants", ecollectTransactions.size());
-			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
+			EcollectTransaction ecollectTransaction = ecollectTransactionDao.findById(ecollectTxnId).get();
+//			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
 //				if (internalMerchants.contains(merchantId.longValue())) {
 //					continue;
 //				}
 //				sendPush(ecollectTransaction);
-				pushToKafka(ecollectTransaction);
+			pushToKafka(ecollectTransaction);
 //				publishForDisbursal(lendingApplication.getId());
-			}
+//			}
 		} catch (Exception e) {
 			logger.error("Exception---", e);
 		}
