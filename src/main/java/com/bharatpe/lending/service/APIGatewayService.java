@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.entity.SignzyCredential;
 import com.bharatpe.lending.common.entity.SignzyRequestResponse;
 import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.TokenVerificationDao;
@@ -1384,5 +1385,124 @@ public class APIGatewayService {
             logger.error("Error occurred while lending payout api", e);
         }
         return null;
+    }
+
+    public JsonNode fetchCrifResponse(Merchant merchant, Experian experian) {
+        try {
+            logger.info("Fetching Crif for merchant:{}", merchant.getId());
+            Map<String, String> merchantName = getFirstLastName(merchant, experian.getPancardNumber());
+            String firstName = merchantName.get("first");
+            String lastName = merchantName.get("last");
+            String contact = merchant.getMobile().substring(2);
+            JsonNode stage1Response = crifStage1(firstName, lastName, experian.getPancardNumber(), contact, merchant.getId());
+            if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
+                logger.info("Crif stage1 success for merchant:{}", merchant.getId());
+                JsonNode stage2Response = crifStage2(merchant.getId(), stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), null, false, "");
+                if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
+                    logger.info("Crif stage2 success for merchant:{}", merchant.getId());
+                    JsonNode stage3Response = crifStage2(merchant.getId(), stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), null, true, "");
+                    if (stage3Response != null) {
+                        logger.info("Crif stage3 success for merchant:{}", merchant.getId());
+                        if (isValidReport(experian.getPancardNumber(), contact, stage3Response)) {
+                            logger.info("Found crif report for merchant:{}", merchant.getId());
+                            return stage3Response;
+                        } else {
+                            logger.info("Invalid crif report for merchant:{}", merchant.getId());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception while fetching crif for merchant:{}", merchant.getId(), e);
+        }
+        return null;
+    }
+
+    private Map<String, String> getFirstLastName(Merchant merchant, String pancard) {
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+        String firstName;
+        String lastName;
+        if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
+            lendingPancard = fetchNameFromSignzy(pancard, merchant.getId());
+        }
+        if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
+            firstName = LoanUtil.getFirstName(lendingPancard.getName());
+            lastName = LoanUtil.getLastName(lendingPancard.getName());
+        } else {
+            firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName());
+            lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName());
+        }
+        return new HashMap<String, String>(){{
+            put("firstName", firstName);
+            put("lastName", lastName);
+        }};
+    }
+
+    public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
+        logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
+        try {
+            Map<String, String> identityDetail = signzyIdentityDetails("individualPan", merchantId, "PAN", "PAN", new ArrayList<>());
+            if (identityDetail != null) {
+                String response = signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId, identityDetail.get("module"));
+                if(response!=null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
+                    return new LendingPancard(merchantId,pancardNumber,"NAME",null);
+                }
+                else if (response != null) {
+                    JsonNode responseNode = mapper.readTree(response);
+                    if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("name") != null) {
+                        String name = responseNode.get("response").get("result").get("name").asText();
+                        logger.info("Name:{} found in pancard:{}", name, pancardNumber);
+                        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+                        if (lendingPancard != null) {
+                            lendingPancard.setName(name);
+                            lendingPancard.setResponse(response);
+                            lendingPancard.setPancardNumber(pancardNumber);
+                            return lendingPancardDao.save(lendingPancard);
+                        }
+                        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in Signzy Pan Fetch Api", e);
+        }
+        return null;
+    }
+
+    private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
+        boolean checkPan = false;
+        boolean checkPhone = false;
+        if (response != null) {
+            JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
+                    .get(CrifConstants.PERSONAL_VARIATIONS);
+            if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
+                return false;
+            }
+            if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
+                    || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
+                return false;
+            }
+            if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
+                    || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
+                return false;
+            }
+            List<JsonNode> panVariations = LoanUtil
+                    .jsonNodeArrayUtil(personalData.get(CrifConstants.PAN_VARIATIONS).get(CrifConstants.VARIATION));
+            List<JsonNode> phoneVariations = LoanUtil
+                    .jsonNodeArrayUtil(personalData.get(CrifConstants.PHONE_VARIATIONS).get(CrifConstants.VARIATION));
+            if (phoneNumber.length() > 10) {
+                phoneNumber = phoneNumber.substring(2);// remove 91
+            }
+            for (JsonNode pan : panVariations) {
+                checkPan = pan.get("VALUE").asText().equalsIgnoreCase(panCard);
+                if(checkPan) break;
+            }
+            for (JsonNode phone : phoneVariations) {
+                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber) || phone.get("VALUE").asText().equalsIgnoreCase("91" + phoneNumber);
+                if(checkPhone) break;
+            }
+        }
+        return checkPan && checkPhone;
     }
 }

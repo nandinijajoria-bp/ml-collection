@@ -239,7 +239,7 @@ public class LoanEligibleService {
         }
         JsonNode creditBureauResponse = null;
         ResponseUtil responseUtil;
-        boolean isBureauExperian = false;
+        String bureau = null;
         try {
             ExperianRawResponse experianRawResponse = experianRawResponseDao.getLatest(merchant.getId());
             Date reportDate = null;
@@ -247,12 +247,12 @@ public class LoanEligibleService {
                 responseUtil = getCreditBureauResponse(experian);
                 reportDate = responseUtil.getReportDate();
                 experian.setReportDate(reportDate);
-                isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
+                bureau = responseUtil.getType();
             }
             if (pancard == null && experian.getResponse() != null && reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) <= 45) {//get experian data from db if less than 45 days old
                 responseUtil = getCreditBureauResponse(experian);
                 creditBureauResponse = objectMapper.readTree(experian.getResponse());
-                isBureauExperian = responseUtil.getType().equalsIgnoreCase(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
+                bureau = responseUtil.getType();
             } else if (pancard != null || (reportDate != null && LoanUtil.getDateDiffInDays(reportDate, new Date()) > 45) || (experian.getRetryCount() != null && experian.getRetryCount() > 0) || experianRawResponse == null || LoanUtil.getDateDiffInDays(experianRawResponse.getCreatedAt(), new Date()) > 45) {
                 try {
                     creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail, pancard == null);
@@ -271,13 +271,23 @@ public class LoanEligibleService {
                         creditBureauResponse = fetchExperianDetails(merchant.getMobile(), experian, merchant.getId(), bpScore, merchantBankDetail, pancard == null);
                     }
                 }
-                isBureauExperian = true;
+                if (creditBureauResponse != null) {
+                    logger.info("Found Experian for merchant:{}", merchant.getId());
+                    bureau = "EXPERIAN";
+                } else {
+                    logger.info("Experian not found for merchant:{}, calling crif", merchant.getId());
+                    creditBureauResponse = apiGatewayService.fetchCrifResponse(merchant, experian);
+                    if (creditBureauResponse != null) {
+                        logger.info("Found Crif for merchant:{}", merchant.getId());
+                        bureau = "CRIF";
+                    } else {
+                        logger.info("Bureau not found for merchant:{}", merchant.getId());
+                    }
+                }
             }
             if(creditBureauResponse != null){
                 experian.setResponse(creditBureauResponse.toString());
-                experian.setBureau(isBureauExperian ? "EXPERIAN" : "CRIF");
-            } else if (goToExperianV2(experian, merchant, pancard, skip)) {
-                return new ArrayList<>();
+                experian.setBureau(bureau);
             } else {
                 logger.info("bureau response not found for merchant:{}", merchant.getId());
                 experian.setResponse(null);
@@ -324,9 +334,6 @@ public class LoanEligibleService {
             experian.setRetryCount(experian.getRetryCount() + 1);
             experianDao.save(experian);
             logger.error("Exception while fetching experian details---", e);
-        }
-        if (goToExperianV2(experian, merchant, pancard, skip)) {
-            return new ArrayList<>();
         }
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchant.getId());
         //calculate NTC....
