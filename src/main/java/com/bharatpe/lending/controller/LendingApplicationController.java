@@ -144,10 +144,10 @@ public class LendingApplicationController {
 	public ResponseEntity<TncDto> tnc(@RequestAttribute Merchant merchant, @RequestParam Long applicationId) {
 	   return new ResponseEntity<>(lendingApplicationService.getTnc(merchant, applicationId), HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/callLoanDetail", method = RequestMethod.GET)
-	public void callLoanDetails() {
-		callLoanDetailService.startScript();
+	public void callLoanDetails(@RequestParam Long id) {
+		callLoanDetailService.callLoanDetail(id);
 	}
 
 	@RequestMapping(value="/kafka/publish", method = RequestMethod.POST, consumes="application/json", produces="application/json")
