@@ -339,6 +339,7 @@ public class LoanEligibleService {
     }
 
     private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard, boolean skip) {
+        if (true) return false;
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if (experianDetails == null || pancard != null || (LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
