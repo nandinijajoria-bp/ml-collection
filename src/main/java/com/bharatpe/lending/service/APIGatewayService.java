@@ -1605,7 +1605,7 @@ public class APIGatewayService {
 
         Map result = new HashMap();
         result.put("person_name",addressproof.getPersonName());
-        result.put("dob",dateOfBirth != null ? dateOfBirth : addressproof.getDob());
+        result.put("dob",dateOfBirth != null ? new SimpleDateFormat("dd-MM-yyyy").format(dateOfBirth) : addressproof.getDob());
         result.put("proof_type",addressproof.getDocType());
         result.put("gender",addressproof.getGender());
         result.put("pancardUrl",pancardUrl);
