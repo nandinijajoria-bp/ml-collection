@@ -35,7 +35,7 @@ public class SupportLoanController {
     public ResponseEntity<SupportResponseDTO> supportLenderChange(@RequestParam String lender,@RequestParam Long fileId , @RequestParam Integer lines){
         logger.info("Request received to lender change for fileName:{},lender:{} ", fileId,lender);
 
-        return new ResponseEntity<>(supportService.lenderChange(lender, fileId, lines), HttpStatus.OK);
+        return new ResponseEntity<>(supportService.changeLender(lender, fileId, lines), HttpStatus.OK);
     }
 }
 

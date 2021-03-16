@@ -49,6 +49,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class SupportService {
@@ -122,6 +124,8 @@ public class SupportService {
 
     @Autowired
     LoanDpdDao loanDpdDao;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(50);
 
     public SupportResponseDTO supportLoan(Long merchantId) {
 
@@ -650,18 +654,23 @@ public class SupportService {
         return responseDTO;
     }
 
-
-    public SupportResponseDTO lenderChange(String lender,Long fileId,Integer lines){
-        logger.info("Lender Change For fileName:{}, and lender:{}", fileId, lender);
-        SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
+    public SupportResponseDTO changeLender(String lender,Long fileId,Integer lines) {
         Optional<LendingBulkDisbursal> lendingBulkDisbursal=lendingBulkDisbursalDao.findById(fileId);
+        SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
         if(!lendingBulkDisbursal.isPresent() || lendingBulkDisbursal.get().getProceed()){
             responseDTO.setSuccess(false);
             responseDTO.setMessage("Already Proceed");
             return responseDTO;
         }
+        new Thread(() -> lenderChange(lender, fileId, lines, lendingBulkDisbursal.get())).start();
+        return responseDTO;
+    }
+
+
+    public void lenderChange(String lender,Long fileId,Integer lines, LendingBulkDisbursal lendingBulkDisbursal){
+        logger.info("Lender Change For fileName:{}, and lender:{}", fileId, lender);
         try{
-            InputStream lenderFile = s3BucketHandler.getObject(lendingBulkDisbursal.get().getFileName(), "loan-document");
+            InputStream lenderFile = s3BucketHandler.getObject(lendingBulkDisbursal.getFileName(), "loan-document");
             BufferedReader lenderFileReader = new BufferedReader(new InputStreamReader(lenderFile));
             File file = new File("/tmp/"+fileId+"_nbfc_details.csv");
             FileWriter outputfile = new FileWriter(file);
@@ -669,32 +678,27 @@ public class SupportService {
             List<String[]> data = new ArrayList<String[]>();
             String[] header = { "partner_tag", "loan_type", "Loan_amount","tenure","partner_loan_id","fee_amount","gst_amount","interest_rate","interest_type","partner_computed_disbursement_amount","partner_computed_interest_amount","no_of_EDI","EDI_amount","EDI_schedule","customer_risk_segment","customer_location_category","existing_BP_merchant","customer_type_NTC","any_written_off_loan_in_last_two_years","income_to_debt_ratio","recommendation_from_BP","date_of_birth","consumer_name","gender","email","pan_number","mobile_number","loan_purpose","pincode","address","city","address_state","address_type","address_proof_type","type","stay_type","landmark","customer_bank_name","bank_account_number","customer_bank_account_name","ifsc_code","address_proof_1","address_proof_2","pan_card","loan_agreement","eKycResponse" };
             data.add(header);
-
             CountDownLatch latch = new CountDownLatch(lines);
             String readLine = lenderFileReader.readLine();
-
             readLine = lenderFileReader.readLine();
             while (readLine != null) {
                 String[] arr = readLine.split(",");
                 Long merchantId = Long.valueOf(arr[1]);
                 Long applicationId = Long.valueOf(arr[2]);
-                String externalLoanId = arr[3];
-
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     readLine = lenderFileReader.readLine();
                     continue;
                 }
-                 new Thread(() -> {
-                     try {
-                           data.add(getCsvData(lendingApplication,lender));
-
-                     } catch (IOException e) {
-                         e.printStackTrace();
-                     }finally {
-                         latch.countDown();
-                     }
-                 }).start();
+                executorService.execute(() -> {
+                    try {
+                        data.add(getCsvData(lendingApplication,lender));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        latch.countDown();
+                    }
+                });
                 readLine=lenderFileReader.readLine() ;
             }
             lenderFileReader.close();
@@ -706,17 +710,12 @@ public class SupportService {
             emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com");
             }}, "Automated Nbfc Report", "MAMTA Nbfc Details Report"+new Date(), bytes, "nbfc_details", "text/csv");
             s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
-            if(lendingBulkDisbursal.isPresent()){
-                lendingBulkDisbursal.get().setReturnFileName(fileId+"_nbfc_details.csv");
-                lendingBulkDisbursal.get().setProceed(Boolean.TRUE);
-                lendingBulkDisbursalDao.save(lendingBulkDisbursal.get());
-            }
-            responseDTO.setSuccess(Boolean.TRUE);
-            responseDTO.setMessage("OK");
+            lendingBulkDisbursal.setReturnFileName(fileId+"_nbfc_details.csv");
+            lendingBulkDisbursal.setProceed(Boolean.TRUE);
+            lendingBulkDisbursalDao.save(lendingBulkDisbursal);
         }catch(Exception ex){
-            logger.info("Exception IN Lender Change :{}",ex);
+            logger.info("Exception IN Lender Change",ex);
         }
-        return responseDTO;
     }
 
     private String[] getCsvData(LendingApplication lendingApplication, String lender) throws IOException {
@@ -725,8 +724,8 @@ public class SupportService {
         Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
         CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchant().getId(), lendingApplication.getId());
         String ediSchedule = objectMapper.writeValueAsString(ediScheduleResponse.getData());
-        String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
-        String ifscCode = ldcVirtualAccount.getIfsc().toString();
+        String accountNumber = ldcVirtualAccount.getAccountNumber();
+        String ifscCode = ldcVirtualAccount.getIfsc();
         Map addressResult = apiGatewayService.getKycDetails(lendingApplication.getId(),lendingApplication.getMerchant().getId());
         String gender = addressResult.get("gender").toString();
         String dob = addressResult.get("dob").toString();

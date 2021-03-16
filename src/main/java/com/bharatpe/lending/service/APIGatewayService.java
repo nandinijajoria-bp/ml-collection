@@ -1578,11 +1578,11 @@ public class APIGatewayService {
                 try {
                     dateOfBirth = new SimpleDateFormat("dd-MM-yyyy").parse(dob);
                 }catch(ParseException e){
-                    logger.error("Exception while parsing DOB date", e);
+                    logger.info("Exception while parsing DOB date:{}", dob);
                     try {
                         dateOfBirth = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
                     } catch (ParseException pe) {
-                        logger.error("Exception while parsing DOB date", pe);
+                        logger.error("Exception while parsing DOB date:{}", dob, pe);
                     }
                 }
             }
