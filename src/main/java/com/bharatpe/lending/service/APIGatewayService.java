@@ -56,6 +56,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -1568,11 +1569,22 @@ public class APIGatewayService {
         DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchantId,applicationId,"pancard");
         List<Object[]> docKycDetails = docKycDetailsDao.findPancardDetails(merchantId,applicationId,documentsIdProof.getId());
         DocKycDetails addressproof = docKycDetailsDao.getAadharAddress(applicationId);
+        Date dateOfBirth = null;
         if(docKycDetails.size()>0){
             for(Object[] obj : docKycDetails) {
                 docNumber = obj[0].toString();
                 personName = obj[1].toString();
                 dob = obj[2].toString();
+                try {
+                    dateOfBirth = new SimpleDateFormat("dd-MM-yyyy").parse(dob);
+                }catch(ParseException e){
+                    logger.error("Exception while parsing DOB date", e);
+                    try {
+                        dateOfBirth = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
+                    } catch (ParseException pe) {
+                        logger.error("Exception while parsing DOB date", pe);
+                    }
+                }
             }
         }
         String pancardUrl = "";
@@ -1593,7 +1605,7 @@ public class APIGatewayService {
 
         Map result = new HashMap();
         result.put("person_name",addressproof.getPersonName());
-        result.put("dob",addressproof.getDob());
+        result.put("dob",dateOfBirth != null ? dateOfBirth : addressproof.getDob());
         result.put("proof_type",addressproof.getDocType());
         result.put("gender",addressproof.getGender());
         result.put("pancardUrl",pancardUrl);
