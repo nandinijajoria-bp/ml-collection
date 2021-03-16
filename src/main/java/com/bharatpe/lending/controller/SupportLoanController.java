@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.service.FosService;
@@ -31,6 +32,14 @@ public class SupportLoanController {
         logger.info("Request received to lender change for merchantId:{},applicationId:{} ,fileId:{},flag:{}", merchantId,applicationId,fileId,flag);
 
         return new ResponseEntity<>(supportService.bulkLenderchange(merchantId,applicationId,fileId,flag,lender), HttpStatus.OK);
+    }
+
+
+    @RequestMapping(value="/lender", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<SupportResponseDTO> supportLenderChange(@RequestParam String lender,@RequestParam Long fileId , @RequestParam Integer lines){
+        logger.info("Request received to lender change for fileName:{},lender:{} ", fileId,lender);
+
+        return new ResponseEntity<>(supportService.lenderChange(lender, fileId, lines), HttpStatus.OK);
     }
 }
 

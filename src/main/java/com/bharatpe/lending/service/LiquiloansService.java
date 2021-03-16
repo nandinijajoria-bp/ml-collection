@@ -420,7 +420,7 @@ public class LiquiloansService {
 			String sms1;
 			String sms2 = null;
 			String shortUrl = "";
-			LoanAgreement loanAgreement = loanAgreementDao.findByApplicationId(lendingApplication.getId());
+			LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(),"agreement");
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");
 			Merchant merchant = lendingApplication.getMerchant();
 			if (merchantBankDetail == null) {

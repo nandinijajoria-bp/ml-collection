@@ -1480,7 +1480,7 @@ public class APIGatewayService {
 
     public String getLoanAgreement(Long merchantId,Long applicationId){
         try{
-            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationId(applicationId);
+            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId,"agreement");
             if(loanAgreement!= null && loanAgreement.getShortUrl() != null){
                 return loanAgreement.getShortUrl();
             }
@@ -1575,9 +1575,9 @@ public class APIGatewayService {
                 dob = obj[2].toString();
             }
         }
-        String pancardUrl = null;
-        String addressProof1 = null;
-        String addressProof2 = null;
+        String pancardUrl = "";
+        String addressProof1 = "";
+        String addressProof2 = "";
         try{
              pancardUrl = s3BucketHandler.getPreSignedPublicURL(documentsIdProof.getProofFrontSide(),"loan-document");
              if(!"eAadhar".equalsIgnoreCase(addressproof.getDocType()) && !"e_aadhaar".equalsIgnoreCase(addressproof.getDocType())){
