@@ -1,7 +1,5 @@
 package com.bharatpe.lending.service;
 
-
-import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
@@ -23,18 +21,15 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dto.CommonResponse;
-import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportLoanResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.html2pdf.HtmlConverter;
-import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +39,8 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.math.BigInteger;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
