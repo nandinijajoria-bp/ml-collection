@@ -32,12 +32,12 @@ public class LendingActiveLoansResponseDTO {
         private String startDate;
         private String endDate;
         private String loanType;
-
+        private Integer dpd;
         public ActiveLoan() {
         }
 
         public ActiveLoan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, String startDate,
-                String endDate, String loanType) {
+                String endDate, String loanType, Integer dpd) {
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -45,6 +45,7 @@ public class LendingActiveLoansResponseDTO {
             this.startDate = startDate;
             this.endDate = endDate;
             this.loanType = loanType;
+            this.dpd = dpd;
         }
 
         public Long getLoanId() {
@@ -103,6 +104,14 @@ public class LendingActiveLoansResponseDTO {
             this.loanType = loanType;
         }
 
+        public Integer getDpd() {
+            return dpd;
+        }
+
+        public void setDpd(Integer dpd) {
+            this.dpd = dpd;
+        }
+
         @Override
         public String toString() {
             return "{" + " loanId='" + getLoanId() + "'" + ", loanAmount='" + getLoanAmount() + "'" + ", ediAmount='"
@@ -131,7 +140,8 @@ public class LendingActiveLoansResponseDTO {
         String startDate = lendingPaymentSchedule.getStartDate() != null ? lendingPaymentSchedule.getStartDate().toString() : "";
         String endDate = lendingPaymentSchedule.getTentativeClosingDate() != null ? lendingPaymentSchedule.getTentativeClosingDate().toString() : "";
         String loanType = lendingPaymentSchedule.getLoanApplication() != null ? lendingPaymentSchedule.getLoanApplication().getLoanType() : "";
-        return new ActiveLoan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, startDate, endDate, loanType);
+        Integer dpd = (int) (lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount());
+        return new ActiveLoan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, startDate, endDate, loanType, dpd);
     }
 
     public boolean getSuccess() {
