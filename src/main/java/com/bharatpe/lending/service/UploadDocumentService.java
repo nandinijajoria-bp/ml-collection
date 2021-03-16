@@ -248,7 +248,7 @@ public class UploadDocumentService {
 				documentsIdProofdao.save(poaDocument);
 			}
 		}
-
+		
 		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant, lendingApplication, proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);

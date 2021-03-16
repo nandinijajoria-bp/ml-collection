@@ -12,16 +12,16 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.CrifRequestResponse;
-import com.bharatpe.lending.common.entity.LendingVirtualAccount;
-import com.bharatpe.lending.common.entity.SignzyCredential;
-import com.bharatpe.lending.common.entity.SignzyRequestResponse;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -55,6 +55,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
+import java.io.InputStream;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -80,6 +82,8 @@ public class APIGatewayService {
     @Autowired
     MerchantDao merchantDao;
 
+    @Autowired
+    LoanAgreementDao loanAgreementDao;
 
     @Autowired
     LendingPancardDao lendingPancardDao;
@@ -88,10 +92,25 @@ public class APIGatewayService {
     PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
     @Autowired
+    LendingRedCitiesDao lendingRedCitiesDao;
+
+    @Autowired
+    LendingCitiesDao lendingCitiesDao;
+
+    @Autowired
     SignzyCredentialDao signzyCredentialDao;
 
     @Autowired
     ExperianDao experianDao;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    DocumentsIdProofDao documentsIdProofDao;
+
+    @Autowired
+    DocKycDetailsDao docKycDetailsDao;
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
@@ -104,6 +123,9 @@ public class APIGatewayService {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    LdcVirtualAccountDao ldcVirtualAccountDao;
 
     @Autowired
     RestTemplate restTemplate;
@@ -1386,6 +1408,45 @@ public class APIGatewayService {
         }
         return null;
     }
+    public LdcVirtualAccount createDisbursalVPA(Merchant merchant,LendingApplication lendingApplication) {
+        logger.info("Coming In Create Virtual Account");
+        LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(merchant.getId());
+        if (ldcVirtualAccount != null) {
+            return ldcVirtualAccount;
+        }
+        try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("type", "LOAN_DISBURSAL");
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getMid());
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
+            logger.info("create virtual account request for disbursal: {}", mapper.writeValueAsString(request));
+            int retryCount = 0;
+            VANResponseDTO response = null;
+            while (retryCount < 3) {
+                try {
+                    response = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("create.van.url")), request, VANResponseDTO.class);
+                    logger.info("Response received from create VAN API for Loan Disbursal {}", response);
+                    break;
+                } catch (Exception e) {
+                    logger.error("Exception in createVPA for Loan Disbursal", e);
+                }
+                retryCount++;
+            }
+            if (response != null) {
+                if (response.getStatus() != null && "OK".equalsIgnoreCase(response.getStatus())) {
+                    return ldcVirtualAccountDao.save(new LdcVirtualAccount(merchant.getId(), lendingApplication.getId(), response.getAccountNumber(), response.getIfsc()));
+                }
+            }
+        } catch (Exception ex) {
+            logger.info("Exception In Create Loan Disbursal VPA:{}", ex);
+        }
+        return ldcVirtualAccount;
+    }
 
     public JsonNode fetchCrifResponse(Merchant merchant, Experian experian) {
         try {
@@ -1414,6 +1475,18 @@ public class APIGatewayService {
             }
         } catch (Exception e) {
             logger.error("Exception while fetching crif for merchant:{}", merchant.getId(), e);
+        }
+        return null;
+    }
+
+    public String getLoanAgreement(Long merchantId,Long applicationId){
+        try{
+            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId,"agreement");
+            if(loanAgreement!= null && loanAgreement.getShortUrl() != null){
+                return loanAgreement.getShortUrl();
+            }
+        }catch(Exception ex){
+            logger.info("Exception in Fetching Loan Agreement :{}",ex);
         }
         return null;
     }
@@ -1468,6 +1541,78 @@ public class APIGatewayService {
             logger.error("Exception in Signzy Pan Fetch Api", e);
         }
         return null;
+    }
+
+    public String getPincodeArea(Integer pincode){
+        LendingRedCities lendingRedCities = lendingRedCitiesDao.findByPincode(pincode);
+        if(lendingRedCities != null){
+            return  "RED";
+        }
+        LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
+        if(lendingCities != null){
+            return  "GREEN";
+        }
+        return  "YELLOW";
+    }
+
+    public String findNtc(Experian experian){
+        if("2N".equalsIgnoreCase(experian.getCategory()) ||"3N".equalsIgnoreCase(experian.getCategory()) || "4N".equalsIgnoreCase(experian.getCategory()) ){
+            return "Y";
+        }
+        return  "N";
+    }
+
+    public Map getKycDetails(Long applicationId,Long merchantId){
+        String docNumber = null;
+        String personName = null;
+        String dob = null;
+        DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchantId,applicationId,"pancard");
+        List<Object[]> docKycDetails = docKycDetailsDao.findPancardDetails(merchantId,applicationId,documentsIdProof.getId());
+        DocKycDetails addressproof = docKycDetailsDao.getAadharAddress(applicationId);
+        Date dateOfBirth = null;
+        if(docKycDetails.size()>0){
+            for(Object[] obj : docKycDetails) {
+                docNumber = obj[0].toString();
+                personName = obj[1].toString();
+                dob = obj[2].toString();
+                try {
+                    dateOfBirth = new SimpleDateFormat("dd-MM-yyyy").parse(dob);
+                }catch(ParseException e){
+                    logger.error("Exception while parsing DOB date", e);
+                    try {
+                        dateOfBirth = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
+                    } catch (ParseException pe) {
+                        logger.error("Exception while parsing DOB date", pe);
+                    }
+                }
+            }
+        }
+        String pancardUrl = "";
+        String addressProof1 = "";
+        String addressProof2 = "";
+        try{
+             pancardUrl = s3BucketHandler.getPreSignedPublicURL(documentsIdProof.getProofFrontSide(),"loan-document");
+             if(!"eAadhar".equalsIgnoreCase(addressproof.getDocType()) && !"e_aadhaar".equalsIgnoreCase(addressproof.getDocType())){
+                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(addressproof.getDocumentsIdProof().getProofFrontSide(),"loan-document");
+                 addressProof2 = s3BucketHandler.getPreSignedPublicURL(addressproof.getDocumentsIdProof().getProofBackSide(),"loan-document");
+             }
+             if("eAadhar".equalsIgnoreCase(addressproof.getDocType()) || "e_aadhaar".equalsIgnoreCase(addressproof.getDocType())){
+                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(addressproof.getDocumentsIdProof().getProofFrontSide(),"lending-ekyc");
+             }
+        }catch(Exception ex){
+            logger.info("Fetching Document From Bucket:{}",ex);
+        }
+
+        Map result = new HashMap();
+        result.put("person_name",addressproof.getPersonName());
+        result.put("dob",dateOfBirth != null ? dateOfBirth : addressproof.getDob());
+        result.put("proof_type",addressproof.getDocType());
+        result.put("gender",addressproof.getGender());
+        result.put("pancardUrl",pancardUrl);
+        result.put("addressproof1",addressProof1);
+        result.put("addressproof2",addressProof2);
+        logger.info("Result Map:{}",result);
+        return  result;
     }
 
     private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {

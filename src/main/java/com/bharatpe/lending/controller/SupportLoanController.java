@@ -1,8 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
-import com.bharatpe.lending.service.FosService;
 import com.bharatpe.lending.service.SupportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.Map;
 
 @RestController
 @RequestMapping("support")
@@ -24,6 +21,21 @@ public class SupportLoanController {
     public ResponseEntity<SupportResponseDTO> supportLoanDetails(@RequestParam Long merchantId) {
         logger.info("Request received to get loan details for merchantId: {}", merchantId);
         return new ResponseEntity<>(supportService.supportLoan(merchantId), HttpStatus.OK);
+    }
+
+//    @RequestMapping(value="/lenderchange", method = RequestMethod.POST, produces="application/json")
+//    public ResponseEntity<SupportResponseDTO> supportBulkLenderChange(@RequestParam Long merchantId,@RequestParam Long applicationId,@RequestParam Long fileId,@RequestParam Boolean flag,@RequestParam String lender){
+//        logger.info("Request received to lender change for merchantId:{},applicationId:{} ,fileId:{},flag:{}", merchantId,applicationId,fileId,flag);
+//
+//        return new ResponseEntity<>(supportService.bulkLenderchange(merchantId,applicationId,fileId,flag,lender), HttpStatus.OK);
+//    }
+
+
+    @RequestMapping(value="/lender", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<SupportResponseDTO> supportLenderChange(@RequestParam String lender,@RequestParam Long fileId , @RequestParam Integer lines){
+        logger.info("Request received to lender change for fileName:{},lender:{} ", fileId,lender);
+
+        return new ResponseEntity<>(supportService.lenderChange(lender, fileId, lines), HttpStatus.OK);
     }
 }
 

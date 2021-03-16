@@ -145,4 +145,23 @@ public class S3BucketHandler {
 		Instant end = Instant.now();
 		logger.info("Time Taken by AWS S3 File upload API : {} miliseconds", Duration.between(start, end).toMillis());
 	}
+
+	public String uploadToS3PdfBucket(InputStream pdfStream, String fileName, String bucket) {
+		Instant start = Instant.now();
+		AmazonS3 s3client = createS3BucketConnection();
+		try {
+			if(s3client != null) {
+				ObjectMetadata metadata = new ObjectMetadata();
+				metadata.setContentType("application/pdf");
+				metadata.setCacheControl("public, max-age=31536000");
+
+				s3client.putObject(bucket, fileName, pdfStream, metadata);
+			}
+		}catch(Exception e) {
+			logger.info("Exception while Uploading doc to S3 bucket message : {}",e.getMessage());
+		}
+		Instant end = Instant.now();
+		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
+		return fileName;
+	}
 }
