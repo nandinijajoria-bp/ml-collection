@@ -56,6 +56,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -1574,14 +1575,25 @@ public class APIGatewayService {
         }
         Date dateOfBirth = null;
         dob = panDetail.getDob();
+//        try {
+//            dateOfBirth = new SimpleDateFormat("yyyy-MM-dd").parse(dob);
+//        }catch(ParseException e){
+//            logger.info("Exception while parsing DOB date:{}", dob);
+//            try {
+//                dateOfBirth = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
+//            } catch (ParseException pe) {
+//                logger.error("Exception while parsing DOB date:{}", dob, pe);
+//            }
+//        }
         try {
-            dateOfBirth = new SimpleDateFormat("dd-MM-yyyy").parse(dob);
-        }catch(ParseException e){
-            logger.info("Exception while parsing DOB date:{}", dob);
+            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            dateOfBirth = sdf.parse(dob);
+        } catch (ParseException e) {
             try {
-                dateOfBirth = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
-            } catch (ParseException pe) {
-                logger.error("Exception while parsing DOB date:{}", dob, pe);
+                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                dateOfBirth= sdf.parse(dob);
+            } catch (ParseException ex) {
+                logger.error("Exception while parsing DOB date:{}", dob, ex);
             }
         }
         String pancardUrl = "";
@@ -1597,12 +1609,12 @@ public class APIGatewayService {
                  addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"lending-ekyc");
              }
         }catch(Exception ex){
-            logger.info("Fetching Document From Bucket:{}",ex);
+            logger.info("Fetching Document From Bucket",ex);
         }
 
         Map result = new HashMap();
         result.put("person_name",poaDetail.getPersonName());
-        result.put("dob",dateOfBirth != null ? new SimpleDateFormat("dd-MM-yyyy").format(dateOfBirth) : poaDetail.getDob());
+        result.put("dob",dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
         result.put("proof_type",poaDetail.getDocType());
         result.put("gender",poaDetail.getGender());
         result.put("pancardUrl",pancardUrl);

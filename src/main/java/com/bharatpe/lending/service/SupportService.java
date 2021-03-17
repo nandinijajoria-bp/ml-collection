@@ -688,6 +688,7 @@ public class SupportService {
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     readLine = lenderFileReader.readLine();
+                    latch.countDown();
                     continue;
                 }
                 executorService.execute(() -> {
