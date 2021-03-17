@@ -20,6 +20,7 @@ import com.bharatpe.lending.util.LoanUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.math.BigInteger;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -160,6 +161,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
+
+	@Autowired
+	PartnersConfigurationDao partnersConfigurationDao;
 
 	@Autowired
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
@@ -2289,6 +2293,14 @@ public class LendingApplicationService {
 			if (lendingPaymentSchedule != null) {
 				data.put("bankAccountChange", Boolean.FALSE);
 				data.put("message", "Already Loan Active");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+
+			BigInteger partnersConfiguration =partnersConfigurationDao.getBankAccount(merchantId);
+			if(partnersConfiguration != null){
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Merchant Has a D2R Loan");
 				responseDTO.setData(data);
 				return responseDTO;
 			}
