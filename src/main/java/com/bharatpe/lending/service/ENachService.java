@@ -103,6 +103,10 @@ public class ENachService {
             if (lendingPennydrop == null) {
                 apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
             }
+
+            if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
+                apiGatewayService.fosAttribution(lendingApplication,"NTB_LOAN","closed");
+            }
         }
 
         apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider());

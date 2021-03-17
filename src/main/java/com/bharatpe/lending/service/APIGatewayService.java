@@ -1505,4 +1505,40 @@ public class APIGatewayService {
         }
         return checkPan && checkPhone;
     }
+
+    public String fosAttribution(LendingApplication lendingApplication,String taskName,String status) {
+        try {
+            logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}",lendingApplication,taskName,status);
+            Integer taskId = 0;
+            if("NTB_LOAN".equalsIgnoreCase(taskName)){
+                taskId = 18;
+            } else if("NTB_LOAN_V2".equalsIgnoreCase(taskName)){
+                taskId = 21;
+            } else if("CPV".equalsIgnoreCase(taskName)){
+                taskId = 13;
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("task_id", taskId);
+            requestBody.put("merchant_id", lendingApplication.getMerchant().getId());
+            requestBody.put("status", status);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, "application/json");
+            headers.set("hash", hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getSecret()));
+            headers.set("clientName", "LENDING");
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestBody,headers);
+            ResponseEntity<Object> responseEntity = null;
+            logger.info("FOS Attribution Service API request {}",entity);
+
+            responseEntity= restTemplate.exchange(LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, Object.class);
+
+            logger.info("FOS Attribution Service API response {}", responseEntity);
+        }
+        catch(Exception e) {
+            logger.error("Error occurred while calling FOS Attributes Api", e);
+        }
+        return null;
+    }
 }
