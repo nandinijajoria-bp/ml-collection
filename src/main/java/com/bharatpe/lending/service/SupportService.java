@@ -688,6 +688,7 @@ public class SupportService {
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     readLine = lenderFileReader.readLine();
+                    latch.countDown();
                     continue;
                 }
                 executorService.execute(() -> {
@@ -707,8 +708,8 @@ public class SupportService {
             writer.writeAll(data);
             writer.close();
             byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
-            emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com");
-            }}, "Automated Nbfc Report", "MAMTA Nbfc Details Report"+new Date(), bytes, "nbfc_details", "text/csv");
+            emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");
+            }}, "Mamta Nbfc Report Shared"+new Date(), "MAMTA Nbfc Details Report For Date"+new Date(), bytes, "mamta_nbfc_details", "text/csv");
             s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
             lendingBulkDisbursal.setReturnFileName(fileId+"_nbfc_details.csv");
             lendingBulkDisbursal.setProceed(Boolean.TRUE);
