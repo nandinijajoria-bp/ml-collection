@@ -1525,7 +1525,7 @@ public class APIGatewayService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, "application/json");
-            headers.set("hash", hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getSecret()));
+            headers.set("hash", hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
             headers.set("clientName", "LENDING");
 
             HttpEntity<Object> entity = new HttpEntity<>(requestBody,headers);
