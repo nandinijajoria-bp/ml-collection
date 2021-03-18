@@ -408,6 +408,11 @@ public class PaymentService {
 			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
 			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
 			paidPrincipalAmount = amount - paidInterestAmount;
+			double extraPrinciple = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
+			if (extraPrinciple > 0) {
+				logger.info("Extra principle received for loanId:{} and extra amount:{}", activeLoan.getId(), extraPrinciple);
+				paidPrincipalAmount -= extraPrinciple;
+			}
 			logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 			if(activeLoan.getDueAmount() >= 0) {
 				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
