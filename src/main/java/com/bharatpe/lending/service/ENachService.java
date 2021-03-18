@@ -105,7 +105,7 @@ public class ENachService {
             }
 
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
-                apiGatewayService.fosAttribution(lendingApplication,"NTB_LOAN","closed");
+                apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
             }
         }
 

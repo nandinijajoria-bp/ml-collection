@@ -1506,9 +1506,9 @@ public class APIGatewayService {
         return checkPan && checkPhone;
     }
 
-    public String fosAttribution(LendingApplication lendingApplication,String taskName,String status) {
+    public ResponseEntity<Object> fosAttribution(Long merchantId,String taskName,String status) {
         try {
-            logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}",lendingApplication,taskName,status);
+            logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}",merchantId,taskName,status);
             Integer taskId = 0;
             if("NTB_LOAN".equalsIgnoreCase(taskName)){
                 taskId = 18;
@@ -1520,7 +1520,7 @@ public class APIGatewayService {
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("task_id", taskId);
-            requestBody.put("merchant_id", lendingApplication.getMerchant().getId());
+            requestBody.put("merchant_id", merchantId);
             requestBody.put("status", status);
 
             HttpHeaders headers = new HttpHeaders();
@@ -1529,15 +1529,15 @@ public class APIGatewayService {
             headers.set("clientName", "LENDING");
 
             HttpEntity<Object> entity = new HttpEntity<>(requestBody,headers);
-            ResponseEntity<Object> responseEntity = null;
+            ResponseEntity responseEntity = null;
             logger.info("FOS Attribution Service API request {}",entity);
 
-            responseEntity= restTemplate.exchange(LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, Object.class);
+            responseEntity= restTemplate.exchange(LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity,String.class);
 
             logger.info("FOS Attribution Service API response {}", responseEntity);
         }
         catch(Exception e) {
-            logger.error("Error occurred while calling FOS Attributes Api", e);
+            logger.error("Error occurred while calling FOS Attribution Api", e);
         }
         return null;
     }
