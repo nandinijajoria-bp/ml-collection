@@ -343,8 +343,14 @@ public class PaymentService {
 			return responseDTO;
 		}
 		List<PaymentDetailDto> paymentDetails = apiGatewayService.getPaymentModes(requestDTO, token);
+		for (PaymentDetailDto paymentDetail : paymentDetails) {
+			if (paymentDetail.getPsps() != null && !paymentDetail.getPsps().isEmpty()) {
+				paymentDetail.getPsps().removeIf(psps -> psps.equalsIgnoreCase("com.phonepe.app"));
+			}
+		}
 		paymentDetails.add(getBankTransferMode());
 		paymentDetails.add(getGPAYMode());
+		paymentDetails.add(getPhonePeMode());
 		ResponseDTO responseDTO = new ResponseDTO();
 		paymentDetails.removeIf(paymentDetailDto -> (paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount()));
 		if (paymentDetails.isEmpty()) {
@@ -372,6 +378,19 @@ public class PaymentService {
 	private PaymentDetailDto getGPAYMode() {
 		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
 		paymentDetailDto.setName("Pay Using Google Pay");
+		paymentDetailDto.setType("UPI");
+		paymentDetailDto.setFundSource("UPI");
+		paymentDetailDto.setAmountLimit(100000D);
+		paymentDetailDto.setAuthRequired(false);
+		paymentDetailDto.setEnable(true);
+		paymentDetailDto.setInitiate_sb(false);
+		paymentDetailDto.setDefault(false);
+		return paymentDetailDto;
+	}
+
+	private PaymentDetailDto getPhonePeMode() {
+		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
+		paymentDetailDto.setName("Pay Using PhonePe");
 		paymentDetailDto.setType("UPI");
 		paymentDetailDto.setFundSource("UPI");
 		paymentDetailDto.setAmountLimit(100000D);
