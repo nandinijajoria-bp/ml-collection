@@ -69,6 +69,9 @@ public class VerifyOTPService {
 	WhatsappNotificationService whatsappNotificationService;
 
 	@Autowired
+	SupportService supportService;
+
+	@Autowired
 	BankListDao bankListDao;
 
 	@Autowired
@@ -170,6 +173,7 @@ public class VerifyOTPService {
 		finalResponse.put("agreement_verified",false);
 		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchant.getId());
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+		Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchant.getId());
 		if (openApplication != null || activeLoan != null) {
 			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
 			lendingApplication.setStatus("deleted");
@@ -258,6 +262,20 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		if(repeatLoan>0){
+			LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+			if("LDC".equalsIgnoreCase(oldLoan.getNbfc())){
+				lendingApplication.setLender("MAMTA");
+			}else{
+				lendingApplication.setLender("LDC");
+				try{
+					supportService.getAgreement(lendingApplication,lendingApplication.getLender());
+				}catch (Exception ex){
+					logger.error("Exception In Creating Loan Agreement:{}",ex);
+				}
+			}
+			lendingApplicationDao.save(lendingApplication);
+		}
 		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
 
