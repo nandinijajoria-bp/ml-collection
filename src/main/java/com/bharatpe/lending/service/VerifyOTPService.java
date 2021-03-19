@@ -266,13 +266,13 @@ public class VerifyOTPService {
 			LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
 			if("MAMTA".equalsIgnoreCase(oldLoan.getNbfc())){
 				lendingApplication.setLender("LDC");
-			}else{
-				lendingApplication.setLender("MAMTA");
 				try{
 					supportService.getAgreement(lendingApplication,lendingApplication.getLender());
 				}catch (Exception ex){
 					logger.error("Exception In Creating Loan Agreement:{}",ex);
 				}
+			}else{
+				lendingApplication.setLender("MAMTA");
 			}
 			lendingApplicationDao.save(lendingApplication);
 		}
