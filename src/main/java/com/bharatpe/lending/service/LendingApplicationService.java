@@ -2297,13 +2297,17 @@ public class LendingApplicationService {
 				return responseDTO;
 			}
 
-			BigInteger partnersConfiguration =partnersConfigurationDao.getBankAccount(merchantId);
-			if(partnersConfiguration != null){
+			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchantId);
+			if (d2RMerchant == null) {
+				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchantId);
+			}
+			if (d2RMerchant != null) {
 				data.put("bankAccountChange", Boolean.FALSE);
 				data.put("message", "Merchant Has a D2R Loan");
 				responseDTO.setData(data);
 				return responseDTO;
 			}
+
 
 			LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant.get());
 			if(lendingApplication == null){
