@@ -264,10 +264,10 @@ public class VerifyOTPService {
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 		if(repeatLoan>0){
 			LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
-			if("LDC".equalsIgnoreCase(oldLoan.getNbfc())){
-				lendingApplication.setLender("MAMTA");
-			}else{
+			if("MAMTA".equalsIgnoreCase(oldLoan.getNbfc())){
 				lendingApplication.setLender("LDC");
+			}else{
+				lendingApplication.setLender("MAMTA");
 				try{
 					supportService.getAgreement(lendingApplication,lendingApplication.getLender());
 				}catch (Exception ex){
