@@ -630,7 +630,7 @@ public class LoanDetailsService {
 					loanEligibilityDTOs.addAll(fetchZomatoOffers(experian, lendingPartnerOffers));
 				}
 				//fetching NTB loans
-				if (!rejected && !isZomato && !exemptMerchant.contains(merchant.getId())) {
+				if (!rejected && !isZomato) {
 					experian.setReason(null);
 					experianDao.save(experian);
 					if (bankCode == null && loanEligibilityDTOs.isEmpty()) {
