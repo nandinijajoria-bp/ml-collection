@@ -210,8 +210,9 @@ public class LoanEligibleService {
         int txnLast30Days = 30;
         double avgTpv = tpvLast30Days/txnLast30Days;
         if (exemptMerchant.contains(merchant.getId())) {
-            avgTpv = 10000;
+            avgTpv = 100000;
             bpScore = 20D;
+            merchantSummary.setUniqueCustomer1mon(20);
         }
         List<LendingPaymentSchedule> prevLoans;
         if(lendingType.equalsIgnoreCase("CREDITLINE")) {
