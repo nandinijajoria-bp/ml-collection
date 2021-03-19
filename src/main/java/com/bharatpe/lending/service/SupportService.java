@@ -682,9 +682,10 @@ public class SupportService {
             String readLine = lenderFileReader.readLine();
             readLine = lenderFileReader.readLine();
             while (readLine != null) {
+                logger.info("Line:{}",readLine);
                 String[] arr = readLine.split(",");
-                Long merchantId = Long.valueOf(arr[1]);
-                Long applicationId = Long.valueOf(arr[2]);
+                Long merchantId = Long.valueOf(arr[1].replaceAll("^\"|\"$", ""));
+                Long applicationId = Long.valueOf(arr[2].replaceAll("^\"|\"$", ""));
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     readLine = lenderFileReader.readLine();
@@ -709,7 +710,7 @@ public class SupportService {
             writer.close();
             byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
             emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");
-            }}, "Mamta Nbfc Report Shared"+new Date(), "MAMTA Nbfc Details Report For Date"+new Date(), bytes, "mamta_nbfc_details", "text/csv");
+            }}, "Mamta Nbfc Report Shared"+new Date(), "MAMTA Nbfc Details Report For Date"+new Date(), bytes, "mamta_nbfc_details.csv", "text/csv");
             s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
             lendingBulkDisbursal.setReturnFileName(fileId+"_nbfc_details.csv");
             lendingBulkDisbursal.setProceed(Boolean.TRUE);
@@ -749,7 +750,7 @@ public class SupportService {
         return data;
     }
 
-    private String getAgreement(LendingApplication lendingApplication,String lender) throws IOException {
+    public String getAgreement(LendingApplication lendingApplication,String lender) throws IOException {
         Map<String,Object> data = new HashMap<>();
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(),"ACTIVE");
         Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
@@ -880,7 +881,7 @@ public class SupportService {
         return html;
     }
 
-    private String getAgreementHtml(Map<String,Object> data,String lender){
+    public String getAgreementHtml(Map<String,Object> data,String lender){
         String html = "";
         if("MAMTA".equals(lender)) {
              html = "<p style=\"text-align: center;\"><strong>Loan Details</strong></p>\n" +

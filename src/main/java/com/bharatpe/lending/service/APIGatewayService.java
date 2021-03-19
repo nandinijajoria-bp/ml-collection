@@ -6,7 +6,6 @@ import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
@@ -17,20 +16,17 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
@@ -42,32 +38,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.*;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import javax.annotation.PostConstruct;
-import java.io.IOException;
-import java.io.InputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 
 @Service
 public class APIGatewayService {
 
     private static final Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
-    
+
     @Value("${internal.merchant.id}")
     long merchantId;
 
@@ -82,6 +69,9 @@ public class APIGatewayService {
     
     @Autowired
     MerchantDao merchantDao;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
 
     @Autowired
     LoanAgreementDao loanAgreementDao;
@@ -161,7 +151,12 @@ public class APIGatewayService {
     @Autowired
     SmsServiceHandler smsServiceHandler;
 
+    @Autowired
+    SupportService supportService;
+
     private final String CLIENT = "LENDING";
+
+    private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
     private static String clientSecret;
     
@@ -1440,7 +1435,7 @@ public class APIGatewayService {
             }
             if (response != null) {
                 if (response.getStatus() != null && "OK".equalsIgnoreCase(response.getStatus())) {
-                    return ldcVirtualAccountDao.save(new LdcVirtualAccount(merchant.getId(), lendingApplication.getId(), response.getAccountNumber(), response.getIfsc()));
+                    return ldcVirtualAccountDao.save(new LdcVirtualAccount(merchant.getId(), lendingApplication.getId(), response.getAccountNumber(), response.getIfsc(), "LENDING"));
                 }
             }
         } catch (Exception ex) {
@@ -1575,16 +1570,6 @@ public class APIGatewayService {
         }
         Date dateOfBirth = null;
         dob = panDetail.getDob();
-//        try {
-//            dateOfBirth = new SimpleDateFormat("yyyy-MM-dd").parse(dob);
-//        }catch(ParseException e){
-//            logger.info("Exception while parsing DOB date:{}", dob);
-//            try {
-//                dateOfBirth = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
-//            } catch (ParseException pe) {
-//                logger.error("Exception while parsing DOB date:{}", dob, pe);
-//            }
-//        }
         try {
             DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             dateOfBirth = sdf.parse(dob);
@@ -1657,5 +1642,48 @@ public class APIGatewayService {
             }
         }
         return checkPan && checkPhone;
+    }
+
+    public Boolean ldcDisburse(LendingApplication lendingApplication){
+        try{
+             Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("application_id", lendingApplication.getId());
+                put("lender_name",lendingApplication.getLender());
+            }};
+            String payload = hmacCalculator.getObjectPayload(requestParams);
+            String hash = hmacCalculator.calculateHmac(payload,getInternalSecret());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.set("Hash", hash);
+            headers.set("Client-Name", CLIENT);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+            logger.info("Ldc Service Request :{}",request);
+            ResponseEntity<String> response = null;
+            try {
+                response = restTemplate.postForEntity(NBFC_URL, request, String.class);
+                logger.info("Nbfc Service Response :{}",response);
+            } catch (HttpClientErrorException | HttpServerErrorException ex) {
+                logger.error("Exception In Calling NBFC Service:{}", ex.getResponseBodyAsString());
+                return Boolean.FALSE;
+            }
+            logger.info("Ldc Service Response :{}",response);
+            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
+                JsonNode jsonNode = mapper.readTree(response.getBody());
+                if(jsonNode.get("data")!= null && jsonNode.get("data").get("loan_id") != null){
+                    lendingApplication.setSendToNbfc("YES");
+                    lendingApplication.setNbfcSendDate(new Date());
+                    lendingApplication.setDisbursalPartner("BHARATPE");
+                    lendingApplication.setNbfcId(jsonNode.get("data").get("loan_id").textValue());
+                    lendingApplication.setLoanDisbursalStatus("PENDING");
+                    lendingApplicationDao.save(lendingApplication);
+                    return Boolean.TRUE;
+                }
+            }
+        }catch (Exception ex){
+            logger.error("Exception In Creating Loan Agreement :{}",ex);
+        }
+        return  Boolean.FALSE;
     }
 }
