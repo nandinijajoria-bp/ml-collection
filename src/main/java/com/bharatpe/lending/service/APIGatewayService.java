@@ -564,7 +564,7 @@ public class APIGatewayService {
                     + "                       \"psps\": [\n"
                     + "                \"com.google.android.apps.nbu.paisa.user\",\n" + "\"net.one97.paytm\",\n" + "\"in.org.npci.upiapp\",\n"
                     + "                \"com.csam.icici.bank.imobile\",\n" + "\"com.mobikwik_new\",\n"
-                    + "                \"com.myairtelapp\",\n" + "\"com.phonepe.app\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
+                    + "                \"com.myairtelapp\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
                     + "                     \"auth_required\": false,\n"
                     + "                     \"default\": false,\n"
                     + "                     \"enable\": true,\n"
