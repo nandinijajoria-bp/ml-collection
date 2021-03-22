@@ -167,8 +167,8 @@ public class LoanEligibleService {
     }
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
-        EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO,
-        LoanCalculationUtil.LoanBreakupDetail breakup, LendingCategories lendingCategory){
+            EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO,
+            LoanCalculationUtil.LoanBreakupDetail breakup, LendingCategories lendingCategory){
         EligibleLendingOffersResponseDTO.TenureDetails tenureDetails =  responseDTO.new TenureDetails();
         tenureDetails.setTenure(eligibleLoan.getTenure());
         tenureDetails.setCategory(eligibleLoan.getCategory());

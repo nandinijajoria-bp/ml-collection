@@ -74,6 +74,7 @@ public class LoanDetailsResponseDTO {
 		private boolean bharatPeClubMember = false;
 		private Double bureauScore;
 		private Double minAmount;
+		private Double eligibleAmount;
 
 
 		@JsonProperty(value = "loan_history")
@@ -303,16 +304,46 @@ public class LoanDetailsResponseDTO {
 			this.minAmount = minAmount;
 		}
 
-		@Override
-		public String toString() {
-			return "LoanDetailsDTO [eligible=" + eligible + ", rejected=" + rejected + ", panCard=" + panCard
-					+ ", rejectReason=" + rejectReason + ", loanClosed=" + loanClosed + ", noExperian=" + noExperian
-					+ ", maskedMobiles=" + maskedMobiles + ", ogl=" + ogl + ", accountDetails=" + accountDetails
-					+ ", skipEnatch=" + skipEnatch + ", isZomato=" + isZomato + ", enach=" + enach + ", city=" + city
-					+ ", pincode=" + pincode + ", tempClosed=" + tempClosed + ", bharatSwipe=" + bharatSwipe
-					+ ", history=" + history + ", eligibility=" + eligibility + ", topupLoan=" + topupLoan
-					+ ", loanApplication=" + loanApplication + "]";
+		public Double getEligibleAmount() {
+			return eligibleAmount;
 		}
 
+		public void setEligibleAmount(Double eligibleAmount) {
+			this.eligibleAmount = eligibleAmount;
+		}
+
+		@Override
+		public String toString() {
+			return "LoanDetailsDTO{" +
+					"eligible=" + eligible +
+					", rejected=" + rejected +
+					", panCard='" + panCard + '\'' +
+					", rejectReason='" + rejectReason + '\'' +
+					", loanClosed=" + loanClosed +
+					", noExperian=" + noExperian +
+					", maskedMobiles=" + maskedMobiles +
+					", ogl=" + ogl +
+					", accountDetails=" + accountDetails +
+					", skipEnatch=" + skipEnatch +
+					", isZomato=" + isZomato +
+					", enach='" + enach + '\'' +
+					", city='" + city + '\'' +
+					", pincode=" + pincode +
+					", tempClosed='" + tempClosed + '\'' +
+					", bharatSwipe=" + bharatSwipe +
+					", bharatSwipeAmount=" + bharatSwipeAmount +
+					", activeLoan=" + activeLoan +
+					", syncContacts=" + syncContacts +
+					", hasExperian=" + hasExperian +
+					", bharatPeClubMember=" + bharatPeClubMember +
+					", bureauScore=" + bureauScore +
+					", minAmount=" + minAmount +
+					", eligibleAmount=" + eligibleAmount +
+					", history=" + history +
+					", eligibility=" + eligibility +
+					", topupLoan=" + topupLoan +
+					", loanApplication=" + loanApplication +
+					'}';
+		}
 	}
 }

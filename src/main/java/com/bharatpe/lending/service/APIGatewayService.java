@@ -1139,8 +1139,8 @@ public class APIGatewayService {
     }
 
 //    @Async
-    public void updateGlobalLimit(Long merchantId) {
-        logger.info("Updating global limit for merchant:{}", merchantId);
+    public GlobalLimitResponse getGlobalLimit(Long merchantId) {
+        logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>(){{
             put("merchantId", merchantId);
         }};
@@ -1155,14 +1155,19 @@ public class APIGatewayService {
         int retryCount = 0;
         while(retryCount < 3) {
             try {
-                restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, String.class);
+                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, GlobalLimitResponse.class);
+                logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
+                    return responseEntity.getBody();
+                }
                 break;
             }
             catch(Exception e) {
-                logger.error("Error occurred while updating global limit", e);
+                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e);
             }
             retryCount++;
         }
+        return null;
     }
 
     public void globalLimitTxn(Long merchantId, String mode, Double amount) {
