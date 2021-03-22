@@ -602,7 +602,7 @@ public class LoanDetailsService {
 				loanEligibilityDTOs.add(loanEligibilityDTO);
 			}
 			experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
-			if (experian.getRejected()) {
+			if (experian != null && experian.getRejected()) {
 				if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 					rejected = false;
 				}else{
