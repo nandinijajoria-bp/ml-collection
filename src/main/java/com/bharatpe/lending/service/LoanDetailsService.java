@@ -268,11 +268,15 @@ public class LoanDetailsService {
 				}
 				return response;
 			}
+			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.getId(),false);
+			boolean repeatLoan = lendingPaymentScheduleList != null && lendingPaymentScheduleList.size() > 0;
+			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
+			boolean isActiveLoan = activeLoan != null;
 			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchant.getId());
 			if (d2RMerchant == null) {
 				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchant.getId());
 			}
-			if (d2RMerchant != null) {
+			if (d2RMerchant != null && !isActiveLoan) {
 				logger.info("D2R merchant:{}, rejecting", merchant.getId());
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -316,12 +320,6 @@ public class LoanDetailsService {
 			} else {
 				panCard = requestDTO.getPayload().getPanCard();
 			}
-			List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.getId(),false);
-			boolean repeatLoan = lendingPaymentScheduleList != null && lendingPaymentScheduleList.size() > 0;
-
-			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
-			boolean isActiveLoan = activeLoan != null;
-
 			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
 
 			LendingApplication lendingApplication = null;
