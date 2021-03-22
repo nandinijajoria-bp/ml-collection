@@ -673,9 +673,15 @@ public class SupportService {
             InputStream lenderFile = s3BucketHandler.getObject(lendingBulkDisbursal.getFileName(), "loan-document");
             BufferedReader lenderFileReader = new BufferedReader(new InputStreamReader(lenderFile));
             File file = new File("/tmp/"+fileId+"_nbfc_details.csv");
+            File errorFile = new File("/tmp/"+fileId+"_error_file.csv");
             FileWriter outputfile = new FileWriter(file);
             CSVWriter writer = new CSVWriter(outputfile);
+            FileWriter outputError = new FileWriter(errorFile);
+            CSVWriter errorWriter = new CSVWriter(outputError);
             List<String[]> data = new ArrayList<String[]>();
+            List<String[]> errorData = new ArrayList<String[]>();
+            String[] errorheader = {"merchant_id","application_id","external_loan_id","status","message"};
+            errorData.add(errorheader);
             String[] header = { "partner_tag", "loan_type", "Loan_amount","tenure","partner_loan_id","fee_amount","gst_amount","interest_rate","interest_type","partner_computed_disbursement_amount","partner_computed_interest_amount","no_of_EDI","EDI_amount","EDI_schedule","customer_risk_segment","customer_location_category","existing_BP_merchant","customer_type_NTC","any_written_off_loan_in_last_two_years","income_to_debt_ratio","recommendation_from_BP","date_of_birth","consumer_name","gender","email","pan_number","mobile_number","loan_purpose","pincode","address","city","address_state","address_type","address_proof_type","type","stay_type","landmark","customer_bank_name","bank_account_number","customer_bank_account_name","ifsc_code","address_proof_1","address_proof_2","pan_card","loan_agreement","eKycResponse" };
             data.add(header);
             CountDownLatch latch = new CountDownLatch(lines);
@@ -687,7 +693,18 @@ public class SupportService {
                 Long merchantId = Long.valueOf(arr[1].replaceAll("^\"|\"$", ""));
                 Long applicationId = Long.valueOf(arr[2].replaceAll("^\"|\"$", ""));
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
+
+                if(lendingApplication == null){
+                    logger.info("Application Not Found merchantId:{} and applicationId:{}",merchantId,applicationId);
+                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),arr[3],"FAILED","Application not Found"});
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
+
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
+                    logger.info("Application Condition Not Match merchantId:{} and applicationId:{}",merchantId,applicationId);
+                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Condition Not Match"});
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;
@@ -695,7 +712,11 @@ public class SupportService {
                 executorService.execute(() -> {
                     try {
                         data.add(getCsvData(lendingApplication,lender));
+                        if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
+                            errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
+                        }
                     } catch (IOException e) {
+                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
                         e.printStackTrace();
                     } finally {
                         latch.countDown();
@@ -706,15 +727,28 @@ public class SupportService {
             lenderFileReader.close();
             lenderFile.close();
             latch.await();
+            errorWriter.writeAll(errorData);
+            errorWriter.close();
             writer.writeAll(data);
             writer.close();
+            outputError.close();
+            outputfile.close();
             byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
+            byte[] error = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_error_file.csv"));
+            emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");add("ashutosh.dhewal@bharatpe.com");add("kanika.sehgal@bharatpe.com");
+            }}, "AUTOMATED MAMTA NBFC Report "+new Date(), "MAMTA NBFC Cases Report For Date "+new Date() , bytes, "mamta_nbfc_details.csv", "text/csv");
             emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");
-            }}, "Mamta Nbfc Report Shared "+new Date(), "MAMTA Nbfc Details Report For Date "+new Date() , bytes, "mamta_nbfc_details.csv", "text/csv");
+            }}, "MAMTA NBFC Error Cases Report  "+new Date(), "MAMTA NBFC Error Cases For Date "+new Date() , error, "mamta_error_cases.csv", "text/csv");
             s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
+            s3BucketHandler.uploadFileToS3(errorFile,"crm-exporter",fileId+"_error_file.csv");
             lendingBulkDisbursal.setReturnFileName(fileId+"_nbfc_details.csv");
+
             lendingBulkDisbursal.setProceed(Boolean.TRUE);
             lendingBulkDisbursalDao.save(lendingBulkDisbursal);
+
+            file.delete();
+            errorFile.delete();
+
         }catch(Exception ex){
             logger.info("Exception IN Lender Change",ex);
         }

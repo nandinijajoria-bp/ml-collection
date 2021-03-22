@@ -1598,10 +1598,10 @@ public class APIGatewayService {
         }
 
         Map result = new HashMap();
-        result.put("person_name",poaDetail.getPersonName());
+        result.put("person_name",poaDetail.getPersonName() != null ? poaDetail.getPersonName() : poaDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
         result.put("dob",dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
         result.put("proof_type",poaDetail.getDocType());
-        result.put("gender",poaDetail.getGender());
+        result.put("gender",poaDetail.getGender() != null ? poaDetail.getGender() : "Male");
         result.put("pancardUrl",pancardUrl);
         result.put("addressproof1",addressProof1);
         result.put("addressproof2",addressProof2);
