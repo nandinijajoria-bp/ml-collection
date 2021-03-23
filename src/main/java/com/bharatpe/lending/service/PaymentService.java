@@ -431,6 +431,7 @@ public class PaymentService {
 			if (extraPrinciple > 0) {
 				logger.info("Extra principle received for loanId:{} and extra amount:{}", activeLoan.getId(), extraPrinciple);
 				paidPrincipalAmount -= extraPrinciple;
+				paidInterestAmount += extraPrinciple;
 			}
 			logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 			if(activeLoan.getDueAmount() >= 0) {
