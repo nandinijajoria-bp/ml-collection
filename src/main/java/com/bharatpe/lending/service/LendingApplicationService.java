@@ -456,7 +456,7 @@ public class LendingApplicationService {
 	private String uploadDocumentInLending(String frontUrl, Long merchantId, String bucket) {
 		try {
 			String imageURL = s3BucketHandler.getPreSignedPublicURL(frontUrl, bucket);
-			String fileName = merchantId + "" + ((int) (Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			String fileName = merchantId + UUID.randomUUID().toString() + ".jpeg";
 			File file = new File("/tmp/" + fileName);
 			FileUtils.copyURLToFile(new URL(imageURL), file);
 			s3BucketHandler.uploadFileToS3(file, imageBucket, fileName);
