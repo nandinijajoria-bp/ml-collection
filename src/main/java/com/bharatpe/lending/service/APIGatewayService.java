@@ -1703,7 +1703,7 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
         logger.info("Cancel enach request:{} for merchant:{}", request, merchantId);
         try {
             ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {});
