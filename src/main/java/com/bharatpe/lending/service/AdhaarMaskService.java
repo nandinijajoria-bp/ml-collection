@@ -103,7 +103,7 @@ public class AdhaarMaskService {
             logger.info("Updating masked adhaar image for application:{}", documentsIdProof.getLendingApplication().getId());
             try {
                 String url = result.get("response").get("result").get("maskedImages").get(0).textValue();
-                String fileName = merchantId + UUID.randomUUID().toString() + ".jpeg";
+                String fileName = merchantId + "_" + UUID.randomUUID().toString() + ".jpeg";
                 File file = new File("/tmp/" + fileName);
                 FileUtils.copyURLToFile(new URL(url), file);
                 s3BucketHandler.uploadFileToS3(file, imageBucket, fileName);
