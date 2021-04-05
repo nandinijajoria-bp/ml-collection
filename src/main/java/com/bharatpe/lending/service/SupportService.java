@@ -709,9 +709,20 @@ public class SupportService {
                     latch.countDown();
                     continue;
                 }
+
+                Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
+
+                if("RED".equalsIgnoreCase(experian.getColor())){
+                    logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
+                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
+
                 executorService.execute(() -> {
                     try {
-                        data.add(getCsvData(lendingApplication,lender));
+                        data.add(getCsvData(lendingApplication,lender,experian));
                         if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                             errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                         }
@@ -754,10 +765,9 @@ public class SupportService {
         }
     }
 
-    private String[] getCsvData(LendingApplication lendingApplication, String lender) throws IOException {
+    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws IOException {
         String shortUrl = getAgreement(lendingApplication,lender);
         LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
-        Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
         CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchant().getId(), lendingApplication.getId());
         String ediSchedule = objectMapper.writeValueAsString(ediScheduleResponse.getData());
         String accountNumber = ldcVirtualAccount.getAccountNumber();
@@ -771,7 +781,7 @@ public class SupportService {
         String addressproof1 = addressResult.get("addressproof1").toString();
         String addressproof2 = addressResult.get("addressproof2").toString();
         LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(),lendingApplication.getId());
-        String[] data =  {"AMPLB","PL",lendingApplication.getLoanAmount().toString(),lendingApplication.getTenureInMonths().toString(),lendingApplication.getExternalLoanId(),lendingApplication.getProcessingFee().toString(),"0", String.valueOf((lendingApplication.getInterestRate()*12/100)),"flat",lendingApplication.getDisbursalAmount().toString(), String.valueOf((lendingApplication.getRepayment()-lendingApplication.getLoanAmount())),lendingApplication.getPayableDays().toString(),lendingApplication.getEdi().toString(),ediSchedule,experian.getColor(),apiGatewayService.getPincodeArea(experian.getPincode()),"Y",apiGatewayService.findNtc(experian),"N","Y","Recommended",dob,personName,gender," ",experian.getPancardNumber(),lendingApplication.getMerchant().getMobile(),"Personal",lendingApplication.getPincode().toString(),lendingApplication.getStreetAddress(),lendingApplication.getCity(),lendingApplication.getState(),"permanent",proofType,"communication","self owned",lendingApplication.getLandmark(),"ICICI BANK",accountNumber,lendingApplication.getMerchant().getBeneficiaryName(),ifscCode,addressproof1,addressproof2,pancardUrl,shortUrl,lendingEkyc != null ? lendingEkyc.getResponse() : null};
+        String[] data =  {"AMPLB","PL",lendingApplication.getLoanAmount().toString(),lendingApplication.getTenureInMonths().toString(),lendingApplication.getExternalLoanId(),lendingApplication.getProcessingFee().toString(),"0", String.valueOf((lendingApplication.getInterestRate()*12/100)),"flat",lendingApplication.getDisbursalAmount().toString(), String.valueOf((lendingApplication.getRepayment()-lendingApplication.getLoanAmount())),lendingApplication.getPayableDays().toString(),lendingApplication.getEdi().toString(),ediSchedule,experian.getColor(),apiGatewayService.getPincodeArea(experian.getPincode()),"Y",apiGatewayService.findNtc(experian),"N","Y","Recommended",dob,personName,gender," ",experian.getPancardNumber(),lendingApplication.getMerchant().getMobile(),"Personal",lendingApplication.getPincode().toString(),lendingApplication.getStreetAddress(),lendingApplication.getCity(),lendingApplication.getState(),"permanent",proofType,"communication","self owned",lendingApplication.getLandmark(),"ICICI BANK","\'"+accountNumber,lendingApplication.getMerchant().getBeneficiaryName(),ifscCode,addressproof1,addressproof2,pancardUrl,shortUrl,lendingEkyc != null ? lendingEkyc.getResponse() : null};
 
         String accType = lender == "LDC" ? "INVESTOR_FUNDS" : "NBFC_FUNDS";
         lendingApplication.setLender(lender);

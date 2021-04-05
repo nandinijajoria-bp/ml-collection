@@ -439,7 +439,12 @@ public class CreditLineKycService {
 	}
 	
 	private DocumentsIdProof insertIntoDocumentIdProof(Merchant merchant, LendingEkyc lendingEkyc,LendingApplication lendingApplication) {
-		
+
+		DocumentsIdProof documentsProof = documentsIdProofDao.fetchLatestAddressProof(merchant.getId(),lendingApplication.getId(),"LENDING");
+		if(documentsProof != null){
+			documentsProof.setDeletedAt(new Date());
+			documentsIdProofDao.save(documentsProof);
+		}
 		DocumentsIdProof documentsIdProof=new DocumentsIdProof();
 		documentsIdProof.setMerchant(merchant);
 		documentsIdProof.setProofType("eAadhar");

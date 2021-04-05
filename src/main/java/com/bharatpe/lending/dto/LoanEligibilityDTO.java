@@ -24,6 +24,9 @@ public class LoanEligibilityDTO {
 	
 	@JsonProperty(value = "option_enable")
 	private boolean optionEnable;
+
+	@JsonProperty(value = "edi_count")
+	private Integer ediCount;
 	
 	private Integer amount;
 	private Integer edi;
@@ -153,6 +156,14 @@ public class LoanEligibilityDTO {
 
 	public void setLoanType(String loanType) {
 		this.loanType = loanType;
+	}
+
+	public Integer getEdiCount() {
+		return ediCount;
+	}
+
+	public void setEdiCount(Integer ediCount) {
+		this.ediCount = ediCount;
 	}
 
 	@Override

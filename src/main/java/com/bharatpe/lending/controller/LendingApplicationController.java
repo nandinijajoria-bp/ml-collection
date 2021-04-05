@@ -141,8 +141,8 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/tnc", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<TncDto> tnc(@RequestAttribute Merchant merchant, @RequestParam Long applicationId) {
-	   return new ResponseEntity<>(lendingApplicationService.getTnc(merchant, applicationId), HttpStatus.OK);
+	public ResponseEntity<TncDto> tnc(@RequestAttribute Merchant merchant, @RequestParam(required = false) Long applicationId,@RequestParam(required = false) String category) {
+		return new ResponseEntity<>(lendingApplicationService.getTnc(merchant, applicationId,category), HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/callLoanDetail", method = RequestMethod.GET)
