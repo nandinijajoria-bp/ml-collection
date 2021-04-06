@@ -685,6 +685,7 @@ public class LoanDetailsService {
 				LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 				AvailableLoan availableLoan = new AvailableLoan();
 				availableLoan.setAmount(eligibleLoan.getAmount());
+				logger.info("Calculating loan breakup for merchant:{}, category:{}, loanType:{}", merchantId, lendingCategories, eligibleLoan.getLoanType());
 				breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, eligibleLoan.getLoanType());
 				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
 				loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
