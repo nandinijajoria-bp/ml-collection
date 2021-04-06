@@ -49,4 +49,10 @@ public class ENachController {
 	public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant){
 		return new ResponseEntity<>(eNachService.setEnachSkipStatus(merchant), HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/cancel",method = RequestMethod.PUT)
+	public ResponseEntity<CommonResponse> cancelEnach(@RequestAttribute Merchant merchant){
+		logger.info("Cancel enach request for merchant:{}", merchant.getId());
+		return new ResponseEntity<>(eNachService.cancelEnach(merchant), HttpStatus.OK);
+	}
 }

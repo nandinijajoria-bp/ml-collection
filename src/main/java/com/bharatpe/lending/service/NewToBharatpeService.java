@@ -138,16 +138,16 @@ public class NewToBharatpeService {
 			}
 			return false;
 		}
-		if (isLowBBSVintage(merchant, lendingBBS.getBbs())) {
-			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
-			if (!hasRegularLoan) {
-				experian.setCategory("1N");
-				experian.setColor(ExperianConstants.COLOR.RED.name());
-				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
-				experianDao.save(experian);
-			}
-			return false;
-		}
+//		if (isLowBBSVintage(merchant, lendingBBS.getBbs())) {
+//			logger.info("Low BBS Vintage, rejecting merchant:{}", merchant.getId());
+//			if (!hasRegularLoan) {
+//				experian.setCategory("1N");
+//				experian.setColor(ExperianConstants.COLOR.RED.name());
+//				experian.setReason(ExperianConstants.LOW_BBS_VINTAGE);
+//				experianDao.save(experian);
+//			}
+//			return false;
+//		}
 		return true;
 	}
 

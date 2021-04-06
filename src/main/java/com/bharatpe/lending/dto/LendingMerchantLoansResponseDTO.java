@@ -20,7 +20,11 @@ public class LendingMerchantLoansResponseDTO {
 
     private boolean success = true;
 
+    private List<LoanEligibilityDTO> eligibility;
+
     private String message = "success";
+
+    private Boolean topup;
 
     private Double totalPaidAmount = 0D;
     private Double totalAmount = 0D;
@@ -49,6 +53,7 @@ public class LendingMerchantLoansResponseDTO {
         private Double paidAmount;
         private Double lastEdiPaid;
         private Double repaymentAmount;
+        private Integer ediCount;
         @JsonProperty(value = "showPaynow")
         private boolean showPaynow = true;
         @JsonProperty(value = "showCustomAmount")
@@ -59,7 +64,7 @@ public class LendingMerchantLoansResponseDTO {
 
         public Loan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
-                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount) {
+                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,Integer ediCount) {
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -76,6 +81,7 @@ public class LendingMerchantLoansResponseDTO {
             this.status = status;
             this.paidAmount = paidAmount;
             this.repaymentAmount = repaymentAmount;
+            this.ediCount = ediCount;
         }
 
         public Long getLoanId() {
@@ -230,6 +236,14 @@ public class LendingMerchantLoansResponseDTO {
             this.repaymentAmount = repaymentAmount;
         }
 
+        public Integer getEdiCount() {
+            return ediCount;
+        }
+
+        public void setEdiCount(Integer ediCount) {
+            this.ediCount = ediCount;
+        }
+
         public Loan loanId(Long loanId) {
             this.loanId = loanId;
             return this;
@@ -300,6 +314,8 @@ public class LendingMerchantLoansResponseDTO {
             return this;
         }
 
+
+
         @Override
         public String toString() {
             return "{" + " loanId='" + getLoanId() + "'" + ", loanAmount='" + getLoanAmount() + "'" + ", ediAmount='"
@@ -353,7 +369,7 @@ public class LendingMerchantLoansResponseDTO {
         String tenure = application != null && application.getTenure() != null ? application.getTenure() : "";
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount());
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount(),lendingPaymentSchedule.getEdiCount());
     }
 
     public boolean getSuccess() {
@@ -395,6 +411,28 @@ public class LendingMerchantLoansResponseDTO {
     public void setTotalDueAmount(Double totalDueAmount) {
         this.totalDueAmount = totalDueAmount;
     }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public Boolean getTopup() {
+        return topup;
+    }
+
+    public void setTopup(Boolean topup) {
+        this.topup = topup;
+    }
+
+    public List<LoanEligibilityDTO> getEligibility() {
+        return eligibility;
+    }
+
+    public void setEligibility(List<LoanEligibilityDTO> eligibility) {
+        this.eligibility = eligibility;
+    }
+
+
 
     @Override
     public String toString() {

@@ -6,13 +6,12 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingPennydrop;
 import com.bharatpe.lending.constant.ErrorMessages;
+import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
-import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
-import com.bharatpe.lending.dto.EnachInitiateRequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +47,9 @@ public class ENachService {
 
     @Autowired
     LendingPennydropDao lendingPennydropDao;
+
+    @Autowired
+    BPEnachDao bpEnachDao;
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -96,16 +98,18 @@ public class ENachService {
             lendingApplication.setNachStatus("APPROVED");  
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
             lendingApplicationDao.save(lendingApplication);
-            if (lendingApplication.getLoanAmount() <= 200000) {
-                verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
-            }
-            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-            if (lendingPennydrop == null) {
-                apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-            }
 
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
+            }
+
+            if (lendingApplication.getLoanAmount() <= 200000) {
+                verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
+            }
+
+            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            if (lendingPennydrop == null) {
+                apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
             }
         }
 
@@ -194,5 +198,15 @@ public class ENachService {
     public String fetchBankCode(String ifscCode, String mode){
         LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode);
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
+    }
+
+    public CommonResponse cancelEnach(Merchant merchant) {
+        BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+        if (bpEnach == null) {
+            logger.info("Enach not found for merchant:{}", merchant.getId());
+        } else {
+            apiGatewayService.cancelEnach(merchant.getId());
+        }
+        return new CommonResponse(true, "success");
     }
 }

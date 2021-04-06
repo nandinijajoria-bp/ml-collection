@@ -343,8 +343,14 @@ public class PaymentService {
 			return responseDTO;
 		}
 		List<PaymentDetailDto> paymentDetails = apiGatewayService.getPaymentModes(requestDTO, token);
+		for (PaymentDetailDto paymentDetail : paymentDetails) {
+			if (paymentDetail.getPsps() != null && !paymentDetail.getPsps().isEmpty()) {
+				paymentDetail.getPsps().removeIf(psps -> psps.equalsIgnoreCase("com.phonepe.app"));
+			}
+		}
 		paymentDetails.add(getBankTransferMode());
 		paymentDetails.add(getGPAYMode());
+		paymentDetails.add(getPhonePeMode());
 		ResponseDTO responseDTO = new ResponseDTO();
 		paymentDetails.removeIf(paymentDetailDto -> (paymentDetailDto.getBalance() != null && paymentDetailDto.getBalance() < requestDTO.getPayload().getAmount()));
 		if (paymentDetails.isEmpty()) {
@@ -382,6 +388,19 @@ public class PaymentService {
 		return paymentDetailDto;
 	}
 
+	private PaymentDetailDto getPhonePeMode() {
+		PaymentDetailDto paymentDetailDto = new PaymentDetailDto();
+		paymentDetailDto.setName("Pay Using PhonePe");
+		paymentDetailDto.setType("UPI");
+		paymentDetailDto.setFundSource("UPI");
+		paymentDetailDto.setAmountLimit(100000D);
+		paymentDetailDto.setAuthRequired(false);
+		paymentDetailDto.setEnable(true);
+		paymentDetailDto.setInitiate_sb(false);
+		paymentDetailDto.setDefault(false);
+		return paymentDetailDto;
+	}
+
 	public ResponseDTO resendOTP(RequestDTO<PaymentResendOTP> requestDTO, Merchant merchant, String token) {
 		LoanPaymentOrder loanPaymentOrder = loanPaymentOrderDao.findByOrderId(requestDTO.getPayload().getOrderId());
 		if (loanPaymentOrder == null) {
@@ -408,6 +427,12 @@ public class PaymentService {
 			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
 			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
 			paidPrincipalAmount = amount - paidInterestAmount;
+			double extraPrinciple = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
+			if (extraPrinciple > 0) {
+				logger.info("Extra principle received for loanId:{} and extra amount:{}", activeLoan.getId(), extraPrinciple);
+				paidPrincipalAmount -= extraPrinciple;
+				paidInterestAmount += extraPrinciple;
+			}
 			logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 			if(activeLoan.getDueAmount() >= 0) {
 				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);

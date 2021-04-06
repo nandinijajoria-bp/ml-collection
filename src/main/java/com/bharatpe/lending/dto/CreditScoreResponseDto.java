@@ -45,6 +45,12 @@ public class CreditScoreResponseDto {
 
     private List<LoanEligibilityDTO> eligibility;
 
+    private Double eligibleAmount;
+
+    private Integer edi;
+
+    private String tenure;
+
     public String getPanNumber() {
         return panNumber;
     }
@@ -163,5 +169,29 @@ public class CreditScoreResponseDto {
 
     public void setEligible(boolean eligible) {
         this.eligible = eligible;
+    }
+
+    public Double getEligibleAmount() {
+        return eligibleAmount;
+    }
+
+    public void setEligibleAmount(Double eligibleAmount) {
+        this.eligibleAmount = eligibleAmount;
+    }
+
+    public Integer getEdi() {
+        return edi;
+    }
+
+    public void setEdi(Integer edi) {
+        this.edi = edi;
+    }
+
+    public String getTenure() {
+        return tenure;
+    }
+
+    public void setTenure(String tenure) {
+        this.tenure = tenure;
     }
 }

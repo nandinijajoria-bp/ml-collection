@@ -18,7 +18,7 @@ public interface BPEnachDao extends CrudRepository<BpEnach, Long> {
 
     BpEnach findTop1ByMerchantIdAndReferenceNumber(Long merchantId,String referenceNumber);
 
-    @Query(value = "select * from merchant_nach_details where merchant_id=:merchantId and status='APPROVED' and internal_nach_type='ENACH' order by id desc limit 1", nativeQuery = true)
+    @Query(value = "select * from merchant_nach_details where merchant_id=:merchantId and status='APPROVED' and internal_nach_type='ENACH' and platform='LENDING' order by id desc limit 1", nativeQuery = true)
     BpEnach findSuccessEnach(Long merchantId);
 
     @Transactional

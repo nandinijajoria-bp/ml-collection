@@ -167,8 +167,8 @@ public class LoanEligibleService {
     }
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
-        EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO,
-        LoanCalculationUtil.LoanBreakupDetail breakup, LendingCategories lendingCategory){
+            EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO,
+            LoanCalculationUtil.LoanBreakupDetail breakup, LendingCategories lendingCategory){
         EligibleLendingOffersResponseDTO.TenureDetails tenureDetails =  responseDTO.new TenureDetails();
         tenureDetails.setTenure(eligibleLoan.getTenure());
         tenureDetails.setCategory(eligibleLoan.getCategory());
@@ -210,8 +210,9 @@ public class LoanEligibleService {
         int txnLast30Days = 30;
         double avgTpv = tpvLast30Days/txnLast30Days;
         if (exemptMerchant.contains(merchant.getId())) {
-            avgTpv = 10000;
+            avgTpv = 100000;
             bpScore = 20D;
+            merchantSummary.setUniqueCustomer1mon(20);
         }
         List<LendingPaymentSchedule> prevLoans;
         if(lendingType.equalsIgnoreCase("CREDITLINE")) {
@@ -899,7 +900,7 @@ public class LoanEligibleService {
         EligibleLoan eligibleLoan = eligibleLoanDao.save(new EligibleLoan(merchantId, experianId, (double)breakup.getLoanAmount(), payableConverter, "ACTIVE", category, ioEdiDays, 0, avgTpv, breakup.getEdi(), breakup.getIoEdi(), breakup.getRepayment(), construct, loanType, null));
         logger.info("eligible loan for merchant: {} is-- {}", merchantId, eligibleLoan.toString());
         eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
-        return createLoanEligibilityDTO(breakup, payableConverter, category, loanType);
+        return createLoanEligibilityDTO(breakup, payableConverter, lendingCategories, loanType);
     }
 
     private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories, boolean isNTC, Merchant merchant, LendingPaymentSchedule previousLoan){
@@ -939,16 +940,18 @@ public class LoanEligibleService {
         }
     }
 
-    private LoanEligibilityDTO createLoanEligibilityDTO(LoanCalculationUtil.LoanBreakupDetail breakup, String tenure, String category, String loanType){
+    private LoanEligibilityDTO createLoanEligibilityDTO(LoanCalculationUtil.LoanBreakupDetail breakup, String tenure, LendingCategories category, String loanType){
         LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
         loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
         loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
         loanEligibilityDTO.setAmount(breakup.getLoanAmount());
-        loanEligibilityDTO.setCategory(category);
+        loanEligibilityDTO.setCategory(category.getCategory());
         loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
         loanEligibilityDTO.setEdi(breakup.getEdi());
         loanEligibilityDTO.setRepayment(breakup.getRepayment());
         loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
+        loanEligibilityDTO.setEdiCount(category.getPayableDays());
+        loanEligibilityDTO.setConstruct(category.getLoanConstruct());
         loanEligibilityDTO.setTenure(tenure);
         loanEligibilityDTO.setConstruct(breakup.getConstruct());
         loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));

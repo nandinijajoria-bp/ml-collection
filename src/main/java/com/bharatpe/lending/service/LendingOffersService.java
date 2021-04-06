@@ -154,7 +154,7 @@ public class LendingOffersService {
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(false, false, null, null);
 				return new CommonResponse(true, "success", responseDTO);
 			}
-			boolean isEligible = false;
+			boolean isEligible = true;
 			if (!diy || LoanUtil.getDateDiffInDays(merchant.getCreatedAt(), new Date()) > 1) {
 				logger.info("Merchant:{} not DIY/created before 1 day, so eligible for cool off period", merchant.getId());
 				isEligible = true;

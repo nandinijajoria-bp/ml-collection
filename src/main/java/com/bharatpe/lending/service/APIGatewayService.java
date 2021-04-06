@@ -6,31 +6,24 @@ import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.CrifRequestResponse;
-import com.bharatpe.lending.common.entity.LendingVirtualAccount;
-import com.bharatpe.lending.common.entity.SignzyCredential;
-import com.bharatpe.lending.common.entity.SignzyRequestResponse;
-import com.bharatpe.lending.constant.CreditConstants;
-import com.bharatpe.lending.constant.CrifConstants;
-import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.constant.*;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
@@ -42,29 +35,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.*;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import javax.annotation.PostConstruct;
-import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 
 @Service
 public class APIGatewayService {
 
     private static final Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
-    
+
     @Value("${internal.merchant.id}")
     long merchantId;
 
@@ -80,6 +67,11 @@ public class APIGatewayService {
     @Autowired
     MerchantDao merchantDao;
 
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LoanAgreementDao loanAgreementDao;
 
     @Autowired
     LendingPancardDao lendingPancardDao;
@@ -88,10 +80,25 @@ public class APIGatewayService {
     PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
     @Autowired
+    LendingRedCitiesDao lendingRedCitiesDao;
+
+    @Autowired
+    LendingCitiesDao lendingCitiesDao;
+
+    @Autowired
     SignzyCredentialDao signzyCredentialDao;
 
     @Autowired
     ExperianDao experianDao;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    DocumentsIdProofDao documentsIdProofDao;
+
+    @Autowired
+    DocKycDetailsDao docKycDetailsDao;
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
@@ -104,6 +111,9 @@ public class APIGatewayService {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    LdcVirtualAccountDao ldcVirtualAccountDao;
 
     @Autowired
     RestTemplate restTemplate;
@@ -138,7 +148,12 @@ public class APIGatewayService {
     @Autowired
     SmsServiceHandler smsServiceHandler;
 
+    @Autowired
+    SupportService supportService;
+
     private final String CLIENT = "LENDING";
+
+    private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
     private static String clientSecret;
     
@@ -541,7 +556,7 @@ public class APIGatewayService {
                     + "                       \"psps\": [\n"
                     + "                \"com.google.android.apps.nbu.paisa.user\",\n" + "\"net.one97.paytm\",\n" + "\"in.org.npci.upiapp\",\n"
                     + "                \"com.csam.icici.bank.imobile\",\n" + "\"com.mobikwik_new\",\n"
-                    + "                \"com.myairtelapp\",\n" + "\"com.phonepe.app\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
+                    + "                \"com.myairtelapp\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
                     + "                     \"auth_required\": false,\n"
                     + "                     \"default\": false,\n"
                     + "                     \"enable\": true,\n"
@@ -1121,8 +1136,8 @@ public class APIGatewayService {
     }
 
 //    @Async
-    public void updateGlobalLimit(Long merchantId) {
-        logger.info("Updating global limit for merchant:{}", merchantId);
+    public GlobalLimitResponse getGlobalLimit(Long merchantId) {
+        logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>(){{
             put("merchantId", merchantId);
         }};
@@ -1137,14 +1152,19 @@ public class APIGatewayService {
         int retryCount = 0;
         while(retryCount < 3) {
             try {
-                restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, String.class);
+                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, GlobalLimitResponse.class);
+                logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
+                    return responseEntity.getBody();
+                }
                 break;
             }
             catch(Exception e) {
-                logger.error("Error occurred while updating global limit", e);
+                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e);
             }
             retryCount++;
         }
+        return null;
     }
 
     public void globalLimitTxn(Long merchantId, String mode, Double amount) {
@@ -1386,6 +1406,45 @@ public class APIGatewayService {
         }
         return null;
     }
+    public LdcVirtualAccount createDisbursalVPA(Merchant merchant,LendingApplication lendingApplication) {
+        logger.info("Coming In Create Virtual Account");
+        LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(merchant.getId());
+        if (ldcVirtualAccount != null) {
+            return ldcVirtualAccount;
+        }
+        try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("type", "LOAN_DISBURSAL");
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getMid());
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
+            logger.info("create virtual account request for disbursal: {}", mapper.writeValueAsString(request));
+            int retryCount = 0;
+            VANResponseDTO response = null;
+            while (retryCount < 3) {
+                try {
+                    response = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("create.van.url")), request, VANResponseDTO.class);
+                    logger.info("Response received from create VAN API for Loan Disbursal {}", response);
+                    break;
+                } catch (Exception e) {
+                    logger.error("Exception in createVPA for Loan Disbursal", e);
+                }
+                retryCount++;
+            }
+            if (response != null) {
+                if (response.getStatus() != null && "OK".equalsIgnoreCase(response.getStatus())) {
+                    return ldcVirtualAccountDao.save(new LdcVirtualAccount(merchant.getId(), lendingApplication.getId(), response.getAccountNumber(), response.getIfsc(), "LENDING"));
+                }
+            }
+        } catch (Exception ex) {
+            logger.info("Exception In Create Loan Disbursal VPA:{}", ex);
+        }
+        return ldcVirtualAccount;
+    }
 
     public JsonNode fetchCrifResponse(Merchant merchant, Experian experian) {
         try {
@@ -1414,6 +1473,18 @@ public class APIGatewayService {
             }
         } catch (Exception e) {
             logger.error("Exception while fetching crif for merchant:{}", merchant.getId(), e);
+        }
+        return null;
+    }
+
+    public String getLoanAgreement(Long merchantId,Long applicationId){
+        try{
+            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId,"agreement");
+            if(loanAgreement!= null && loanAgreement.getShortUrl() != null){
+                return loanAgreement.getShortUrl();
+            }
+        }catch(Exception ex){
+            logger.info("Exception in Fetching Loan Agreement :{}",ex);
         }
         return null;
     }
@@ -1470,6 +1541,75 @@ public class APIGatewayService {
         return null;
     }
 
+    public String getPincodeArea(Integer pincode){
+        LendingRedCities lendingRedCities = lendingRedCitiesDao.findByPincode(pincode);
+        if(lendingRedCities != null){
+            return  "RED";
+        }
+        LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
+        if(lendingCities != null){
+            return  "GREEN";
+        }
+        return  "YELLOW";
+    }
+
+    public String findNtc(Experian experian){
+        if("2N".equalsIgnoreCase(experian.getCategory()) ||"3N".equalsIgnoreCase(experian.getCategory()) || "4N".equalsIgnoreCase(experian.getCategory()) ){
+            return "Y";
+        }
+        return  "N";
+    }
+
+    public Map getKycDetails(Long applicationId,Long merchantId){
+        String dob = null;
+        DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(merchantId,applicationId);
+        DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(merchantId,applicationId);
+        if(panDetail == null){
+                panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
+        }
+        if(poaDetail == null){
+            poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
+        }
+        Date dateOfBirth = null;
+        dob = panDetail.getDob();
+        try {
+            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            dateOfBirth = sdf.parse(dob);
+        } catch (ParseException e) {
+            try {
+                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                dateOfBirth= sdf.parse(dob);
+            } catch (ParseException ex) {
+                logger.error("Exception while parsing DOB date:{}", dob, ex);
+            }
+        }
+        String pancardUrl = "";
+        String addressProof1 = "";
+        String addressProof2 = "";
+        try{
+             pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(),"loan-document");
+             if(!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())){
+                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"loan-document");
+                 addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(),"loan-document");
+             }
+             if("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())){
+                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"lending-ekyc");
+             }
+        }catch(Exception ex){
+            logger.info("Fetching Document From Bucket",ex);
+        }
+
+        Map result = new HashMap();
+        result.put("person_name",panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
+        result.put("dob",dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
+        result.put("proof_type",poaDetail.getDocType());
+        result.put("gender",poaDetail.getGender() != null ? poaDetail.getGender() : "Male");
+        result.put("pancardUrl",pancardUrl);
+        result.put("addressproof1",addressProof1);
+        result.put("addressproof2",addressProof2);
+        return  result;
+    }
+
     private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
         boolean checkPan = false;
         boolean checkPhone = false;
@@ -1508,37 +1648,110 @@ public class APIGatewayService {
 
     public ResponseEntity<Object> fosAttribution(Long merchantId,String taskName,String status) {
         try {
-            logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}",merchantId,taskName,status);
+            logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}", merchantId, taskName, status);
+
             Integer taskId = 0;
-            if("NTB_LOAN".equalsIgnoreCase(taskName)){
+            if (SupportConstants.NTB_LOAN.equalsIgnoreCase(taskName)) {
                 taskId = 18;
-            } else if("NTB_LOAN_V2".equalsIgnoreCase(taskName)){
+            } else if (SupportConstants.NTB_LOAN_V2.equalsIgnoreCase(taskName)) {
                 taskId = 21;
-            } else if("CPV".equalsIgnoreCase(taskName)){
+            } else if (SupportConstants.CPV.equalsIgnoreCase(taskName)) {
                 taskId = 13;
             }
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("task_id", taskId);
-            requestBody.put("merchant_id", merchantId);
-            requestBody.put("status", status);
+            requestBody.put(SupportConstants.TASK_ID, taskId);
+            requestBody.put(SupportConstants.MERCHANT_ID, merchantId);
+            requestBody.put(SupportConstants.STATUS, status);
 
             HttpHeaders headers = new HttpHeaders();
-            headers.set(HttpHeaders.CONTENT_TYPE, "application/json");
-            headers.set("hash", hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
-            headers.set("clientName", "LENDING");
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(SupportConstants.HASH, hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
+            headers.set(SupportConstants.CLIENT_NAME, CLIENT);
 
-            HttpEntity<Object> entity = new HttpEntity<>(requestBody,headers);
+            HttpEntity<Object> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity responseEntity = null;
-            logger.info("FOS Attribution Service API request {}",entity);
+            logger.info("FOS Attribution Service API request {}", entity);
 
-            responseEntity= restTemplate.exchange(LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity,String.class);
+            responseEntity = restTemplate.exchange(LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
 
             logger.info("FOS Attribution Service API response {}", responseEntity);
-        }
-        catch(Exception e) {
+
+        } catch (Exception e) {
             logger.error("Error occurred while calling FOS Attribution Api", e);
         }
+
         return null;
+
+    }
+
+    public Boolean ldcDisburse(LendingApplication lendingApplication){
+        try{
+             Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("application_id", lendingApplication.getId());
+                put("lender_name",lendingApplication.getLender());
+            }};
+            String payload = hmacCalculator.getObjectPayload(requestParams);
+            String hash = hmacCalculator.calculateHmac(payload,getInternalSecret());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.set("Hash", hash);
+            headers.set("Client-Name", CLIENT);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+            logger.info("Ldc Service Request :{}",request);
+            ResponseEntity<String> response = null;
+            try {
+                response = restTemplate.postForEntity(NBFC_URL, request, String.class);
+                logger.info("Nbfc Service Response :{}",response);
+            } catch (HttpClientErrorException | HttpServerErrorException ex) {
+                logger.error("Exception In Calling NBFC Service:{}", ex.getResponseBodyAsString());
+                return Boolean.FALSE;
+            }
+            logger.info("Ldc Service Response :{}",response);
+            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
+                JsonNode jsonNode = mapper.readTree(response.getBody());
+                if(jsonNode.get("data")!= null && jsonNode.get("data").get("loan_id") != null){
+                    lendingApplication.setSendToNbfc("YES");
+                    lendingApplication.setNbfcSendDate(new Date());
+                    lendingApplication.setDisbursalPartner("BHARATPE");
+                    lendingApplication.setNbfcId(jsonNode.get("data").get("loan_id").textValue());
+                    lendingApplication.setLoanDisbursalStatus("PENDING");
+                    lendingApplicationDao.save(lendingApplication);
+                    return Boolean.TRUE;
+                }
+            }
+        }catch (Exception ex){
+            logger.error("Exception In Creating Loan Agreement :{}",ex);
+        }
+        return  Boolean.FALSE;
+    }
+
+    public void cancelEnach(Long merchantId) {
+        logger.info("Cancel enach for merchant:{}", merchantId);
+        Map<String, Object> requestParams = new HashMap<String, Object>(){{
+            put("merchant_id", merchantId);
+        }};
+        String payload = hmacCalculator.getObjectPayload(requestParams);
+        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+        logger.info("Cancel enach request:{} for merchant:{}", request, merchantId);
+        try {
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+            logger.info("Cancel enach response:{} for merchant:{}", responseEntity, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
+                logger.info("Cancel enach success for merchant:{}", merchantId);
+            } else {
+                logger.info("Cancel enach failed for merchant:{}", merchantId);
+            }
+        }
+        catch(Exception e) {
+            logger.error("Error occurred in cancel enach for merchant:{}", merchantId, e);
+        }
     }
 }

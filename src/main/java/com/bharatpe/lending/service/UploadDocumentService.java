@@ -183,13 +183,13 @@ public class UploadDocumentService {
 		proofSides.put("backSide", "");
 
 		String frontBase64Encoded = processBase64String(proof.get(0));
-		String fileName = merchant.getId() + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+		String fileName = merchant.getId() + "_" + UUID.randomUUID().toString() + ".jpeg";
 		String frontUrl = s3BucketHandler.uploadToS3Bucket(frontBase64Encoded, fileName, bucket);
 		proofSides.put("frontSide", frontUrl);
 
 		if(proof.size() > 1 && !StringUtils.isEmpty(proof.get(1))) {
 			String backBase64Encoded = processBase64String(proof.get(1));
-			fileName = merchant.getId() + "" + ((int)(Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			fileName = merchant.getId() + "_" + UUID.randomUUID().toString() + ".jpeg";
 			String backUrl = s3BucketHandler.uploadToS3Bucket(backBase64Encoded, fileName, bucket);
 			proofSides.put("backSide", backUrl);
 		}
@@ -248,7 +248,7 @@ public class UploadDocumentService {
 				documentsIdProofdao.save(poaDocument);
 			}
 		}
-
+		
 		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant, lendingApplication, proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);

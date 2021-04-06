@@ -20,6 +20,7 @@ import com.bharatpe.lending.util.LoanUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.math.BigInteger;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -160,6 +161,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
+
+	@Autowired
+	PartnersConfigurationDao partnersConfigurationDao;
 
 	@Autowired
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
@@ -452,7 +456,7 @@ public class LendingApplicationService {
 	private String uploadDocumentInLending(String frontUrl, Long merchantId, String bucket) {
 		try {
 			String imageURL = s3BucketHandler.getPreSignedPublicURL(frontUrl, bucket);
-			String fileName = merchantId + "" + ((int) (Math.random() * ((100000 - 1) + 1)) + 1) + ".jpeg";
+			String fileName = merchantId + "_" + UUID.randomUUID().toString() + ".jpeg";
 			File file = new File("/tmp/" + fileName);
 			FileUtils.copyURLToFile(new URL(imageURL), file);
 			s3BucketHandler.uploadFileToS3(file, imageBucket, fileName);
@@ -832,9 +836,17 @@ public class LendingApplicationService {
 		return new ResponseDTO(false, "Unable to send otp", null,uuid);
 	}
 
-	public TncDto getTnc(Merchant merchant, long applicationId) {
-		String html=populateHtml(merchant, applicationId);
+	public TncDto getTnc(Merchant merchant, Long applicationId, String category) {
 		TncDto tnc=new TncDto();
+		if(applicationId == null && category == null){
+			tnc.setSuccess(false);
+			tnc.setMessage("Error occured while fetching tnc");
+			return tnc;
+		}
+		if(applicationId == null){
+			applicationId=0L;
+		}
+		String html=populateHtml(merchant, applicationId,category);
 		BharatSwipeAccount bharatSwipeAccount = bharatSwipeAccountDao.findByMerchantId(merchant.getId());
 		tnc.setSwipe(bharatSwipeAccount != null);
 		if(html==null) {
@@ -847,8 +859,8 @@ public class LendingApplicationService {
 		return tnc;
 	}
 
-	public String populateHtml(Merchant merchant, long applicationId){
-		Map<String, String> detail=getDetails(merchant, applicationId);
+	public String populateHtml(Merchant merchant, long applicationId,String category){
+		Map<String, String> detail=getDetails(merchant, applicationId,category);
 		if(detail==null) {
 			return null;
 		}
@@ -1490,38 +1502,85 @@ public class LendingApplicationService {
 		return null;
 	}
 	
-	public Map<String,String> getDetails(Merchant merchant, long applicationId){
+	public Map<String,String> getDetails(Merchant merchant, Long applicationId,String category){
 		Map<String,String> detail=new HashMap<>();
 		try {
-			LendingApplication lendingApplication=lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
-			if(lendingApplication == null) {
+			LendingApplication lendingApplication= null;
+			if(applicationId >0L){
+				lendingApplication=lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
+			}
+			List<EligibleLoan> eligibleLoan = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(),category);
+			if(lendingApplication == null && (eligibleLoan == null || eligibleLoan.isEmpty())) {
 				logger.error("Lending application not found for id {}",applicationId);
 				return null;
 			}
-			double effectiveInterestRate = ((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())) / (lendingApplication.getLoanAmount() * lendingApplication.getTenureInMonths()) * 100;
-			detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
-			detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
-			detail.put("Rate of Interest",df.format(effectiveInterestRate * 12));
-			detail.put("Interest", df.format(effectiveInterestRate));
-			detail.put("Penal Interest", "NA");
-			detail.put("Loan ID", "Will be generated later");
-			detail.put("Date", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-			detail.put("EDI Start Date", new Date().getDay()!=6?new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()): new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(DateTimeUtil.addDays(new Date(), 2)));
-			detail.put("Amount of EDI",lendingApplication.getEdi().toString());
-			detail.put("Registered Mobile Number",merchant.getMobile());
-			detail.put("Location",lendingApplication.getCity());
-			detail.put("Shop/Business Address", lendingApplication.getShopNumber()+", "+lendingApplication.getStreetAddress()+", "+lendingApplication.getArea());
-			detail.put("Landmark", lendingApplication.getLandmark());
-			detail.put("PIN", lendingApplication.getPincode().toString());
-			detail.put("City", lendingApplication.getCity());
-			detail.put("State", lendingApplication.getState());
-			detail.put("Email", lendingApplication.getEmail() != null ? lendingApplication.getEmail() : "");
-			detail.put("EDI Count", lendingApplication.getPayableDays().toString());
-			detail.put("Lender",lendingApplication.getLender());
-			detail.put("Pancard", getPanCard(merchant));
-			Double monthlyRateOfInterest=getInterest(lendingApplication.getCategory());
-			detail.put("Monthly rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate));
-			detail.put("Annual rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate * 12));
+			if(lendingApplication != null){
+				double effectiveInterestRate = ((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())) / (lendingApplication.getLoanAmount() * lendingApplication.getTenureInMonths()) * 100;
+				detail.put("Loan Amount", lendingApplication.getLoanAmount().toString());
+				detail.put("Tenure", lendingApplication.getTenureInMonths().toString());
+				detail.put("Rate of Interest",df.format(effectiveInterestRate * 12));
+				detail.put("Interest", df.format(effectiveInterestRate));
+				detail.put("Penal Interest", "NA");
+				detail.put("Loan ID", "Will be generated later");
+				detail.put("Date", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+				detail.put("EDI Start Date", new Date().getDay()!=6?new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()): new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(DateTimeUtil.addDays(new Date(), 2)));
+				detail.put("Amount of EDI",lendingApplication.getEdi().toString());
+				detail.put("Registered Mobile Number",merchant.getMobile());
+				detail.put("Location",lendingApplication.getCity());
+				detail.put("Shop/Business Address", lendingApplication.getShopNumber()+", "+lendingApplication.getStreetAddress()+", "+lendingApplication.getArea());
+				detail.put("Landmark", lendingApplication.getLandmark());
+				detail.put("PIN", lendingApplication.getPincode().toString());
+				detail.put("City", lendingApplication.getCity());
+				detail.put("State", lendingApplication.getState());
+				detail.put("Email", lendingApplication.getEmail() != null ? lendingApplication.getEmail() : "");
+				detail.put("EDI Count", lendingApplication.getPayableDays().toString());
+				detail.put("Lender",lendingApplication.getLender());
+				detail.put("Pancard", getPanCard(merchant));
+				Double monthlyRateOfInterest=getInterest(lendingApplication.getCategory());
+				detail.put("Monthly rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate));
+				detail.put("Annual rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate * 12));
+			}else{
+				Integer tenureInMonth=0;
+				Integer ediCount=0;
+				if(eligibleLoan.get(0).getTenure().equalsIgnoreCase("3 Months")){
+					tenureInMonth= 3;
+					ediCount=77;
+				}else if(eligibleLoan.get(0).getTenure().equalsIgnoreCase("6 Months")){
+					tenureInMonth= 6;
+					ediCount=155;
+				}else if(eligibleLoan.get(0).getTenure().equalsIgnoreCase("9 Months")){
+					tenureInMonth= 9;
+					ediCount=234;
+				}else if(eligibleLoan.get(0).getTenure().equalsIgnoreCase("12 Months")){
+					tenureInMonth= 12;
+					ediCount=311;
+				}
+				double effectiveInterestRate = ((eligibleLoan.get(0).getRepayment() - eligibleLoan.get(0).getAmount())) / (eligibleLoan.get(0).getAmount() *tenureInMonth) * 100;
+				detail.put("Loan Amount", eligibleLoan.get(0).getAmount().toString());
+				detail.put("Tenure", tenureInMonth.toString());
+				detail.put("Rate of Interest",df.format(effectiveInterestRate * 12));
+				detail.put("Interest", df.format(effectiveInterestRate));
+				detail.put("Penal Interest", "NA");
+				detail.put("Loan ID", "Will be generated later");
+				detail.put("Date", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+				detail.put("EDI Start Date", new Date().getDay()!=6?new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()): new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(DateTimeUtil.addDays(new Date(), 2)));
+				detail.put("Amount of EDI",eligibleLoan.get(0).getEdi().toString());
+				detail.put("Registered Mobile Number",merchant.getMobile());
+				detail.put("Location",merchant.getCity());
+				detail.put("Shop/Business Address", merchant.getAddress());
+				detail.put("Landmark", "");
+				detail.put("PIN", merchant.getZipCode() != null ? merchant.getZipCode() : "");
+				detail.put("City", merchant.getCity() != null ? merchant.getCity() : "");
+				detail.put("State", merchant.getState() != null ? merchant.getState() : "");
+				detail.put("Email", merchant.getEmail() != null ? merchant.getEmail() : "");
+				detail.put("EDI Count",ediCount.toString() );
+				detail.put("Lender","LDC");
+				detail.put("Pancard", getPanCard(merchant));
+				Double monthlyRateOfInterest=getInterest(category);
+				detail.put("Monthly rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate));
+				detail.put("Annual rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate * 12));
+			}
+
 			MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if(merchantBankDetail!=null) {
 				detail.put("Name of the Borrower",merchantBankDetail.getBeneficiaryName());
@@ -1530,7 +1589,7 @@ public class LendingApplicationService {
 				detail.put("Account Type", merchantBankDetail.getAccType());
 				detail.put("IFSC Code", merchantBankDetail.getIfscCode());
 			}
-			detail.put("IP Address", lendingApplication.getIp());
+			detail.put("IP Address", lendingApplication != null ? lendingApplication.getIp() : "");
 			detail.put("Timestamp", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
 			return detail;
 		}
@@ -2292,6 +2351,18 @@ public class LendingApplicationService {
 				responseDTO.setData(data);
 				return responseDTO;
 			}
+
+			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchantId);
+			if (d2RMerchant == null) {
+				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchantId);
+			}
+			if (d2RMerchant != null) {
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Merchant Has a D2R Loan");
+				responseDTO.setData(data);
+				return responseDTO;
+			}
+
 
 			LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant.get());
 			if(lendingApplication == null){

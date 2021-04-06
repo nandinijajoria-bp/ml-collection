@@ -305,7 +305,7 @@ public class SignAgreementService {
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
-			
+//			response.put("success", true);
 			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
 				lendingApplicationService.createBBSSnapshot(newApplication);
@@ -316,45 +316,139 @@ public class SignAgreementService {
 	}
 	
 	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
-		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
-			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
-			toSaveDocuments.setMerchant(merchant);
-			toSaveDocuments.setProofType(documentsIdProof.getProofType());
-			toSaveDocuments.setProofFrontSide(documentsIdProof.getProofFrontSide());
-			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
-			toSaveDocuments.setLendingApplication(newApplication);
-			toSaveDocuments.setStatus("pending_verification");
-			Integer singleProofDoc = documentsIdProof.getSinglePage();
-			if(singleProofDoc == null) {
-				if(documentsIdProof.getProofBackSide() != null) {
-					singleProofDoc = 0;
-				}
-			}
-			toSaveDocuments.setSinglePage(singleProofDoc);
-			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
-				toSaveDocuments.setLatitude(meta.getLatitude());
-			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
-				toSaveDocuments.setLongitude(meta.getLongitude());
-			toSaveDocuments.setIp(meta.getIp());
-			documentsIdProofDao.save(toSaveDocuments);
+//		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
+		DocKycDetails panDoc = docKycDetailsDao.fetchLatestPanCardDetails(prevApplication.getMerchant().getId(),prevApplication.getId());
+		DocKycDetails poaDoc = docKycDetailsDao.fetchLatestAddressDetails(prevApplication.getMerchant().getId(),prevApplication.getId());
+		DocumentsIdProof selfie = documentsIdProofDao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant,prevApplication,"selfie");
 
-			if(documentsIdProof.getProofType().equals("selfie")) {
-				continue;
-			}
-
-			List<DocKycDetails> docKycDetailsList = docKycDetailsDao.findByDocumentsIdProof(documentsIdProof);
-
-			for(DocKycDetails docKycDetails : docKycDetailsList) {
-				DocKycDetails newDocKycDetails = insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
-				if("FRONT".equalsIgnoreCase(docKycDetails.getDocSide()) && "pancard".equalsIgnoreCase(toSaveDocuments.getProofType())) {
-					List<DocAuthentication> docAuthenticationList = docAuthenticationDao.findByDocumentsIdProof(documentsIdProof);
-					if(docAuthenticationList != null && docAuthenticationList.size() > 0) {
-						insertIntoDocAuthentication(docAuthenticationList.get(0), newDocKycDetails, toSaveDocuments);
-					}
-				}
-			}
+		if(panDoc == null){
+			panDoc = docKycDetailsDao.fetchPanMerchantId(merchant.getId());
 		}
+
+		if(poaDoc == null){
+			poaDoc = docKycDetailsDao.fetchPoaMerchantId(merchant.getId());
+		}
+
+		if(panDoc != null){
+			DocumentsIdProof panDocument = new DocumentsIdProof();
+			panDocument.setMerchant(merchant);
+			panDocument.setProofType(panDoc.getDocumentsIdProof().getProofType());
+			panDocument.setProofFrontSide(panDoc.getDocumentsIdProof().getProofFrontSide());
+			panDocument.setProofBackSide(panDoc.getDocumentsIdProof().getProofBackSide());
+			panDocument.setLendingApplication(newApplication);
+			panDocument.setIdentityId(panDoc.getDocumentsIdProof().getIdentityId());
+			panDocument.setAccesstoken(panDoc.getDocumentsIdProof().getAccesstoken());
+			panDocument.setFaceMatch(panDoc.getDocumentsIdProof().getFaceMatch());
+			panDocument.setFacePercentage(panDoc.getDocumentsIdProof().getFacePercentage());
+			panDocument.setIdType(panDoc.getDocumentsIdProof().getIdType());
+			panDocument.setPanNameMatch(panDoc.getDocumentsIdProof().getPanNameMatch());
+			panDocument.setPanNamePercentage(panDoc.getDocumentsIdProof().getPanNamePercentage());
+			panDocument.setStatus(panDoc.getDocumentsIdProof().getStatus());
+			panDocument.setSinglePage(panDoc.getDocumentsIdProof().getSinglePage());
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				panDocument.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				panDocument.setLongitude(meta.getLongitude());
+			panDocument.setIp(meta.getIp());
+			documentsIdProofDao.save(panDocument);
+
+			DocKycDetails panKyc = insertIntoDocKycDetails(panDoc, panDocument);
+		}
+
+		if(poaDoc != null){
+			DocumentsIdProof poaDocument = new DocumentsIdProof();
+			poaDocument.setMerchant(merchant);
+			poaDocument.setProofType(poaDoc.getDocumentsIdProof().getProofType());
+			poaDocument.setProofFrontSide(poaDoc.getDocumentsIdProof().getProofFrontSide());
+			poaDocument.setProofBackSide(poaDoc.getDocumentsIdProof().getProofBackSide());
+			poaDocument.setLendingApplication(newApplication);
+			poaDocument.setIdentityId(poaDoc.getDocumentsIdProof().getIdentityId());
+			poaDocument.setAccesstoken(poaDoc.getDocumentsIdProof().getAccesstoken());
+			poaDocument.setFaceMatch(poaDoc.getDocumentsIdProof().getFaceMatch());
+			poaDocument.setFacePercentage(poaDoc.getDocumentsIdProof().getFacePercentage());
+			poaDocument.setIdType(poaDoc.getDocumentsIdProof().getIdType());
+			poaDocument.setPanNameMatch(poaDoc.getDocumentsIdProof().getPanNameMatch());
+			poaDocument.setPanNamePercentage(poaDoc.getDocumentsIdProof().getPanNamePercentage());
+			poaDocument.setStatus(poaDoc.getDocumentsIdProof().getStatus());
+			poaDocument.setSinglePage(poaDoc.getDocumentsIdProof().getSinglePage());
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				poaDocument.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				poaDocument.setLongitude(meta.getLongitude());
+			poaDocument.setIp(meta.getIp());
+			documentsIdProofDao.save(poaDocument);
+
+			List<DocKycDetails> poaList = docKycDetailsDao.findByDocumentsIdProof(poaDoc.getDocumentsIdProof());
+
+			for(DocKycDetails poa :poaList) {
+				DocKycDetails poaKyc = insertIntoDocKycDetails(poa, poaDocument);
+			}
+
+		}
+
+		if(selfie != null){
+			DocumentsIdProof selfieDoc = new DocumentsIdProof();
+			selfieDoc.setLendingApplication(newApplication);
+			selfieDoc.setMerchant(merchant);
+			selfieDoc.setProofType(selfie.getProofType());
+			selfieDoc.setProofFrontSide(selfie.getProofFrontSide());
+			selfieDoc.setProofBackSide(selfie.getProofBackSide());
+			selfieDoc.setLendingApplication(newApplication);
+			selfieDoc.setIdentityId(selfie.getIdentityId());
+			selfieDoc.setAccesstoken(selfie.getAccesstoken());
+			selfieDoc.setFaceMatch(selfie.getFaceMatch());
+			selfieDoc.setFacePercentage(selfie.getFacePercentage());
+			selfieDoc.setIdType(selfie.getIdType());
+			selfieDoc.setPanNameMatch(selfie.getPanNameMatch());
+			selfieDoc.setPanNamePercentage(selfie.getPanNamePercentage());
+			selfieDoc.setStatus(selfie.getStatus());
+			selfieDoc.setSinglePage(selfie.getSinglePage());
+			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+				selfieDoc.setLatitude(meta.getLatitude());
+			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+				selfieDoc.setLongitude(meta.getLongitude());
+			selfieDoc.setIp(meta.getIp());
+			documentsIdProofDao.save(selfieDoc);
+		}
+
+//		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
+//			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
+//			toSaveDocuments.setMerchant(merchant);
+
+//			toSaveDocuments.setProofFrontSide(documentsIdProof.getProofFrontSide());
+//			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
+//			toSaveDocuments.setLendingApplication(newApplication);
+//			toSaveDocuments.setStatus("pending_verification");
+//			Integer singleProofDoc = documentsIdProof.getSinglePage();
+//			if(singleProofDoc == null) {
+//				if(documentsIdProof.getProofBackSide() != null) {
+//					singleProofDoc = 0;
+//				}
+//			}
+//			toSaveDocuments.setSinglePage(singleProofDoc);
+//			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
+//				toSaveDocuments.setLatitude(meta.getLatitude());
+//			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
+//				toSaveDocuments.setLongitude(meta.getLongitude());
+//			toSaveDocuments.setIp(meta.getIp());
+//			documentsIdProofDao.save(toSaveDocuments);
+//
+//			if(documentsIdProof.getProofType().equals("selfie")) {
+//				continue;
+//			}
+//
+//			List<DocKycDetails> docKycDetailsList = docKycDetailsDao.findByDocumentsIdProof(documentsIdProof);
+//
+//			for(DocKycDetails docKycDetails : docKycDetailsList) {
+//				DocKycDetails newDocKycDetails = insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
+//				if("FRONT".equalsIgnoreCase(docKycDetails.getDocSide()) && "pancard".equalsIgnoreCase(toSaveDocuments.getProofType())) {
+//					List<DocAuthentication> docAuthenticationList = docAuthenticationDao.findByDocumentsIdProof(documentsIdProof);
+//					if(docAuthenticationList != null && docAuthenticationList.size() > 0) {
+//						insertIntoDocAuthentication(docAuthenticationList.get(0), newDocKycDetails, toSaveDocuments);
+//					}
+//				}
+//			}
+//		}
 	}
 	
 	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {

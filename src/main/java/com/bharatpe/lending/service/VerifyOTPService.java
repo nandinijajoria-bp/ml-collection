@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -61,12 +62,18 @@ public class VerifyOTPService {
 	
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
+
+	@Autowired
+	LendingLedgerDao lendingLedgerDao;
 	
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
 	
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
+
+	@Autowired
+	SupportService supportService;
 
 	@Autowired
 	BankListDao bankListDao;
@@ -124,6 +131,8 @@ public class VerifyOTPService {
 	@Autowired
 	LoanUtil loanUtil;
 
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
+
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
@@ -170,7 +179,8 @@ public class VerifyOTPService {
 		finalResponse.put("agreement_verified",false);
 		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchant.getId());
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
-		if (openApplication != null || activeLoan != null) {
+		Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchant.getId());
+		if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && (openApplication != null || activeLoan != null)) {
 			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
 			lendingApplication.setStatus("deleted");
 			lendingApplicationDao.save(lendingApplication);
@@ -209,26 +219,27 @@ public class VerifyOTPService {
 			lendingApplication.setLender("LIQUILOANS");
 		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
-			if (!cpvMandatory && (enachSuccess != null && lendingApplication.getLoanAmount() < 300000)) {
-				lendingApplication.setPhysicalVerificationStatus("APPROVED");
-				lendingApplication.setPhysicalApprovedDate(lendingApplication.getAgreementAt());
-				lendingApplication.setAssignedAt(lendingApplication.getAgreementAt());
-				lendingApplication.setCpvSubmitTimestamp(lendingApplication.getAgreementAt());
-				lendingApplication.setCpvCloseDate(lendingApplication.getAgreementAt());
-				lendingApplication.setStatus("approved");
-			} else {
-				sendTopupSms(merchant, lendingApplication);
-				lendingApplication.setStatus("pending_verification");
-			}
+			topUpLoans(lendingApplication);
 			updateDocuments(lendingApplication, meta);
-			lendingApplication.setVerifyOcr("yes");
-			lendingApplication.setVerifyPan("yes");
-			lendingApplication.setManualKyc("APPROVED");
-			lendingApplication.setKycApprovedDate(lendingApplication.getAgreementAt());
-			lendingApplication.setKycAssignedAt(lendingApplication.getAgreementAt());
-			lendingApplication.setManualCibil("APPROVED");
-			lendingApplication.setCibilApprovedDate(lendingApplication.getAgreementAt());
-			lendingApplication.setLender("LIQUILOANS");
+//			if (!cpvMandatory && (enachSuccess != null && lendingApplication.getLoanAmount() < 300000)) {
+//				lendingApplication.setPhysicalVerificationStatus("APPROVED");
+//				lendingApplication.setPhysicalApprovedDate(lendingApplication.getAgreementAt());
+//				lendingApplication.setAssignedAt(lendingApplication.getAgreementAt());
+//				lendingApplication.setCpvSubmitTimestamp(lendingApplication.getAgreementAt());
+//				lendingApplication.setCpvCloseDate(lendingApplication.getAgreementAt());
+//				lendingApplication.setStatus("approved");
+//			} else {
+////				sendTopupSms(merchant, lendingApplication);
+////				lendingApplication.setStatus("pending_verification");
+//			}
+//			lendingApplication.setVerifyOcr("yes");
+//			lendingApplication.setVerifyPan("yes");
+//			lendingApplication.setManualKyc("APPROVED");
+//			lendingApplication.setKycApprovedDate(lendingApplication.getAgreementAt());
+//			lendingApplication.setKycAssignedAt(lendingApplication.getAgreementAt());
+//			lendingApplication.setManualCibil("APPROVED");
+//			lendingApplication.setCibilApprovedDate(lendingApplication.getAgreementAt());
+//			lendingApplication.setLender("LIQUILOANS");
 		} else {
 			lendingApplication.setStatus("pending_verification");
 		}
@@ -258,15 +269,15 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+
 		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
 
-		if (lendingApplication.getLoanAmount() <= 200000)
-			sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
-//		if (enachSuccess != null || (lendingApplication.getLoanType().equals("REGULAR") && lendingApplication.getLoanAmount() >= 50000 && lendingApplication.getPincode() != null && loanUtil.isCpvCity(lendingApplication.getPincode().intValue()))) {
-//			logger.info("Checking priority for Regular application:{} in cpv city with amount>=50k", lendingApplication.getId());
-//			apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-//		}
+		if(repeatLoan == 0 && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+			if (lendingApplication.getLoanAmount() <= 200000)
+				sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
+		}
+
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
@@ -284,6 +295,59 @@ public class VerifyOTPService {
 		catch(Exception e) {
 			logger.error("Error occured while pushing to topic find_lat_long",e);
 		}
+	}
+
+	private Boolean topUpLoans(LendingApplication lendingApplication){
+		try{
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchant().getId(),"ACTIVE");
+			if(activeLoan == null){
+				return false;
+			}
+			Double previousAmount = activeLoan.getLoanAmount()- activeLoan.getPaidPrinciple() + activeLoan.getDueInterest();
+			LendingLedger lendingLedger = new LendingLedger();
+			lendingLedger.setMerchant(activeLoan.getMerchant());
+			lendingLedger.setLendingPaymentSchedule(activeLoan);
+			lendingLedger.setTxnType("EDI");
+			lendingLedger.setAmount(previousAmount);
+			lendingLedger.setDate(new Date());
+			lendingLedger.setDescription("TOPUP LOAN ADJUSTMENT");
+			lendingLedger.setPrinciple(previousAmount-activeLoan.getDueInterest());
+			lendingLedger.setInterest(activeLoan.getDueInterest());
+			lendingLedger.setAdjustmentMode("TOPUP");
+			lendingLedgerDao.save(lendingLedger);
+
+			LendingLedger negativeEntry = new LendingLedger();
+			negativeEntry.setMerchant(activeLoan.getMerchant());
+			negativeEntry.setLendingPaymentSchedule(activeLoan);
+			negativeEntry.setTxnType("EDI");
+			negativeEntry.setAmount(-(previousAmount+activeLoan.getDueInterest()));
+			negativeEntry.setDate(new Date());
+			negativeEntry.setDescription("TOPUP LOAN ADJUSTMENT");
+			negativeEntry.setPrinciple(-(previousAmount+activeLoan.getDueInterest()));
+			negativeEntry.setInterest(0D);
+			negativeEntry.setAdjustmentMode("TOPUP");
+			lendingLedgerDao.save(negativeEntry);
+
+			activeLoan.setStatus("CLOSED");
+			activeLoan.setClosingDate(new Date());
+			activeLoan.setPaidAmount(activeLoan.getPaidAmount()+previousAmount);
+			activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple()+previousAmount-activeLoan.getDueInterest());
+			activeLoan.setPaidInterest(activeLoan.getPaidInterest()+activeLoan.getDueInterest());
+			activeLoan.setDueAmount(0D);
+			activeLoan.setDuePrinciple(0D);
+			activeLoan.setDueInterest(0D);
+			lendingPaymentScheduleDao.save(activeLoan);
+
+			lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-previousAmount);
+			lendingApplicationDao.save(lendingApplication);
+
+			executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",previousAmount));
+
+		}catch(Exception ex){
+			logger.error("Exception IN TOPUP LOANS Ledger:{}",ex);
+		}
+
+		return true;
 	}
 
 	public void sendPennyDrop(Long merchantId,Long applicationId){
