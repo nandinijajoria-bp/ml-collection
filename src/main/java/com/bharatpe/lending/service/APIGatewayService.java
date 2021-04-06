@@ -1673,7 +1673,7 @@ public class APIGatewayService {
             ResponseEntity responseEntity = null;
             logger.info("FOS Attribution Service API request {}", entity);
 
-            responseEntity = restTemplate.exchange(LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
+            responseEntity = restTemplate.exchange(env.getProperty("salesdashboard.fos.attribution")+LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
 
             logger.info("FOS Attribution Service API response {}", responseEntity);
 
