@@ -298,10 +298,10 @@ public class VerifyOTPService {
 			negativeEntry.setMerchant(activeLoan.getMerchant());
 			negativeEntry.setLendingPaymentSchedule(activeLoan);
 			negativeEntry.setTxnType("EDI");
-			negativeEntry.setAmount(-(previousAmount+activeLoan.getDueInterest()));
+			negativeEntry.setAmount(-(previousAmount-activeLoan.getDueInterest()));
 			negativeEntry.setDate(new Date());
 			negativeEntry.setDescription("TOPUP LOAN ADJUSTMENT");
-			negativeEntry.setPrinciple(-(previousAmount+activeLoan.getDueInterest()));
+			negativeEntry.setPrinciple(-(previousAmount-activeLoan.getDueInterest()));
 			negativeEntry.setInterest(0D);
 			negativeEntry.setAdjustmentMode("TOPUP");
 			lendingLedgerDao.save(negativeEntry);
