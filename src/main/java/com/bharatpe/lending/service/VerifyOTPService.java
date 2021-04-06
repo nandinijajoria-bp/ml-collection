@@ -219,40 +219,20 @@ public class VerifyOTPService {
 			lendingApplication.setLender("LIQUILOANS");
 		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
-			topUpLoans(lendingApplication);
 			updateDocuments(lendingApplication, meta);
-//			if (!cpvMandatory && (enachSuccess != null && lendingApplication.getLoanAmount() < 300000)) {
-//				lendingApplication.setPhysicalVerificationStatus("APPROVED");
-//				lendingApplication.setPhysicalApprovedDate(lendingApplication.getAgreementAt());
-//				lendingApplication.setAssignedAt(lendingApplication.getAgreementAt());
-//				lendingApplication.setCpvSubmitTimestamp(lendingApplication.getAgreementAt());
-//				lendingApplication.setCpvCloseDate(lendingApplication.getAgreementAt());
-//				lendingApplication.setStatus("approved");
-//			} else {
-////				sendTopupSms(merchant, lendingApplication);
-////				lendingApplication.setStatus("pending_verification");
-//			}
-//			lendingApplication.setVerifyOcr("yes");
-//			lendingApplication.setVerifyPan("yes");
-//			lendingApplication.setManualKyc("APPROVED");
-//			lendingApplication.setKycApprovedDate(lendingApplication.getAgreementAt());
-//			lendingApplication.setKycAssignedAt(lendingApplication.getAgreementAt());
-//			lendingApplication.setManualCibil("APPROVED");
-//			lendingApplication.setCibilApprovedDate(lendingApplication.getAgreementAt());
-//			lendingApplication.setLender("LIQUILOANS");
-		} else {
+			topUpLoans(lendingApplication);
+		} else{
 			lendingApplication.setStatus("pending_verification");
 		}
 		lendingApplicationDao.save(lendingApplication);
 		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
-		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+
 		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
 				.amount(0D)
 				.merchantStoreId(null)
 				.transactionId(lendingApplication.getId())
 				.build();
 		loyaltyService.pushToKafka(requestBean);
-
 
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 		lendingAuditTrial.setApplicationId(lendingApplication.getId());
@@ -274,6 +254,7 @@ public class VerifyOTPService {
 		sendLatLong(merchant.getId(),lendingApplication.getId());
 
 		if(repeatLoan == 0 && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 			if (lendingApplication.getLoanAmount() <= 200000)
 				sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		}
@@ -303,7 +284,7 @@ public class VerifyOTPService {
 			if(activeLoan == null){
 				return false;
 			}
-			Double previousAmount = activeLoan.getLoanAmount()- activeLoan.getPaidPrinciple() + activeLoan.getDueInterest();
+			Double previousAmount = activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest();
 			LendingLedger lendingLedger = new LendingLedger();
 			lendingLedger.setMerchant(activeLoan.getMerchant());
 			lendingLedger.setLendingPaymentSchedule(activeLoan);

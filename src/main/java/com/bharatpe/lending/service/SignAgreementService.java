@@ -305,7 +305,7 @@ public class SignAgreementService {
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
-//			response.put("success", true);
+			
 			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
 				lendingApplicationService.createBBSSnapshot(newApplication);
