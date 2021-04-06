@@ -678,34 +678,39 @@ public class LoanDetailsService {
 	}
 
 	private LoanEligibilityDTO createEligibilty(Long merchantId) {
-		EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
-		LoanCalculationUtil.LoanBreakupDetail breakup;
-		AvailableLoan availableLoan = new AvailableLoan();
-		availableLoan.setAmount(eligibleLoan.getAmount());
-		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
-
-		if (eligibleLoan != null) {
-			breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, eligibleLoan.getLoanType());
-			LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
-			loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
-			loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
-			loanEligibilityDTO.setInterestRate(lendingCategories.getInterestRate());
-			int processingFee;
-			if(apiGatewayService.eligibleForProcessingFee(merchantId)){
-				processingFee = 0;
-			}else {
-				processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategories.getProcessingFee()));
+		try {
+			EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+			LoanCalculationUtil.LoanBreakupDetail breakup;
+			if (eligibleLoan != null) {
+				LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
+				AvailableLoan availableLoan = new AvailableLoan();
+				availableLoan.setAmount(eligibleLoan.getAmount());
+				breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, eligibleLoan.getLoanType());
+				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+				loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
+				loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
+				loanEligibilityDTO.setInterestRate(lendingCategories.getInterestRate());
+				int processingFee;
+				if (apiGatewayService.eligibleForProcessingFee(merchantId)) {
+					processingFee = 0;
+				} else {
+					processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategories.getProcessingFee()));
+				}
+				loanEligibilityDTO.setProcessingFee(processingFee);
+				loanEligibilityDTO.setDisbursementAmount((int) (eligibleLoan.getAmount() - processingFee));
+				loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
+				loanEligibilityDTO.setInterestAmount((int) (eligibleLoan.getRepayment() - eligibleLoan.getAmount()));
+				loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
+				loanEligibilityDTO.setCategory(eligibleLoan.getCategory());
+				loanEligibilityDTO.setEdiCount(lendingCategories.getPayableDays());
+				loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+				loanEligibilityDTO.setConstruct(eligibleLoan.getLoanConstruct());
+				return loanEligibilityDTO;
+			} else {
+				logger.error("Eligible loan null for merchant:{}", merchantId);
 			}
-			loanEligibilityDTO.setProcessingFee(processingFee);
-			loanEligibilityDTO.setDisbursementAmount((int)(eligibleLoan.getAmount() - processingFee));
-			loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
-			loanEligibilityDTO.setInterestAmount((int)(eligibleLoan.getRepayment() - eligibleLoan.getAmount()));
-			loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
-			loanEligibilityDTO.setCategory(eligibleLoan.getCategory());
-			loanEligibilityDTO.setEdiCount(lendingCategories.getPayableDays());
-			loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
-			loanEligibilityDTO.setConstruct(eligibleLoan.getLoanConstruct());
-			return loanEligibilityDTO;
+		} catch (Exception e) {
+			logger.error("Exception in create eligibility for merchant:{}", merchantId, e);
 		}
 		return null;
 	}
