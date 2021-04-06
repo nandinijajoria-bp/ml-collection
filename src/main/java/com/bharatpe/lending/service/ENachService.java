@@ -98,9 +98,15 @@ public class ENachService {
             lendingApplication.setNachStatus("APPROVED");  
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
             lendingApplicationDao.save(lendingApplication);
+
+            if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
+                apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
+            }
+
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
+
             LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
             if (lendingPennydrop == null) {
                 apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());

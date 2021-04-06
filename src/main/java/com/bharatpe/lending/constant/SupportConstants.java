@@ -50,4 +50,15 @@ public interface SupportConstants {
     String NOT_APPLIED = "Not Applied";
     String NOT_APPLIED_MESSAGE = "Please click on Loan section on bharatPe App to check current eligibility.";
     String INACTIVE_LOAN_MESSAGE = "Your loan is INACTIVE since we found issues to transfer amount in your bank account.";
+    String NTB_LOAN = "NTB_LOAN";
+    String NTB_LOAN_V2 = "NTB_LOAN_V2";
+    String CPV = "CPV";
+    String TASK_ID = "task_id";
+    String MERCHANT_ID = "merchant_id";
+    String STATUS = "status";
+    String CLIENT_NAME = "clientName";
+    String HASH = "hash";
+
+
+
 }

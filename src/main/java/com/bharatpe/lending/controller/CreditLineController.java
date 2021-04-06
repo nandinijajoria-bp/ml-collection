@@ -66,9 +66,7 @@ public class CreditLineController {
 	
 	@RequestMapping(value = "/history", method = RequestMethod.GET)
 	public CreditLineHistoryResponseDto getLoanHistory(@RequestAttribute Merchant merchant) {
-		
 		return creditLineLoanHistoryService.getLoanHistory(merchant);
-		
 	}
 	
 	@RequestMapping(value = "/history/tl/{id}",method = RequestMethod.GET)

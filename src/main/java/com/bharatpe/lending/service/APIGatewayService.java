@@ -12,10 +12,7 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.constant.CreditConstants;
-import com.bharatpe.lending.constant.CrifConstants;
-import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.constant.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.TokenVerificationDao;
@@ -1647,6 +1644,45 @@ public class APIGatewayService {
             }
         }
         return checkPan && checkPhone;
+    }
+
+    public ResponseEntity<Object> fosAttribution(Long merchantId,String taskName,String status) {
+        try {
+            logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}", merchantId, taskName, status);
+
+            Integer taskId = 0;
+            if (SupportConstants.NTB_LOAN.equalsIgnoreCase(taskName)) {
+                taskId = 18;
+            } else if (SupportConstants.NTB_LOAN_V2.equalsIgnoreCase(taskName)) {
+                taskId = 21;
+            } else if (SupportConstants.CPV.equalsIgnoreCase(taskName)) {
+                taskId = 13;
+            }
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put(SupportConstants.TASK_ID, taskId);
+            requestBody.put(SupportConstants.MERCHANT_ID, merchantId);
+            requestBody.put(SupportConstants.STATUS, status);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(SupportConstants.HASH, hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
+            headers.set(SupportConstants.CLIENT_NAME, CLIENT);
+
+            HttpEntity<Object> entity = new HttpEntity<>(requestBody, headers);
+            ResponseEntity responseEntity = null;
+            logger.info("FOS Attribution Service API request {}", entity);
+
+            responseEntity = restTemplate.exchange(env.getProperty("salesdashboard.fos.attribution")+LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
+
+            logger.info("FOS Attribution Service API response {}", responseEntity);
+
+        } catch (Exception e) {
+            logger.error("Error occurred while calling FOS Attribution Api", e);
+        }
+
+        return null;
+
     }
 
     public Boolean ldcDisburse(LendingApplication lendingApplication){

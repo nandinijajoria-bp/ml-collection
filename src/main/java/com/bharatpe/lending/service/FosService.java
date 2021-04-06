@@ -391,6 +391,8 @@ public class FosService {
                 lendingApplication.setAssignedAt(new Date());
                 lendingApplication.setCpvSubmitTimestamp(new Date());
                 lendingApplicationDao.save(lendingApplication);
+
+                apiGatewayService.fosAttribution(lendingApplication.getMerchant().getId(),"NTB_LOAN_V2","CLOSED");
             }
             BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchantId,applicationId);
             if(bharatPeEnach != null && !bharatPeEnach.getSuccess()){
