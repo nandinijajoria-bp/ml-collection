@@ -149,7 +149,7 @@ public class BPEnachService {
                 + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
 
         }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name())){
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card-dev");
+            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card");
         } else{
                 responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.RETAILER_FINANCE.name().toLowerCase()
                     + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
