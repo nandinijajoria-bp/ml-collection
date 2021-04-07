@@ -422,7 +422,7 @@ public class PaymentService {
 		Double paidInterestAmount = 0D;
 		Double paidPrincipalAmount = 0D;
 		boolean preclosure = false;
-
+		logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), (principalDueAmount + ediHolidayInterestAmount));
 		if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
 			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
 			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
