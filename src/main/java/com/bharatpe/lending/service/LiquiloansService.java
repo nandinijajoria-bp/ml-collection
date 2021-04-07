@@ -145,6 +145,9 @@ public class LiquiloansService {
 	RedisNotificationService redisNotificationService;
 
     @Autowired
+	LendingVirtualAccountDao lendingVirtualAccountDao;
+
+    @Autowired
 	BharatPeEnachDao bharatPeEnachDao;
 
 
@@ -173,8 +176,11 @@ public class LiquiloansService {
 			}
 			LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
 			if (ldcVirtualAccount == null) {
-				logger.info("LDC Virtual account not found for merchant:{}", lendingApplication.getMerchant().getId());
-				return new ResponseDTO(false,"ldc virtual account not found",null,null);
+				LendingVirtualAccount lendingVirtualAccount = lendingVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
+					if(lendingVirtualAccount == null){
+						logger.info("LDC Virtual account not found for merchant:{}", lendingApplication.getMerchant().getId());
+						return new ResponseDTO(false,"ldc virtual account not found",null,null);
+					}
 			}
 			liquiloansDirectDisbursalRawResponse.setMerchantId(lendingApplication.getMerchant().getId());
 			liquiloansDirectDisbursalRawResponse.setApplicationId(lendingApplication.getId());

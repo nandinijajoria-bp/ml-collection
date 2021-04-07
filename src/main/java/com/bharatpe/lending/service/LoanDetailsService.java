@@ -275,6 +275,7 @@ public class LoanDetailsService {
 			boolean repeatLoan = lendingPaymentScheduleList != null && lendingPaymentScheduleList.size() > 0;
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 			boolean isActiveLoan = activeLoan != null;
+
 			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchant.getId());
 			if (d2RMerchant == null) {
 				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchant.getId());
@@ -302,6 +303,7 @@ public class LoanDetailsService {
 				}
 				return response;
 			}
+
 			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 			//check for payments bank
 			boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();

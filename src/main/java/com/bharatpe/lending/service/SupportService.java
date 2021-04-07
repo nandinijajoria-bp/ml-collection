@@ -625,7 +625,7 @@ public class SupportService {
                             String addressproof1 = addressResult.get("addressproof1").toString();
                             String addressproof2 = addressResult.get("addressproof2").toString();
                             LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(application.getMerchant().getId(),application.getId());
-                            data.add(new String[] {"AMPLB","PL",application.getLoanAmount().toString(),application.getTenureInMonths().toString(),application.getExternalLoanId(),application.getProcessingFee().toString(),"0", String.valueOf((application.getInterestRate()*12/100)),"flat",application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment()-application.getLoanAmount())),application.getPayableDays().toString(),lendingApplication.getEdi().toString(),ediSchedule,experian.getColor(),apiGatewayService.getPincodeArea(experian.getPincode()),"Y",apiGatewayService.findNtc(experian),"N","Y","Recommended",dob,personName,gender," ",experian.getPancardNumber(),application.getMerchant().getMobile(),"Personal",application.getPincode().toString(),application.getStreetAddress(),application.getCity(),application.getState(),"permanent",proofType,"communication","self owned",application.getLandmark(),"ICICI BANK",accountNumber,application.getMerchant().getBeneficiaryName(),ifscCode,addressproof1,addressproof2,pancardUrl,apiGatewayService.getLoanAgreement(application.getMerchant().getId(),application.getId()),lendingEkyc != null ? lendingEkyc.getResponse() : null});
+                            data.add(new String[] {"AMPLB","PL",application.getLoanAmount().toString(),application.getTenureInMonths().toString(),application.getExternalLoanId(),application.getProcessingFee().toString(),"0", String.valueOf((application.getInterestRate()*12/100)),"flat",application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment()-application.getLoanAmount())),application.getPayableDays().toString(),lendingApplication.getEdi().toString(),ediSchedule,experian.getColor(),apiGatewayService.getPincodeArea(experian.getPincode()),"Y",apiGatewayService.findNtc(experian),"N","Y","Recommended",dob,personName,gender," ",experian.getPancardNumber(),application.getMerchant().getMobile(),"Personal",application.getPincode().toString(),application.getShopNumber()+application.getStreetAddress()+application.getArea()+application.getLandmark(),application.getCity(),application.getState(),"permanent",proofType,"communication","self owned",application.getLandmark(),"ICICI BANK",accountNumber,application.getMerchant().getBeneficiaryName(),ifscCode,addressproof1,addressproof2,pancardUrl,apiGatewayService.getLoanAgreement(application.getMerchant().getId(),application.getId()),lendingEkyc != null ? lendingEkyc.getResponse() : null});
                             bulklender.setStatus("SUCCESS");
                             lendingBulkDisbursalRawDataDao.save(bulklender);
                         }
@@ -816,8 +816,8 @@ public class SupportService {
         data.put("city",lendingApplication.getCity());
         data.put("state",lendingApplication.getState());
         data.put("email",lendingApplication.getEmail());
-        data.put("createdAt",date.format(lendingApplication.getCreatedAt()));
-        data.put("agreementAt",date.format(lendingApplication.getAgreementAt()));
+        data.put("createdAt",new SimpleDateFormat("dd-MMM-yyyy").format(lendingApplication.getCreatedAt()));
+        data.put("agreementAt",new SimpleDateFormat("dd-MMM-yyyy").format(lendingApplication.getAgreementAt()));
         data.put("merchantName",lendingApplication.getMerchant().getBeneficiaryName());
         data.put("payableDays",lendingApplication.getPayableDays());
         data.put("businessCategory",lendingApplication.getCategory());

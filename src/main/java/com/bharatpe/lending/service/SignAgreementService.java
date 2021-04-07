@@ -8,6 +8,9 @@ import java.util.*;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,11 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.TmpLoanGenerateDao;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
@@ -37,6 +35,12 @@ public class SignAgreementService {
 	
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
+
+	@Autowired
+	LendingShopDocumentsDao lendingShopDocumentsDao;
+
+	@Autowired
+	LendingGstDao lendingGstDao;
 
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
@@ -316,7 +320,6 @@ public class SignAgreementService {
 	}
 	
 	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
-//		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, prevApplication);
 		DocKycDetails panDoc = docKycDetailsDao.fetchLatestPanCardDetails(prevApplication.getMerchant().getId(),prevApplication.getId());
 		DocKycDetails poaDoc = docKycDetailsDao.fetchLatestAddressDetails(prevApplication.getMerchant().getId(),prevApplication.getId());
 		DocumentsIdProof selfie = documentsIdProofDao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant,prevApplication,"selfie");
@@ -383,7 +386,6 @@ public class SignAgreementService {
 			for(DocKycDetails poa :poaList) {
 				DocKycDetails poaKyc = insertIntoDocKycDetails(poa, poaDocument);
 			}
-
 		}
 
 		if(selfie != null){
@@ -411,44 +413,38 @@ public class SignAgreementService {
 			documentsIdProofDao.save(selfieDoc);
 		}
 
-//		for(DocumentsIdProof documentsIdProof  : documentsIdProofList) {
-//			DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
-//			toSaveDocuments.setMerchant(merchant);
+		LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(prevApplication.getId());
+		if(lendingGstDetail != null){
+			LendingGstDetail replicateGst = new LendingGstDetail();
+			replicateGst.setApplicationId(newApplication.getId());
+			replicateGst.setMerchantId(newApplication.getMerchant().getId());
+			replicateGst.setGst(lendingGstDetail.getGst());
+			replicateGst.setBusinessCategory(lendingGstDetail.getBusinessCategory());
+			replicateGst.setExperience(lendingGstDetail.getExperience());
+			replicateGst.setGstNumber(lendingGstDetail.getGstNumber());
+			replicateGst.setSalary(lendingGstDetail.getSalary());
+			replicateGst.setEntityType(lendingGstDetail.getEntityType());
+			replicateGst.setShopType(lendingGstDetail.getShopType());
+			lendingGstDao.save(replicateGst);
+		}
 
-//			toSaveDocuments.setProofFrontSide(documentsIdProof.getProofFrontSide());
-//			toSaveDocuments.setProofBackSide(documentsIdProof.getProofBackSide());
-//			toSaveDocuments.setLendingApplication(newApplication);
-//			toSaveDocuments.setStatus("pending_verification");
-//			Integer singleProofDoc = documentsIdProof.getSinglePage();
-//			if(singleProofDoc == null) {
-//				if(documentsIdProof.getProofBackSide() != null) {
-//					singleProofDoc = 0;
-//				}
-//			}
-//			toSaveDocuments.setSinglePage(singleProofDoc);
-//			if(!StringUtils.isEmpty(meta.getLatitude()) && !meta.getLatitude().trim().equalsIgnoreCase("undefined"))
-//				toSaveDocuments.setLatitude(meta.getLatitude());
-//			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
-//				toSaveDocuments.setLongitude(meta.getLongitude());
-//			toSaveDocuments.setIp(meta.getIp());
-//			documentsIdProofDao.save(toSaveDocuments);
-//
-//			if(documentsIdProof.getProofType().equals("selfie")) {
-//				continue;
-//			}
-//
-//			List<DocKycDetails> docKycDetailsList = docKycDetailsDao.findByDocumentsIdProof(documentsIdProof);
-//
-//			for(DocKycDetails docKycDetails : docKycDetailsList) {
-//				DocKycDetails newDocKycDetails = insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
-//				if("FRONT".equalsIgnoreCase(docKycDetails.getDocSide()) && "pancard".equalsIgnoreCase(toSaveDocuments.getProofType())) {
-//					List<DocAuthentication> docAuthenticationList = docAuthenticationDao.findByDocumentsIdProof(documentsIdProof);
-//					if(docAuthenticationList != null && docAuthenticationList.size() > 0) {
-//						insertIntoDocAuthentication(docAuthenticationList.get(0), newDocKycDetails, toSaveDocuments);
-//					}
-//				}
-//			}
-//		}
+		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchant().getId(),prevApplication.getId());
+		if(lendingShopDocuments.size() > 0 && !lendingShopDocuments.isEmpty()){
+			for(LendingShopDocuments shopDocuments : lendingShopDocuments){
+				LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+				replicateShopDocument.setApplicationId(newApplication.getId());
+				replicateShopDocument.setMerchantId(newApplication.getMerchant().getId());
+				replicateShopDocument.setIp(shopDocuments.getIp());
+				replicateShopDocument.setProofType(shopDocuments.getProofType());
+				replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
+				replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
+				replicateShopDocument.setLongitude(shopDocuments.getLongitude());
+				replicateShopDocument.setLatitude(shopDocuments.getLatitude());
+				replicateShopDocument.setStatus(shopDocuments.getStatus());
+				lendingShopDocumentsDao.save(replicateShopDocument);
+			}
+		}
+
 	}
 	
 	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {

@@ -1603,7 +1603,7 @@ public class APIGatewayService {
         result.put("person_name",panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
         result.put("dob",dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
         result.put("proof_type",poaDetail.getDocType());
-        result.put("gender",poaDetail.getGender() != null ? poaDetail.getGender() : "Male");
+        result.put("gender",poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
         result.put("pancardUrl",pancardUrl);
         result.put("addressproof1",addressProof1);
         result.put("addressproof2",addressProof2);
