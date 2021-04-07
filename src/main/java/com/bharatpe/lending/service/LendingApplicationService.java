@@ -1877,7 +1877,7 @@ public class LendingApplicationService {
 				if("pending_verification".equals(lendingApplication.getStatus())){
 					data.put("message","Merchant Loan Application Is Pending Verification State.");
 					data.put("agreement_at",lendingApplication.getAgreementAt().toString());
-					if(("NTB".equals(loanType) || "OGL".equals(loanType) || "BHARAT_SWIPE".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())){
+					if(("NTB".equals(loanType) || "OGL".equals(loanType) || "BHARAT_SWIPE".equals(loanType) || "NTB_SMS_1".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())){
 						data.put("message","Please Complete Enach For Further Process Application.");
 						data.put("nachRequired",Boolean.TRUE);
 					}
@@ -2106,7 +2106,7 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
 		String modalType = null;
-		if (isLowPriority && showOrderQr && "NTB".equals(lendingApplication.get().getLoanType())) {
+		if (isLowPriority && showOrderQr && ("NTB".equals(lendingApplication.get().getLoanType()) || "NTB_SMS_1".equals(lendingApplication.get().getLoanType()))) {
 			modalType = "QR";
 		} else if (isLowPriority && merchantSummary != null && (merchantSummary.getTxnDayCount1Mon() == null || merchantSummary.getTxnDayCount1Mon() < 5)) {
 			modalType = "TXNS";
@@ -2223,7 +2223,7 @@ public class LendingApplicationService {
 			applicationDTO.add(applicationDTO4);
 		}
 		String applicationStatus = lendingApplication.get().getStatus();
-		if ("NTB".equalsIgnoreCase(lendingApplication.get().getLoanType()) && (!"rejected".equalsIgnoreCase(lendingApplication.get().getStatus()) || lendingDisbursalStage != null)) {
+		if (("NTB".equalsIgnoreCase(lendingApplication.get().getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.get().getLoanType())) && (!"rejected".equalsIgnoreCase(lendingApplication.get().getStatus()) || lendingDisbursalStage != null)) {
 			ApplicationDTO applicationDTO5 = new ApplicationDTO();
 			applicationDTO5.setDisabled(!"approved".equalsIgnoreCase(lendingApplication.get().getStatus()));
 			applicationDTO5.setText("Disbursal Review & Calling");

@@ -168,7 +168,7 @@ public class FosService {
                 if("pending_verification".equals(lendingApplication.getStatus())){
                     data.put("message","Merchant Loan Application Is Pending Verification State.");
                     data.put("agreement_at",lendingApplication.getAgreementAt().toString());
-                    if(("NTB".equals(loanType) || "OGL".equals(loanType) || "BHARAT_SWIPE".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())){
+                    if(("NTB".equals(loanType) || "OGL".equals(loanType) || "BHARAT_SWIPE".equals(loanType) || "NTB_SMS_1".equals(loanType)) && !"APPROVED".equals(lendingApplication.getNachStatus())){
                         data.put("message","Please Complete Enach For Further Process Application.");
                         data.put("nachRequired",Boolean.TRUE);
                     }

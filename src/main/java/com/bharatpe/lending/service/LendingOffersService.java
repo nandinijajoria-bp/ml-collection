@@ -5,6 +5,7 @@ import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingCoolOffDao;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
@@ -28,6 +29,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 
 import java.util.Date;
+import java.util.UUID;
 
 
 @Service
@@ -67,6 +69,9 @@ public class LendingOffersService {
 
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
+
+	@Autowired
+	DelayedMessagePublisher delayedMessagePublisher;
 
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
@@ -179,5 +184,15 @@ public class LendingOffersService {
 		lendingEkycDao.deleteByMerchantId(merchant.getId());
 		documentsIdProofDao.deleteByMerchantId(merchant.getId());
 		docKycDetailsDao.deleteByMerchantId(merchant.getId());
+	}
+
+	public void checkNTBSMS(Merchant merchant) {
+		try {
+			logger.info("Checking NTB SMS after 5 min for merchant:{}", merchant.getId());
+			String hashKey = merchant.getId() + "_" + UUID.randomUUID().toString();
+			delayedMessagePublisher.publish("notify_ntb_sms", merchant.getId().toString(), merchant.getId(), hashKey, 5*60);
+		} catch (Exception e) {
+			logger.error("Exception in NTB SMS Notify for merchant:{}", merchant.getId(), e);
+		}
 	}
 }

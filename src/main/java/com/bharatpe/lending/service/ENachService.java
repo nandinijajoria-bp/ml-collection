@@ -99,7 +99,7 @@ public class ENachService {
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
             lendingApplicationDao.save(lendingApplication);
 
-            if("NTB".equalsIgnoreCase(lendingApplication.getLoanType())){
+            if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
             }
 

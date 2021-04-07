@@ -177,4 +177,11 @@ public class LoanDetailsController {
 		lendingOffersService.makeMeFresh(merchant);
 		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/sms_permission", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<CommonResponse> smsPermission(@RequestAttribute Merchant merchant) {
+		logger.info("sms_permission request for merchant_id: {}", merchant.getId());
+		lendingOffersService.checkNTBSMS(merchant);
+		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
+	}
 }
