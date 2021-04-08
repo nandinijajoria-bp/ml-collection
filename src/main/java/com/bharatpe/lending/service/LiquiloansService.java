@@ -366,7 +366,7 @@ public class LiquiloansService {
 		}
 	}
 
-	private void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
+	public void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
 		logger.info("Enach success on loanId:{}, processing Rs.100 cashback for merchant:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchant().getId());
 		Double cashbackAmount = 100D;
 		String orderId = "NACH_CASHBACK" + System.currentTimeMillis();

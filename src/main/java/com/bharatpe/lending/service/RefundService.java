@@ -4,13 +4,14 @@ import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.lending.common.dao.BharatPeEnachDao;
+import com.bharatpe.lending.common.dao.LendingPayoutsDao;
+import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.CommonResponse;
-import com.bharatpe.lending.dto.LendingPayoutRequest;
-import com.bharatpe.lending.dto.LendingPayoutResponse;
-import com.bharatpe.lending.dto.NachRefundRequest;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class RefundService {
@@ -32,10 +35,24 @@ public class RefundService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
+    LendingPayoutsDao lendingPayoutsDao;
+
+    @Autowired
     LendingLedgerDao lendingLedgerDao;
 
     @Autowired
+    PaymentService paymentService;
+
+    @Autowired
+    BharatPeEnachDao bharatPeEnachDao;
+
+    @Autowired
     SmsServiceHandler smsServiceHandler;
+
+    @Autowired
+    LiquiloansService liquiloansService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public CommonResponse nachRefund(NachRefundRequest refundRequest) {
         try {
@@ -101,6 +118,44 @@ public class RefundService {
             logger.error("Exception in nach refund for loanId:{}", refundRequest.getLoanId(), e);
         }
         return new CommonResponse(false, "Something went wrong");
+    }
+
+    public CommonResponse processingFeeRefund(ProcessingFeeRequest processingFeeRequest){
+        try{
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(processingFeeRequest.getLoanId(), processingFeeRequest.getMerchantId());
+            if (lendingPaymentSchedule == null) {
+                logger.info("Loan not found for id:{}", processingFeeRequest.getLoanId());
+                return new CommonResponse(false, "Loan not found");
+            }
+
+            String refundType = processingFeeRequest.getType();
+            if(refundType.equalsIgnoreCase("PROCESSING_FEE")){
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),lendingPaymentSchedule.getId());
+                if(lendingPayouts != null){
+                    logger.info("Already Processing Fee Refund For id :{}", processingFeeRequest.getLoanId());
+                    return new CommonResponse(false, "Refund Already Done");
+                }
+                boolean eligible = apiGatewayService.sendCommunicationForNewOffer(lendingPaymentSchedule);
+                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule, eligible));
+
+            }else if(refundType.equalsIgnoreCase("CASHBACK")){
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdCashback(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
+                if(lendingPayouts != null){
+                    logger.info("Already Nach Cashback For id :{}", processingFeeRequest.getLoanId());
+                    return new CommonResponse(false, "Refund Already Done");
+                }
+
+                BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getLoanApplication().getId());
+                if (bharatPeEnach != null) {
+                    executorService.execute(() -> liquiloansService.initiateEnachCashback(lendingPaymentSchedule));
+                }
+            }
+            return new CommonResponse(true, "Loan refund success for loanId:" + lendingPaymentSchedule.getId());
+
+        }catch (Exception e){
+            logger.error("Exception in Processing Fee refund for loanId:{}", processingFeeRequest.getLoanId(), e);
+        }
+        return  new CommonResponse(false,"Something Went Wrong");
     }
 
     public void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {

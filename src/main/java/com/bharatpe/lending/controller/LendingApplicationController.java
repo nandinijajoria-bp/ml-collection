@@ -204,6 +204,14 @@ public class LendingApplicationController {
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 
+	@PostMapping(value = "/processing_fee_refund")
+	public ResponseEntity<CommonResponse> processingFeeRefund(@RequestBody ProcessingFeeRequest processingFeeRequest){
+		logger.info("Processing Fee Request:{}", processingFeeRequest);
+		CommonResponse response = refundService.processingFeeRefund(processingFeeRequest);
+		logger.info("Nach refund response:{}", response);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
 	@RequestMapping(value="/repayment_history", method = RequestMethod.GET)
 	public ResponseEntity<CommonResponse> repaymentHistory(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id") String lendingPaymentScheduleId){
 		logger.info("repayment History request for lendingPaymentScheduleId :{}", lendingPaymentScheduleId);

@@ -655,7 +655,7 @@ public class PaymentService {
 		lendingLedgerDao.save(lendingLedger);
 	}
 
-	private void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule, boolean eligible) {
+	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule, boolean eligible) {
 		try {
 			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
 				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
