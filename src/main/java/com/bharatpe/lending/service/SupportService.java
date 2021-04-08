@@ -556,6 +556,7 @@ public class SupportService {
                 loanDetails.put("repayment", lendingPaymentSchedule1.getLoanApplication().getRepayment());
                 loanDetails.put("tentativeClosingDate", lendingPaymentSchedule1.getTentativeClosingDate());
                 loanDetails.put("tenure", lendingPaymentSchedule1.getLoanApplication().getTenure());
+                loanDetails.put("dpd", getDPD(lendingPaymentSchedule1));
                 loanDetails.put("ledgerDetails", lendingLedgerDetailList);
                 loanDetails.put("loanArrangerFee", loanArrangerFee);
 
@@ -2331,4 +2332,10 @@ public class SupportService {
         return html;
     }
 
+    private int getDPD(LendingPaymentSchedule lendingPaymentSchedule) {
+        if (lendingPaymentSchedule == null || lendingPaymentSchedule.getDueAmount() == null) {
+            return 0;
+        }
+        return (int) (lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount());
+    }
 }
