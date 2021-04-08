@@ -1150,6 +1150,7 @@ public class LoanDetailsService {
 		creditScoreResponseDto.setCreditDate(experian.getReportDate());
 		creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
 		creditScoreResponseDto.setNoExperian(false);
+		creditScoreResponseDto.setActiveLoan(lendingPaymentSchedule != null);
 		if (rejected || experian.getReason() != null) {
 			if("NTC".equals(experian.getReason())){
 				creditScoreResponseDto.setNTC(Boolean.TRUE);
