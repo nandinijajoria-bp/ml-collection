@@ -727,12 +727,7 @@ public class LoanDetailsService {
 			eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
 		}
 		if (eligibleAmount > 0D) {
-			LoanEligibilityDTO loanEligibilityDTO = createEligibilty(merchantId);
-			if (loanEligibilityDTO == null) {
-				loanEligibilityDTO = new LoanEligibilityDTO();
-				loanEligibilityDTO.setAmount(eligibleAmount.intValue());
-			}
-			return loanEligibilityDTO;
+			return createEligibilty(merchantId);
 		}
 		logger.info("Eligibility not found for merchant:{}", merchantId);
 		return null;
