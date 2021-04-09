@@ -19,6 +19,7 @@ public class IneligibleRequestDTO implements Serializable {
     @JsonProperty(value = "isIOS")
     private Boolean isIOS;
 
+    @JsonProperty(value = "isSmsPermissionGiven")
     private boolean isSmsPermissionGiven = false;
 
     public String getPanCard() {
