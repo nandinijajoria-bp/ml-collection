@@ -1272,10 +1272,15 @@ public class LoanDetailsService {
 
 	public void notifyNTBSMS(Merchant merchant) {
 		try {
+			String redisKey = "SMS_SYNC_" + merchant.getId();
+			Object smsSync = lendingCache.get(redisKey);
+			if (smsSync != null) {
+				logger.info("already pushed sms sync for merchant:{}", merchant.getId());
+				return;
+			}
 			logger.info("Checking NTB SMS after 5 min for merchant:{}", merchant.getId());
 			String hashKey = merchant.getId() + "_" + UUID.randomUUID().toString();
 			delayedMessagePublisher.publish("notify_ntb_sms", merchant.getId().toString(), merchant.getId(), hashKey, 5*60);
-			String redisKey = "SMS_SYNC_" + merchant.getId();
 			AddCacheDto addCacheDto = new AddCacheDto();
 			addCacheDto.setKey(redisKey);
 			addCacheDto.setTtl(1);
