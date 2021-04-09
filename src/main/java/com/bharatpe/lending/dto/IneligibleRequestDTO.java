@@ -19,6 +19,8 @@ public class IneligibleRequestDTO implements Serializable {
     @JsonProperty(value = "isIOS")
     private Boolean isIOS;
 
+    private boolean isSmsPermissionGiven = false;
+
     public String getPanCard() {
         return panCard;
     }
@@ -57,6 +59,14 @@ public class IneligibleRequestDTO implements Serializable {
 
     public void setIOS(Boolean IOS) {
         isIOS = IOS;
+    }
+
+    public boolean isSmsPermissionGiven() {
+        return isSmsPermissionGiven;
+    }
+
+    public void setSmsPermissionGiven(boolean smsPermissionGiven) {
+        isSmsPermissionGiven = smsPermissionGiven;
     }
 
     @Override

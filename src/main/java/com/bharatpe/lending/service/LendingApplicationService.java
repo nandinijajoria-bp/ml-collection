@@ -168,6 +168,12 @@ public class LendingApplicationService {
 	@Autowired
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
 
+	@Autowired
+	LendingSmsVariablesDao lendingSmsVariablesDao;
+
+	@Autowired
+	LendingSmsVariablesSnapshotDao lendingSmsVariablesSnapshotDao;
+
 	DecimalFormat df = new DecimalFormat("##.00");
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -233,6 +239,9 @@ public class LendingApplicationService {
 			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
 				createBBSSnapshot(lendingApplication);
 			}
+			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
+				createSmsVariableSnapshot(lendingApplication);
+			}
 			createMerchantScoreSnapshot(lendingApplication);
 			createStatusAuditTrail(lendingApplication);
 			lendingMerchantDropoffDao.updateApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
@@ -293,6 +302,9 @@ public class LendingApplicationService {
 			createExperianSnapshot(newApplication.getMerchant(), newApplication);
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
 				createBBSSnapshot(newApplication);
+			}
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
+				createSmsVariableSnapshot(newApplication);
 			}
 			createMerchantScoreSnapshot(newApplication);
 			lendingMerchantDropoffDao.updateApplicationId(newApplication.getMerchant().getId(), newApplication.getId());
@@ -530,6 +542,9 @@ public class LendingApplicationService {
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
 				createBBSSnapshot(newApplication);
 			}
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
+				createSmsVariableSnapshot(newApplication);
+			}
 			createMerchantScoreSnapshot(newApplication);
 			lendingMerchantDropoffDao.updateApplicationId(newApplication.getMerchant().getId(), newApplication.getId());
 			signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
@@ -607,6 +622,15 @@ public class LendingApplicationService {
 			LendingBBSSnapshot lendingBBSSnapshot = LendingBBSSnapshot.createObject(lendingBBS);
 			lendingBBSSnapshot.setApplicationId(lendingApplication.getId());
 			lendingBBSSnapshotDao.save(lendingBBSSnapshot);
+		}
+	}
+
+	public void createSmsVariableSnapshot(LendingApplication lendingApplication) {
+		LendingSmsVariables lendingSmsVariables = lendingSmsVariablesDao.findByMerchantId(lendingApplication.getMerchant().getId());
+		if (lendingSmsVariables != null) {
+			LendingSmsVariablesSnapshot lendingSmsVariablesSnapshot = LendingSmsVariablesSnapshot.createObject(lendingSmsVariables);
+			lendingSmsVariablesSnapshot.setApplicationId(lendingApplication.getId());
+			lendingSmsVariablesSnapshotDao.save(lendingSmsVariablesSnapshot);
 		}
 	}
 

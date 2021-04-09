@@ -314,6 +314,9 @@ public class SignAgreementService {
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
 				lendingApplicationService.createBBSSnapshot(newApplication);
 			}
+			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
+				lendingApplicationService.createSmsVariableSnapshot(newApplication);
+			}
 			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
 		}
 		return response;
