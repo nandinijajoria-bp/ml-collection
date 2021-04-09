@@ -629,10 +629,10 @@ public class LoanDetailsService {
 			if(loanHistoryDTOs.isEmpty() && loanEligibilityDTOs.isEmpty()) {
 				eligibleFlag = false;
 			}
-			if (experian != null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)  && !isZomato) {
-				tempClosed = "FRAUD";
+			if (experian != null && experian.getReason() != null && (experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD) || experian.getReason().equalsIgnoreCase(ExperianConstants.COVID)) && !isZomato) {
+				tempClosed = experian.getReason();
 				eligibleFlag = true;
-				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "FRAUD"));
+				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, experian.getReason()));
 			} else if (eligibleFlag && lendingCity != null && !lendingCity.getNtcAllowed() && loanEligibleService.isNTC(experian)) {
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				eligibleFlag = false;
