@@ -711,6 +711,32 @@ public class SupportService {
                     continue;
                 }
 
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
+                if(lendingPaymentSchedule != null){
+                    logger.info("Merchant Have a Active Loan For merchantId:{}",merchantId);
+                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Has Active Loan"});
+                    lendingApplication.setStatus("deleted");
+                    lendingApplication.setResponseCode("Duplicate Disbursal");
+                    lendingApplication.setAgreement(0);
+                    lendingApplicationDao.save(lendingApplication);
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
+
+                LendingApplication pendingDisbusal = lendingApplicationDao.findPendingDisbursal(merchantId);
+                if(pendingDisbusal != null){
+                    logger.info("Application Already Pending Disbursal For merchantId:{}",merchantId);
+                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Another Application Already Sent For Disbursal"});
+                    lendingApplication.setStatus("deleted");
+                    lendingApplication.setResponseCode("Duplicate Disbursal");
+                    lendingApplication.setAgreement(0);
+                    lendingApplicationDao.save(lendingApplication);
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
+
                 Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
 
                 if("RED".equalsIgnoreCase(experian.getColor())){

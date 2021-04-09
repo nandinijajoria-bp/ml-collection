@@ -150,7 +150,6 @@ public class LiquiloansService {
     @Autowired
 	BharatPeEnachDao bharatPeEnachDao;
 
-
 	private static String secretKey;
 
 	private static String SID;
@@ -174,6 +173,12 @@ public class LiquiloansService {
 				logger.info("Approve loan not found for loanId:{}", callbackRequestDto.getApplicationId());
 				return new ResponseDTO(false,"loan application not found",null,null);
 			}
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchant().getId(),"ACTIVE");
+			if(lendingPaymentSchedule != null){
+				logger.info("Merchant Has Already Active Loan for merchant:{}", lendingApplication.getMerchant().getId());
+				return new ResponseDTO(false,"Merchant Has Already Active Loan",null,null);
+			}
+
 			LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
 			if (ldcVirtualAccount == null) {
 				LendingVirtualAccount lendingVirtualAccount = lendingVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
