@@ -504,7 +504,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setActiveLoan(isActiveLoan);
 				loanDetailsDTO.setHasExperian(experian != null);
 				if(!(pincode != null && lendingCity == null) && !isZomato) {
-					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.fetchTopupLoans(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, bankCode);
+					List<LoanEligibilityDTO> topupLoans = null;
 					loanDetailsDTO.setTopupLoan(topupLoans == null || topupLoans.isEmpty() ? null : topupLoans);
 					if(!topupLoans.isEmpty() && lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						loanDetailsDTO.setLoanApplication(loanApplicationDTO);

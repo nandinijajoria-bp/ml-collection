@@ -180,17 +180,18 @@ public class LendingApplicationService {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
 		LendingApplication lendingApplication=null;
 		Long merchantId = merchant.getId();
+		LendingApplication topupCheck = lendingApplicationDao.findOpenApplication(merchantId);
+		if(topupCheck != null){
+			logger.info("Already Another Loan Application Found For Merchant {}", merchantId);
+			lendingApplicationResponse = new LendingApplicationResponseDTO();
+			lendingApplicationResponse.setSuccess(false);
+			return lendingApplicationResponse;
+		}
 		LendingApplicationRequestDTO lendingApplicationRequest = requestDTO.getPayload();
 		if(lendingApplicationRequest.getApplicationId() != null && lendingApplicationRequest.getApplicationId() > 0) {
 			lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(lendingApplicationRequest.getApplicationId(), merchant, "draft");
 			if(lendingApplication == null) {
 				logger.info("No application found in draft status for given application id {}", lendingApplicationRequest.getApplicationId());
-				lendingApplicationResponse = new LendingApplicationResponseDTO();
-				lendingApplicationResponse.setSuccess(false);
-				return lendingApplicationResponse;
-			}
-			if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
-				logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
 				lendingApplicationResponse = new LendingApplicationResponseDTO();
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
