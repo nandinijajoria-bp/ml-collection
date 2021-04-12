@@ -202,10 +202,10 @@ public class LoanDetailsService {
 			if (lendingPartnerOffers != null && !lendingPartnerOffers.isEmpty()) {
 				isZomato = true;
 			}
-			if (requestDTO.getPayload().isSmsPermissionGiven()) {
-				logger.info("SMS permission given for merchant:{}", merchant.getId());
-				notifyNTBSMS(merchant);
-			}
+//			if (requestDTO.getPayload().isSmsPermissionGiven()) {
+//				logger.info("SMS permission given for merchant:{}", merchant.getId());
+//				notifyNTBSMS(merchant);
+//			}
 			boolean eligibleFlag = true;
 			boolean rejected = false;
 			boolean noExperian = false;
@@ -641,14 +641,14 @@ public class LoanDetailsService {
 				tempClosed = "INELIGIBLE";
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "INELIGIBLE"));
 			}
-			if ("INELIGIBLE".equals(tempClosed)) {
-				String redisKey = "SMS_SYNC_" + merchant.getId();
-				Object smsSync = lendingCache.get(redisKey);
-				if (smsSync != null) {
-					logger.info("Syncing SMS for merchant:{}", merchant.getId());
-					tempClosed = "SMS";
-				}
-			}
+//			if ("INELIGIBLE".equals(tempClosed)) {
+//				String redisKey = "SMS_SYNC_" + merchant.getId();
+//				Object smsSync = lendingCache.get(redisKey);
+//				if (smsSync != null) {
+//					logger.info("Syncing SMS for merchant:{}", merchant.getId());
+//					tempClosed = "SMS";
+//				}
+//			}
 			boolean hasExperian;
 			if (panCard == null && pincode == null) {
 				hasExperian = false;
