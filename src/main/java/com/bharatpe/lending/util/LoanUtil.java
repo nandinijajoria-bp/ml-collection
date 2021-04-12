@@ -253,8 +253,7 @@ public class LoanUtil {
 		}
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
-			ExperianAuditTrail finalExperianAuditTrail = experianAuditTrailDao.save(experianAuditTrail);
-			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(finalExperianAuditTrail);}});
+			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(experianAuditTrail);}});
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
 		}
@@ -321,8 +320,7 @@ public class LoanUtil {
 		if(pinCode == null){
 			return false;
 		}
-
 		LendingCovidCities covidCities = lendingCovidCitiesDao.findByPincode(pinCode);
-		return covidCities != null ? true : false;
+		return covidCities != null;
 	}
 }

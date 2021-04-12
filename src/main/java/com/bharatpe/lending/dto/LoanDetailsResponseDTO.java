@@ -75,7 +75,7 @@ public class LoanDetailsResponseDTO {
 		private Double bureauScore;
 		private Double minAmount;
 		private Double eligibleAmount;
-		private Boolean covid;
+		private Boolean covid = false;
 
 
 		@JsonProperty(value = "loan_history")

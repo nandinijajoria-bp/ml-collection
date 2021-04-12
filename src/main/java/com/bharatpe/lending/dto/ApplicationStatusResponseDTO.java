@@ -57,6 +57,8 @@ public class ApplicationStatusResponseDTO {
 
         private String lender;
 
+        private boolean covid = false;
+
         public String getModalType() {
             return modalType;
         }
@@ -111,6 +113,14 @@ public class ApplicationStatusResponseDTO {
 
         public void setOrderID(String orderID) {
             this.orderID = orderID;
+        }
+
+        public boolean isCovid() {
+            return covid;
+        }
+
+        public void setCovid(boolean covid) {
+            this.covid = covid;
         }
     }
 

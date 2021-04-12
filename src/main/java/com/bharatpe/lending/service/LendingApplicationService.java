@@ -202,6 +202,12 @@ public class LendingApplicationService {
 			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if(requestDTO.getPayload().getPincode() == null) {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+				if(prevApplication != null && "TOPUP".equalsIgnoreCase(prevApplication.getLoanType())){
+					logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
+					lendingApplicationResponse = new LendingApplicationResponseDTO();
+					lendingApplicationResponse.setSuccess(false);
+					return lendingApplicationResponse;
+				}
 				createGstDetail(merchant,lendingApplicationRequest);
 				if(prevApplication!=null) {
 					logger.info("Replicating previous application for merchant:{}", merchant.getId());
@@ -223,13 +229,6 @@ public class LendingApplicationService {
 					return lendingApplicationResponse;
 				}
 				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
-
-				if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
-					logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
-					lendingApplicationResponse = new LendingApplicationResponseDTO();
-					lendingApplicationResponse.setSuccess(false);
-					return lendingApplicationResponse;
-				}
 				createGstDetail(merchant,lendingApplicationRequest);
 				if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("") && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
 					lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
@@ -2135,6 +2134,7 @@ public class LendingApplicationService {
 		boolean showOrderQr = (orderSticker == null && diy);
 		boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
 		int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
+		boolean covid = lendingApplication.get().getPincode() != null && loanUtil.isCovidCities(lendingApplication.get().getPincode().intValue());
 		List<ApplicationDTO> applicationDTO = new ArrayList<>();
 		ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
 		applicationLoanDetailsDTO.setAmount(lendingApplication.get().getLoanAmount());
@@ -2143,6 +2143,7 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
 		applicationLoanDetailsDTO.setLender(lendingApplication.get().getLender());
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
+		applicationLoanDetailsDTO.setCovid(covid);
 		String modalType = null;
 		if (isLowPriority && showOrderQr && ("NTB".equals(lendingApplication.get().getLoanType()) || "NTB_SMS_1".equals(lendingApplication.get().getLoanType()))) {
 			modalType = "QR";
