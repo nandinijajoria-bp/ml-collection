@@ -189,6 +189,12 @@ public class LendingApplicationService {
 				lendingApplicationResponse.setSuccess(false);
 				return lendingApplicationResponse;
 			}
+			if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+				logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
+				lendingApplicationResponse = new LendingApplicationResponseDTO();
+				lendingApplicationResponse.setSuccess(false);
+				return lendingApplicationResponse;
+			}
 			lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 			createGstDetail(merchant,lendingApplicationRequest);
 			lendingApplicationDao.save(lendingApplication);
