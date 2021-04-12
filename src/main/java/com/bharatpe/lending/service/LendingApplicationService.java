@@ -223,6 +223,13 @@ public class LendingApplicationService {
 					return lendingApplicationResponse;
 				}
 				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
+
+				if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+					logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
+					lendingApplicationResponse = new LendingApplicationResponseDTO();
+					lendingApplicationResponse.setSuccess(false);
+					return lendingApplicationResponse;
+				}
 				createGstDetail(merchant,lendingApplicationRequest);
 				if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("") && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
 					lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
