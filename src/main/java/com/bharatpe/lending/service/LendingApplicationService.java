@@ -2128,6 +2128,7 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setFailedMsg("");
 		applicationLoanDetailsDTO.setOrderID(lendingApplication.get().getExternalLoanId());
 		applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
+		applicationLoanDetailsDTO.setLender(lendingApplication.get().getLender());
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
 		String modalType = null;
 		if (isLowPriority && showOrderQr && ("NTB".equals(lendingApplication.get().getLoanType()) || "NTB_SMS_1".equals(lendingApplication.get().getLoanType()))) {
