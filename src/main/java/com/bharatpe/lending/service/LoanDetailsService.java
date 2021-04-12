@@ -544,6 +544,9 @@ public class LoanDetailsService {
 				enach = "bharatpe://enachtp";
 			}
 
+			//Covid check
+			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
+
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -561,6 +564,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setPincode(pincode);
 				loanDetailsDTO.setEnach(enach);
+				loanDetailsDTO.setCovid(true);
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
@@ -572,8 +576,6 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			//Covid check
-			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
 			if (covidCities) {
 				logger.info("Covid city for merchant:{}", merchant.getId());
 				experian.setEligibleAmount(null);
@@ -583,11 +585,11 @@ public class LoanDetailsService {
 				experianDao.save(experian);
 				loanUtil.auditExperian(experian);
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setCovid(true);
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
 				loanDetailsDTO.setEligible(false);
 				loanDetailsDTO.setRejected(false);
+				loanDetailsDTO.setCovid(true);
 				loanDetailsDTO.setRejectReason(null);
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setOgl(false);
