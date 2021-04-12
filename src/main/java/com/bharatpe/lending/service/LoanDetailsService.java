@@ -216,6 +216,7 @@ public class LoanDetailsService {
 			String rejectReason = null;
 			String panCard = null;
 			String tempClosed = null;
+			PincodeCityStateMapping pincodeCityStateMapping = null;
 			BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 			if (enachSuccess != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
@@ -265,6 +266,7 @@ public class LoanDetailsService {
 			if (pincode != null) {
 				lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
 				redCity = lendingRedCitiesDao.findByPincode(pincode);
+				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 			}
 
 			if(stores != null && !stores.isEmpty()) {
@@ -502,7 +504,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setActiveLoan(isActiveLoan);
 				loanDetailsDTO.setHasExperian(experian != null);
 				if(!(pincode != null && lendingCity == null) && !isZomato) {
-					List<LoanEligibilityDTO> topupLoans = topupLoanEligibleService.fetchTopupLoans(merchant, experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, bankCode);
+					List<LoanEligibilityDTO> topupLoans = null;
 					loanDetailsDTO.setTopupLoan(topupLoans == null || topupLoans.isEmpty() ? null : topupLoans);
 					if(!topupLoans.isEmpty() && lendingApplication != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && ("pending_verification".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "approved".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus()) || "rejected".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
@@ -542,6 +544,9 @@ public class LoanDetailsService {
 				enach = "bharatpe://enachtp";
 			}
 
+			//Covid check
+			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
+
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -559,6 +564,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setPincode(pincode);
 				loanDetailsDTO.setEnach(enach);
+				loanDetailsDTO.setCovid(true);
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
@@ -570,9 +576,40 @@ public class LoanDetailsService {
 				response.setSuccess(true);
 				return response;
 			}
-			PincodeCityStateMapping pincodeCityStateMapping = null;
+			if (covidCities) {
+				logger.info("Covid city for merchant:{}", merchant.getId());
+				experian.setEligibleAmount(null);
+				experian.setEligibleTenure(null);
+				experian.setLoanType(null);
+				experian.setReason(ExperianConstants.COVID);
+				experianDao.save(experian);
+				loanUtil.auditExperian(experian);
+				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
+				loanDetailsDTO.setEligibility(new ArrayList<>());
+				loanDetailsDTO.setHistory(new ArrayList<>());
+				loanDetailsDTO.setEligible(false);
+				loanDetailsDTO.setRejected(false);
+				loanDetailsDTO.setCovid(true);
+				loanDetailsDTO.setRejectReason(null);
+				loanDetailsDTO.setPanCard(panCard);
+				loanDetailsDTO.setOgl(false);
+				loanDetailsDTO.setPincode(pincode);
+				loanDetailsDTO.setHasExperian(experian != null);
+				loanDetailsDTO.setZomato(isZomato);
+				loanDetailsDTO.setSkipEnatch(skipEnatch);
+				loanDetailsDTO.setBharatPeClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
+				loanDetailsDTO.setBureauScore(experian != null ? experian.getExperianScore() : null);
+				if (pincodeCityStateMapping != null && !StringUtils.isEmpty(pincodeCityStateMapping.getCity())) {
+					loanDetailsDTO.setCity(pincodeCityStateMapping.getCity());
+				} else {
+					loanDetailsDTO.setCity(" ");
+				}
+				response.setDetails(loanDetailsDTO);
+				response.setSuccess(true);
+				return response;
+			}
+			//OGL check
 			if (!exemptMerchant.contains(merchant.getId()) && ((pincode != null && lendingCity == null && redCity != null) || (lendingCity != null && lendingCity.getCategoriesAllowed() != null && !lendingCity.getCategoriesAllowed().contains(merchant.getBusinessCategory())))) {
-				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 				if (experian != null) {
 					experian.setEligibleAmount(null);
@@ -629,7 +666,7 @@ public class LoanDetailsService {
 			if(loanHistoryDTOs.isEmpty() && loanEligibilityDTOs.isEmpty()) {
 				eligibleFlag = false;
 			}
-			if (experian != null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD)  && !isZomato) {
+			if (experian != null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.FRAUD) && !isZomato) {
 				tempClosed = "FRAUD";
 				eligibleFlag = true;
 				lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "FRAUD"));
@@ -669,6 +706,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setRejectReason(rejectReason);
 			loanDetailsDTO.setPanCard(panCard);
 			loanDetailsDTO.setNoExperian(noExperian);
+			loanDetailsDTO.setCovid(covidCities);
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
 			loanDetailsDTO.setTempClosed(hasExperian ? tempClosed : null);
 			loanDetailsDTO.setAccountDetails(accountDetails);

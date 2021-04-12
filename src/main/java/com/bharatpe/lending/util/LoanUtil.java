@@ -6,7 +6,9 @@ import java.util.concurrent.TimeUnit;
 import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
+import com.bharatpe.lending.common.dao.LendingCovidCitiesDao;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
+import com.bharatpe.lending.common.entity.LendingCovidCities;
 import com.bharatpe.lending.constant.LendingConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,9 @@ public class LoanUtil {
 
 	@Autowired
 	MongoPublisher mongoPublisher;
+
+	@Autowired
+	LendingCovidCitiesDao lendingCovidCitiesDao;
 
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
@@ -248,8 +253,7 @@ public class LoanUtil {
 		}
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
-			ExperianAuditTrail finalExperianAuditTrail = experianAuditTrailDao.save(experianAuditTrail);
-			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(finalExperianAuditTrail);}});
+			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(experianAuditTrail);}});
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
 		}
@@ -310,5 +314,13 @@ public class LoanUtil {
 				return name;
 			}
 		}
+	}
+
+	public Boolean isCovidCities(Integer pinCode){
+		if(pinCode == null){
+			return false;
+		}
+		LendingCovidCities covidCities = lendingCovidCitiesDao.findByPincode(pinCode);
+		return covidCities != null;
 	}
 }

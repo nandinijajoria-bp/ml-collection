@@ -162,7 +162,7 @@ public class VerifyOTPService {
 		logger.info("Mobile length: {}", merchant.getMobile().length());
 		if(merchant.getMobile().length() == 12) {
 			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
-			if(isOTPVerified || (merchant.getId().equals(3L) && otp.equals("1234"))) {
+			if(isOTPVerified) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
 				//createPrebookTarget(lendingApplication, merchant);
 			}
@@ -182,6 +182,15 @@ public class VerifyOTPService {
 			lendingApplication.setStatus("deleted");
 			lendingApplicationDao.save(lendingApplication);
 			return finalResponse;
+		}
+		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+			LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(lendingApplication.getMerchant().getId());
+			if(checkDupe != null){
+				logger.info("duplicate application for Topup Loan For MerchantId:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
+				lendingApplication.setStatus("deleted");
+				lendingApplicationDao.save(lendingApplication);
+				return finalResponse;
+			}
 		}
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());

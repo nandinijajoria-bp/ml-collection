@@ -33,6 +33,7 @@ public interface ExperianConstants {
     String OGL = "OGL";
     String NTC = "NTC";
     String TIMEOUT = "TIMEOUT";
+    String COVID = "COVID";
     String DEROG_ACCOUNT_STATUS = "Loan default / partial settlement";
     String DEROG_DPD_LAST_3_MONTHS = "Late repayment (5+ days) in last 3 months";
     String DEROG_DPD_LAST_6_MONTHS = "Late repayment (30+ days) in last 6 months";
