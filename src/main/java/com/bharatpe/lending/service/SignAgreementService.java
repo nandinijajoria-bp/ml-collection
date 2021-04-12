@@ -150,6 +150,12 @@ public class SignAgreementService {
 			return response;
 		}
 
+		LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(merchant.getId());
+		if(checkDupe != null){
+			logger.error("Merchant Has Already Active Application for merchantId: {} And ApplicationId:{}", merchant.getId(),checkDupe.getId());
+			return response;
+		}
+
 		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
 		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantAndStatusOrderByIdDesc(merchant, "APPROVED");
 
