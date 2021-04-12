@@ -75,6 +75,7 @@ public class LoanDetailsResponseDTO {
 		private Double bureauScore;
 		private Double minAmount;
 		private Double eligibleAmount;
+		private Boolean covid;
 
 
 		@JsonProperty(value = "loan_history")
@@ -302,6 +303,14 @@ public class LoanDetailsResponseDTO {
 
 		public void setMinAmount(Double minAmount) {
 			this.minAmount = minAmount;
+		}
+
+		public Boolean getCovid() {
+			return covid;
+		}
+
+		public void setCovid(Boolean covid) {
+			this.covid = covid;
 		}
 
 		public Double getEligibleAmount() {

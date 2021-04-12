@@ -211,6 +211,7 @@ public class LoanDetailsService {
 			boolean noExperian = false;
 			boolean accountDetails = false;
 			boolean skipEnatch = false;
+			boolean covidCities = false;
 			String enach = null;
 			List<String> maskedMobiles = null;
 			String rejectReason = null;
@@ -316,6 +317,8 @@ public class LoanDetailsService {
 				}
 				return response;
 			}
+
+			covidCities = loanUtil.isCovidCities(experian.getPincode());
 
 			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
 			//check for payments bank
@@ -520,7 +523,7 @@ public class LoanDetailsService {
 //								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
 //							}
 						}
-					} else if (lendingApplication != null && loanApplicationDTO != null && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && "draft".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
+					} else if (lendingApplication != null && loanApplicationDTO != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && "draft".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
 						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 					} else {
 						loanDetailsDTO.setLoanApplication(null);
@@ -669,6 +672,7 @@ public class LoanDetailsService {
 			loanDetailsDTO.setRejectReason(rejectReason);
 			loanDetailsDTO.setPanCard(panCard);
 			loanDetailsDTO.setNoExperian(noExperian);
+			loanDetailsDTO.setCovid(covidCities);
 			loanDetailsDTO.setMaskedMobiles(maskedMobiles);
 			loanDetailsDTO.setTempClosed(hasExperian ? tempClosed : null);
 			loanDetailsDTO.setAccountDetails(accountDetails);
