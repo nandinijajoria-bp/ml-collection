@@ -55,6 +55,8 @@ public class ApplicationStatusResponseDTO {
 
         private String modalType;
 
+        private String lender;
+
         public String getModalType() {
             return modalType;
         }
@@ -65,6 +67,14 @@ public class ApplicationStatusResponseDTO {
 
         public Double getAmount() {
             return amount;
+        }
+
+        public String getLender() {
+            return lender;
+        }
+
+        public void setLender(String lender) {
+            this.lender = lender;
         }
 
         public void setAmount(Double amount) {
