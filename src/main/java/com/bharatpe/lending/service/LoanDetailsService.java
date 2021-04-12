@@ -522,7 +522,7 @@ public class LoanDetailsService {
 //								loanDetailsDTO.getTopupLoan().get(0).setSkipEnatch(false);
 //							}
 						}
-					} else if (lendingApplication != null && loanApplicationDTO != null && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && "draft".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
+					} else if (lendingApplication != null && loanApplicationDTO != null && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && !StringUtils.isEmpty(loanApplicationDTO.getApplicationStatus()) && "draft".equalsIgnoreCase(loanApplicationDTO.getApplicationStatus())) {
 						loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 					} else {
 						loanDetailsDTO.setLoanApplication(null);
