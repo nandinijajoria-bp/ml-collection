@@ -227,6 +227,7 @@ public class VerifyOTPService {
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
 			updateDocuments(lendingApplication, meta);
 			topUpLoans(lendingApplication);
+			lendingApplication.setStatus("pending_verification");
 		} else{
 			lendingApplication.setStatus("pending_verification");
 		}
