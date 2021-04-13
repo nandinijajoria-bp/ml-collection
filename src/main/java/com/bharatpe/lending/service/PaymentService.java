@@ -609,7 +609,9 @@ public class PaymentService {
 				boolean eligible = apiGatewayService.sendCommunicationForNewOffer(activeLoan);
 				if("TOPUP".equalsIgnoreCase(activeLoan.getLoanApplication().getLoanType())){
 					LendingPaymentSchedule topupLoan = lendingPaymentScheduleDao.findTopupLoan(activeLoan.getMerchant().getId());
-					refundProcessingFee(topupLoan,eligible);
+					if(topupLoan != null) {
+						refundProcessingFee(topupLoan,eligible);
+					}
 				}else{
 					refundProcessingFee(activeLoan, eligible);
 				}
