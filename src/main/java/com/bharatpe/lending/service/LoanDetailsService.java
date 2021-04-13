@@ -564,7 +564,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setPincode(pincode);
 				loanDetailsDTO.setEnach(enach);
-				loanDetailsDTO.setCovid(true);
+				loanDetailsDTO.setCovid(covidCities);
 				loanDetailsDTO.setAccountDetails(accountDetails);
 				loanDetailsDTO.setSkipEnatch(skipEnatch);
 				loanDetailsDTO.setZomato(isZomato);
@@ -589,7 +589,7 @@ public class LoanDetailsService {
 				loanDetailsDTO.setHistory(new ArrayList<>());
 				loanDetailsDTO.setEligible(false);
 				loanDetailsDTO.setRejected(false);
-				loanDetailsDTO.setCovid(true);
+				loanDetailsDTO.setCovid(covidCities);
 				loanDetailsDTO.setRejectReason(null);
 				loanDetailsDTO.setPanCard(panCard);
 				loanDetailsDTO.setOgl(false);
