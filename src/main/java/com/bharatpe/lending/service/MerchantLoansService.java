@@ -163,7 +163,7 @@ public class MerchantLoansService {
             paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
         }
 
-        if(paidRatio < 0.50D || paidRatio >0.95D){
+        if(paidRatio < 0.75D || paidRatio >0.95D){
             logger.info("Insufficient paid ratio for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }

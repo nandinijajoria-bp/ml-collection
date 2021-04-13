@@ -8,9 +8,11 @@ import java.util.concurrent.Executors;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
+import com.bharatpe.lending.common.dao.LendingPayoutsDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingClPayment;
+import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
@@ -51,6 +53,9 @@ public class PaymentService {
 	
 	@Autowired
 	APIGatewayService apiGatewayService;
+
+	@Autowired
+	LendingPayoutsDao lendingPayoutsDao;
 	
 	@Autowired
 	MerchantDao merchantDao;
@@ -602,7 +607,14 @@ public class PaymentService {
 						.build();
 				loyaltyService.pushToKafka(requestBean);
 				boolean eligible = apiGatewayService.sendCommunicationForNewOffer(activeLoan);
-				refundProcessingFee(activeLoan, eligible);
+				if("TOPUP".equalsIgnoreCase(activeLoan.getLoanApplication().getLoanType())){
+					LendingPaymentSchedule topupLoan = lendingPaymentScheduleDao.findTopupLoan(activeLoan.getMerchant().getId());
+					if(topupLoan != null) {
+						refundProcessingFee(topupLoan,eligible);
+					}
+				}else{
+					refundProcessingFee(activeLoan, eligible);
+				}
 				if (activeLoan.getDueAmount() < 0) {
 					logger.info("Extra amount:{} received for loanId:{}, initiating refund", activeLoan.getDueAmount(), activeLoan.getId());
 					refundExtraAmount(activeLoan);
@@ -657,6 +669,10 @@ public class PaymentService {
 
 	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule, boolean eligible) {
 		try {
+			LendingPayouts checkRefunded = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),lendingPaymentSchedule.getId());
+			if(checkRefunded != null){
+				return;
+			}
 			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
 				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
 				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
