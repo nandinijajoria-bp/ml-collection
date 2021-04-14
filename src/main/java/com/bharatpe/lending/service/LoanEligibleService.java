@@ -597,8 +597,8 @@ public class LoanEligibleService {
                 }
                 else if (response != null) {
                     JsonNode responseNode = objectMapper.readTree(response);
-                    if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("name") != null) {
-                        String name = responseNode.get("response").get("result").get("name").asText();
+                    if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("upstreamName") != null) {
+                        String name = responseNode.get("response").get("result").get("upstreamName").asText();
                         logger.info("Name:{} found in pancard:{}", name, pancardNumber);
                         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
                         if (lendingPancard != null) {
