@@ -25,6 +25,8 @@ import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -174,6 +176,8 @@ public class LendingApplicationService {
 	@Autowired
 	LendingSmsVariablesSnapshotDao lendingSmsVariablesSnapshotDao;
 
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
+
 	DecimalFormat df = new DecimalFormat("##.00");
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -260,6 +264,7 @@ public class LendingApplicationService {
 			lendingMerchantDropoffDao.updateApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
 		}
 		logger.info("Loan Application saved : {}",lendingApplication);
+
 		return prepareAPIResponse(lendingApplication,false);
 	}
 
@@ -519,7 +524,7 @@ public class LendingApplicationService {
 		return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
 	}
 
-	private LendingApplicationResponseDTO  copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan, String offerType) {
+	private LendingApplicationResponseDTO copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan, String offerType) {
 		try {
 			String selectedCategory = requestDTO.getPayload().getCategory();
 			if(selectedCategory==null || selectedCategory.isEmpty()) {
@@ -611,6 +616,7 @@ public class LendingApplicationService {
 		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLoanType(eligibleLoan.getLoanType());
 		newApplication.setAlternateMobile(prevLoan.getAlternateMobile());
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(prevLoan.getMerchant().getId(), "DEBIT",eligibleLoan.getAmount()));
 		
 		return newApplication;
 	}
@@ -721,6 +727,7 @@ public class LendingApplicationService {
 		lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
 		lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 		lendingApplication.setLoanType(eligibleLoan.getLoanType());
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(merchant.getId(), "DEBIT",eligibleLoan.getAmount()));
 		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 
 		return lendingApplication;

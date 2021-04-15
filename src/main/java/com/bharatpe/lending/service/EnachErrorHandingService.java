@@ -21,6 +21,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class EnachErrorHandingService {
@@ -38,6 +40,11 @@ public class EnachErrorHandingService {
 
     @Autowired
     PincodeCityStateMappingDao pincodeCityStateMappingDao;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public EnachErrorMessageDTO initiatePopup(){
         EnachErrorMessageDTO enachErrorMessageDTO = new EnachErrorMessageDTO();
@@ -170,6 +177,7 @@ public class EnachErrorHandingService {
                 lendingApplication.setManualKycReason("eNACH Failure");
 
                 lendingApplicationDao.save(lendingApplication);
+                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
             }
         }catch (Exception ex){
             logger.error("Error Occurred in sendForCpvOrReject, Error - {}", ex);
@@ -197,6 +205,7 @@ public class EnachErrorHandingService {
                 lendingApplication.setManualKycReason("eNACH Failure");
 
                 lendingApplicationDao.save(lendingApplication);
+                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
             }
         }catch (Exception ex){
             logger.error("Error Occurred in sendForCpvOrRejectOrDebitScreenOnBankSupport, Error - {}", ex);

@@ -719,6 +719,7 @@ public class SupportService {
                     lendingApplication.setResponseCode("Duplicate Disbursal");
                     lendingApplication.setAgreement(0);
                     lendingApplicationDao.save(lendingApplication);
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;
@@ -732,6 +733,7 @@ public class SupportService {
                     lendingApplication.setResponseCode("Duplicate Disbursal");
                     lendingApplication.setAgreement(0);
                     lendingApplicationDao.save(lendingApplication);
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;

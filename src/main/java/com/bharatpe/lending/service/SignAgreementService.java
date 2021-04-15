@@ -4,6 +4,8 @@ package com.bharatpe.lending.service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
@@ -89,6 +91,8 @@ public class SignAgreementService {
 
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -325,6 +329,7 @@ public class SignAgreementService {
 			}
 			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
 		}
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(newApplication.getMerchant().getId(), "DEBIT",newApplication.getLoanAmount()));
 		return response;
 	}
 	

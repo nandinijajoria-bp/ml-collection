@@ -42,6 +42,8 @@ import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class LoanEligibleService {
@@ -135,6 +137,8 @@ public class LoanEligibleService {
 
     @Autowired
     BharatSwipeAccountDao bharatSwipeAccountDao;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
@@ -443,6 +447,7 @@ public class LoanEligibleService {
                 lendingApplication.setManualCibilReason("EXPERIAN DEROG FAILED");
                 lendingApplication.setCibilApprovedDate(new Date());
                 lendingApplicationDao.save(lendingApplication);
+                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
                 responseDTO.setManualCibil("REJECTED");
                 responseDTO.setManualCibilReason("EXPERIAN DEROG FAILED");
                 responseDTO.setMessage("Application Derof Failed");

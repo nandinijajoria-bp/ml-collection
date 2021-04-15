@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class CancelApplicationService {
@@ -27,6 +29,11 @@ public class CancelApplicationService {
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
+
+	@Autowired
+	APIGatewayService apiGatewayService;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId, String reason) {
 		Map<String, Boolean> resp = new HashMap<> ();
@@ -40,6 +47,7 @@ public class CancelApplicationService {
 		lendingApplication.setStatus("deleted");
 		lendingApplication.setResponseCode(reason);
 		lendingApplicationDao.save(lendingApplication);
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
 
 		logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();

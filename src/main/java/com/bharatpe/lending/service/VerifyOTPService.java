@@ -93,7 +93,7 @@ public class VerifyOTPService {
 	@Autowired
 	LendingPrebookLoansDao lendingPrebookLoansDao;
 	
-	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
+	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
 	@Autowired
 	LoyaltyService loyaltyService;
@@ -127,8 +127,6 @@ public class VerifyOTPService {
 
 	@Autowired
 	LoanUtil loanUtil;
-
-	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -181,6 +179,7 @@ public class VerifyOTPService {
 			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
 			lendingApplication.setStatus("deleted");
 			lendingApplicationDao.save(lendingApplication);
+			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
 			return finalResponse;
 		}
 		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -189,6 +188,7 @@ public class VerifyOTPService {
 				logger.info("duplicate application for Topup Loan For MerchantId:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
 				lendingApplication.setStatus("deleted");
 				lendingApplicationDao.save(lendingApplication);
+				notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
 				return finalResponse;
 			}
 		}
@@ -329,7 +329,7 @@ public class VerifyOTPService {
 			lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-previousAmount);
 			lendingApplicationDao.save(lendingApplication);
 
-			executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",previousAmount));
+			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",previousAmount));
 
 		}catch(Exception ex){
 			logger.error("Exception IN TOPUP LOANS Ledger:{}",ex);
