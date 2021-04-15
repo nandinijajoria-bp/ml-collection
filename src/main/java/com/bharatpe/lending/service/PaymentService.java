@@ -90,7 +90,7 @@ public class PaymentService {
 	@Autowired
 	LoanDpdDao loanDpdDao;
 
-	ExecutorService notificationExecutor = Executors.newFixedThreadPool(5);
+	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 	
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
 		logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -302,6 +302,11 @@ public class PaymentService {
         lendingLedger.setDescription(description);
         
         lendingLedgerDao.save(lendingLedger);
+
+        if(amount > 0 && principle > 0) {
+        	logger.info("Credit principle:{} in lending global limit for merchant:{}", principle, lendingLedger.getMerchant().getId());
+			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingLedger.getMerchant().getId(), "CREDIT", principle));
+		}
     }
 	
 	private Date getCurrenntDate() {
