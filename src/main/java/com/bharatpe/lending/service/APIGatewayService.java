@@ -1755,4 +1755,27 @@ public class APIGatewayService {
             logger.error("Error occurred in cancel enach for merchant:{}", merchantId, e);
         }
     }
+
+    public JsonNode getMerchantSmsAnalysisData(Merchant merchant){
+        try{
+            logger.info("Getting SMS analysis data for merchant:{}", merchant.getId());
+            Map<String, Object> body = new HashMap<>();
+            body.put("identifier", merchant.getMid());
+            body.put("limit", 1);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            logger.info("Monget sms analysis request:{} for merchant:{}", request, merchant.getId());
+            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_sms_analysis", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>(){});
+            logger.info("Monget sms analysis response:{} for merchant:{}", responseBody, merchant.getId());
+            if(responseBody.getBody() == null || responseBody.getBody().isEmpty()){
+                logger.info("SMS analysis data not found for merchant:{}", merchant.getId());
+                return null;
+            }
+            return mapper.readTree(responseBody.getBody().get(0));
+        }catch (Exception ex){
+            logger.error("Error occurred while fetching sms analysis data for merchant:{}", merchant.getId(), ex);
+        }
+        return null;
+    }
 }

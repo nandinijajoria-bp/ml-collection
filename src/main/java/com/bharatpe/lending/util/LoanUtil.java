@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.dao.LendingCovidCitiesDao;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
 import com.bharatpe.lending.common.entity.LendingCovidCities;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dto.MerchantSmsAnalysis;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.bharatpe.common.dao.ExperianAuditTrailDao;
@@ -322,5 +323,18 @@ public class LoanUtil {
 		}
 		LendingCovidCities covidCities = lendingCovidCitiesDao.findByPincode(pinCode);
 		return covidCities != null;
+	}
+
+	public void publishSmsAnalysisData(Merchant merchant) {
+		if (merchant == null) {
+			return;
+		}
+		try {
+			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
+			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
+			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>(){{add(merchantSmsAnalysis);}});
+		} catch (Exception e) {
+			logger.error("Exception in mongo publish merchant_sms_analysis for merchant:{}", merchant.getId(), e);
+		}
 	}
 }

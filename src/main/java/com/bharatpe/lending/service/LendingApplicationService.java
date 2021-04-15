@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -617,7 +618,10 @@ public class LendingApplicationService {
 		newApplication.setLoanType(eligibleLoan.getLoanType());
 		newApplication.setAlternateMobile(prevLoan.getAlternateMobile());
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(prevLoan.getMerchant().getId(), "DEBIT",eligibleLoan.getAmount()));
-		
+		JsonNode smsAnalysisData = apiGatewayService.getMerchantSmsAnalysisData(prevLoan.getMerchant());
+		if (smsAnalysisData == null) {
+			loanUtil.publishSmsAnalysisData(prevLoan.getMerchant());
+		}
 		return newApplication;
 	}
 	
@@ -728,6 +732,10 @@ public class LendingApplicationService {
 		lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 		lendingApplication.setLoanType(eligibleLoan.getLoanType());
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(merchant.getId(), "DEBIT",eligibleLoan.getAmount()));
+		JsonNode smsAnalysisData = apiGatewayService.getMerchantSmsAnalysisData(merchant);
+		if (smsAnalysisData == null) {
+			loanUtil.publishSmsAnalysisData(merchant);
+		}
 		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 
 		return lendingApplication;
