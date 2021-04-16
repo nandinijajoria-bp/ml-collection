@@ -2150,7 +2150,7 @@ public class LendingApplicationService {
 		boolean showOrderQr = (orderSticker == null && diy);
 		boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
 		int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
-		boolean covid = lendingApplication.get().getPincode() != null && loanUtil.isCovidCities(lendingApplication.get().getPincode().intValue());
+		boolean covid = isCovidEffectedLoan(lendingApplication.get().getPincode(), merchant, lendingApplication.get().getLoanType());
 		List<ApplicationDTO> applicationDTO = new ArrayList<>();
 		ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
 		applicationLoanDetailsDTO.setAmount(lendingApplication.get().getLoanAmount());
@@ -2351,6 +2351,16 @@ public class LendingApplicationService {
 		applicationStatusResponseDTO.setApplicationDTOList(applicationDTO);
 		responseDTO.setData(applicationStatusResponseDTO);
 		return responseDTO;
+	}
+
+	private boolean isCovidEffectedLoan(Long pincode, Merchant merchant, String loanType) {
+		if (pincode != null && loanUtil.isCovidCities(pincode.intValue())) {
+			return true;
+		}
+		if (merchant.getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(merchant.getBusinessCategory())) {
+			return true;
+		}
+		return isFirstLoan(merchant.getId()) && "NTB".equals(loanType);
 	}
 
 	public boolean canSkipCpv(Long merchantId, Double amount, String loanType, BpEnach lendingEnach) {
