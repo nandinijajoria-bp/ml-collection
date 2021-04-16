@@ -307,6 +307,7 @@ public class PaymentService {
         	logger.info("Credit principle:{} in lending global limit for merchant:{}", principle, lendingLedger.getMerchant().getId());
 			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingLedger.getMerchant().getId(), "CREDIT", principle));
 		}
+
     }
 	
 	private Date getCurrenntDate() {

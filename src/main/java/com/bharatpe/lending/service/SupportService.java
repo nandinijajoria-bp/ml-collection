@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingBulkDisbursalRawDataDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -694,6 +695,8 @@ public class SupportService {
                 Long merchantId = Long.valueOf(arr[1].replaceAll("^\"|\"$", ""));
                 Long applicationId = Long.valueOf(arr[2].replaceAll("^\"|\"$", ""));
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
+                Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchantId);
+
 
                 if(lendingApplication == null){
                     logger.info("Application Not Found merchantId:{} and applicationId:{}",merchantId,applicationId);
@@ -703,9 +706,24 @@ public class SupportService {
                     continue;
                 }
 
+                if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
+                    logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
+                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Category Not match"});
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     logger.info("Application Condition Not Match merchantId:{} and applicationId:{}",merchantId,applicationId);
                     errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Condition Not Match"});
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
+
+                if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && repeatLoan == 0 ){
+                    logger.info("Application Do not Disburse for  merchantId:{} and applicationId:{}",merchantId,applicationId);
+                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Application Do not Disburse"});
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;
