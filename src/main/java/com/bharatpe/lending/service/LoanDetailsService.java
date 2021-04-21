@@ -10,6 +10,7 @@ import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -319,9 +320,6 @@ public class LoanDetailsService {
 				return response;
 			}
 
-			BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
-			//check for payments bank
-			boolean paymentsBank = bankList != null && bankList.getIsPaymentBank();
 			if (EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 
