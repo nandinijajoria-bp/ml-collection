@@ -104,18 +104,18 @@ public class MerchantLoansService {
                     loan.setShowCustomAmount(true);
                 }
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
-            if(lendingPaymentSchedule != null){
-                try {
-                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
-                    if (!loans.isEmpty()) {
-                        responseDTO.setEligibility(loans);
-                        responseDTO.setTopup(Boolean.TRUE);
-                    }
-                } catch (Exception e) {
-                    logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
-                }
-            }
+//            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
+//            if(lendingPaymentSchedule != null){
+//                try {
+//                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
+//                    if (!loans.isEmpty()) {
+//                        responseDTO.setEligibility(loans);
+//                        responseDTO.setTopup(Boolean.TRUE);
+//                    }
+//                } catch (Exception e) {
+//                    logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
+//                }
+//            }
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
             responseDTO.setMessage("Successfully fetched merchant loans");
             responseDTO.setSuccess(true);
