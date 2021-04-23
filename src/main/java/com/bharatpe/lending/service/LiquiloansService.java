@@ -466,15 +466,15 @@ public class LiquiloansService {
 			}
 			List<String> mobiles = new ArrayList<>();
 			mobiles.add(merchant.getMobile());
-			whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
+//			whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
 			if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
 				String newMessage = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nRs. " + lendingApplication.getDisbursalAmount() + " Loan is transferred to your A/c net of Rs." + lendingApplication.getProcessingFee() + " processing fees. Repay loan timely through QR Txns to get PF charges refunded.";
 				smsServiceHandler.sendSMS(new ArrayList<String>() {{
 					add(lendingApplication.getMerchant().getMobile());
 				}}, newMessage, NotificationProvider.SMS.GUPSHUP);
-				whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>() {{
-					add(lendingApplication.getMerchant().getMobile());
-				}}, null);
+//				whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>() {{
+//					add(lendingApplication.getMerchant().getMobile());
+//				}}, null);
 			}
 			String postInstructionSms = "Dear "+merchantBankDetail.getBeneficiaryName()+", \nCongratulations on getting a Rs. "+ lendingApplication.getDisbursalAmount() +" loan from BharatPe.  Please read instructions on repaying your loan -Your Daily instalment is Rs "+lendingApplication.getEdi()+" which you have to pay every day for next "+lendingPaymentSchedule.getEdiCount()+" days. Sunday is an EDI holiday.\n\n-BharatPe";
 			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, postInstructionSms, NotificationProvider.SMS.GUPSHUP);
