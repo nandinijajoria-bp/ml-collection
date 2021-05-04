@@ -71,6 +71,11 @@ public class LiquiloanController {
 		return new ResponseEntity<>(responseDTO,HttpStatus.OK);
 	}
 
+	@RequestMapping(value = "/callPayout", method = RequestMethod.GET)
+	public void callLoanDetails(@RequestParam Long id) {
+		liquilaonService.publishForDisbursal(id);
+	}
+
 //	@RequestMapping(value="create_lead",method=RequestMethod.GET)
 //	public ResponseEntity<ResponseDTO> createLead(@RequestParam Long loanId){
 //		Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId);
