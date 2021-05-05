@@ -113,6 +113,14 @@ public class PaymentService {
 			if(overdueDays < 2) {
 				isPayable = false;
 			}
+			if (activeLoan.getTentativeClosingDate().before(new Date())) {
+				double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
+				int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount));
+				if (extraAmount > 0d) {
+					logger.info("Need to get extra amount:{} for loanId:{}", extraAmount, activeLoan.getId());
+					principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
+				}
+			}
 			
 			PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount + ediHolidayInterestAmount, overdueDays, isPayable);
 			return new PaymentDetailsResponseDTO(data);
