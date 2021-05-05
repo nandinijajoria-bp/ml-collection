@@ -150,6 +150,9 @@ public class LiquiloansService {
     @Autowired
 	BharatPeEnachDao bharatPeEnachDao;
 
+    @Autowired
+	LendingEdiExceptionDao lendingEdiExceptionDao;
+
 	private static String secretKey;
 
 	private static String SID;
@@ -323,7 +326,7 @@ public class LiquiloansService {
     			return new ResponseEntity<>("Error occured", HttpStatus.BAD_REQUEST);	
     		}
     		lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
-    		lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+			lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     		changeDeductionFromInstantToDaily(merchant.get());
     	}
     	catch(Exception e){
@@ -340,6 +343,7 @@ public class LiquiloansService {
     		return new ResponseEntity<>("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     	}
 		createEdiSchedule(lendingPaymentSchedule);
+    	createEdiException(lendingPaymentSchedule);
 		LendingApplication finalLendingApplication = lendingApplication;
 		LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
 		executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
@@ -354,6 +358,16 @@ public class LiquiloansService {
 		executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
+
+	private void createEdiException(LendingPaymentSchedule lendingPaymentSchedule) {
+		try {
+			LendingEdiException lendingEdiException = new LendingEdiException();
+			lendingEdiException.setLoanId(String.valueOf(lendingPaymentSchedule.getId()));
+			lendingEdiExceptionDao.save(lendingEdiException);
+		} catch (Exception e) {
+			logger.error("Error while saving lending edi exception for loanId:{}", lendingPaymentSchedule.getId(), e);
+		}
+	}
 
     public void pushRedemptionInKafka(LendingApplication lendingApplication){
 
