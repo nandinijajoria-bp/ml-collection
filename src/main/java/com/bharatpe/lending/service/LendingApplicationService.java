@@ -208,12 +208,12 @@ public class LendingApplicationService {
 			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
 			if(requestDTO.getPayload().getPincode() == null) {
 				LendingApplication prevApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
-				if(prevApplication != null && "TOPUP".equalsIgnoreCase(prevApplication.getLoanType())){
-					logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
-					lendingApplicationResponse = new LendingApplicationResponseDTO();
-					lendingApplicationResponse.setSuccess(false);
-					return lendingApplicationResponse;
-				}
+//				if(prevApplication != null && "TOPUP".equalsIgnoreCase(prevApplication.getLoanType())){
+//					logger.info("Dupe Application for TopupLoan given application id {}", lendingApplicationRequest.getApplicationId());
+//					lendingApplicationResponse = new LendingApplicationResponseDTO();
+//					lendingApplicationResponse.setSuccess(false);
+//					return lendingApplicationResponse;
+//				}
 				createGstDetail(merchant,lendingApplicationRequest);
 				if(prevApplication!=null) {
 					logger.info("Replicating previous application for merchant:{}", merchant.getId());
