@@ -17,6 +17,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	
 	@Autowired
 	HmacForMIDAndInternalClientInterceptor midInterceptor;
+
+	@Autowired
+	HmacForMIDInterceptorWithObject hmacForMIDInterceptorWithObject;
 	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -25,7 +28,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans", "/lending/offers", "/lending/derog_application","/fos/**","/lending/fos/**", "/lending/adhaar_mask","/lending/allow_bankaccount_change", "/lending/edi_schedule", "/lending/edi_schedule/v2", "/support/loan", "/lending/nach_refund","/support/lenderchange","/support/lender","/lending/processing_fee_refund");
 
-        registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update").addPathPatterns( "/lending/payment/callback/v2");
+        registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
+
+        registry.addInterceptor(hmacForMIDInterceptorWithObject).addPathPatterns("/lending/payment/callback/v2");
     }
 
 //	@Override
