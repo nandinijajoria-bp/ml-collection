@@ -36,6 +36,11 @@ public class PaymentController {
     	return new ResponseEntity<>(paymentService.handleCallback(requestDTO), HttpStatus.OK);
     }
 
+    @RequestMapping(value="/callback/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
+    public ResponseEntity<String> callbackV2(@RequestBody PgPaymentCallbackDTO requestDTO) {
+        return new ResponseEntity<>(paymentService.handlePgCallback(requestDTO), HttpStatus.OK);
+    }
+
     @RequestMapping(value="/status", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
         PaymentStatusResponseDTO responseDTO = paymentService.getStatus(orderId, merchant);

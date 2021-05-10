@@ -256,6 +256,44 @@ public class PaymentService {
 		}
 		return "OK";
 	}
+	public String handlePgCallback(PgPaymentCallbackDTO request) {
+		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
+		try {
+			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
+			if(order == null) {
+				logger.error("No order for order id {}", request.getOrderId());
+				return "OK";
+			}
+			if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
+				logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
+				return "OK";
+			}
+			if(request.getPaymentAmount() == null || request.getPaymentAmount() <= 0D) {
+				logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchant().getId(), request.getPaymentAmount());
+				return "OK";
+			}
+			Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId());
+			if(!activeLoan.isPresent()) {
+				logger.error("No active loan found for id {}", order.getOwnerId());
+				return "OK";
+			}
+			if(order.getAmount()  - request.getPaymentAmount() < -1 || order.getAmount() - request.getPaymentAmount() > 1) {
+				logger.error("Amount mismatch for the merchant {} and order id {}", order.getMerchant().getId(), request.getOrderId());
+				order.setStatus("FAILED");
+				order.setDescription("Amount mismatch");
+				loanPaymentOrderDao.save(order);
+				return "OK";
+			}
+			adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource());
+			order.setBankRefNo(request.getPaymentRefId());
+			order.setStatus("SUCCESS");
+			loanPaymentOrderDao.save(order);
+		} catch(Exception ex) {
+			logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
+		}
+		return "OK";
+	}
+
 	
 	private void sendSMS(Merchant merchant, Double amount, boolean isLoanClosed) {
 		try {
