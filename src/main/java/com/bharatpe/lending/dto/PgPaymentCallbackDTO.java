@@ -16,10 +16,10 @@ public class PgPaymentCallbackDTO {
     private String orderId;
     private String paymentURI;
     private String redirectURI;
-    private List<Payment> payments;
+    private List<Payments> payments;
 
     @ToString
-    public class Payment{
+    public static class Payments{
         private Double amount;
         private String mode;
         private String status;
@@ -139,11 +139,11 @@ public class PgPaymentCallbackDTO {
         this.redirectURI = redirectURI;
     }
 
-    public List<Payment> getPayments() {
+    public List<Payments> getPayments() {
         return payments;
     }
 
-    public void setPayments(List<Payment> payments) {
+    public void setPayments(List<Payments> payments) {
         this.payments = payments;
     }
 }

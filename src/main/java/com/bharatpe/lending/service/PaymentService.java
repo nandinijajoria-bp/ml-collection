@@ -291,6 +291,9 @@ public class PaymentService {
 					order.setBankRefNo(request.getPaymentRefId());
 				}
 			}
+			if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())){
+				order.setSource(request.getPayments().get(0).getMode());
+			}
 			loanPaymentOrderDao.save(order);
 		} catch(Exception ex) {
 			logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
