@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import java.util.Date;
 import java.util.List;
 
@@ -13,14 +15,17 @@ public class PgPaymentCallbackDTO {
     private String orderId;
     private String paymentURI;
     private String redirectURI;
-    private List<Payment> payments;
+//    @JsonDeserialize(using = nestedJsonDeserializer.class)
+    private List<Payments> payments;
 
-    public class Payment{
+    public static class Payments{
         private Double amount;
         private String mode;
         private String status;
         private Date completedAt;
         private String refId;
+
+
 
         public Double getAmount() {
             return amount;
@@ -135,11 +140,11 @@ public class PgPaymentCallbackDTO {
         this.redirectURI = redirectURI;
     }
 
-    public List<Payment> getPayments() {
+    public List<Payments> getPayments() {
         return payments;
     }
 
-    public void setPayments(List<Payment> payments) {
+    public void setPayments(List<Payments> payments) {
         this.payments = payments;
     }
 }

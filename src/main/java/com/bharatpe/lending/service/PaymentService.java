@@ -286,6 +286,9 @@ public class PaymentService {
 			}
 			adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource());
 			order.setBankRefNo(request.getPaymentRefId());
+			if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())){
+				order.setSource(request.getPayments().get(0).getMode());
+			}
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
 		} catch(Exception ex) {
