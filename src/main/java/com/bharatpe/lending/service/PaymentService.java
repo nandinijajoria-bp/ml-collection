@@ -284,9 +284,13 @@ public class PaymentService {
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
-			adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource());
-			order.setBankRefNo(request.getPaymentRefId());
-			order.setStatus("SUCCESS");
+			if (request.getPaymentStatus() != null) {
+				order.setStatus(request.getPaymentStatus());
+				if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
+					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource());
+					order.setBankRefNo(request.getPaymentRefId());
+				}
+			}
 			loanPaymentOrderDao.save(order);
 		} catch(Exception ex) {
 			logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);

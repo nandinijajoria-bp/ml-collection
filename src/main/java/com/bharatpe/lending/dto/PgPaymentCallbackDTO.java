@@ -1,8 +1,11 @@
 package com.bharatpe.lending.dto;
 
+import lombok.ToString;
+
 import java.util.Date;
 import java.util.List;
 
+@ToString
 public class PgPaymentCallbackDTO {
     private Double orderAmount;
     private Double paymentAmount;
@@ -15,6 +18,7 @@ public class PgPaymentCallbackDTO {
     private String redirectURI;
     private List<Payment> payments;
 
+    @ToString
     public class Payment{
         private Double amount;
         private String mode;
