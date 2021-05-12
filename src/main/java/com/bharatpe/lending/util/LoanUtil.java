@@ -206,6 +206,11 @@ public class LoanUtil {
 		return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
 	}
 
+	public static long getDateDiffInHour(Date startTime, Date endTime) {
+		long diff = endTime.getTime() - startTime.getTime();
+		return TimeUnit.HOURS.convert(diff, TimeUnit.MILLISECONDS);
+	}
+
 	public static Map<String , String> settlementMode = new HashMap<String , String>() {{
 		put("SETTLEMENT", "QR Txns.");
 		put("EXTERNAL_NACH", "NACH");
