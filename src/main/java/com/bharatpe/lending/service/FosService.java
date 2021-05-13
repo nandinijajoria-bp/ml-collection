@@ -581,12 +581,30 @@ public class FosService {
                 if("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() > 50000){
 
                     fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
+                    if(fosAttributionResponseDTO.getAttributed().equalsIgnoreCase("YES")){
+                        responseDTO.setSuccess(true);
+                        responseDTO.setMessage("Attribution state");
+                        responseDTO.setData(fosAttributionResponseDTO);
+                        return responseDTO;
+                    }
                 }else if(("NTB".equalsIgnoreCase(loanAttribution.getLoanType()) || "OGL".equalsIgnoreCase(loanAttribution.getLoanType()) || ("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() <= 50000))){
                     if(Objects.nonNull(loanAttribution.getEnachAttributedAt()) && Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
                         if(loanAttribution.getAgreementAttributedAt().compareTo(loanAttribution.getEnachAttributedAt()) > 0){
                             fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
+                            if(fosAttributionResponseDTO.getAttributed().equalsIgnoreCase("YES")){
+                                responseDTO.setSuccess(true);
+                                responseDTO.setMessage("Attribution state");
+                                responseDTO.setData(fosAttributionResponseDTO);
+                                return responseDTO;
+                            }
                         }else{
                             fosAttributionResponseDTO = isEnachAttributed(request, loanAttribution, lendingApplication);
+                            if(fosAttributionResponseDTO.getAttributed().equalsIgnoreCase("YES")){
+                                responseDTO.setSuccess(true);
+                                responseDTO.setMessage("Attribution state");
+                                responseDTO.setData(fosAttributionResponseDTO);
+                                return responseDTO;
+                            }
                         }
                     }else{
                         fosAttributionResponseDTO.setAttributed("NO");
@@ -594,14 +612,14 @@ public class FosService {
                 }else{
                     fosAttributionResponseDTO.setAttributed("NO");
                 }
-
-                responseDTO.setSuccess(true);
-                responseDTO.setMessage("Attribution state");
-                responseDTO.setData(fosAttributionResponseDTO);
-                return responseDTO;
             }
+
+            responseDTO.setSuccess(true);
+            responseDTO.setMessage("Attribution state");
+            responseDTO.setData(fosAttributionResponseDTO);
+            return responseDTO;
         }catch(Exception ex){
-            logger.error("Exception while getting fos salary attribution for fos refNumber: {} and merchant: {}", request.getFseRefcode(), request.getMerchantId());
+            logger.error("Exception while getting fos salary attribution for fos refNumber: {} and merchant: {}, ex", request.getFseRefcode(), request.getMerchantId(), ex);
         }
         responseDTO.setSuccess(false);
         responseDTO.setMessage("Something Went Wrong!");
@@ -611,8 +629,8 @@ public class FosService {
     private FosAttributionResponseDTO isAgreementAttributed(FosAttributionRequestDTO request, LoanAttribution loanAttribution, LendingApplication lendingApplication){
         FosAttributionResponseDTO fosAttributionResponseDTO = new FosAttributionResponseDTO();
         if(Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
-            Long hourDiff = LoanUtil.getDateDiffInHour(loanAttribution.getAgreementAttributedAt(), request.getTaskStartedAt());
-            if (hourDiff >= -1 && hourDiff <= 168 && "FOS".equalsIgnoreCase(loanAttribution.getAgreementAttributedTo())) {
+            Long hourDiff = LoanUtil.getDateDiffInHour(request.getTaskStartedAt(), loanAttribution.getAgreementAttributedAt());
+            if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getAgreementAttributedTo())) {
                 fosAttributionResponseDTO.setAttributed("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
                     fosAttributionResponseDTO.setStage("AMOUNT_DISBURSED");
@@ -631,9 +649,9 @@ public class FosService {
 
     private FosAttributionResponseDTO isEnachAttributed(FosAttributionRequestDTO request, LoanAttribution loanAttribution, LendingApplication lendingApplication){
         FosAttributionResponseDTO fosAttributionResponseDTO = new FosAttributionResponseDTO();
-        if(Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
-            Long hourDiff = LoanUtil.getDateDiffInHour(loanAttribution.getEnachAttributedAt(), request.getTaskStartedAt());
-            if (hourDiff >= -1 && hourDiff <= 168 && "FOS".equalsIgnoreCase(loanAttribution.getEnachAttributedTo())) {
+        if(Objects.nonNull(loanAttribution.getEnachAttributedAt())) {
+            Long hourDiff = LoanUtil.getDateDiffInHour(request.getTaskStartedAt(), loanAttribution.getEnachAttributedAt());
+            if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getEnachAttributedTo())) {
                 fosAttributionResponseDTO.setAttributed("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
                     fosAttributionResponseDTO.setStage("AMOUNT_DISBURSED");
