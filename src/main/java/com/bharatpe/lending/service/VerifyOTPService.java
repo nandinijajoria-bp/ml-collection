@@ -11,7 +11,9 @@ import com.bharatpe.common.enums.LoyaltyTransactionType;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -127,6 +129,9 @@ public class VerifyOTPService {
 
 	@Autowired
 	LoanUtil loanUtil;
+
+	@Autowired
+	LendingNotificationService lendingNotificationService;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -470,48 +475,42 @@ public class VerifyOTPService {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
-		
-		if (!StringUtils.isEmpty(lendingApplication.getLoanType()) && "PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
-			String sms = "Hi "+merchantBankDetail.getBeneficiaryName()+",\nYou have successfully Applied for Rs."+loanAmount.intValue()+" Loan with BharatPe which you will get in your " + merchantBankDetail.getBankName() + " A/c in next 10 days post verification.\nYou have scored 10 Runs which you can use to get Rewards on BharatPe App.";
-			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
-		}else if(!StringUtils.isEmpty(lendingApplication.getLoanType()) && "BHARAT_SWIPE".equalsIgnoreCase(lendingApplication.getLoanType())){
-			String sms =  "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\nYour Cash Advance application for INR " + loanAmount.intValue() + " has been received successfully." + "Your Application ID is " + lendingApplication.getExternalLoanId() + ". It should be processed in the next 7-10 days.";
-			smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
-		} else {
-			String smsContent = "Hi "+merchantBankDetail.getBeneficiaryName()+",\n\nYour loan application for INR "+loanAmount.intValue()+" has been received successfully.\n\nYour Application ID is "+lendingApplication.getExternalLoanId()+" and this should get processed in the next 7-10 days.";
-			smsServiceHandler.sendSMS(mobiles, smsContent, NotificationProvider.SMS.GUPSHUP);
-		}
+
+		String identifier = "LENDING_APPLICATION_RECEIVED_PUSH";
+		Map<String,Object> templateParams = new HashMap<>();
+		templateParams.put("loan_amount",loanAmount.intValue());
+		templateParams.put("external_loan_id",lendingApplication.getExternalLoanId());
+		NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+		notificationPayloadDto.setTemplateIdentifier(identifier);
+		notificationPayloadDto.setTemplateParams(templateParams);
+		notificationPayloadDto.setMobile(merchant.getMobile());
+		notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+		notificationPayloadDto.setPushTitle("BHARATPE");
+		notificationPayloadDto.setClientName("LENDING");
+		lendingNotificationService.notify(notificationPayloadDto);
+
 		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
 				"\n" +
 				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
 				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
 //		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles, null);
-		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.findByMerchantId(merchant.getId());
-		
-		if(merchantFcmToken != null) {
-			if (mobiles.isEmpty()) {
-				logger.info("mobile list is empty");
-				mobiles.add(merchant.getMobile());
-			}
-			String pushContent = "Dear "+merchantBankDetail.getBeneficiaryName()+", Your loan application for INR "+loanAmount.intValue()+" has been received successfully.";
-			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushContent, "dynamic?key=loan");
-			if (isPaymentBank(merchant, merchantBankDetail)) {
-				String pushNotification = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
-						"\n" +
-						"We have received your Loan Application of Rs." + loanAmount.intValue() + ".Our lending partners do not support disbursal in Payment Banks. Please change your registered account with us to a non-payment bank to get Rs." + loanAmount.intValue() + " NOW!";
-				pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), pushNotification, "dynamic?key=change-acc");
-				String sms = "Dear "+merchantBankDetail.getBeneficiaryName()+",\nYour loan application for Rs."+loanAmount.intValue()+" has been successfully received.. Our lending partners do not support disbursal to Payment Banks.\nPlease change your registered account with us to a Non-payment bank to get the amount now.\nClick here: https://bharatpe.in/acchange to change bank.";
-				boolean smsSent = smsServiceHandler.sendSMS(mobiles, sms, NotificationProvider.SMS.GUPSHUP);
-//				whatsappNotificationService.send(merchant, null, sms, mobiles, null);
-				if (smsSent) {
-					logger.info("Change bank account sms sent to merchant:{}", merchant.getId());
-				} else {
-					logger.info("Change bank account sms not sent to merchant:{}", merchant.getId());
-				}
-			}
+
+		if (isPaymentBank(merchant, merchantBankDetail)) {
+			identifier = "LENDING_APPLICATION_RECEIVED_2_PUSH";
+			notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setMobile(merchant.getMobile());
+			notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+			notificationPayloadDto.setPushTitle("BHARATPE");
+			notificationPayloadDto.setClientName("LENDING");
+			notificationPayloadDto.setTemplateParams(templateParams);
+			lendingNotificationService.notify(notificationPayloadDto);
+//			whatsappNotificationService.send(merchant, null, sms, mobiles, null);
 		}
-		String message = "BharatPe Agents do not charge commissions for loan application & disbursal. Please be careful and submit your loan requests with BharatPe on your own accord only!";
-		smsServiceHandler.sendSMS(new ArrayList<String>(){{add(merchant.getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+
+		identifier = "LENDING_AGENT_SMS";
+		notificationPayloadDto.setTemplateIdentifier(identifier);
+		lendingNotificationService.notify(notificationPayloadDto);
 	}
 
 	private boolean isPaymentBank(Merchant merchant, MerchantBankDetail merchantBankDetail) {

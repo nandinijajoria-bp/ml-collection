@@ -5,6 +5,7 @@ import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;

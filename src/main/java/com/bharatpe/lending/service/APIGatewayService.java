@@ -11,7 +11,9 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.constant.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
@@ -150,6 +152,9 @@ public class APIGatewayService {
 
     @Autowired
     SupportService supportService;
+
+    @Autowired
+    LendingNotificationService lendingNotificationService;
 
     private final String CLIENT = "LENDING";
 
@@ -1366,9 +1371,20 @@ public class APIGatewayService {
     private void sendComm(Long merchantId, Integer amount, Integer edi) {
         Merchant merchant = merchantDao.getById(merchantId);
         MerchantBankDetail bankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-        String message = "Dear " + bankDetail.getBeneficiaryName() + ". Rs. " + amount + " quick loan is ready to be disbursed to your " + bankDetail.getBankName() + " A/C.\n" +
-                " Daily repayment of only Rs." + edi;
-        smsServiceHandler.sendSMS(Arrays.asList(merchant.getMobile()), message, NotificationProvider.SMS.GUPSHUP);
+
+        String identifier = "LENDING_DISBURSED_3_WHATSAPP";
+        Map<String,Object> templateParams = new HashMap<>();
+        templateParams.put("beneficiary_name",bankDetail.getBeneficiaryName());
+        templateParams.put("bank_name",bankDetail.getBankName());
+        templateParams.put("edi",edi);
+        templateParams.put("amount",amount);
+
+        NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+        notificationPayloadDto.setTemplateIdentifier(identifier);
+        notificationPayloadDto.setMobile(merchant.getMobile());
+        notificationPayloadDto.setClientName("LENDING");
+        notificationPayloadDto.setTemplateParams(templateParams);
+        lendingNotificationService.notify(notificationPayloadDto);
     }
 
     public LendingPayoutResponse lendingPayout(LendingPayoutRequest lendingPayoutRequest) {

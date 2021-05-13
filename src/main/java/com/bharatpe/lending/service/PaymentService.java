@@ -10,10 +10,12 @@ import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingPayoutsDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingClPayment;
 import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.util.LoanUtil;
@@ -89,6 +91,9 @@ public class PaymentService {
 
 	@Autowired
 	LoanDpdDao loanDpdDao;
+
+	@Autowired
+	LendingNotificationService lendingNotificationService;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 	
@@ -308,16 +313,23 @@ public class PaymentService {
 			if(merchantBankDetail == null) {
 				return;
 			}
-			
-			String content = null;
+
+			String identifier = "LENDING_PAYMENT_PUSH";
+			Map<String,Object> templateParams = new HashMap<>();
+			templateParams.put("amount",amount.intValue());
+
 			if(isLoanClosed) {
-				content = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nThank you for making prepayment of Rs." + amount.intValue() + " towards your Bharatpe Loan. Your Loan is successfully closed.\nYou have earned 10 runs which you can use to get rewards on BharatPe app.";
-			} else {
-				content = "Hi " + merchantBankDetail.getBeneficiaryName() + ",\nThank you for making payment of Rs." + amount.intValue() + " towards your BharatPe Loan.";
+				identifier = "LENDING_PREPAYMENT_SMS";
 			}
-			
-			smsServiceHandler.sendSMS(Arrays.asList(merchant.getMobile()), content, NotificationProvider.SMS.GUPSHUP);
-			
+
+			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setMobile(merchant.getMobile());
+			notificationPayloadDto.setClientName("LENDING");
+			notificationPayloadDto.setTemplateParams(templateParams);
+			notificationPayloadDto.setPushTitle("BHARATPE");
+			notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+			lendingNotificationService.notify(notificationPayloadDto);
 		} catch(Exception ex) {
 			logger.error("Exception while sending payment SMS to merchant {}, Exception is {}");
 		}
@@ -699,8 +711,18 @@ public class PaymentService {
 				lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() + principle);
 				lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 				MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),"ACTIVE");
-				String message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\n\nWe have refunded Rs." + refundAmount + " which was deducted extra against your BharatPe Loan in your " + merchantBankDetail.getBankName() + " bank account.";
-				smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+
+				String identifier = "LENDING_REFUND_2_SMS";
+				Map<String,Object> templateParams = new HashMap<>();
+				templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+				templateParams.put("refund_amount",refundAmount);
+				templateParams.put("bank_name",merchantBankDetail.getBankName());
+				NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
+				notificationPayloadDto.setClientName("LENDING");
+				notificationPayloadDto.setTemplateParams(templateParams);
+				lendingNotificationService.notify(notificationPayloadDto);
 			}
 		} catch (Exception e) {
 			logger.error("Exception in ECOLLECT Refund for loanId:{}", lendingPaymentSchedule.getId(), e);
@@ -744,13 +766,23 @@ public class PaymentService {
 					LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
 					if (lendingPayoutResponse != null) {
 						MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),"ACTIVE");
-						String message;
+
+						String identifier = "LENDING_ARRANGER_REFUND_2_SMS";
+						Map<String,Object> templateParams = new HashMap<>();
+						templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+						templateParams.put("cashback_amount",merchantBankDetail.getBeneficiaryName());
+						templateParams.put("bank_name",merchantBankDetail.getBeneficiaryName());
+
 						if (eligible) {
-							message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\n\nYou have repaid your loan timely. As promised, we have refunded the Arranger Fee of Rs." + cashbackAmount + " in your " + merchantBankDetail.getBankName() + " bank account.\n\nA bigger loan at lower rate of interest is waiting for you. Apply Now! bharatpe.in/loan~";
-						} else {
-							message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\n\nYou have repaid your loan timely. As promised, we have refunded the Arranger Fee of Rs." + cashbackAmount + " in your " + merchantBankDetail.getBankName() + " bank account.";
+							identifier = "LENDING_ARRANGER_REFUND_SMS";
 						}
-						smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+
+						NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+						notificationPayloadDto.setTemplateIdentifier(identifier);
+						notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
+						notificationPayloadDto.setClientName("LENDING");
+						notificationPayloadDto.setTemplateParams(templateParams);
+						lendingNotificationService.notify(notificationPayloadDto);
 					}
 				}
 			}

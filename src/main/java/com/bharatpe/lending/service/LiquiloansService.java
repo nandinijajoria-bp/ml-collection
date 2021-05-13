@@ -7,9 +7,11 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
@@ -149,6 +151,9 @@ public class LiquiloansService {
 
     @Autowired
 	BharatPeEnachDao bharatPeEnachDao;
+
+    @Autowired
+	LendingNotificationService lendingNotificationService;
 
     @Autowired
 	LendingEdiExceptionDao lendingEdiExceptionDao;
@@ -393,8 +398,18 @@ public class LiquiloansService {
 		LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
 		if (lendingPayoutResponse != null) {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(), "ACTIVE");
-			String message = "Dear " + merchantBankDetail.getBeneficiaryName() + "\nCongratulations !! BharatPe have credited Cashback of Rs.100 in your Bank A/C for registering mandatory ENACH against your Loan Application.\nHappy Selling!";
-			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+
+			String identifier = "LENDING_CASHBACK_PUSH";
+			Map<String,Object> templateParams = new HashMap<>();
+			templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
+			notificationPayloadDto.setClientName("LENDING");
+			notificationPayloadDto.setPushTitle("BHARATPE");
+			notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+			notificationPayloadDto.setTemplateParams(templateParams);
+			lendingNotificationService.notify(notificationPayloadDto);
 		}
 	}
 
@@ -459,40 +474,67 @@ public class LiquiloansService {
 					e.printStackTrace();
 				}
 			}
-			sms1 = "Hi " + merchantBankDetail.getBeneficiaryName() + "\n" +
-					"Your BharatPe Loan of Rs." + lendingApplication.getDisbursalAmount() + " is successfully disbursed. " +
-					"Here is a copy of the Loan agreement for your reference:" + shortUrl;
+			String identifier = "LENDING_AGREEMENT_SMS";
+			Map<String,Object> templateParams = new HashMap<>();
+			templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+			templateParams.put("disbursal_amount",lendingApplication.getDisbursalAmount());
+			templateParams.put("shortUrl",shortUrl);
+			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setMobile(lendingApplication.getMerchant().getMobile());
+			notificationPayloadDto.setClientName("LENDING");
+			notificationPayloadDto.setTemplateParams(templateParams);
+			lendingNotificationService.notify(notificationPayloadDto);
+
+			//For SMS 2
+			identifier= null;
+			templateParams = new HashMap<>();
 
 			if ("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
-				sms2 = "Your daily installment for BharatPe Loan is INR " + lendingApplication.getEdi() + ". First installment date " + lendingPaymentSchedule.getStartDate() + ". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
+				identifier = "LENDING_REPAYING_INFO_4_SMS";
+				templateParams.put("edi",lendingApplication.getEdi());
+				templateParams.put("start_date",lendingPaymentSchedule.getStartDate());
 			} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
-				sms2 = "Congrats , you need not pay any installment during the 1st month. Your daily instalments of INR " + lendingApplication.getEdi() + " will start from " + lendingPaymentSchedule.getStartDate() + ". Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
+				identifier = "LENDING_REPAYING_INFO__2_SMS";
+				templateParams.put("edi",lendingApplication.getEdi());
+				templateParams.put("start_date",lendingPaymentSchedule.getStartDate());
 			} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
-				sms2 = "Your daily installment for 1st month is INR " + lendingPaymentSchedule.getInterestOnlyEdiAmount() + " (Only Interest). After that, it will be INR" + lendingApplication.getEdi() + ". First installment date is " + lendingPaymentSchedule.getStartDate() + " Installments will be deducted from your daily settlements. Please make sure you do sufficient transactions on BharatPe QR.";
+				identifier = "LENDING_REPAYING_INFO_3_SMS";
+				templateParams.put("interest_only_edi_amount",lendingPaymentSchedule.getInterestOnlyEdiAmount());
+				templateParams.put("edi",lendingApplication.getEdi());
+				templateParams.put("start_date",lendingPaymentSchedule.getStartDate());
 			}
-			smsServiceHandler.sendSMS(new ArrayList<String>() {{
-				add(lendingApplication.getMerchant().getMobile());
-			}}, sms1, NotificationProvider.SMS.GUPSHUP);
-			if (sms2 != null) {
-				smsServiceHandler.sendSMS(new ArrayList<String>() {{
-					add(lendingApplication.getMerchant().getMobile());
-				}}, sms2, NotificationProvider.SMS.GUPSHUP);
+
+			notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setMobile(lendingApplication.getMerchant().getMobile());
+			notificationPayloadDto.setClientName("LENDING");
+			notificationPayloadDto.setTemplateParams(templateParams);
+
+
+			if (identifier != null) {
+				lendingNotificationService.notify(notificationPayloadDto);
 			}
+
 			List<String> mobiles = new ArrayList<>();
 			mobiles.add(merchant.getMobile());
 //			whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
 			if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
-				String newMessage = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nRs. " + lendingApplication.getDisbursalAmount() + " Loan is transferred to your A/c net of Rs." + lendingApplication.getProcessingFee() + " processing fees. Repay loan timely through QR Txns to get PF charges refunded.";
-				smsServiceHandler.sendSMS(new ArrayList<String>() {{
-					add(lendingApplication.getMerchant().getMobile());
-				}}, newMessage, NotificationProvider.SMS.GUPSHUP);
+				identifier = "LENDING_DISBURSED_4_SMS";
+				templateParams = new HashMap<>();
+				templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+				templateParams.put("disbursal_amount",lendingApplication.getDisbursalAmount());
+				templateParams.put("processing_fee",lendingApplication.getProcessingFee());
+				notificationPayloadDto = new NotificationPayloadDto();
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				notificationPayloadDto.setMobile(lendingApplication.getMerchant().getMobile());
+				notificationPayloadDto.setClientName("LENDING");
+				notificationPayloadDto.setTemplateParams(templateParams);
+				lendingNotificationService.notify(notificationPayloadDto);
 //				whatsappNotificationService.send(merchant, null, newMessage, new ArrayList<String>() {{
 //					add(lendingApplication.getMerchant().getMobile());
 //				}}, null);
 			}
-			String postInstructionSms = "Dear "+merchantBankDetail.getBeneficiaryName()+", \nCongratulations on getting a Rs. "+ lendingApplication.getDisbursalAmount() +" loan from BharatPe.  Please read instructions on repaying your loan -Your Daily instalment is Rs "+lendingApplication.getEdi()+" which you have to pay every day for next "+lendingPaymentSchedule.getEdiCount()+" days. Sunday is an EDI holiday.\n\n-BharatPe";
-			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, postInstructionSms, NotificationProvider.SMS.GUPSHUP);
-			redisNotificationService.sendNotificationForPostDisbursalInstruction(lendingApplication);
 		} catch (Exception e) {
 			logger.error("Exception while sending disbursal sms---", e);
 		}

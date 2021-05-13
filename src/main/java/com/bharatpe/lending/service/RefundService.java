@@ -6,8 +6,10 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.LendingPayoutsDao;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.LendingPayouts;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -20,6 +22,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -51,6 +55,9 @@ public class RefundService {
 
     @Autowired
     LiquiloansService liquiloansService;
+
+    @Autowired
+    LendingNotificationService lendingNotificationService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -108,8 +115,17 @@ public class RefundService {
                 }
             }
             if (success) {
-                String message = "Dear Merchant,\nBharatPe has refunded amount of Rs." + refundAmount + " charged against Loan ID " + lendingPaymentSchedule.getId() + "  in your Bank A/c .";
-                smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingPaymentSchedule.getMerchant().getMobile());}}, message, NotificationProvider.SMS.GUPSHUP);
+                String identifier = "LENDING_REFUND_SMS";
+                Map<String,Object> templateParams = new HashMap<>();
+                templateParams.put("refund_amount",refundAmount);
+                templateParams.put("loan_id",lendingPaymentSchedule.getId());
+                NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+                notificationPayloadDto.setTemplateIdentifier(identifier);
+                notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
+                notificationPayloadDto.setClientName("LENDING");
+                notificationPayloadDto.setTemplateParams(templateParams);
+                lendingNotificationService.notify(notificationPayloadDto);
+
                 return new CommonResponse(true, "Loan refund success for loanId:" + lendingPaymentSchedule.getId());
             } else {
                 return new CommonResponse(false, "Loan refund failed for loanId:" + lendingPaymentSchedule.getId());

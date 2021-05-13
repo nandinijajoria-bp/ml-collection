@@ -10,9 +10,11 @@ import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -178,6 +180,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	DelayedMessagePublisher delayedMessagePublisher;
+
+	@Autowired
+	LendingNotificationService lendingNotificationService;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -1203,6 +1208,16 @@ public class LoanDetailsService {
 		creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
 		creditScoreResponseDto.setNoExperian(false);
 		creditScoreResponseDto.setActiveLoan(lendingPaymentSchedule != null);
+
+		String identifier ;
+		Map<String,Object> templateParams = new HashMap<>();
+		templateParams.put("pan_name",creditScoreResponseDto.getPanName());
+		NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+		notificationPayloadDto.setMobile(merchant.getMobile());
+		notificationPayloadDto.setClientName("LENDING");
+		notificationPayloadDto.setPushDeepLink("dynamic?key=credit-score");
+		notificationPayloadDto.setPushTitle("BHARATPE");
+
 		if (rejected || experian.getReason() != null) {
 			if("NTC".equals(experian.getReason())){
 				creditScoreResponseDto.setNTC(Boolean.TRUE);
@@ -1210,9 +1225,11 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setMessage(experian.getReason());
 			responseDTO.setData(creditScoreResponseDto);
 			if(sms){
-				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-						"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
-				sendSms(message,merchant);
+				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
+				templateParams.put("key",key);
+				notificationPayloadDto.setTemplateParams(templateParams);
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				lendingNotificationService.notify(notificationPayloadDto);
 			}
 			return responseDTO;
 		}
@@ -1225,9 +1242,11 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setTenure(tenure);
 			responseDTO.setData(creditScoreResponseDto);
 			if(sms){
-				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-						"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-				sendSms(message,merchant);
+				identifier = "LENDING_CREDIT_SCORE_PUSH";
+				templateParams.put("experian_score",experian.getExperianScore());
+				notificationPayloadDto.setTemplateParams(templateParams);
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				lendingNotificationService.notify(notificationPayloadDto);
 			}
 			return responseDTO;
 		}
@@ -1236,9 +1255,11 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setActiveLoan(Boolean.TRUE);
 			responseDTO.setData(creditScoreResponseDto);
 			if(sms){
-				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-						"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-				sendSms(message,merchant);
+				identifier = "LENDING_CREDIT_SCORE_PUSH";
+				templateParams.put("experian_score",experian.getExperianScore());
+				notificationPayloadDto.setTemplateParams(templateParams);
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				lendingNotificationService.notify(notificationPayloadDto);
 			}
 			return responseDTO;
 		}
@@ -1247,9 +1268,11 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setMessage("CRIF");
 			responseDTO.setData(creditScoreResponseDto);
 			if(sms){
-				String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-						"Your credit score couldn't be generated, please click here "+ key +" and try again.\n";
-				sendSms(message,merchant);
+				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
+				templateParams.put("key",key);
+				notificationPayloadDto.setTemplateParams(templateParams);
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				lendingNotificationService.notify(notificationPayloadDto);
 			}
 			return responseDTO;
 		}
@@ -1262,7 +1285,11 @@ public class LoanDetailsService {
 		if(sms){
 			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
 					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-			sendSms(message,merchant);
+			identifier = "LENDING_CREDIT_SCORE_PUSH";
+			templateParams.put("experian_score",experian.getExperianScore());
+			notificationPayloadDto.setTemplateParams(templateParams);
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			lendingNotificationService.notify(notificationPayloadDto);
 		}
 		creditScoreResponseDto.setEligible(eligibleAmount > 0D);
 		creditScoreResponseDto.setEligibleAmount(eligibleAmount);

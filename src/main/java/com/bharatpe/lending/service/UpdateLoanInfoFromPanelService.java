@@ -487,7 +487,7 @@ public class UpdateLoanInfoFromPanelService {
 			
 			if((manualKyc != null && manualKyc.equals("REJECTED")) || (manualCibil != null && manualCibil.equals("REJECTED")) || (physicalVerificationStatus != null && physicalVerificationStatus.equals("REJECTED"))){
 				String message = "We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment.";
-                sendSmsAndNotification(merchantOptional.get().getMobile(), merchantId, message);
+				sendSmsAndNotification(merchantOptional.get().getMobile(), merchantId, message);
             }else if((manualKyc != null && manualKyc.equals("APPROVED")) && (manualCibil != null && manualCibil.equals("APPROVED")) && (physicalVerificationStatus != null && physicalVerificationStatus.equals("APPROVED"))){
                 if(loanDisbursalStatus != null && loanDisbursalStatus.equalsIgnoreCase("DISBURSED")  && lendingApplication.getStatus().equalsIgnoreCase("approved")){
                     String message = "Congrats " + docKycDetails.getPersonName() + "! Your BharatPe Loan of INR " + lendingApplication.getLoanAmount() + " is approved. The amount will reflect in your bank account within 48 hours.";

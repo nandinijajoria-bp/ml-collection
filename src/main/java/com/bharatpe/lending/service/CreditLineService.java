@@ -1,7 +1,9 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
