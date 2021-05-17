@@ -6,32 +6,28 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingPayoutsDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
-import com.bharatpe.lending.common.entity.LendingClPayment;
 import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
-import com.bharatpe.common.enums.NotificationProvider;
-import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
@@ -41,9 +37,6 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.util.UriComponents;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class PaymentService {
@@ -137,6 +130,80 @@ public class PaymentService {
 		return new PaymentDetailsResponseDTO("Something went wrong.");
 	}
 	
+	public InitiatePaymentResponseDTO initiatePaymentV2(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
+		logger.info("Received initiate payment request  for merchant {} : {}", merchant.getId(), request);
+		try {
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+			if(activeLoan == null) {
+				logger.info("No active loan found for merchant id {}", merchant.getId());
+				return new InitiatePaymentResponseDTO("No active loan found.");
+			}
+			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
+				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
+				if (lendingVirtualAccount != null) {
+					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc(), merchantBankDetail.getBeneficiaryName());
+					return new InitiatePaymentResponseDTO(data);
+				}
+				return new InitiatePaymentResponseDTO("Something went wrong.");
+			}
+			Integer amount = request.getPayload().getAmount();
+			if(amount < 1 || amount > 100000) {
+				logger.info("Amount not between 1-100000 for merchant id {}", merchant.getId());
+				return new InitiatePaymentResponseDTO("Amount should be between 1-100000.");
+			}
+			LoanPaymentOrder order = new LoanPaymentOrder();
+			order.setMerchant(merchant);
+			order.setOwner("lending_payment_schedule");
+			order.setOwnerId(activeLoan.getId());
+			order.setAmount(Double.valueOf(amount));
+			order.setStatus("INIT");
+			if (request.getPayload().getSource() != null) {
+				order.setSource(request.getPayload().getSource().name());
+			}
+			order = loanPaymentOrderDao.save(order);
+			String orderId = "LOAN" + (10000000L + order.getId());
+			order.setOrderId(orderId);
+			boolean paymentSuccess = false;
+			Boolean otpFlow = null;
+			String authMode = null;
+			String accountNumber = null;
+			String ifsc = null;
+			PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO = new PgCreateTransactionRequestDTO();
+			pgCreateTransactionRequestDTO.setOrderAmount(amount.doubleValue());
+			pgCreateTransactionRequestDTO.setOrderId(orderId);
+			pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
+			pgCreateTransactionRequestDTO.setPaymentPageHeaderText("Select Payment Mode");
+			pgCreateTransactionRequestDTO.setRedirectURI("https://payment-gateway.bharatpe.io/");
+			pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID="+orderId);
+			if (LoanUtil.calculateDPD(activeLoan.getEdiAmount(), activeLoan.getDueAmount()) >= 4){
+				pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
+			}else{
+				pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("BP","UPI","FP"));
+			}
+
+			PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchant.getId(), pgCreateTransactionRequestDTO);
+
+			if(response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode())) {
+				paymentSuccess = true;
+			}
+			if (!paymentSuccess) {
+				order.setStatus("FAILED");
+				order.setDescription("Unable to initiate txn");
+				loanPaymentOrderDao.save(order);
+				return new InitiatePaymentResponseDTO("Something went wrong.");
+			}
+			order.setStatus("PENDING");
+			loanPaymentOrderDao.save(order);
+			InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
+			data.setPaymentLink(response.getData().getPaymentURIDeeplink());
+			return new InitiatePaymentResponseDTO(data);
+		} catch(Exception ex) {
+			logger.error("Exception while initiating payment for merchant id {}", merchant.getId(), ex);
+		}
+		return new InitiatePaymentResponseDTO("Something went wrong.");
+	}
+
 	public InitiatePaymentResponseDTO initiatePayment(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
 		logger.info("Received initiate payment request  for merchant {} : {}", merchant.getId(), request);
 		try {
@@ -174,7 +241,7 @@ public class PaymentService {
 				logger.info("VPA missing for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("VPA missing");
 			}
-			
+
 			LoanPaymentOrder order = new LoanPaymentOrder();
 			order.setMerchant(merchant);
 			order.setOwner("lending_payment_schedule");
@@ -228,7 +295,7 @@ public class PaymentService {
 		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
 		try {
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
-			if(order == null) {
+			if(order == null || order.getMid() == null) {
 				logger.error("No order for order id {}", request.getOrderId());
 				return "OK";
 			}
@@ -261,18 +328,27 @@ public class PaymentService {
 		}
 		return "OK";
 	}
+
 	public String handlePgCallback(PgPaymentCallbackDTO request) {
 		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
+		LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
 		try {
-			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
 			if(order == null) {
 				logger.error("No order for order id {}", request.getOrderId());
 				return "OK";
 			}
+
 			if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
 				logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchant().getId(), request.getOrderId());
 				return "OK";
 			}
+
+			int lockTxn = loanPaymentOrderDao.updateStatusForPendingTxn(CreditConstants.PaymentStatus.CALLBACK_RECEIVED.name(), order.getId());
+			if (lockTxn != 1) {
+				logger.info("Unable to take lock on loan payment order:{} ", order.getId());
+				return "OK";
+			}
+
 			if(request.getPaymentAmount() == null || request.getPaymentAmount() <= 0D) {
 				logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchant().getId(), request.getPaymentAmount());
 				return "OK";
@@ -289,6 +365,9 @@ public class PaymentService {
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
+			if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())){
+				order.setSource(request.getPayments().get(0).getMode());
+			}
 			if (request.getPaymentStatus() != null) {
 				order.setStatus(request.getPaymentStatus());
 				if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
@@ -296,17 +375,17 @@ public class PaymentService {
 					order.setBankRefNo(request.getPaymentRefId());
 				}
 			}
-			if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())){
-				order.setSource(request.getPayments().get(0).getMode());
-			}
 			loanPaymentOrderDao.save(order);
 		} catch(Exception ex) {
+			if (order != null) {
+				order.setStatus("PENDING");
+				loanPaymentOrderDao.save(order);
+			}
 			logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
 		}
 		return "OK";
 	}
 
-	
 	private void sendSMS(Merchant merchant, Double amount, boolean isLoanClosed) {
 		try {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
@@ -402,6 +481,35 @@ public class PaymentService {
 				logger.info("No order found for orderId:{}", orderId);
 				return new PaymentStatusResponseDTO(false, "Order not found");
 			}
+			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo(), order.getUpdatedAt());
+		} catch (Exception e) {
+			logger.error("Exception in payment status check", e);
+			return new PaymentStatusResponseDTO(false, "Something went wrong");
+		}
+	}
+
+	public PaymentStatusResponseDTO getStatusV2(String orderId, Merchant merchant) {
+		logger.info("Received status check request for orderId:{}", orderId);
+		try {
+			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
+			if (order == null || !order.getMerchant().getId().equals(merchant.getId())) {
+				logger.info("No order found for orderId:{}", orderId);
+				return new PaymentStatusResponseDTO(false, "Order not found");
+			}
+			if("PENDING".equalsIgnoreCase(order.getStatus())) {
+				logger.info("pg status check for merchant id {} and order id {}", order.getMerchant().getId(), order.getOrderId());
+				PgStatusResponse response = apiGatewayService.checkPgStatus(order.getOrderId());
+				if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && "SUCCESS".equalsIgnoreCase(response.getData().getPaymentStatus())) {
+					logger.info("Pg txn Status SUCCESS for orderId:{}", order.getOrderId());
+					handlePgCallback(response.getData());
+					order = loanPaymentOrderDao.findByOrderId(orderId);
+				} else if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus()) || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+					order.setStatus(response.getData().getPaymentStatus());
+					loanPaymentOrderDao.save(order);
+					logger.info("Pg txn Status FAILED/CANCELLED for orderId:{}", order.getOrderId());
+				}
+			}
+
 			return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo(), order.getUpdatedAt());
 		} catch (Exception e) {
 			logger.error("Exception in payment status check", e);

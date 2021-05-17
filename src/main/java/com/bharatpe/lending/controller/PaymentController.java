@@ -30,6 +30,11 @@ public class PaymentController {
     public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
     	return new ResponseEntity<>(paymentService.initiatePayment(merchant, requestDTO, token), HttpStatus.OK);
     }
+
+    @RequestMapping(value="/initiate/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
+    public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV2(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
+        return new ResponseEntity<>(paymentService.initiatePaymentV2(merchant, requestDTO, token), HttpStatus.OK);
+    }
     
     @RequestMapping(value="/callback", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
     public ResponseEntity<String> callback(@RequestBody PaymentCallbackRequestDTO requestDTO) {
@@ -44,6 +49,13 @@ public class PaymentController {
     @RequestMapping(value="/status", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
         PaymentStatusResponseDTO responseDTO = paymentService.getStatus(orderId, merchant);
+        logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+    }
+
+    @RequestMapping(value="/status/v2", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatusV2(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
+        PaymentStatusResponseDTO responseDTO = paymentService.getStatusV2(orderId, merchant);
         logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }

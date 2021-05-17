@@ -226,6 +226,12 @@ public class LoanUtil {
 		put("DIRECT_TRANSFER","Offline");
 		put("EXCEPTION","Offline");
 		put("QR_SETTLEMENT","QR Txns.");
+		put("DC","Debit Card");
+		put("NB","Net Banking");
+		put("CC","Credit Card");
+		put("BP","BP Balance");
+		put("BT","Bank Transfer");
+		put("AUTO_FP","Investment A/c");
 	}};
 
 	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData){
@@ -341,5 +347,10 @@ public class LoanUtil {
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish merchant_sms_analysis for merchant:{}", merchant.getId(), e);
 		}
+	}
+
+	public static int calculateDPD(Double ediAmount, Double dueAmount) {
+		if (dueAmount < ediAmount) return 0;
+		return (int)Math.round(dueAmount/ediAmount);
 	}
 }
