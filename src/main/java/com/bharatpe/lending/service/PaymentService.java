@@ -314,8 +314,9 @@ public class PaymentService {
 				return;
 			}
 
-			String identifier = "LENDING_PAYMENT_PUSH";
+			String identifier = "LENDING_PAYMENT_SMS";
 			Map<String,Object> templateParams = new HashMap<>();
+			templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
 			templateParams.put("amount",amount.intValue());
 
 			if(isLoanClosed) {
@@ -327,8 +328,6 @@ public class PaymentService {
 			notificationPayloadDto.setMobile(merchant.getMobile());
 			notificationPayloadDto.setClientName("LENDING");
 			notificationPayloadDto.setTemplateParams(templateParams);
-			notificationPayloadDto.setPushTitle("BHARATPE");
-			notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
 			lendingNotificationService.notify(notificationPayloadDto);
 		} catch(Exception ex) {
 			logger.error("Exception while sending payment SMS to merchant {}, Exception is {}");
