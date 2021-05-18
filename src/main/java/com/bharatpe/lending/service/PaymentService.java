@@ -295,7 +295,7 @@ public class PaymentService {
 		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
 		try {
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
-			if(order == null || order.getMid() == null) {
+			if(order == null) {
 				logger.error("No order for order id {}", request.getOrderId());
 				return "OK";
 			}
