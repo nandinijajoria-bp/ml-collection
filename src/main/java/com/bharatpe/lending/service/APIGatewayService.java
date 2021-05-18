@@ -1863,7 +1863,7 @@ public class APIGatewayService {
                     logger.info("Response received from Pg status Check API {}", mapper.writeValueAsString(response));
                     return response.getBody();
                 } catch (Exception e) {
-                    logger.error("Exception in Pg status", e);
+                    logger.error("Exception in Pg status for order_id:{} error ",orderId, e);
                 }
                 retryCount++;
             }
