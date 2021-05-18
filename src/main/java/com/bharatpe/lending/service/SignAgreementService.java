@@ -92,6 +92,10 @@ public class SignAgreementService {
 	@Autowired
 	GupShupOTPHandler gupShupOTPHandler;
 
+	@Autowired
+	LenderMappingService lenderMappingService;
+
+
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
@@ -290,13 +294,14 @@ public class SignAgreementService {
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-		if(newApplication.getLoanType()!=null && (newApplication.getLoanType().equalsIgnoreCase("ZOMATO") || newApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE"))) {
-			newApplication.setLender("HINDON");
-		}
-		else {
-			newApplication.setLender("LDC");
-		}
+//		if(newApplication.getLoanType()!=null && (newApplication.getLoanType().equalsIgnoreCase("ZOMATO") || newApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE"))) {
+//			newApplication.setLender("HINDON");
+//		}
+//		else {
+//			newApplication.setLender("LDC");
+//		}
 		lendingApplicationDao.save(newApplication);
+		lenderMappingService.lenderMapping(newApplication);
 
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
