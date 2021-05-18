@@ -26,6 +26,7 @@ import com.bharatpe.lending.dto.SupportLoanResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -672,6 +673,7 @@ public class SupportService {
     public void lenderChange(String lender,Long fileId,Integer lines, LendingBulkDisbursal lendingBulkDisbursal){
         logger.info("Lender Change For fileName:{}, and lender:{}", fileId, lender);
         try{
+            List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
             InputStream lenderFile = s3BucketHandler.getObject(lendingBulkDisbursal.getFileName(), "loan-document");
             BufferedReader lenderFileReader = new BufferedReader(new InputStreamReader(lenderFile));
             File file = new File("/tmp/"+fileId+"_nbfc_details.csv");
@@ -706,7 +708,7 @@ public class SupportService {
                     continue;
                 }
 
-                if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
+                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
                     logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
                     errorData.add(new String[]{merchantId.toString(),applicationId.toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Category Not match"});
                     readLine = lenderFileReader.readLine();

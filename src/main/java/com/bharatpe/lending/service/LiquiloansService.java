@@ -15,7 +15,9 @@ import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.LendingPayoutType;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.Finance;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -158,6 +160,12 @@ public class LiquiloansService {
     @Autowired
 	LendingEdiExceptionDao lendingEdiExceptionDao;
 
+    @Autowired
+	LoanPaymentOrderDao loanPaymentOrderDao;
+
+    @Autowired
+	PaymentService paymentService;
+
 	private static String secretKey;
 
 	private static String SID;
@@ -201,7 +209,12 @@ public class LiquiloansService {
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
 			lendingApplication.setLoanDisbursalStatus("PROCESSING");
 			lendingApplicationDao.save(lendingApplication);
-			publishForDisbursal(lendingApplication.getId());
+			if (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name())) {
+				logger.info("Creating LPS directly for applicationId:{}", lendingApplication.getId());
+				populateLendingPaymentSchedule(new LiquidatePostPayoutStatusUpdateRequestDTO(String.valueOf(lendingApplication.getId()), String.valueOf(lendingApplication.getMerchant().getId()), "SUCCESS"));
+			} else {
+				publishForDisbursal(lendingApplication.getId());
+			}
 			return new ResponseDTO(true,null,null,null);
 		}
 		catch(Exception e){
@@ -224,6 +237,7 @@ public class LiquiloansService {
     }
    
     public ResponseEntity<String> populateLendingPaymentSchedule(LiquidatePostPayoutStatusUpdateRequestDTO postPayoutRequestDto){
+		logger.info("Create LPS request:{}", postPayoutRequestDto);
     	LendingApplication lendingApplication=null;
 		LendingPaymentSchedule lendingPaymentSchedule=null;
     	try{
@@ -361,8 +375,40 @@ public class LiquiloansService {
 		}
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchant().getId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
 		executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
+		if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
+			prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
+		}
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
+
+	private void prepayDisbursalAmount(LendingPaymentSchedule lendingPaymentSchedule, Double disbursalAmount) {
+		try {
+			logger.info("Recast loan prepayment for loanId:{} and amount:{}", lendingPaymentSchedule.getId(), disbursalAmount);
+			LoanPaymentOrder loanPaymentOrder = createPaymentOrder(lendingPaymentSchedule, disbursalAmount, null, "AUTO_PREPAYMENT");
+			PaymentCallbackRequestDTO paymentCallbackRequestDTO = new PaymentCallbackRequestDTO();
+			paymentCallbackRequestDTO.setAmount(disbursalAmount);
+			paymentCallbackRequestDTO.setStatus("SUCCESS");
+			paymentCallbackRequestDTO.setOrderId(loanPaymentOrder.getOrderId());
+			paymentService.handleCallback(paymentCallbackRequestDTO);
+		} catch (Exception e) {
+			logger.error("Exception in auto prepayment for loanId:{}", lendingPaymentSchedule.getId(), e);
+		}
+	}
+
+	private LoanPaymentOrder createPaymentOrder(LendingPaymentSchedule lendingPaymentSchedule, Double amount, String bankRefNo, String source) {
+		LoanPaymentOrder order = new LoanPaymentOrder();
+		order.setMerchant(lendingPaymentSchedule.getMerchant());
+		order.setOwner("lending_payment_schedule");
+		order.setOwnerId(lendingPaymentSchedule.getId());
+		order.setAmount(amount);
+		order.setStatus("PENDING");
+		order.setSource(source);
+		order.setBankRefNo(bankRefNo);
+		order = loanPaymentOrderDao.save(order);
+		String orderId = "LOAN" + (10000000L + order.getId());
+		order.setOrderId(orderId);
+		return loanPaymentOrderDao.save(order);
+	}
 
 	private void createEdiException(LendingPaymentSchedule lendingPaymentSchedule) {
 		try {

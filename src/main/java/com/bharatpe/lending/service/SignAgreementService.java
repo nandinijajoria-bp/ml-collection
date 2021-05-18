@@ -13,6 +13,7 @@ import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,7 +145,7 @@ public class SignAgreementService {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
-		
+		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 		String selectedCategory = requestDTO.getPayload().getCategory();
 		
 		if(StringUtils.isEmpty(selectedCategory)) {
@@ -171,7 +172,7 @@ public class SignAgreementService {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			return response;
 		}
-		if ("TOPUP".equalsIgnoreCase(prevApplication.getLoanType()) && "ACTIVE".equalsIgnoreCase(prevLendingSchedule.getStatus()) && (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
+		if (topupLoans.contains(prevApplication.getLoanType()) && "ACTIVE".equalsIgnoreCase(prevLendingSchedule.getStatus()) && (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
 			logger.error("Topup loan already created for merchant:{}", merchant.getId());
 			return response;
 		}
@@ -187,7 +188,7 @@ public class SignAgreementService {
 			logger.info("Starting pin code check for loan eligibilty ");
 			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
 			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
-			if(prevApplication.getPincode() != null && !"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
+			if(prevApplication.getPincode() != null && !topupLoans.contains(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
 				logger.info("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
 				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
 				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
@@ -202,7 +203,7 @@ public class SignAgreementService {
 
 		if (EXPERIAN_ENABLED) {
 			
-			if(!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
+			if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
 				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 				return response;
 			}

@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -677,6 +678,7 @@ public class PaymentService {
 			if(balance > 0D) {
 				logger.info("Adjusting extra amount:{} for loan:{}", balance, activeLoan.getId());
 				int adjustedEdiCount = 0;
+				int adjustedIOEdiCount = 0;
 				double extraAmount = 0d;
 				double principle = 0d;
 				double interest = 0d;
@@ -698,13 +700,13 @@ public class PaymentService {
 							principle += ediSchedule.getPrinciple();
 							interest += ediSchedule.getInterest();
 							adjustedEdiCount++;
-						} else if (balance > ediSchedule.getPrinciple()){
-							principle += ediSchedule.getPrinciple();
-							interest += balance - ediSchedule.getPrinciple();
+						} else if (balance <= ediSchedule.getInterest()) {
+							interest += balance;
 							extraAmount += balance;
 							balance = 0d;
 						} else {
-							principle += balance;
+							interest += ediSchedule.getInterest();
+							principle += balance - ediSchedule.getInterest();
 							extraAmount += balance;
 							balance = 0d;
 						}
@@ -713,6 +715,9 @@ public class PaymentService {
 					List<LendingEDISchedule> ediSchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(activeLoan);
 					ediSchedules.sort(Comparator.comparing(LendingEDISchedule::getInstallmentNumber));
 					int ediPaidCount = activeLoan.getEdiCount() - activeLoan.getEdiRemainingCount();
+					if (activeLoan.getInterestOnlyEdiCount() != null && activeLoan.getInterestOnlyEdiCount() > 0 && activeLoan.getRemainingInterestOnlyEdiCount() != null) {
+						ediPaidCount = (activeLoan.getInterestOnlyEdiCount() + activeLoan.getEdiCount()) - (activeLoan.getRemainingInterestOnlyEdiCount() + activeLoan.getEdiRemainingCount());
+					}
 					logger.info("Edi Paid count:{} for loan:{}", ediPaidCount, activeLoan.getId());
 					for (LendingEDISchedule ediSchedule : ediSchedules) {
 						if (balance <= 0d) {
@@ -725,14 +730,18 @@ public class PaymentService {
 							balance -= ediSchedule.getTotalEdi();
 							principle += ediSchedule.getPrinciple();
 							interest += ediSchedule.getInterest();
-							adjustedEdiCount++;
-						} else if (balance > ediSchedule.getPrinciple()){
-							principle += ediSchedule.getPrinciple();
-							interest += balance - ediSchedule.getPrinciple();
+							if (ediSchedule.getEdiType() != null && ediSchedule.getEdiType().equalsIgnoreCase("Principal Morat")) {
+								adjustedIOEdiCount++;
+							} else {
+								adjustedEdiCount++;
+							}
+						} else if (balance <= ediSchedule.getInterest()) {
+							interest += balance;
 							extraAmount += balance;
 							balance = 0d;
 						} else {
-							principle += balance;
+							interest += ediSchedule.getInterest();
+							principle += balance - ediSchedule.getInterest();
 							extraAmount += balance;
 							balance = 0d;
 						}
@@ -747,6 +756,9 @@ public class PaymentService {
 					logger.info("Balance remaining:{} for loan:{} after adjustment, adjusting this in principle", remainingAmount, activeLoan.getId());
 					principle += remainingAmount;
 					paidPrincipalAmount += remainingAmount;
+				}
+				if (activeLoan.getRemainingInterestOnlyEdiCount() != null && adjustedIOEdiCount > 0) {
+					activeLoan.setRemainingInterestOnlyEdiCount(activeLoan.getRemainingInterestOnlyEdiCount() - adjustedIOEdiCount);
 				}
 				activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - adjustedEdiCount);
 				activeLoan.setAdjustedPaidAmount(activeLoan.getAdjustedPaidAmount() != null ? activeLoan.getAdjustedPaidAmount() + extraAmount : extraAmount);
@@ -777,6 +789,7 @@ public class PaymentService {
 		notificationExecutor.execute(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));
 
 		if(isLoanClosed) {
+			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 			notificationExecutor.execute(() -> {
 				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
 						.amount(amount)
@@ -785,7 +798,7 @@ public class PaymentService {
 						.build();
 				loyaltyService.pushToKafka(requestBean);
 				boolean eligible = apiGatewayService.sendCommunicationForNewOffer(activeLoan);
-				if("TOPUP".equalsIgnoreCase(activeLoan.getLoanApplication().getLoanType())){
+				if(topupLoans.contains(activeLoan.getLoanApplication().getLoanType())){
 					LendingPaymentSchedule topupLoan = lendingPaymentScheduleDao.findTopupLoan(activeLoan.getMerchant().getId());
 					if(topupLoan != null) {
 						refundProcessingFee(topupLoan,eligible);

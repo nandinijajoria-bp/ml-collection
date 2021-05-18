@@ -19,6 +19,7 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.OglLoans;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -175,12 +176,13 @@ public class VerifyOTPService {
 	
 	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchant.getId());
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
 		Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchant.getId());
-		if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && (openApplication != null || activeLoan != null)) {
+		if (!topupLoans.contains(lendingApplication.getLoanType()) && (openApplication != null || activeLoan != null)) {
 			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
 			lendingApplication.setStatus("deleted");
 			lendingApplicationDao.save(lendingApplication);
@@ -228,7 +230,7 @@ public class VerifyOTPService {
 			lendingApplication.setManualCibil("APPROVED");
 			lendingApplication.setPhysicalVerificationStatus("APPROVED");
 			lendingApplication.setLender("LIQUILOANS");
-		} else if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+		} else if(topupLoans.contains(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
 			updateDocuments(lendingApplication, meta);
 			topUpLoans(lendingApplication);
@@ -265,7 +267,7 @@ public class VerifyOTPService {
 		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
 
-		if(repeatLoan == 0 && !"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+		if(repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())){
 			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 			if (lendingApplication.getLoanAmount() <= 200000)
 				sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
@@ -306,7 +308,7 @@ public class VerifyOTPService {
 			lendingLedger.setDescription("TOPUP LOAN ADJUSTMENT");
 			lendingLedger.setPrinciple(previousAmount-activeLoan.getDueInterest());
 			lendingLedger.setInterest(activeLoan.getDueInterest());
-			lendingLedger.setAdjustmentMode("TOPUP");
+			lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
 			lendingLedgerDao.save(lendingLedger);
 
 			LendingLedger negativeEntry = new LendingLedger();
@@ -318,7 +320,7 @@ public class VerifyOTPService {
 			negativeEntry.setDescription("TOPUP LOAN ADJUSTMENT");
 			negativeEntry.setPrinciple(-(previousAmount-activeLoan.getDueAmount()));
 			negativeEntry.setInterest(0D);
-			negativeEntry.setAdjustmentMode("TOPUP");
+			negativeEntry.setAdjustmentMode(lendingApplication.getLoanType());
 			lendingLedgerDao.save(negativeEntry);
 
 			activeLoan.setStatus("CLOSED");
@@ -333,8 +335,9 @@ public class VerifyOTPService {
 
 			lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-previousAmount);
 			lendingApplicationDao.save(lendingApplication);
-
-			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",previousAmount));
+			if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+				notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT", previousAmount));
+			}
 
 		}catch(Exception ex){
 			logger.error("Exception IN TOPUP LOANS Ledger:{}",ex);

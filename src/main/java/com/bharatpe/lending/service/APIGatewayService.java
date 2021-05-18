@@ -100,9 +100,6 @@ public class APIGatewayService {
     S3BucketHandler s3BucketHandler;
 
     @Autowired
-    DocumentsIdProofDao documentsIdProofDao;
-
-    @Autowired
     DocKycDetailsDao docKycDetailsDao;
 
     @Value("${signzy.url}")
@@ -151,10 +148,7 @@ public class APIGatewayService {
     MerchantBankDetailDao merchantBankDetailDao;
 
     @Autowired
-    SmsServiceHandler smsServiceHandler;
-
-    @Autowired
-    SupportService supportService;
+    LendingPennydropDao lendingPennydropDao;
 
     @Autowired
     LendingNotificationService lendingNotificationService;
@@ -1839,6 +1833,44 @@ public class APIGatewayService {
             logger.error("Error occurred while fetching sms analysis data for merchant:{}", merchant.getId(), ex);
         }
         return null;
+    }
+
+    public boolean checkPennyDrop(MerchantBankDetail merchantBankDetail,Merchant merchant) {
+        boolean success = false;
+        try {
+            logger.info("Calling penny drop api for merchantId:{}", merchant.getId());
+            Map<String, String> requestParams = new HashMap<String, String>() {{
+                put("accountNo", merchantBankDetail.getAccountNumber());
+                put("ifsc", merchantBankDetail.getIfscCode());
+                put("mobile", merchant.getMobile());
+            }};
+            String url = "http://payout-java.bharatpe.in/pennyDrop/v3";
+            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getInternalSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("hash", hash);
+            headers.set("clientName", CLIENT);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
+            logger.info("Penny drop request: {} for merchant:{} ", mapper.writeValueAsString(request), merchant.getId());
+            ResponseEntity<PennyDropResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PennyDropResponse.class);
+            logger.info("Penny Drop Response:{} for merchant:{}", responseEntity, merchant.getId());
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && "100".equals(responseEntity.getBody().getResponseCode()) && "OK".equals(responseEntity.getBody().getStatus())) {
+                logger.info("Penny drop success for merchant:{}", merchant.getId());
+                success = true;
+            } else {
+                logger.info("Penny drop failed for merchant:{}", merchant.getId());
+            }
+            LendingPennydrop lendingPennydrop = new LendingPennydrop();
+            lendingPennydrop.setAccountNumber(merchantBankDetail.getAccountNumber());
+            lendingPennydrop.setMerchantId(merchantBankDetail.getMerchant().getId());
+            lendingPennydrop.setIfscCode(merchantBankDetail.getIfscCode());
+            lendingPennydrop.setRetryCount(1L);
+            lendingPennydrop.setStatus(success ? "SUCCESS" : "FAILED");
+            lendingPennydropDao.save(lendingPennydrop);
+        } catch (Exception e) {
+            logger.info("Bank Penny Drop Exception for merchant:{}", merchant.getId(), e);
+        }
+        return success;
     }
 
     public PgStatusResponse checkPgStatus(String orderId){

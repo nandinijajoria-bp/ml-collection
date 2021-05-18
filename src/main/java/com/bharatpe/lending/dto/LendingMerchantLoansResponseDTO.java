@@ -10,6 +10,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -29,6 +32,51 @@ public class LendingMerchantLoansResponseDTO {
     private Double totalPaidAmount = 0D;
     private Double totalAmount = 0D;
     private Double totalDueAmount = 0D;
+    private HalfLoan halfLoan;
+    private IOLoan ioLoan;
+
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    @Data
+    @Builder
+    public static class HalfLoan {
+        private Double oldEdiAmount;
+        private Double newEdiAmount;
+        private Integer oldEdiRemaining;
+        private Integer newEdiRemaining;
+        private Double oldRepaymentAmount;
+        private Double newRepaymentAmount;
+        private String category;
+        private Double interestRate;
+        private Integer totalRepayment;
+        private Integer principalRepayment;
+        private Integer interestRepayment;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    @Data
+    @Builder
+    public static class IOLoan {
+        private Double oldEdiAmount;
+        private Double newEdiAmount;
+        private Double newIoEdiAmount;
+        private Integer oldEdiRemaining;
+        private Integer newEdiRemaining;
+        private Integer newIoEdiRemaining;
+        private Double oldRepaymentAmount;
+        private Double newRepaymentAmount;
+        private String category;
+        private Double interestRate;
+        private Integer totalRepayment;
+        private Integer principalRepayment;
+        private Integer interestRepayment;
+        private Integer newEdiMonth;
+        private Integer newIoEdiMonth;
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -444,11 +492,35 @@ public class LendingMerchantLoansResponseDTO {
         this.eligibility = eligibility;
     }
 
+    public HalfLoan getHalfLoan() {
+        return halfLoan;
+    }
 
+    public void setHalfLoan(HalfLoan halfLoan) {
+        this.halfLoan = halfLoan;
+    }
+
+    public IOLoan getIoLoan() {
+        return ioLoan;
+    }
+
+    public void setIoLoan(IOLoan ioLoan) {
+        this.ioLoan = ioLoan;
+    }
 
     @Override
     public String toString() {
-        return "LendingMerchantLoansResponseDTO{" + "active_loans=" + loans + ", success='" + success + '\''
-                + ", message='" + message + '\'' + '}';
+        return "LendingMerchantLoansResponseDTO{" +
+                "loans=" + loans +
+                ", success=" + success +
+                ", eligibility=" + eligibility +
+                ", message='" + message + '\'' +
+                ", topup=" + topup +
+                ", totalPaidAmount=" + totalPaidAmount +
+                ", totalAmount=" + totalAmount +
+                ", totalDueAmount=" + totalDueAmount +
+                ", halfLoan=" + halfLoan +
+                ", ioLoan=" + ioLoan +
+                '}';
     }
 }

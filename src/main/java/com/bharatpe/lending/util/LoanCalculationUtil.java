@@ -66,6 +66,10 @@ public class LoanCalculationUtil {
 		breakup.setDisbursementAmount(disbursementAmount);
 		breakup.setType(getType(category.getLoanConstruct()));
 		breakup.setLoanAmount(availableLoan.getAmount().intValue());
+		breakup.setEdiDays(category.getPayableDays());
+		breakup.setIoEdiDays(category.getIoPayableDays());
+		breakup.setCategory(category.getCategory());
+		breakup.setInterestRate(category.getInterestRate());
 		return breakup;
 		
 	
@@ -104,6 +108,10 @@ public class LoanCalculationUtil {
 		private String type;
 		private Integer loanAmount;
 		private Double effectiveInterestRate;
+		private Integer ediDays;
+		private Integer ioEdiDays = 0;
+		private String category;
+		private Double interestRate;
 
 		public LoanBreakupDetail(String construct, Integer edi, Integer ioEdi, Integer processingFee, Integer ioInterestAmount, Integer interestAmount, Integer totalInterestAmount, Integer ioOrFreeEdiTenure, Integer principleEdiTenure, Integer repayment, Integer disbursementAmount, String type, Integer loanAmount, Double effectiveInterestRate) {
 			this.construct = construct;
@@ -208,6 +216,38 @@ public class LoanCalculationUtil {
 		}
 		public void setType(String type) {
 			this.type = type;
+		}
+
+		public Integer getEdiDays() {
+			return ediDays;
+		}
+
+		public void setEdiDays(Integer ediDays) {
+			this.ediDays = ediDays;
+		}
+
+		public Integer getIoEdiDays() {
+			return ioEdiDays;
+		}
+
+		public void setIoEdiDays(Integer ioEdiDays) {
+			this.ioEdiDays = ioEdiDays;
+		}
+
+		public String getCategory() {
+			return category;
+		}
+
+		public void setCategory(String category) {
+			this.category = category;
+		}
+
+		public Double getInterestRate() {
+			return interestRate;
+		}
+
+		public void setInterestRate(Double interestRate) {
+			this.interestRate = interestRate;
 		}
 
 		@Override
