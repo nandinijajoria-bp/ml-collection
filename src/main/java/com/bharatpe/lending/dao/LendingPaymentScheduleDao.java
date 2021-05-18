@@ -46,7 +46,7 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 
 	LendingPaymentSchedule findByIdAndMerchantId(Long id, Long merchantId);
 
-	@Query(value = "SELECT count(1) FROM lending_payment_schedule WHERE merchant_id = :merchantId  and credit_loan=false and status='CLOSED' order by id limit 1", nativeQuery = true)
+	@Query(value = "SELECT count(1) FROM lending_payment_schedule WHERE merchant_id = :merchantId  and credit_loan=false", nativeQuery = true)
 	Integer getRepeatLoan(Long merchantId);
 
 	@Query(value="SELECT lps.* FROM lending_payment_schedule lps join lending_ledger ll on ll.loan_id=lps.id and ll.adjustment_mode='TOPUP' and ll.amount>0 WHERE lps.merchant_id = :merchantId and lps.credit_loan=false order by id desc limit 1", nativeQuery=true)
