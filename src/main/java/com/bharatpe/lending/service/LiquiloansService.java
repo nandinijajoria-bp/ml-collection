@@ -401,7 +401,7 @@ public class LiquiloansService {
 
 			String identifier = "LENDING_CASHBACK_PUSH";
 			Map<String,Object> templateParams = new HashMap<>();
-			templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
 			notificationPayloadDto.setTemplateIdentifier(identifier);
 			notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
@@ -476,7 +476,7 @@ public class LiquiloansService {
 			}
 			String identifier = "LENDING_AGREEMENT_SMS";
 			Map<String,Object> templateParams = new HashMap<>();
-			templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 			templateParams.put("disbursal_amount",lendingApplication.getDisbursalAmount());
 			templateParams.put("shortUrl",shortUrl);
 			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
@@ -489,20 +489,18 @@ public class LiquiloansService {
 			//For SMS 2
 			identifier= null;
 			templateParams = new HashMap<>();
-
+			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM/yyyy");
+			templateParams.put("start_date",simpleDateFormat.format(lendingPaymentSchedule.getStartDate()));
 			if ("CONSTRUCT_1".equals(lendingApplication.getLoanConstruct())) {
 				identifier = "LENDING_REPAYING_INFO_4_SMS";
 				templateParams.put("edi",lendingApplication.getEdi());
-				templateParams.put("start_date",lendingPaymentSchedule.getStartDate());
 			} else if ("CONSTRUCT_2".equals(lendingApplication.getLoanConstruct())) {
 				identifier = "LENDING_REPAYING_INFO__2_SMS";
 				templateParams.put("edi",lendingApplication.getEdi());
-				templateParams.put("start_date",lendingPaymentSchedule.getStartDate());
 			} else if ("CONSTRUCT_3".equals(lendingApplication.getLoanConstruct())) {
 				identifier = "LENDING_REPAYING_INFO_3_SMS";
 				templateParams.put("interest_only_edi_amount",lendingPaymentSchedule.getInterestOnlyEdiAmount());
 				templateParams.put("edi",lendingApplication.getEdi());
-				templateParams.put("start_date",lendingPaymentSchedule.getStartDate());
 			}
 
 			notificationPayloadDto = new NotificationPayloadDto();
@@ -522,7 +520,7 @@ public class LiquiloansService {
 			if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
 				identifier = "LENDING_DISBURSED_4_SMS";
 				templateParams = new HashMap<>();
-				templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+				templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 				templateParams.put("disbursal_amount",lendingApplication.getDisbursalAmount());
 				templateParams.put("processing_fee",lendingApplication.getProcessingFee());
 				notificationPayloadDto = new NotificationPayloadDto();
@@ -1000,6 +998,13 @@ public class LiquiloansService {
 		BigDecimal bd = BigDecimal.valueOf(value);
 		bd = bd.setScale(2, RoundingMode.HALF_UP);
 		return bd.doubleValue();
+	}
+
+	private String getBeneficiaryName(String beneficiaryName) {
+		if(beneficiaryName.length() > 25) {
+			beneficiaryName = beneficiaryName.substring(0,25);
+		}
+		return beneficiaryName;
 	}
 
 }

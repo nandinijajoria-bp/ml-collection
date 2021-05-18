@@ -395,7 +395,7 @@ public class PaymentService {
 
 			String identifier = "LENDING_PAYMENT_SMS";
 			Map<String,Object> templateParams = new HashMap<>();
-			templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 			templateParams.put("amount",amount.intValue());
 
 			if(isLoanClosed) {
@@ -821,7 +821,7 @@ public class PaymentService {
 
 				String identifier = "LENDING_REFUND_2_SMS";
 				Map<String,Object> templateParams = new HashMap<>();
-				templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+				templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 				templateParams.put("refund_amount",refundAmount);
 				templateParams.put("bank_name",merchantBankDetail.getBankName());
 				NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
@@ -876,7 +876,7 @@ public class PaymentService {
 
 						String identifier = "LENDING_ARRANGER_REFUND_2_SMS";
 						Map<String,Object> templateParams = new HashMap<>();
-						templateParams.put("beneficiary_name",merchantBankDetail.getBeneficiaryName());
+						templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 						templateParams.put("cashback_amount",merchantBankDetail.getBeneficiaryName());
 						templateParams.put("bank_name",merchantBankDetail.getBeneficiaryName());
 
@@ -995,6 +995,13 @@ public class PaymentService {
 			logger.error("Exception while creating adjusted schedule", e);
 		}
 		return 0;
+	}
+
+	private String getBeneficiaryName(String beneficiaryName) {
+		if(beneficiaryName.length() > 25) {
+			beneficiaryName = beneficiaryName.substring(0,25);
+		}
+		return beneficiaryName;
 	}
 
 

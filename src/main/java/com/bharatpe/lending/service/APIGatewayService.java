@@ -1420,7 +1420,7 @@ public class APIGatewayService {
 
         String identifier = "LENDING_DISBURSED_3_WHATSAPP";
         Map<String,Object> templateParams = new HashMap<>();
-        templateParams.put("beneficiary_name",bankDetail.getBeneficiaryName());
+        templateParams.put("beneficiary_name",getBeneficiaryName(bankDetail.getBeneficiaryName()));
         templateParams.put("bank_name",bankDetail.getBankName());
         templateParams.put("edi",edi);
         templateParams.put("amount",amount);
@@ -1874,5 +1874,12 @@ public class APIGatewayService {
             logger.error("error in Pg status Check for order id:{}, error",orderId, ex);
         }
         return null;
+    }
+
+    private String getBeneficiaryName(String beneficiaryName) {
+        if(beneficiaryName.length() > 25) {
+            beneficiaryName = beneficiaryName.substring(0,25);
+        }
+        return beneficiaryName;
     }
 }
