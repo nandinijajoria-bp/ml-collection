@@ -113,7 +113,7 @@ public class MerchantLoansService {
                 }
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
-            if (lendingPaymentSchedule != null && merchantId.equals(6518986L)) {
+            if (lendingPaymentSchedule != null) {
                 if (merchantId.equals(6518986L) || baseChecksForHalfAndIOEdi(lendingPaymentSchedule)) {
                     logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
                     boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
@@ -150,6 +150,7 @@ public class MerchantLoansService {
                                     .interestRepayment(loanBreakupDetail.getInterestAmount())
                                     .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
                                     .prevLoanUnpaidAmount(foreclosureAmount)
+                                    .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
                                     .build());
                         } else if (loanBreakupDetail != null) {
                             responseDTO.setIoLoan(LendingMerchantLoansResponseDTO.IOLoan.builder()
@@ -203,7 +204,10 @@ public class MerchantLoansService {
             }
             logger.info("Calculating " + loanType.name() + " for merchant:{} for amount:{}", merchantId, loanAmount);
             int newEdiCount = calculateNewTenure(lendingPaymentSchedule.getEdiRemainingCount());
-            if (loanType.equals(LoanType.IO_TOPUP) && (newEdiCount == 234 || newEdiCount == 388)) {
+            if (newEdiCount == 0 || (loanType.equals(LoanType.IO_TOPUP) && newEdiCount == 388)) {
+                return null;
+            }
+            if (loanType.equals(LoanType.IO_TOPUP) && newEdiCount == 234) {
                 newEdiCount = 311;
             }
             LendingCategories lendingCategory = lendingCategoryDao.getByMasterCategoryAndPayableDays(loanType.name(), newEdiCount);
@@ -255,9 +259,10 @@ public class MerchantLoansService {
             return 234;
         } else if (ediRemainingCount >= 118 && ediRemainingCount <= 155) {
             return 311;
-        } else {
+        } else if (ediRemainingCount >= 156 && ediRemainingCount <= 234) {
             return 388;
-        }
+        } else
+            return 0;
     }
 
     private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule) {
