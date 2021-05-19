@@ -823,7 +823,6 @@ public class SupportService {
     private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian,int i) throws IOException {
         String shortUrl = getAgreement(lendingApplication,lender);
         LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
-        MerchantBankDetail bankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(),"ACTIVE");
         CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchant().getId(), lendingApplication.getId());
         String ediSchedule = objectMapper.writeValueAsString(ediScheduleResponse.getData());
         String accountNumber = ldcVirtualAccount.getAccountNumber();
@@ -843,7 +842,7 @@ public class SupportService {
         if("MAMTA".equalsIgnoreCase(lender)){
             data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", lendingApplication.getDisbursalAmount().toString(), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
         }else{
-            data = new String[]{"NFT", String.valueOf(i), "\'" + "403040506070", "HINDON MERCANTILE LIMITED", lendingApplication.getExternalLoanId(), "\'" + bankDetail.getAccountNumber(), "INR", lendingApplication.getLoanAmount().toString(), lendingApplication.getProcessingFee().toString(), lendingApplication.getDisbursalAmount().toString(), "AgainstLoan", bankDetail.getBankName(), bankDetail.getIfscCode(), bankDetail.getBeneficiaryName(), bankDetail.getAccType(), ""};
+            data = new String[]{"NFT", String.valueOf(i), "\'" + "403040506070", "HINDON MERCANTILE LIMITED", lendingApplication.getExternalLoanId(), "\'" + accountNumber, "INR", lendingApplication.getLoanAmount().toString(), lendingApplication.getProcessingFee().toString(), lendingApplication.getDisbursalAmount().toString(), "AgainstLoan", "ICICI BANK", ldcVirtualAccount.getIfsc(), lendingApplication.getMerchant().getBeneficiaryName(), "CURRENT", ""};
         }
         lendingApplication.setLender(lender);
         lendingApplication.setAccountType(accType);
