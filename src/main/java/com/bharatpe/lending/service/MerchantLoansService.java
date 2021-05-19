@@ -113,7 +113,7 @@ public class MerchantLoansService {
                 }
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
-            if (lendingPaymentSchedule != null && merchantId.equals(6518986L)) {
+            if (lendingPaymentSchedule != null) {
                 if (merchantId.equals(6518986L) || baseChecksForHalfAndIOEdi(lendingPaymentSchedule)) {
                     logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
                     boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
