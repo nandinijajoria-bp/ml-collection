@@ -204,7 +204,10 @@ public class MerchantLoansService {
             }
             logger.info("Calculating " + loanType.name() + " for merchant:{} for amount:{}", merchantId, loanAmount);
             int newEdiCount = calculateNewTenure(lendingPaymentSchedule.getEdiRemainingCount());
-            if (loanType.equals(LoanType.IO_TOPUP) && (newEdiCount == 234 || newEdiCount == 388)) {
+            if (newEdiCount == 0 || (loanType.equals(LoanType.IO_TOPUP) && newEdiCount == 388)) {
+                return null;
+            }
+            if (loanType.equals(LoanType.IO_TOPUP) && newEdiCount == 234) {
                 newEdiCount = 311;
             }
             LendingCategories lendingCategory = lendingCategoryDao.getByMasterCategoryAndPayableDays(loanType.name(), newEdiCount);
@@ -256,9 +259,10 @@ public class MerchantLoansService {
             return 234;
         } else if (ediRemainingCount >= 118 && ediRemainingCount <= 155) {
             return 311;
-        } else {
+        } else if (ediRemainingCount >= 156 && ediRemainingCount <= 234) {
             return 388;
-        }
+        } else
+            return 0;
     }
 
     private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule) {
