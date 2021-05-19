@@ -55,6 +55,7 @@ public class LendingMerchantLoansResponseDTO {
         private Integer interestRepayment;
         private String lender;
         private Double prevLoanUnpaidAmount;
+        private Integer newEdiMonth;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

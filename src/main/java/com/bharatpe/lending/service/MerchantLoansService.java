@@ -150,6 +150,7 @@ public class MerchantLoansService {
                                     .interestRepayment(loanBreakupDetail.getInterestAmount())
                                     .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
                                     .prevLoanUnpaidAmount(foreclosureAmount)
+                                    .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
                                     .build());
                         } else if (loanBreakupDetail != null) {
                             responseDTO.setIoLoan(LendingMerchantLoansResponseDTO.IOLoan.builder()
