@@ -53,6 +53,7 @@ public class LendingMerchantLoansResponseDTO {
         private Integer totalRepayment;
         private Integer principalRepayment;
         private Integer interestRepayment;
+        private String lender;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -76,6 +77,7 @@ public class LendingMerchantLoansResponseDTO {
         private Integer interestRepayment;
         private Integer newEdiMonth;
         private Integer newIoEdiMonth;
+        private String lender;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

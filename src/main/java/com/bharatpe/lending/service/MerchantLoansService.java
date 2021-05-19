@@ -11,6 +11,7 @@ import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
 import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -150,6 +151,7 @@ public class MerchantLoansService {
                                     .totalRepayment(loanBreakupDetail.getRepayment())
                                     .principalRepayment(loanBreakupDetail.getLoanAmount())
                                     .interestRepayment(loanBreakupDetail.getInterestAmount())
+                                    .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
                                     .build());
                         } else if (loanBreakupDetail != null) {
                             responseDTO.setIoLoan(LendingMerchantLoansResponseDTO.IOLoan.builder()
@@ -168,6 +170,7 @@ public class MerchantLoansService {
                                     .interestRepayment(loanBreakupDetail.getInterestAmount())
                                     .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
                                     .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
+                                    .lender(Lender.HINDON.name())
                                     .build());
                         }
                     }
