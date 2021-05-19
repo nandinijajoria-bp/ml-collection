@@ -21,10 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class MerchantLoansService {
@@ -265,7 +262,8 @@ public class MerchantLoansService {
 
     private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule) {
         try {
-            if (lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getLoanType().equalsIgnoreCase(LoanType.TOPUP.name())) {
+            List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
+            if (lendingPaymentSchedule.getLoanApplication() != null && topupLoans.contains(lendingPaymentSchedule.getLoanApplication().getLoanType())) {
                 return false;
             }
             MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());

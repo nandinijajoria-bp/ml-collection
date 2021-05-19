@@ -365,7 +365,11 @@ public class LiquiloansService {
     	createEdiException(lendingPaymentSchedule);
 		LendingApplication finalLendingApplication = lendingApplication;
 		LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
-		executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
+		if (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name())) {
+			logger.info("Not sending disbursal sms for loanId:{}", lendingPaymentSchedule.getId());
+		} else {
+			executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
+		}
 		if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
 			executorService.execute(() -> createGSTInvoice(finalLendingApplication));
 		}
