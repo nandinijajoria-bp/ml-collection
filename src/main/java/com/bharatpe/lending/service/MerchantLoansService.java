@@ -144,7 +144,7 @@ public class MerchantLoansService {
                                     .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
                                     .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
                                     .newEdiRemaining(loanBreakupDetail.getEdiDays())
-                                    .oldRepaymentAmount(foreclosureAmount)
+                                    .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
                                     .newRepaymentAmount(loanBreakupDetail.getRepayment().doubleValue())
                                     .category(loanBreakupDetail.getCategory())
                                     .interestRate(loanBreakupDetail.getInterestRate())
@@ -152,6 +152,7 @@ public class MerchantLoansService {
                                     .principalRepayment(loanBreakupDetail.getLoanAmount())
                                     .interestRepayment(loanBreakupDetail.getInterestAmount())
                                     .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
+                                    .prevLoanUnpaidAmount(foreclosureAmount)
                                     .build());
                         } else if (loanBreakupDetail != null) {
                             responseDTO.setIoLoan(LendingMerchantLoansResponseDTO.IOLoan.builder()
@@ -161,7 +162,7 @@ public class MerchantLoansService {
                                     .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
                                     .newEdiRemaining(loanBreakupDetail.getEdiDays())
                                     .newIoEdiRemaining(loanBreakupDetail.getIoEdiDays())
-                                    .oldRepaymentAmount(foreclosureAmount)
+                                    .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
                                     .newRepaymentAmount(loanBreakupDetail.getRepayment().doubleValue())
                                     .category(loanBreakupDetail.getCategory())
                                     .interestRate(loanBreakupDetail.getInterestRate())
@@ -171,6 +172,7 @@ public class MerchantLoansService {
                                     .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
                                     .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
                                     .lender(Lender.HINDON.name())
+                                    .prevLoanUnpaidAmount(foreclosureAmount)
                                     .build());
                         }
                     }

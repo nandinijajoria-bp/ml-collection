@@ -894,7 +894,7 @@ public class LendingApplicationService {
 		return new ResponseDTO(false, "Unable to send otp", null,uuid);
 	}
 
-	public TncDto getTnc(Merchant merchant, Long applicationId, String category) {
+	public TncDto getTnc(Merchant merchant, Long applicationId, String category, String lender) {
 		TncDto tnc=new TncDto();
 		if(applicationId == null && category == null){
 			tnc.setSuccess(false);
@@ -904,7 +904,7 @@ public class LendingApplicationService {
 		if(applicationId == null){
 			applicationId=0L;
 		}
-		String html=populateHtml(merchant, applicationId,category);
+		String html=populateHtml(merchant, applicationId,category, lender);
 		BharatSwipeAccount bharatSwipeAccount = bharatSwipeAccountDao.findByMerchantId(merchant.getId());
 		tnc.setSwipe(bharatSwipeAccount != null);
 		if(html==null) {
@@ -917,8 +917,8 @@ public class LendingApplicationService {
 		return tnc;
 	}
 
-	public String populateHtml(Merchant merchant, long applicationId,String category){
-		Map<String, String> detail=getDetails(merchant, applicationId,category);
+	public String populateHtml(Merchant merchant, long applicationId,String category, String lender1){
+		Map<String, String> detail=getDetails(merchant, applicationId,category, lender1);
 		if(detail==null) {
 			return null;
 		}
@@ -1561,7 +1561,7 @@ public class LendingApplicationService {
 		return null;
 	}
 	
-	public Map<String,String> getDetails(Merchant merchant, Long applicationId,String category){
+	public Map<String,String> getDetails(Merchant merchant, Long applicationId,String category, String lender){
 		Map<String,String> detail=new HashMap<>();
 		try {
 			LendingApplication lendingApplication= null;
@@ -1601,8 +1601,8 @@ public class LendingApplicationService {
 				detail.put("IP Addess",lendingApplication.getIp());
 				detail.put("Business Category",lendingApplication.getMerchant().getBusinessCategory());
 			}else{
-				Integer tenureInMonth=0;
-				Integer ediCount=0;
+				Integer tenureInMonth;
+				Integer ediCount;
 				if(eligibleLoan.get(0).getTenure().equalsIgnoreCase("3 Months")){
 					tenureInMonth= 3;
 					ediCount=77;
@@ -1615,6 +1615,9 @@ public class LendingApplicationService {
 				}else if(eligibleLoan.get(0).getTenure().equalsIgnoreCase("12 Months")){
 					tenureInMonth= 12;
 					ediCount=311;
+				} else {
+					tenureInMonth= 15;
+					ediCount=388;
 				}
 				double effectiveInterestRate = ((eligibleLoan.get(0).getRepayment() - eligibleLoan.get(0).getAmount())) / (eligibleLoan.get(0).getAmount() *tenureInMonth) * 100;
 				detail.put("Loan Amount", eligibleLoan.get(0).getAmount().toString());
@@ -1635,7 +1638,7 @@ public class LendingApplicationService {
 				detail.put("State", merchant.getState() != null ? merchant.getState() : "");
 				detail.put("Email", merchant.getEmail() != null ? merchant.getEmail() : "");
 				detail.put("EDI Count",ediCount.toString() );
-				detail.put("Lender","LDC");
+				detail.put("Lender",!StringUtils.isEmpty(lender) ? lender : "LDC");
 				detail.put("Pancard", getPanCard(merchant));
 				Double monthlyRateOfInterest=getInterest(category);
 				detail.put("Monthly rate of interest", monthlyRateOfInterest==null ? "" : df.format(effectiveInterestRate));
