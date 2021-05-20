@@ -767,7 +767,7 @@ public class SupportService {
 
                 Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
 
-                if("RED".equalsIgnoreCase(experian.getColor())){
+                if(!topupLoans.contains(lendingApplication.getLoanType()) && "RED".equalsIgnoreCase(experian.getColor())){
                     logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
                     errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
                     readLine = lenderFileReader.readLine();
