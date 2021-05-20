@@ -750,7 +750,6 @@ public class SupportService {
                     latch.countDown();
                     continue;
                 }
-
                 LendingApplication pendingDisbusal = lendingApplicationDao.findPendingDisbursal(merchantId);
                 if(pendingDisbusal != null){
                     logger.info("Application Already Pending Disbursal For merchantId:{}",merchantId);
@@ -764,15 +763,15 @@ public class SupportService {
                     latch.countDown();
                     continue;
                 }
-
                 Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
-
-                if("RED".equalsIgnoreCase(experian.getColor())){
-                    logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
-                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
-                    readLine = lenderFileReader.readLine();
-                    latch.countDown();
-                    continue;
+                if(!Arrays.asList("TOPUP","IO_TOPUP","HALF_TOPUP").contains(lendingApplication.getLoanType())){
+                    if("RED".equalsIgnoreCase(experian.getColor())){
+                        logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
+                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
+                        readLine = lenderFileReader.readLine();
+                        latch.countDown();
+                        continue;
+                    }
                 }
                 int finalCount = count+1;
                 executorService.execute(() -> {
