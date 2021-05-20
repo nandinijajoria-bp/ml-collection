@@ -66,7 +66,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	LendingApplication findTop1ByMerchantAndStatusOrderByIdDesc(Merchant merchant, String status);
 
-	@Query(value="select * from lending_application where id=:id and status='approved' and lender='MAMTA' and loan_disbursal_status='PENDING' and disbursal_partner='BHARATPE'", nativeQuery = true)
+	@Query(value="select * from lending_application where id=:id and status='approved' and loan_disbursal_status='PENDING' and disbursal_partner='BHARATPE'", nativeQuery = true)
 	LendingApplication findByMamtaLoan(Long id);
 
 	@Transactional
