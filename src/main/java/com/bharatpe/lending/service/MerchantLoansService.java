@@ -3,10 +3,8 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
 import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
@@ -63,6 +61,9 @@ public class MerchantLoansService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    BPEnachDao bpEnachDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -269,6 +270,12 @@ public class MerchantLoansService {
         try {
             List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
             if (lendingPaymentSchedule.getLoanApplication() != null && topupLoans.contains(lendingPaymentSchedule.getLoanApplication().getLoanType())) {
+                logger.info("Previous loan is topup for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return false;
+            }
+            BpEnach bpEnach = bpEnachDao.findSuccessEnach(lendingPaymentSchedule.getMerchant().getId());
+            if (bpEnach == null) {
+                logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                 return false;
             }
             MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
