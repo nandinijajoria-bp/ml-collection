@@ -687,16 +687,15 @@ public class SupportService {
             String[] errorheader = {"merchant_id","application_id","external_loan_id","status","message"};
             errorData.add(errorheader);
             String[] header;
-            if("MAMTA".equalsIgnoreCase(lender)){
-                header = new String[]{"partner_tag", "loan_type", "Loan_amount", "tenure", "partner_loan_id", "fee_amount", "gst_amount", "interest_rate", "interest_type", "partner_computed_disbursement_amount", "partner_computed_interest_amount", "no_of_EDI", "EDI_amount", "EDI_schedule", "customer_risk_segment", "customer_location_category", "existing_BP_merchant", "customer_type_NTC", "any_written_off_loan_in_last_two_years", "income_to_debt_ratio", "recommendation_from_BP", "date_of_birth", "consumer_name", "gender", "email", "pan_number", "mobile_number", "loan_purpose", "pincode", "address", "city", "address_state", "address_type", "address_proof_type", "type", "stay_type", "landmark", "customer_bank_name", "bank_account_number", "customer_bank_account_name", "ifsc_code", "address_proof_1", "address_proof_2", "pan_card", "loan_agreement", "eKycResponse"};
-            }else{
-                header = new String[]{"PaymentType", "CusRefNumber", "SourceAccountNumber", "SourceNarration", "LoanID", "DestinationAccountNumber", "Currency", "Amount", "ProcessingFee", "DisbursalAmount", "DestinationNarration", "Destinationbank", "DestinationBankIFSCode", "BeneficiaryName", "BeneficiaryAccountType", "Email"};
-            }
+//            if("MAMTA".equalsIgnoreCase(lender)){
+            header = new String[]{"partner_tag", "loan_type", "Loan_amount", "tenure", "partner_loan_id", "fee_amount", "gst_amount", "interest_rate", "interest_type", "partner_computed_disbursement_amount", "partner_computed_interest_amount", "no_of_EDI", "EDI_amount", "EDI_schedule", "customer_risk_segment", "customer_location_category", "existing_BP_merchant", "customer_type_NTC", "any_written_off_loan_in_last_two_years", "income_to_debt_ratio", "recommendation_from_BP", "date_of_birth", "consumer_name", "gender", "email", "pan_number", "mobile_number", "loan_purpose", "pincode", "address", "city", "address_state", "address_type", "address_proof_type", "type", "stay_type", "landmark", "customer_bank_name", "bank_account_number", "customer_bank_account_name", "ifsc_code", "address_proof_1", "address_proof_2", "pan_card", "loan_agreement", "eKycResponse"};
+//            }else{
+//                header = new String[]{"PaymentType", "CusRefNumber", "SourceAccountNumber", "SourceNarration", "LoanID", "DestinationAccountNumber", "Currency", "Amount", "ProcessingFee", "DisbursalAmount", "DestinationNarration", "Destinationbank", "DestinationBankIFSCode", "BeneficiaryName", "BeneficiaryAccountType", "Email"};
+//            }
             data.add(header);
             CountDownLatch latch = new CountDownLatch(lines);
             String readLine = lenderFileReader.readLine();
             readLine = lenderFileReader.readLine();
-            int count =0;
             while (readLine != null) {
                 logger.info("Line:{}",readLine);
                 String[] arr = readLine.split(",");
@@ -764,7 +763,7 @@ public class SupportService {
                     continue;
                 }
                 Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
-                if(!Arrays.asList("TOPUP","IO_TOPUP","HALF_TOPUP").contains(lendingApplication.getLoanType())){
+                if(!topupLoans.contains(lendingApplication.getLoanType())){
                     if("RED".equalsIgnoreCase(experian.getColor())){
                         logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
                         errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
@@ -773,10 +772,9 @@ public class SupportService {
                         continue;
                     }
                 }
-                int finalCount = count+1;
                 executorService.execute(() -> {
                     try {
-                        data.add(getCsvData(lendingApplication,lender,experian, finalCount));
+                        data.add(getCsvData(lendingApplication,lender,experian));
                         if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                             errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                         }
@@ -819,7 +817,7 @@ public class SupportService {
         }
     }
 
-    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian,int i) throws IOException {
+    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws IOException {
         String shortUrl = getAgreement(lendingApplication,lender);
         LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
         CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchant().getId(), lendingApplication.getId());
@@ -838,11 +836,11 @@ public class SupportService {
 
         String[] data;
         String accType = lender == "LDC" ? "INVESTOR_FUNDS" : "NBFC_FUNDS";
-        if("MAMTA".equalsIgnoreCase(lender)){
+//        if("MAMTA".equalsIgnoreCase(lender)){
             data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", lendingApplication.getDisbursalAmount().toString(), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
-        }else{
-            data = new String[]{"NFT", String.valueOf(i), "\'" + "403040506070", "HINDON MERCANTILE LIMITED", lendingApplication.getExternalLoanId(), "\'" + accountNumber, "INR", lendingApplication.getLoanAmount().toString(), lendingApplication.getProcessingFee().toString(), lendingApplication.getLoanAmount().toString(), "AgainstLoan", "ICICI BANK", ldcVirtualAccount.getIfsc(), lendingApplication.getMerchant().getBeneficiaryName(), "CURRENT", ""};
-        }
+//        }else{
+//            data = new String[]{"NFT", String.valueOf(i), "\'" + "403040506070", "HINDON MERCANTILE LIMITED", lendingApplication.getExternalLoanId(), "\'" + accountNumber, "INR", lendingApplication.getLoanAmount().toString(), lendingApplication.getProcessingFee().toString(), lendingApplication.getLoanAmount().toString(), "AgainstLoan", "ICICI BANK", ldcVirtualAccount.getIfsc(), lendingApplication.getMerchant().getBeneficiaryName(), "CURRENT", ""};
+//        }
         lendingApplication.setLender(lender);
         lendingApplication.setAccountType(accType);
         lendingApplication.setSendToNbfc("YES");
@@ -851,7 +849,6 @@ public class SupportService {
         lendingApplication.setDisbursalPartner("BHARATPE");
         lendingApplicationDao.save(lendingApplication);
         return data;
-
 
     }
 
