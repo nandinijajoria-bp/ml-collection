@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingBulkDisbursalRawDataDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
+import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -798,8 +799,9 @@ public class SupportService {
             outputfile.close();
             byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
             byte[] error = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_error_file.csv"));
-            emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");add("ashutosh.dhewal@bharatpe.com");add("kanika.sehgal@bharatpe.com");
-            }}, "AUTOMATED "+ lender +" NBFC Report "+new Date(), lender+" NBFC Cases Report For Date "+new Date() , bytes, lender+"_nbfc_details.csv", "text/csv");
+            List<String> hindonEmails = Arrays.asList("rohit.dhola@bharatpe.com","sandeep.chauhan@bharatpe.com","anuj.puri@bharatpe.com","ashutosh.dhewal@bharatpe.com","kanika.sehgal@bharatpe.com","accounts@bharatpe.com","Helpdesk@mufinfinance.com","Rajat@mufinfinance.com","rajat.jain@bharatpe.com","anik.kansal@bharatpe.com","khushal.virmani@bharatpe.com"," psabharwal@mufinfinance.com");
+            List<String> mamtaEmails = Arrays.asList("rohit.dhola@bharatpe.com","sandeep.chauhan@bharatpe.com","anuj.puri@bharatpe.com","ashutosh.dhewal@bharatpe.com","kanika.sehgal@bharatpe.com","anik.kansal@bharatpe.com","khushal.virmani@bharatpe.com");
+            emailHandler.sendEmailWithAttachement("HINDON".equalsIgnoreCase(lender) ? hindonEmails : mamtaEmails, "Customer Onboarding and Loan Approval: "+ lender +"  "+new Date(), "Customer Onboarding and Loan Approval For :"+lender+" "+new Date() , bytes, lender+"_nbfc_details.csv", "text/csv");
             emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");
             }}, lender+" NBFC Error Cases Report  "+new Date(), lender+" NBFC Error Cases For Date "+new Date() , error, lender+"_error_cases.csv", "text/csv");
             s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
@@ -818,6 +820,7 @@ public class SupportService {
     }
 
     private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws IOException {
+        List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         String shortUrl = getAgreement(lendingApplication,lender);
         LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
         CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchant().getId(), lendingApplication.getId());
@@ -833,13 +836,18 @@ public class SupportService {
         String addressproof1 = addressResult.get("addressproof1").toString();
         String addressproof2 = addressResult.get("addressproof2").toString();
         LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(),lendingApplication.getId());
-
+        int ediDays = lendingApplication.getPayableDays().intValue();
+        if (lendingApplication.getIoPayableDays() != null) {
+            ediDays += lendingApplication.getIoPayableDays();
+        }
         String[] data;
-        String accType = lender == "LDC" ? "INVESTOR_FUNDS" : "NBFC_FUNDS";
+        String accType = lender.equals("LDC") ? "INVESTOR_FUNDS" : "NBFC_FUNDS";
+        String riskColor = topupLoans.contains(lendingApplication.getLoanType()) ? ExperianConstants.COLOR.LIGHT_GREEN.name() : experian.getColor();
+        Double disbursalAmount = topupLoans.contains(lendingApplication.getLoanType()) ? lendingApplication.getLoanAmount() : lendingApplication.getDisbursalAmount();
         if("MAMTA".equalsIgnoreCase(lender)){
-            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", lendingApplication.getDisbursalAmount().toString(), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
+            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, riskColor, apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
         }else{
-            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", lendingApplication.getLoanAmount().toString(), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
+            data = new String[]{"HINDON", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), String.valueOf(ediDays), lendingApplication.getEdi().toString(), ediSchedule, riskColor, apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
         }
         lendingApplication.setLender(lender);
         lendingApplication.setAccountType(accType);
@@ -887,6 +895,7 @@ public class SupportService {
         data.put("beneficiaryName",lendingApplication.getMerchant().getBeneficiaryName());
         data.put("repayment",lendingApplication.getRepayment());
         data.put("panNumber",experian.getPancardNumber());
+        data.put("lenderName", lendingApplication.getLender());
 
         String html = getAgreementHtml(data,lender);
         String shortUrl = storeAgreement(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchant().getId() + "_" + lendingApplication.getId() + ".pdf");

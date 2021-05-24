@@ -65,6 +65,9 @@ public class MerchantLoansService {
     @Autowired
     BPEnachDao bpEnachDao;
 
+    @Autowired
+    LendingRedCitiesDao lendingRedCitiesDao;
+
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
         List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchantId, merchantStoreId, "ACTIVE");
@@ -277,6 +280,13 @@ public class MerchantLoansService {
             if (bpEnach == null) {
                 logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                 return false;
+            }
+            if (lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getPincode() != null) {
+                LendingRedCities redCities = lendingRedCitiesDao.findByPincode(lendingPaymentSchedule.getLoanApplication().getPincode().intValue());
+                if (redCities != null) {
+                    logger.info("Red pincode for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                    return false;
+                }
             }
             MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
             int last1MonTxnCount = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;

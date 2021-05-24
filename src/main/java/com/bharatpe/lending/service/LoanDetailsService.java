@@ -440,7 +440,8 @@ public class LoanDetailsService {
 
 						EnachErrorMessageDTO enachMessage = enachErrorHandingService.enachErrorResponse(bharatPeEnach, merchant, lendingApplication, experian);
 						loanApplicationDTO.setEnachErrorResponse(enachMessage);
-						skipEnatch = enachMessage.getSkipEnach();
+//						skipEnatch = enachMessage.getSkipEnach();
+						skipEnatch = false;
 					}
 
 					//enach not success and not skipped and bankcode enachable
