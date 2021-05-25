@@ -9,15 +9,16 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class FosAttributionResponseDTO {
-    private String attributed;
+    private String status;
     private String stage;
+    private String remarks;
 
-    public String getAttributed() {
-        return attributed;
+    public String getStatus() {
+        return status;
     }
 
-    public void setAttributed(String attributed) {
-        this.attributed = attributed;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getStage() {
@@ -26,5 +27,13 @@ public class FosAttributionResponseDTO {
 
     public void setStage(String stage) {
         this.stage = stage;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 }
