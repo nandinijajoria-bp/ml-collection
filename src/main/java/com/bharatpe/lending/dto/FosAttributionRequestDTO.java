@@ -21,6 +21,7 @@ public class FosAttributionRequestDTO {
     private Date taskStartedAt;
     private Date taskCompletedAt;
     private String requestId;
+    private String taskData;
 
     public Long getMerchantId() {
         return merchantId;
@@ -92,5 +93,13 @@ public class FosAttributionRequestDTO {
 
     public void setRequestId(String requestId) {
         this.requestId = requestId;
+    }
+
+    public String getTaskData() {
+        return taskData;
+    }
+
+    public void setTaskData(String taskData) {
+        this.taskData = taskData;
     }
 }

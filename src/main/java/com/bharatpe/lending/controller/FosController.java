@@ -1,6 +1,7 @@
 package com.bharatpe.lending.controller;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.FosAttributionRequestDTO;
+import com.bharatpe.lending.dto.FosResponseDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.FosService;
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ public class FosController {
     }
 
     @RequestMapping(value="/get_fos_attributes", method = RequestMethod.POST, produces="application/json", consumes = "application/json")
-    public ResponseEntity<ResponseDTO> fosSalaryAttributes(@RequestBody FosAttributionRequestDTO requestDTO) {
+    public ResponseEntity<FosResponseDTO> fosSalaryAttributes(@RequestBody FosAttributionRequestDTO requestDTO) {
         return new ResponseEntity<>(fosService.getFosSalaryAttribution(requestDTO), HttpStatus.OK);
     }
 
