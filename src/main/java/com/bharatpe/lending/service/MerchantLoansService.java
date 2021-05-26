@@ -57,9 +57,6 @@ public class MerchantLoansService {
     LendingEDIScheduleDao lendingEDIScheduleDao;
 
     @Autowired
-    PaymentTransactionNewDao paymentTransactionNewDao;
-
-    @Autowired
     LoanUtil loanUtil;
 
     @Autowired
@@ -118,64 +115,23 @@ public class MerchantLoansService {
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
             if (lendingPaymentSchedule != null) {
-                if (merchantId.equals(6518986L) || baseChecksForHalfAndIOEdi(lendingPaymentSchedule)) {
+                if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule)) {
                     logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
                     boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
-                    if (merchantId.equals(6518986L) || pennyDrop) {
-                        Double last7DaysAvgTpv = paymentTransactionNewDao.getLast7DayAvgTpv(merchantId);
-                        Double marchAvgTpv = paymentTransactionNewDao.getMarchAvgTpv(merchantId);
-                        double tpvDrop = marchAvgTpv > 0D ? (1 - (last7DaysAvgTpv/marchAvgTpv)) : 0D;
-                        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
-                        LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail = null;
-                        LoanType loanType = null;
-                        if (merchantId.equals(6518986L) || (tpvDrop >= 0.3d && tpvDrop <= 0.5d)) {
+                    if (pennyDrop) {
+                        Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
+                        double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
+                        LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
+                        if (ediPaidPercentage < 0.5d) {
                             logger.info("merchant:{} eligible for half loan", merchantId);
-                            loanType = LoanType.HALF_TOPUP;
-                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, loanType);
-                        } else if (tpvDrop > 0.5d) {
+                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
+                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
+                        } else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
                             logger.info("merchant:{} eligible for io loan", merchantId);
-                            loanType = LoanType.IO_TOPUP;
-                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, loanType);
+                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
+                            responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
                         } else {
-                            logger.info("TPV Drop check failed for merchant:{} with drop:{}", merchantId, tpvDrop);
-                        }
-                        if (loanBreakupDetail != null && LoanType.HALF_TOPUP.equals(loanType)) {
-                            responseDTO.setHalfLoan(LendingMerchantLoansResponseDTO.HalfLoan.builder()
-                                    .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
-                                    .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
-                                    .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
-                                    .newEdiRemaining(loanBreakupDetail.getEdiDays())
-                                    .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
-                                    .newRepaymentAmount(loanBreakupDetail.getRepayment().doubleValue())
-                                    .category(loanBreakupDetail.getCategory())
-                                    .interestRate(loanBreakupDetail.getInterestRate())
-                                    .totalRepayment(loanBreakupDetail.getRepayment())
-                                    .principalRepayment(loanBreakupDetail.getLoanAmount())
-                                    .interestRepayment(loanBreakupDetail.getInterestAmount())
-                                    .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
-                                    .prevLoanUnpaidAmount(foreclosureAmount)
-                                    .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
-                                    .build());
-                        } else if (loanBreakupDetail != null) {
-                            responseDTO.setIoLoan(LendingMerchantLoansResponseDTO.IOLoan.builder()
-                                    .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
-                                    .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
-                                    .newIoEdiAmount(loanBreakupDetail.getIoEdi().doubleValue())
-                                    .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
-                                    .newEdiRemaining(loanBreakupDetail.getEdiDays())
-                                    .newIoEdiRemaining(loanBreakupDetail.getIoEdiDays())
-                                    .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
-                                    .newRepaymentAmount(loanBreakupDetail.getRepayment().doubleValue())
-                                    .category(loanBreakupDetail.getCategory())
-                                    .interestRate(loanBreakupDetail.getInterestRate())
-                                    .totalRepayment(loanBreakupDetail.getRepayment())
-                                    .principalRepayment(loanBreakupDetail.getLoanAmount())
-                                    .interestRepayment(loanBreakupDetail.getInterestAmount())
-                                    .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
-                                    .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
-                                    .lender(Lender.HINDON.name())
-                                    .prevLoanUnpaidAmount(foreclosureAmount)
-                                    .build());
+                            logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
                         }
                     }
                 }
@@ -281,6 +237,9 @@ public class MerchantLoansService {
                 logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                 return false;
             }
+            if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
+                return false;
+            }
             if (lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getPincode() != null) {
                 LendingRedCities redCities = lendingRedCitiesDao.findByPincode(lendingPaymentSchedule.getLoanApplication().getPincode().intValue());
                 if (redCities != null) {
@@ -288,13 +247,11 @@ public class MerchantLoansService {
                     return false;
                 }
             }
-            MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
-            int last1MonTxnCount = (merchantSummary != null && merchantSummary.getTotalTxns1Month() != null) ? merchantSummary.getTotalTxns1Month() : 0;
             double paidRatio = lendingPaymentSchedule.getPaidPrinciple() != null ? (lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount()) : 0d;
             double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
             double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
             foreclosureAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
-            return lendingPaymentSchedule.getEdiRemainingCount() >= 26 && paidRatio < 0.75D && foreclosureAmount >= 10000d && dpd > 10d && dpd < 30d && last1MonTxnCount > 5;
+            return lendingPaymentSchedule.getEdiRemainingCount() >= 26 && paidRatio < 0.75D && foreclosureAmount >= 10000d && dpd >= 10d && dpd <= 45d;
         } catch (Exception e) {
             logger.error("Exception in half io loans base checks for loanId:{}", lendingPaymentSchedule.getId(), e);
         }

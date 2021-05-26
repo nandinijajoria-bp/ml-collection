@@ -5,6 +5,8 @@ import java.util.stream.Collectors;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -406,6 +408,57 @@ public class LendingMerchantLoansResponseDTO {
         this.totalAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getLoanAmount(), Double::sum);
         this.totalDueAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getDueAmount(), Double::sum);
         this.totalPaidAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getPaidAmount(), Double::sum);
+    }
+
+    public void setHalfLoan(LendingPaymentSchedule lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {
+        if (loanBreakupDetail == null || lendingPaymentSchedule == null) {
+            this.halfLoan = null;
+            return;
+        }
+        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
+        this.halfLoan = LendingMerchantLoansResponseDTO.HalfLoan.builder()
+                .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
+                .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
+                .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
+                .newEdiRemaining(loanBreakupDetail.getEdiDays())
+                .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
+                .newRepaymentAmount(loanBreakupDetail.getRepayment().doubleValue())
+                .category(loanBreakupDetail.getCategory())
+                .interestRate(loanBreakupDetail.getInterestRate())
+                .totalRepayment(loanBreakupDetail.getRepayment())
+                .principalRepayment(loanBreakupDetail.getLoanAmount())
+                .interestRepayment(loanBreakupDetail.getInterestAmount())
+                .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
+                .prevLoanUnpaidAmount(foreclosureAmount)
+                .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
+                .build();
+    }
+
+    public void setIoLoan(LendingPaymentSchedule lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {
+        if (loanBreakupDetail == null || lendingPaymentSchedule == null) {
+            this.ioLoan = null;
+            return;
+        }
+        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
+        this.ioLoan = LendingMerchantLoansResponseDTO.IOLoan.builder()
+                .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
+                .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
+                .newIoEdiAmount(loanBreakupDetail.getIoEdi().doubleValue())
+                .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
+                .newEdiRemaining(loanBreakupDetail.getEdiDays())
+                .newIoEdiRemaining(loanBreakupDetail.getIoEdiDays())
+                .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
+                .newRepaymentAmount(loanBreakupDetail.getRepayment().doubleValue())
+                .category(loanBreakupDetail.getCategory())
+                .interestRate(loanBreakupDetail.getInterestRate())
+                .totalRepayment(loanBreakupDetail.getRepayment())
+                .principalRepayment(loanBreakupDetail.getLoanAmount())
+                .interestRepayment(loanBreakupDetail.getInterestAmount())
+                .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
+                .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
+                .lender(Lender.HINDON.name())
+                .prevLoanUnpaidAmount(foreclosureAmount)
+                .build();
     }
 
     private Loan lendingPaymentScheduleToLoan(LendingPaymentSchedule lendingPaymentSchedule) {
