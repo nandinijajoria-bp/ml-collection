@@ -34,4 +34,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
 
     @Query(nativeQuery = true, value = "select * from lending_ledger where description like 'PRECLOSER%' and loan_id=:lpsId limit 1")
     LendingLedger getForClosedLedger(Long lpsId);
+
+    @Query(nativeQuery = true, value = "select ifnull(sum(amount),0) from lending_ledger where loan_id=:loanId and amount>0 and date>=subdate(current_date, 30)")
+    Double getAmountPaidLastMonth(Long loanId);
 }
