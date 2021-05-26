@@ -7,22 +7,17 @@ import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.dao.LoanAttributionDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
-import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingPennydrop;
 import com.bharatpe.lending.common.entity.LoanAttribution;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.dto.FosAttributionRequestDTO;
 import com.bharatpe.lending.dto.FosAttributionResponseDTO;
+import com.bharatpe.lending.dto.FosResponseDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;
-import com.bharatpe.lending.util.creditresponse.CrifResponseUtil;
-import com.bharatpe.lending.util.creditresponse.ExperianResponseUtil;
-import com.bharatpe.lending.util.creditresponse.ResponseUtil;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -562,18 +557,19 @@ public class FosService {
         return null;
     }
 
-    public ResponseDTO getFosSalaryAttribution(FosAttributionRequestDTO request){
+    public FosResponseDTO getFosSalaryAttribution(FosAttributionRequestDTO request){
         logger.info("start getting fos salary attribution for fos refNumber: {} and merchant: {}", request.getFseRefcode(), request.getMerchantId());
-        ResponseDTO responseDTO =  new ResponseDTO();
+        FosResponseDTO responseDTO =  new FosResponseDTO();
         try{
             List<LoanAttribution> loanAttributions = loanAttributionDao.getAttributionByMerchantIdAndRefCode(request.getMerchantId(), request.getFseRefcode());
             FosAttributionResponseDTO fosAttributionResponseDTO = new FosAttributionResponseDTO();
-            if(Objects.isNull(loanAttributions)){
-                fosAttributionResponseDTO.setAttributed("MAYBE");
+            if(Objects.isNull(loanAttributions) || loanAttributions.isEmpty()){
+                fosAttributionResponseDTO.setStatus("MAYBE");
 
                 responseDTO.setSuccess(true);
                 responseDTO.setMessage("Attribution state");
                 responseDTO.setData(fosAttributionResponseDTO);
+                responseDTO.setStatusCode("200");
                 return responseDTO;
             }
             for(LoanAttribution loanAttribution: loanAttributions){
@@ -581,48 +577,53 @@ public class FosService {
                 if("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() > 50000){
 
                     fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
-                    if(fosAttributionResponseDTO.getAttributed().equalsIgnoreCase("YES")){
+                    if(fosAttributionResponseDTO.getStatus().equalsIgnoreCase("YES")){
                         responseDTO.setSuccess(true);
                         responseDTO.setMessage("Attribution state");
                         responseDTO.setData(fosAttributionResponseDTO);
+                        responseDTO.setStatusCode("200");
                         return responseDTO;
                     }
                 }else if(("NTB".equalsIgnoreCase(loanAttribution.getLoanType()) || "OGL".equalsIgnoreCase(loanAttribution.getLoanType()) || ("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() <= 50000))){
                     if(Objects.nonNull(loanAttribution.getEnachAttributedAt()) && Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
                         if(loanAttribution.getAgreementAttributedAt().compareTo(loanAttribution.getEnachAttributedAt()) > 0){
                             fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
-                            if(fosAttributionResponseDTO.getAttributed().equalsIgnoreCase("YES")){
+                            if(fosAttributionResponseDTO.getStatus().equalsIgnoreCase("YES")){
                                 responseDTO.setSuccess(true);
                                 responseDTO.setMessage("Attribution state");
                                 responseDTO.setData(fosAttributionResponseDTO);
+                                responseDTO.setStatusCode("200");
                                 return responseDTO;
                             }
                         }else{
                             fosAttributionResponseDTO = isEnachAttributed(request, loanAttribution, lendingApplication);
-                            if(fosAttributionResponseDTO.getAttributed().equalsIgnoreCase("YES")){
+                            if(fosAttributionResponseDTO.getStatus().equalsIgnoreCase("YES")){
                                 responseDTO.setSuccess(true);
                                 responseDTO.setMessage("Attribution state");
                                 responseDTO.setData(fosAttributionResponseDTO);
+                                responseDTO.setStatusCode("200");
                                 return responseDTO;
                             }
                         }
                     }else{
-                        fosAttributionResponseDTO.setAttributed("NO");
+                        fosAttributionResponseDTO.setStatus("NO");
                     }
                 }else{
-                    fosAttributionResponseDTO.setAttributed("NO");
+                    fosAttributionResponseDTO.setStatus("NO");
                 }
             }
 
             responseDTO.setSuccess(true);
             responseDTO.setMessage("Attribution state");
             responseDTO.setData(fosAttributionResponseDTO);
+            responseDTO.setStatusCode("200");
             return responseDTO;
         }catch(Exception ex){
             logger.error("Exception while getting fos salary attribution for fos refNumber: {} and merchant: {}, ex", request.getFseRefcode(), request.getMerchantId(), ex);
         }
         responseDTO.setSuccess(false);
         responseDTO.setMessage("Something Went Wrong!");
+        responseDTO.setStatusCode("500");
         return responseDTO;
     }
 
@@ -631,19 +632,23 @@ public class FosService {
         if(Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
             Long hourDiff = LoanUtil.getDateDiffInHour(request.getTaskStartedAt(), loanAttribution.getAgreementAttributedAt());
             if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getAgreementAttributedTo())) {
-                fosAttributionResponseDTO.setAttributed("YES");
+                fosAttributionResponseDTO.setStatus("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
                     fosAttributionResponseDTO.setStage("AMOUNT_DISBURSED");
+                    fosAttributionResponseDTO.setRemarks("Regular loan disbursed");
                 } else {
                     fosAttributionResponseDTO.setStage("APPLICATION_COMPLETED");
+                    fosAttributionResponseDTO.setRemarks("Regular loan application completed");
                 }
             }else{
-                fosAttributionResponseDTO.setAttributed("NO");
+                fosAttributionResponseDTO.setStatus("NO");
+                fosAttributionResponseDTO.setRemarks("Regular loan not eligible");
             }
             return fosAttributionResponseDTO;
         }
 
-        fosAttributionResponseDTO.setAttributed("NO");
+        fosAttributionResponseDTO.setStatus("NO");
+        fosAttributionResponseDTO.setRemarks("Regular loan not eligible");
         return fosAttributionResponseDTO;
     }
 
@@ -652,19 +657,23 @@ public class FosService {
         if(Objects.nonNull(loanAttribution.getEnachAttributedAt())) {
             Long hourDiff = LoanUtil.getDateDiffInHour(request.getTaskStartedAt(), loanAttribution.getEnachAttributedAt());
             if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getEnachAttributedTo())) {
-                fosAttributionResponseDTO.setAttributed("YES");
+                fosAttributionResponseDTO.setStatus("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
                     fosAttributionResponseDTO.setStage("AMOUNT_DISBURSED");
+                    fosAttributionResponseDTO.setRemarks(loanAttribution.getLoanType()+ " loan disbursed");
                 } else {
                     fosAttributionResponseDTO.setStage("APPLICATION_COMPLETED");
+                    fosAttributionResponseDTO.setRemarks(loanAttribution.getLoanType()+ " loan application completed");
                 }
             }else{
-                fosAttributionResponseDTO.setAttributed("NO");
+                fosAttributionResponseDTO.setRemarks(loanAttribution.getLoanType()+ " loan not eligible");
+                fosAttributionResponseDTO.setStatus("NO");
             }
             return fosAttributionResponseDTO;
         }
 
-        fosAttributionResponseDTO.setAttributed("NO");
+        fosAttributionResponseDTO.setStatus("NO");
+        fosAttributionResponseDTO.setRemarks(loanAttribution.getLoanType()+ " loan not eligible");
         return fosAttributionResponseDTO;
     }
 //    private JsonNode parseStringResponse(String response){

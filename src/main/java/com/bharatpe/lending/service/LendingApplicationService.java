@@ -2942,10 +2942,11 @@ public class LendingApplicationService {
 				return responseDTO;
 			}
 
-			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchantId);
-			if (d2RMerchant == null) {
-				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchantId);
-			}
+			BigInteger d2RMerchant = partnersConfigurationDao.getNachBank(merchantId);
+//			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchantId);
+//			if (d2RMerchant == null) {
+//				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchantId);
+//			}
 			if (d2RMerchant != null) {
 				data.put("bankAccountChange", Boolean.FALSE);
 				data.put("message", "Merchant Has a D2R Loan");
