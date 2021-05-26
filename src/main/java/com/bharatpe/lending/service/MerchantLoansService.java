@@ -163,12 +163,9 @@ public class MerchantLoansService {
                 return null;
             }
             logger.info("Calculating " + loanType.name() + " for merchant:{} for amount:{}", merchantId, loanAmount);
-            int newEdiCount = calculateNewTenure(lendingPaymentSchedule.getEdiRemainingCount());
-            if (newEdiCount == 0 || (loanType.equals(LoanType.IO_TOPUP) && newEdiCount == 388)) {
+            int newEdiCount = calculateNewTenure(lendingPaymentSchedule.getEdiRemainingCount(), loanType);
+            if (newEdiCount == 0) {
                 return null;
-            }
-            if (loanType.equals(LoanType.IO_TOPUP) && newEdiCount == 234) {
-                newEdiCount = 311;
             }
             LendingCategories lendingCategory = lendingCategoryDao.getByMasterCategoryAndPayableDays(loanType.name(), newEdiCount);
             if (lendingCategory == null) {
@@ -210,19 +207,31 @@ public class MerchantLoansService {
         }
     }
 
-    private int calculateNewTenure(Integer ediRemainingCount) {
-        if (ediRemainingCount >= 26 && ediRemainingCount <= 38) {
-            return 77;
-        } else if (ediRemainingCount >= 39 && ediRemainingCount <= 77) {
-            return 155;
-        } else if (ediRemainingCount >= 78 && ediRemainingCount <= 117) {
-            return 234;
-        } else if (ediRemainingCount >= 118 && ediRemainingCount <= 155) {
-            return 311;
-        } else if (ediRemainingCount >= 156 && ediRemainingCount <= 234) {
-            return 388;
-        } else
-            return 0;
+    private int calculateNewTenure(Integer ediRemainingCount, LoanType loanType) {
+        if (loanType.equals(LoanType.HALF_TOPUP)) {
+            if (ediRemainingCount >= 26 && ediRemainingCount <= 38) {
+                return 77;
+            } else if (ediRemainingCount >= 39 && ediRemainingCount <= 77) {
+                return 155;
+            } else if (ediRemainingCount >= 78 && ediRemainingCount <= 117) {
+                return 234;
+            } else if (ediRemainingCount >= 118 && ediRemainingCount <= 155) {
+                return 311;
+            } else if (ediRemainingCount >= 156 && ediRemainingCount <= 234) {
+                return 388;
+            }
+        } else if (loanType.equals(LoanType.IO_TOPUP)) {
+            if (ediRemainingCount >= 26 && ediRemainingCount <= 77) {
+                return 77;
+            } else if (ediRemainingCount >= 78 && ediRemainingCount <= 100) {
+                return 155;
+            } else if (ediRemainingCount >= 101 && ediRemainingCount <= 155) {
+                return 234;
+            } else if (ediRemainingCount >= 156 && ediRemainingCount <= 234) {
+                return 311;
+            }
+        }
+        return 0;
     }
 
     private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule) {
