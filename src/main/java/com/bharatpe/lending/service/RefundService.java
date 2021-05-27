@@ -80,6 +80,11 @@ public class RefundService {
                     success = true;
                     String bankRefNo = lendingPayoutResponse.getData() != null ? lendingPayoutResponse.getData().getBankReferenceNo() : null;
                     createLendingLedger(lendingPaymentSchedule, DateTimeUtil.getCurrentDayStartTime(), "LOAN_REFUND", -refundAmount, -refundAmount, 0D, 0D, 0D, bankRefNo, "REFUND");
+                    lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount()-refundAmount);
+                    lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple()-refundAmount);
+                    lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount()+refundAmount);
+                    lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple()+refundAmount);
+                    lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                 }
             } else if (lendingPaymentSchedule.getStatus().equals("INACTIVE") && lendingPaymentSchedule.getPaidAmount() > 0D) {
                 logger.info("Refund paid amount:{} for inactive loan:{}",lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getId());
@@ -94,6 +99,9 @@ public class RefundService {
                     lendingPaymentSchedule.setDueAmount(0D);
                     lendingPaymentSchedule.setDueInterest(0D);
                     lendingPaymentSchedule.setDuePrinciple(0D);
+                    lendingPaymentSchedule.setPaidAmount(0D);
+                    lendingPaymentSchedule.setPaidPrinciple(0D);
+                    lendingPaymentSchedule.setPaidInterest(0D);
                     lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                 }
             } else if (lendingPaymentSchedule.getDueAmount() < 0D && lendingPaymentSchedule.getStatus().equals("CLOSED")) {
@@ -111,6 +119,9 @@ public class RefundService {
                     lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() + refundAmount);
                     lendingPaymentSchedule.setDueInterest(lendingPaymentSchedule.getDueInterest() + interest);
                     lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() + principle);
+                    lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple()-principle);
+                    lendingPaymentSchedule.setPaidInterest(lendingPaymentSchedule.getPaidInterest()-interest);
+                    lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount()-refundAmount);
                     lendingPaymentScheduleDao.save(lendingPaymentSchedule);
                 }
             }
