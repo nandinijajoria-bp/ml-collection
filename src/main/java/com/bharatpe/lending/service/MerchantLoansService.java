@@ -122,15 +122,17 @@ public class MerchantLoansService {
                         Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
                         double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
                         LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
-                        if (ediPaidPercentage < 0.5d) {
+                        if (ediPaidPercentage <= 0.8d) {
                             logger.info("merchant:{} eligible for io loan", merchantId);
                             loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
                             responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
-                        } else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
-                            logger.info("merchant:{} eligible for half loan", merchantId);
-                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
-                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
-                        } else {
+                        }
+//                        else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
+//                            logger.info("merchant:{} eligible for half loan", merchantId);
+//                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
+//                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
+//                        }
+                        else {
                             logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
                         }
                     }
@@ -221,13 +223,13 @@ public class MerchantLoansService {
                 return 388;
             }
         } else if (loanType.equals(LoanType.IO_TOPUP)) {
-            if (ediRemainingCount >= 26 && ediRemainingCount <= 77) {
+            if (ediRemainingCount >= 26 && ediRemainingCount <= 76) {
                 return 77;
-            } else if (ediRemainingCount >= 78 && ediRemainingCount <= 100) {
+            } else if (ediRemainingCount >= 77 && ediRemainingCount <= 154) {
                 return 155;
-            } else if (ediRemainingCount >= 101 && ediRemainingCount <= 155) {
+            } else if (ediRemainingCount >= 155 && ediRemainingCount <= 233) {
                 return 234;
-            } else if (ediRemainingCount >= 156 && ediRemainingCount <= 234) {
+            } else if (ediRemainingCount >= 234 && ediRemainingCount <= 310) {
                 return 311;
             }
         }
