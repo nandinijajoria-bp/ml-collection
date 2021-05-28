@@ -365,11 +365,9 @@ public class LiquiloansService {
     	createEdiException(lendingPaymentSchedule);
 		LendingApplication finalLendingApplication = lendingApplication;
 		LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
-		if (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name())) {
-			logger.info("Not sending disbursal sms for loanId:{}", lendingPaymentSchedule.getId());
-		} else {
-			executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
-		}
+
+		executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
+
 		if(lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null){
 			executorService.execute(() -> createGSTInvoice(finalLendingApplication));
 		}
@@ -526,8 +524,14 @@ public class LiquiloansService {
 			}
 			String identifier = "LENDING_AGREEMENT_SMS";
 			Map<String,Object> templateParams = new HashMap<>();
-			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
+			List<String> loanTypes = new ArrayList<>();
+			loanTypes.add(LoanType.HALF_TOPUP.name());
+			loanTypes.add(LoanType.IO_TOPUP.name());
+			if(loanTypes.contains(lendingApplication.getLoanType())) {
+				identifier = "LENDING_AGREEMENT_RECAST_WHATSAPP";
+			}
 			templateParams.put("disbursal_amount",lendingApplication.getDisbursalAmount());
+			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 			templateParams.put("shortUrl",shortUrl);
 			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
 			notificationPayloadDto.setTemplateIdentifier(identifier);
@@ -567,7 +571,8 @@ public class LiquiloansService {
 			List<String> mobiles = new ArrayList<>();
 			mobiles.add(merchant.getMobile());
 //			whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
-			if (lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
+			if ( !loanTypes.contains(lendingApplication.getLoanType())
+				&& lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
 				identifier = "LENDING_DISBURSED_4_SMS";
 				templateParams = new HashMap<>();
 				templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
