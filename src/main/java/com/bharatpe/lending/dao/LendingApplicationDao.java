@@ -86,5 +86,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value="select * from lending_application where merchant_id=:merchantId and status='approved' AND send_to_nbfc='YES' AND NBFC_send_date is not null AND disburse_timestamp is null", nativeQuery = true)
 	LendingApplication findPendingDisbursal(Long merchantId);
 
+	@Query(nativeQuery = true, value = "select * from lending_application where external_loan_id =:externalLoanId limit 1")
+	LendingApplication findByExternalLoanId(String externalLoanId);
+
 
 }
