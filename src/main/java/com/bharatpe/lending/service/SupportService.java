@@ -714,7 +714,7 @@ public class SupportService {
                     continue;
                 }
 
-                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
+                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.toString()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
                     logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
                     errorData.add(new String[]{merchantId.toString(),applicationId.toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Category Not match"});
                     readLine = lenderFileReader.readLine();
@@ -729,13 +729,13 @@ public class SupportService {
                     continue;
                 }
 
-                if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && repeatLoan == 0 ){
-                    logger.info("Application Do not Disburse for  merchantId:{} and applicationId:{}",merchantId,applicationId);
-                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Application Do not Disburse"});
-                    readLine = lenderFileReader.readLine();
-                    latch.countDown();
-                    continue;
-                }
+//                if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && repeatLoan == 0 ){
+//                    logger.info("Application Do not Disburse for  merchantId:{} and applicationId:{}",merchantId,applicationId);
+//                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Application Do not Disburse"});
+//                    readLine = lenderFileReader.readLine();
+//                    latch.countDown();
+//                    continue;
+//                }
 
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
                 if(lendingPaymentSchedule != null){
