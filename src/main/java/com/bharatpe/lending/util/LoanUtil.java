@@ -17,6 +17,7 @@ import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -274,6 +275,7 @@ public class LoanUtil {
 		}
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
+			experianAuditTrail.setId(DateTime.now().getMillis());
 			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(experianAuditTrail);}});
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
