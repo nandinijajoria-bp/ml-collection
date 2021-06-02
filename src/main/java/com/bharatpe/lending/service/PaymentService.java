@@ -175,7 +175,6 @@ public class PaymentService {
 			pgCreateTransactionRequestDTO.setOrderId(orderId);
 			pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
 			pgCreateTransactionRequestDTO.setPaymentPageHeaderText("Select Payment Mode");
-			pgCreateTransactionRequestDTO.setRedirectURI("https://payment-gateway.bharatpe.io/");
 			pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID="+orderId);
 			if (LoanUtil.calculateDPD(activeLoan.getEdiAmount(), activeLoan.getDueAmount()) >= 4){
 				pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
