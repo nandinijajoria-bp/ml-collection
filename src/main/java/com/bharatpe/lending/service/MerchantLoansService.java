@@ -158,7 +158,7 @@ public class MerchantLoansService {
 
     private LoanCalculationUtil.LoanBreakupDetail calculateHalfIOLoan(LendingPaymentSchedule lendingPaymentSchedule, Long merchantId, LoanType loanType) {
         try {
-            double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
+            double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
             double loanAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
             if (loanAmount < 10000d || lendingPaymentSchedule.getEdiRemainingCount() < 26) {
                 logger.info("loan amount less than 10k for merchant:{} and loanType:{}", merchantId, loanType.name());
@@ -260,7 +260,7 @@ public class MerchantLoansService {
             }
             double paidRatio = lendingPaymentSchedule.getPaidPrinciple() != null ? (lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount()) : 0d;
             double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
-            double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
+            double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
             foreclosureAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
             return lendingPaymentSchedule.getEdiRemainingCount() >= 26 && paidRatio < 0.75D && foreclosureAmount >= 10000d && dpd >= 10d && dpd <= 45d;
         } catch (Exception e) {

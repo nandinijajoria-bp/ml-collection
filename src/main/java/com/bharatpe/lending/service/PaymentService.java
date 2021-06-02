@@ -105,7 +105,7 @@ public class PaymentService {
 			Integer loanAmount = activeLoan.getLoanAmount().intValue();
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + (activeLoan.getAdjustedDueAmount() != null ? activeLoan.getAdjustedDueAmount() : 0));
+			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			boolean isPayable = true;
@@ -600,7 +600,7 @@ public class PaymentService {
 
 	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source) {
 		logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
-		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + (activeLoan.getAdjustedDueAmount() != null ? activeLoan.getAdjustedDueAmount() : 0));
+		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
 		Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 
 		Double paidInterestAmount = 0D;

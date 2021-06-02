@@ -415,7 +415,7 @@ public class LendingMerchantLoansResponseDTO {
             this.halfLoan = null;
             return;
         }
-        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
+        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
         this.halfLoan = LendingMerchantLoansResponseDTO.HalfLoan.builder()
                 .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
                 .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
@@ -439,7 +439,7 @@ public class LendingMerchantLoansResponseDTO {
             this.ioLoan = null;
             return;
         }
-        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) + (lendingPaymentSchedule.getAdjustedDueAmount() != null ? lendingPaymentSchedule.getAdjustedDueAmount() : 0));
+        double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
         this.ioLoan = LendingMerchantLoansResponseDTO.IOLoan.builder()
                 .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
                 .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
