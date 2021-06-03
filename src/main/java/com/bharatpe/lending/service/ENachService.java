@@ -4,20 +4,28 @@ import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
+import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
+import com.bharatpe.lending.common.dao.LendingBulkNachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
-import com.bharatpe.lending.common.entity.BharatPeEnach;
-import com.bharatpe.lending.common.entity.BpEnach;
-import com.bharatpe.lending.common.entity.LendingPennydrop;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class ENachService {
@@ -50,6 +58,15 @@ public class ENachService {
 
     @Autowired
     BPEnachDao bpEnachDao;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    LendingBulkDisbursalDao lendingBulkDisbursalDao;
+
+    @Autowired
+    LendingBulkNachDao lendingBulkNachDao;
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -208,5 +225,59 @@ public class ENachService {
             apiGatewayService.cancelEnach(merchant.getId());
         }
         return new CommonResponse(true, "success");
+    }
+
+    public void uploadBulkEnach(EnachUploadRequestDTO enachUploadRequestDTO) {
+        Long fileId = enachUploadRequestDTO.getFileId();
+        Long userId = enachUploadRequestDTO.getUserId();
+        LendingBulkDisbursal lendingBulkDisbursal = lendingBulkDisbursalDao.findByIdAndType(fileId,"BULK_NACH");
+        if(lendingBulkDisbursal != null){
+            try {
+                String fileName = lendingBulkDisbursal.getFileName();
+                logger.info("Getting file : {} from s3", fileName);
+                InputStream lenderFile = s3BucketHandler.getObject(fileName, "loan-document");
+                BufferedReader lenderFileReader = new BufferedReader(new InputStreamReader(lenderFile));
+                String readLine = lenderFileReader.readLine();
+                readLine = lenderFileReader.readLine();
+                while (readLine != null) {
+                    logger.info("readline: {}",readLine);
+                    String[] arr = readLine.split(",");
+                    String referenceNo = arr[1];
+                    Double debitAmount = Double.valueOf(arr[2]);
+                    String loanId = arr[3];
+
+                    LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(loanId);
+
+                    if(lendingApplication != null) {
+                        logger.info("lending application : {}",lendingApplication);
+                        Calendar calendar = Calendar.getInstance();
+                        calendar.set(Calendar.HOUR_OF_DAY,0);
+                        calendar.set(Calendar.MINUTE,0);
+                        calendar.set(Calendar.SECOND,0);
+                        Date date = calendar.getTime();
+                        logger.info("merchantId :{}, applicationId : {}, createdAt: {}",lendingApplication.getMerchant().getId(),lendingApplication.getId(),date);
+                        BulkNach lendingBulkNach = lendingBulkNachDao.findByMerchantIdAndApplicationIdAndCreatedAt(lendingApplication.getMerchant().getId(), lendingApplication.getId(), date);
+                        if(lendingBulkNach == null) {
+                            logger.info("Creating bulk nach entry for merchant : {}",lendingApplication.getMerchant().getId());
+                            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy");
+                            BulkNach bulkNach = new BulkNach();
+                            bulkNach.setMerchantId(lendingApplication.getMerchant().getId());
+                            bulkNach.setApplicationId(lendingApplication.getId());
+                            bulkNach.setLoanId(loanId);
+                            bulkNach.setAmount(debitAmount);
+                            bulkNach.setRefNumber(referenceNo);
+                            bulkNach.setStatus("STARTED");
+                            bulkNach.setDebitDate(formatter.format(new Date()));
+                            bulkNach.setUserId(userId);
+                            lendingBulkNachDao.save(bulkNach);
+                        }
+                    }
+                    readLine = lenderFileReader.readLine();
+                }
+            }
+            catch (Exception exception) {
+                logger.error("Error occured while uploading nach file : {}",exception);
+            }
+        }
     }
 }

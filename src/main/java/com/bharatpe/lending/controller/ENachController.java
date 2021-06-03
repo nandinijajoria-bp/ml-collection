@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @RestController
 @RequestMapping("enach")
@@ -25,6 +27,8 @@ public class ENachController {
 
 	@Autowired
 	ENachService eNachService;
+
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestHeader("token") String token, @RequestParam(name = "provider", required = false) String provider, @RequestParam(name = "app_version", required = false) String appVersion) {
@@ -54,5 +58,12 @@ public class ENachController {
 	public ResponseEntity<CommonResponse> cancelEnach(@RequestAttribute Merchant merchant){
 		logger.info("Cancel enach request for merchant:{}", merchant.getId());
 		return new ResponseEntity<>(eNachService.cancelEnach(merchant), HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/bulkNach",method = RequestMethod.POST)
+	public ResponseEntity<String> bulkNach(@RequestBody EnachUploadRequestDTO enachUploadRequestDTO) {
+		logger.info("Uploading Bulk Nach File : {}",enachUploadRequestDTO.getFileId());
+		executorService.execute(()->eNachService.uploadBulkEnach(enachUploadRequestDTO));
+		return new ResponseEntity<>("Bulk Nach Upload Successfully!",HttpStatus.OK);
 	}
 }
