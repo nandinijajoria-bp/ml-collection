@@ -606,6 +606,7 @@ public class PaymentService {
 		Double paidPrincipalAmount = 0D;
 		boolean preclosure = false;
 		logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), (principalDueAmount + ediHolidayInterestAmount));
+		logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
 		if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
 			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
 			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
@@ -726,6 +727,7 @@ public class PaymentService {
 							continue;
 						}
 						if (balance >= ediSchedule.getTotalEdi()) {
+							logger.info("Adjusting full installment:{} for loanId:{}", ediSchedule.getInstallmentNumber(), activeLoan.getId());
 							balance -= ediSchedule.getTotalEdi();
 							principle += ediSchedule.getPrinciple();
 							interest += ediSchedule.getInterest();
@@ -735,10 +737,12 @@ public class PaymentService {
 								adjustedEdiCount++;
 							}
 						} else if (balance <= ediSchedule.getInterest()) {
+							logger.info("Adjusting interest:{} for installment:{} for loanId:{}", balance, ediSchedule.getInstallmentNumber(), activeLoan.getId());
 							interest += balance;
 							extraAmount += balance;
 							balance = 0d;
 						} else {
+							logger.info("Adjusting interest:{} and principle:{} for installment:{} for loanId:{}", ediSchedule.getInterest(), (balance - ediSchedule.getInterest()), ediSchedule.getInstallmentNumber(), activeLoan.getId());
 							interest += ediSchedule.getInterest();
 							principle += balance - ediSchedule.getInterest();
 							extraAmount += balance;
@@ -746,7 +750,7 @@ public class PaymentService {
 						}
 					}
 				}
-				logger.info("Adjusted principle:{} and interest:{} for loan:{}", principle, interest, activeLoan.getId());
+				logger.info("Adjusted principle:{} interest:{} extra amount:{} adjustedEdiCount:{} adjustedIOEdiCount:{} for loan:{}", principle, interest, extraAmount, adjustedEdiCount, adjustedIOEdiCount, activeLoan.getId());
 				paidPrincipalAmount += principle;
 				paidInterestAmount += interest;
 
