@@ -1914,4 +1914,26 @@ public class APIGatewayService {
         }
         return beneficiaryName;
     }
+
+    public Boolean isSdkInvoke(Merchant merchant) {
+        try{
+            logger.info("Getting variable SMS data for merchant:{}", merchant.getId());
+            Map<String, Object> body = new HashMap<>();
+            body.put("identifier", merchant.getMid());
+            body.put("limit", 1);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            logger.info("Monget variable sms request:{} for merchant:{}", request, merchant.getId());
+            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_variable_sms_data", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>(){});
+            logger.info("Monget variable sms response:{} for merchant:{}", responseBody, merchant.getId());
+            if(responseBody.getBody() == null || responseBody.getBody().isEmpty()){
+                logger.info("Variable SMS analysis data not found for merchant:{}", merchant.getId());
+                return true;
+            }
+        }catch (Exception ex){
+            logger.error("Error occurred while fetching variable sms data for merchant:{}", merchant.getId(), ex);
+        }
+        return false;
+    }
 }
