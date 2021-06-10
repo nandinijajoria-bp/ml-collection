@@ -254,6 +254,7 @@ public class LoanDetailsService {
 					experian.setBureau(null);
 					experian.setHitId(null);
 					experian.setReportDate(null);
+					experian.setExperianScore(null);
 					experianDao.save(experian);
 				}
 			}
