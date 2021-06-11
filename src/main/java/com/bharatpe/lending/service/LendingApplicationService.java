@@ -387,6 +387,11 @@ public class LendingApplicationService {
 				toSaveDocuments.setProofBackSide(backUrl);
 				toSaveDocuments.setLendingApplication(newApplication);
 				toSaveDocuments.setStatus("pending_verification");
+				toSaveDocuments.setAccesstoken(documentsIdProof.getAccesstoken());
+				toSaveDocuments.setFaceMatch(documentsIdProof.getFaceMatch());
+				toSaveDocuments.setFacePercentage(documentsIdProof.getFacePercentage());
+				toSaveDocuments.setIdType(documentsIdProof.getIdType());
+				toSaveDocuments.setIdentityId(documentsIdProof.getIdentityId());
 				int singleProofDoc;
 				if (documentsIdProof.getProofBackSide() != null) {
 					singleProofDoc = 0;
@@ -420,6 +425,11 @@ public class LendingApplicationService {
 			toSaveDocuments.setProofBackSide(eAadhar.getProofBackSide());
 			toSaveDocuments.setLendingApplication(newApplication);
 			toSaveDocuments.setStatus("pending_verification");
+			toSaveDocuments.setAccesstoken(eAadhar.getAccesstoken());
+			toSaveDocuments.setFaceMatch(eAadhar.getFaceMatch());
+			toSaveDocuments.setFacePercentage(eAadhar.getFacePercentage());
+			toSaveDocuments.setIdType(eAadhar.getIdType());
+			toSaveDocuments.setIdentityId(eAadhar.getIdentityId());
 			int singleProofDoc;
 			if (eAadhar.getProofBackSide() != null) {
 				singleProofDoc = 0;
