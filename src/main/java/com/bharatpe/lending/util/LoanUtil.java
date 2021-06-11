@@ -275,7 +275,7 @@ public class LoanUtil {
 		}
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
-			experianAuditTrail.setId(DateTime.now().getMillis());
+			experianAuditTrail.setId(System.nanoTime());
 			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(experianAuditTrail);}});
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
