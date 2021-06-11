@@ -199,6 +199,13 @@ public class VerifyOTPService {
 				return finalResponse;
 			}
 		}
+
+		if(lendingApplication.getProcessingFee() > 0 && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchant().getId())){
+			logger.info("Merchant is BP CLUB member, so making processing fee zero for applicationID : ", lendingApplication.getId());
+			lendingApplication.setDisbursalAmount(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee());
+			lendingApplication.setProcessingFee(0D);
+		}
+
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		LendingCities lendingCities = null;
