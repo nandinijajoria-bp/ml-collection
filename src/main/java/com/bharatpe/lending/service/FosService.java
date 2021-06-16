@@ -84,6 +84,9 @@ public class FosService {
     @Autowired
     BPEnachDao bpEnachDao;
 
+    @Autowired
+    LoanUtil loanUtil;
+
 
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
@@ -585,6 +588,7 @@ public class FosService {
                         return responseDTO;
                     }
                 }else if(("NTB".equalsIgnoreCase(loanAttribution.getLoanType()) || "OGL".equalsIgnoreCase(loanAttribution.getLoanType()) || ("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() <= 50000))){
+                    boolean enachDone = loanUtil.isEnachDone(lendingApplication.getMerchant());
                     if(Objects.nonNull(loanAttribution.getEnachAttributedAt()) && Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
                         if(loanAttribution.getAgreementAttributedAt().compareTo(loanAttribution.getEnachAttributedAt()) > 0){
                             fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
@@ -605,7 +609,16 @@ public class FosService {
                                 return responseDTO;
                             }
                         }
-                    }else{
+                    } else if (Objects.nonNull(loanAttribution.getAgreementAttributedAt()) && enachDone) { //If enach was done on previous application
+                        fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
+                        if(fosAttributionResponseDTO.getStatus().equalsIgnoreCase("YES")){
+                            responseDTO.setSuccess(true);
+                            responseDTO.setMessage("Attribution state");
+                            responseDTO.setData(fosAttributionResponseDTO);
+                            responseDTO.setStatusCode("200");
+                            return responseDTO;
+                        }
+                    } else{
                         fosAttributionResponseDTO.setStatus("NO");
                     }
                 }else{

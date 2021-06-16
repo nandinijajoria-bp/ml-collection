@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.dao.LendingCovidCitiesDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.dto.MerchantSmsAnalysis;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
@@ -54,6 +55,9 @@ public class LoanUtil {
 
 	@Autowired
 	APIGatewayService apiGatewayService;
+
+	@Autowired
+	BPEnachDao bpEnachDao;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -389,5 +393,15 @@ public class LoanUtil {
 	public static int calculateDPD(Double ediAmount, Double dueAmount) {
 		if (dueAmount < ediAmount) return 0;
 		return (int)Math.round(dueAmount/ediAmount);
+	}
+
+	public boolean isEnachDone(Merchant merchant) {
+		boolean enachDone = false;
+		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if (enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			enachDone = true;
+		}
+		return enachDone;
 	}
 }
