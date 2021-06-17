@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
@@ -26,6 +27,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class ENachService {
@@ -67,6 +70,8 @@ public class ENachService {
 
     @Autowired
     LendingBulkNachDao lendingBulkNachDao;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(50);
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -242,36 +247,14 @@ public class ENachService {
                 while (readLine != null) {
                     logger.info("readline: {}",readLine);
                     String[] arr = readLine.split(",");
-                    String referenceNo = arr[1];
-                    Double debitAmount = Double.valueOf(arr[2]);
+                    Long merchantId = Long.valueOf(arr[1]);
+                    Long applicationId = Long.valueOf(arr[2]);
                     String loanId = arr[3];
-
-                    LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(loanId);
-
-                    if(lendingApplication != null) {
-                        logger.info("lending application : {}",lendingApplication);
-                        Calendar calendar = Calendar.getInstance();
-                        calendar.set(Calendar.HOUR_OF_DAY,0);
-                        calendar.set(Calendar.MINUTE,0);
-                        calendar.set(Calendar.SECOND,0);
-                        Date date = calendar.getTime();
-                        logger.info("merchantId :{}, applicationId : {}, createdAt: {}",lendingApplication.getMerchant().getId(),lendingApplication.getId(),date);
-                        BulkNach lendingBulkNach = lendingBulkNachDao.findByMerchantIdAndApplicationIdAndCreatedAt(lendingApplication.getMerchant().getId(), lendingApplication.getId(), date);
-                        if(lendingBulkNach == null) {
-                            logger.info("Creating bulk nach entry for merchant : {}",lendingApplication.getMerchant().getId());
-                            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy");
-                            BulkNach bulkNach = new BulkNach();
-                            bulkNach.setMerchantId(lendingApplication.getMerchant().getId());
-                            bulkNach.setApplicationId(lendingApplication.getId());
-                            bulkNach.setLoanId(loanId);
-                            bulkNach.setAmount(debitAmount);
-                            bulkNach.setRefNumber(referenceNo);
-                            bulkNach.setStatus("STARTED");
-                            bulkNach.setDebitDate(formatter.format(new Date()));
-                            bulkNach.setUserId(userId);
-                            lendingBulkNachDao.save(bulkNach);
-                        }
-                    }
+                    Double debitAmount = Double.valueOf(arr[4]);
+                    String referenceNo = arr[5];
+                    executorService.execute(() -> {
+                        insertNachData(merchantId,applicationId,debitAmount,loanId,userId,referenceNo);
+                    });
                     readLine = lenderFileReader.readLine();
                 }
             }
@@ -279,5 +262,20 @@ public class ENachService {
                 logger.error("Error occured while uploading nach file : {}",exception);
             }
         }
+    }
+
+    public void insertNachData(Long merchantId,Long applicationId,Double debitAmount,String loanId,Long userId,String referenceNo){
+        logger.info("Creating bulk nach entry for merchantId: {},applicationId : {}",merchantId,applicationId);
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy");
+        BulkNach bulkNach = new BulkNach();
+        bulkNach.setMerchantId(merchantId);
+        bulkNach.setApplicationId(applicationId);
+        bulkNach.setLoanId(loanId);
+        bulkNach.setAmount(debitAmount);
+        bulkNach.setRefNumber(referenceNo);
+        bulkNach.setStatus("STARTED");
+        bulkNach.setDebitDate(formatter.format(new Date()));
+        bulkNach.setUserId(userId);
+        lendingBulkNachDao.save(bulkNach);
     }
 }
