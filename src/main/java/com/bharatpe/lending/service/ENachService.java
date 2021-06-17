@@ -266,7 +266,7 @@ public class ENachService {
 
     public void insertNachData(Long merchantId,Long applicationId,Double debitAmount,String loanId,Long userId,String referenceNo){
         logger.info("Creating bulk nach entry for merchantId: {},applicationId : {}",merchantId,applicationId);
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy");
+        SimpleDateFormat formatter = new SimpleDateFormat("yy/MM/dd");
         BulkNach bulkNach = new BulkNach();
         bulkNach.setMerchantId(merchantId);
         bulkNach.setApplicationId(applicationId);
@@ -274,8 +274,16 @@ public class ENachService {
         bulkNach.setAmount(debitAmount);
         bulkNach.setRefNumber(referenceNo);
         bulkNach.setStatus("STARTED");
-        bulkNach.setDebitDate(formatter.format(new Date()));
+        bulkNach.setDebitDate(getCurrenntDate());
         bulkNach.setUserId(userId);
         lendingBulkNachDao.save(bulkNach);
+    }
+
+    private Date getCurrenntDate() {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        return cal.getTime();
     }
 }
