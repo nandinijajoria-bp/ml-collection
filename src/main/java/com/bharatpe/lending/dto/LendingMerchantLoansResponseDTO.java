@@ -29,13 +29,14 @@ public class LendingMerchantLoansResponseDTO {
 
     private String message = "success";
 
-    private Boolean topup;
+    private Boolean topup = false;
 
     private Double totalPaidAmount = 0D;
     private Double totalAmount = 0D;
     private Double totalDueAmount = 0D;
     private HalfLoan halfLoan;
     private IOLoan ioLoan;
+    private String topupLender;
 
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -564,6 +565,14 @@ public class LendingMerchantLoansResponseDTO {
 
     public void setIoLoan(IOLoan ioLoan) {
         this.ioLoan = ioLoan;
+    }
+
+    public String getTopupLender() {
+        return topupLender;
+    }
+
+    public void setTopupLender(String topupLender) {
+        this.topupLender = topupLender;
     }
 
     @Override

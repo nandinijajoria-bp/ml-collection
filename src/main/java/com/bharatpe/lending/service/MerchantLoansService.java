@@ -5,10 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
-import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
-import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -115,40 +112,43 @@ public class MerchantLoansService {
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
             if (lendingPaymentSchedule != null) {
-                if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule)) {
-                    logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
-                    boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
-                    if (pennyDrop) {
-                        Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
-                        double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
-                        LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
-                        if (ediPaidPercentage <= 0.8d) {
-                            logger.info("merchant:{} eligible for io loan", merchantId);
-                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
-                            responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
+                boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
+                if(pennyDrop){
+                    try {
+                        List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
+                        if (!loans.isEmpty()) {
+                            responseDTO.setEligibility(loans);
+                            responseDTO.setTopup(Boolean.TRUE);
+                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         }
+                    } catch (Exception e) {
+                        logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
+                    }
+                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
+                        logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
+//                        boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
+//                        if (pennyDrop) {
+                            Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
+                            double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
+                            LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
+                            if (ediPaidPercentage <= 0.8d) {
+                                logger.info("merchant:{} eligible for io loan", merchantId);
+                                loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
+                                responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
+                            }
 //                        else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
 //                            logger.info("merchant:{} eligible for half loan", merchantId);
 //                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
 //                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
 //                        }
-                        else {
-                            logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
-                        }
+                            else {
+                                logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
+                            }
+//                        }
                     }
                 }
             }
-//            if(lendingPaymentSchedule != null){
-//                try {
-//                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
-//                    if (!loans.isEmpty()) {
-//                        responseDTO.setEligibility(loans);
-//                        responseDTO.setTopup(Boolean.TRUE);
-//                    }
-//                } catch (Exception e) {
-//                    logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
-//                }
-//            }
+
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
             responseDTO.setMessage("Successfully fetched merchant loans");
             responseDTO.setSuccess(true);
@@ -236,7 +236,10 @@ public class MerchantLoansService {
         return 0;
     }
 
-    private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule) {
+    private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule, LendingMerchantLoansResponseDTO responseDTO) {
+        if(responseDTO.getTopup()){
+            return false;
+        }
         try {
             List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
             if (lendingPaymentSchedule.getLoanApplication() != null && topupLoans.contains(lendingPaymentSchedule.getLoanApplication().getLoanType())) {
@@ -276,8 +279,9 @@ public class MerchantLoansService {
 
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
 
+        List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
-        if (lendingApplication == null || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+        if (lendingApplication == null || topupLoans.contains(lendingApplication.getLoanType())) {
             logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
@@ -293,7 +297,7 @@ public class MerchantLoansService {
         }
 
         double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
-        if(dpd > 5D) {
+        if(dpd > 2D) {
             logger.info("DPD is greater than 5 for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
