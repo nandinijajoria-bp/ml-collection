@@ -647,10 +647,10 @@ public class FosService {
             if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getAgreementAttributedTo())) {
                 fosAttributionResponseDTO.setStatus("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
-                    fosAttributionResponseDTO.setStage("AMOUNT_DISBURSED");
+                    fosAttributionResponseDTO.setStage("Amount Disbursed");
                     fosAttributionResponseDTO.setRemarks("Regular loan disbursed");
                 } else {
-                    fosAttributionResponseDTO.setStage("APPLICATION_COMPLETED");
+                    fosAttributionResponseDTO.setStage("Application Completed");
                     fosAttributionResponseDTO.setRemarks("Regular loan application completed");
                 }
             }else{
@@ -672,10 +672,10 @@ public class FosService {
             if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getEnachAttributedTo())) {
                 fosAttributionResponseDTO.setStatus("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
-                    fosAttributionResponseDTO.setStage("AMOUNT_DISBURSED");
+                    fosAttributionResponseDTO.setStage("Amount Disbursed");
                     fosAttributionResponseDTO.setRemarks(loanAttribution.getLoanType()+ " loan disbursed");
                 } else {
-                    fosAttributionResponseDTO.setStage("APPLICATION_COMPLETED");
+                    fosAttributionResponseDTO.setStage("Application Completed");
                     fosAttributionResponseDTO.setRemarks(loanAttribution.getLoanType()+ " loan application completed");
                 }
             }else{
