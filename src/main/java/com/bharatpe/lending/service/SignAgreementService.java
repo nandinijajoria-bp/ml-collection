@@ -327,9 +327,7 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			
 			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
-			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
-				lendingApplicationService.createBBSSnapshot(newApplication);
-			}
+			lendingApplicationService.createBBSSnapshot(newApplication);
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
 				lendingApplicationService.createSmsVariableSnapshot(newApplication);
 			}

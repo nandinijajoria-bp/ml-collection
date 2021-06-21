@@ -258,9 +258,7 @@ public class LendingApplicationService {
 				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
 			}
 			createExperianSnapshot(merchant, lendingApplication);
-			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB")) {
-				createBBSSnapshot(lendingApplication);
-			}
+			createBBSSnapshot(lendingApplication);
 			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
 				createSmsVariableSnapshot(lendingApplication);
 			}
@@ -324,9 +322,7 @@ public class LendingApplicationService {
 				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
 			}
 			createExperianSnapshot(newApplication.getMerchant(), newApplication);
-			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
-				createBBSSnapshot(newApplication);
-			}
+			createBBSSnapshot(newApplication);
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
 				createSmsVariableSnapshot(newApplication);
 			}
@@ -574,9 +570,7 @@ public class LendingApplicationService {
 				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
 			}
 			createExperianSnapshot(newApplication.getMerchant(), newApplication);
-			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB")) {
-				createBBSSnapshot(newApplication);
-			}
+			createBBSSnapshot(newApplication);
 			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
 				createSmsVariableSnapshot(newApplication);
 			}
