@@ -138,7 +138,7 @@ public class FosService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            if(eligibleLoan == null){
+            if(eligibleLoan == null && lendingApplication == null){
                 data.put("message","Merchant Not Eligible For Loan.");
                 data.put("eligible",Boolean.FALSE);
                 responseDTO.setData(data);
@@ -248,7 +248,7 @@ public class FosService {
             }
             EligibleLoan eligibleLoan=eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication=lendingApplicationDao.findBymerchantId(merchantId);
-            if(eligibleLoan == null){
+            if(eligibleLoan == null && lendingApplication == null){
                 loanData.put("eligible",Boolean.FALSE);
                 loanData.put("color","#ED6A5B");
                 loanData.put("header","Merchant Not Eligible");
