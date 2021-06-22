@@ -248,7 +248,7 @@ public class FosService {
             }
             EligibleLoan eligibleLoan=eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication=lendingApplicationDao.findBymerchantId(merchantId);
-            if(eligibleLoan == null){
+            if(eligibleLoan == null && lendingApplication == null){
                 loanData.put("eligible",Boolean.FALSE);
                 loanData.put("color","#ED6A5B");
                 loanData.put("header","Merchant Not Eligible");
