@@ -188,13 +188,14 @@ public class LoanEligibleService {
         ResponseDTO responseDTO = new ResponseDTO();
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, body.getCategory());
         if(eligibleLoans != null) {
+            LendingCategories lendingCategories = lendingCategoryDao.getByCategory(body.getCategory());
             EligibleLoan eligibleLoan = new EligibleLoan(eligibleLoans.get(0));
             eligibleLoan.setAmount(body.getAmount());
             eligibleLoan.setEdi(body.getEdi());
             eligibleLoan.setIoEdi(body.getIoEdi() != null ? body.getIoEdi() : 0);
             eligibleLoan.setIoEdiDays(body.getIoEdiDays() != null ? body.getIoEdiDays() : 0);
             eligibleLoan.setEdiFreeDays(body.getEdiFreeDays() != null ? body.getEdiFreeDays() : 0);
-            eligibleLoan.setRepayment(body.getRepayment());
+            eligibleLoan.setRepayment(body.getRepayment() != null ? body.getRepayment() : (body.getEdi() * lendingCategories.getPayableDays()));
             eligibleLoan.setOfferType("CUSTOM");
             eligibleLoanDao.save(eligibleLoan);
             eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
