@@ -138,7 +138,7 @@ public class FosService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            if(eligibleLoan == null){
+            if(eligibleLoan == null && lendingApplication == null){
                 data.put("message","Merchant Not Eligible For Loan.");
                 data.put("eligible",Boolean.FALSE);
                 responseDTO.setData(data);
