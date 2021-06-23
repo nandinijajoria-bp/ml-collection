@@ -150,6 +150,11 @@ public class LendingApplicationController {
 		callLoanDetailService.callLoanDetail(id);
 	}
 
+	@RequestMapping(value="/publishDisbursal",method = RequestMethod.GET)
+	public void callDisbursal(@RequestParam Long id){
+		callLoanDetailService.publishForDisbursal(id);
+	}
+
 	@RequestMapping(value="/kafka/publish", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity publish(@RequestBody CreateTxnRequestDTO requestDTO, @RequestAttribute Merchant merchant) {
 		lendingApplicationService.publishKafka(requestDTO, merchant.getId());
