@@ -584,4 +584,9 @@ public class LoanUtil {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 		return merchantBankDetail != null ? merchantBankDetail.getBeneficiaryName() : null;
 	}
+
+	public boolean isRepeatLoan(Long merchantId) {
+		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId,false);
+		return !prevLoans.isEmpty();
+	}
 }

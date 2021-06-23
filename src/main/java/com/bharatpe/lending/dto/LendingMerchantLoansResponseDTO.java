@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -42,6 +43,7 @@ public class LendingMerchantLoansResponseDTO {
     private Boolean ediStarted;
     private List<RepaymentDetails> repaymentDetails;
     private String topupLender;
+    private BankAccountDetails accountDetails;
 
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -615,6 +617,14 @@ public class LendingMerchantLoansResponseDTO {
 
     public void setTopupLender(String topupLender) {
         this.topupLender = topupLender;
+    }
+
+    public BankAccountDetails getAccountDetails() {
+        return accountDetails;
+    }
+
+    public void setAccountDetails(BankAccountDetails accountDetails) {
+        this.accountDetails = accountDetails;
     }
 
     @Override

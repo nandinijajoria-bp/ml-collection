@@ -85,6 +85,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
             loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
+            loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 loanDetailsResponse.setActiveLoan(true);

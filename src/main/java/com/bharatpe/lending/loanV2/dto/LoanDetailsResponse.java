@@ -21,4 +21,5 @@ public class LoanDetailsResponse {
     private LoanApplicationDetails loanApplication;
     private String merchantName;
     private boolean bankLinked = false;
+    private boolean repeatLoan = false;
 }
