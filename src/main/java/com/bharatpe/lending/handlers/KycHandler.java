@@ -154,4 +154,28 @@ public class KycHandler {
         }
         return null;
     }
+
+    public String getPanNumber(Long merchantId) {
+        log.info("Getting pan details for merchant:{}", merchantId);
+        try {
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("identifier", merchantId);
+                put("userType", "MERCHANT");
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_PAN_NO_URL;
+            log.info("Get pan details API url : {} and request : {} for merchant:{}", url, request, merchantId);
+            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            log.info("Get pan details response : {} for merchant:{}", responseEntity, merchantId);
+            if (Objects.nonNull(responseEntity.getBody())) {
+                JsonNode jsonNode =  mapper.readTree(responseEntity.getBody());
+                if (jsonNode != null && jsonNode.get("data") != null && jsonNode.get("data").get("panNo") != null)
+                    return jsonNode.get("data").get("panNo").asText();
+            }
+        } catch (Exception e) {
+            log.error("Exception in getPanNumber for merchant:{}", merchantId, e);
+        }
+        return null;
+    }
 }

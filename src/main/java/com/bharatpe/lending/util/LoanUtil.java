@@ -574,4 +574,14 @@ public class LoanUtil {
 		}
 		return null;
 	}
+
+	public boolean isBankAccLinked(Long merchantId) {
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		return merchantBankDetail != null;
+	}
+
+	public String getBeneficiaryName(Long merchantId) {
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		return merchantBankDetail != null ? merchantBankDetail.getBeneficiaryName() : null;
+	}
 }

@@ -55,6 +55,7 @@ public interface LendingConstants {
 	String HEADER_HASH = "hash";
 	String KYC_DOC_URL = "/api/v2/internal/get-document";
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
+	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 }
 
 

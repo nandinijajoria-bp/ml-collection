@@ -19,4 +19,6 @@ public class LoanDetailsResponse {
     private String creditLineDeeplink;
     private Eligibility eligibility;
     private LoanApplicationDetails loanApplication;
+    private String merchantName;
+    private boolean bankLinked = false;
 }

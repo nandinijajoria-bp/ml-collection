@@ -82,6 +82,8 @@ public class LoanDetailsServiceV2 {
                 log.info("organized merchant:{}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
             }
+            loanDetailsResponse.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
+            loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
@@ -113,7 +115,7 @@ public class LoanDetailsServiceV2 {
     private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) {
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
-            String pancard = getPancardFromDocs(merchant.getId());
+            String pancard = kycHandler.getPanNumber(merchant.getId());
             Integer pincode = fetchPincode(merchant.getId());
             loanDetailsResponse.setPancard(pancard);
             loanDetailsResponse.setPincode(pincode != null ? String.valueOf(pincode) : null);
@@ -142,19 +144,6 @@ public class LoanDetailsServiceV2 {
             return;
         }
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId()));
-    }
-
-    private String getPancardFromDocs(Long merchantId) {
-        log.info("Fetching pancard for merchant:{}", merchantId);
-        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId);
-        if (kycDocs != null) {
-            for (KycDoc kycDoc : kycDocs) {
-                if (kycDoc.getDocType().equals(KycDocType.PAN_NO) && kycDoc.getStatus().equals(KycDocStatus.APPROVED)) {
-                    return kycDoc.getDocIdentifier();
-                }
-            }
-        }
-        return null;
     }
 
     private Integer fetchPincode(Long merchantId) {
