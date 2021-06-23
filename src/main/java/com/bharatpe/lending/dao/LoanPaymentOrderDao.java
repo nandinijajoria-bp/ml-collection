@@ -27,4 +27,7 @@ public interface LoanPaymentOrderDao extends CrudRepository<LoanPaymentOrder, Lo
 	@Transactional
 	@Query(nativeQuery = true, value="UPDATE loan_payment_order l set l.status=:status where l.id=:id and l.status='PENDING'")
 	int updateStatusForPendingTxn(String status, Long id);
+
+	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId order by id desc limit 3")
+	List<LoanPaymentOrder> findRecentTransactions(Long ownerId, Long merchantId);
 }

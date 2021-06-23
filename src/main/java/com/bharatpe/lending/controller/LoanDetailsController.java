@@ -184,4 +184,14 @@ public class LoanDetailsController {
 		lendingOffersService.checkNTBSMS(merchant);
 		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/v2/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<SettlementV2ResponseDTO> settlementV2(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
+		try {
+			return new ResponseEntity<>(loanDetailsService.getSettlementsV2(merchant,loanId), HttpStatus.OK);
+		} catch (Exception e) {
+			logger.error("Exception in settlement---", e);
+			return new ResponseEntity<>(new SettlementV2ResponseDTO(false, "Something went wrong"), HttpStatus.OK);
+		}
+	}
 }

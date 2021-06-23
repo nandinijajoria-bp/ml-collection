@@ -5,7 +5,11 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
+import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
+import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -62,6 +66,9 @@ public class MerchantLoansService {
     @Autowired
     LendingRedCitiesDao lendingRedCitiesDao;
 
+    @Autowired
+    LoanPaymentOrderDao loanPaymentOrderDao;
+
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
         List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchantId, merchantStoreId, "ACTIVE");
@@ -100,6 +107,7 @@ public class MerchantLoansService {
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
                 LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
+                loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(),loan.getDueAmount()));
                 if (lendingLedger != null) {
                     loan.setLastEdiPaid(lendingLedger.getAmount());
                 } else {
@@ -112,6 +120,26 @@ public class MerchantLoansService {
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
             if (lendingPaymentSchedule != null) {
+                Date date = new Date();
+                if(date.after(lendingPaymentSchedule.getStartDate())) {
+                    responseDTO.setEdiStarted(Boolean.TRUE);
+                } else {
+                    responseDTO.setEdiStarted(Boolean.FALSE);
+                }
+                List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
+                List<LoanPaymentOrder> loanPaymentOrderList = loanPaymentOrderDao.findRecentTransactions(lendingPaymentSchedule.getId(),lendingPaymentSchedule.getMerchant().getId());
+                if(loanPaymentOrderList != null) {
+                    for (LoanPaymentOrder loanPaymentOrder : loanPaymentOrderList) {
+                        LendingMerchantLoansResponseDTO.RepaymentDetails repaymentDetails = new LendingMerchantLoansResponseDTO.RepaymentDetails();
+                        repaymentDetails.setAmount(loanPaymentOrder.getAmount());
+                        repaymentDetails.setDate(loanPaymentOrder.getCreatedAt());
+                        repaymentDetails.setMode(loanPaymentOrder.getSource());
+                        repaymentDetails.setStatus(loanPaymentOrder.getStatus());
+                        repaymentDetails.setOrderId(loanPaymentOrder.getOrderId());
+                        repaymentDetailsList.add(repaymentDetails);
+                    }
+                    responseDTO.setRepaymentDetails(repaymentDetailsList);
+                }
                 boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
                 if(pennyDrop){
                     try {

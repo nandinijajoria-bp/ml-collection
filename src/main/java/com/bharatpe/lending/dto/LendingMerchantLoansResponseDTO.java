@@ -1,6 +1,9 @@
 package com.bharatpe.lending.dto;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.bharatpe.common.entities.LendingApplication;
@@ -36,6 +39,8 @@ public class LendingMerchantLoansResponseDTO {
     private Double totalDueAmount = 0D;
     private HalfLoan halfLoan;
     private IOLoan ioLoan;
+    private Boolean ediStarted;
+    private List<RepaymentDetails> repaymentDetails;
     private String topupLender;
 
 
@@ -89,6 +94,18 @@ public class LendingMerchantLoansResponseDTO {
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    @Data
+    public static class RepaymentDetails {
+        private String status;
+        private String mode;
+        private Double amount;
+        private Date date;
+        private String orderId;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 
     public class Loan {
 
@@ -111,6 +128,7 @@ public class LendingMerchantLoansResponseDTO {
         private Double repaymentAmount;
         private Integer ediCount;
         private String lender;
+        private Integer dpd;
         @JsonProperty(value = "showPaynow")
         private boolean showPaynow = true;
         @JsonProperty(value = "showCustomAmount")
@@ -309,6 +327,14 @@ public class LendingMerchantLoansResponseDTO {
 
         public void setLender(String lender) {
             this.lender = lender;
+        }
+
+        public Integer getDpd() {
+            return dpd;
+        }
+
+        public void setDpd(Integer dpd) {
+            this.dpd = dpd;
         }
 
         public Loan loanId(Long loanId) {
@@ -565,6 +591,22 @@ public class LendingMerchantLoansResponseDTO {
 
     public void setIoLoan(IOLoan ioLoan) {
         this.ioLoan = ioLoan;
+    }
+
+    public Boolean getEdiStarted() {
+        return ediStarted;
+    }
+
+    public void setEdiStarted(Boolean ediStarted) {
+        this.ediStarted = ediStarted;
+    }
+
+    public List<RepaymentDetails> getRepaymentDetails() {
+        return repaymentDetails;
+    }
+
+    public void setRepaymentDetails(List<RepaymentDetails> repaymentDetails) {
+        this.repaymentDetails = repaymentDetails;
     }
 
     public String getTopupLender() {

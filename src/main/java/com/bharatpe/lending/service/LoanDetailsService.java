@@ -1355,4 +1355,34 @@ public class LoanDetailsService {
 			logger.error("Exception in NTB SMS Notify for merchant:{}", merchant.getId(), e);
 		}
 	}
+
+	public SettlementV2ResponseDTO getSettlementsV2(Merchant merchant, Long loanId) {
+		LendingPaymentSchedule lendingPaymentSchedule;
+		dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+		if (loanId != null) {
+			lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchant.getId());
+		} else {
+			lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+		}
+		if (lendingPaymentSchedule == null){
+			return new SettlementV2ResponseDTO(false, "No Active Loan");
+		}
+		List<LendingLedgerDao.SettlementDTO> settlementDTOList = lendingLedgerDao.getSettlements(loanId);
+		List<SettlementV2ResponseDTO.Settlement> settlementList = new ArrayList<>();
+		for(LendingLedgerDao.SettlementDTO settlementDTO : settlementDTOList) {
+			SettlementV2ResponseDTO.Settlement settlement = new SettlementV2ResponseDTO.Settlement();
+			settlement.setPaidAmount(settlementDTO.getPaid());
+			settlement.setDate(dateFormat.format(settlementDTO.getDate()));
+			settlement.setDueAmount(settlementDTO.getDue());
+			settlementList.add(settlement);
+		}
+		if (settlementList.isEmpty()) {
+			return new SettlementV2ResponseDTO(false, "No Settlement Found");
+		}
+		settlementList.sort(Comparator.comparing(SettlementV2ResponseDTO.Settlement::getDate).reversed());
+		SettlementV2ResponseDTO settlementV2ResponseDTO = new SettlementV2ResponseDTO();
+		settlementV2ResponseDTO.setSettlement(settlementList);
+		settlementV2ResponseDTO.setLender(lendingPaymentSchedule.getNbfc());
+		return settlementV2ResponseDTO;
+	}
 }
