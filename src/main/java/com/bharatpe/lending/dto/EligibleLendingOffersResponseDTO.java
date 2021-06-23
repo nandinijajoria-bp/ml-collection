@@ -44,6 +44,7 @@ public class EligibleLendingOffersResponseDTO {
         private Integer edi;
         private Integer ioedi;
         private Integer financeCharge;
+        private Integer ediCount;
 
         public TenureDetails() {
         }
@@ -111,6 +112,14 @@ public class EligibleLendingOffersResponseDTO {
 
         public void setFinanceCharge(Integer financeCharge) {
             this.financeCharge = financeCharge;
+        }
+
+        public Integer getEdiCount() {
+            return ediCount;
+        }
+
+        public void setEdiCount(Integer ediCount) {
+            this.ediCount = ediCount;
         }
 
         @Override

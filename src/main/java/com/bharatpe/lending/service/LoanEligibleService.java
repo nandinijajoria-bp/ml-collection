@@ -181,6 +181,7 @@ public class LoanEligibleService {
         tenureDetails.setFinanceCharge(breakup.getProcessingFee());
         tenureDetails.setRateOfInterest(lendingCategory.getInterestRate());
         tenureDetails.setRepaymentAmount(breakup.getRepayment());
+        tenureDetails.setEdiCount(lendingCategory.getPayableDays());
         return tenureDetails;
     }
     

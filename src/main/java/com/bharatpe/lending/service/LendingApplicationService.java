@@ -2689,6 +2689,9 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setLender(lendingApplication.get().getLender());
 		applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
 		applicationLoanDetailsDTO.setCovid(covid);
+		applicationLoanDetailsDTO.setTenure(lendingApplication.get().getTenure());
+		applicationLoanDetailsDTO.setInterestRate(lendingApplication.get().getInterestRate());
+		applicationLoanDetailsDTO.setEdiAmount(lendingApplication.get().getEdi());
 		String modalType = null;
 		if (isLowPriority && showOrderQr && ("NTB".equals(lendingApplication.get().getLoanType()) || "NTB_SMS_1".equals(lendingApplication.get().getLoanType()))) {
 			modalType = "QR";

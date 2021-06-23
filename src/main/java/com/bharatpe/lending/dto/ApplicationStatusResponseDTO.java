@@ -59,6 +59,14 @@ public class ApplicationStatusResponseDTO {
 
         private boolean covid = false;
 
+        private String tenure;
+
+        @JsonProperty(value = "interest_rate")
+        private Double interestRate;
+
+        @JsonProperty(value = "edi_amount")
+        private Double ediAmount;
+
         public String getModalType() {
             return modalType;
         }
@@ -121,6 +129,30 @@ public class ApplicationStatusResponseDTO {
 
         public void setCovid(boolean covid) {
             this.covid = covid;
+        }
+
+        public String getTenure() {
+            return tenure;
+        }
+
+        public void setTenure(String tenure) {
+            this.tenure = tenure;
+        }
+
+        public Double getInterestRate() {
+            return interestRate;
+        }
+
+        public void setInterestRate(Double interestRate) {
+            this.interestRate = interestRate;
+        }
+
+        public Double getEdiAmount() {
+            return ediAmount;
+        }
+
+        public void setEdiAmount(Double ediAmount) {
+            this.ediAmount = ediAmount;
         }
     }
 
