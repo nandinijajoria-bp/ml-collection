@@ -93,4 +93,11 @@ public class PaymentController {
         }
     }
 
+    @RequestMapping(value="/status/v3", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<PaymentStatusV3ResponseDTO> getPaymentStatusV3(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
+        PaymentStatusV3ResponseDTO responseDTO = paymentService.getStatusV3(orderId, merchant);
+        logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+    }
+
 }

@@ -1016,5 +1016,40 @@ public class PaymentService {
 		return beneficiaryName;
 	}
 
+	public PaymentStatusV3ResponseDTO getStatusV3(String orderId, Merchant merchant) {
+		logger.info("Received status check request for orderId:{}", orderId);
+		try {
+			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
+			if (order == null || !order.getMerchant().getId().equals(merchant.getId())) {
+				logger.info("No order found for orderId:{}", orderId);
+				return new PaymentStatusV3ResponseDTO(false, "Order not found");
+			}
+			if("PENDING".equalsIgnoreCase(order.getStatus())) {
+				logger.info("pg status check for merchant id {} and order id {}", order.getMerchant().getId(), order.getOrderId());
+				PgStatusResponse response = apiGatewayService.checkPgStatus(order.getOrderId());
+				if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && "SUCCESS".equalsIgnoreCase(response.getData().getPaymentStatus())) {
+					logger.info("Pg txn Status SUCCESS for orderId:{}", order.getOrderId());
+					handlePgCallback(response.getData());
+					order = loanPaymentOrderDao.findByOrderId(orderId);
+				} else if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus()) || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+					order.setStatus(response.getData().getPaymentStatus());
+					loanPaymentOrderDao.save(order);
+					logger.info("Pg txn Status FAILED/CANCELLED for orderId:{}", order.getOrderId());
+				}
+			}
+			PaymentStatusV3ResponseDTO.Data data = new PaymentStatusV3ResponseDTO.Data();
+			data.setPaymentMode(order.getSource());
+			data.setPaymentStatus(order.getStatus());
+			data.setReferenceNumber(order.getBankRefNo());
+			data.setTransferTime(order.getUpdatedAt());
+			data.setAmount(order.getAmount());
+			data.setOrderId(orderId);
+			return new PaymentStatusV3ResponseDTO(true, null, data);
+		} catch (Exception e) {
+			logger.error("Exception in payment status check", e);
+			return new PaymentStatusV3ResponseDTO(false, "Something went wrong");
+		}
+	}
+
 
 }
