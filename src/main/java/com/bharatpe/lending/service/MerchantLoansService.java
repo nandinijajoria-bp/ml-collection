@@ -133,7 +133,7 @@ public class MerchantLoansService {
                         LendingMerchantLoansResponseDTO.RepaymentDetails repaymentDetails = new LendingMerchantLoansResponseDTO.RepaymentDetails();
                         repaymentDetails.setAmount(loanPaymentOrder.getAmount());
                         repaymentDetails.setDate(loanPaymentOrder.getCreatedAt());
-                        repaymentDetails.setMode(loanPaymentOrder.getSource());
+                        repaymentDetails.setMode(LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"));
                         repaymentDetails.setStatus(loanPaymentOrder.getStatus());
                         repaymentDetails.setOrderId(loanPaymentOrder.getOrderId());
                         repaymentDetailsList.add(repaymentDetails);
