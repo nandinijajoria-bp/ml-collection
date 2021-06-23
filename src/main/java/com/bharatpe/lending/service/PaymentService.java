@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.math.BigInteger;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -91,6 +92,8 @@ public class PaymentService {
 	LendingNotificationService lendingNotificationService;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
+
+	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
 	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
 		logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -1019,6 +1022,7 @@ public class PaymentService {
 	public PaymentStatusV3ResponseDTO getStatusV3(String orderId, Merchant merchant) {
 		logger.info("Received status check request for orderId:{}", orderId);
 		try {
+			dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
 			if (order == null || !order.getMerchant().getId().equals(merchant.getId())) {
 				logger.info("No order found for orderId:{}", orderId);
@@ -1041,7 +1045,7 @@ public class PaymentService {
 			data.setPaymentMode(order.getSource());
 			data.setPaymentStatus(order.getStatus());
 			data.setReferenceNumber(order.getBankRefNo());
-			data.setTransferTime(order.getUpdatedAt());
+			data.setTransferTime(dateFormat.format(order.getUpdatedAt()));
 			data.setAmount(order.getAmount());
 			data.setOrderId(orderId);
 			return new PaymentStatusV3ResponseDTO(true, null, data);

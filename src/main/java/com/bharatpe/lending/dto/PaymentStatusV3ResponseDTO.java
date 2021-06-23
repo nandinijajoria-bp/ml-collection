@@ -28,7 +28,7 @@ public class PaymentStatusV3ResponseDTO {
         private String orderId;
         private Double amount;
         private String referenceNumber;
-        private Date transferTime;
+        private String transferTime;
         private String paymentMode;
     }
 }
