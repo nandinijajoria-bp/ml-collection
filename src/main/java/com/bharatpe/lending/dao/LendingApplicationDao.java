@@ -32,7 +32,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	List<LendingApplication> fetchLatestOpenApplication(Merchant merchant);
 
-	@Query(value = "select * from lending_application where merchant_id=?1 and status in ('draft','pending_verification') order by id desc limit 1", nativeQuery = true)
+	@Query(value = "select * from lending_application where merchant_id=?1 and status in ('draft','pending_verification','approved') and disburse_timestamp is null order by id desc limit 1", nativeQuery = true)
 	LendingApplication getLatestPendingApplication(Long merchantId);
 
 	@Transactional
@@ -89,5 +89,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(nativeQuery = true, value = "select * from lending_application where external_loan_id =:externalLoanId limit 1")
 	LendingApplication findByExternalLoanId(String externalLoanId);
 
-
+	@Transactional
+	@Modifying
+	@Query(value="UPDATE lending_application SET ckyc_id=:kycId where id=:applicationId and merchant_id=:merchantId",nativeQuery = true)
+	void updateKycId(Long applicationId, String kycId, Long merchantId);
 }

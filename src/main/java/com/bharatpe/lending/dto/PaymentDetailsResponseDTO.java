@@ -60,17 +60,21 @@ public class PaymentDetailsResponseDTO {
 		private Integer principalDueAmount;
 		private Integer overdueDays;
 		private Boolean isEligibleForPayment;
+		private Integer remainingEdiCount;
+		private Double ediAmount;
 		
 		public Data() {
 			
 		}
 		
-		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment) {
+		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment, Integer remainingEdiCount, Double ediAmount) {
 			this.loanAmount = loanAmount;
 			this.overdueAmount = overdueAmount;
 			this.principalDueAmount = principalDueAmount;
 			this.overdueDays = overdueDays;
 			this.isEligibleForPayment = isEligibleForPayment;
+			this.remainingEdiCount = remainingEdiCount;
+			this.ediAmount = ediAmount;
 		}
 
 		public Integer getLoanAmount() {
@@ -102,6 +106,30 @@ public class PaymentDetailsResponseDTO {
 		}
 		public void setIsEligibleForPayment(Boolean isEligibleForPayment) {
 			this.isEligibleForPayment = isEligibleForPayment;
+		}
+
+		public Boolean getEligibleForPayment() {
+			return isEligibleForPayment;
+		}
+
+		public void setEligibleForPayment(Boolean eligibleForPayment) {
+			isEligibleForPayment = eligibleForPayment;
+		}
+
+		public Integer getRemainingEdiCount() {
+			return remainingEdiCount;
+		}
+
+		public void setRemainingEdiCount(Integer remainingEdiCount) {
+			this.remainingEdiCount = remainingEdiCount;
+		}
+
+		public Double getEdiAmount() {
+			return ediAmount;
+		}
+
+		public void setEdiAmount(Double ediAmount) {
+			this.ediAmount = ediAmount;
 		}
 
 		@Override

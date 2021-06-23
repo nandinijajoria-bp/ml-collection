@@ -38,6 +38,7 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import org.springframework.util.StringUtils;
 
 @Service
 public class PaymentService {
@@ -121,7 +122,7 @@ public class PaymentService {
 				}
 			}
 			
-			PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount + ediHolidayInterestAmount, overdueDays, isPayable);
+			PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount + ediHolidayInterestAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount());
 			return new PaymentDetailsResponseDTO(data);
 			
 		} catch(Exception ex) {
@@ -131,22 +132,13 @@ public class PaymentService {
 		return new PaymentDetailsResponseDTO("Something went wrong.");
 	}
 	
-	public InitiatePaymentResponseDTO initiatePaymentV2(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
+	public InitiatePaymentResponseDTO initiatePaymentV2(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request) {
 		logger.info("Received initiate payment request  for merchant {} : {}", merchant.getId(), request);
 		try {
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 			if(activeLoan == null) {
 				logger.info("No active loan found for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("No active loan found.");
-			}
-			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
-				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
-				if (lendingVirtualAccount != null) {
-					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc(), merchantBankDetail.getBeneficiaryName());
-					return new InitiatePaymentResponseDTO(data);
-				}
-				return new InitiatePaymentResponseDTO("Something went wrong.");
 			}
 			Integer amount = request.getPayload().getAmount();
 			if(amount < 1 || amount > 100000) {
@@ -175,7 +167,11 @@ public class PaymentService {
 			pgCreateTransactionRequestDTO.setOrderId(orderId);
 			pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
 			pgCreateTransactionRequestDTO.setPaymentPageHeaderText("Select Payment Mode");
-			pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID="+orderId);
+			if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
+				pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=easy-loans&wroute=payment-status&wid="+orderId);
+			} else {
+				pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID=" + orderId);
+			}
 			if (LoanUtil.calculateDPD(activeLoan.getEdiAmount(), activeLoan.getDueAmount()) >= 4){
 				pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
 			}else{

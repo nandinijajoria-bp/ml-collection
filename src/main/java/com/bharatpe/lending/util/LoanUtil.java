@@ -1,21 +1,20 @@
 package com.bharatpe.lending.util;
 
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.PincodeCityStateMappingDao;
-import com.bharatpe.common.dao.SettlementDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
-import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
-import com.bharatpe.lending.common.dao.LendingCovidCitiesDao;
-import com.bharatpe.lending.common.dao.LendingPennydropDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
+import com.bharatpe.lending.dao.BankListDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LabelDTO;
 import com.bharatpe.lending.dto.MerchantSmsAnalysis;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.joda.time.DateTime;
@@ -57,7 +56,43 @@ public class LoanUtil {
 	APIGatewayService apiGatewayService;
 
 	@Autowired
+	LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+	@Autowired
 	BPEnachDao bpEnachDao;
+
+	@Autowired
+	LendingRedCitiesDao lendingRedCitiesDao;
+
+	@Autowired
+	MerchantSummaryDao merchantSummaryDao;
+
+	@Autowired
+	MerchantSummarySnapshotDao merchantSummarySnapshotDao;
+
+	@Autowired
+	ExperianDao experianDao;
+
+	@Autowired
+	ExperianSnapshotDao experianSnapshotDao;
+
+	@Autowired
+	LendingBBSDao lendingBBSDao;
+
+	@Autowired
+	LendingBBSSnapshotDao lendingBBSSnapshotDao;
+
+	@Autowired
+	MerchantScoreDao merchantScoreDao;
+
+	@Autowired
+	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
+
+	@Autowired
+	IfscDao ifscDao;
+
+	@Autowired
+	BankListDao bankListDao;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -301,7 +336,7 @@ public class LoanUtil {
 	}
 
 	public int getApplicationTAT(Long applicationId) {
-		int tat = 0;
+		int tat = -1;
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
 		if (lendingApplicationPriority != null && lendingApplicationPriority.getTat() != null && lendingApplicationPriority.getTatStartTime() != null) {
 			tat = (int)(lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
@@ -395,6 +430,11 @@ public class LoanUtil {
 		return (int)Math.round(dueAmount/ediAmount);
 	}
 
+	public boolean hasActiveLoan(Merchant merchant) {
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+		return activeLoan != null;
+	}
+
 	public boolean isEnachDone(Merchant merchant) {
 		boolean enachDone = false;
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
@@ -403,5 +443,135 @@ public class LoanUtil {
 			enachDone = true;
 		}
 		return enachDone;
+	}
+
+	public boolean isOGL(Integer pincode) {
+		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+		if (pincodeCityStateMapping == null) return true;
+		LendingRedCities redCities = lendingRedCitiesDao.findByPincode(pincode);
+		return redCities != null;
+	}
+
+	public List<LendingPaymentSchedule> getPreviousLoans(Long merchantId) {
+		return lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchantId, false);
+	}
+
+	public void createApplicationSnapshot(LendingApplication lendingApplication) {
+		logger.info("Creating snapshots for application:{}", lendingApplication.getId());
+		createMerchantSummarySnapshot(lendingApplication.getMerchant(), lendingApplication);
+		createExperianSnapshot(lendingApplication.getMerchant(), lendingApplication);
+		createBBSSnapshot(lendingApplication);
+		createMerchantScoreSnapshot(lendingApplication);
+	}
+
+	public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+		try {
+			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchant().getId());
+			if (merchantScore != null) {
+				MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
+				merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
+				merchantScoreSnapshotDao.save(merchantScoreSnapshot);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in createMerchantScoreSnapshot for application:{}", lendingApplication.getId(), e);
+		}
+	}
+
+	public void createBBSSnapshot(LendingApplication lendingApplication) {
+		try {
+			LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchant().getId());
+			if (lendingBBS != null) {
+				LendingBBSSnapshot lendingBBSSnapshot = LendingBBSSnapshot.createObject(lendingBBS);
+				lendingBBSSnapshot.setApplicationId(lendingApplication.getId());
+				lendingBBSSnapshotDao.save(lendingBBSSnapshot);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in createBBSSnapshot for application:{}", lendingApplication.getId(), e);
+		}
+	}
+
+	private void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
+		try {
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			if (experian != null) {
+				ExperianSnapshot experianSnapshot = new ExperianSnapshot();
+				experianSnapshot.setMerchantId(experian.getMerchantId());
+				experianSnapshot.setIp(experian.getIp());
+				experianSnapshot.setLatitude(experian.getLatitude());
+				experianSnapshot.setLongitude(experian.getLongitude());
+				experianSnapshot.setResponse(experian.getResponse());
+				experianSnapshot.setMerchantName(experian.getMerchantName());
+				experianSnapshot.setEmail(experian.getEmail());
+				experianSnapshot.setRejected(experian.getRejected());
+				experianSnapshot.setReason(experian.getReason());
+				experianSnapshot.setRequestedLoanAmount(experian.getRequestedLoanAmount());
+				experianSnapshot.setPancardNumber(experian.getPancardNumber());
+				experianSnapshot.setTnc(experian.getTnc());
+				experianSnapshot.setBpScore(experian.getBpScore());
+				experianSnapshot.setExperianScore(experian.getExperianScore());
+				experianSnapshot.setCategory(experian.getCategory());
+				experianSnapshot.setColor(experian.getColor());
+				experianSnapshot.setRetryCount(experian.getRetryCount());
+				experianSnapshot.setSkip(experian.isSkip());
+				experianSnapshot.setPincode(experian.getPincode());
+				experianSnapshot.setBureau(experian.getBureau());
+				experianSnapshot.setApplicationId(lendingApplication.getId());
+				experianSnapshotDao.save(experianSnapshot);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in createExperianSnapshot for application:{}", lendingApplication.getId(), e);
+		}
+	}
+
+	public void createMerchantSummarySnapshot(Merchant merchant, LendingApplication application) {
+		try {
+			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
+			if (summary != null) {
+				MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
+				snapshot.setApplication(application.getId());
+				snapshot.setMerchant(merchant);
+				snapshot.setLastTransactionDate(summary.getLastTransactionDate());
+				snapshot.setTotalTxnCount(summary.getDailyTxnCount());
+				snapshot.setTotalTxnAmount(summary.getDailyTxnAmount());
+				snapshot.setCategory(summary.getCategory());
+				snapshot.setAvgTpv(summary.getAvgTpv());
+				snapshot.setLoanType(summary.getLoanType());
+				snapshot.setTpv1Mon(summary.getTpv1Mon());
+				snapshot.setTpv2Mon(summary.getTpv2Mon());
+				snapshot.setTpv3Mon(summary.getTpv3Mon());
+				snapshot.setTxnDayCount1Mon(summary.getTxnDayCount1Mon());
+				snapshot.setTxnDayCount2Mon(summary.getTxnDayCount2Mon());
+				snapshot.setTxnDayCount3Mon(summary.getTxnDayCount3Mon());
+				snapshot.setTotalTxns1Month(summary.getTotalTxns1Month());
+				snapshot.setTotalTxns2Month(summary.getTotalTxns2Month());
+				snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
+				snapshot.setTotalLoansCount(summary.getTotalLoansCount());
+				snapshot.setBpScore(summary.getBpScore());
+				snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
+				merchantSummarySnapshotDao.save(snapshot);
+			}
+		} catch(Exception ex) {
+			logger.error("Exception in createMerchantSummarySnapshot for application:{}", application.getId(), ex);
+		}
+	}
+
+	public BankAccountDetails getAccountDetails(Long merchantId) {
+		logger.info("Getting bank account details for merchant:{}", merchantId);
+		try {
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+			Ifsc ifsc = ifscDao.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfscCode());
+			if (ifsc != null) {
+				BankList bankList = bankListDao.findByBankCode(ifsc.getBankCode());
+				return BankAccountDetails.builder()
+						.beneficiaryName(merchantBankDetail.getBeneficiaryName())
+						.bankName(ifsc.getBank())
+						.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4))
+						.branchName(ifsc.getBranch())
+						.bankLogo(bankList != null ? bankList.getImageUrl() : null).build();
+			}
+		} catch (Exception e) {
+			logger.error("Exception in getAccountDetails for merchant:{}", merchantId);
+		}
+		return null;
 	}
 }

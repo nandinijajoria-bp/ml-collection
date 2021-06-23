@@ -32,8 +32,8 @@ public class PaymentController {
     }
 
     @RequestMapping(value="/initiate/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
-    public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV2(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
-        return new ResponseEntity<>(paymentService.initiatePaymentV2(merchant, requestDTO, token), HttpStatus.OK);
+    public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV2(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
+        return new ResponseEntity<>(paymentService.initiatePaymentV2(merchant, requestDTO), HttpStatus.OK);
     }
     
     @RequestMapping(value="/callback", method = RequestMethod.POST,consumes = "application/json", produces="application/json")

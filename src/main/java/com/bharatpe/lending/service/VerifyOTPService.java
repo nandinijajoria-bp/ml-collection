@@ -19,8 +19,11 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.OglLoans;
+import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -133,6 +136,9 @@ public class VerifyOTPService {
 
 	@Autowired
 	LendingNotificationService lendingNotificationService;
+
+	@Autowired
+	KycHandler kycHandler;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -270,6 +276,10 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
+			logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
+			updateKycStatus(lendingApplication);
+		}
 
 		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
@@ -283,6 +293,35 @@ public class VerifyOTPService {
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
+	}
+
+	private void updateKycStatus(LendingApplication lendingApplication) {
+		try {
+			KycStatus kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
+			logger.info("kyc status:{} for application:{}", kycStatus.name(), lendingApplication.getId());
+			if (kycStatus.equals(KycStatus.APPROVED)) {
+				lendingApplication.setVerifyOcr("YES");
+				lendingApplication.setVerifyPan("YES");
+				lendingApplication.setManualKyc(KycStatus.APPROVED.name());
+				lendingApplication.setKycApprovedDate(new Date());
+				lendingApplication.setManualCibil(KycStatus.APPROVED.name());
+				lendingApplication.setCibilApprovedDate(new Date());
+				lendingApplicationDao.save(lendingApplication);
+			} else if (kycStatus.equals(KycStatus.REJECTED)) {
+				lendingApplication.setManualKyc(KycStatus.REJECTED.name());
+				lendingApplication.setManualKycReason("KYC Rejected");
+				lendingApplication.setKycApprovedDate(new Date());
+				lendingApplication.setStatus(KycStatus.REJECTED.name());
+				lendingApplicationDao.save(lendingApplication);
+			} else if (kycStatus.equals(KycStatus.PENDING)) {
+				lendingApplication.setManualKyc(KycStatus.PENDING.name());
+				lendingApplicationDao.save(lendingApplication);
+			} else {
+				logger.error("Unable to update kycStatus:{} for application:{}", kycStatus.name(), lendingApplication.getId());
+			}
+		} catch (Exception e) {
+			logger.error("Exception in updateKycStatus for application:{}", lendingApplication.getId());
+		}
 	}
 
 	public void sendLatLong(Long merchantId,Long applicationId){

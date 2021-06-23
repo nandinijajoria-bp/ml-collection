@@ -13,8 +13,10 @@ import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
+import com.bharatpe.lending.handlers.KycHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,9 +48,6 @@ public class SignAgreementService {
 	LendingGstDao lendingGstDao;
 
 	@Autowired
-	WhatsappNotificationService whatsappNotificationService;
-
-	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
 	
 	@Autowired
@@ -62,9 +61,6 @@ public class SignAgreementService {
 	
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
-	
-	@Autowired
-	TmpLoanGenerateDao tmpLoanGenerateDao;
 	
 	@Autowired
 	DocAuthenticationDao docAuthenticationDao;
@@ -88,13 +84,10 @@ public class SignAgreementService {
 	APIGatewayService apiGatewayService;
 
 	@Autowired
-	RedisNotificationService redisNotificationService;
-
-	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
-
-	@Autowired
 	LenderMappingService lenderMappingService;
+
+	@Autowired
+	KycHandler kycHandler;
 
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -131,10 +124,19 @@ public class SignAgreementService {
 			logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
 			return response;
 		}
-		
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
-		if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
-			return response;
+		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
+			KycStatus kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
+			logger.info("kyc status:{} for application:{}", kycStatus.name(), lendingApplication.getId());
+			if (kycStatus.equals(KycStatus.NEW) || kycStatus.equals(KycStatus.DRAFT)) {
+				logger.info("kyc not done for application:{}", applicationId);
+				return response;
+			}
+		} else {
+			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+			if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
+				logger.info("documents not found for application:{}", applicationId);
+				return response;
+			}
 		}
 		response =  sendOTP(merchant, appSign);
 		response.put("application_id", applicationId);

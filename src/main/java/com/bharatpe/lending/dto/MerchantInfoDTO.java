@@ -27,6 +27,7 @@ public class MerchantInfoDTO {
         private String city;
         private String state;
         private String type;
+        private String addressType;
     }
 
     @Setter
