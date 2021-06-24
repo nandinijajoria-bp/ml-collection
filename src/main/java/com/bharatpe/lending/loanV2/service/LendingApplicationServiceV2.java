@@ -14,6 +14,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.LenderMappingService;
+import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
@@ -278,16 +279,18 @@ public class LendingApplicationServiceV2 {
             log.info("Draft application not found for id:{}", applicationId);
             return new ApiResponse<>(false, "Draft application not found");
         }
+        LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
         AgreementResponse agreementResponse =  AgreementResponse.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())
                 .loanAmount(lendingApplication.getLoanAmount())
                 .interestRate(lendingApplication.getInterestRate())
-                .arrangerFee(lendingApplication.getProcessingFee().intValue())
+                .arrangerFee(LoanCalculationUtil.getProcessingFee(lendingApplication.getLoanAmount(), lendingCategories))
                 .disbursalAmount(lendingApplication.getDisbursalAmount())
                 .tenure(lendingApplication.getTenure())
                 .ediAmount(lendingApplication.getEdi().intValue())
                 .ediCount(lendingApplication.getPayableDays().intValue())
+                .bpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()))
                 .repayment(AgreementResponse.Repayment.builder()
                         .principal(lendingApplication.getLoanAmount())
                         .interest(lendingApplication.getRepayment() - lendingApplication.getLoanAmount())

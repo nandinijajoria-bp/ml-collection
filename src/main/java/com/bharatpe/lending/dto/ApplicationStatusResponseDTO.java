@@ -68,7 +68,7 @@ public class ApplicationStatusResponseDTO {
         private Double ediAmount;
 
         @JsonProperty(value = "arranger_fee")
-        private Double arrangerFee;
+        private Integer arrangerFee;
 
         public String getModalType() {
             return modalType;
@@ -158,17 +158,19 @@ public class ApplicationStatusResponseDTO {
             this.ediAmount = ediAmount;
         }
 
-        public Double getArrangerFee() {
+        public Integer getArrangerFee() {
             return arrangerFee;
         }
 
-        public void setArrangerFee(Double arrangerFee) {
+        public void setArrangerFee(Integer arrangerFee) {
             this.arrangerFee = arrangerFee;
         }
     }
 
     @JsonProperty(value = "application_status")
     private List<ApplicationDTO> applicationDTOList;
+
+    private boolean bpClubMember = false;
 
     public HeaderDTO getHeader() {
         return header;
@@ -192,5 +194,13 @@ public class ApplicationStatusResponseDTO {
 
     public void setApplicationDTOList(List<ApplicationDTO> applicationDTOList) {
         this.applicationDTOList = applicationDTOList;
+    }
+
+    public boolean isBpClubMember() {
+        return bpClubMember;
+    }
+
+    public void setBpClubMember(boolean bpClubMember) {
+        this.bpClubMember = bpClubMember;
     }
 }

@@ -2671,6 +2671,8 @@ public class LendingApplicationService {
 		if("draft".equalsIgnoreCase(lendingApplication.get().getStatus()) || "deleted".equalsIgnoreCase(lendingApplication.get().getStatus())){
 			return new ResponseDTO(Boolean.FALSE, "Application not in pending state");
 		}
+		applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
+		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.get().getCategory());
 		BpEnach successEnach = bpEnachDao.findSuccessEnach(merchant.getId());
 		OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
@@ -2692,7 +2694,7 @@ public class LendingApplicationService {
 		applicationLoanDetailsDTO.setTenure(lendingApplication.get().getTenure());
 		applicationLoanDetailsDTO.setInterestRate(lendingApplication.get().getInterestRate());
 		applicationLoanDetailsDTO.setEdiAmount(lendingApplication.get().getEdi());
-		applicationLoanDetailsDTO.setArrangerFee(lendingApplication.get().getProcessingFee());
+		applicationLoanDetailsDTO.setArrangerFee(LoanCalculationUtil.getProcessingFee(lendingApplication.get().getLoanAmount(), lendingCategories));
 		String modalType = null;
 		if (isLowPriority && showOrderQr && ("NTB".equals(lendingApplication.get().getLoanType()) || "NTB_SMS_1".equals(lendingApplication.get().getLoanType()))) {
 			modalType = "QR";

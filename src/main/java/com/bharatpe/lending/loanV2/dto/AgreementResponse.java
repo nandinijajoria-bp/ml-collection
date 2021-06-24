@@ -19,6 +19,7 @@ public class AgreementResponse {
     private Integer ediCount;
     private Repayment repayment;
     private BankAccountDetails accountDetails;
+    private boolean bpClubMember;
 
     @Data
     @ToString
