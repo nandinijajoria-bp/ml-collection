@@ -446,6 +446,7 @@ public class LoanUtil {
 	}
 
 	public boolean isOGL(Integer pincode) {
+		if (pincode == null) return false;
 		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 		if (pincodeCityStateMapping == null) return true;
 		LendingRedCities redCities = lendingRedCitiesDao.findByPincode(pincode);

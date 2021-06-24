@@ -23,6 +23,7 @@ import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -139,12 +140,13 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPancard(experian.getPancardNumber());
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
-        Eligibility eligibility = getEligibility(merchant);
+        MutableBoolean isDerog = new MutableBoolean(false);
+        Eligibility eligibility = getEligibility(merchant, isDerog);
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;
         }
-        loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId()));
+        loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode()));
     }
 
     private Integer fetchPincode(Long merchantId) {
@@ -164,19 +166,16 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String getIneligibleReason(Long merchantId) {
+    private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
-            Experian experian = experianDao.getByMerchantId(merchantId);
-            if (experian != null) {
-                if (experian.getRejected() != null && experian.getRejected()) {
-                    log.info("Derog merchant:{}", merchantId);
-                    return IneligibleType.DEROG.name();
-                }
-                if (experian.getReason() != null && IneligibleType.OGL.name().equalsIgnoreCase(experian.getReason())) {
-                    log.info("OGL merchant:{}", merchantId);
-                    return IneligibleType.OGL.name();
-                }
+            if (loanUtil.isOGL(pincode)) {
+                log.info("OGL merchant:{}", merchantId);
+                return IneligibleType.OGL.name();
+            }
+            if (isDerog.booleanValue()) {
+                log.info("Derog merchant:{}", merchantId);
+                return IneligibleType.DEROG.name();
             }
         } catch (Exception e) {
             log.error("Exception in getIneligibleReason for merchant:{}", merchantId, e);
@@ -185,7 +184,7 @@ public class LoanDetailsServiceV2 {
         return IneligibleType.INELIGIBLE.name();
     }
 
-    private Eligibility getEligibility(Merchant merchant) {
+    private Eligibility getEligibility(Merchant merchant, MutableBoolean isDerog) {
         log.info("Checking eligibility for merchant:{}", merchant.getId());
         try {
             Double eligibleAmount = 0D;
@@ -193,6 +192,7 @@ public class LoanDetailsServiceV2 {
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+                isDerog.setValue(globalLimitResponse.getData().isDerog());
             }
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
