@@ -5,10 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.LendingActiveLoansResponseDTO;
-import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
-import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -68,6 +65,9 @@ public class MerchantLoansService {
 
     @Autowired
     LoanPaymentOrderDao loanPaymentOrderDao;
+
+    @Autowired
+    MerchantDao merchantDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -414,5 +414,24 @@ public class MerchantLoansService {
         int deleteNonTopup = eligibleLoanDao.deleteNonTopUp(lendingPaymentSchedule.getMerchant().getId());
 
         return eligiblity;
+    }
+
+    public CommonResponse getDueAmount(Long merchantId, Long merchantStoreId, Merchant merchant) {
+        if (merchant == null) {
+            merchant = merchantDao.getById(merchantId);
+        }
+        if (merchant == null) {
+            return new CommonResponse(false, "merchant does not exist");
+        }
+        Map<String, Double> responseMap = new HashMap<>();
+        Double dueAmount = 0D;
+        List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchant.getId(), merchantStoreId, "ACTIVE");
+        if (!activeLoans.isEmpty() && "BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
+            for (LendingPaymentSchedule activeLoan : activeLoans) {
+                dueAmount += activeLoan.getDueAmount();
+            }
+        }
+        responseMap.put("due_amount", dueAmount);
+        return new CommonResponse(responseMap);
     }
 }

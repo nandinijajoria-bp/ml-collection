@@ -185,6 +185,15 @@ public class LoanDetailsController {
 		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
 	}
 
+	@GetMapping(value = "/due_amount")
+	public ResponseEntity<CommonResponse> getDueAmount(@RequestAttribute(required = false) Merchant merchant, @RequestParam(required = false) Long merchantId, @RequestParam(required = false) Long merchantStoreId) {
+		logger.info("request to get due amount for merchantId:{} and merchantStoreId:{}", merchant != null ? merchant.getId() : merchantId, merchantStoreId);
+		if (merchant == null && merchantId == null) {
+			return ResponseEntity.badRequest().body(new CommonResponse(false, "merchantId/token is required"));
+		}
+		return ResponseEntity.ok(merchantLoansService.getDueAmount(merchantId, merchantStoreId, merchant));
+	}
+
 	@RequestMapping(value="/v2/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity<SettlementV2ResponseDTO> settlementV2(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
 		try {
