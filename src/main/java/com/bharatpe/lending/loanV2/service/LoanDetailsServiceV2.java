@@ -244,10 +244,24 @@ public class LoanDetailsServiceV2 {
                 int tat = loanUtil.getApplicationTAT(openApplication.getId());
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
             }
+            applicationDetails.setReapply(shouldReapply(openApplication));
             loanDetailsResponse.setLoanApplication(applicationDetails);
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchant().getId(), e);
         }
+    }
+
+    private String shouldReapply(LendingApplication openApplication) {
+        //if cibil rejected then never show reapply
+        if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
+            return null;
+        }
+        //if KYC rejected then route to Offers page
+        if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualKyc())) {
+            return "OFFER";
+        }
+        //TODO if pan number rejected then route to Pan Pin Page
+        return null;
     }
 
     private boolean isShopPhotoRequired(LendingApplication openApplication) {

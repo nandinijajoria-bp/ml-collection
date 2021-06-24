@@ -18,6 +18,7 @@ public class LoanApplicationDetails {
     private String rejectReason;
     private String enachDeeplink;
     private boolean shopPhotoRequired = false;
+    private String reapply;
     private AddressDetails addressDetails;
     private AddressDetails currentAddress;
     private ProfessionalDetails professionalDetails;
