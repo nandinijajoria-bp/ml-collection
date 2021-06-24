@@ -13,4 +13,5 @@ public class BankAccountDetails {
     private String branchName;
     private String bankLogo;
     private String beneficiaryName;
+    private String ifsc;
 }

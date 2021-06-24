@@ -67,6 +67,9 @@ public class ApplicationStatusResponseDTO {
         @JsonProperty(value = "edi_amount")
         private Double ediAmount;
 
+        @JsonProperty(value = "arranger_fee")
+        private Double arrangerFee;
+
         public String getModalType() {
             return modalType;
         }
@@ -153,6 +156,14 @@ public class ApplicationStatusResponseDTO {
 
         public void setEdiAmount(Double ediAmount) {
             this.ediAmount = ediAmount;
+        }
+
+        public Double getArrangerFee() {
+            return arrangerFee;
+        }
+
+        public void setArrangerFee(Double arrangerFee) {
+            this.arrangerFee = arrangerFee;
         }
     }
 

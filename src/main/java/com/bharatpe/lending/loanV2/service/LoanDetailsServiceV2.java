@@ -251,7 +251,7 @@ public class LoanDetailsServiceV2 {
     }
 
     private boolean isShopPhotoRequired(LendingApplication openApplication) {
-        if (openApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.name())) {
+        if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
             List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(),openApplication.getId());
             return lendingShopDocumentsList.size() < 2;
         }

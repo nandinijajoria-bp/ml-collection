@@ -264,6 +264,11 @@ public class LendingApplicationServiceV2 {
             log.info("OGL pincode found for merchant:{}", merchant.getId());
             return "OGL pincode";
         }
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if (experian != null && experian.getPincode() != null && !pincode.equals(experian.getPincode())) {
+            log.info("pincode mismatch for merchant:{}", merchant.getId());
+            return "pincode mismatch";
+        }
         return null;
     }
 

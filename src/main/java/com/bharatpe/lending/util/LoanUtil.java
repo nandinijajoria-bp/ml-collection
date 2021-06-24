@@ -567,6 +567,7 @@ public class LoanUtil {
 						.bankName(ifsc.getBank())
 						.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4))
 						.branchName(ifsc.getBranch())
+						.ifsc(merchantBankDetail.getIfscCode())
 						.bankLogo(bankList != null ? bankList.getImageUrl() : null).build();
 			}
 		} catch (Exception e) {
@@ -586,7 +587,7 @@ public class LoanUtil {
 	}
 
 	public boolean isRepeatLoan(Long merchantId) {
-		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId,false);
+		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(merchantId,"CLOSED", false);
 		return !prevLoans.isEmpty();
 	}
 }
