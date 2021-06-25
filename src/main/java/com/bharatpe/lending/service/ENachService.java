@@ -13,9 +13,11 @@ import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -70,6 +72,9 @@ public class ENachService {
 
     @Autowired
     LendingBulkNachDao lendingBulkNachDao;
+
+    @Autowired
+    Environment env;
 
     ExecutorService executorService = Executors.newFixedThreadPool(50);
 
@@ -139,6 +144,9 @@ public class ENachService {
 
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
+        }
+        if (lendingApplication != null && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
+            responseDTO.getData().setDeep_link(env.getProperty("new.loan.deeplink"));
         }
         return responseDTO;
     }
