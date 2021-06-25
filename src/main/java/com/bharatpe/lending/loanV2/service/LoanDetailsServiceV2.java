@@ -118,9 +118,7 @@ public class LoanDetailsServiceV2 {
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
             String pancard = kycHandler.getPanNumber(merchant.getId());
-            Integer pincode = fetchPincode(merchant.getId());
             loanDetailsResponse.setPancard(pancard);
-            loanDetailsResponse.setPincode(pincode != null ? String.valueOf(pincode) : null);
             return;
         }
         MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
