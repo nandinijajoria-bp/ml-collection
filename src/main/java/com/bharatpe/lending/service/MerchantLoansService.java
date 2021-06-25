@@ -153,28 +153,6 @@ public class MerchantLoansService {
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
-                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
-                        logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
-//                        boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
-//                        if (pennyDrop) {
-                            Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
-                            double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
-                            LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
-                            if (ediPaidPercentage <= 0.8d) {
-                                logger.info("merchant:{} eligible for io loan", merchantId);
-                                loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
-                                responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
-                            }
-//                        else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
-//                            logger.info("merchant:{} eligible for half loan", merchantId);
-//                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
-//                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
-//                        }
-                            else {
-                                logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
-                            }
-//                        }
-                    }
                 }
             }
 
