@@ -24,10 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -84,7 +81,7 @@ public class LendingApplicationServiceV2 {
                 .panNumber(experian.getPancardNumber())
                 .callBackUrl(callBackURL)
                 .merchantId(String.valueOf(merchant.getId())).build();
-        List<KycDocType> docTypes = Arrays.asList(KycDocType.PAN_CARD, KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.EKYC);
+        List<KycDocType> docTypes = new ArrayList<>(Arrays.asList(KycDocType.PAN_CARD, KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.EKYC));
         if (initiateKycRequest.getApplicationId() != null) {
             docTypes.add(KycDocType.AADHAAR);
         }
