@@ -27,6 +27,7 @@ import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -329,6 +330,10 @@ public class LoanDetailsServiceV2 {
             return null;
         }
         if (loanUtil.isEnachDone(openApplication.getMerchant())) {
+            return null;
+        }
+        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
             return null;
         }
         if (isIOS) return Deeplink.TECHPROCESS;
