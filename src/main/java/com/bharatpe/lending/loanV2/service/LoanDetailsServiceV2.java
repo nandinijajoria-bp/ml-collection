@@ -5,14 +5,17 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.MerchantStoreDao;
 import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.MerchantInfoDTO;
@@ -20,6 +23,7 @@ import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +74,12 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
 
+    @Autowired
+    BharatPeEnachDao bharatPeEnachDao;
+
+    @Autowired
+    EnachErrorHandingService enachErrorHandingService;
+
     //TODO add syncContacts flag
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
         try {
@@ -103,7 +113,7 @@ public class LoanDetailsServiceV2 {
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
                 boolean isIOS = request != null && request.isIOS();
-                setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS);
+                setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian);
                 return new ApiResponse<>(loanDetailsResponse);
             }
             checkEligibility(loanDetailsResponse, request, experian, merchant);
@@ -224,7 +234,7 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS) {
+    private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian) {
         try {
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
@@ -243,10 +253,25 @@ public class LoanDetailsServiceV2 {
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
             }
             applicationDetails.setReapply(shouldReapply(openApplication));
+            if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
+                applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
+            }
             loanDetailsResponse.setLoanApplication(applicationDetails);
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchant().getId(), e);
         }
+    }
+
+    private EnachErrorMessageDTO getEnachError(LendingApplication openApplication, Experian experian) {
+        try {
+            BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+            if (bharatPeEnach != null) {
+                return enachErrorHandingService.enachErrorResponse(bharatPeEnach, openApplication.getMerchant(), openApplication, experian);
+            }
+        } catch (Exception e) {
+            log.error("Exception in getEnachError for merchant:{}", openApplication.getMerchant().getId());
+        }
+        return null;
     }
 
     private String shouldReapply(LendingApplication openApplication) {
