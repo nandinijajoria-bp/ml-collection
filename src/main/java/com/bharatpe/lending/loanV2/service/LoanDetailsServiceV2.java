@@ -308,6 +308,8 @@ public class LoanDetailsServiceV2 {
                 .gstNumber(lendingGstDetail.getGstNumber())
                 .experience(lendingGstDetail.getExperience())
                 .salary(String.valueOf(lendingGstDetail.getSalary()))
+                .companyName(lendingGstDetail.getCompanyName())
+                .addressType(lendingGstDetail.getAddressType())
                 .shopType(lendingGstDetail.getShopType()).build();
     }
 

@@ -16,4 +16,5 @@ public class ProfessionalDetails {
     private String salary;
     private String companyName;
     private String shopType;
+    private String addressType;
 }
