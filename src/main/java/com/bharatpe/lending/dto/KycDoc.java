@@ -27,4 +27,5 @@ public class KycDoc {
     private String xml;
     private String passPhrase;
     private String DOB;
+    private String remarks;
 }

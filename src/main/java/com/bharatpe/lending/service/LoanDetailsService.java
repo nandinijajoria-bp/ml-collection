@@ -256,6 +256,10 @@ public class LoanDetailsService {
 					experian.setReportDate(null);
 					experian.setExperianScore(null);
 					experianDao.save(experian);
+				} else if (requestDTO.getPayload().getPincode() != null) {
+					logger.info("updating experian pincode:{} for merchant:{}", requestDTO.getPayload().getPincode(), merchant.getId());
+					experian.setPincode(requestDTO.getPayload().getPincode());
+					experianDao.save(experian);
 				}
 			}
 			if (experian != null && experian.getPancardNumber() != null) {

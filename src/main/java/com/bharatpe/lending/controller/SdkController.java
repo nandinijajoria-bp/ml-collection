@@ -8,10 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,8 +27,8 @@ public class SdkController {
     APIGatewayService apiGatewayService;
 
     @RequestMapping(value = "/sdkInvoke/{merchantId}", method = RequestMethod.GET, produces = "application/json")
-    ResponseEntity<Map<String,Object>> getSdkInvoke(@PathVariable("merchantId") Long merchantId) {
-        logger.info("Get SDK Status Api Called for merchant : ", merchantId);
+    ResponseEntity<Map<String,Object>> getSdkInvoke(@PathVariable(value = "merchantId") Long merchantId) {
+        logger.info("Get SDK Status Api Called for merchant:{}", merchantId);
         Optional<Merchant> merchant = merchantDao.findById(merchantId);
         Map<String, Object> response = new HashMap<>();
         if(merchant.isPresent()){
@@ -41,5 +38,14 @@ public class SdkController {
         }
         response.put("message","Merchant doesn't exist");
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @GetMapping(value = "/sdkInvoke")
+    ResponseEntity<Map<String,Object>> sdkInvode(@RequestAttribute Merchant merchant) {
+        logger.info("Get SDK Status Api Called for merchant:{}", merchant.getId());
+        Map<String, Object> response = new HashMap<>();
+        Boolean isInvoke = apiGatewayService.isSdkInvoke(merchant);
+        response.put("isInvoke",isInvoke);
+        return new ResponseEntity<>(response,HttpStatus.OK);
     }
 }

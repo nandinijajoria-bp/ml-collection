@@ -109,7 +109,7 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 loanDetailsResponse.setHasExperian(true);
             }
-            loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()));
+            loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             LendingApplication openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
@@ -144,6 +144,10 @@ public class LoanDetailsServiceV2 {
             experian.setBureau(null);
             experian.setHitId(null);
             experian.setReportDate(null);
+            experianDao.save(experian);
+        } else if (request != null && request.getPincode() != null) {
+            log.info("updating experian pincode:{} for merchant:{}", request.getPincode(), merchant.getId());
+            experian.setPincode(Integer.valueOf(request.getPincode()));
             experianDao.save(experian);
         }
         loanDetailsResponse.setPancard(experian.getPancardNumber());

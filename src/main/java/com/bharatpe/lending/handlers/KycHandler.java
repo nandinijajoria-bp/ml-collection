@@ -11,6 +11,7 @@ import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycDocResponse;
+import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -97,30 +98,22 @@ public class KycHandler {
         return null;
     }
 
-    public KycStatus getKycStatus(Long merchantId) {
+    public KycStatusDTO getKycStatus(Long merchantId) {
         log.info("Checking kyc status for merchant:{}", merchantId);
-        if (merchantId.equals(5377843L)) return KycStatus.APPROVED;//pavan
         try {
             List<KycDoc> kycDocs = getKycDoc(merchantId);
             if (!CollectionUtils.isEmpty(kycDocs)) {
-                Map<KycDocType, KycDocStatus> docStatusMap = new HashMap<>();
                 for (KycDoc kycDoc : kycDocs) {
-                    if (kycDoc.getStatus() != null) {
-                        docStatusMap.put(kycDoc.getDocType(), kycDoc.getStatus());
-                    }
+                    if (kycDoc.getStatus().equals(KycDocStatus.REJECTED)) return KycStatusDTO.builder().kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+                    if (kycDoc.getStatus().equals(KycDocStatus.PENDING)) return KycStatusDTO.builder().kycStatus(KycStatus.PENDING).build();
                 }
-                if (docStatusMap.isEmpty()) return KycStatus.NEW;
-                if (docStatusMap.size() < kycMandatoryDocs.size()) return KycStatus.DRAFT;
-                for (KycDocStatus kycDocStatus : docStatusMap.values()) {
-                    if (kycDocStatus.equals(KycDocStatus.REJECTED)) return KycStatus.REJECTED;
-                    if (kycDocStatus.equals(KycDocStatus.PENDING)) return KycStatus.PENDING;
-                }
-                return KycStatus.APPROVED;
+                if (kycDocs.size() < kycMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
+                return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
             }
         } catch (Exception e) {
             log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
         }
-        return KycStatus.NEW;
+        return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
 
     public String initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes) {

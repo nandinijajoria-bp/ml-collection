@@ -10,6 +10,7 @@ import lombok.ToString;
 public class CreateApplicationRequest {
     private Long applicationId;
     private String category;
+    private String offerType;
     private AddressDetails addressDetails;
     private ProfessionalDetails professionalDetails;
     private AdditionalDetails additionalDetails;

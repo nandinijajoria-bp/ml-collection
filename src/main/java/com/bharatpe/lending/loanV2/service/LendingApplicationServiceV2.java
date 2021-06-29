@@ -125,7 +125,7 @@ public class LendingApplicationServiceV2 {
         try {
             String error = baseChecks(merchant, applicationRequest);
             if (error != null) return new ApiResponse<>(false, error);
-            List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), applicationRequest.getCategory());
+            List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), applicationRequest.getCategory(), applicationRequest.getOfferType());
             LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (eligibleLoans.isEmpty() || Objects.isNull(lendingCategory)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
@@ -297,5 +297,12 @@ public class LendingApplicationServiceV2 {
                         .build())
                 .accountDetails(loanUtil.getAccountDetails(lendingApplication.getMerchant().getId())).build();
         return new ApiResponse<>(agreementResponse);
+    }
+
+    private List<EligibleLoan> fetchEligibleLoansForCreateApplication(Long merchantId, String category, String offerType){
+        if("CUSTOM".equalsIgnoreCase(offerType)){
+            return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
+        }
+        return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
     }
 }

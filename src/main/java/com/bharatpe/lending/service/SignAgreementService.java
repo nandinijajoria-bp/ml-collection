@@ -17,6 +17,7 @@ import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,9 +126,9 @@ public class SignAgreementService {
 			return response;
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
-			KycStatus kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
-			logger.info("kyc status:{} for application:{}", kycStatus.name(), lendingApplication.getId());
-			if (kycStatus.equals(KycStatus.NEW) || kycStatus.equals(KycStatus.DRAFT)) {
+			KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
+			logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
+			if (kycStatus.getKycStatus().equals(KycStatus.NEW) || kycStatus.getKycStatus().equals(KycStatus.DRAFT)) {
 				logger.info("kyc not done for application:{}", applicationId);
 				return response;
 			}
