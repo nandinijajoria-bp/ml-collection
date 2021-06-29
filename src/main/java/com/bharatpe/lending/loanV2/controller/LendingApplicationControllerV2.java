@@ -41,4 +41,12 @@ public class LendingApplicationControllerV2 {
         log.info("lending agreement v2 response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping(value = "/applicationStatus/v2")
+    public ResponseEntity<ApiResponse<?>> getApplicationStatus(@RequestHeader("token") String token, @RequestParam Long applicationId, @RequestParam(required = false) Boolean isIOS, @RequestAttribute Merchant merchant) {
+        log.info("lending applicationStatus v2 request:{} for merchant:{}", applicationId, merchant.getId());
+        ApiResponse<?> response = lendingApplicationServiceV2.getApplicationStatus(applicationId, merchant, isIOS, token);
+        log.info("lending applicationStatus v2 response:{} for merchant:{}", response, merchant.getId());
+        return ResponseEntity.ok(response);
+    }
 }

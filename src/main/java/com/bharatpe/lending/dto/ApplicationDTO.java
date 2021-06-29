@@ -22,7 +22,15 @@ public class ApplicationDTO {
 		private String day;
 		private String time;
 
-		public String getDay() {
+	public DateDTO() {
+	}
+
+	public DateDTO(Date time) {
+		this.day = time.toString();
+		this.time = time.toString();
+	}
+
+	public String getDay() {
 			return day;
 		}
 

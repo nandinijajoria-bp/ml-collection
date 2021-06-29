@@ -94,6 +94,12 @@ public class LoanUtil {
 	@Autowired
 	BankListDao bankListDao;
 
+	@Autowired
+	LendingNachBankDao lendingNachBankDao;
+
+	@Autowired
+	BharatPeEnachDao bharatPeEnachDao;
+
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
 		
@@ -590,5 +596,61 @@ public class LoanUtil {
 	public boolean isRepeatLoan(Long merchantId) {
 		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(merchantId,"CLOSED", false);
 		return !prevLoans.isEmpty();
+	}
+
+	public BpEnach getSuccessNach(Merchant merchant) {
+		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if (enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			return enachSuccess;
+		}
+		return null;
+	}
+
+	public boolean isDIY(Merchant merchant) {
+		return (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
+	}
+
+	public boolean isLowPriority(Long applicationId) {
+		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
+		return lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
+	}
+
+	public boolean isEnachBank(Long merchantId) {
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfscCode().substring(0, 4));
+		return lendingNachBank != null;
+	}
+
+	public boolean isNachSkipped(Long merchantId, Long applicationId) {
+		BharatPeEnach bharatPeEnach =  bharatPeEnachDao.isSkipped(merchantId, applicationId);
+		return bharatPeEnach != null;
+	}
+
+	public boolean cpvRequired(LendingApplication lendingApplication) {
+		Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
+		boolean enachSuccess = "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && "ENACH".equalsIgnoreCase(lendingApplication.getNachType());
+		if(enachSuccess) {
+			if ("BHARAT_SWIPE".equals(lendingApplication.getLoanType()) || "OGL".equals(lendingApplication.getLoanType())) {
+				return false;
+			}
+			boolean isNTC = isNTC(experian);
+			if(!isRepeatLoan(lendingApplication.getMerchant().getId())) {
+				if(isNTC && lendingApplication.getLoanAmount() <= 50000D) {
+					return false;
+				} else if(!isNTC && lendingApplication.getLoanAmount() <= 100000D) {//etc
+					return false;
+				}
+			} else return lendingApplication.getLoanAmount() > 300000D;
+		}
+		return true;
+	}
+
+	public boolean isNTC(Experian experian) {
+		if (experian == null || experian.getCategory() == null) {
+			return true;
+		}
+		List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
+		return ntcCategories.contains(experian.getCategory());
 	}
 }

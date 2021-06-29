@@ -31,7 +31,7 @@ public interface LendingConstants {
 	String FPACCOUNT_NEWUSER_IMG="https://d30gqtvesfc1d5.cloudfront.net/ext/product_entry_img/fp_account_entry.png";
 	String FPACCOUNT_NEWUSER_DEEPLINK="bharatpe://dynamic?key=interest_account";
 	String ENACH_BANK_MESSAGE="<p class='inel-note'>Note: Your Bank A/C is not eNACH-able and our lending partners don’t process a loan application in this Bank A/C. Please change your Bank A/C by clicking <b>here</b> and try again.</p>";
-	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=add-bank-account";
+	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=add-bank-account&wroute=easy-loans";
 	String COLLECT_VPA_CREATE_TXN_URL = "/startTxn";
 	enum BUREAU_TYPES {
         CRIF, EXPERIAN;
