@@ -87,7 +87,7 @@ public class LendingApplicationServiceV2 {
         if (experian == null || experian.getPancardNumber() == null) {
             return new ApiResponse<>(false, "Pancard does not exist");
         }
-        String callBackURL = env.getProperty("new.loan.deeplink");
+        String callBackURL = env.getProperty("kyc.loan.deeplink");
         if (!StringUtils.isEmpty(initiateKycRequest.getWroute())) {
             callBackURL += "&wroute=" + initiateKycRequest.getWroute();
         }
