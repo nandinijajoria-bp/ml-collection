@@ -115,7 +115,10 @@ public class LoanDetailsServiceV2 {
                 log.info("open application for merchant:{}", merchant.getId());
                 boolean isIOS = request != null && request.isIOS();
                 setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian);
-                return new ApiResponse<>(loanDetailsResponse);
+                if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
+                    //if no reapply then dont check eligibility
+                    return new ApiResponse<>(loanDetailsResponse);
+                }
             }
             checkEligibility(loanDetailsResponse, request, experian, merchant);
             return new ApiResponse<>(loanDetailsResponse);
@@ -280,15 +283,22 @@ public class LoanDetailsServiceV2 {
     }
 
     private String shouldReapply(LendingApplication openApplication) {
-        //if cibil rejected then never show reapply
-        if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
-            return null;
+        if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus())) {
+            if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
+                return null;
+            } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualKyc())) {
+                return Reapply.OFFER.name();
+            } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getCkycStatus())) {
+                KycStatusDTO kycStatusDTO = kycHandler.getKycStatus(openApplication.getMerchant().getId());
+                if (KycStatus.REJECTED.equals(kycStatusDTO.getKycStatus()) && KycDocType.PAN_NO.equals(kycStatusDTO.getKycDocType())) {
+                    return Reapply.PAN.name();
+                } else {
+                    return Reapply.OFFER.name();
+                }
+            } else {
+                return Reapply.OFFER.name();
+            }
         }
-        //if KYC rejected then route to Offers page
-        if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualKyc())) {
-            return "OFFER";
-        }
-        //TODO if pan number rejected then route to Pan Pin Page
         return null;
     }
 
