@@ -20,6 +20,7 @@ public class LoanApplicationDetails {
     private String enachDeeplink;
     private boolean shopPhotoRequired = false;
     private String reapply;
+    private Boolean enachBank;
     private AddressDetails addressDetails;
     private AddressDetails currentAddress;
     private ProfessionalDetails professionalDetails;

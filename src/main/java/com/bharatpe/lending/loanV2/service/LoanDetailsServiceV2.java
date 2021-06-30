@@ -33,7 +33,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -98,6 +100,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
+            loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 loanDetailsResponse.setActiveLoan(true);
@@ -113,6 +116,7 @@ public class LoanDetailsServiceV2 {
             LendingApplication openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
+                updateCkycStatus(openApplication);
                 boolean isIOS = request != null && request.isIOS();
                 setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
@@ -125,6 +129,25 @@ public class LoanDetailsServiceV2 {
         } catch (Exception e) {
             log.error("Exception in loan details service v2 for merchant:{}", merchant.getId(), e);
             return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    private void updateCkycStatus(LendingApplication openApplication) {
+        if (!StringUtils.isEmpty(openApplication.getCkycId()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
+            log.info("Checking kyc status for draft application:{}", openApplication.getId());
+            try {
+                KycStatusDTO kycStatus = kycHandler.getKycStatus(openApplication.getMerchant().getId());
+                log.info("kyc status:{} for application:{}", kycStatus, openApplication.getId());
+                if (kycStatus.getKycStatus().equals(KycStatus.REJECTED)) {
+                    openApplication.setCkycStatus(KycStatus.REJECTED.name());
+                    openApplication.setCkycRejectionReason(kycStatus.getRemarks());
+                    openApplication.setCkycDate(new Date());
+                    openApplication.setStatus(KycStatus.REJECTED.name());
+                    lendingApplicationDao.save(openApplication);
+                }
+            } catch (Exception e) {
+                log.error("Exception in updateCkycStatus for application:{}", openApplication.getId());
+            }
         }
     }
 
@@ -264,6 +287,7 @@ public class LoanDetailsServiceV2 {
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
+            applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchant().getId()));
             loanDetailsResponse.setLoanApplication(applicationDetails);
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchant().getId(), e);
@@ -364,6 +388,15 @@ public class LoanDetailsServiceV2 {
     private boolean isOrganizedMerchant(Merchant merchant) {
         List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
         return !stores.isEmpty();
+    }
+
+    public ApiResponse<?> getEnachBanks() {
+        List<BankList> enachBanks = loanUtil.getEnachBanks();
+        if (enachBanks.isEmpty()) {
+            return new ApiResponse<>(false, "No Bank Found");
+        }
+        List<BankAccountDetails> accountDetails = enachBanks.parallelStream().map(b -> BankAccountDetails.builder().bankName(b.getDisplayName()).bankLogo(b.getImageUrl()).build()).collect(Collectors.toList());
+        return new ApiResponse<>(accountDetails);
     }
 
 }

@@ -30,4 +30,9 @@ public class LoanDetailsControllerV2 {
         log.info("loan details v2 response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok().body(response);
     }
+
+    @GetMapping(value = "/enachBanks")
+    public ResponseEntity<ApiResponse<?>> getEnachBankList() {
+        return ResponseEntity.ok(loanDetailsServiceV2.getEnachBanks());
+    }
 }

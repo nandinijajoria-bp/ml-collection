@@ -445,7 +445,7 @@ public class LoanUtil {
 		boolean enachDone = false;
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-		if (enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachDone = true;
 		}
 		return enachDone;
@@ -566,6 +566,7 @@ public class LoanUtil {
 		logger.info("Getting bank account details for merchant:{}", merchantId);
 		try {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+			if (merchantBankDetail == null) return null;
 			Ifsc ifsc = ifscDao.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfscCode());
 			if (ifsc != null) {
 				BankList bankList = bankListDao.findByBankCode(ifsc.getBankCode());
@@ -601,7 +602,7 @@ public class LoanUtil {
 	public BpEnach getSuccessNach(Merchant merchant) {
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-		if (enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			return enachSuccess;
 		}
 		return null;
@@ -618,6 +619,7 @@ public class LoanUtil {
 
 	public boolean isEnachBank(Long merchantId) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		if (merchantBankDetail == null) return true;
 		LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfscCode().substring(0, 4));
 		return lendingNachBank != null;
 	}
@@ -652,5 +654,9 @@ public class LoanUtil {
 		}
 		List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
 		return ntcCategories.contains(experian.getCategory());
+	}
+
+	public List<BankList> getEnachBanks() {
+		return bankListDao.findNachBankList();
 	}
 }
