@@ -82,6 +82,7 @@ public class KycHandler {
                 put("merchantId", merchantId);
                 put("docs", docs);
                 put("imgRequire", false);
+                put("acceptRejected", true);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
