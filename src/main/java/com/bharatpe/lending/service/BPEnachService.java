@@ -148,7 +148,9 @@ public class BPEnachService {
             responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.LOAN.name()
                 + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
 
-        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name())){
+        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && requestDTO.getNewApp()){
+            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card-v2&pageRoute=enach");
+        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && !requestDTO.getNewApp()){
             responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card");
         } else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.GOLD_LOAN.name())){
             responseDTO.getData().setDeep_link("bharatpe://dynamic?key=gold-loan-lead");
