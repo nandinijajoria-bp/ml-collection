@@ -116,7 +116,7 @@ public class LoanDetailsServiceV2 {
             LendingApplication openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
-                updateCkycStatus(openApplication);
+                updateCkycStatus(openApplication, experian);
                 boolean isIOS = request != null && request.isIOS();
                 setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
@@ -132,7 +132,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void updateCkycStatus(LendingApplication openApplication) {
+    private void updateCkycStatus(LendingApplication openApplication, Experian experian) {
         if (!StringUtils.isEmpty(openApplication.getCkycId()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
             log.info("Checking kyc status for draft application:{}", openApplication.getId());
             try {
@@ -144,6 +144,16 @@ public class LoanDetailsServiceV2 {
                     openApplication.setCkycDate(new Date());
                     openApplication.setStatus(KycStatus.REJECTED.name());
                     lendingApplicationDao.save(openApplication);
+                } else {
+                    String pancard = kycHandler.getPanNumber(openApplication.getMerchant().getId());
+                    if (pancard != null && experian != null && !experian.getPancardNumber().equalsIgnoreCase(pancard)) {
+                        log.info("pancard mismatch for merchant:{}, kyc pancard:{}, experian pancard:{}, rejecting application", experian.getMerchantId(), pancard, experian.getPancardNumber());
+                        openApplication.setCkycStatus(KycStatus.REJECTED.name());
+                        openApplication.setCkycRejectionReason("PANCARD MISMATCH");
+                        openApplication.setCkycDate(new Date());
+                        openApplication.setStatus(KycStatus.REJECTED.name());
+                        lendingApplicationDao.save(openApplication);
+                    }
                 }
             } catch (Exception e) {
                 log.error("Exception in updateCkycStatus for application:{}", openApplication.getId());
@@ -315,6 +325,8 @@ public class LoanDetailsServiceV2 {
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getCkycStatus())) {
                 KycStatusDTO kycStatusDTO = kycHandler.getKycStatus(openApplication.getMerchant().getId());
                 if (KycStatus.REJECTED.equals(kycStatusDTO.getKycStatus()) && KycDocType.PAN_NO.equals(kycStatusDTO.getKycDocType())) {
+                    return Reapply.PAN.name();
+                } else if ("PANCARD MISMATCH".equalsIgnoreCase(openApplication.getCkycRejectionReason())){
                     return Reapply.PAN.name();
                 } else {
                     return Reapply.OFFER.name();
