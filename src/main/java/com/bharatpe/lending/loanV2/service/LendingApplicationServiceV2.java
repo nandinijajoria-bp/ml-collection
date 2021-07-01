@@ -92,7 +92,7 @@ public class LendingApplicationServiceV2 {
             callBackURL += "&wroute=" + initiateKycRequest.getWroute();
         }
         InitiateKycDTO initiateKycDTO = InitiateKycDTO.builder()
-                .referenceId(initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : UUID.randomUUID().toString())
+                .referenceId(initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId()))
                 .panNumber(experian.getPancardNumber())
                 .callBackUrl(callBackURL)
                 .merchantId(String.valueOf(merchant.getId())).build();
