@@ -86,7 +86,7 @@ public class KycHandler {
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=false";
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=false&acceptRejected=true";
             log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
