@@ -142,7 +142,7 @@ public class LoanDetailsServiceV2 {
                     openApplication.setCkycStatus(KycStatus.REJECTED.name());
                     openApplication.setCkycRejectionReason(kycStatus.getRemarks());
                     openApplication.setCkycDate(new Date());
-                    openApplication.setStatus(KycStatus.REJECTED.name());
+                    openApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
                     lendingApplicationDao.save(openApplication);
                 } else {
                     String pancard = kycHandler.getPanNumber(openApplication.getMerchant().getId());
@@ -151,7 +151,7 @@ public class LoanDetailsServiceV2 {
                         openApplication.setCkycStatus(KycStatus.REJECTED.name());
                         openApplication.setCkycRejectionReason("PANCARD MISMATCH");
                         openApplication.setCkycDate(new Date());
-                        openApplication.setStatus(KycStatus.REJECTED.name());
+                        openApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
                         lendingApplicationDao.save(openApplication);
                     }
                 }
@@ -282,7 +282,7 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setExternalLoanId(openApplication.getExternalLoanId());
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
-            applicationDetails.setRejectReason(openApplication.getManualKycReason());
+            applicationDetails.setRejectReason(getRejectionReason(openApplication));
             applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
             applicationDetails.setAddressDetails(getShopAddress(openApplication));
             applicationDetails.setProfessionalDetails(getProfessionalDetails(openApplication));
@@ -302,6 +302,24 @@ public class LoanDetailsServiceV2 {
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchant().getId(), e);
         }
+    }
+
+    private String getRejectionReason(LendingApplication openApplication) {
+        if (!ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus()))
+            return null;
+        if (!StringUtils.isEmpty(openApplication.getCkycRejectionReason())) {
+            return openApplication.getCkycRejectionReason();
+        }
+        if (!StringUtils.isEmpty(openApplication.getManualKycReason())) {
+            return openApplication.getManualKycReason();
+        }
+        if (!StringUtils.isEmpty(openApplication.getManualCibilReason())) {
+            return openApplication.getManualCibilReason();
+        }
+        if (!StringUtils.isEmpty(openApplication.getPhysicalReason())) {
+            return openApplication.getPhysicalReason();
+        }
+        return null;
     }
 
     private EnachErrorMessageDTO getEnachError(LendingApplication openApplication, Experian experian) {

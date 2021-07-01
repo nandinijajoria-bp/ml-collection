@@ -534,7 +534,7 @@ public class LendingApplicationServiceV2 {
             }
             applicationLoanDetailsDTO.setStatus(applicationStatus);
             ApplicationStatusResponseDTO.HeaderDTO headerDTO = new ApplicationStatusResponseDTO.HeaderDTO();
-            if (successEnach == null) {
+            if (successEnach == null && ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 headerDTO.setTitle("Bank A/c Linking Pending");
                 headerDTO.setComment("Complete eNACH to process you loan");
             } else if (lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.PENDING.name())) {
