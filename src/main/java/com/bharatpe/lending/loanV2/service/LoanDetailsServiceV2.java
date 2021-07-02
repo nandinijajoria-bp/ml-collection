@@ -35,6 +35,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Service
@@ -82,6 +84,8 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     EnachErrorHandingService enachErrorHandingService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     //TODO add syncContacts flag
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
@@ -134,26 +138,17 @@ public class LoanDetailsServiceV2 {
 
     private void updateCkycStatus(LendingApplication openApplication, Experian experian) {
         if (!StringUtils.isEmpty(openApplication.getCkycId()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
-            log.info("Checking kyc status for draft application:{}", openApplication.getId());
+            log.info("Checking verified pan for draft application:{}", openApplication.getId());
             try {
-                KycStatusDTO kycStatus = kycHandler.getKycStatus(openApplication.getMerchant().getId());
-                log.info("kyc status:{} for application:{}", kycStatus, openApplication.getId());
-                if (kycStatus.getKycStatus().equals(KycStatus.REJECTED)) {
+                String pancard = kycHandler.getPanNumber(openApplication.getMerchant().getId());
+                if (pancard != null && experian != null && !experian.getPancardNumber().equalsIgnoreCase(pancard)) {
+                    log.info("pancard mismatch for merchant:{}, kyc pancard:{}, experian pancard:{}, rejecting application", experian.getMerchantId(), pancard, experian.getPancardNumber());
                     openApplication.setCkycStatus(KycStatus.REJECTED.name());
-                    openApplication.setCkycRejectionReason(kycStatus.getRemarks());
+                    openApplication.setCkycRejectionReason("PANCARD MISMATCH");
                     openApplication.setCkycDate(new Date());
                     openApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
                     lendingApplicationDao.save(openApplication);
-                } else {
-                    String pancard = kycHandler.getPanNumber(openApplication.getMerchant().getId());
-                    if (pancard != null && experian != null && !experian.getPancardNumber().equalsIgnoreCase(pancard)) {
-                        log.info("pancard mismatch for merchant:{}, kyc pancard:{}, experian pancard:{}, rejecting application", experian.getMerchantId(), pancard, experian.getPancardNumber());
-                        openApplication.setCkycStatus(KycStatus.REJECTED.name());
-                        openApplication.setCkycRejectionReason("PANCARD MISMATCH");
-                        openApplication.setCkycDate(new Date());
-                        openApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
-                        lendingApplicationDao.save(openApplication);
-                    }
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(openApplication.getMerchant().getId(), "CREDIT",openApplication.getLoanAmount()));
                 }
             } catch (Exception e) {
                 log.error("Exception in updateCkycStatus for application:{}", openApplication.getId());
