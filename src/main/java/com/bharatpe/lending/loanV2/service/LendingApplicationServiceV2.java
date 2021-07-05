@@ -379,7 +379,7 @@ public class LendingApplicationServiceV2 {
             ApplicationDTO applicationDTO2 = new ApplicationDTO();
             if (successEnach != null) {
                 applicationDTO2.setStatus(successEnach.getStatus());
-                applicationDTO2.setText("eNACH Done");
+                applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
                 dateDTO.setDay(successEnach.getCreatedAt().toString());
@@ -388,7 +388,7 @@ public class LendingApplicationServiceV2 {
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchant.getId())) {
                 applicationDTO2.setStatus("PENDING");
-                applicationDTO2.setText("eNACH Pending");
+                applicationDTO2.setText("e-NACH Pending");
                 applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
                 ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
                 buttonContextDTO.setAction("Enach");

@@ -49,7 +49,7 @@ public class EnachErrorHandingService {
     public EnachErrorMessageDTO initiatePopup(){
         EnachErrorMessageDTO enachErrorMessageDTO = new EnachErrorMessageDTO();
         enachErrorMessageDTO.setShowPopup(true);
-        enachErrorMessageDTO.setHeader("eNach Unsuccessful!");
+        enachErrorMessageDTO.setHeader("e-NACH Unsuccessful!");
         enachErrorMessageDTO.setSkipEnach(true);
         return enachErrorMessageDTO;
     }
@@ -65,8 +65,8 @@ public class EnachErrorHandingService {
 
     public EnachErrorMessageDTO initiateRetryPage(){
         EnachErrorMessageDTO enachErrorMessageDTO = new EnachErrorMessageDTO();
-        enachErrorMessageDTO.setHeader("eNACH couldn't be completed");
-        enachErrorMessageDTO.setMessage("We faced an issue, please try again");
+        enachErrorMessageDTO.setHeader("e-NACH couldn't be completed");
+        enachErrorMessageDTO.setMessage("We faced an issue. Please try again.");
         enachErrorMessageDTO.setIcon("failed");
         enachErrorMessageDTO.setSkipEnach(false);
         return enachErrorMessageDTO;
