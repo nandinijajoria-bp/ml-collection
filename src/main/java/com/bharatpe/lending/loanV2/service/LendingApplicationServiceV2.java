@@ -482,13 +482,13 @@ public class LendingApplicationServiceV2 {
                 applicationDTO.add(applicationDTO4);
             }
             String applicationStatus = lendingApplication.getStatus();
+            String callingStatus = null;
             if (("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())) && (!"rejected".equalsIgnoreCase(lendingApplication.getStatus()) || lendingDisbursalStage != null)) {
                 ApplicationDTO applicationDTO5 = new ApplicationDTO();
                 applicationDTO5.setDisabled(!"approved".equalsIgnoreCase(lendingApplication.getStatus()));
                 applicationDTO5.setText("Disbursal Review & Calling");
                 ApplicationDTO.DateDTO dateDTO = null;
                 if (lendingDisbursalStage != null) {
-                    String callingStatus;
                     if ("YES".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
                         callingStatus = "APPROVED";
                         dateDTO = new ApplicationDTO.DateDTO();
@@ -539,22 +539,28 @@ public class LendingApplicationServiceV2 {
                 headerDTO.setComment("Complete eNACH to process you loan");
             } else if (lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.PENDING.name())) {
                 headerDTO.setTitle("KYC Verification Pending");
-                headerDTO.setComment("We are verifying your KYC documents");
+                headerDTO.setComment("We are verifying your kyc documents");
             } else if (lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.REJECTED.name())) {
                 headerDTO.setTitle("KYC Verification Failed");
                 headerDTO.setComment(lendingApplication.getCkycRejectionReason());
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(kycStatus)) {
                 headerDTO.setTitle("Document Verification Pending");
-                headerDTO.setComment("Our agents are reviewing details you submitted");
+                headerDTO.setComment("We are reviewing your shop documents");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(kycStatus)) {
                 headerDTO.setTitle("Document Verification Failed");
-                headerDTO.setComment(lendingApplication.getManualKycReason());
+                headerDTO.setComment("Please re-apply with correct shop details");
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(cpvStatus)) {
                 headerDTO.setTitle("Physical Verification Pending");
-                headerDTO.setComment("Our agents will visit your shop to do physical verification");
+                headerDTO.setComment("Our agents will visit your shop to collect business documents");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(cpvStatus)) {
                 headerDTO.setTitle("Physical Verification Failed");
-                headerDTO.setComment(lendingApplication.getPhysicalReason());
+                headerDTO.setComment("Incomplete documents submitted during physical visit");
+            } else if (KycStatus.PENDING.name().equalsIgnoreCase(callingStatus)) {
+                headerDTO.setTitle("Verification Call Pending");
+                headerDTO.setComment("Our agents will call you on " + merchant.getMobile() + " in 1-2 days for verification");
+            } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
+                headerDTO.setTitle("Verification Call Failed");
+                headerDTO.setComment("You were unreachable on " + merchant.getMobile());
             }
             applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);
             applicationStatusResponseDTO.setHeader(headerDTO);

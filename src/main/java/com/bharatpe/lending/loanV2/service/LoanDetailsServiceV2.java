@@ -1,9 +1,6 @@
 package com.bharatpe.lending.loanV2.service;
 
-import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.MerchantStoreDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
+import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
@@ -33,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -84,6 +82,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     EnachErrorHandingService enachErrorHandingService;
+
+    @Autowired
+    LendingDisbursalStageDao lendingDisbursalStageDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -306,13 +307,18 @@ public class LoanDetailsServiceV2 {
             return openApplication.getCkycRejectionReason();
         }
         if (!StringUtils.isEmpty(openApplication.getManualKycReason())) {
-            return openApplication.getManualKycReason();
+            return "Please re-apply with correct shop details";
         }
         if (!StringUtils.isEmpty(openApplication.getManualCibilReason())) {
-            return openApplication.getManualCibilReason();
+            return "Cibil Verification Failed";
         }
         if (!StringUtils.isEmpty(openApplication.getPhysicalReason())) {
-            return openApplication.getPhysicalReason();
+            return "Incomplete documents submitted during physical visit";
+        }
+        LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(openApplication.getId());
+        boolean disbursalCallingRejected = lendingDisbursalStage != null && ("NO".equalsIgnoreCase(lendingDisbursalStage.getReadyStage()) || "NO".equalsIgnoreCase(lendingDisbursalStage.getCallStage()));
+        if (disbursalCallingRejected) {
+            return "You were unreachable on " + openApplication.getMerchant().getMobile();
         }
         return null;
     }
@@ -421,6 +427,7 @@ public class LoanDetailsServiceV2 {
             return new ApiResponse<>(false, "No Bank Found");
         }
         List<BankAccountDetails> accountDetails = enachBanks.parallelStream().map(b -> BankAccountDetails.builder().bankName(b.getDisplayName()).bankLogo(b.getImageUrl()).build()).collect(Collectors.toList());
+        accountDetails.sort(Comparator.comparing(BankAccountDetails::getBankName));
         return new ApiResponse<>(accountDetails);
     }
 

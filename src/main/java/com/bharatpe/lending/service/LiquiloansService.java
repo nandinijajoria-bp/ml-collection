@@ -427,14 +427,17 @@ public class LiquiloansService {
 		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 		if(Objects.nonNull(selectedCategoriesData) && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchant().getId())) {
 			int processingFee = (int) Math.ceil(lendingApplication.getLoanAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
-			Map<String, Object> body = new HashMap<>();
-			body.put("merchant_id", lendingApplication.getMerchant().getId());
-			body.put("ref_txn_id", lendingApplication.getId());
-			body.put("amount", processingFee);
-			body.put("narration", "Loan Arranger Fee");
-			body.put("source_module", "LOAN");
+			if (processingFee > 0) {
+				logger.info("redeeming club offer for merchant:{} and amount:{}", lendingApplication.getMerchant().getId(), processingFee);
+				Map<String, Object> body = new HashMap<>();
+				body.put("merchant_id", lendingApplication.getMerchant().getId());
+				body.put("ref_txn_id", lendingApplication.getId());
+				body.put("amount", processingFee);
+				body.put("narration", "Loan Arranger Fee");
+				body.put("source_module", "LOAN");
 
-			kafkaTemplate.send(TOPIC, body);
+				kafkaTemplate.send(TOPIC, body);
+			}
 		}
 	}
 
