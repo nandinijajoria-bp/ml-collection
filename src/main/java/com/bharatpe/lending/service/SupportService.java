@@ -183,7 +183,9 @@ public class SupportService {
             }
 
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            if (ObjectUtils.isEmpty(eligibleLoan)) {
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+            LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
+            if (ObjectUtils.isEmpty(eligibleLoan) && ObjectUtils.isEmpty(lendingApplication)) {
                 logger.info("Eligible loan offer not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
                 supportLoanResponseDTO.setMessage("NA");
@@ -193,8 +195,6 @@ public class SupportService {
                 return responseDTO;
             }
 
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
-            LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus()) && ObjectUtils.isEmpty(lendingApplication)) {
                 logger.info("Previous Loan status is CLOSED and new loan application not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_APPLIED);
