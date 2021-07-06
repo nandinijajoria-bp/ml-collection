@@ -310,7 +310,7 @@ public class LoanDetailsServiceV2 {
             return "Please re-apply with correct shop details";
         }
         if (!StringUtils.isEmpty(openApplication.getManualCibilReason())) {
-            return "Cibil Verification Failed";
+            return "Credit Evaluation Failed";
         }
         if (!StringUtils.isEmpty(openApplication.getPhysicalReason())) {
             return "Incomplete documents submitted during physical visit";
