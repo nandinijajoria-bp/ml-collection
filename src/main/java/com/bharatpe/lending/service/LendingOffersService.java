@@ -8,11 +8,10 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.dao.LendingCoolOffDao;
-import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
+import com.bharatpe.lending.common.entity.LendingGlobalLimit;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
@@ -24,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.lending.common.dao.LendingBharatswipeOffersDao;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -77,6 +75,9 @@ public class LendingOffersService {
 
 	@Autowired
 	LendingCache lendingCache;
+
+	@Autowired
+	LendingGlobalLimitDao lendingGlobalLimitDao;
 
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
@@ -189,6 +190,12 @@ public class LendingOffersService {
 		lendingEkycDao.deleteByMerchantId(merchant.getId());
 		documentsIdProofDao.deleteByMerchantId(merchant.getId());
 		docKycDetailsDao.deleteByMerchantId(merchant.getId());
+		LendingGlobalLimit lendingGlobalLimit = lendingGlobalLimitDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+		if (lendingGlobalLimit != null) {
+			lendingGlobalLimit.setAvailableLimit(lendingGlobalLimit.getGlobalLimit());
+			lendingGlobalLimit.setUsedLimit(0D);
+			lendingGlobalLimitDao.save(lendingGlobalLimit);
+		}
 	}
 
 	public void checkNTBSMS(Merchant merchant) {

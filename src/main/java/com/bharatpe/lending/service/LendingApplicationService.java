@@ -1590,7 +1590,11 @@ public class LendingApplicationService {
 				detail.put("Amount of EDI",lendingApplication.getEdi().toString());
 				detail.put("Registered Mobile Number",merchant.getMobile());
 				detail.put("Location",lendingApplication.getCity());
-				detail.put("Shop/Business Address", lendingApplication.getShopNumber()+", "+lendingApplication.getStreetAddress()+", "+lendingApplication.getArea());
+				if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
+					detail.put("Shop/Business Address", lendingApplication.getStreetAddress());
+				} else {
+					detail.put("Shop/Business Address", lendingApplication.getShopNumber()+", "+lendingApplication.getStreetAddress()+", "+lendingApplication.getArea());
+				}
 				detail.put("Landmark", lendingApplication.getLandmark());
 				detail.put("PIN", lendingApplication.getPincode().toString());
 				detail.put("City", lendingApplication.getCity());
