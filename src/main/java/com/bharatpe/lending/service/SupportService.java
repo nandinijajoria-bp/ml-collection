@@ -184,7 +184,7 @@ public class SupportService {
 
             LendingApplication lendingApplicationNew =
                 lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
-            if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplicationNew.getStatus())) {
+            if (!ObjectUtils.isEmpty(lendingApplicationNew) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplicationNew.getStatus())) {
                 logger.info("Application status is in DRAFT for merchantId: {}, and "
                     + "applicationId: {}", merchantId, lendingApplicationNew.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED);
