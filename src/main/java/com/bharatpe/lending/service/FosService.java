@@ -318,35 +318,35 @@ public class FosService {
                     loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
                     data.put("task_enable",Boolean.FALSE);
                     loanData.put("agreement_at",lendingApplication.getAgreementAt().toString());
-                    if("REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount()>50000){
-                        loanData.put("nachStatus","NotRequired");
-                        loanData.put("header","Loan applied Succesfully");
-                        loanData.put("loan_applied",Boolean.TRUE);
-                        loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
-                        data.put("task_enable",Boolean.FALSE);
-                    }else{
-                        if(!"APPROVED".equals(lendingApplication.getNachStatus()) && !"NOT_STARTED".equalsIgnoreCase(lendingApplication.getNachStatus())){
-                            BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId,lendingApplication.getId());
-                            Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
-                            BharatPeEnach bharatPeEnachFailed = bharatPeEnachDao.findSpecificError(merchantId,lendingApplication.getId());
-                            if(bharatPeEnachSkipped == null && bharatPeEnach != null){
-                                if(bharatPeEnach > 2 || bharatPeEnachFailed != null){
-                                    loanData.put("limited_cpv_required",Boolean.TRUE);
-                                }
-                            }else if(bharatPeEnachSkipped != null){
+//                    if("REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount()>50000){
+//                        loanData.put("nachStatus","NotRequired");
+//                        loanData.put("header","Loan applied Succesfully");
+//                        loanData.put("loan_applied",Boolean.TRUE);
+//                        loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
+//                        data.put("task_enable",Boolean.FALSE);
+//                    }else{
+                    if(!"APPROVED".equals(lendingApplication.getNachStatus()) && !"NOT_STARTED".equalsIgnoreCase(lendingApplication.getNachStatus())){
+                        BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId,lendingApplication.getId());
+                        Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
+                        BharatPeEnach bharatPeEnachFailed = bharatPeEnachDao.findSpecificError(merchantId,lendingApplication.getId());
+                        if(bharatPeEnachSkipped == null && bharatPeEnach != null){
+                            if(bharatPeEnach > 2 || bharatPeEnachFailed != null){
                                 loanData.put("limited_cpv_required",Boolean.TRUE);
                             }
-                            loanData.put("nachStatus","Pending");
-                            loanData.put("color","#EAA003");
-                            loanData.put("header","Ask User To Complete eNACH");
-                            loanData.put("loan_applied",Boolean.FALSE);
-                            loanData.put("message","Go To Loan Section On BharatPe Merchant App To  Start eNACH.");
-                            data.put("task_enable",Boolean.TRUE);
-                        }else{
-                            loanData.put("loan_applied",Boolean.TRUE);
-                            loanData.put("nachStatus",lendingApplication.getNachStatus().toLowerCase());
+                        }else if(bharatPeEnachSkipped != null){
+                            loanData.put("limited_cpv_required",Boolean.TRUE);
                         }
+                        loanData.put("nachStatus","Pending");
+                        loanData.put("color","#EAA003");
+                        loanData.put("header","Ask User To Complete eNACH");
+                        loanData.put("loan_applied",Boolean.FALSE);
+                        loanData.put("message","Go To Loan Section On BharatPe Merchant App To  Start eNACH.");
+                        data.put("task_enable",Boolean.TRUE);
+                    }else{
+                        loanData.put("loan_applied",Boolean.TRUE);
+                        loanData.put("nachStatus",lendingApplication.getNachStatus().toLowerCase());
                     }
+//                    }
                     data.put("loan_data",loanData);
                     responseDTO.setData(data);
                     return  responseDTO;
