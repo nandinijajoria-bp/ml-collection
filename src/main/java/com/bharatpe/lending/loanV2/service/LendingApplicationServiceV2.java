@@ -216,12 +216,8 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
                 lendingApplication.setState(!StringUtils.isEmpty(addressDetails.getState()) ? addressDetails.getState() : lendingApplication.getState());
                 lendingApplication.setShopNumber(!StringUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1() : lendingApplication.getShopNumber());
-                lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getArea());
+                lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
                 lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
-                String streetAddress = "";
-                if (!StringUtils.isEmpty(addressDetails.getAddress1())) streetAddress += addressDetails.getAddress1();
-                if (!StringUtils.isEmpty(addressDetails.getAddress2())) streetAddress += addressDetails.getAddress2();
-                lendingApplication.setStreetAddress(!StringUtils.isEmpty(streetAddress) ? streetAddress : lendingApplication.getStreetAddress());
             }
             if (applicationRequest.getAdditionalDetails() != null) {
                 AdditionalDetails additionalDetails = applicationRequest.getAdditionalDetails();
@@ -254,6 +250,7 @@ public class LendingApplicationServiceV2 {
             lendingGstDetail.setSalary(!StringUtils.isEmpty(professionalDetails.getSalary()) ? Double.valueOf(professionalDetails.getSalary()) : lendingGstDetail.getSalary());
             lendingGstDetail.setCompanyName(!StringUtils.isEmpty(professionalDetails.getCompanyName()) ? professionalDetails.getCompanyName() : lendingGstDetail.getCompanyName());
             lendingGstDetail.setAddressType(!StringUtils.isEmpty(professionalDetails.getAddressType()) ? professionalDetails.getAddressType() : lendingGstDetail.getAddressType());
+            lendingGstDetail.setCurrentAddress(!StringUtils.isEmpty(professionalDetails.getCurrentAddress()) ? professionalDetails.getCurrentAddress() : lendingGstDetail.getCurrentAddress());
             lendingGstDao.save(lendingGstDetail);
         } catch (Exception e) {
             log.error("Exception in saveGstDetails for application:{}", lendingApplication.getId(), e);

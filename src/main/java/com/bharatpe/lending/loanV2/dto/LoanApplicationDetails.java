@@ -22,7 +22,7 @@ public class LoanApplicationDetails {
     private String reapply;
     private Boolean enachBank;
     private AddressDetails addressDetails;
-    private AddressDetails currentAddress;
+    private String currentAddress;
     private ProfessionalDetails professionalDetails;
     private AdditionalDetails additionalDetails;
     private EnachErrorMessageDTO enachErrorResponse;

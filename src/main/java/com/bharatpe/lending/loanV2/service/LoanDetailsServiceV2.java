@@ -283,7 +283,7 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setAddressDetails(getShopAddress(openApplication));
             applicationDetails.setProfessionalDetails(getProfessionalDetails(openApplication));
             applicationDetails.setAdditionalDetails(new AdditionalDetails(openApplication.getEmail(), openApplication.getAlternateMobile()));
-            applicationDetails.setCurrentAddress(getCurrentAddress(openApplication.getMerchant()));
+            applicationDetails.setCurrentAddress(getCurrentAddress(openApplication));
             applicationDetails.setShopPhotoRequired(isShopPhotoRequired(openApplication));
             if (applicationDetails.getEnachDeeplink() == null && (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus()) || ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()))) {
                 int tat = loanUtil.getApplicationTAT(openApplication.getId());
@@ -365,8 +365,9 @@ public class LoanDetailsServiceV2 {
         return false;
     }
 
-    private AddressDetails getCurrentAddress(Merchant merchant) {
-        return null;
+    private String getCurrentAddress(LendingApplication lendingApplication) {
+        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+        return lendingGstDetail != null && !StringUtils.isEmpty(lendingGstDetail.getCurrentAddress()) && "Different".equalsIgnoreCase(lendingGstDetail.getAddressType()) ? lendingGstDetail.getCurrentAddress() : null;
     }
 
     private ProfessionalDetails getProfessionalDetails(LendingApplication openApplication) {
@@ -383,15 +384,11 @@ public class LoanDetailsServiceV2 {
     }
 
     private AddressDetails getShopAddress(LendingApplication lendingApplication) {
-        String address1 = lendingApplication.getShopNumber();
-        if (!StringUtils.isEmpty(lendingApplication.getArea())) {
-            address1 += "," + lendingApplication.getArea();
-        }
         return AddressDetails.builder()
                 .pincode(String.valueOf(lendingApplication.getPincode()))
                 .city(lendingApplication.getCity())
                 .state(lendingApplication.getState())
-                .address1(address1)
+                .address1(lendingApplication.getShopNumber())
                 .address2(lendingApplication.getStreetAddress())
                 .landmark(lendingApplication.getLandmark()).build();
     }

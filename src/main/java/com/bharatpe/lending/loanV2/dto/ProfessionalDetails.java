@@ -17,4 +17,5 @@ public class ProfessionalDetails {
     private String companyName;
     private String shopType;
     private String addressType;
+    private String currentAddress;
 }
