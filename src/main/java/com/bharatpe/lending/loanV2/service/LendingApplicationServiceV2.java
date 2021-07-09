@@ -195,6 +195,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLoanType(eligibleLoan.getLoanType());
         lendingApplication.setTotalLoansCount(loanUtil.getPreviousLoans(merchant.getId()).size());
         lendingApplication.setCkycId(UUID.randomUUID().toString());
+        lendingApplication.setLatitude(lendingApplicationRequest.getLatitude());
+        lendingApplication.setLatitude(lendingApplicationRequest.getLatitude());
         lendingApplication = lendingApplicationDao.save(lendingApplication);
         lenderMappingService.lenderMapping(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest);

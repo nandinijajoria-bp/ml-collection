@@ -881,14 +881,12 @@ public class LendingApplicationService {
 		return false;
 	}
 
-	public ResponseDTO sendOtp(Merchant merchant) {
-		String message = "BharatPe: {otp} is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-		Map<String, Object> response = new HashMap<String, Object>();
-		response= bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+	public ResponseDTO sendOtp(Merchant merchant, String appHash) {
+		String hash = !StringUtils.isEmpty(appHash) ? appHash : "";
+		String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+		Map<String, Object> response = bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
 		Boolean otp = (Boolean) response.get("success");
 		String uuid = (String) response.get("uuid");
-		logger.info("OTP sent on mobile: {} ", uuid);
-
 		if (otp) {
 			logger.info("OTP sent on mobile: {} for merchant: {}", merchant.getMobile(), merchant.getId());
 			ResponseDTO responseDTO = new ResponseDTO(true, null, null,uuid);

@@ -136,8 +136,8 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/sendOTP", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant) {
-		return new ResponseEntity<>(lendingApplicationService.sendOtp(merchant), HttpStatus.OK);
+	public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant, @RequestParam(name = "app_hash", required = false) String appHash) {
+		return new ResponseEntity<>(lendingApplicationService.sendOtp(merchant, appHash), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/tnc", method = RequestMethod.GET, consumes="application/json", produces="application/json")

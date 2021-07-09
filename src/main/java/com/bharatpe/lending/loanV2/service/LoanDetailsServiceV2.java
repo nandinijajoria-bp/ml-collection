@@ -88,7 +88,6 @@ public class LoanDetailsServiceV2 {
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    //TODO add syncContacts flag
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
         try {
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
@@ -158,10 +157,10 @@ public class LoanDetailsServiceV2 {
     }
 
     private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) {
+        String kycPancard = kycHandler.getPanNumber(merchant.getId());
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
-            String pancard = kycHandler.getPanNumber(merchant.getId());
-            loanDetailsResponse.setPancard(pancard);
+            loanDetailsResponse.setPancard(kycPancard);
             return;
         }
         MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
@@ -180,6 +179,15 @@ public class LoanDetailsServiceV2 {
         } else if (request != null && request.getPincode() != null) {
             log.info("updating experian pincode:{} for merchant:{}", request.getPincode(), merchant.getId());
             experian.setPincode(Integer.valueOf(request.getPincode()));
+            experianDao.save(experian);
+        }
+        if (!StringUtils.isEmpty(kycPancard) && !kycPancard.equalsIgnoreCase(experian.getPancardNumber())) {
+            log.info("Pancard mismatch for merchant:{}, kyc:{}, experian:{}", merchant.getId(), kycPancard, experian.getPancardNumber());
+            experian.setPancardNumber(kycPancard);
+            experian.setResponse(null);
+            experian.setBureau(null);
+            experian.setHitId(null);
+            experian.setReportDate(null);
             experianDao.save(experian);
         }
         loanDetailsResponse.setPancard(experian.getPancardNumber());
