@@ -2,7 +2,10 @@ package com.bharatpe.lending.service;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.entity.LendingEkyc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +22,9 @@ public class SaveAddressProofDetailsService {
 	
 	@Autowired
 	DocumentsIdProofDao documentsIdProofDao;
+
+	@Autowired
+	LendingEkycDao lendingEkycDao;
 	
 	public Map<String, String> saveAddressProofDetails(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -53,7 +59,13 @@ public class SaveAddressProofDetailsService {
 //			toSave.setDocId(docId);
 		}
 //		toSave.setMerchantId(merchantId);
-		toSave.setDocNo(addressProofDetails.get("doc_no"));
+		LendingEkyc lendingEkyc = lendingEkycDao.fetchEkycByMerchantId(merchantId);
+		if("eaadhar".equalsIgnoreCase(addressProofDetails.get("doc_type")) && Objects.nonNull(lendingEkyc)) {
+			toSave.setDocNo(lendingEkyc.getMaskedAadhar());
+		}
+		else {
+			toSave.setDocNo(addressProofDetails.get("doc_no"));
+		}
 		toSave.setFatherName(addressProofDetails.get("father_name"));
 		toSave.setPersonName(addressProofDetails.get("person_name"));
 		toSave.setDob(addressProofDetails.get("dob"));
