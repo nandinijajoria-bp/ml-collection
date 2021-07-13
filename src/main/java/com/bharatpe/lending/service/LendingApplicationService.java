@@ -672,7 +672,7 @@ public class LendingApplicationService {
 		}
 	}
 
-	private void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
+	public void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
 		if(experian!=null) {
 			ExperianSnapshot experianSnapshot=new ExperianSnapshot();

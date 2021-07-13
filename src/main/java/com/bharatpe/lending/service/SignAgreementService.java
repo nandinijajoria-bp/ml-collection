@@ -20,6 +20,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,6 +95,9 @@ public class SignAgreementService {
 
 	@Autowired
 	LendingEkycDao lendingEkycDao;
+
+	@Autowired
+	LoanUtil loanUtil;
 
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -333,13 +337,7 @@ public class SignAgreementService {
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
-			
-			lendingApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
-			lendingApplicationService.createBBSSnapshot(newApplication);
-			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
-				lendingApplicationService.createSmsVariableSnapshot(newApplication);
-			}
-			lendingApplicationService.createMerchantScoreSnapshot(newApplication);
+			loanUtil.createApplicationSnapshot(newApplication);
 		}
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(newApplication.getMerchant().getId(), "DEBIT",newApplication.getLoanAmount()));
 		return response;
