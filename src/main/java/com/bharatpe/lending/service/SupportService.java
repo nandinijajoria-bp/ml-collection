@@ -184,27 +184,18 @@ public class SupportService {
 
             LendingApplication lendingApplicationNew =
                 lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
-            if (!ObjectUtils.isEmpty(lendingApplicationNew) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplicationNew.getStatus())) {
-                logger.info("Application status is in DRAFT for merchantId: {}, and "
-                    + "applicationId: {}", merchantId, lendingApplicationNew.getId());
-                supportLoanResponseDTO.setApplicationStatus(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED);
-                supportLoanResponseDTO.setMessage(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED_MESSAGE);
-                supportLoanResponseDTO.setConditionalMessage("NA");
-                responseDTO.setData(supportLoanResponseDTO);
-                return responseDTO;
-            }
-
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            if (ObjectUtils.isEmpty(eligibleLoan)) {
-                logger.info("Eligible loan offer not found for merchantId: {}", merchantId);
-                supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
-                supportLoanResponseDTO.setMessage("NA");
-                supportLoanResponseDTO.setConditionalMessage(SupportConstants.NOT_ELIGIBLE_MESSAGE);
-                supportLoanResponseDTO.setEligible(Boolean.FALSE);
-                responseDTO.setData(supportLoanResponseDTO);
-                return responseDTO;
+            if (ObjectUtils.isEmpty(lendingApplicationNew)) {
+                if (ObjectUtils.isEmpty(eligibleLoan)) {
+                    logger.info("Eligible loan offer not found for merchantId: {}", merchantId);
+                    supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
+                    supportLoanResponseDTO.setMessage("NA");
+                    supportLoanResponseDTO.setConditionalMessage(SupportConstants.NOT_ELIGIBLE_MESSAGE);
+                    supportLoanResponseDTO.setEligible(Boolean.FALSE);
+                    responseDTO.setData(supportLoanResponseDTO);
+                    return responseDTO;
+                }
             }
-
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus()) && ObjectUtils.isEmpty(lendingApplication)) {
@@ -306,7 +297,15 @@ public class SupportService {
                 }
             }
 
-
+            if(ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+                logger.info("Application status is in DRAFT for merchantId: {}, and "
+                    + "applicationId: {}", merchantId, lendingApplication.getId());
+                supportLoanResponseDTO.setApplicationStatus(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED);
+                supportLoanResponseDTO.setMessage(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED_MESSAGE);
+                supportLoanResponseDTO.setConditionalMessage("NA");
+                responseDTO.setData(supportLoanResponseDTO);
+                return responseDTO;
+            }
 
             if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
 

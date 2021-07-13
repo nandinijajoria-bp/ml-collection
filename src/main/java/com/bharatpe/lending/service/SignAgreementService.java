@@ -10,7 +10,9 @@ import java.util.concurrent.Executors;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.enums.KycStatus;
@@ -89,6 +91,9 @@ public class SignAgreementService {
 
 	@Autowired
 	KycHandler kycHandler;
+
+	@Autowired
+	LendingEkycDao lendingEkycDao;
 
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -481,7 +486,7 @@ public class SignAgreementService {
 		docKycDetails.setGender(oldDocKycDetails.getGender());
 		docKycDetails.setFatherName(oldDocKycDetails.getFatherName());
 		docKycDetails.setYob(oldDocKycDetails.getYob());
-		docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
+
 		docKycDetails.setMotherName(oldDocKycDetails.getMotherName());
 		docKycDetails.setAddress(oldDocKycDetails.getAddress());
 		docKycDetails.setCity(oldDocKycDetails.getCity());
@@ -492,7 +497,15 @@ public class SignAgreementService {
 		docKycDetails.setStatus("pending_verification");
 		docKycDetails.setModule(oldDocKycDetails.getModule());
 		docKycDetails.setMode(oldDocKycDetails.getMode());
-		
+
+		LendingEkyc lendingEkyc = lendingEkycDao.fetchEkycByMerchantId(oldDocKycDetails.getMerchant().getId());
+		if("eaadhar".equalsIgnoreCase(documentsIdProof.getProofType()) && Objects.nonNull(lendingEkyc)) {
+			docKycDetails.setDocNo(lendingEkyc.getMaskedAadhar());
+		}
+		else {
+			docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
+		}
+
 		docKycDetailsDao.save(docKycDetails);
 		return docKycDetails;
 	}

@@ -180,6 +180,9 @@ public class LendingApplicationService {
 	@Autowired
 	LendingSmsVariablesSnapshotDao lendingSmsVariablesSnapshotDao;
 
+	@Autowired
+	LendingEkycDao lendingEkycDao;
+
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	DecimalFormat df = new DecimalFormat("##.00");
@@ -459,7 +462,6 @@ public class LendingApplicationService {
 		docKycDetails.setGender(oldDocKycDetails.getGender());
 		docKycDetails.setFatherName(oldDocKycDetails.getFatherName());
 		docKycDetails.setYob(oldDocKycDetails.getYob());
-		docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
 		docKycDetails.setMotherName(oldDocKycDetails.getMotherName());
 		docKycDetails.setAddress(oldDocKycDetails.getAddress());
 		docKycDetails.setCity(oldDocKycDetails.getCity());
@@ -470,6 +472,13 @@ public class LendingApplicationService {
 		docKycDetails.setStatus("pending_verification");
 		docKycDetails.setModule(oldDocKycDetails.getModule());
 		docKycDetails.setMode(oldDocKycDetails.getMode());
+		LendingEkyc lendingEkyc = lendingEkycDao.fetchEkycByMerchantId(oldDocKycDetails.getMerchant().getId());
+		if("eaadhar".equalsIgnoreCase(documentsIdProof.getProofType()) && Objects.nonNull(lendingEkyc)) {
+			docKycDetails.setDocNo(lendingEkyc.getMaskedAadhar());
+		}
+		else {
+			docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
+		}
 
 		docKycDetailsDao.save(docKycDetails);
 		return docKycDetails;
@@ -491,6 +500,12 @@ public class LendingApplicationService {
 		docKycDetails.setPincode(merchantDocumentProofOcr.getPincode() != null ? Integer.valueOf(merchantDocumentProofOcr.getPincode()) : null);
 		docKycDetails.setStatus("pending_verification");
 		docKycDetails.setModule("LENDING");
+
+		LendingEkyc lendingEkyc = lendingEkycDao.fetchEkycByMerchantId(documentsIdProof.getMerchant().getId());
+		if("eaadhar".equalsIgnoreCase(documentsIdProof.getProofType()) && Objects.nonNull(lendingEkyc)) {
+			docKycDetails.setDocNo(lendingEkyc.getMaskedAadhar());
+		}
+
 		docKycDetailsDao.save(docKycDetails);
 		return docKycDetails;
 	}
