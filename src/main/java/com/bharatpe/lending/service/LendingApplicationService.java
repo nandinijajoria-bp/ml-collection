@@ -511,17 +511,7 @@ public class LendingApplicationService {
 
 	private LendingApplicationResponseDTO createApplicationFromPrevLoan(LendingApplication prevLoan,RequestDTO<LendingApplicationRequestDTO> requestDTO, String offerType) {
 		try {
-			if(prevLoan.getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevLoan.getPincode())) {
-				logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
-				LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
-				lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
-				lendingApplicationResponse.setMessage(LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
-				lendingApplicationResponse.setSuccess(false);
-				return lendingApplicationResponse;
-			}
-			else {
-				return copyApplicationData(requestDTO ,prevLoan, offerType);
-			}
+			return copyApplicationData(requestDTO ,prevLoan, offerType);
 		}
 		catch(Exception e) {
 			logger.error("Error occured while creating new loan from prev loan ",e);
