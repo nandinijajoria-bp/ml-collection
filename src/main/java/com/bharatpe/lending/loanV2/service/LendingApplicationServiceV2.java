@@ -560,6 +560,8 @@ public class LendingApplicationServiceV2 {
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Failed");
                 headerDTO.setComment("You were unreachable on " + merchant.getMobile());
+            } else {
+                headerDTO = null;
             }
             applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);
             applicationStatusResponseDTO.setHeader(headerDTO);
