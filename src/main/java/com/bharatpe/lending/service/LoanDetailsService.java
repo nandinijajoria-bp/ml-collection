@@ -560,8 +560,8 @@ public class LoanDetailsService {
 
 			//Covid check
 			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
-			boolean retry = shouldRetry(lendingApplication);
-			if(lendingApplication != null && !eligibleFlag && !retry) {
+//			boolean retry = shouldRetry(lendingApplication);
+			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 				if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
