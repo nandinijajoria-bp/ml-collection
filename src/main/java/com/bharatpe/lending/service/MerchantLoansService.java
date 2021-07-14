@@ -404,7 +404,7 @@ public class MerchantLoansService {
         Map<String, Double> responseMap = new HashMap<>();
         Double dueAmount = 0D;
         List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchant.getId(), merchantStoreId, "ACTIVE");
-        if (!activeLoans.isEmpty() && "BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
+        if (!activeLoans.isEmpty()) {
             for (LendingPaymentSchedule activeLoan : activeLoans) {
                 dueAmount += activeLoan.getDueAmount();
             }
