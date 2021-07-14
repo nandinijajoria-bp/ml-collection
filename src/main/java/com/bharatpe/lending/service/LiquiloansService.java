@@ -18,6 +18,7 @@ import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.SettlementType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.Finance;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -346,7 +347,9 @@ public class LiquiloansService {
     		}
     		lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
 			lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-    		changeDeductionFromInstantToDaily(merchant.get());
+			if (!SettlementType.BHARATPE_ACCOUNT.name().equalsIgnoreCase(merchant.get().getSettlementType())) {
+				changeDeductionFromInstantToDaily(merchant.get());
+			}
     	}
     	catch(Exception e){
     		logger.error("Error occured while populating data into lending_payment_schedule table",e);

@@ -227,8 +227,9 @@ public class VerifyOTPService {
 		lendingApplication.setAgreement(1);
 		if (meta != null && meta.getLatitude() != null && !meta.getLatitude().equalsIgnoreCase("undefined") && !meta.getLatitude().trim().equalsIgnoreCase("")) {
 			lendingApplication.setLatitude(meta.getLatitude());
+		}
+		if (meta != null && !StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().equalsIgnoreCase("undefined") && !meta.getLongitude().equalsIgnoreCase("null") && !meta.getLongitude().trim().equalsIgnoreCase("")) {
 			lendingApplication.setLongitude(meta.getLongitude());
-			lendingApplication.setIp(meta.getIp());
 		}
 		lendingApplication.setExternalLoanId(loanId);
 		if (enachSuccess != null) {
