@@ -23,6 +23,11 @@ import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.KycDocType;
+import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.Reapply;
+import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -555,8 +560,8 @@ public class LoanDetailsService {
 
 			//Covid check
 			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
-
-			if(lendingApplication != null && !eligibleFlag) {
+			boolean retry = shouldRetry(lendingApplication);
+			if(lendingApplication != null && !eligibleFlag && !retry) {
 				boolean syncContacts = false;
 				Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 				if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
@@ -745,6 +750,22 @@ public class LoanDetailsService {
 			return createFailureResponse();
 		}
 		return response;
+	}
+
+	private boolean shouldRetry(LendingApplication lendingApplication) {
+		try {
+			if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+				if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualCibil())) {
+					return false;
+				} else {
+					Date rejectedTimestamp = LoanUtil.loanRejectionDate(lendingApplication);
+					return rejectedTimestamp != null && LoanUtil.getDateDiffInDays(rejectedTimestamp, new Date()) > 7;
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Exception in shouldRetry for application:{}", lendingApplication.getId(), e);
+		}
+		return false;
 	}
 
 	private LoanEligibilityDTO createEligibilty(Long merchantId) {

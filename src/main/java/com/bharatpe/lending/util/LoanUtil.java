@@ -659,4 +659,16 @@ public class LoanUtil {
 	public List<BankList> getEnachBanks() {
 		return bankListDao.findNachBankList();
 	}
+
+	public static Date loanRejectionDate(LendingApplication lendingApplication) {
+		Date rejectedTimestamp = null;
+		if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc()) && lendingApplication.getKycApprovedDate() != null) {
+			rejectedTimestamp = lendingApplication.getKycApprovedDate();
+		} else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil()) && lendingApplication.getCibilApprovedDate() != null) {
+			rejectedTimestamp = lendingApplication.getCibilApprovedDate();
+		} else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus()) && lendingApplication.getPhysicalApprovedDate() != null) {
+			rejectedTimestamp = lendingApplication.getPhysicalApprovedDate();
+		}
+		return rejectedTimestamp;
+	}
 }
