@@ -292,6 +292,8 @@ public class VerifyOTPService {
 				sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
 		}
 
+		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
+
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
 		return finalResponse;
@@ -631,5 +633,19 @@ public class VerifyOTPService {
 			}
 		}
 		return null;
+	}
+
+	public void sendDuplicatePancardCheck(Long merchantId,Long applicationId){
+		try {
+			Map<String,Long> detailMap=new HashMap<String, Long>(){{
+				put("merchantId", merchantId);
+				put("applicationId",applicationId);
+			}};
+			kafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
+			logger.info("Pushed "+detailMap+" to topic check_duplicate_pancard");
+		}
+		catch(Exception e) {
+			logger.error("Error occured while pushing to topic check_duplicate_pancard",e);
+		}
 	}
 }
