@@ -718,13 +718,13 @@ public class SupportService {
                     continue;
                 }
 
-                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.toString()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
-                    logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
-                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Category Not match"});
-                    readLine = lenderFileReader.readLine();
-                    latch.countDown();
-                    continue;
-                }
+//                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.toString()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
+//                    logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
+//                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Category Not match"});
+//                    readLine = lenderFileReader.readLine();
+//                    latch.countDown();
+//                    continue;
+//                }
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     logger.info("Application Condition Not Match merchantId:{} and applicationId:{}",merchantId,applicationId);
                     errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Condition Not Match"});
@@ -803,10 +803,10 @@ public class SupportService {
             outputfile.close();
             byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
             byte[] error = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_error_file.csv"));
-            List<String> hindonEmails = Arrays.asList("rohit.dhola@bharatpe.com","sandeep.chauhan@bharatpe.com","anuj.puri@bharatpe.com","ashutosh.dhewal@bharatpe.com","kanika.sehgal@bharatpe.com","accounts@bharatpe.com","Helpdesk@mufinfinance.com","Rajat@mufinfinance.com","rajat.jain@bharatpe.com","anik.kansal@bharatpe.com","khushal.virmani@bharatpe.com"," psabharwal@mufinfinance.com");
+            List<String> hindonEmails = Arrays.asList("rohit.dhola@bharatpe.com","sandeep.chauhan@bharatpe.com","anuj.puri@bharatpe.com","ashutosh.dhewal@bharatpe.com","kanika.sehgal@bharatpe.com","accounts@bharatpe.com","Helpdesk@mufinfinance.com","Rajat@mufinfinance.com","rajat.jain@bharatpe.com","anik.kansal@bharatpe.com","khushal.virmani@bharatpe.com"," psabharwal@mufinfinance.com","lending_ops_reports@bharatpe.com");
             List<String> mamtaEmails = Arrays.asList("rohit.dhola@bharatpe.com","sandeep.chauhan@bharatpe.com","anuj.puri@bharatpe.com","ashutosh.dhewal@bharatpe.com","kanika.sehgal@bharatpe.com","anik.kansal@bharatpe.com","khushal.virmani@bharatpe.com","ashwani.dograext@bharatpe.com","gaurav.parashar@bharatpe.com"," lending_ops_reports@bharatpe.com");
             emailHandler.sendEmailWithAttachement("HINDON".equalsIgnoreCase(lender) ? hindonEmails : mamtaEmails, "Customer Onboarding and Loan Approval: "+ lender +"  "+new Date(), "Customer Onboarding and Loan Approval For :"+lender+" "+new Date() , bytes, lender+"_nbfc_details.csv", "text/csv");
-            emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("sandeep.chauhan@bharatpe.com");  add("anuj.puri@bharatpe.com");
+            emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com") ; add("lending_ops_reports@bharatpe.com");
             }}, lender+" NBFC Error Cases Report  "+new Date(), lender+" NBFC Error Cases For Date "+new Date() , error, lender+"_error_cases.csv", "text/csv");
             s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
             s3BucketHandler.uploadFileToS3(errorFile,"crm-exporter",fileId+"_error_file.csv");
