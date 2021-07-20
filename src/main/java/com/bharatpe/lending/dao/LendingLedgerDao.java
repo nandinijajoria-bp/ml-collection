@@ -39,7 +39,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
     @Query(nativeQuery = true, value = "select ifnull(sum(amount),0) from lending_ledger where loan_id=:loanId and amount>0 and date>=subdate(current_date, 30)")
     Double getAmountPaidLastMonth(Long loanId);
 
-    @Query(nativeQuery = true, value = "select date, ifnull(-1*sum(case when amount<0 then amount end),0) as due,ifnull(sum(case when amount>0 then amount end),0) as paid from lending_ledger where loan_id=:loanId group by date")
+    @Query(nativeQuery = true, value = "select date, ifnull(-1*sum(case when amount<0 then amount end),0) as due,ifnull(sum(case when amount>0 then amount end),0) as paid from lending_ledger where loan_id=:loanId group by date(date)")
     List<SettlementDTO> getSettlements(Long loanId);
 
     interface SettlementDTO{
