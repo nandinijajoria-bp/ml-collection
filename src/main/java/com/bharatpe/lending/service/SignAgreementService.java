@@ -143,7 +143,8 @@ public class SignAgreementService {
 			}
 		} else {
 			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
-			if(documentsIdProofList == null || documentsIdProofList.size() == 0) {
+			List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+			if(documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
 				logger.info("documents not found for application:{}", applicationId);
 				return response;
 			}
