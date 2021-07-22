@@ -2677,6 +2677,9 @@ public class LendingApplicationService {
 		applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.get().getCategory());
 		BpEnach successEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+		if (successEnach != null && successEnach.getAccountNumber() != null && !successEnach.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			successEnach = null;
+		}
 		OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
 		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());

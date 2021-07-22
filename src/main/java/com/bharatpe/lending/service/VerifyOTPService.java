@@ -215,6 +215,10 @@ public class VerifyOTPService {
 
 		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if (enachSuccess != null && merchantBankDetail != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			enachSuccess = null;
+		}
 		LendingCities lendingCities = null;
 		if (lendingApplication.getPincode() != null) {
 			lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
