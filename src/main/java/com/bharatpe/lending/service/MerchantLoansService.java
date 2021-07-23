@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -411,5 +412,32 @@ public class MerchantLoansService {
         }
         responseMap.put("due_amount", dueAmount);
         return new CommonResponse(responseMap);
+    }
+
+    public CommonResponse checkMerchant(String mobile, String pancard) {
+        try {
+            logger.info("Request to check merchant for mobile:{} and pancard:{}", mobile, pancard);
+            if (!StringUtils.isEmpty(mobile)) {
+                if (mobile.length() == 10) {
+                    mobile = "91" + mobile;
+                }
+                Merchant merchant = merchantDao.findByMobile(mobile);
+                if (merchant != null) {
+                    Experian experian = experianDao.getByMerchantId(merchant.getId());
+                    if (experian != null) {
+                        return new CommonResponse(true, "merchant found using mobile:" + mobile);
+                    }
+                }
+            }
+            if (!StringUtils.isEmpty(pancard)) {
+                Experian experian = experianDao.findByPancard(pancard);
+                if (experian != null) {
+                    return new CommonResponse(true, "merchant found using pancard:" + pancard);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception while checking merchant", e);
+        }
+        return new CommonResponse(false, "merchant not found");
     }
 }

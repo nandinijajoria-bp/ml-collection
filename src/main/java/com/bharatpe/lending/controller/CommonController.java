@@ -6,6 +6,8 @@ import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.dto.CommonResponse;
+import com.bharatpe.lending.service.MerchantLoansService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,9 @@ public class CommonController {
 	@Autowired
 	AesEncryption aesEncryption;
 
+	@Autowired
+	MerchantLoansService merchantLoansService;
+
 	@RequestMapping(value="/generateTopupLoan", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity initiateEnach(@RequestParam(name = "mid") Long merchantId) {
 		try {
@@ -66,4 +71,9 @@ public class CommonController {
 //		}
 //		return null;
 //	}
+
+	@RequestMapping(value="/merchant", method=RequestMethod.GET)
+	public ResponseEntity<CommonResponse> checkMerchant(@RequestParam(name = "mobile", required = false) String mobile, @RequestParam(name = "pancard", required = false) String pancard){
+		return ResponseEntity.ok(merchantLoansService.checkMerchant(mobile, pancard));
+	}
 }
