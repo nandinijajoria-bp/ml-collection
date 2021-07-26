@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
+import com.bharatpe.lending.common.dao.PartnersConfigurationDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -69,6 +70,9 @@ public class MerchantLoansService {
 
     @Autowired
     MerchantDao merchantDao;
+
+    @Autowired
+    PartnersConfigurationDao partnersConfigurationDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -425,6 +429,13 @@ public class MerchantLoansService {
                 if (merchant != null) {
                     Experian experian = experianDao.getByMerchantId(merchant.getId());
                     if (experian != null) {
+                        return new CommonResponse(true, "merchant found using mobile:" + mobile);
+                    }
+                    BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchant.getId());
+                    if (d2RMerchant == null) {
+                        d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchant.getId());
+                    }
+                    if (d2RMerchant != null) {
                         return new CommonResponse(true, "merchant found using mobile:" + mobile);
                     }
                 }
