@@ -58,6 +58,13 @@ public interface SupportConstants {
     String STATUS = "status";
     String CLIENT_NAME = "clientName";
     String HASH = "hash";
+    String ALREADY_REFUNDED = "Processing fee Already refunded";
+    String LOAN_NOT_CLOSED = "Refund eligibility of Processing fee will be calculated on "
+      + "successful loan closure";
+    String NEW_LOAN_ACTIVE = "Processing Fee will be refunded after the closing of TOPUP Loan";
+    String FORE_CLOSER_LOAN = "Not eligible for Processing fee refund as the merchant foreclosed "
+      + "the loan";
+    String MAX_DPD = "Not eligible for Processing fee refund as max dpd was greater than 5";
 
 
 

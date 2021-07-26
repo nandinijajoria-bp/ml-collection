@@ -542,9 +542,9 @@ public class SupportService {
                     loanArrangerFee.setArrangerFeeRefundEligible(true);
                     loanArrangerFee.setArrangerFeeRefunded(true);
                     loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
+                    loanArrangerFee.setInEligibleReason(SupportConstants.ALREADY_REFUNDED);
                 } else {
-                    boolean eligible = isArrangerFeeEligible(lendingPaymentSchedule1);
-                    loanArrangerFee.setArrangerFeeRefundEligible(eligible);
+                    populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
                 }
                 Map<String, Object> loanDetails = new HashMap<>();
                 loanDetails.put("agreementAt", lendingPaymentSchedule1.getLoanApplication().getAgreementAt());
@@ -576,16 +576,36 @@ public class SupportService {
         return supportLoanResponseDTO;
     }
 
-    private Boolean isArrangerFeeEligible(LendingPaymentSchedule lendingPaymentSchedule) {
+    private void populateArrangerFeeEligible(LendingPaymentSchedule lendingPaymentSchedule,
+                                              SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee) {
         if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
             BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
             long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
             LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
-            if (maxDpd.intValue() <= 5 && dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger))) {
-                return true;
+            Long loanId = lendingLedgerDao.getLedgerByAdjustmentModes(lendingPaymentSchedule.getId());
+
+            if (maxDpd.intValue() <= 5 && dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger)) && ObjectUtils.isEmpty(loanId)) {
+                loanArrangerFee.setArrangerFeeRefundEligible(Boolean.TRUE);
+            }
+
+            if(maxDpd.intValue() <= 5 && dpd <= 5 && dpd >= -5) {
+                loanArrangerFee.setInEligibleReason(SupportConstants.MAX_DPD);
+            }
+
+            if(!ObjectUtils.isEmpty(loanId)) {
+                loanArrangerFee.setInEligibleReason(SupportConstants.NEW_LOAN_ACTIVE);
+            }
+
+            if(!ObjectUtils.isEmpty(lendingLedger)) {
+                loanArrangerFee.setInEligibleReason(SupportConstants.FORE_CLOSER_LOAN);
             }
         }
-        return false;
+
+        if(!"CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
+            loanArrangerFee.setInEligibleReason(SupportConstants.LOAN_NOT_CLOSED);
+        }
+
+        loanArrangerFee.setArrangerFeeRefundEligible(Boolean.FALSE);
     }
 
     public SupportResponseDTO bulkLenderchange(Long merchantId, Long applicationId, Long fileId, Boolean flag, String lender) {

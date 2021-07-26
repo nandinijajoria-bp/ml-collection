@@ -348,6 +348,7 @@ public class SupportLoanResponseDTO {
         private Boolean arrangerFeeRefundEligible;
         private Boolean arrangerFeeRefunded;
         private Date timestamp;
+        private String inEligibleReason;
 
         public Double getFeeAmount() {
             return feeAmount;
@@ -381,14 +382,23 @@ public class SupportLoanResponseDTO {
             this.timestamp = timestamp;
         }
 
+        public String getInEligibleReason() {
+            return inEligibleReason;
+        }
+
+        public void setInEligibleReason(String inEligibleReason) {
+            this.inEligibleReason = inEligibleReason;
+        }
+
         @Override
         public String toString() {
             return "LoanArrangerFee{" +
-                "feeAmount=" + feeAmount +
-                ", arrangerFeeRefundEligible=" + arrangerFeeRefundEligible +
-                ", arrangerFeeRefunded=" + arrangerFeeRefunded +
-                ", timestamp=" + timestamp +
-                '}';
+              "feeAmount=" + feeAmount +
+              ", arrangerFeeRefundEligible=" + arrangerFeeRefundEligible +
+              ", arrangerFeeRefunded=" + arrangerFeeRefunded +
+              ", timestamp=" + timestamp +
+              ", inEligibleReason='" + inEligibleReason + '\'' +
+              '}';
         }
     }
 }
