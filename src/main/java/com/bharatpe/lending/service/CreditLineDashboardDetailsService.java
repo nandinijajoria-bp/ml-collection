@@ -170,7 +170,7 @@ public class CreditLineDashboardDetailsService {
 			}
 			
 			dashboardResponse.setRepaymentWidget(repaymentWidget);
-			dashboardResponse.setSpendModeWidget(new SpendModeWidget());
+//			dashboardResponse.setSpendModeWidget(new SpendModeWidget());
 			dashboardResponse=responseAfterInsertingMerchantBankDetails(merchant, dashboardResponse);
 			if(creditAccount.getStatus().equalsIgnoreCase("BLOCKED")){
 				dashboardResponse.setAccountBlocked(true);
