@@ -1728,14 +1728,14 @@ public class APIGatewayService {
 
             HttpEntity<Object> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity responseEntity = null;
-            logger.info("FOS Attribution Service API request {}", entity);
+            logger.info("FOS Attribution Service API request:{} for merchantId:{}", entity, merchantId);
 
             responseEntity = restTemplate.exchange(env.getProperty("salesdashboard.fos.attribution")+LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
 
-            logger.info("FOS Attribution Service API response {}", responseEntity);
+            logger.info("FOS Attribution Service API response:{} for merchantId:{}", responseEntity, merchantId);
 
         } catch (Exception e) {
-            logger.error("Error occurred while calling FOS Attribution Api", e);
+            logger.error("Error occurred while calling FOS Attribution Api for merchant:{}", merchantId, e);
         }
 
         return null;
