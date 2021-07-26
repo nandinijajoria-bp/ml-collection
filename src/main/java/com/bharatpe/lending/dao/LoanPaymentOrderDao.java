@@ -14,7 +14,7 @@ public interface LoanPaymentOrderDao extends CrudRepository<LoanPaymentOrder, Lo
 	public LoanPaymentOrder findByOrderId(String orderId);
 
 
-	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId order by id desc")
+	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId and (source is null or source!='ADVANCE_EDI') order by id desc")
 	List<LoanPaymentOrder> findByOwnerIdAndMerchantId(String ownerId, Long merchantId);
 
 	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId and source=:source order by id desc limit 1")
@@ -28,6 +28,6 @@ public interface LoanPaymentOrderDao extends CrudRepository<LoanPaymentOrder, Lo
 	@Query(nativeQuery = true, value="UPDATE loan_payment_order l set l.status=:status where l.id=:id and l.status='PENDING'")
 	int updateStatusForPendingTxn(String status, Long id);
 
-	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId order by id desc limit 3")
+	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId and (source is null or source!='ADVANCE_EDI') order by id desc limit 3")
 	List<LoanPaymentOrder> findRecentTransactions(Long ownerId, Long merchantId);
 }

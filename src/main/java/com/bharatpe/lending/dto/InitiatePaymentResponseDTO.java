@@ -21,6 +21,7 @@ public class InitiatePaymentResponseDTO {
 	}
 	
 	public InitiatePaymentResponseDTO(String message) {
+		this.success = false;
 		this.message = message;
 	}
 	

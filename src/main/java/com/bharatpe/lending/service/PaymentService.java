@@ -9,17 +9,14 @@ import java.util.concurrent.Executors;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
-import com.bharatpe.lending.common.dao.LendingPayoutsDao;
-import com.bharatpe.lending.common.dao.LoanDpdDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
-import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
-import com.bharatpe.lending.common.entity.LendingPayouts;
-import com.bharatpe.lending.common.entity.LendingVirtualAccount;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.PaymentType;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +88,12 @@ public class PaymentService {
 	@Autowired
 	LendingNotificationService lendingNotificationService;
 
+	@Autowired
+	LendingPrepaymentDao lendingPrepaymentDao;
+
+	@Autowired
+	LendingPrepaymentAuditDao lendingPrepaymentAuditDao;
+
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -105,11 +108,12 @@ public class PaymentService {
 				logger.info("No active loan found for merchant id {}", merchant.getId());
 				return new PaymentDetailsResponseDTO("No active loan found.");
 			}
-			
+			LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchant().getId(), activeLoan.getId());
+			double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 			Integer loanAmount = activeLoan.getLoanAmount().intValue();
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
+			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - advanceEdiAmount);
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			boolean isPayable = true;
@@ -118,7 +122,7 @@ public class PaymentService {
 			}
 			if (activeLoan.getTentativeClosingDate().before(new Date())) {
 				double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
-				int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount));
+				int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount + advanceEdiAmount));
 				if (extraAmount > 0d) {
 					logger.info("Need to get extra amount:{} for loanId:{}", extraAmount, activeLoan.getId());
 					principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
@@ -148,6 +152,27 @@ public class PaymentService {
 				logger.info("Amount not between 1-100000 for merchant id {}", merchant.getId());
 				return new InitiatePaymentResponseDTO("Amount should be between 1-100000.");
 			}
+			String paymentType = request.getPayload().getPaymentType();
+			if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+				logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchant.getId());
+				return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
+			}
+			if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
+				Integer advanceEdiCount = request.getPayload().getAdvanceEdiCount();
+				if (advanceEdiCount == null) {
+					logger.info("advance edi count is not present for merchant:{}", merchant.getId());
+					return new InitiatePaymentResponseDTO("Advance edi count not present");
+				}
+				if (advanceEdiCount > activeLoan.getEdiRemainingCount()) {
+					logger.info("advance edi count is more than remaining edi count for merchant:{}", merchant.getId());
+					return new InitiatePaymentResponseDTO("Advance edi count should be less than remaining edi count");
+				}
+				Integer advanceEdiAmount = activeLoan.getDueAmount().intValue() + (request.getPayload().getAdvanceEdiCount() * activeLoan.getEdiAmount().intValue());
+				if (!amount.equals(advanceEdiAmount)) {
+					logger.info("advance edi amount:{} is not matching for merchant:{}", advanceEdiAmount, merchant.getId());
+					return new InitiatePaymentResponseDTO("Advance edi amount is not correct");
+				}
+			}
 			LoanPaymentOrder order = new LoanPaymentOrder();
 			order.setMerchant(merchant);
 			order.setOwner("lending_payment_schedule");
@@ -156,6 +181,9 @@ public class PaymentService {
 			order.setStatus("INIT");
 			if (request.getPayload().getSource() != null) {
 				order.setSource(request.getPayload().getSource().name());
+			}
+			if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
+				order.setDescription(PaymentType.ADVANCE_EDI.name());
 			}
 			order = loanPaymentOrderDao.save(order);
 			String orderId = "LOAN" + (10000000L + order.getId());
@@ -318,7 +346,7 @@ public class PaymentService {
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
-			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource());
+			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(), PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()));
 			order.setBankRefNo(request.getBankReferenceNumber());
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
@@ -370,7 +398,7 @@ public class PaymentService {
 			if (request.getPaymentStatus() != null) {
 				order.setStatus(request.getPaymentStatus());
 				if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
-					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource());
+					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(), PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()));
 					order.setBankRefNo(request.getPaymentRefId());
 				}
 			}
@@ -596,20 +624,24 @@ public class PaymentService {
 		return new ResponseDTO(false, "Unable to resend otp");
 	}
 
-	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source) {
-		logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
-		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
+	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, boolean advanceEdi) {
+		logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchant().getId(), activeLoan.getId());
+		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - advanceEdiAmount);
 		Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 
 		Double paidInterestAmount = 0D;
 		Double paidPrincipalAmount = 0D;
 		boolean preclosure = false;
+		boolean advanceAdjusted = false;
 		logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), (principalDueAmount + ediHolidayInterestAmount));
+		logger.info("Advance EDI amount for loanId:{} is:{}", activeLoan.getId(), advanceEdiAmount);
 		logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
 		if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
 			logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
 			paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
-			paidPrincipalAmount = amount - paidInterestAmount;
+			paidPrincipalAmount = amount - paidInterestAmount + advanceEdiAmount;
 			double extraPrinciple = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
 			if (extraPrinciple > 0) {
 				logger.info("Extra principle received for loanId:{} and extra amount:{}", activeLoan.getId(), extraPrinciple);
@@ -618,12 +650,12 @@ public class PaymentService {
 			}
 			logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 			if(activeLoan.getDueAmount() >= 0) {
-				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
+				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + advanceEdiAmount) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			} else {
-				createLendingLedger(activeLoan, -1 * amount , -1 * amount - ediHolidayInterestAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
+				createLendingLedger(activeLoan, -1 * amount + advanceEdiAmount, -1 * amount - ediHolidayInterestAmount + advanceEdiAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source);
 			}
 
-			activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount);
+			activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + advanceEdiAmount);
 			activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
 			activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
 
@@ -634,6 +666,12 @@ public class PaymentService {
 			activeLoan.setStatus("CLOSED");
 			activeLoan.setClosingDate(new Date());
 			preclosure = true;
+			if (lendingPrepayment != null && advanceEdiAmount > 0d) {
+				advanceAdjusted = true;
+				lendingPrepayment.setAdvanceEdiCount(0);
+				lendingPrepayment.setAdvanceEdiAmount(0D);
+				lendingPrepaymentDao.save(lendingPrepayment);
+			}
 		} else {
 			double balance=amount;
 			if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
@@ -674,7 +712,8 @@ public class PaymentService {
 				balance-=paidAmount;
 				logger.info("Adjusted due principle of amount:{} for loan:{}", paidAmount, activeLoan.getId());
 			}
-			if(balance > 0D) {
+			advanceAdjusted = adjustAdvanceEdi(activeLoan, balance, advanceEdi);
+			if(balance > 0D && !advanceAdjusted) {
 				logger.info("Adjusting extra amount:{} for loan:{}", balance, activeLoan.getId());
 				int adjustedEdiCount = 0;
 				int adjustedIOEdiCount = 0;
@@ -780,6 +819,10 @@ public class PaymentService {
 				}
 			}
 		}
+		if (advanceAdjusted) {
+			logger.info("Reducing adjusted amount due to advance EDI for loanId:{}, old amount:{}, new amount:{}", activeLoan.getId(), amount, (paidPrincipalAmount + paidInterestAmount));
+			amount = (paidPrincipalAmount + paidInterestAmount);
+		}
 		logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo, preclosure), source);
 		lendingPaymentScheduleDao.save(activeLoan);
@@ -788,13 +831,14 @@ public class PaymentService {
 		}
 		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
-		notificationExecutor.execute(() -> sendSMS(activeLoan.getMerchant(), amount, isLoanClosed));
+		Double finalAmount = amount;
+		notificationExecutor.execute(() -> sendSMS(activeLoan.getMerchant(), finalAmount, isLoanClosed));
 
 		if(isLoanClosed) {
 			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 			notificationExecutor.execute(() -> {
 				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchant().getId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
-						.amount(amount)
+						.amount(finalAmount)
 						.merchantStoreId(null)
 						.transactionId(activeLoan.getId())
 						.build();
@@ -814,6 +858,38 @@ public class PaymentService {
 				}
 			});
 		}
+	}
+
+	private boolean adjustAdvanceEdi(LendingPaymentSchedule activeLoan, double balance, boolean advanceEdi) {
+		if (advanceEdi && balance > 0D) {
+			logger.info("Adjusting balance:{} as advance edi for loanId:{}", balance, activeLoan.getId());
+			int advanceEdiCount = 0;
+			if (balance % activeLoan.getEdiAmount() == 0) {
+				advanceEdiCount = (int)(balance/activeLoan.getEdiAmount());
+			} else if (Math.ceil(balance) % activeLoan.getEdiAmount() == 0) {
+				advanceEdiCount = (int)(Math.ceil(balance)/activeLoan.getEdiAmount());
+				balance = Math.ceil(balance);
+			} else if (Math.floor(balance) % activeLoan.getEdiAmount() == 0) {
+				advanceEdiCount = (int)(Math.floor(balance)/activeLoan.getEdiAmount());
+				balance = Math.floor(balance);
+			}
+			if (advanceEdiCount > 0) {
+				LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchant().getId(), activeLoan.getId());
+				if (lendingPrepayment != null) {
+					lendingPrepayment.setAdvanceEdiAmount(lendingPrepayment.getAdvanceEdiAmount() + balance);
+					lendingPrepayment.setAdvanceEdiCount(lendingPrepayment.getAdvanceEdiCount() + advanceEdiCount);
+				} else {
+					lendingPrepayment = new LendingPrepayment(activeLoan.getMerchant().getId(), activeLoan.getId(), balance, advanceEdiCount);
+				}
+				lendingPrepaymentDao.save(lendingPrepayment);
+				lendingPrepaymentAuditDao.save(new LendingPrepaymentAudit(activeLoan.getMerchant().getId(), activeLoan.getId(), balance, advanceEdiCount));
+				logger.info("Advance EDI adjustment successful for loanId:{} and amount:{}", activeLoan.getId(), balance);
+				return true;
+			} else {
+				logger.error("Advance edi balance:{} is not correct for loanId:{}, adjusting as prepayment",balance, activeLoan.getId());
+			}
+		}
+		return false;
 	}
 
 	private void refundExtraAmount(LendingPaymentSchedule lendingPaymentSchedule) {
@@ -938,7 +1014,7 @@ public class PaymentService {
 					loanPaymentOrder.setStatus("FAILED");
 					loanPaymentOrderDao.save(loanPaymentOrder);
 				} else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
-					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null, loanPaymentOrder.getSource());
+					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null, loanPaymentOrder.getSource(), PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(loanPaymentOrder.getDescription()));
 					loanPaymentOrder.setStatus("SUCCESS");
 					loanPaymentOrderDao.save(loanPaymentOrder);
 				}

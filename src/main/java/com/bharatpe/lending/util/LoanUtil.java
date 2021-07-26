@@ -287,6 +287,7 @@ public class LoanUtil {
 		put("BP","BP Balance");
 		put("BT","Bank Transfer");
 		put("AUTO_FP","Investment A/c");
+		put("ADVANCE_EDI","Advance EDI");
 	}};
 
 	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData){

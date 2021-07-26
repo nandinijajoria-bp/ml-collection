@@ -2,9 +2,11 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.dao.PartnersConfigurationDao;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -69,6 +71,9 @@ public class MerchantLoansService {
     LoanPaymentOrderDao loanPaymentOrderDao;
 
     @Autowired
+    LendingPrepaymentDao lendingPrepaymentDao;
+    
+    @Autowired
     MerchantDao merchantDao;
 
     @Autowired
@@ -123,6 +128,11 @@ public class MerchantLoansService {
                 if(lendingEDISchedule != null){
                     loan.setShowCustomAmount(true);
                 }
+                LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(merchantId, loan.getLoanId());
+                double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+                loan.setPaidAmount(loan.getPaidAmount() + advanceEdiAmount);
+                loan.setPendingAmount(loan.getPendingAmount() - advanceEdiAmount);
+                loan.setPaidPrinciple(loan.getPaidPrinciple() + advanceEdiAmount);
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
             if (lendingPaymentSchedule != null) {
