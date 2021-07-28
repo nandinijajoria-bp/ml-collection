@@ -273,11 +273,7 @@ public class VerifyOTPService {
 		lendingAuditTrial.setLoanId(loanId);
 		lendingAuditTrial.setUserId(Long.parseLong("0"));
 		lendingAuditTrial.setOldStatus("draft");
-		if (oglLoans != null || (lendingApplication.getNachStatus() != null && (lendingApplication.getNachStatus().equalsIgnoreCase("initiated") || lendingApplication.getNachStatus().equalsIgnoreCase("approved")))) {
-			lendingAuditTrial.setNewStatus("approved");
-		} else {
-			lendingAuditTrial.setNewStatus("pending_verification");
-		}
+        lendingAuditTrial.setNewStatus("pending_verification");
 		lendingAuditTrial.setType("APP_STATUS");
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
