@@ -1,45 +1,39 @@
 package com.bharatpe.lending.service;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.LoyaltyTransactionType;
+import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.objects.LoyaltyServiceRequest;
-import com.bharatpe.common.service.LoyaltyService;
+import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.common.objects.Meta;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
-import com.bharatpe.lending.entity.OglLoans;
-import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
-import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import com.bharatpe.common.enums.NotificationProvider;
-import com.bharatpe.common.handlers.PushNotificationHandler;
-import com.bharatpe.common.handlers.SmsServiceHandler;
-import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.common.objects.Meta;
-import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 @Service
@@ -59,31 +53,13 @@ public class VerifyOTPService {
 	MerchantBankDetailDao merchantBankDetailDao;
 	
 	@Autowired
-	MerchantFcmTokenDao merchantFcmTokenDao;
-	
-	@Autowired
-	PushNotificationHandler pushNotificationHandler;
-	
-	@Autowired
 	SmsServiceHandler smsServiceHandler;
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
-	
-	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
-	
-	@Autowired
-	WhatsappNotificationService whatsappNotificationService;
-
-	@Autowired
-	SupportService supportService;
 
 	@Autowired
 	BankListDao bankListDao;
-
-	@Autowired
-	OglLoansDao oglLoansDao;
 
 	@Autowired
 	MerchantSummaryLendingDao merchantSummaryLendingDao;
@@ -101,9 +77,6 @@ public class VerifyOTPService {
 	LendingPrebookLoansDao lendingPrebookLoansDao;
 	
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
-
-	@Autowired
-	LoyaltyService loyaltyService;
 
 	@Autowired
 	LendingPrebookTargetDao lendingPrebookTargetDao;
@@ -133,13 +106,16 @@ public class VerifyOTPService {
 	APIGatewayService apiGatewayService;
 
 	@Autowired
-	LoanUtil loanUtil;
-
-	@Autowired
 	LendingNotificationService lendingNotificationService;
 
 	@Autowired
 	KycHandler kycHandler;
+
+    @Autowired
+    DocumentsIdProofDao documentsIdProofDao;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -206,24 +182,26 @@ public class VerifyOTPService {
 				return finalResponse;
 			}
 		}
+        if (!topupLoans.contains(lendingApplication.getLoanType())) {
+            List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+            List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+            if (documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
+                logger.error("documents not found for application:{}", lendingApplication.getId());
+                return finalResponse;
+            }
+        }
 
 		if(lendingApplication.getProcessingFee() > 0 && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchant().getId())){
-			logger.info("Merchant is BP CLUB member, so making processing fee zero for applicationID : ", lendingApplication.getId());
+			logger.info("Merchant is BP CLUB member, so making processing fee zero for applicationID:{}", lendingApplication.getId());
 			lendingApplication.setDisbursalAmount(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee());
 			lendingApplication.setProcessingFee(0D);
 		}
 
-		OglLoans oglLoans = oglLoansDao.findByMerchantIdAndExternalLoanId(merchant.getId(), lendingApplication.getExternalLoanId());
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		if (enachSuccess != null && merchantBankDetail != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachSuccess = null;
 		}
-		LendingCities lendingCities = null;
-		if (lendingApplication.getPincode() != null) {
-			lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
-		}
-		boolean cpvMandatory = lendingCities != null && lendingCities.getCpvMandatory();
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
@@ -242,30 +220,14 @@ public class VerifyOTPService {
 			lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
 			lendingApplication.setNachStatus("APPROVED");
 		}
-		if (oglLoans != null) {
-			logger.info("Found OGL merchant: {}", merchant.getId());
-			lendingApplication.setStatus("approved");
-			lendingApplication.setManualKyc("APPROVED");
-			lendingApplication.setManualCibil("APPROVED");
-			lendingApplication.setPhysicalVerificationStatus("APPROVED");
-			lendingApplication.setLender("LIQUILOANS");
-		} else if(topupLoans.contains(lendingApplication.getLoanType())){
+		if(topupLoans.contains(lendingApplication.getLoanType())){
 			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
 			updateDocuments(lendingApplication, meta);
 			topUpLoans(lendingApplication);
-			lendingApplication.setStatus("pending_verification");
-		} else{
-			lendingApplication.setStatus("pending_verification");
-		}
-		lendingApplicationDao.save(lendingApplication);
+        }
+        lendingApplication.setStatus("pending_verification");
+        lendingApplicationDao.save(lendingApplication);
 		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
-
-		LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(merchant.getId(), LoyaltyTransactionType.PRE_BOOK_LOAN)
-				.amount(0D)
-				.merchantStoreId(null)
-				.transactionId(lendingApplication.getId())
-				.build();
-		loyaltyService.pushToKafka(requestBean);
 
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 		lendingAuditTrial.setApplicationId(lendingApplication.getId());
