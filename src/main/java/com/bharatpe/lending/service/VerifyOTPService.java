@@ -182,7 +182,7 @@ public class VerifyOTPService {
 				return finalResponse;
 			}
 		}
-        if (!topupLoans.contains(lendingApplication.getLoanType())) {
+        if (!topupLoans.contains(lendingApplication.getLoanType()) && StringUtils.isEmpty(lendingApplication.getCkycId())) {
             List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
             List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
             if (documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
