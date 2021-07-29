@@ -100,4 +100,10 @@ public class PaymentController {
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
 
+    @RequestMapping(value = "/loan_settlement", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO applyWaiver(@RequestBody LoanSettlementRequestDTO requestDTO) {
+        logger.info("Request received for apply waiver {} for loan_id : {}", requestDTO.getWaiverType(), requestDTO.getLoanId());
+        return paymentService.applyWaiver(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType());
+    }
+
 }

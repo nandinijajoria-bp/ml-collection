@@ -17,6 +17,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.PaymentType;
+import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +52,7 @@ public class PaymentService {
 
 	@Autowired
 	LendingPayoutsDao lendingPayoutsDao;
-	
-	@Autowired
-	MerchantDao merchantDao;
-	
+
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
 	
@@ -63,18 +61,12 @@ public class PaymentService {
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
-	
-	@Autowired
-	SmsServiceHandler smsServiceHandler;
-	
+
 	@Autowired
 	LoanPaymentOrderDao loanPaymentOrderDao;
 	
 	@Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
-
-	@Autowired
-	WhatsappNotificationService whatsappNotificationService;
 
 	@Autowired
 	RedisNotificationService redisNotificationService;
@@ -93,6 +85,9 @@ public class PaymentService {
 
 	@Autowired
 	LendingPrepaymentAuditDao lendingPrepaymentAuditDao;
+
+	@Autowired
+    LoanUtil loanUtil;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
@@ -113,7 +108,7 @@ public class PaymentService {
 			Integer loanAmount = activeLoan.getLoanAmount().intValue();
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
 			Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - advanceEdiAmount);
+			Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			
 			boolean isPayable = true;
@@ -249,7 +244,7 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("Something went wrong.");
 			}
 			Integer overdueAmount = activeLoan.getDueAmount().intValue();
-			Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0));
+			Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
 			Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 			Integer amount = 0;
 			if("CUSTOM".equalsIgnoreCase(request.getPayload().getPaymentType())) {
@@ -628,7 +623,7 @@ public class PaymentService {
 		logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
 		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchant().getId(), activeLoan.getId());
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
-		Integer principalDueAmount = (int) Math.ceil(activeLoan.getLoanAmount() - (activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) - advanceEdiAmount);
+		Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
 		Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
 
 		Double paidInterestAmount = 0D;
@@ -1129,6 +1124,45 @@ public class PaymentService {
 			logger.error("Exception in payment status check", e);
 			return new PaymentStatusV3ResponseDTO(false, "Something went wrong");
 		}
+	}
+
+	public ResponseDTO applyWaiver(Long loanId, Long merchantId, WaiverType waiverType) {
+		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchantId);
+		if(Objects.isNull(lendingPaymentSchedule) || !"ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
+			logger.error("No active loan found for id {}", loanId);
+			return new ResponseDTO(false, "No active loan found");
+		}
+		Integer foreClosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+		LoanPaymentOrder order = createOrder(lendingPaymentSchedule,waiverType.name(), foreClosureAmount);
+		PaymentCallbackRequestDTO paymentCallbackRequestDTO = new PaymentCallbackRequestDTO();
+		paymentCallbackRequestDTO.setAmount(order.getAmount());
+		paymentCallbackRequestDTO.setStatus("SUCCESS");
+		paymentCallbackRequestDTO.setOrderId(order.getOrderId());
+		handleCallback(paymentCallbackRequestDTO);
+		lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchantId);
+		if("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
+			lendingPaymentSchedule.setSettlementStatus(waiverType.name());
+			lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+			return new ResponseDTO(true, "Waiver applied successfully");
+		} else {
+		    logger.error("Unable to settle loan:{}", lendingPaymentSchedule.getId());
+        }
+		return new ResponseDTO(false, "Something went wrong");
+	}
+
+	private LoanPaymentOrder createOrder(LendingPaymentSchedule lendingPaymentSchedule, String source, Integer foreclosureAmount) {
+		logger.info("Creating Order for loan Id : {}", lendingPaymentSchedule.getId());
+		LoanPaymentOrder order = new LoanPaymentOrder();
+		order.setMerchant(lendingPaymentSchedule.getMerchant());
+		order.setOwner("lending_payment_schedule");
+		order.setOwnerId(lendingPaymentSchedule.getId());
+		order.setAmount(foreclosureAmount.doubleValue());
+		order.setStatus("PENDING");
+		order.setSource(source);
+		order = loanPaymentOrderDao.save(order);
+		String orderId = "LOAN" + (10000000L + order.getId());
+		order.setOrderId(orderId);
+		return loanPaymentOrderDao.save(order);
 	}
 
 

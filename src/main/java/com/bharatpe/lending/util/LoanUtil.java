@@ -100,6 +100,9 @@ public class LoanUtil {
 	@Autowired
 	BharatPeEnachDao bharatPeEnachDao;
 
+	@Autowired
+    LendingPrepaymentDao lendingPrepaymentDao;
+
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
 		
@@ -671,5 +674,11 @@ public class LoanUtil {
 			rejectedTimestamp = lendingApplication.getPhysicalApprovedDate();
 		}
 		return rejectedTimestamp;
+	}
+
+	public int getForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+        LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
+        double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
 	}
 }
