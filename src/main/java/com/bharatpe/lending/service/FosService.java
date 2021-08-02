@@ -577,6 +577,17 @@ public class FosService {
             }
             for(LoanAttribution loanAttribution: loanAttributions){
                 LendingApplication lendingApplication = lendingApplicationDao.findById(loanAttribution.getApplicationId()).get();
+                boolean enachDone = loanUtil.isEnachDone(lendingApplication.getMerchant());
+                if(enachDone && Objects.nonNull(loanAttribution.getEnachAttributedAt())) {
+                    fosAttributionResponseDTO = isEnachAttributed(request, loanAttribution, lendingApplication);
+                    if(fosAttributionResponseDTO.getStatus().equalsIgnoreCase("YES")){
+                        responseDTO.setSuccess(true);
+                        responseDTO.setMessage("Attribution state");
+                        responseDTO.setData(fosAttributionResponseDTO);
+                        responseDTO.setStatusCode("200");
+                        return responseDTO;
+                    }
+                }
                 if("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() > 50000){
 
                     fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
@@ -588,7 +599,6 @@ public class FosService {
                         return responseDTO;
                     }
                 }else if(("NTB".equalsIgnoreCase(loanAttribution.getLoanType()) || "OGL".equalsIgnoreCase(loanAttribution.getLoanType()) || ("REGULAR".equalsIgnoreCase(loanAttribution.getLoanType()) && loanAttribution.getLoanAmount() <= 50000))){
-                    boolean enachDone = loanUtil.isEnachDone(lendingApplication.getMerchant());
                     if(Objects.nonNull(loanAttribution.getEnachAttributedAt()) && Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
                         if(loanAttribution.getAgreementAttributedAt().compareTo(loanAttribution.getEnachAttributedAt()) > 0){
                             fosAttributionResponseDTO = isAgreementAttributed(request, loanAttribution, lendingApplication);
