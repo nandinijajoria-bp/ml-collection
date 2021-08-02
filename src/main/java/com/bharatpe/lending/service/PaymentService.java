@@ -1141,8 +1141,8 @@ public class PaymentService {
 		handleCallback(paymentCallbackRequestDTO);
 		lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchantId);
 		if("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
-//			lendingPaymentSchedule.setSettlementStatus(waiverType.name());
-//			lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+			lendingPaymentSchedule.setSettlementStatus(waiverType.name());
+			lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 			return new ResponseDTO(true, "Waiver applied successfully");
 		} else {
 		    logger.error("Unable to settle loan:{}", lendingPaymentSchedule.getId());
