@@ -175,6 +175,7 @@ public class LoanDetailsServiceV2 {
             experian.setBureau(null);
             experian.setHitId(null);
             experian.setReportDate(null);
+            experian.setExperianScore(null);
             experianDao.save(experian);
         } else if (request != null && request.getPincode() != null) {
             log.info("updating experian pincode:{} for merchant:{}", request.getPincode(), merchant.getId());
@@ -188,6 +189,7 @@ public class LoanDetailsServiceV2 {
             experian.setBureau(null);
             experian.setHitId(null);
             experian.setReportDate(null);
+            experian.setExperianScore(null);
             experianDao.save(experian);
         }
         loanDetailsResponse.setPancard(experian.getPancardNumber());
