@@ -693,7 +693,9 @@ public class LoanUtil {
                 put("merchantId", lendingApplication.getMerchant().getId());
                 put("applicationId", lendingApplication.getId());
                 put("status", lendingApplication.getStatus());
-                put("disbursal_status", lendingApplication.getLoanDisbursalStatus());
+                put("disbursalStatus", lendingApplication.getLoanDisbursalStatus());
+                put("createdAt", lendingApplication.getCreatedAt());
+                put("updatedAt", lendingApplication.getUpdatedAt());
             }};
             executorService.execute(() -> {
                 kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
