@@ -22,6 +22,7 @@ import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,6 +117,9 @@ public class VerifyOTPService {
 
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+    LoanUtil loanUtil;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -255,6 +259,7 @@ public class VerifyOTPService {
 		}
 
 		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
+		loanUtil.publishApplicationEvent(lendingApplication);
 
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);

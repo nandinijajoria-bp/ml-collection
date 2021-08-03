@@ -21,9 +21,12 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 
@@ -45,9 +48,6 @@ public class LoanUtil {
 
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
-
-	@Autowired
-	SettlementDao settlementDao;
 
 	@Autowired
 	LendingPennydropDao lendingPennydropDao;
@@ -102,6 +102,11 @@ public class LoanUtil {
 
 	@Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
+
+    @Autowired
+    KafkaTemplate<String, Object> kafkaTemplate;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -681,4 +686,21 @@ public class LoanUtil {
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
 	}
+
+	public void publishApplicationEvent(LendingApplication lendingApplication) {
+	    try {
+            Map<String,Object> request = new HashMap<String, Object>(){{
+                put("merchantId", lendingApplication.getMerchant().getId());
+                put("applicationId", lendingApplication.getId());
+                put("status", lendingApplication.getStatus());
+                put("disbursal_status", lendingApplication.getLoanDisbursalStatus());
+            }};
+            executorService.execute(() -> {
+                kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+            });
+            logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
+        } catch (Exception e) {
+            logger.error("Exception in publishApplicationEvent for application:{}", lendingApplication.getId(), e);
+        }
+    }
 }

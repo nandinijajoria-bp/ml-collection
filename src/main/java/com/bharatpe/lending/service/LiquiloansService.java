@@ -21,6 +21,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.SettlementType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.Finance;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -166,6 +167,9 @@ public class LiquiloansService {
 
     @Autowired
 	PaymentService paymentService;
+
+    @Autowired
+    LoanUtil loanUtil;
 
 	private static String secretKey;
 
@@ -383,6 +387,7 @@ public class LiquiloansService {
 		if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
 			prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
 		}
+        loanUtil.publishApplicationEvent(lendingApplication);
     	return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
 

@@ -255,6 +255,7 @@ public class LendingApplicationService {
 //					lendingApplication.setLender("LDC");
 //				}
 				lendingApplicationDao.save(lendingApplication);
+				loanUtil.publishApplicationEvent(lendingApplication);
 				lenderMappingService.lenderMapping(lendingApplication);
 			}
 			if (summary != null) {
@@ -320,6 +321,7 @@ public class LendingApplicationService {
 //				newApplication.setLender("LDC");
 //			}
 			newApplication = lendingApplicationDao.save(newApplication);
+			loanUtil.publishApplicationEvent(newApplication);
 			lenderMappingService.lenderMapping(newApplication);
 			if(merchantSummary != null) {
 				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
@@ -571,6 +573,7 @@ public class LendingApplicationService {
 //			}
 			newApplication = lendingApplicationDao.save(newApplication);
 			lenderMappingService.lenderMapping(newApplication);
+			loanUtil.publishApplicationEvent(newApplication);
 			if(merchantSummary != null) {
 				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
 			}

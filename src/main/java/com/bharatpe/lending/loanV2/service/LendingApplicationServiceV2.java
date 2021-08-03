@@ -149,6 +149,7 @@ public class LendingApplicationServiceV2 {
             LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoans.get(0), applicationRequest, lendingCategory);
             loanUtil.createApplicationSnapshot(lendingApplication);
             createStatusAuditTrail(lendingApplication);
+            loanUtil.publishApplicationEvent(lendingApplication);
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
             log.error("Exception in createNewApplication for merchant:{}", merchant.getId(), e);

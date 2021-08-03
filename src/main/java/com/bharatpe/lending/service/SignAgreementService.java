@@ -314,7 +314,8 @@ public class SignAgreementService {
 //		else {
 //			newApplication.setLender("LDC");
 //		}
-		lendingApplicationDao.save(newApplication);
+        newApplication = lendingApplicationDao.save(newApplication);
+        loanUtil.publishApplicationEvent(newApplication);
 		lenderMappingService.lenderMapping(newApplication);
 
 		if(newApplication.getId() != null) {
@@ -340,7 +341,8 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			loanUtil.createApplicationSnapshot(newApplication);
 		}
-		executorService.execute(() -> apiGatewayService.globalLimitTxn(newApplication.getMerchant().getId(), "DEBIT",newApplication.getLoanAmount()));
+        LendingApplication finalNewApplication = newApplication;
+        executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchant().getId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		return response;
 	}
 	
