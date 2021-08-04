@@ -105,8 +105,8 @@ public class KycHandler {
             List<KycDoc> kycDocs = getKycDoc(merchantId);
             if (!CollectionUtils.isEmpty(kycDocs)) {
                 for (KycDoc kycDoc : kycDocs) {
-                    if (kycDoc.getStatus().equals(KycDocStatus.REJECTED)) return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
-                    if (kycDoc.getStatus().equals(KycDocStatus.PENDING)) return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.PENDING).build();
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.PENDING)) return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.PENDING).build();
                 }
                 if (kycDocs.size() < kycMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
                 return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
