@@ -106,4 +106,10 @@ public class PaymentController {
         return paymentService.applyWaiver(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType());
     }
 
+    @RequestMapping(value = "/refund", method = RequestMethod.GET, produces="application/json")
+    public LoanRefundsResponseDTO getRefunds(@RequestParam Long loanId) {
+        logger.info("Request received for refund details for loan id: {}", loanId);
+        return paymentService.getRefunds(loanId);
+    }
+
 }

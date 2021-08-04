@@ -1165,5 +1165,26 @@ public class PaymentService {
 		return loanPaymentOrderDao.save(order);
 	}
 
+	public LoanRefundsResponseDTO getRefunds(Long loanId) {
+		Optional<LendingPaymentSchedule> optionalLps = lendingPaymentScheduleDao.findById(loanId);
+		LoanRefundsResponseDTO loanRefundsResponseDTO = new LoanRefundsResponseDTO();
+		if(optionalLps .isPresent()) {
+			List<LendingPayouts> lendingPayoutsList = lendingPayoutsDao.findByOwnerIdAndTypeAndStatus(loanId,"REFUND");
+			logger.info("number of refunds: {} for loanId: {}",loanId,lendingPayoutsList.size());
 
+			List<LoanRefundsResponseDTO.Refund> loanRefundList = new ArrayList<>();
+
+			for(LendingPayouts lendingPayouts : lendingPayoutsList) {
+				LoanRefundsResponseDTO.Refund loanRefund = new LoanRefundsResponseDTO.Refund(loanId,lendingPayouts.getAmount(),lendingPayouts.getCreatedAt(),lendingPayouts.getPaymentType());
+				loanRefundList.add(loanRefund);
+			}
+
+			loanRefundsResponseDTO.setRefundList(loanRefundList);
+			loanRefundsResponseDTO.setSuccess(true);
+			return loanRefundsResponseDTO;
+		}
+		loanRefundsResponseDTO.setMessage("No loan found with id:" + loanId);
+		loanRefundsResponseDTO.setSuccess(false);
+		return loanRefundsResponseDTO;
+	}
 }
