@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -107,6 +108,8 @@ public class LoanUtil {
     KafkaTemplate<String, Object> kafkaTemplate;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
+
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -694,8 +697,8 @@ public class LoanUtil {
                 put("applicationId", lendingApplication.getId());
                 put("status", lendingApplication.getStatus());
                 put("disbursalStatus", lendingApplication.getLoanDisbursalStatus());
-                put("createdAt", lendingApplication.getCreatedAt());
-                put("updatedAt", lendingApplication.getUpdatedAt());
+                put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
+                put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
             }};
             executorService.execute(() -> {
                 kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
