@@ -107,6 +107,12 @@ public class LoanUtil {
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -481,9 +487,23 @@ public class LoanUtil {
 		createExperianSnapshot(lendingApplication.getMerchant(), lendingApplication);
 		createBBSSnapshot(lendingApplication);
 		createMerchantScoreSnapshot(lendingApplication);
+		createRiskVariablesSnapshot(lendingApplication);
 	}
 
-	public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+    private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
+        try {
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchant().getId());
+            if (lendingRiskVariables != null) {
+                LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = LendingRiskVariablesSnapshot.createObject(lendingRiskVariables);
+                lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
+                lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
+            }
+        } catch (Exception e) {
+            logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), e);
+        }
+    }
+
+    public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
 		try {
 			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchant().getId());
 			if (merchantScore != null) {

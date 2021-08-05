@@ -3,31 +3,17 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
-import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 import com.bharatpe.lending.util.LoanUtil;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.math.BigInteger;
-import java.net.URL;
-import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -38,10 +24,19 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
+import java.math.BigInteger;
+import java.net.URL;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @Service
 public class LendingApplicationService {
-	private Logger logger = LoggerFactory.getLogger(LendingApplicationService.class);
-	
+	private final Logger logger = LoggerFactory.getLogger(LendingApplicationService.class);
+
 	@Autowired
 	LendingCitiesDao lendingCitiesDao;
 
@@ -52,16 +47,10 @@ public class LendingApplicationService {
 	LendingApplicationDao lendingApplicationDao;
 	
 	@Autowired
-	AvailableLoanDao availableLoanDao;
-	
-	@Autowired
 	LendingCategoryDao lendingCategoryDao;
 
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
-	
-	@Autowired
-	MerchantSummarySnapshotDao merchantSummarySnapshotDao;
 	
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
@@ -79,9 +68,6 @@ public class LendingApplicationService {
 	EligibleLoanDao eligibleLoanDao;
 
 	@Autowired
-	GupShupOTPHandler gupShupOTPHandler;
-
-	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@Autowired
@@ -94,25 +80,7 @@ public class LendingApplicationService {
 	ExperianDao experianDao;
 
 	@Autowired
-	ExperianSnapshotDao experianSnapshotDao;
-
-	@Autowired
-	LendingBBSDao lendingBBSDao;
-
-	@Autowired
-	LendingBBSSnapshotDao lendingBBSSnapshotDao;
-
-	@Autowired
-	MerchantScoreDao merchantScoreDao;
-
-	@Autowired
-	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
-
-	@Autowired
 	KafkaTemplate<String, Object> kafkaTemplate;
-	
-	@Autowired
-	LendingApplicationService lendingApplicationService;
 	
 	@Autowired
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
@@ -172,13 +140,7 @@ public class LendingApplicationService {
 	MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
 
 	@Autowired
-	LendingSmsVariablesDao lendingSmsVariablesDao;
-
-	@Autowired
 	LenderMappingService lenderMappingService;
-
-	@Autowired
-	LendingSmsVariablesSnapshotDao lendingSmsVariablesSnapshotDao;
 
 	@Autowired
 	LendingEkycDao lendingEkycDao;
@@ -258,15 +220,7 @@ public class LendingApplicationService {
 				loanUtil.publishApplicationEvent(lendingApplication);
 				lenderMappingService.lenderMapping(lendingApplication);
 			}
-			if (summary != null) {
-				createMerchantSummarySnapshot(merchant, lendingApplication, summary);
-			}
-			createExperianSnapshot(merchant, lendingApplication);
-			createBBSSnapshot(lendingApplication);
-			if(lendingApplication.getLoanType()!=null && lendingApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
-				createSmsVariableSnapshot(lendingApplication);
-			}
-			createMerchantScoreSnapshot(lendingApplication);
+			loanUtil.createApplicationSnapshot(lendingApplication);
 			createStatusAuditTrail(lendingApplication);
 			lendingMerchantDropoffDao.updateApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
 		}
@@ -323,15 +277,7 @@ public class LendingApplicationService {
 			newApplication = lendingApplicationDao.save(newApplication);
 			loanUtil.publishApplicationEvent(newApplication);
 			lenderMappingService.lenderMapping(newApplication);
-			if(merchantSummary != null) {
-				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
-			}
-			createExperianSnapshot(newApplication.getMerchant(), newApplication);
-			createBBSSnapshot(newApplication);
-			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
-				createSmsVariableSnapshot(newApplication);
-			}
-			createMerchantScoreSnapshot(newApplication);
+            loanUtil.createApplicationSnapshot(newApplication);
 			lendingMerchantDropoffDao.updateApplicationId(newApplication.getMerchant().getId(), newApplication.getId());
 			replicateDocumentsForNewApplication(newApplication, merchant, requestDTO.getMeta());
 			return prepareAPIResponse(newApplication,true);
@@ -574,15 +520,7 @@ public class LendingApplicationService {
 			newApplication = lendingApplicationDao.save(newApplication);
 			lenderMappingService.lenderMapping(newApplication);
 			loanUtil.publishApplicationEvent(newApplication);
-			if(merchantSummary != null) {
-				createMerchantSummarySnapshot(newApplication.getMerchant(), newApplication, merchantSummary);
-			}
-			createExperianSnapshot(newApplication.getMerchant(), newApplication);
-			createBBSSnapshot(newApplication);
-			if(newApplication.getLoanType()!=null && newApplication.getLoanType().equalsIgnoreCase("NTB_SMS_1")) {
-				createSmsVariableSnapshot(newApplication);
-			}
-			createMerchantScoreSnapshot(newApplication);
+            loanUtil.createApplicationSnapshot(newApplication);
 			lendingMerchantDropoffDao.updateApplicationId(newApplication.getMerchant().getId(), newApplication.getId());
 			signAgreementService.replicateDocumentsForNewApplication(prevLoan, newApplication, prevLoan.getMerchant(), requestDTO.getMeta());
 			return prepareAPIResponse(newApplication,true);
@@ -642,68 +580,7 @@ public class LendingApplicationService {
 		}
 		return newApplication;
 	}
-	
-	private boolean isLdc(LendingApplication lendingApplication) {
-		Long todayApplicationCount = lendingApplicationDao.getLDCApplicationCountBetweenDate(DateTimeUtil.getStartTimeFromDateTime(new Date()), DateTimeUtil.getEndTimeFromDateTime(new Date()));
-		return todayApplicationCount < 25 && lendingApplication.getTenureInMonths() != 15;
-	}
 
-	public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
-		MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchant().getId());
-		if (merchantScore != null) {
-			MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
-			merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
-			merchantScoreSnapshotDao.save(merchantScoreSnapshot);
-		}
-	}
-
-	public void createBBSSnapshot(LendingApplication lendingApplication) {
-		LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchant().getId());
-		if (lendingBBS != null) {
-			LendingBBSSnapshot lendingBBSSnapshot = LendingBBSSnapshot.createObject(lendingBBS);
-			lendingBBSSnapshot.setApplicationId(lendingApplication.getId());
-			lendingBBSSnapshotDao.save(lendingBBSSnapshot);
-		}
-	}
-
-	public void createSmsVariableSnapshot(LendingApplication lendingApplication) {
-		LendingSmsVariables lendingSmsVariables = lendingSmsVariablesDao.findByMerchantId(lendingApplication.getMerchant().getId());
-		if (lendingSmsVariables != null) {
-			LendingSmsVariablesSnapshot lendingSmsVariablesSnapshot = LendingSmsVariablesSnapshot.createObject(lendingSmsVariables);
-			lendingSmsVariablesSnapshot.setApplicationId(lendingApplication.getId());
-			lendingSmsVariablesSnapshotDao.save(lendingSmsVariablesSnapshot);
-		}
-	}
-
-	public void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
-		Experian experian = experianDao.getByMerchantId(merchant.getId());
-		if(experian!=null) {
-			ExperianSnapshot experianSnapshot=new ExperianSnapshot();
-			experianSnapshot.setMerchantId(experian.getMerchantId());
-			experianSnapshot.setIp(experian.getIp());
-			experianSnapshot.setLatitude(experian.getLatitude());
-			experianSnapshot.setLongitude(experian.getLongitude());
-			experianSnapshot.setResponse(experian.getResponse());
-			experianSnapshot.setMerchantName(experian.getMerchantName());
-			experianSnapshot.setEmail(experian.getEmail());
-			experianSnapshot.setRejected(experian.getRejected());
-			experianSnapshot.setReason(experian.getReason());
-			experianSnapshot.setRequestedLoanAmount(experian.getRequestedLoanAmount());
-			experianSnapshot.setPancardNumber(experian.getPancardNumber());
-			experianSnapshot.setTnc(experian.getTnc());
-			experianSnapshot.setBpScore(experian.getBpScore());
-			experianSnapshot.setExperianScore(experian.getExperianScore());
-			experianSnapshot.setCategory(experian.getCategory());
-			experianSnapshot.setColor(experian.getColor());
-			experianSnapshot.setRetryCount(experian.getRetryCount());
-			experianSnapshot.setSkip(experian.isSkip());
-			experianSnapshot.setPincode(experian.getPincode());
-			experianSnapshot.setBureau(experian.getBureau());
-			experianSnapshot.setApplicationId(lendingApplication.getId());
-
-			experianSnapshotDao.save(experianSnapshot);
-		}
-	}
 	private LendingApplication updateApplication(LendingApplication lendingApplication, LendingApplicationRequestDTO lendingApplicationRequest) {
 		lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
 		lendingApplication.setShopNumber(lendingApplicationRequest.getShopNumber());
@@ -754,35 +631,6 @@ public class LendingApplicationService {
 		if (smsAnalysisData == null) {
 			loanUtil.publishSmsAnalysisData(merchant);
 		}
-		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
-
-		return lendingApplication;
-	}
-
-	private LendingApplication createApplication(Merchant merchant, AvailableLoan availableLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
-		LendingApplication lendingApplication = new LendingApplication();
-		LendingCategories lendingCategory = lendingCategoryDao.getByCategory(availableLoan.getCategory());
-
-		LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, null);
-
-		lendingApplication.setEdi(Double.valueOf(breakupDetail.getEdi()));
-		lendingApplication.setIoEdi(Double.valueOf(breakupDetail.getIoEdi()));
-		lendingApplication.setRepayment(Double.valueOf(breakupDetail.getRepayment()));
-		lendingApplication.setInterestRate(breakupDetail.getEffectiveInterestRate());
-		lendingApplication.setProcessingFee(Double.valueOf(breakupDetail.getProcessingFee()));
-		lendingApplication.setDisbursalAmount(Double.valueOf(breakupDetail.getDisbursementAmount()));
-		lendingApplication.setStatus("draft");
-		lendingApplication.setMode("AUTO");
-		lendingApplication.setMerchant(merchant);
-		lendingApplication.setLoanAmount(availableLoan.getAmount());
-		lendingApplication.setCategory(availableLoan.getCategory());
-		lendingApplication.setTenure(lendingCategory.getPayableConverter());
-		lendingApplication.setTenureInMonths(lendingCategory.getTenureMonths().intValue());
-		lendingApplication.setPayableDays(Long.valueOf(lendingCategory.getPayableDays()));
-		lendingApplication.setEdiFreeDays(lendingCategory.getEdiFreeDays());
-		lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
-		lendingApplication.setLoanConstruct(availableLoan.getLoanConstruct());
-
 		lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
 
 		return lendingApplication;
@@ -839,39 +687,6 @@ public class LendingApplicationService {
 		lendingApplicationResponse.setPrevLoanFound(prevLoanExists);
 
 		return lendingApplicationResponse;
-	}
-	
-	public void createMerchantSummarySnapshot(Merchant merchant, LendingApplication application, MerchantSummary summary) {
-		try {
-			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
-			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchant.getId());
-			
-			snapshot.setApplication(application.getId());
-			snapshot.setMerchant(merchant);
-			snapshot.setLastTransactionDate(summary.getLastTransactionDate());
-			snapshot.setTotalTxnCount(summary.getDailyTxnCount());
-			snapshot.setTotalTxnAmount(summary.getDailyTxnAmount());
-			snapshot.setCategory(summary.getCategory());
-			snapshot.setAvgTpv(summary.getAvgTpv());
-//			snapshot.setMaxEligibleLoanAmount(((BigDecimal) data.get(0)[0]).doubleValue());
-//			snapshot.setEligibleLoanCategories((String) data.get(0)[1]);
-			snapshot.setLoanType(summary.getLoanType());
-			snapshot.setTpv1Mon(summary.getTpv1Mon());
-			snapshot.setTpv2Mon(summary.getTpv2Mon());
-			snapshot.setTpv3Mon(summary.getTpv3Mon());
-			snapshot.setTxnDayCount1Mon(summary.getTxnDayCount1Mon());
-			snapshot.setTxnDayCount2Mon(summary.getTxnDayCount2Mon());
-			snapshot.setTxnDayCount3Mon(summary.getTxnDayCount3Mon());
-			snapshot.setTotalTxns1Month(summary.getTotalTxns1Month());
-			snapshot.setTotalTxns2Month(summary.getTotalTxns2Month());
-			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
-			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
-			snapshot.setBpScore(summary.getBpScore());
-			snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
-			merchantSummarySnapshotDao.save(snapshot);
-		} catch(Exception ex) {
-			logger.error("Exception while creating merchant summary snapshot for merchant id {} and application id {}, Exception is {}", merchant.getId(), application.getId(), ex);
-		}
 	}
 	
 	public boolean checkLoanRequestPinCodeForLoanEligibilty(int pinCode) {
