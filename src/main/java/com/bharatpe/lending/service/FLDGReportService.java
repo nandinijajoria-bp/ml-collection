@@ -53,8 +53,8 @@ public class FLDGReportService {
                 LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(externalLoanId);
 
                 Double fldgAmount = Double.valueOf(arr[2]);
-                Double fldgInterest = Double.valueOf(arr[2]);
                 Double fldgPrinciple = Double.valueOf(arr[3]);
+                Double fldgInterest = Double.valueOf(arr[4]);
                 if(Objects.nonNull(lendingApplication)) {
                     LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
                     if (Objects.nonNull(lendingPaymentSchedule)) {
@@ -69,6 +69,7 @@ public class FLDGReportService {
                         lendingFLDGDao.save(lendingFLDG);
                     }
                 }
+                fldgFileReader.readLine();
             }
         } catch (Exception e) {
             logger.error("Error occurred while saving fldg report: {}",e);
