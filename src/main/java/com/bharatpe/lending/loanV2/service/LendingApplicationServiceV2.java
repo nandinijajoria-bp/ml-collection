@@ -196,8 +196,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLoanType(eligibleLoan.getLoanType());
         lendingApplication.setTotalLoansCount(loanUtil.getPreviousLoans(merchant.getId()).size());
         lendingApplication.setCkycId(UUID.randomUUID().toString());
-        lendingApplication.setLatitude(lendingApplicationRequest.getLatitude());
-        lendingApplication.setLongitude(lendingApplicationRequest.getLongitude());
+        lendingApplication.setLatitude(!StringUtils.isEmpty(lendingApplicationRequest.getLatitude()) ? lendingApplicationRequest.getLatitude() : null);
+        lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
         lendingApplication = lendingApplicationDao.save(lendingApplication);
         lenderMappingService.lenderMapping(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest);
@@ -537,10 +537,10 @@ public class LendingApplicationServiceV2 {
             if (successEnach == null && ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 headerDTO.setTitle("Bank A/c Linking Pending");
                 headerDTO.setComment("Complete eNACH to process you loan");
-            } else if (lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.PENDING.name())) {
+            } else if (lendingApplication.getCkycStatus() != null && lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.PENDING.name())) {
                 headerDTO.setTitle("KYC Verification Pending");
                 headerDTO.setComment("We are verifying your kyc documents");
-            } else if (lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.REJECTED.name())) {
+            } else if (lendingApplication.getCkycStatus() != null && lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.REJECTED.name())) {
                 headerDTO.setTitle("KYC Verification Failed");
                 headerDTO.setComment(lendingApplication.getCkycRejectionReason());
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(kycStatus)) {
