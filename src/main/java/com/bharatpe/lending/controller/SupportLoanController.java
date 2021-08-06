@@ -1,6 +1,8 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
+import com.bharatpe.lending.service.FLDGReportService;
 import com.bharatpe.lending.service.SupportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @RestController
 @RequestMapping("support")
 public class SupportLoanController {
@@ -16,6 +21,11 @@ public class SupportLoanController {
 
     @Autowired
     SupportService supportService;
+
+    @Autowired
+    FLDGReportService fldgReportService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @RequestMapping(value="/loan", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<SupportResponseDTO> supportLoanDetails(@RequestParam Long merchantId) {
@@ -36,6 +46,13 @@ public class SupportLoanController {
         logger.info("Request received to lender change for fileName:{},lender:{} ", fileId,lender);
 
         return new ResponseEntity<>(supportService.changeLender(lender, fileId, lines), HttpStatus.OK);
+    }
+
+    @RequestMapping(value="/fldg/{fileName}", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO uploadFLDG(@PathVariable(value = "fileName") String fileName){
+        logger.info("Uploading FLDG Report File : {}", fileName);
+        executorService.execute(()->fldgReportService.uploadFLDGReportEntries(fileName));
+        return new ResponseDTO(true,"FLDG Report Upload Successfully!");
     }
 }
 
