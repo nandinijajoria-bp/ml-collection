@@ -9,6 +9,7 @@ import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
+import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
@@ -188,6 +189,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingNotificationService lendingNotificationService;
+
+	@Autowired
+	NotificationUtil notificationUtil;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -1237,12 +1241,13 @@ public class LoanDetailsService {
 		creditScoreResponseDto.setActiveLoan(lendingPaymentSchedule != null);
 
 		String identifier ;
+		String deeplink = notificationUtil.getDeeplink(merchant,"CREDIT_SCORE");
 		Map<String,Object> templateParams = new HashMap<>();
 		templateParams.put("pan_name",creditScoreResponseDto.getPanName());
 		NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
 		notificationPayloadDto.setMobile(merchant.getMobile());
 		notificationPayloadDto.setClientName("LENDING");
-		notificationPayloadDto.setPushDeepLink("dynamic?key=credit-score");
+		notificationPayloadDto.setPushDeepLink(deeplink);
 		notificationPayloadDto.setPushTitle("BHARATPE");
 
 		if (rejected || experian.getReason() != null) {

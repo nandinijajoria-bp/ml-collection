@@ -6,6 +6,7 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
@@ -170,6 +171,9 @@ public class LiquiloansService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+	NotificationUtil notificationUtil;
 
 	private static String secretKey;
 
@@ -459,6 +463,7 @@ public class LiquiloansService {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(), "ACTIVE");
 
 			String identifier = "LENDING_CASHBACK_PUSH";
+			String deeplink = notificationUtil.getDeeplink(lendingPaymentSchedule.getMerchant(),"LOAN_DASHBOARD");
 			Map<String,Object> templateParams = new HashMap<>();
 			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
@@ -466,7 +471,7 @@ public class LiquiloansService {
 			notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
 			notificationPayloadDto.setClientName("LENDING");
 			notificationPayloadDto.setPushTitle("BHARATPE");
-			notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+			notificationPayloadDto.setPushDeepLink(deeplink);
 			notificationPayloadDto.setTemplateParams(templateParams);
 			lendingNotificationService.notify(notificationPayloadDto);
 		}

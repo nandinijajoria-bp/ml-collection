@@ -10,6 +10,7 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
@@ -152,6 +153,9 @@ public class APIGatewayService {
 
     @Autowired
     LendingNotificationService lendingNotificationService;
+
+    @Autowired
+    NotificationUtil notificationUtil;
 
     private final String CLIENT = "LENDING";
 
@@ -1418,6 +1422,7 @@ public class APIGatewayService {
         templateParams.put("bank_name",bankDetail.getBankName());
         templateParams.put("edi",edi);
         templateParams.put("amount",amount);
+        templateParams.put("url",notificationUtil.getUrl(merchant,"LOAN_DASHBOARD"));
 
         NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
         notificationPayloadDto.setTemplateIdentifier(identifier);

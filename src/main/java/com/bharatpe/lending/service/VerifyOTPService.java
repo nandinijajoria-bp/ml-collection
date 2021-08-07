@@ -7,6 +7,7 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
+import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.BpEnach;
@@ -120,6 +121,9 @@ public class VerifyOTPService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+	NotificationUtil notificationUtil;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -494,6 +498,7 @@ public class VerifyOTPService {
 		Double loanAmount = lendingApplication.getLoanAmount();
 
 		String identifier = "LENDING_APPLICATION_RECEIVED_PUSH";
+		String deeplink = notificationUtil.getDeeplink(lendingApplication.getMerchant(),"LOAN_DASHBOARD");
 		Map<String,Object> templateParams = new HashMap<>();
 		templateParams.put("loan_amount",loanAmount.intValue());
 		templateParams.put("external_loan_id",lendingApplication.getExternalLoanId());
@@ -501,7 +506,7 @@ public class VerifyOTPService {
 		notificationPayloadDto.setTemplateIdentifier(identifier);
 		notificationPayloadDto.setTemplateParams(templateParams);
 		notificationPayloadDto.setMobile(merchant.getMobile());
-		notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+		notificationPayloadDto.setPushDeepLink(deeplink);
 		notificationPayloadDto.setPushTitle("BHARATPE");
 		notificationPayloadDto.setClientName("LENDING");
 		lendingNotificationService.notify(notificationPayloadDto);
@@ -517,7 +522,7 @@ public class VerifyOTPService {
 			notificationPayloadDto = new NotificationPayloadDto();
 			notificationPayloadDto.setTemplateIdentifier(identifier);
 			notificationPayloadDto.setMobile(merchant.getMobile());
-			notificationPayloadDto.setPushDeepLink("dynamic?key=loan");
+			notificationPayloadDto.setPushDeepLink(deeplink);
 			notificationPayloadDto.setPushTitle("BHARATPE");
 			notificationPayloadDto.setClientName("LENDING");
 			notificationPayloadDto.setTemplateParams(templateParams);
