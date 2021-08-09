@@ -618,11 +618,11 @@ public class LoanDetailsService {
 				return response;
 			}
 
-			LoanEligibilityDTO loanEligibilityDTO = getEligibilty(merchant.getId());
+			LoanEligibilityDTO loanEligibilityDTO = getEligibilty(merchant.getId(), experian);
 			if (loanEligibilityDTO != null) {
 				loanEligibilityDTOs.add(loanEligibilityDTO);
 			}
-			experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
+//			experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 			if (experian != null && experian.getRejected()) {
 				if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 					rejected = false;
@@ -768,13 +768,14 @@ public class LoanDetailsService {
 		return null;
 	}
 
-	private LoanEligibilityDTO getEligibilty(Long merchantId) {
+	private LoanEligibilityDTO getEligibilty(Long merchantId, Experian experian) {
 		logger.info("Getting eligibility for merchant:{}", merchantId);
 		Double eligibleAmount = 0D;
 		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
 		if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 			logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
 			eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+            experian = globalLimitResponse.getData().getExperian();
 		}
 		if (eligibleAmount > 0D) {
 			return createEligibilty(merchantId);
