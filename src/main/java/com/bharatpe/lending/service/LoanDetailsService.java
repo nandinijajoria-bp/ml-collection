@@ -1151,9 +1151,11 @@ public class LoanDetailsService {
 		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId());
 		if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 			logger.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
+			experian = globalLimitResponse.getData().getExperian();
 			eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
 		}
-		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
+		logger.info("Experian after global limit call for merchant:{} is {}", merchant.getId(),experian.toString());
+//		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 		String tenure = null;
 		Integer edi = null;
 		if (eligibleAmount > 0D) {

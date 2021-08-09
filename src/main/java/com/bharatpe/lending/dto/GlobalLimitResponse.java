@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.common.entities.Experian;
 import lombok.*;
 
 @Getter
@@ -23,5 +24,6 @@ public class GlobalLimitResponse {
         private boolean derog;
         private String rejectReason;
         private String pancardName;
+        private Experian experian;
     }
 }
