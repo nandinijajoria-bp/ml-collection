@@ -561,40 +561,6 @@ public class VerifyOTPService {
 		return true;
 	}
 
-	public void createPrebookTarget(LendingApplication lendingApplication, Merchant merchant) {
-		try {
-			if (ExperianConstants.LOCKDOWN && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
-				MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
-				if (merchantSummaryLending != null && merchantSummaryLending.getTpv() > 0D) {
-					double tpv = merchantSummaryLending.getSegment().equalsIgnoreCase("1") ? merchantSummaryLending.getTpv() * 0.25 : merchantSummaryLending.getTpv() * 0.15;
-					Date lockdownEndDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-17");
-					Date targetAchieveDate = new SimpleDateFormat("yyyy-MM-dd").parse("2020-05-27");
-					if (lendingApplication.getPincode() != null) {
-						LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
-						if (lendingCities != null && lendingCities.getLockdownEndDate() != null) {
-							lockdownEndDate = new SimpleDateFormat("MM/dd/yyyy").parse(lendingCities.getLockdownEndDate());
-							Calendar c = Calendar.getInstance();
-							c.setTime(lockdownEndDate);
-							c.add(Calendar.DATE, 10);
-							targetAchieveDate = c.getTime();
-						}
-					}
-					if (lendingApplication.getAgreementAt().after(lockdownEndDate)) {
-						lockdownEndDate = lendingApplication.getAgreementAt();
-						Calendar c = Calendar.getInstance();
-						c.setTime(lockdownEndDate);
-						c.add(Calendar.DATE, 10);
-						targetAchieveDate = c.getTime();
-					}
-					lendingPrebookTargetDao.save(new LendingPrebookTarget(merchant.getId(), merchantSummaryLending.getSegment(), lendingApplication.getId(), lendingApplication.getPincode(), tpv, lockdownEndDate, targetAchieveDate));
-				}
-			}
-		} catch (Exception e) {
-			logger.error("Exception while inserting lending_prebook_target for merchant: {}", merchant.getId());
-			logger.error("Exception---", e);
-		}
-	}
-
 	private LendingPaymentSchedule getActiveLoan(List<LendingPaymentSchedule> lendingPaymentScheduleList) {
 		if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.size() == 0) {
 			return null;

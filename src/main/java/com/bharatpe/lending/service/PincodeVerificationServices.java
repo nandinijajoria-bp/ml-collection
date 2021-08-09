@@ -1,23 +1,18 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.LendingRedCitiesDao;
-import com.bharatpe.common.entities.LendingRedCities;
+import com.bharatpe.common.dao.PincodeCityStateMappingDao;
+import com.bharatpe.common.entities.PincodeCityStateMapping;
+import com.bharatpe.lending.common.dao.LendingPincodesDao;
+import com.bharatpe.lending.common.entity.LendingPincodes;
+import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.dto.PincodeVerifyDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.LendingCitiesDao;
-import com.bharatpe.common.dao.PincodeCityStateMappingDao;
-import com.bharatpe.common.entities.LendingCities;
-import com.bharatpe.common.entities.PincodeCityStateMapping;
-import com.bharatpe.lending.dto.PincodeVerifyDTO;
-
 @Service
 public class PincodeVerificationServices {
-
-	@Autowired
-	LendingCitiesDao lendingCityDao;
 
 	Logger logger = LoggerFactory.getLogger(PincodeVerificationServices.class);	
 
@@ -25,20 +20,19 @@ public class PincodeVerificationServices {
 	PincodeCityStateMappingDao pincodeCityStateMappingDao;
 
 	@Autowired
-	LendingRedCitiesDao lendingRedCitiesDao;
+    LendingPincodesDao lendingPincodesDao;
 	
 	public PincodeVerifyDTO checkPincodeValidity(Integer pincode) {
 
 		PincodeVerifyDTO cityDetails = getTheCityDetails(pincode);
 		try {
 			logger.info("Checking pincode for loan eligibility");
-			LendingCities lendingCity = lendingCityDao.findActiveCityByPincode(pincode);
-			LendingRedCities redCity = lendingRedCitiesDao.findByPincode(pincode);
+            LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
 			if (cityDetails.getCity() == null || "".equalsIgnoreCase(cityDetails.getCity().trim())) {
 				logger.info("Pincode is not eligible for the loan");
 				return cityDetails;
 			}
-			if ((lendingCity == null || lendingCity.getPincode() == null) && redCity != null) {
+			if (lendingPincodes == null || lendingPincodes.getColor().equals(PincodeColor.RED)) {
 				logger.info("Pincode is not eligible for the loan");
 				return cityDetails;
 			}

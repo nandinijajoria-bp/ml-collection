@@ -6,6 +6,7 @@ import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.BankListDao;
@@ -63,7 +64,7 @@ public class LoanUtil {
 	BPEnachDao bpEnachDao;
 
 	@Autowired
-	LendingRedCitiesDao lendingRedCitiesDao;
+	LendingPincodesDao lendingPincodesDao;
 
 	@Autowired
 	MerchantSummaryDao merchantSummaryDao;
@@ -473,8 +474,8 @@ public class LoanUtil {
 		if (pincode == null) return false;
 		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 		if (pincodeCityStateMapping == null) return true;
-		LendingRedCities redCities = lendingRedCitiesDao.findByPincode(pincode);
-		return redCities != null;
+		LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
+		return lendingPincodes == null || lendingPincodes.getColor().equals(PincodeColor.RED);
 	}
 
 	public List<LendingPaymentSchedule> getPreviousLoans(Long merchantId) {

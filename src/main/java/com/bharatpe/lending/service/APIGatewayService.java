@@ -14,6 +14,7 @@ import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.constant.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -156,6 +157,9 @@ public class APIGatewayService {
 
     @Autowired
     NotificationUtil notificationUtil;
+
+    @Autowired
+    LendingPincodesDao lendingPincodesDao;
 
     private final String CLIENT = "LENDING";
 
@@ -1604,15 +1608,8 @@ public class APIGatewayService {
     }
 
     public String getPincodeArea(Integer pincode){
-        LendingRedCities lendingRedCities = lendingRedCitiesDao.findByPincode(pincode);
-        if(lendingRedCities != null){
-            return  "RED";
-        }
-        LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(pincode);
-        if(lendingCities != null){
-            return  "GREEN";
-        }
-        return  "YELLOW";
+        LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
+        return lendingPincodes != null ? lendingPincodes.getColor().name() : PincodeColor.RED.name();
     }
 
     public String findNtc(Experian experian){

@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -144,6 +145,9 @@ public class LendingApplicationService {
 
 	@Autowired
 	LendingEkycDao lendingEkycDao;
+
+	@Autowired
+    LendingPincodesDao lendingPincodesDao;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -693,11 +697,9 @@ public class LendingApplicationService {
 		try {
 			PincodeCityStateMapping pincodeCityStateMapping=pincodeCityStateMappingDao.findByPincode(pinCode);
 			if(pincodeCityStateMapping==null) return false;
-			LendingCities lendingCities=lendingCitiesDao.findActiveCityByPincode(pinCode);
-			LendingRedCities redCity = lendingRedCitiesDao.findByPincode(pinCode);
-			if(lendingCities==null && redCity != null) return false;
-			return true;
-		}
+			LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pinCode);
+            return lendingPincodes != null && !lendingPincodes.getColor().equals(PincodeColor.RED);
+        }
 		catch(Exception e){
 			logger.error("error occured while fetching the lending city details for pin code {}",pinCode);
 		}
