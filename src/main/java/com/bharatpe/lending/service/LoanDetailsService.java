@@ -1149,7 +1149,7 @@ public class LoanDetailsService {
 			}
 		}
 		Double eligibleAmount = 0D;
-		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId());
+		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(),"CREDIT_SCORE");
 		if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 			logger.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
 			experian = globalLimitResponse.getData().getExperian();
@@ -1216,13 +1216,13 @@ public class LoanDetailsService {
 			}
 			creditScoreResponseDto.setMessage(experian.getReason());
 			responseDTO.setData(creditScoreResponseDto);
-			if(sms){
-				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
-				templateParams.put("key",key);
-				notificationPayloadDto.setTemplateParams(templateParams);
-				notificationPayloadDto.setTemplateIdentifier(identifier);
-				lendingNotificationService.notify(notificationPayloadDto);
-			}
+//			if(sms){
+//				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
+//				templateParams.put("key",key);
+//				notificationPayloadDto.setTemplateParams(templateParams);
+//				notificationPayloadDto.setTemplateIdentifier(identifier);
+//				lendingNotificationService.notify(notificationPayloadDto);
+//			}
 			return responseDTO;
 		}
 		if (lendingApplicationList!= null) {
@@ -1259,13 +1259,13 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setNTC(Boolean.TRUE);
 			creditScoreResponseDto.setMessage("CRIF");
 			responseDTO.setData(creditScoreResponseDto);
-			if(sms){
-				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
-				templateParams.put("key",key);
-				notificationPayloadDto.setTemplateParams(templateParams);
-				notificationPayloadDto.setTemplateIdentifier(identifier);
-				lendingNotificationService.notify(notificationPayloadDto);
-			}
+//			if(sms){
+//				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
+//				templateParams.put("key",key);
+//				notificationPayloadDto.setTemplateParams(templateParams);
+//				notificationPayloadDto.setTemplateIdentifier(identifier);
+//				lendingNotificationService.notify(notificationPayloadDto);
+//			}
 			return responseDTO;
 		}
 
