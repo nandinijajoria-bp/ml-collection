@@ -1221,6 +1221,38 @@ public class APIGatewayService {
         return null;
     }
 
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) {
+        logger.info("Get global limit for merchant:{}", merchantId);
+        Map<String, Object> requestParams = new HashMap<String, Object>(){{
+            put("merchantId", merchantId);
+            put("source",source);
+        }};
+        String payload = hmacCalculator.getObjectPayload(requestParams);
+        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+        logger.info("Get Global Limit request:{} for merchant:{}", request, merchantId);
+        int retryCount = 0;
+        while(retryCount < 3) {
+            try {
+                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId + "&source=" + source, HttpMethod.GET, request, GlobalLimitResponse.class);
+                logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
+                    return responseEntity.getBody();
+                }
+                break;
+            }
+            catch(Exception e) {
+                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e);
+            }
+            retryCount++;
+        }
+        return null;
+    }
+
     public void globalLimitTxn(Long merchantId, String mode, Double amount) {
         logger.info("Global limit txn for merchant:{}, mode:{} and amount:{}", merchantId, mode, amount);
         Map<String, Object> requestBody = new HashMap<String, Object>(){{

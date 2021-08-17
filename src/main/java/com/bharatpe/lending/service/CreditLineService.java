@@ -968,7 +968,18 @@ public class CreditLineService {
 			responseUtil = new ExperianResponseUtil(experianDao);
 		}
 
-		 loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse);
+		loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse);
+
+		if(Objects.nonNull(loanAndCreditCardDetailDTO.getLoanDetail())) {
+			Collections.sort(loanAndCreditCardDetailDTO.getLoanDetail(),
+					(o1, o2) -> Boolean.compare(o2.isStatus(), o1.isStatus()));
+		}
+
+		if(Objects.nonNull(loanAndCreditCardDetailDTO.getCreditCardDetail())) {
+			Collections.sort(loanAndCreditCardDetailDTO.getCreditCardDetail(),
+					(o1, o2) -> Boolean.compare(o2.isStatus(),o1.isStatus()));
+		}
+
 		logger.info("Credit score loan_creditcard_details response for merchant:{} is:{}", merchant.getId(), loanAndCreditCardDetailDTO);
 		return loanAndCreditCardDetailDTO;
 	}
