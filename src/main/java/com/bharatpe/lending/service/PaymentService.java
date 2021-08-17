@@ -391,7 +391,12 @@ public class PaymentService {
 				order.setSource(request.getPayments().get(0).getMode());
 			}
 			if (request.getPaymentStatus() != null) {
-				order.setStatus(request.getPaymentStatus());
+			    if ("FAILURE".equalsIgnoreCase(request.getPaymentStatus())) {
+                    order.setStatus(Status.TransactionStatus.FAILED.name());
+//                    order.setDescription(response.getData().getErrorDescription());
+                } else {
+                    order.setStatus(request.getPaymentStatus());
+                }
 				if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
 					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(), PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()));
 					order.setBankRefNo(request.getPaymentRefId());
