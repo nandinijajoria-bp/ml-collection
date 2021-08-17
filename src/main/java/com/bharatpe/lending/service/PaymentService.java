@@ -1138,7 +1138,8 @@ public class PaymentService {
 			return new ResponseDTO(false, "No active loan found");
 		}
 		Integer foreClosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-		LoanPaymentOrder order = createOrder(lendingPaymentSchedule,waiverType.name(), foreClosureAmount);
+        Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(lendingPaymentSchedule);
+		LoanPaymentOrder order = createOrder(lendingPaymentSchedule,waiverType.name(), foreClosureAmount+ediHolidayInterestAmount);
 		PaymentCallbackRequestDTO paymentCallbackRequestDTO = new PaymentCallbackRequestDTO();
 		paymentCallbackRequestDTO.setAmount(order.getAmount());
 		paymentCallbackRequestDTO.setStatus("SUCCESS");
