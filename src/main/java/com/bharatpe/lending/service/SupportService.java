@@ -696,7 +696,7 @@ public class SupportService {
 
 
     public void lenderChange(String lender,Long fileId,Integer lines, LendingBulkDisbursal lendingBulkDisbursal){
-        logger.info("Lender Change For fileName:{}, and lender:{}", fileId, lender);
+        logger.info("Lender Change started For fileName:{}, and lender:{}", fileId, lender);
         try{
             List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
             InputStream lenderFile = s3BucketHandler.getObject(lendingBulkDisbursal.getFileName(), "loan-document");
@@ -721,6 +721,7 @@ public class SupportService {
             CountDownLatch latch = new CountDownLatch(lines);
             String readLine = lenderFileReader.readLine();
             readLine = lenderFileReader.readLine();
+            int count = 0;
             while (readLine != null) {
                 logger.info("Line:{}",readLine);
                 String[] arr = readLine.split(",");
@@ -810,7 +811,9 @@ public class SupportService {
                     }
                 });
                 readLine=lenderFileReader.readLine() ;
+                count++;
             }
+            logger.info("total lender change:{}", count);
             if (latch.getCount() > 0) {
                 logger.error("lender change latch is not 0 for file:{}", fileId);
             }
@@ -845,6 +848,7 @@ public class SupportService {
         }catch(Exception ex){
             logger.error("Exception IN Lender Change for file:{}", fileId,ex);
         }
+        logger.info("Lender Change completed For fileName:{}, and lender:{}", fileId, lender);
     }
 
     private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws IOException {
