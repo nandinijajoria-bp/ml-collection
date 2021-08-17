@@ -128,7 +128,7 @@ public class SupportService {
     @Autowired
     LoanDpdDao loanDpdDao;
 
-    ExecutorService executorService = Executors.newFixedThreadPool(50);
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     public SupportResponseDTO supportLoan(Long merchantId) {
 
@@ -727,7 +727,6 @@ public class SupportService {
                 Long merchantId = Long.valueOf(arr[1].replaceAll("^\"|\"$", ""));
                 Long applicationId = Long.valueOf(arr[2].replaceAll("^\"|\"$", ""));
                 LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,merchantId);
-                Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchantId);
 
 
                 if(lendingApplication == null){
@@ -805,12 +804,15 @@ public class SupportService {
                         }
                     } catch (IOException e) {
                         errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
-                        e.printStackTrace();
+                        logger.error("Exception while writing csv data in lender change for application:{}", lendingApplication.getId(), e);
                     } finally {
                         latch.countDown();
                     }
                 });
                 readLine=lenderFileReader.readLine() ;
+            }
+            if (latch.getCount() > 0) {
+                logger.error("lender change latch is not 0 for file:{}", fileId);
             }
             lenderFileReader.close();
             lenderFile.close();
@@ -837,9 +839,11 @@ public class SupportService {
 
             file.delete();
             errorFile.delete();
+            bytes = null;
+            error = null;
 
         }catch(Exception ex){
-            logger.info("Exception IN Lender Change",ex);
+            logger.error("Exception IN Lender Change for file:{}", fileId,ex);
         }
     }
 

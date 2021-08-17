@@ -43,7 +43,7 @@ public class SupportLoanController {
 
     @RequestMapping(value="/lender", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<SupportResponseDTO> supportLenderChange(@RequestParam String lender,@RequestParam Long fileId , @RequestParam Integer lines){
-        logger.info("Request received to lender change for fileName:{},lender:{} ", fileId,lender);
+        logger.info("Request received to lender change for fileName:{},lender:{},lines:{} ", fileId,lender, lines);
 
         return new ResponseEntity<>(supportService.changeLender(lender, fileId, lines), HttpStatus.OK);
     }
