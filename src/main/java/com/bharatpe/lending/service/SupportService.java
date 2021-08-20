@@ -797,19 +797,17 @@ public class SupportService {
                         continue;
                     }
                 }
-                executorService.execute(() -> {
-                    try {
-                        data.add(getCsvData(lendingApplication,lender,experian));
-                        if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
-                            errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
-                        }
-                    } catch (IOException e) {
-                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
-                        logger.error("Exception while writing csv data in lender change for application:{}", lendingApplication.getId(), e);
-                    } finally {
-                        latch.countDown();
+                try {
+                    data.add(getCsvData(lendingApplication,lender,experian));
+                    if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
+                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                     }
-                });
+                } catch (IOException e) {
+                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
+                    logger.error("Exception while writing csv data in lender change for application:{}", lendingApplication.getId(), e);
+                } finally {
+                    latch.countDown();
+                }
                 readLine=lenderFileReader.readLine() ;
                 count++;
             }
