@@ -195,7 +195,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
         lendingApplication.setLoanType(eligibleLoan.getLoanType());
         lendingApplication.setTotalLoansCount(loanUtil.getPreviousLoans(merchant.getId()).size());
-        lendingApplication.setCkycId(UUID.randomUUID().toString());
+        lendingApplication.setCkycId(String.valueOf(merchant.getId()));
         lendingApplication.setLatitude(!StringUtils.isEmpty(lendingApplicationRequest.getLatitude()) ? lendingApplicationRequest.getLatitude() : null);
         lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
         lendingApplication = lendingApplicationDao.save(lendingApplication);
