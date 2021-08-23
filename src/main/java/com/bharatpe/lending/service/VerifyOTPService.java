@@ -282,7 +282,7 @@ public class VerifyOTPService {
 				lendingApplication.setCkycStatus(KycStatus.REJECTED.name());
 				lendingApplication.setCkycRejectionReason(kycStatus.getRemarks());
 				lendingApplication.setCkycDate(new Date());
-				lendingApplication.setStatus(KycStatus.REJECTED.name());
+				lendingApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
 				lendingApplicationDao.save(lendingApplication);
 			} else if (kycStatus.getKycStatus().equals(KycStatus.PENDING)) {
 				lendingApplication.setCkycStatus(KycStatus.PENDING.name());
