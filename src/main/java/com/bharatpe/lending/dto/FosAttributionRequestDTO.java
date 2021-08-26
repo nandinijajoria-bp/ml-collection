@@ -102,4 +102,20 @@ public class FosAttributionRequestDTO {
     public void setTaskData(String taskData) {
         this.taskData = taskData;
     }
+
+    @Override
+    public String toString() {
+        return "FosAttributionRequestDTO{" +
+                "merchantId=" + merchantId +
+                ", fseName='" + fseName + '\'' +
+                ", fseRefcode='" + fseRefcode + '\'' +
+                ", visitId='" + visitId + '\'' +
+                ", taskId='" + taskId + '\'' +
+                ", taskUuid='" + taskUuid + '\'' +
+                ", taskStartedAt=" + taskStartedAt +
+                ", taskCompletedAt=" + taskCompletedAt +
+                ", requestId='" + requestId + '\'' +
+                ", taskData='" + taskData + '\'' +
+                '}';
+    }
 }

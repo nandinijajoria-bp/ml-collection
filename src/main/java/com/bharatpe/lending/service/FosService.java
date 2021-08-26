@@ -561,12 +561,13 @@ public class FosService {
     }
 
     public FosResponseDTO getFosSalaryAttribution(FosAttributionRequestDTO request){
-        logger.info("start getting fos salary attribution for fos refNumber: {} and merchant: {}", request.getFseRefcode(), request.getMerchantId());
+        logger.info("FOS salary attribution request:{}", request);
         FosResponseDTO responseDTO =  new FosResponseDTO();
         try{
             List<LoanAttribution> loanAttributions = loanAttributionDao.getAttributionByMerchantIdAndRefCode(request.getMerchantId(), request.getFseRefcode());
             FosAttributionResponseDTO fosAttributionResponseDTO = new FosAttributionResponseDTO();
             if(Objects.isNull(loanAttributions) || loanAttributions.isEmpty()){
+                logger.info("loan attribution not found for merchant:{}", request.getMerchantId());
                 fosAttributionResponseDTO.setStatus("MAYBE");
 
                 responseDTO.setSuccess(true);
@@ -576,6 +577,7 @@ public class FosService {
                 return responseDTO;
             }
             for(LoanAttribution loanAttribution: loanAttributions){
+                logger.info("Checking loan attribution:{} for merchant:{}", loanAttribution, request.getMerchantId());
                 LendingApplication lendingApplication = lendingApplicationDao.findById(loanAttribution.getApplicationId()).get();
                 boolean enachDone = loanUtil.isEnachDone(lendingApplication.getMerchant());
                 if(enachDone && Objects.nonNull(loanAttribution.getEnachAttributedAt())) {
@@ -651,10 +653,13 @@ public class FosService {
     }
 
     private FosAttributionResponseDTO isAgreementAttributed(FosAttributionRequestDTO request, LoanAttribution loanAttribution, LendingApplication lendingApplication){
+        logger.info("Checking agreement attribution for merchant:{}", request.getMerchantId());
         FosAttributionResponseDTO fosAttributionResponseDTO = new FosAttributionResponseDTO();
         if(Objects.nonNull(loanAttribution.getAgreementAttributedAt())) {
             Long hourDiff = LoanUtil.getDateDiffInHour(request.getTaskStartedAt(), loanAttribution.getAgreementAttributedAt());
+            logger.info("agreement time diff for merchant:{} is {}", request.getMerchantId(), hourDiff);
             if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getAgreementAttributedTo())) {
+                logger.info("merchant:{} is eligible for agreement attribution", request.getMerchantId());
                 fosAttributionResponseDTO.setStatus("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
                     fosAttributionResponseDTO.setStage("Amount Disbursed");
@@ -676,10 +681,13 @@ public class FosService {
     }
 
     private FosAttributionResponseDTO isEnachAttributed(FosAttributionRequestDTO request, LoanAttribution loanAttribution, LendingApplication lendingApplication){
+        logger.info("Checking enach attribution for merchant:{}", request.getMerchantId());
         FosAttributionResponseDTO fosAttributionResponseDTO = new FosAttributionResponseDTO();
         if(Objects.nonNull(loanAttribution.getEnachAttributedAt())) {
             Long hourDiff = LoanUtil.getDateDiffInHour(request.getTaskStartedAt(), loanAttribution.getEnachAttributedAt());
+            logger.info("Enach time diff for merchant:{} is {}", request.getMerchantId(), hourDiff);
             if (hourDiff > -1 && hourDiff < 168 && "FOS".equalsIgnoreCase(loanAttribution.getEnachAttributedTo())) {
+                logger.info("merchant:{} is eligible for enach attribution", request.getMerchantId());
                 fosAttributionResponseDTO.setStatus("YES");
                 if (Objects.nonNull(lendingApplication.getDisburseTimestamp())) {
                     fosAttributionResponseDTO.setStage("Amount Disbursed");
