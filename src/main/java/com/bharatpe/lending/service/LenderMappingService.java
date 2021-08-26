@@ -34,6 +34,11 @@ public class LenderMappingService {
         try{
             Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(lendingApplication.getMerchant().getId());
             if (repeatLoan > 0) {
+                if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+                    lendingApplication.setLender("LDC");
+                    lendingApplicationDao.save(lendingApplication);
+                    return;
+                }
                 LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(lendingApplication.getMerchant().getId());
                 if ("IO_TOPUP".equals(lendingApplication.getLoanType())) {
                     logger.info("Repeat loan application Lender Change To HINDON merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
