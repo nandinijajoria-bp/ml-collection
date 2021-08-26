@@ -149,6 +149,7 @@ public class SignAgreementService {
 				return response;
 			}
 		}
+        executorService.execute(() -> loanUtil.publishDSData(lendingApplication));
 		response =  sendOTP(merchant, appSign);
 		response.put("application_id", applicationId);
 		return response;
@@ -343,6 +344,7 @@ public class SignAgreementService {
 		}
         LendingApplication finalNewApplication = newApplication;
         executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchant().getId(), "DEBIT", finalNewApplication.getLoanAmount()));
+        executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
 		return response;
 	}
 	

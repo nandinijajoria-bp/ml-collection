@@ -57,6 +57,7 @@ public interface LendingConstants {
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String APPLICATION_EVENT_TOPIC = "LENDING_EVENT_APPLICATION_UPDATE";
+	String APPLICATION_DS_EVENT_TOPIC = "LENDING_EVENT_DS_DATA";
 }
 
 

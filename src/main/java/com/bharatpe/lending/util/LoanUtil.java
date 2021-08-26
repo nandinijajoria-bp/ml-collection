@@ -18,6 +18,7 @@ import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,6 +114,9 @@ public class LoanUtil {
 
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -727,6 +731,40 @@ public class LoanUtil {
             logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
         } catch (Exception e) {
             logger.error("Exception in publishApplicationEvent for application:{}", lendingApplication.getId(), e);
+        }
+    }
+
+    public void publishDSData(LendingApplication lendingApplication) {
+        try {
+            logger.info("Publishing DS Data for application:{}", lendingApplication.getId());
+            List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            String imageFrontLat = null;
+            String imageFrontLng = null;
+            for (LendingShopDocuments lendingShopDocument : lendingShopDocuments) {
+                if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-front")) {
+                    imageFrontLat = !StringUtils.isEmpty(lendingShopDocument.getLatitude()) ? lendingShopDocument.getLatitude() : null;
+                    imageFrontLng = !StringUtils.isEmpty(lendingShopDocument.getLongitude()) ? lendingShopDocument.getLongitude() : null;
+                }
+            }
+            Map<String,Object> request = new HashMap<>();
+            request.put("merchantId", lendingApplication.getMerchant().getId());
+            request.put("applicationId", lendingApplication.getId());
+            request.put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
+            request.put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
+            request.put("latitude", !StringUtils.isEmpty(lendingApplication.getLatitude()) ? lendingApplication.getLatitude() : null);
+            request.put("longitude", !StringUtils.isEmpty(lendingApplication.getLongitude()) ? lendingApplication.getLongitude() : null);
+            request.put("image_front_lat", imageFrontLat);
+            request.put("image_front_lon", imageFrontLng);
+            request.put("pincode", lendingApplication.getPincode());
+            request.put("business_name", lendingApplication.getBusinessName());
+            request.put("street_address", lendingApplication.getStreetAddress());
+            request.put("area", lendingApplication.getArea());
+            request.put("shop_number", lendingApplication.getShopNumber());
+            executorService.execute(() -> {
+                kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+            });
+        } catch (Exception e) {
+            logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
         }
     }
 }
