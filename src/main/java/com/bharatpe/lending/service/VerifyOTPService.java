@@ -496,38 +496,31 @@ public class VerifyOTPService {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		Double loanAmount = lendingApplication.getLoanAmount();
-
-		String identifier = "LENDING_APPLICATION_RECEIVED_PUSH";
-		String deeplink = notificationUtil.getDeeplink(lendingApplication.getMerchant(),"LOAN_DASHBOARD");
-		Map<String,Object> templateParams = new HashMap<>();
-		templateParams.put("loan_amount",loanAmount.intValue());
-		templateParams.put("external_loan_id",lendingApplication.getExternalLoanId());
+		String identifier;
+		String deeplink = notificationUtil.getDeeplink(lendingApplication.getMerchant(), "LOAN_DASHBOARD");
+		Map<String, Object> templateParams = new HashMap<>();
 		NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
-		notificationPayloadDto.setTemplateIdentifier(identifier);
-		notificationPayloadDto.setTemplateParams(templateParams);
-		notificationPayloadDto.setMobile(merchant.getMobile());
-		notificationPayloadDto.setPushDeepLink(deeplink);
-		notificationPayloadDto.setPushTitle("BHARATPE");
-		notificationPayloadDto.setClientName("LENDING");
-		lendingNotificationService.notify(notificationPayloadDto);
 
-		String whatsappContent = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n" +
-				"\n" +
-				"Your loan application for INR " + loanAmount.intValue() + " has been received successfully.\n" +
-				"Your Application ID is " + lendingApplication.getExternalLoanId() + ".";
-//		whatsappNotificationService.send(merchant, null, whatsappContent, mobiles, null);
-
-		if (isPaymentBank(merchant, merchantBankDetail)) {
-			identifier = "LENDING_APPLICATION_RECEIVED_2_PUSH";
-			notificationPayloadDto = new NotificationPayloadDto();
+		if(Objects.nonNull(lendingApplication.getNachStatus())) {
+			identifier = "LENDING_NEW_APPLICATION_RECEIVED_PUSH";
+			templateParams.put("expected_days", "3-5");
 			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setTemplateParams(templateParams);
 			notificationPayloadDto.setMobile(merchant.getMobile());
 			notificationPayloadDto.setPushDeepLink(deeplink);
-			notificationPayloadDto.setPushTitle("BHARATPE");
+			notificationPayloadDto.setPushTitle("Loan Application " + lendingApplication.getExternalLoanId() + " Under Review!");
 			notificationPayloadDto.setClientName("LENDING");
-			notificationPayloadDto.setTemplateParams(templateParams);
 			lendingNotificationService.notify(notificationPayloadDto);
-//			whatsappNotificationService.send(merchant, null, sms, mobiles, null);
+		} else {
+			identifier = "LENDING_NEW_APPLICATION_RECEIVED_2_PUSH";
+			templateParams.put("loan_amount", loanAmount);
+			notificationPayloadDto.setTemplateIdentifier(identifier);
+			notificationPayloadDto.setTemplateParams(templateParams);
+			notificationPayloadDto.setMobile(merchant.getMobile());
+			notificationPayloadDto.setPushDeepLink(deeplink);
+			notificationPayloadDto.setPushTitle("You are one step away from Loan Transfer!");
+			notificationPayloadDto.setClientName("LENDING");
+			lendingNotificationService.notify(notificationPayloadDto);
 		}
 
 		identifier = "LENDING_AGENT_SMS";

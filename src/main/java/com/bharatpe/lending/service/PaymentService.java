@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.WhatsappNotificationService;
+import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
@@ -88,6 +89,9 @@ public class PaymentService {
 
 	@Autowired
     LoanUtil loanUtil;
+
+	@Autowired
+	NotificationUtil notificationUtil;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
@@ -413,28 +417,30 @@ public class PaymentService {
 		return "OK";
 	}
 
-	private void sendSMS(Merchant merchant, Double amount, boolean isLoanClosed) {
+	private void sendSMS(LendingPaymentSchedule loan, Double amount, boolean isLoanClosed) {
 		try {
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-			if(merchantBankDetail == null) {
-				return;
-			}
-
-			String identifier = "LENDING_PAYMENT_SMS";
+			Merchant merchant = loan.getMerchant();
+			String identifier = "LENDING_PAYMENT_PUSH";
 			Map<String,Object> templateParams = new HashMap<>();
-			templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
 			templateParams.put("amount",amount.intValue());
-
-			if(isLoanClosed) {
-				identifier = "LENDING_PREPAYMENT_SMS";
-			}
-
+			String deeplink = notificationUtil.getDeeplink(merchant, "LOAN_DASHBOARD");
 			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setPushTitle("Payment received!");
 			notificationPayloadDto.setTemplateIdentifier(identifier);
 			notificationPayloadDto.setMobile(merchant.getMobile());
+			notificationPayloadDto.setPushDeepLink(deeplink);
 			notificationPayloadDto.setClientName("LENDING");
 			notificationPayloadDto.setTemplateParams(templateParams);
 			lendingNotificationService.notify(notificationPayloadDto);
+			if(isLoanClosed) {
+				if(apiGatewayService.sendCommunicationForNewOffer(loan)) {
+					return;
+				}
+				identifier = "LENDING_PAYMENT_2_PUSH";
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				notificationPayloadDto.setPushTitle("The loan is closed successfully");
+				lendingNotificationService.notify(notificationPayloadDto);
+			}
 		} catch(Exception ex) {
 			logger.error("Exception while sending payment SMS to merchant {}, Exception is {}");
 		}
@@ -832,7 +838,7 @@ public class PaymentService {
 		boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
 		Double finalAmount = amount;
-		notificationExecutor.execute(() -> sendSMS(activeLoan.getMerchant(), finalAmount, isLoanClosed));
+		notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
 
 		if(isLoanClosed) {
 			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
@@ -843,14 +849,13 @@ public class PaymentService {
 						.transactionId(activeLoan.getId())
 						.build();
 				loyaltyService.pushToKafka(requestBean);
-				boolean eligible = apiGatewayService.sendCommunicationForNewOffer(activeLoan);
 				if(topupLoans.contains(activeLoan.getLoanApplication().getLoanType())){
 					LendingPaymentSchedule topupLoan = lendingPaymentScheduleDao.findTopupLoan(activeLoan.getMerchant().getId());
 					if(topupLoan != null) {
-						refundProcessingFee(topupLoan,eligible);
+						refundProcessingFee(topupLoan);
 					}
 				}else{
-					refundProcessingFee(activeLoan, eligible);
+					refundProcessingFee(activeLoan);
 				}
 				if (activeLoan.getDueAmount() < 0) {
 					logger.info("Extra amount:{} received for loanId:{}, initiating refund", activeLoan.getDueAmount(), activeLoan.getId());
@@ -946,7 +951,7 @@ public class PaymentService {
 		lendingLedgerDao.save(lendingLedger);
 	}
 
-	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule, boolean eligible) {
+	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule) {
 		try {
 			LendingPayouts checkRefunded = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),lendingPaymentSchedule.getId());
 			if(checkRefunded != null){
@@ -971,15 +976,17 @@ public class PaymentService {
 						templateParams.put("cashback_amount",merchantBankDetail.getBeneficiaryName());
 						templateParams.put("bank_name",merchantBankDetail.getBeneficiaryName());
 
-						if (eligible) {
-							identifier = "LENDING_ARRANGER_REFUND_SMS";
-						}
-
 						NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
 						notificationPayloadDto.setTemplateIdentifier(identifier);
 						notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
 						notificationPayloadDto.setClientName("LENDING");
 						notificationPayloadDto.setTemplateParams(templateParams);
+						lendingNotificationService.notify(notificationPayloadDto);
+						identifier = "LENDING_ARRANGER_FEE_REFUND_PUSH";
+						String deeplink = notificationUtil.getDeeplink(lendingPaymentSchedule.getMerchant(),"LOAN_DASHBOARD");
+						notificationPayloadDto.setPushDeepLink(deeplink);
+						notificationPayloadDto.setPushTitle("Arranger Fee refund!");
+						notificationPayloadDto.setTemplateIdentifier(identifier);
 						lendingNotificationService.notify(notificationPayloadDto);
 					}
 				}
@@ -1137,9 +1144,8 @@ public class PaymentService {
 			logger.error("No active loan found for id {}", loanId);
 			return new ResponseDTO(false, "No active loan found");
 		}
-		Integer foreClosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-        Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(lendingPaymentSchedule);
-		LoanPaymentOrder order = createOrder(lendingPaymentSchedule,waiverType.name(), foreClosureAmount+ediHolidayInterestAmount);
+		Integer foreClosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule) + getEDIHolidayInterestAmount(lendingPaymentSchedule);
+		LoanPaymentOrder order = createOrder(lendingPaymentSchedule,waiverType.name(), foreClosureAmount);
 		PaymentCallbackRequestDTO paymentCallbackRequestDTO = new PaymentCallbackRequestDTO();
 		paymentCallbackRequestDTO.setAmount(order.getAmount());
 		paymentCallbackRequestDTO.setStatus("SUCCESS");
