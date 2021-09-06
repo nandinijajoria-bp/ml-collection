@@ -46,8 +46,10 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -926,6 +928,7 @@ public class SupportService {
         data.put("browserName",lendingApplication.getLoanAmount());
         data.put("ipAddress",lendingApplication.getIp());
         data.put("accountNumber",merchantBankDetail.getAccountNumber());
+        data.put("accountType",merchantBankDetail.getAccType());
         data.put("ifsc",merchantBankDetail.getIfscCode());
         data.put("bankName",merchantBankDetail.getBankName());
         data.put("beneficiaryName",lendingApplication.getMerchant().getBeneficiaryName());
@@ -1537,16 +1540,18 @@ public class SupportService {
                     "</table>\n" +
                     "<p style=\"text-align: left;\"><br /><strong>Date:&nbsp;" + data.get("createdAt") + "   &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;Place:&nbsp;"+data.get("city")+"</strong></p>";
         }else if("HINDON".equalsIgnoreCase(lender) || "LDC".equalsIgnoreCase(lender)){
-            String filePath = basePath + lender + ".html";
             try {
-                html = new String(Files.readAllBytes(Paths.get(filePath)));
+                String filePath = "/templates/" + lender + ".html";
+                InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+                Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+                html = scanner.hasNext() ? scanner.next() : "";;
                 for(Map.Entry<String,Object> entry : data.entrySet()) {
-                    String key =  "{{" + entry.getKey() + "}}";
+                    String key = "{{" + entry.getKey() + "}}";
                     String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
                     logger.info(key + " " + val);
-                    html = html.replace(key,val);
+                    html = html.replace(key, val);
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 logger.error("Error occcured while getting html for lender: {} {}",lender, e);
             }
         }
