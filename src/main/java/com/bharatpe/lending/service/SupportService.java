@@ -131,9 +131,6 @@ public class SupportService {
     @Autowired
     LoanDpdDao loanDpdDao;
 
-    @Autowired
-    LoanAgreementService loanAgreementService;
-
     private final String basePath = "src/main/resources/templates/";
 
     ExecutorService executorService = Executors.newFixedThreadPool(5);
