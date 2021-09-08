@@ -40,15 +40,12 @@ public class LenderMappingService {
                     return;
                 }
                 LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(lendingApplication.getMerchant().getId());
-                if ("IO_TOPUP".equals(lendingApplication.getLoanType())) {
-                    logger.info("Repeat loan application Lender Change To HINDON merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
-                    lendingApplication.setLender("HINDON");
-                } else if (!"LDC".equalsIgnoreCase(oldLoan.getNbfc())) {
+                if (!"LDC".equalsIgnoreCase(oldLoan.getNbfc())) {
                     logger.info("Repeat loan application Lender Change To LDC merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
                     lendingApplication.setLender("LDC");
                 } else {
                     logger.info("Repeat loan application Lender Change To MAMTA merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
-                    lendingApplication.setLender("MAMTA");
+                    lendingApplication.setLender("HINDON");
                 }
                 lendingApplicationDao.save(lendingApplication);
                 return;
