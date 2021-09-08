@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.service.FLDGReportService;
@@ -53,6 +54,11 @@ public class SupportLoanController {
         logger.info("Uploading FLDG Report File : {}", fileName);
         executorService.execute(()->fldgReportService.uploadFLDGReportEntries(fileName));
         return new ResponseDTO(true,"FLDG Report Upload Successfully!");
+    }
+
+    @RequestMapping(value="/createAgreement/{applicationId}", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO createAgreement(@PathVariable(value = "applicationId") Long applicationId){
+        return supportService.createAgreement(applicationId);
     }
 }
 

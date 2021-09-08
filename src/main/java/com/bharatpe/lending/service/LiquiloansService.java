@@ -470,7 +470,7 @@ public class LiquiloansService {
 			notificationPayloadDto.setTemplateIdentifier(identifier);
 			notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
 			notificationPayloadDto.setClientName("LENDING");
-			notificationPayloadDto.setPushTitle("BHARATPE");
+			notificationPayloadDto.setPushTitle("₹ 100 deposited in your bank!");
 			notificationPayloadDto.setPushDeepLink(deeplink);
 			notificationPayloadDto.setTemplateParams(templateParams);
 			lendingNotificationService.notify(notificationPayloadDto);

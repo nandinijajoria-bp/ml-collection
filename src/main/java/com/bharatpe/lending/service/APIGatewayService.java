@@ -1438,7 +1438,7 @@ public class APIGatewayService {
                 ResponseEntity<LoanDetailsResponseDTO> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("loan.details.url")), HttpMethod.POST, request, LoanDetailsResponseDTO.class);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getDetails() != null && responseEntity.getBody().getDetails().isEligible() && responseEntity.getBody().getDetails().getEligibility() != null && !responseEntity.getBody().getDetails().getEligibility().isEmpty()) {
                     logger.info("Eligibility found from Lending for merchant:{}", activeLoan.getMerchant().getId());
-                    sendComm(activeLoan.getMerchant().getId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getEdi());
+                    sendComm(activeLoan.getMerchant().getId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getInterestRate());
                     return true;
                 }
             } catch (Exception e) {
@@ -1448,19 +1448,18 @@ public class APIGatewayService {
         return false;
     }
 
-    private void sendComm(Long merchantId, Integer amount, Integer edi) {
+    private void sendComm(Long merchantId, Integer amount, Double interestRate) {
         Merchant merchant = merchantDao.getById(merchantId);
-        MerchantBankDetail bankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 
-        String identifier = "LENDING_DISBURSED_3_WHATSAPP";
+        String identifier = "LENDING_PAYMENT_3_PUSH";
         Map<String,Object> templateParams = new HashMap<>();
-        templateParams.put("beneficiary_name",getBeneficiaryName(bankDetail.getBeneficiaryName()));
-        templateParams.put("bank_name",bankDetail.getBankName());
-        templateParams.put("edi",edi);
-        templateParams.put("amount",amount);
-        templateParams.put("url",notificationUtil.getUrl(merchant,"LOAN_DASHBOARD"));
-
+        templateParams.put("loan_amount",amount);
+        templateParams.put("interest_rate",interestRate);
+        String deeplink = notificationUtil.getDeeplink(merchant, "LOAN_DASHBOARD");
         NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+        notificationPayloadDto.setTemplateIdentifier(identifier);
+        notificationPayloadDto.setPushTitle("The loan is closed successfully");
+        notificationPayloadDto.setPushDeepLink(deeplink);
         notificationPayloadDto.setTemplateIdentifier(identifier);
         notificationPayloadDto.setMobile(merchant.getMobile());
         notificationPayloadDto.setClientName("LENDING");

@@ -162,8 +162,7 @@ public class RefundService {
                     logger.info("Already Processing Fee Refund For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
                 }
-                boolean eligible = apiGatewayService.sendCommunicationForNewOffer(lendingPaymentSchedule);
-                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule, eligible));
+                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule));
 
             }else if(refundType.equalsIgnoreCase("CASHBACK")){
                 LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdCashback(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
