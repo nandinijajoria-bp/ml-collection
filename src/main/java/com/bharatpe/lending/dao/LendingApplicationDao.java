@@ -52,7 +52,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value = "select * from lending_application where loan_disbursal_status='PROCESSING' and nbfc_send_date>='2021-02-18'", nativeQuery = true)
 	List<LendingApplication> getApplications();
 
-	@Query(value="select * from lending_application where id=:id and nbfc_id=:nbfcId and status='approved' and lender in ('LDC', 'MAMTA') and loan_disbursal_status='PENDING' and disbursal_partner='BHARATPE'", nativeQuery = true)
+	@Query(value="select * from lending_application where id=:id and nbfc_id=:nbfcId and status='approved' and loan_disbursal_status='PENDING' and disbursal_partner='BHARATPE'", nativeQuery = true)
 	LendingApplication findByIdAndNbfcId(Long id, String nbfcId);
 
 	@Query(value="select * from lending_application where merchant_id=:merchantId and disburse_timestamp is null and status not IN ('deleted','closed') order by id desc limit 1", nativeQuery = true)
