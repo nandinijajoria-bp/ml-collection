@@ -596,30 +596,21 @@ public class LoanEligibleService {
     public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
         logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
         try {
-            Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("individualPan", merchantId, "PAN", "PAN", new ArrayList<>());
-            if (identityDetail != null) {
-                String response = apiGatewayService.signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId, identityDetail.get("module"));
-                if(response!=null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
-                	return new LendingPancard(merchantId,pancardNumber,"NAME",null);
+            JsonNode responseNode = apiGatewayService.signzyPanFetchV2(pancardNumber, merchantId, "PAN", "PAN");
+            if(responseNode != null && responseNode.get("result") != null && responseNode.get("result").get("name") != null) {
+                String name = responseNode.get("result").get("name").asText();
+                logger.info("Name:{} found in pancard:{} for merchant:{}", name, pancardNumber, merchantId);
+                LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+                if (lendingPancard != null) {
+                    lendingPancard.setName(name);
+                    lendingPancard.setResponse(responseNode.toString());
+                    lendingPancard.setPancardNumber(pancardNumber);
+                    return lendingPancardDao.save(lendingPancard);
                 }
-                else if (response != null) {
-                    JsonNode responseNode = objectMapper.readTree(response);
-                    if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("upstreamName") != null) {
-                        String name = responseNode.get("response").get("result").get("upstreamName").asText();
-                        logger.info("Name:{} found in pancard:{}", name, pancardNumber);
-                        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
-                        if (lendingPancard != null) {
-                            lendingPancard.setName(name);
-                            lendingPancard.setResponse(response);
-                            lendingPancard.setPancardNumber(pancardNumber);
-                            return lendingPancardDao.save(lendingPancard);
-                        }
-                        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
-                    }
-                }
+                return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, responseNode.toString()));
             }
         } catch (Exception e) {
-            logger.error("Exception in Signzy Pan Fetch Api", e);
+            logger.error("Exception in fetchNameFromSignzy for merchant:{}", merchantId, e);
         }
         return null;
     }

@@ -398,6 +398,48 @@ public class APIGatewayService {
         return null;
     }
 
+    public JsonNode signzyPanFetchV2(String pancard, Long merchantId, String signzyModule, String signzyPurpose) {
+        logger.info("Calling Signzy pan fetch v2 Api for merchant:{} and pancard:{}", merchantId, pancard);
+        try {
+            SignzyCredential signzyCredential = signzyCredentialDao.findByModuleAndPurpose(signzyModule, signzyPurpose);
+            if (signzyCredential == null) {
+                logger.info("signzy credentials not found");
+                return null;
+            }
+            Map<String, Object> body = new HashMap<>();
+            body.put("task", "fetch");
+            body.put("essentials",new HashMap<String, String>(){{
+                put("number", pancard);
+            }});
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", signzyCredential.getAccessId());
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/panv2";
+            logger.info("Signzy pan fetch v2 url:{} and request:{} for merchant:{}",URL,request, merchantId);
+            try {
+                Long a = DateTime.now().getMillis();
+                ResponseEntity<String> response = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+                Long b = DateTime.now().getMillis();
+                logger.info("Signzy API response time---{}ms", (b - a));
+                logger.info("Signzy pan fetch v2 response:{} for merchant:{}",response, merchantId);
+                if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "SUCCESS", mapper.writeValueAsString(request), response.getBody(), signzyModule);
+                    return mapper.readTree(response.getBody());
+                } else {
+                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), response.getBody(), signzyModule);
+                }
+            }
+            catch(Exception e) {
+                logger.info("Error occurred while calling signzy pan fetch v2 for merchant:{}", merchantId, e);
+                insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), null, signzyModule);
+            }
+        } catch (Exception e) {
+            logger.error("Exception in Signzy pan fetch v2 for merchant:{}", merchantId, e);
+        }
+        return null;
+    }
+
     public String getOcrResponse(Long merchantId, Map<String, String> identityDetails, String ocrType, Long applicationId) {
         String response= null;
         String itemId=identityDetails.get("itemId");
