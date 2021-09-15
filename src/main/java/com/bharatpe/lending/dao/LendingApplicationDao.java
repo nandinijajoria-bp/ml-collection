@@ -93,4 +93,7 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Modifying
 	@Query(value="UPDATE lending_application SET ckyc_id=:kycId where id=:applicationId and merchant_id=:merchantId",nativeQuery = true)
 	void updateKycId(Long applicationId, String kycId, Long merchantId);
+
+    @Query(value="select * from lending_application where merchant_id=:merchantId and status='approved' and loan_disbursal_status='DISBURSED' order by id desc limit 1", nativeQuery = true)
+    LendingApplication getLastDisbursedLoan(Long merchantId);
 }

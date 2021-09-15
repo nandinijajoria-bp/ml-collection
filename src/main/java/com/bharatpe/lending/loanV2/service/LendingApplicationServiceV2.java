@@ -2,9 +2,11 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.ApplicationDTO;
@@ -79,6 +81,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     Environment env;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -201,6 +206,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication = lendingApplicationDao.save(lendingApplication);
         lenderMappingService.lenderMapping(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest);
+        replicateApplicationData(lendingApplication);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchant.getId(), "DEBIT", eligibleLoan.getAmount()));
         executorService.execute(() -> {
             JsonNode smsAnalysisData = apiGatewayService.getMerchantSmsAnalysisData(merchant);
@@ -209,6 +215,47 @@ public class LendingApplicationServiceV2 {
             }
         });
         return lendingApplication;
+    }
+
+    private void replicateApplicationData(LendingApplication lendingApplication) {
+        try {
+            LendingApplication prevApplication = lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchant().getId());
+            if (prevApplication != null) {
+                log.info("Replicating application for merchant:{} and previous application:{}", lendingApplication.getMerchant().getId(), prevApplication.getId());
+                LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(prevApplication.getId());
+                if(lendingGstDetail != null){
+                    LendingGstDetail replicateGst = new LendingGstDetail();
+                    replicateGst.setApplicationId(lendingApplication.getId());
+                    replicateGst.setMerchantId(lendingApplication.getMerchant().getId());
+                    replicateGst.setGst(lendingGstDetail.getGst());
+                    replicateGst.setBusinessCategory(lendingGstDetail.getBusinessCategory());
+                    replicateGst.setExperience(lendingGstDetail.getExperience());
+                    replicateGst.setGstNumber(lendingGstDetail.getGstNumber());
+                    replicateGst.setSalary(lendingGstDetail.getSalary());
+                    replicateGst.setEntityType(lendingGstDetail.getEntityType());
+                    replicateGst.setShopType(lendingGstDetail.getShopType());
+                    lendingGstDao.save(replicateGst);
+                }
+                List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchant().getId(),prevApplication.getId());
+                if(!lendingShopDocuments.isEmpty()){
+                    for(LendingShopDocuments shopDocuments : lendingShopDocuments){
+                        LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+                        replicateShopDocument.setApplicationId(lendingApplication.getId());
+                        replicateShopDocument.setMerchantId(lendingApplication.getMerchant().getId());
+                        replicateShopDocument.setIp(shopDocuments.getIp());
+                        replicateShopDocument.setProofType(shopDocuments.getProofType());
+                        replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
+                        replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
+                        replicateShopDocument.setLongitude(shopDocuments.getLongitude());
+                        replicateShopDocument.setLatitude(shopDocuments.getLatitude());
+                        replicateShopDocument.setStatus(shopDocuments.getStatus());
+                        lendingShopDocumentsDao.save(replicateShopDocument);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception in replicateApplicationData for application:{}", lendingApplication.getId(), e);
+        }
     }
 
     private void updateApplicationData(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
