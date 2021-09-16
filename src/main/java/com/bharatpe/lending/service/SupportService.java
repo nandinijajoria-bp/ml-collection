@@ -744,6 +744,14 @@ public class SupportService {
                     continue;
                 }
 
+                if(lendingApplication.getCkycId() != null){
+                    logger.info("New App Application for  merchantId:{} and applicationId:{}",merchantId,applicationId);
+                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),arr[3],"FAILED","New APP application"});
+                    readLine = lenderFileReader.readLine();
+                    latch.countDown();
+                    continue;
+                }
+
 //                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.toString()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
 //                    logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
 //                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Category Not match"});
