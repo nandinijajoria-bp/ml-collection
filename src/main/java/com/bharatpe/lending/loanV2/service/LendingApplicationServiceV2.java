@@ -234,6 +234,9 @@ public class LendingApplicationServiceV2 {
                     replicateGst.setSalary(lendingGstDetail.getSalary());
                     replicateGst.setEntityType(lendingGstDetail.getEntityType());
                     replicateGst.setShopType(lendingGstDetail.getShopType());
+                    replicateGst.setCompanyName(lendingGstDetail.getCompanyName());
+                    replicateGst.setAddressType(lendingGstDetail.getAddressType());
+                    replicateGst.setCurrentAddress(lendingGstDetail.getCurrentAddress());
                     lendingGstDao.save(replicateGst);
                 }
                 List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchant().getId(),prevApplication.getId());
@@ -252,6 +255,9 @@ public class LendingApplicationServiceV2 {
                         lendingShopDocumentsDao.save(replicateShopDocument);
                     }
                 }
+                lendingApplication.setEmail(prevApplication.getEmail());
+                lendingApplication.setAlternateMobile(prevApplication.getAlternateMobile());
+                lendingApplicationDao.save(lendingApplication);
             }
         } catch (Exception e) {
             log.error("Exception in replicateApplicationData for application:{}", lendingApplication.getId(), e);
