@@ -2011,4 +2011,67 @@ public class APIGatewayService {
         }
         return false;
     }
+
+    public Double getCreditCardDueAmount(Long merchantId) {
+        try {
+            logger.info("Getting credit card due amount for merchant:{}", merchantId);
+            String url = env.getProperty("credit.card.base.url") + LendingConstants.CREDIT_CARD_STATUS_URL + merchantId;
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchant_id", merchantId);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            ResponseEntity<CreditCardStatus> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, CreditCardStatus.class);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
+                CreditCardStatus creditCardStatus = responseEntity.getBody();
+                if (creditCardStatus.getPayload() != null && creditCardStatus.getPayload().getDueAmount() != null) {
+                    return creditCardStatus.getPayload().getDueAmount();
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in getCreditCardDueAmount for merchant:{}", merchantId, e);
+        }
+        return 0D;
+    }
+
+    public Double getGoldLoanDueAmount(Long merchantId) {
+        try {
+            logger.info("Getting gold loan due amount for merchant:{}", merchantId);
+            String url = env.getProperty("gold.loan.base.url") + LendingConstants.GOLD_LOAN_DUE_URL + merchantId;
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchantId", merchantId);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("data") != null) {
+                Map<String, Object> dataMap = mapper.convertValue(responseEntity.getBody().get("data"), Map.class);
+                if (dataMap.get("amount") != null) {
+                    return Double.parseDouble(dataMap.get("amount").toString());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in getGoldLoanDueAmount for merchant:{}", merchantId, e);
+        }
+        return 0D;
+    }
+
+    private HttpHeaders getApiHeaders(Map<String, Object> requestBody) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("clientName", CLIENT);
+        headers.set("hash", getHmacBase64(requestBody));
+        return headers;
+    }
+
+    public String getHmacBase64(Map<String, Object> requestBody) {
+        String hmac = "";
+        try {
+            String payload = hmacCalculator.getNestedPayload(requestBody);
+            hmac = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        } catch (Exception e) {
+            logger.error("Exception occurred while generating hmac", e);
+        }
+        return hmac;
+    }
 }

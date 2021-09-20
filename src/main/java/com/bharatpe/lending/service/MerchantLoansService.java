@@ -424,6 +424,9 @@ public class MerchantLoansService {
                 dueAmount += activeLoan.getDueAmount();
             }
         }
+        Double creditCardDueAmount = apiGatewayService.getCreditCardDueAmount(merchant.getId());
+        Double goldLoanDueAmount = apiGatewayService.getGoldLoanDueAmount(merchant.getId());
+        dueAmount += creditCardDueAmount + goldLoanDueAmount;
         responseMap.put("due_amount", dueAmount);
         return new CommonResponse(responseMap);
     }

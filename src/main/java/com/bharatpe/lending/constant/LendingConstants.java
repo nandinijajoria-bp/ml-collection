@@ -58,6 +58,8 @@ public interface LendingConstants {
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String APPLICATION_EVENT_TOPIC = "LENDING_EVENT_APPLICATION_UPDATE";
 	String APPLICATION_DS_EVENT_TOPIC = "LENDING_EVENT_DS_DATA";
+    String CREDIT_CARD_STATUS_URL = "/credit_card/status?merchant_id=";
+    String GOLD_LOAN_DUE_URL = "/api/live-loan/due-amount?merchantId=";
 }
 
 
