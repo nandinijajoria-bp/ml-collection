@@ -15,4 +15,5 @@ public class LoanSettlementRequestDTO {
     Long loanId;
     Long merchantId;
     WaiverType waiverType;
+    Long crmUserId;
 }

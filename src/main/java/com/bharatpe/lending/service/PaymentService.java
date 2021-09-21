@@ -93,6 +93,9 @@ public class PaymentService {
 	@Autowired
 	NotificationUtil notificationUtil;
 
+	@Autowired
+	LendingInterestWaiverDao lendingInterestWaiverDao;
+
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -1138,7 +1141,7 @@ public class PaymentService {
 		}
 	}
 
-	public ResponseDTO applyWaiver(Long loanId, Long merchantId, WaiverType waiverType) {
+	public ResponseDTO applyWaiver(Long loanId, Long merchantId, WaiverType waiverType, Long userId) {
 		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchantId);
 		if(Objects.isNull(lendingPaymentSchedule) || !"ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
 			logger.error("No active loan found for id {}", loanId);
@@ -1151,6 +1154,17 @@ public class PaymentService {
 		paymentCallbackRequestDTO.setStatus("SUCCESS");
 		paymentCallbackRequestDTO.setOrderId(order.getOrderId());
 		handleCallback(paymentCallbackRequestDTO);
+
+		//waiver audit
+		LendingInterestWaiver lendingInterestWaiver = new LendingInterestWaiver();
+		lendingInterestWaiver.setAmount(foreClosureAmount);
+		lendingInterestWaiver.setApplicationId(lendingPaymentSchedule.getApplicationId());
+		lendingInterestWaiver.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+		lendingInterestWaiver.setPaymentId(lendingPaymentSchedule.getId());
+		lendingInterestWaiver.setSchemeName(waiverType.name());
+		lendingInterestWaiver.setUserId(userId);
+		lendingInterestWaiverDao.save(lendingInterestWaiver);
+
 		lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(loanId, merchantId);
 		if("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
 			lendingPaymentSchedule.setSettlementStatus(waiverType.name());

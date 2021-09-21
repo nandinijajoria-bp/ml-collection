@@ -103,7 +103,7 @@ public class PaymentController {
     @RequestMapping(value = "/loan_settlement", method = RequestMethod.POST, produces="application/json")
     public ResponseDTO applyWaiver(@RequestBody LoanSettlementRequestDTO requestDTO) {
         logger.info("Request received for apply waiver {} for loan_id : {}", requestDTO.getWaiverType(), requestDTO.getLoanId());
-        return paymentService.applyWaiver(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType());
+        return paymentService.applyWaiver(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType(), requestDTO.getCrmUserId());
     }
 
     @RequestMapping(value = "/refund", method = RequestMethod.GET, produces="application/json")
