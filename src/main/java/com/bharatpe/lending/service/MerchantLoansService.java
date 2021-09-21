@@ -339,7 +339,8 @@ public class MerchantLoansService {
         }
 
         Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
-        int ediPaidRatio = (ediPaidCount / lendingPaymentSchedule.getEdiCount()) * 100;
+        Integer paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+        int ediPaidRatio = (ediPaidCount / paidCount) * 100;
 
         Double eligibleAmount = 0D;
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
