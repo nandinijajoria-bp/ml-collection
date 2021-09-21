@@ -339,9 +339,9 @@ public class MerchantLoansService {
         }
 
         Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
-        Integer paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+        int paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
         logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchant().getId());
-        int ediPaidRatio = (ediPaidCount / paidCount) * 100;
+        double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
 
         Double eligibleAmount = 0D;
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
@@ -353,7 +353,7 @@ public class MerchantLoansService {
             logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
-        if (ediPaidRatio < 65) {
+        if (ediPaidRatio < 65D) {
             logger.info("EDI paid ratio:{} is less than 65% for merchant:{}",ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
             eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
         }
