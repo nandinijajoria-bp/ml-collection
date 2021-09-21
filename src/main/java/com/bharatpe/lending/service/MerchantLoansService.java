@@ -295,14 +295,11 @@ public class MerchantLoansService {
     }
 
     private List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule){
-        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
         Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
-        double tpv = (merchantSummary != null && merchantSummary.getTpv1Mon() != null) ? merchantSummary.getTpv1Mon() : 0d;
-
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
-
         List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
+
         if (lendingApplication == null || topupLoans.contains(lendingApplication.getLoanType())) {
             logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
@@ -313,14 +310,9 @@ public class MerchantLoansService {
             return eligiblity;
         }
 
-        if(tpv/lendingApplication.getEdi() < 1.5){
-            logger.info("Topup Loan Merchant TPV is not match For merchant:{}",  lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
         double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
-        if(dpd > 2D) {
-            logger.info("DPD is greater than 5 for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
+        if(dpd > 3D) {
+            logger.info("DPD is greater than 3 for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
 
@@ -335,10 +327,20 @@ public class MerchantLoansService {
             paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
         }
 
-        if(paidRatio < 0.75D || paidRatio >0.95D){
+        if(paidRatio < 0.6D || paidRatio >0.95D){
             logger.info("Insufficient paid ratio for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
+
+        Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
+        double qrPaidRatio = (settlementAmount/lendingPaymentSchedule.getPaidAmount()) * 100;
+        if (qrPaidRatio < 50) {
+            logger.info("QR payment less than 50% for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+            return eligiblity;
+        }
+
+        Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
+        int ediPaidRatio = (ediPaidCount / lendingPaymentSchedule.getEdiCount()) * 100;
 
         Double eligibleAmount = 0D;
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
@@ -346,14 +348,18 @@ public class MerchantLoansService {
             logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
         }
-
-        if(eligibleAmount < lendingPaymentSchedule.getLoanAmount() * 1.5){
-            logger.info("Eligible Loan Amount Is lessthan 1.5x for current Loan Amount for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
+        if (eligibleAmount.equals(0D)) {
+            logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
-
-        if(eligibleAmount > 300000D){
-            eligibleAmount = 300000D;
+        if (ediPaidRatio < 65) {
+            logger.info("EDI paid ratio is less than 65% for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+            eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+        }
+        int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+        if (eligibleAmount - posAmount < 10000) {
+            logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+            return eligiblity;
         }
 
         List<LendingCategories> lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1("TOPUP");
