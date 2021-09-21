@@ -297,10 +297,9 @@ public class MerchantLoansService {
     private List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule){
         Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
-        List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
 
-        if (lendingApplication == null || topupLoans.contains(lendingApplication.getLoanType())) {
+        if (lendingApplication == null) {
             logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
