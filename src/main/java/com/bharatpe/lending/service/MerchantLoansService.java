@@ -340,6 +340,7 @@ public class MerchantLoansService {
 
         Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
         Integer paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+        logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchant().getId());
         int ediPaidRatio = (ediPaidCount / paidCount) * 100;
 
         Double eligibleAmount = 0D;
@@ -353,7 +354,7 @@ public class MerchantLoansService {
             return eligiblity;
         }
         if (ediPaidRatio < 65) {
-            logger.info("EDI paid ratio is less than 65% for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+            logger.info("EDI paid ratio:{} is less than 65% for merchant:{}",ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
             eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
         }
         int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
