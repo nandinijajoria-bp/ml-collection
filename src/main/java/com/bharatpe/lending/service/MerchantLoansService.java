@@ -168,7 +168,7 @@ public class MerchantLoansService {
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
-                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
+                    if (lendingPaymentSchedule.getMerchant().getId().equals(9319451L) && baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
                         logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
                         Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
                         double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
@@ -279,8 +279,8 @@ public class MerchantLoansService {
         if(responseDTO.getTopup()){
             return false;
         }
-        if (!lendingPaymentSchedule.getMerchant().getId().equals(9319451L))
-            return false;
+        if (lendingPaymentSchedule.getMerchant().getId().equals(9319451L))
+            return true;
         try {
             List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
             if (lendingPaymentSchedule.getLoanApplication() != null && topupLoans.contains(lendingPaymentSchedule.getLoanApplication().getLoanType())) {
