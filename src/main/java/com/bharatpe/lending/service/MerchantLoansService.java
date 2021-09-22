@@ -168,6 +168,23 @@ public class MerchantLoansService {
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
+                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
+                        logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
+                        Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
+                        double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
+                        LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
+                        if (ediPaidPercentage <= 0.8d) {
+                            logger.info("merchant:{} eligible for io loan", merchantId);
+                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
+                            responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
+                        } else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
+                            logger.info("merchant:{} eligible for half loan", merchantId);
+                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
+                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
+                        } else {
+                            logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
+                        }
+                    }
                 }
             }
 
@@ -180,7 +197,7 @@ public class MerchantLoansService {
 
     private LoanCalculationUtil.LoanBreakupDetail calculateHalfIOLoan(LendingPaymentSchedule lendingPaymentSchedule, Long merchantId, LoanType loanType) {
         try {
-            double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
+            double foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
             double loanAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
             if (loanAmount < 10000d || lendingPaymentSchedule.getEdiRemainingCount() < 26) {
                 logger.info("loan amount less than 10k for merchant:{} and loanType:{}", merchantId, loanType.name());
@@ -262,6 +279,8 @@ public class MerchantLoansService {
         if(responseDTO.getTopup()){
             return false;
         }
+        if (!lendingPaymentSchedule.getMerchant().getId().equals(9319451L))
+            return false;
         try {
             List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
             if (lendingPaymentSchedule.getLoanApplication() != null && topupLoans.contains(lendingPaymentSchedule.getLoanApplication().getLoanType())) {
@@ -276,12 +295,9 @@ public class MerchantLoansService {
             if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
                 return false;
             }
-            if (lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getPincode() != null) {
-                LendingRedCities redCities = lendingRedCitiesDao.findByPincode(lendingPaymentSchedule.getLoanApplication().getPincode().intValue());
-                if (redCities != null) {
-                    logger.info("Red pincode for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-                    return false;
-                }
+            if (lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getPincode() != null && loanUtil.isOGL(lendingPaymentSchedule.getLoanApplication().getPincode().intValue())) {
+                logger.info("Red pincode for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return false;
             }
             double paidRatio = lendingPaymentSchedule.getPaidPrinciple() != null ? (lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount()) : 0d;
             double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
