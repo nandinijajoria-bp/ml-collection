@@ -474,6 +474,10 @@ public class MerchantLoansService {
                     if (d2RMerchant != null) {
                         return new CommonResponse(true, "merchant found using mobile:" + mobile);
                     }
+                    MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+                    if (merchantSummary != null && merchantSummary.getBpScore() != null && merchantSummary.getBpScore() > 2) {
+                        return new CommonResponse(true, "merchant found using mobile:" + mobile);
+                    }
                 }
             }
             if (!StringUtils.isEmpty(pancard)) {
