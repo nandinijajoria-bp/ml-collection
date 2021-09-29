@@ -2,10 +2,12 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingIoHalfTopupDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.dao.PartnersConfigurationDao;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -65,9 +67,6 @@ public class MerchantLoansService {
     BPEnachDao bpEnachDao;
 
     @Autowired
-    LendingRedCitiesDao lendingRedCitiesDao;
-
-    @Autowired
     LoanPaymentOrderDao loanPaymentOrderDao;
 
     @Autowired
@@ -78,6 +77,9 @@ public class MerchantLoansService {
 
     @Autowired
     PartnersConfigurationDao partnersConfigurationDao;
+
+    @Autowired
+    LendingIoHalfTopupDao lendingIoHalfTopupDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -168,21 +170,20 @@ public class MerchantLoansService {
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
-                    if (lendingPaymentSchedule.getMerchant().getId().equals(9319451L) && baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
+                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
                         logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
-                        Double ediPaidAmount = lendingLedgerDao.getAmountPaidLastMonth(lendingPaymentSchedule.getId());
-                        double ediPaidPercentage = (ediPaidAmount/lendingPaymentSchedule.getEdiAmount())/26;
+                        LendingIoHalfTopup lendingIoHalfTopup = lendingIoHalfTopupDao.findByLoanId(lendingPaymentSchedule.getId());
                         LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
-                        if (ediPaidPercentage <= 0.8d) {
+                        if (lendingIoHalfTopup != null && LoanType.IO_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
                             logger.info("merchant:{} eligible for io loan", merchantId);
                             loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
                             responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
-                        } else if (ediPaidPercentage >= 0.5d && ediPaidPercentage < 0.8d) {
+                        } else if (lendingIoHalfTopup != null && LoanType.HALF_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
                             logger.info("merchant:{} eligible for half loan", merchantId);
                             loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
                             responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
                         } else {
-                            logger.info("EDI paid check failed for merchant:{} with edi paid percentage:{}", merchantId, ediPaidPercentage);
+                            logger.info("Entry not found in lending_io_half_topup for merchant:{}", merchantId);
                         }
                     }
                 }
@@ -197,8 +198,9 @@ public class MerchantLoansService {
 
     private LoanCalculationUtil.LoanBreakupDetail calculateHalfIOLoan(LendingPaymentSchedule lendingPaymentSchedule, Long merchantId, LoanType loanType) {
         try {
-            double foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-            double loanAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
+            int foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+            int processingFee = loanUtil.getIoHalfPF(lendingPaymentSchedule);
+            double loanAmount = Math.ceil((foreclosureAmount + processingFee) / 1000.0) * 1000;
             if (loanAmount < 10000d || lendingPaymentSchedule.getEdiRemainingCount() < 26) {
                 logger.info("loan amount less than 10k for merchant:{} and loanType:{}", merchantId, loanType.name());
                 return null;

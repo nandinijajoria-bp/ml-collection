@@ -316,7 +316,7 @@ public class VerifyOTPService {
 			if(activeLoan == null){
 				return false;
 			}
-			Double previousAmount = activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() + activeLoan.getDueInterest();
+			double previousAmount = loanUtil.getForeclosureAmount(activeLoan);
 			LendingLedger lendingLedger = new LendingLedger();
 			lendingLedger.setMerchant(activeLoan.getMerchant());
 			lendingLedger.setLendingPaymentSchedule(activeLoan);
@@ -351,14 +351,14 @@ public class VerifyOTPService {
 			activeLoan.setDueInterest(0D);
 			lendingPaymentScheduleDao.save(activeLoan);
 
-			lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-previousAmount);
+			lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
 			lendingApplicationDao.save(lendingApplication);
 			if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 				notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT", previousAmount));
 			}
 
 		}catch(Exception ex){
-			logger.error("Exception IN TOPUP LOANS Ledger:{}",ex);
+			logger.error("Exception IN TOPUP LOANS Ledger for application:{}", lendingApplication.getId(), ex);
 		}
 
 		return true;

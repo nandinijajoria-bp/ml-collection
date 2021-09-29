@@ -710,6 +710,9 @@ public class LoanUtil {
 	}
 
 	public int getForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+	    if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+	        return 0;
+        }
         LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
@@ -766,5 +769,10 @@ public class LoanUtil {
         } catch (Exception e) {
             logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
         }
+    }
+
+    public int getIoHalfPF(LendingPaymentSchedule lendingPaymentSchedule) {
+	    int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
+	    return (int) Math.ceil(foreclosureAmount * 0.05);
     }
 }

@@ -1,20 +1,17 @@
   
 package com.bharatpe.lending.service;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.MetaDTO;
+import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.SignAgreementDTO;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
@@ -24,16 +21,14 @@ import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dto.MetaDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.SignAgreementDTO;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
-import com.bharatpe.lending.util.LoanCalculationUtil;
-import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class SignAgreementService {
@@ -58,9 +53,6 @@ public class SignAgreementService {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 	
 	@Autowired
-	AvailableLoanDao availableLoanDao;
-	
-	@Autowired
 	LendingCategoryDao lendingCategoryDao;
 	
 	@Autowired
@@ -80,9 +72,6 @@ public class SignAgreementService {
 
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;
-
-	@Value("${experian.enable:true}")
-	Boolean EXPERIAN_ENABLED;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -160,6 +149,7 @@ public class SignAgreementService {
 		response.put("success",false);
 		response.put("otp_flow",false);
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
+		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 		String selectedCategory = requestDTO.getPayload().getCategory();
 		
 		if(StringUtils.isEmpty(selectedCategory)) {
@@ -215,106 +205,55 @@ public class SignAgreementService {
 		
 		LendingApplication newApplication = new LendingApplication();
 
-		if (EXPERIAN_ENABLED) {
-			
-			if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
-				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
-				return response;
-			}
-			int processingFee;
-			if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-				processingFee = 0;
-			}else {
-				processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
-			}
-			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
-			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
-			newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-			if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
-				newApplication.setInterestRate(1.75D);
-			} else {
-				newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
-			}
-			newApplication.setProcessingFee((double)processingFee);
-			newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-			newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
-			newApplication.setMerchant(merchant);
-			newApplication.setShopNumber(prevApplication.getShopNumber());
-			newApplication.setStreetAddress(prevApplication.getStreetAddress());
-			newApplication.setArea(prevApplication.getArea());
-			newApplication.setLandmark(prevApplication.getLandmark());
-			newApplication.setPincode(prevApplication.getPincode());
-			newApplication.setCity(prevApplication.getCity());
-			newApplication.setState(prevApplication.getState());
-			newApplication.setBusinessName(prevApplication.getBusinessName());
-			newApplication.setStatus("draft");
-			newApplication.setMode("AUTO");
-			newApplication.setCategory(selectedCategory);
-			newApplication.setTenure(selectedCategoriesData.getPayableConverter());
-			newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-			newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
-			newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
-			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
-			newApplication.setLoanAmount(eligibleLoan.getAmount());
-			newApplication.setLoanType(eligibleLoan.getLoanType());
-		} else {
-			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantSummary.getLoanType());
-			AvailableLoan selectedAvailableLoan = null;
-			
-			if(!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
-				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
-				return response;
-			}
-			
-			for(AvailableLoan current : availableLoanList) {
-				if(current.getCategory().equals(selectedCategory)) {
-					selectedAvailableLoan = current;
-					break;
-				}
-			}
-			if(selectedAvailableLoan == null) {
-				logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
-				return response;
-			}
-			LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(selectedAvailableLoan, selectedCategoriesData, null);
-			newApplication.setEdi(Double.valueOf(breakup.getEdi()));
-			newApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
-			newApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
-			newApplication.setInterestRate(breakup.getEffectiveInterestRate());
-			newApplication.setProcessingFee(Double.valueOf(breakup.getProcessingFee()));
-			newApplication.setLoanConstruct(breakup.getConstruct());
-			newApplication.setDisbursalAmount(Double.valueOf(breakup.getDisbursementAmount()));
-			newApplication.setMerchant(merchant);
-			newApplication.setShopNumber(prevApplication.getShopNumber());
-			newApplication.setStreetAddress(prevApplication.getStreetAddress());
-			newApplication.setArea(prevApplication.getArea());
-			newApplication.setLandmark(prevApplication.getLandmark());
-			newApplication.setPincode(prevApplication.getPincode());
-			newApplication.setCity(prevApplication.getCity());
-			newApplication.setState(prevApplication.getState());
-			newApplication.setBusinessName(prevApplication.getBusinessName());
-			newApplication.setStatus("draft");
-			newApplication.setMode("AUTO");
-			newApplication.setCategory(selectedCategory);
-			newApplication.setTenure(selectedCategoriesData.getPayableConverter());
-			newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-			newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
-			newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
-			newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
-			newApplication.setLoanAmount(Double.valueOf(breakup.getLoanAmount()));
-		}
+        if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
+            logger.info("Last loan not closed for merchant ID {}", merchant.getId());
+            return response;
+        }
+        int processingFee;
+        if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
+            processingFee = 0;
+        }else {
+            processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+        }
+        if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
+            processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
+        }
+        newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+        newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+        newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
+            newApplication.setInterestRate(1.75D);
+        } else {
+            newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
+        }
+        newApplication.setProcessingFee((double)processingFee);
+        newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
+        newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+        newApplication.setMerchant(merchant);
+        newApplication.setShopNumber(prevApplication.getShopNumber());
+        newApplication.setStreetAddress(prevApplication.getStreetAddress());
+        newApplication.setArea(prevApplication.getArea());
+        newApplication.setLandmark(prevApplication.getLandmark());
+        newApplication.setPincode(prevApplication.getPincode());
+        newApplication.setCity(prevApplication.getCity());
+        newApplication.setState(prevApplication.getState());
+        newApplication.setBusinessName(prevApplication.getBusinessName());
+        newApplication.setStatus("draft");
+        newApplication.setMode("AUTO");
+        newApplication.setCategory(selectedCategory);
+        newApplication.setTenure(selectedCategoriesData.getPayableConverter());
+        newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
+        newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
+        newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
+        newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
+        newApplication.setLoanAmount(eligibleLoan.getAmount());
+        newApplication.setLoanType(eligibleLoan.getLoanType());
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
-//		if(newApplication.getLoanType()!=null && (newApplication.getLoanType().equalsIgnoreCase("ZOMATO") || newApplication.getLoanType().equalsIgnoreCase("BHARAT_SWIPE"))) {
-//			newApplication.setLender("HINDON");
-//		}
-//		else {
-//			newApplication.setLender("LDC");
-//		}
         newApplication = lendingApplicationDao.save(newApplication);
         loanUtil.publishApplicationEvent(newApplication);
 		lenderMappingService.lenderMapping(newApplication);
