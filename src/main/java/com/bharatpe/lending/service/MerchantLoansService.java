@@ -219,6 +219,7 @@ public class MerchantLoansService {
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(loanAmount);
             LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, loanType.name());
+            breakup.setProcessingFee(processingFee);
             eligibleLoanDao.deleteByMerchantId(merchantId);
             eligibleLoanDao.deleteCustomOffers(merchantId);
             insertEligibleLoan(merchantId, experian, breakup, lendingCategory);

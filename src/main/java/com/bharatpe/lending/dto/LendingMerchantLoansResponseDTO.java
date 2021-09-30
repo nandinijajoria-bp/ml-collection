@@ -66,6 +66,8 @@ public class LendingMerchantLoansResponseDTO {
         private String lender;
         private Double prevLoanUnpaidAmount;
         private Integer newEdiMonth;
+        private Double prepaymentAmount;
+        private Integer arrangerFee;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -91,6 +93,8 @@ public class LendingMerchantLoansResponseDTO {
         private Integer newIoEdiMonth;
         private String lender;
         private Double prevLoanUnpaidAmount;
+        private Double prepaymentAmount;
+        private Integer arrangerFee;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -445,6 +449,7 @@ public class LendingMerchantLoansResponseDTO {
             return;
         }
         double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
+        int pf = loanBreakupDetail.getProcessingFee() != null ? loanBreakupDetail.getProcessingFee() : 0;
         this.halfLoan = LendingMerchantLoansResponseDTO.HalfLoan.builder()
                 .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
                 .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
@@ -460,6 +465,8 @@ public class LendingMerchantLoansResponseDTO {
                 .lender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name())
                 .prevLoanUnpaidAmount(foreclosureAmount)
                 .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
+                .arrangerFee(pf)
+                .prepaymentAmount(loanBreakupDetail.getLoanAmount() - foreclosureAmount - pf)
                 .build();
     }
 
@@ -469,6 +476,7 @@ public class LendingMerchantLoansResponseDTO {
             return;
         }
         double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
+        int pf = loanBreakupDetail.getProcessingFee() != null ? loanBreakupDetail.getProcessingFee() : 0;
         this.ioLoan = LendingMerchantLoansResponseDTO.IOLoan.builder()
                 .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
                 .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
@@ -487,6 +495,8 @@ public class LendingMerchantLoansResponseDTO {
                 .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
                 .lender(Lender.HINDON.name())
                 .prevLoanUnpaidAmount(foreclosureAmount)
+                .arrangerFee(pf)
+                .prepaymentAmount(loanBreakupDetail.getLoanAmount() - foreclosureAmount - pf)
                 .build();
     }
 
