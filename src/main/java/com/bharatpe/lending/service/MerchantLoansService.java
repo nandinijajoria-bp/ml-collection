@@ -201,12 +201,14 @@ public class MerchantLoansService {
             int foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
             int processingFee = loanUtil.getIoHalfPF(lendingPaymentSchedule);
             double loanAmount = Math.ceil((foreclosureAmount + processingFee) / 1000.0) * 1000;
-            if (loanAmount < 10000d || lendingPaymentSchedule.getEdiRemainingCount() < 26) {
+            int ediPaidCount = (int)Math.ceil(lendingPaymentSchedule.getPaidAmount()/lendingPaymentSchedule.getEdiAmount());
+            int ediRemainingCount = lendingPaymentSchedule.getEdiCount() - ediPaidCount;
+            if (loanAmount < 10000d || ediRemainingCount < 26) {
                 logger.info("loan amount less than 10k for merchant:{} and loanType:{}", merchantId, loanType.name());
                 return null;
             }
             logger.info("Calculating " + loanType.name() + " for merchant:{} for amount:{}", merchantId, loanAmount);
-            int newEdiCount = calculateNewTenure(lendingPaymentSchedule.getEdiRemainingCount(), loanType);
+            int newEdiCount = calculateNewTenure(ediRemainingCount, loanType);
             if (newEdiCount == 0) {
                 return null;
             }
@@ -298,15 +300,11 @@ public class MerchantLoansService {
             if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
                 return false;
             }
-            if (lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getPincode() != null && loanUtil.isOGL(lendingPaymentSchedule.getLoanApplication().getPincode().intValue())) {
-                logger.info("Red pincode for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-                return false;
-            }
-            double paidRatio = lendingPaymentSchedule.getPaidPrinciple() != null ? (lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount()) : 0d;
-            double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
+            int ediPaidCount = (int)Math.ceil(lendingPaymentSchedule.getPaidAmount()/lendingPaymentSchedule.getEdiAmount());
+            int ediRemainingCount = lendingPaymentSchedule.getEdiCount() - ediPaidCount;
             double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
             foreclosureAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
-            return lendingPaymentSchedule.getEdiRemainingCount() >= 26 && paidRatio < 0.75D && foreclosureAmount >= 10000d && dpd >= 10d && dpd <= 45d;
+            return foreclosureAmount >= 10000d && ediRemainingCount >= 26;
         } catch (Exception e) {
             logger.error("Exception in half io loans base checks for loanId:{}", lendingPaymentSchedule.getId(), e);
         }
