@@ -352,6 +352,9 @@ public class VerifyOTPService {
 			lendingPaymentScheduleDao.save(activeLoan);
 
 			lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
+			if (LoanType.IO_TOPUP.name().equals(lendingApplication.getLoanType())) {
+			    lendingApplication.setLender("LIQUILOANS_NBFC");
+            }
 			lendingApplicationDao.save(lendingApplication);
 			if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
 				notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT", previousAmount));

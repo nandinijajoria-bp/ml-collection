@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.entity.LendingLenderMapping;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.enums.LoanType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,11 @@ public class LenderMappingService {
 
     public void lenderMapping(LendingApplication lendingApplication){
         try{
+            if (LoanType.IO_TOPUP.name().equals(lendingApplication.getLoanType())) {
+                lendingApplication.setLender("LIQUILOANS_NBFC");
+                lendingApplicationDao.save(lendingApplication);
+                return;
+            }
             Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(lendingApplication.getMerchant().getId());
             if (repeatLoan > 0) {
                 if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
