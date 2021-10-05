@@ -477,11 +477,13 @@ public class LendingMerchantLoansResponseDTO {
         }
         double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
         int pf = loanBreakupDetail.getProcessingFee() != null ? loanBreakupDetail.getProcessingFee() : 0;
+        int ediPaidCount = (int)Math.ceil(lendingPaymentSchedule.getPaidAmount()/lendingPaymentSchedule.getEdiAmount());
+        int ediRemainingCount = lendingPaymentSchedule.getEdiCount() - ediPaidCount;
         this.ioLoan = LendingMerchantLoansResponseDTO.IOLoan.builder()
                 .oldEdiAmount(lendingPaymentSchedule.getEdiAmount())
                 .newEdiAmount(loanBreakupDetail.getEdi().doubleValue())
                 .newIoEdiAmount(loanBreakupDetail.getIoEdi().doubleValue())
-                .oldEdiRemaining(lendingPaymentSchedule.getEdiRemainingCount())
+                .oldEdiRemaining(ediRemainingCount)
                 .newEdiRemaining(loanBreakupDetail.getEdiDays())
                 .newIoEdiRemaining(loanBreakupDetail.getIoEdiDays())
                 .oldRepaymentAmount(lendingPaymentSchedule.getTotalPayableAmount() - lendingPaymentSchedule.getPaidAmount())
@@ -493,7 +495,7 @@ public class LendingMerchantLoansResponseDTO {
                 .interestRepayment(loanBreakupDetail.getInterestAmount())
                 .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
                 .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
-                .lender(Lender.HINDON.name())
+                .lender(Lender.LIQUILOANS.name())
                 .prevLoanUnpaidAmount(foreclosureAmount)
                 .arrangerFee(pf)
                 .prepaymentAmount(loanBreakupDetail.getLoanAmount() - foreclosureAmount - pf)
