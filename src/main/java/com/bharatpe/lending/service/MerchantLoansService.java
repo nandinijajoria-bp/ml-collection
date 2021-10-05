@@ -292,11 +292,6 @@ public class MerchantLoansService {
                 logger.info("Previous loan is topup for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                 return false;
             }
-            BpEnach bpEnach = bpEnachDao.findSuccessEnach(lendingPaymentSchedule.getMerchant().getId());
-            if (bpEnach == null) {
-                logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-                return false;
-            }
             if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
                 return false;
             }
