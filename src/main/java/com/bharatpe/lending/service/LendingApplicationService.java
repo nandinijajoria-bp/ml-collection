@@ -751,7 +751,6 @@ public class LendingApplicationService {
 		}
 		String html;
 		String lender=detail.get("Lender");
-		
 		if(lender!=null && lender.equalsIgnoreCase("LDC")) {
 			html=getLdcTnc(detail);
 		}else if(lender.equalsIgnoreCase("MAMTA")){
