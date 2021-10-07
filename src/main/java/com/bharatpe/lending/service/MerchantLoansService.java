@@ -453,33 +453,27 @@ public class MerchantLoansService {
     public CommonResponse checkMerchant(String mobile, String pancard) {
         try {
             logger.info("Request to check merchant for mobile:{} and pancard:{}", mobile, pancard);
+            boolean isBpMerchant = false;
+            Merchant merchant = null;
             if (!StringUtils.isEmpty(mobile)) {
                 if (mobile.length() == 10) {
                     mobile = "91" + mobile;
                 }
-                Merchant merchant = merchantDao.findByMobile(mobile);
-                if (merchant != null) {
-                    Experian experian = experianDao.getByMerchantId(merchant.getId());
-                    if (experian != null) {
-                        return new CommonResponse(true, "merchant found using mobile:" + mobile);
-                    }
-                    BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchant.getId());
-                    if (d2RMerchant == null) {
-                        d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchant.getId());
-                    }
-                    if (d2RMerchant != null) {
-                        return new CommonResponse(true, "merchant found using mobile:" + mobile);
-                    }
-                    MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-                    if (merchantSummary != null && merchantSummary.getBpScore() != null && merchantSummary.getBpScore() > 2) {
-                        return new CommonResponse(true, "merchant found using mobile:" + mobile);
-                    }
-                }
+                merchant = merchantDao.findByMobile(mobile);
             }
-            if (!StringUtils.isEmpty(pancard)) {
+            if (merchant == null && !StringUtils.isEmpty(pancard)) {
                 Experian experian = experianDao.findByPancard(pancard);
                 if (experian != null) {
-                    return new CommonResponse(true, "merchant found using pancard:" + pancard);
+                    merchant = merchantDao.getById(experian.getMerchantId());
+                }
+            }
+            if (merchant != null) {
+                List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchant.getId(), false);
+                for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
+                    BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
+                    if (maxDpd.intValue() >= 20) {
+
+                    }
                 }
             }
         } catch (Exception e) {

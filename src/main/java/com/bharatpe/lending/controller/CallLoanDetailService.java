@@ -176,7 +176,7 @@ public class CallLoanDetailService {
 		data.put("transaction_id", ecollectTransaction.getId().toString());
 		data.put("bank_reference_no", ecollectTransaction.getBankReferenceNo());
 		data.put("account_number", ecollectTransaction.getVirtualAccountNumber());
-		data.put("amount", ecollectTransaction.getAmount().toString());
+		data.put("amount", String.valueOf(Math.ceil(ecollectTransaction.getAmount() / 1000.0) * 1000));
 		kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchant().getId().toString(), data);
 	}
 
