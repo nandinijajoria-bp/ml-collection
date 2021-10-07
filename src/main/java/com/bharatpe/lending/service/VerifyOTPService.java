@@ -199,7 +199,7 @@ public class VerifyOTPService {
             }
         }
 
-		if(lendingApplication.getProcessingFee() > 0 && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchant().getId())){
+		if(!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getProcessingFee() > 0 && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchant().getId())){
 			logger.info("Merchant is BP CLUB member, so making processing fee zero for applicationID:{}", lendingApplication.getId());
 			lendingApplication.setDisbursalAmount(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee());
 			lendingApplication.setProcessingFee(0D);
