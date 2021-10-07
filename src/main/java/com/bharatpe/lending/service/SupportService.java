@@ -957,6 +957,10 @@ public class SupportService {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         HtmlConverter.convertToPdf(html, outStream);
         ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+//        String filename = "test.pdf";
+//        FileOutputStream output = new FileOutputStream(filename);
+//        output.write(outStream.toByteArray());
+//        output.close();
         s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "bharatpe-agreement");
         LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(),type);
         if(loanAgreement == null){
@@ -1040,7 +1044,7 @@ public class SupportService {
     }
 
     public String getAgreementHtml(Map<String,Object> data,String lender){
-        String html = "";
+        String html = null;
         if("MAMTA".equals(lender)) {
              html = "<p style=\"text-align: center;\"><strong>Loan Details</strong></p>\n" +
                     "<p><span style=\"font-weight: 400;\">Loan ID: " + data.get("externalLoanId") + "</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style=\"font-weight: 400;\">Date:" + data.get("agreementAt") + "</span></p>\n" +
@@ -1547,7 +1551,7 @@ public class SupportService {
                     "</tbody>\n" +
                     "</table>\n" +
                     "<p style=\"text-align: left;\"><br /><strong>Date:&nbsp;" + data.get("createdAt") + "   &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;Place:&nbsp;"+data.get("city")+"</strong></p>";
-        }else if("HINDON".equalsIgnoreCase(lender) || "LDC".equalsIgnoreCase(lender)){
+        }else if("HINDON".equalsIgnoreCase(lender) || "LDC".equalsIgnoreCase(lender) || "LIQUILOANS_P2P".equalsIgnoreCase(lender) || "LIQUILOANS_NBFC".equalsIgnoreCase(lender)){
             try {
                 String filePath = "/templates/" + lender + ".html";
                 InputStream inputStream = this.getClass().getResourceAsStream(filePath);
