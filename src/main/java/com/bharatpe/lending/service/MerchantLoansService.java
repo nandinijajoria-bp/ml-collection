@@ -472,9 +472,27 @@ public class MerchantLoansService {
                 for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
                     BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
                     if (maxDpd.intValue() >= 20) {
-
+                        isBpMerchant = true;
+                        break;
+                    }
+                    if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
+                        isBpMerchant = true;
+                        break;
+                    }
+                    if (LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(),lendingPaymentSchedule.getDueAmount()) > 5) {
+                        isBpMerchant = true;
+                        break;
                     }
                 }
+                if (!isBpMerchant) {
+                    LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantAndStatusOrderByIdDesc(merchant, "rejected");
+                    if (lendingApplication != null && LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date()) <= 30) {
+                        isBpMerchant = true;
+                    }
+                }
+            }
+            if (isBpMerchant) {
+                return new CommonResponse(true, "BP Merchant");
             }
         } catch (Exception e) {
             logger.error("Exception while checking merchant", e);
