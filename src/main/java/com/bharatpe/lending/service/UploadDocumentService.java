@@ -388,7 +388,7 @@ public class UploadDocumentService {
 					dob = details.get("dob").get("value");
 					docKycDetails.setAddress(details.get("address").get("value"));
 					docKycDetails.setGender(details.get("gender").get("value"));
-					docKycDetails.setPincode(Integer.parseInt(details.get("pin").get("value")));
+					docKycDetails.setPincode(details.get("pin").get("value"));
 					docKycDetails.setCity(details.get("addressSplit").get("city"));
 					docKycDetails.setState(details.get("addressSplit").get("state"));
 					docKycDetails.setDocSide("BACK");
@@ -420,7 +420,7 @@ public class UploadDocumentService {
 					docKycDetails.setDocNo(details.get("aadhaar").get("value"));
 					docKycDetails.setQr(details.get("qr").get("value"));
 					docKycDetails.setFatherName(details.get("father").get("value"));
-					docKycDetails.setPincode(Integer.parseInt(details.get("pin").get("value")));
+					docKycDetails.setPincode(details.get("pin").get("value"));
 					docKycDetails.setCity(details.get("addressSplit").get("city"));
 					docKycDetails.setState(details.get("addressSplit").get("state"));
 					docKycDetails.setAddress(details.get("address").get("value"));

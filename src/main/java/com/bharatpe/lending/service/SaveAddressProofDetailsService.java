@@ -84,7 +84,7 @@ public class SaveAddressProofDetailsService {
 			toSave.setState(addressProofDetails.get("state"));
 		}
 		if(addressProofDetails.get("pin_code") != null && !addressProofDetails.get("pin_code").isEmpty()) {
-			toSave.setPincode(Integer.parseInt(addressProofDetails.get("pin_code")));
+			toSave.setPincode(addressProofDetails.get("pin_code"));
 		}
 		if(addressProofDetails.get("date_of_issue") != null && !addressProofDetails.get("date_of_issue").isEmpty()) {
 			toSave.setDoi(addressProofDetails.get("date_of_issue"));

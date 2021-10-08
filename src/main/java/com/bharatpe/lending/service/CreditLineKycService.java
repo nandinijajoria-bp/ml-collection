@@ -470,7 +470,7 @@ public class CreditLineKycService {
 		docKycDetails.setCity(lendingEkyc.getCity());
 		docKycDetails.setDob(lendingEkyc.getDob());
 		docKycDetails.setDocumentsIdProof(documentIdProof);
-		docKycDetails.setPincode(lendingEkyc.getPincode()!=null?Integer.valueOf(lendingEkyc.getPincode()):null);
+		docKycDetails.setPincode(lendingEkyc.getPincode()!=null?lendingEkyc.getPincode():null);
 		docKycDetails.setState(lendingEkyc.getState());
 		docKycDetails.setGender(lendingEkyc.getGender());
 		docKycDetails.setStatus("APPROVED");

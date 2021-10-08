@@ -449,7 +449,7 @@ public class LendingApplicationService {
 		docKycDetails.setAddress(merchantDocumentProofOcr.getAddress());
 		docKycDetails.setCity(merchantDocumentProofOcr.getCity());
 		docKycDetails.setState(merchantDocumentProofOcr.getState());
-		docKycDetails.setPincode(merchantDocumentProofOcr.getPincode() != null ? Integer.valueOf(merchantDocumentProofOcr.getPincode()) : null);
+		docKycDetails.setPincode(merchantDocumentProofOcr.getPincode() != null ? merchantDocumentProofOcr.getPincode() : null);
 		docKycDetails.setStatus("pending_verification");
 		docKycDetails.setModule("LENDING");
 
