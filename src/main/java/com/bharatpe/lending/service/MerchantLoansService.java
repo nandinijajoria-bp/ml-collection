@@ -292,6 +292,10 @@ public class MerchantLoansService {
                 logger.info("Previous loan is topup for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                 return false;
             }
+            if (!loanUtil.isEnachDone(lendingPaymentSchedule.getMerchant())) {
+                logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return false;
+            }
             if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
                 return false;
             }
