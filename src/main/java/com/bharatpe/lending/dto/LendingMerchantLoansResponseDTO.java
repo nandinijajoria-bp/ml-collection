@@ -495,7 +495,7 @@ public class LendingMerchantLoansResponseDTO {
                 .interestRepayment(loanBreakupDetail.getInterestAmount())
                 .newEdiMonth(loanBreakupDetail.getPrincipleEdiTenure())
                 .newIoEdiMonth(loanBreakupDetail.getIoOrFreeEdiTenure())
-                .lender(Lender.LIQUILOANS.name())
+                .lender(Lender.LIQUILOANS_NBFC.name())
                 .prevLoanUnpaidAmount(foreclosureAmount)
                 .arrangerFee(pf)
                 .prepaymentAmount(loanBreakupDetail.getLoanAmount() - foreclosureAmount - pf)
