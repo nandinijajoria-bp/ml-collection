@@ -750,7 +750,8 @@ public class LendingApplicationService {
 	public String populateHtml(Merchant merchant, long applicationId,String category, String lender1){
 		logger.info("Getting tnc html for application id : {}, lender: {}", applicationId, lender1);
 		Map<String, Object> detail=getDetails(merchant, applicationId,category, lender1);
-		String html = supportService.getAgreementHtml(detail, detail.get("lender").toString());
+		logger.info("details for tnc agreement: {}", detail.toString());
+		String html = supportService.getAgreementHtml(detail, Objects.nonNull(detail.get("lender")) ? detail.get("lender").toString() : "LDC");
 		return html;
 	}
 	
