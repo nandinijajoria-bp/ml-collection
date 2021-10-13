@@ -227,6 +227,17 @@ public class FosService {
                 responseDTO.setData(data);
                 return  responseDTO;
             }
+            if(experian.getBpScore() != null && experian.getBpScore() < 2D){
+                loanData.put("experian",Boolean.TRUE);
+                loanData.put("eligible",Boolean.FALSE);
+                loanData.put("color","#EAA003");
+                loanData.put("header","Merchant Not Eligible");
+                loanData.put("message","Task Not Enable");
+                data.put("loan_data",loanData);
+                data.put("task_enable",Boolean.FALSE);
+                responseDTO.setData(data);
+                return  responseDTO;
+            }
             String reason = experian.getReason();
             if("ENACH".equalsIgnoreCase(reason)){
                 reason = "Merchant Bank A/C does Not Allow Enach.";
