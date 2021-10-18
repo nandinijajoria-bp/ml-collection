@@ -2,11 +2,9 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.dao.LendingIoHalfTopupDao;
-import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
-import com.bharatpe.lending.common.dao.LoanDpdDao;
-import com.bharatpe.lending.common.dao.PartnersConfigurationDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.dao.*;
@@ -80,6 +78,9 @@ public class MerchantLoansService {
 
     @Autowired
     LendingIoHalfTopupDao lendingIoHalfTopupDao;
+
+    @Autowired
+    LendingContactSyncAuditDao lendingContactSyncAuditDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -187,6 +188,7 @@ public class MerchantLoansService {
                         }
                     }
                 }
+                responseDTO.setContactSync(isContactSyncRequired(lendingPaymentSchedule));
             }
 
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
@@ -194,6 +196,26 @@ public class MerchantLoansService {
             responseDTO.setSuccess(true);
         }
         return responseDTO;
+    }
+
+    private Boolean isContactSyncRequired(LendingPaymentSchedule lendingPaymentSchedule) {
+        LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findByLoanID(lendingPaymentSchedule.getId());
+        if(Objects.isNull(lendingContactSyncAudit) || Objects.isNull(lendingContactSyncAudit.getTotalEntries()) || lendingContactSyncAudit.getTotalEntries() < 100l) {
+            return true;
+        }
+
+        if(Objects.isNull(lendingContactSyncAudit.getMobileEntries()) || Objects.isNull(lendingContactSyncAudit.getNameEntries())) {
+            return true;
+        }
+
+        if((float)lendingContactSyncAudit.getNameEntries() / lendingContactSyncAudit.getTotalEntries() < 0.9) {
+            return true;
+        }
+
+        if((float)lendingContactSyncAudit.getMobileEntries() / lendingContactSyncAudit.getTotalEntries() < 0.9) {
+            return true;
+        }
+        return false;
     }
 
     private LoanCalculationUtil.LoanBreakupDetail calculateHalfIOLoan(LendingPaymentSchedule lendingPaymentSchedule, Long merchantId, LoanType loanType) {
