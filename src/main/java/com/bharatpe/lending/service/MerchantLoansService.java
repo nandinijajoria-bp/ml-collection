@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.dao.*;
@@ -87,6 +88,9 @@ public class MerchantLoansService {
 
     @Autowired
     S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    LendingContactSyncAuditDao lendingContactSyncAuditDao;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -205,42 +209,63 @@ public class MerchantLoansService {
     }
 
     private Boolean isContactSyncRequired(LendingPaymentSchedule lendingPaymentSchedule) {
-        Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId());
-        if(!phonebook.isPresent()) {
-            return true;
-        }
-        if(LoanUtil.getDateDiffInDays(new Date(), phonebook.get().getUpdatedAt()) > 60) {
-            return true;
-        }
-        String[] s3Url = phonebook.get().getS3URL().split("/");
-        String fileName = s3Url[s3Url.length -1];
-        logger.info("Filename for loanId: {}, {}",lendingPaymentSchedule.getId(), fileName);
-        Long totalEntries = 0l, nameEntries=0l, mobileEntries=0l;
         try {
-            InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook");
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-            String readLine = bufferedReader.readLine();
-            readLine = bufferedReader.readLine();
-            while(Objects.nonNull(readLine)) {
-                totalEntries++;
-                logger.info("phonebook for loan id : {}, readline: {}", lendingPaymentSchedule.getId(), readLine);
-                String[] arr = readLine.split(",");
-                String name = arr[0];
-                String mobile = arr[1];
-                if(!StringUtils.isEmpty(name)) {
-                    nameEntries++;
-                }
-                if(!StringUtils.isEmpty(mobile)) {
-                    mobileEntries++;
-                }
-                readLine = bufferedReader.readLine();
+            LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findByMerchantID(lendingPaymentSchedule.getId());
+            if (Objects.nonNull(lendingContactSyncAudit) &&
+                    lendingContactSyncAudit.getTotalEntries() >= 100 &&
+                    (float) lendingContactSyncAudit.getNameEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25 &&
+                    (float) lendingContactSyncAudit.getMobileEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25
+            ) {
+                return false;
             }
-        }
-        catch (Exception ex) {
-            logger.error("Error Occured while auditing contact data for loan id : {} {}", lendingPaymentSchedule.getId(), ex);
-        }
-        if(totalEntries < 100 || (float)nameEntries/totalEntries < 0.25 || (float)mobileEntries/totalEntries < 0.25) {
-            return true;
+
+            Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId());
+            if (!phonebook.isPresent()) {
+                return true;
+            }
+            if (LoanUtil.getDateDiffInDays(phonebook.get().getUpdatedAt(), new Date()) > 60) {
+                return true;
+            }
+            if (Objects.isNull(lendingContactSyncAudit)) {
+                lendingContactSyncAudit = new LendingContactSyncAudit();
+                lendingContactSyncAudit.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+                lendingContactSyncAudit.setLoanId(lendingPaymentSchedule.getId());
+            }
+            String[] s3Url = phonebook.get().getS3URL().split("/");
+            String fileName = s3Url[s3Url.length - 1];
+            logger.info("Filename for loanId: {}, {}", lendingPaymentSchedule.getId(), fileName);
+            Long totalEntries = 0l, nameEntries = 0l, mobileEntries = 0l;
+            try {
+                InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook");
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                String readLine = bufferedReader.readLine();
+                readLine = bufferedReader.readLine();
+                while (Objects.nonNull(readLine)) {
+                    totalEntries++;
+                    logger.info("phonebook for loan id : {}, readline: {}", lendingPaymentSchedule.getId(), readLine);
+                    String[] arr = readLine.split(",");
+                    String name = arr[0];
+                    String mobile = arr[1];
+                    if (!StringUtils.isEmpty(name)) {
+                        nameEntries++;
+                    }
+                    if (!StringUtils.isEmpty(mobile)) {
+                        mobileEntries++;
+                    }
+                    readLine = bufferedReader.readLine();
+                }
+                lendingContactSyncAudit.setMobileEntries(mobileEntries);
+                lendingContactSyncAudit.setNameEntries(nameEntries);
+                lendingContactSyncAudit.setTotalEntries(totalEntries);
+                lendingContactSyncAuditDao.save(lendingContactSyncAudit);
+            } catch (Exception ex) {
+                logger.error("Error Occured while auditing contact data for loan id : {} {}", lendingPaymentSchedule.getId(), ex);
+            }
+            if (totalEntries < 100 || (float) nameEntries / totalEntries < 0.25 || (float) mobileEntries / totalEntries < 0.25) {
+                return true;
+            }
+        } catch (Exception ex) {
+            logger.error("Exception Occured while checking contact sync required for loan id : {}, {}", lendingPaymentSchedule.getId(), ex);
         }
         return false;
     }
