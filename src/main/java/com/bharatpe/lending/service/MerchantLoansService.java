@@ -229,7 +229,6 @@ public class MerchantLoansService {
             if (Objects.isNull(lendingContactSyncAudit)) {
                 lendingContactSyncAudit = new LendingContactSyncAudit();
                 lendingContactSyncAudit.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
-                lendingContactSyncAudit.setLoanId(lendingPaymentSchedule.getId());
             }
             String[] s3Url = phonebook.get().getS3URL().split("/");
             String fileName = s3Url[s3Url.length - 1];
