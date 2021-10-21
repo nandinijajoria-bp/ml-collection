@@ -210,7 +210,7 @@ public class MerchantLoansService {
 
     private Boolean isContactSyncRequired(LendingPaymentSchedule lendingPaymentSchedule) {
         try {
-            LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findByMerchantID(lendingPaymentSchedule.getMerchant().getId());
+            LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findTop1ByMerchantId(lendingPaymentSchedule.getMerchant().getId());
             if (Objects.nonNull(lendingContactSyncAudit) &&
                     lendingContactSyncAudit.getTotalEntries() >= 100 &&
                     (float) lendingContactSyncAudit.getNameEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25 &&
