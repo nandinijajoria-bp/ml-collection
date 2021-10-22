@@ -16,4 +16,5 @@ public class CreateApplicationRequest {
     private AdditionalDetails additionalDetails;
     private String latitude;
     private String longitude;
+    private String businessName;
 }

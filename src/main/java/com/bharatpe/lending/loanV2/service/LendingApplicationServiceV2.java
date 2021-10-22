@@ -203,6 +203,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setCkycId(String.valueOf(merchant.getId()));
         lendingApplication.setLatitude(!StringUtils.isEmpty(lendingApplicationRequest.getLatitude()) ? lendingApplicationRequest.getLatitude() : null);
         lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
+        lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
         lendingApplication = lendingApplicationDao.save(lendingApplication);
         lenderMappingService.lenderMapping(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest);
@@ -283,6 +284,7 @@ public class LendingApplicationServiceV2 {
             if (applicationRequest.getProfessionalDetails() != null) {
                 saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
             }
+            lendingApplication.setBusinessName(applicationRequest.getBusinessName());
             lendingApplicationDao.save(lendingApplication);
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{}", lendingApplication.getId(), e);
