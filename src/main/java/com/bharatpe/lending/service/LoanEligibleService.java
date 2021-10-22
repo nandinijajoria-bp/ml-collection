@@ -867,7 +867,7 @@ public class LoanEligibleService {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 100000;
             } else if (!(previousLoan == null && !cpvCity)) {
-                maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : 700000;
+                maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : LendingConstants.MAX_LOAN_AMOUNT_INTEGER;
             }
             if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode && !"NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();
