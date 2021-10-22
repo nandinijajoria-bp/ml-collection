@@ -45,6 +45,8 @@ public class LendingMerchantLoansResponseDTO {
     private String topupLender;
     private BankAccountDetails accountDetails;
 
+    private Boolean contactSync = false;
+
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -414,7 +416,6 @@ public class LendingMerchantLoansResponseDTO {
         }
 
 
-
         @Override
         public String toString() {
             return "{" + " loanId='" + getLoanId() + "'" + ", loanAmount='" + getLoanAmount() + "'" + ", ediAmount='"
@@ -637,6 +638,14 @@ public class LendingMerchantLoansResponseDTO {
 
     public void setAccountDetails(BankAccountDetails accountDetails) {
         this.accountDetails = accountDetails;
+    }
+
+    public Boolean getContactSync() {
+        return this.contactSync;
+    }
+
+    public void setContactSync(Boolean contactSync) {
+        this.contactSync = contactSync;
     }
 
     @Override
