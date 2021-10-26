@@ -50,6 +50,20 @@ public class S3BucketHandler {
 		}
 		return s3client;
 	}
+
+	private AmazonS3 createS3BucketConnection(String region) {
+		AmazonS3 s3client = null;
+		try {
+			AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+			s3client = AmazonS3ClientBuilder.standard()
+					.withCredentials(new AWSStaticCredentialsProvider(credentials))
+					.withRegion(region)
+					.build();
+		}catch(Exception e) {
+			logger.info("Exception while creating connection to S3 bucket message : {}",e.getMessage());
+		}
+		return s3client;
+	}
 	
 	public String uploadToS3Bucket(String base64Encoded, String fileName, String bucket) {
 		Instant start = Instant.now();
@@ -128,6 +142,22 @@ public class S3BucketHandler {
 		}
 		catch(Exception e) {
 			logger.error("Exception while fetching object from s3", e);
+		}
+		return null;
+	}
+
+	public InputStream getObject(String key, String bucket, String region) throws FileNotFoundException{
+		try {
+			logger.info("Fetching object for ket {}",key);
+			Instant start = Instant.now();
+			AmazonS3 s3client = createS3BucketConnection(region);
+			InputStream inputStream=s3client.getObject(bucket, key).getObjectContent();
+			Instant end = Instant.now();
+			logger.info("Time Taken by AWS S3 getObject API : {} miliseconds", Duration.between(start, end).toMillis());
+			return  inputStream;
+		}
+		catch(Exception e) {
+			logger.error("Error occured while feting object stram from s3",e);
 		}
 		return null;
 	}
