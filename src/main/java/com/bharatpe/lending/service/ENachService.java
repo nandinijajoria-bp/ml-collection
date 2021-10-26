@@ -113,7 +113,11 @@ public class ENachService {
         }
         if (requestDTO.getStatus()) {
             logger.info("Enach success for merchant:{}", merchant.getId());
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
+            if(Objects.nonNull(lendingApplication) && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
+                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=easy-loans&wroute=enachSuccess");
+            } else {
+                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
+            }
             // Update Lending Application for ENACH
             if (lendingApplication == null) {
                 responseDTO.setResponse(false);
@@ -145,7 +149,7 @@ public class ENachService {
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
         }
-        if (lendingApplication != null && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
+        if (!requestDTO.getStatus() && lendingApplication != null && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
             responseDTO.getData().setDeep_link(env.getProperty("new.loan.deeplink"));
         }
         return responseDTO;
