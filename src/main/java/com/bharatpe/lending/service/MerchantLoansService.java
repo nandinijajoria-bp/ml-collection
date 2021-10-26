@@ -235,7 +235,7 @@ public class MerchantLoansService {
             logger.info("Filename for loanId: {}, {}", lendingPaymentSchedule.getId(), fileName);
             Long totalEntries = 0l, nameEntries = 0l, mobileEntries = 0l;
             try {
-                InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook");
+                InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook", "us-west-2");
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
                 String readLine = bufferedReader.readLine();
                 readLine = bufferedReader.readLine();
