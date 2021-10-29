@@ -243,8 +243,14 @@ public class MerchantLoansService {
                     totalEntries++;
                     logger.info("phonebook for loan id : {}, readline: {}", lendingPaymentSchedule.getId(), readLine);
                     String[] arr = readLine.split(",");
-                    String name = arr[0];
-                    String mobile = arr[1];
+                    String name = "";
+                    if(arr.length >= 1) {
+                        name = arr[0];
+                    }
+                    String mobile = "";
+                    if(arr.length >= 2) {
+                        mobile = arr[1];
+                    }
                     if (!StringUtils.isEmpty(name)) {
                         nameEntries++;
                     }
