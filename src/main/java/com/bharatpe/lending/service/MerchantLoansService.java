@@ -363,7 +363,7 @@ public class MerchantLoansService {
         if(responseDTO.getTopup()){
             return false;
         }
-        if (lendingPaymentSchedule.getMerchant().getId().equals(9319451L))
+        if (lendingPaymentSchedule.getMerchant().getId().equals(9319451L) || lendingPaymentSchedule.getMerchant().getId().equals(5352114L))
             return true;
         try {
             List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
