@@ -4,6 +4,7 @@ import lombok.Getter;
 
 public enum ApplicationStage {
 
+    ELIGIBLITY_NOT_CHECKED("ELIELIGIBLITY_NOT_CHECKEDGI"),
     INELIGIBLE("in_eligible"),
     NOT_STARTED("not_started"),
     DRAFT("draft"),
@@ -11,6 +12,7 @@ public enum ApplicationStage {
     RELEVANT("relevant"),
     REJECTED("rejected"),
     ACTIVE_LOAN("active_loan"),
+    CLOSED_LOAN("closed_loan"),
     PENDING_CPV_FOS_ASSIGNMENT("PENDING_CPV_FOS_ASSIGNMENT"),
     PENDING_CPV_SUBMISSION("PENDING_CPV_SUBMISSION"),
     PENDING_CPV_QC_ASSIGNMENT("PENDING_CPV_QC_ASSIGNMENT"),
