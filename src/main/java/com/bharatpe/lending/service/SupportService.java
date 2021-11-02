@@ -20,10 +20,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.SupportApiConstants;
 import com.bharatpe.lending.constant.SupportConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.LoanAgreementDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStage;
@@ -133,6 +130,9 @@ public class SupportService {
     @Autowired
     LoanDpdDao loanDpdDao;
 
+    @Autowired
+    BankListDao bankListDao;
+
     private final String basePath = "src/main/resources/templates/";
 
     ExecutorService executorService = Executors.newFixedThreadPool(5);
@@ -144,6 +144,29 @@ public class SupportService {
             SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
             supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
             CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
+            Experian experian = experianDao.getByMerchantId(merchantId);
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+            LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
+            List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
+            List<BankList> nachableBanks = bankListDao.findNachBankList();
+
+            SupportApiResponseDto supportApiResponseDto = new SupportApiResponseDto();
+            supportApiResponseDto.setMerchantId(merchantId);
+            supportApiResponseDto.setClosedLoans(closedLoans);
+            supportApiResponseDto.setNachableBanks(nachableBanks);
+            populateLoanData(supportApiResponseDto,lendingPaymentSchedule);
+            populateExperianData(supportApiResponseDto,experian, lendingApplication, false);
+            if(!ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
+                    if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                        populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
+                    }
+                } else {
+                    populateApplicationData(supportApiResponseDto, lendingApplication);
+                }
+            }
+            supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
+            responseDTO.setData(supportLoanResponseDTO);
             if (!ObjectUtils.isEmpty(creditLineMerchant)) {
                 supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_CREDIT_LINE);
                 supportLoanResponseDTO.setCreditLineAccount(Boolean.TRUE);
@@ -158,7 +181,6 @@ public class SupportService {
 
             supportLoanResponseDTO = getLoanDetail(supportLoanResponseDTO, merchantId);
 
-            Experian experian = experianDao.getByMerchantId(merchantId);
             if (ObjectUtils.isEmpty(experian)) {
                 logger.info("PAN not entered so eligibility is not checked for the merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.PAN_NOT_ENTERED);
@@ -203,8 +225,7 @@ public class SupportService {
                     return responseDTO;
                 }
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
-            LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
+
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus()) && ObjectUtils.isEmpty(lendingApplication)) {
                 logger.info("Previous Loan status is CLOSED and new loan application not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_APPLIED);
@@ -449,21 +470,6 @@ public class SupportService {
                 responseDTO.setData(supportLoanResponseDTO);
                 return responseDTO;
             }
-            SupportApiResponseDto supportApiResponseDto = new SupportApiResponseDto();
-            supportApiResponseDto.setMerchantId(merchantId);
-            populateLoanData(supportApiResponseDto,lendingPaymentSchedule);
-            populateExperianData(supportApiResponseDto,experian, lendingApplication, false);
-            if(ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
-                if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
-                    if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
-                        populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
-                    }
-                } else {
-                    populateApplicationData(supportApiResponseDto, lendingApplication);
-                }
-            }
-            supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
-            responseDTO.setData(supportLoanResponseDTO);
 
             return responseDTO;
         } catch (Exception ex) {
@@ -525,12 +531,17 @@ public class SupportService {
         if("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.REJECTED.getStage());
             Long reapplyTime = 0l;
-            if(Objects.nonNull(lendingApplication.getManualCibilReason())) {
+            if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibilReason())) {
                 Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason())) ?
                         SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
                 reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+            } else if("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+            } else if("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
             }
             supportApiResponseDto.setReapplyTime(reapplyTime);
+            supportApiResponseDto.setEligibleToApplyAgain(reapplyTime<=0);
         }
         LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
         if(Objects.nonNull(lendingApplicationPriority)) {
@@ -548,11 +559,10 @@ public class SupportService {
     private void populateApplicationData(SupportApiResponseDto supportApiResponseDto, Date prevLoanCloseDate) {
         LendingApplication lendingApplication = lendingApplicationDao.getRepeatLoanApplication(supportApiResponseDto.getMerchantId(), prevLoanCloseDate);
         if(Objects.isNull(lendingApplication)) {
-            supportApiResponseDto.setApplicationStage(ApplicationStage.NOT_STARTED.getStage());
-            supportApiResponseDto.setApplied(Boolean.FALSE);
             return;
         }
         supportApiResponseDto.setApplied(Boolean.TRUE);
+        supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
         if("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.DRAFT.getStage());
         }
@@ -565,13 +575,22 @@ public class SupportService {
         }
         if("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.REJECTED.getStage());
-            Long reapplyTime = 0l;
-            if(Objects.nonNull(lendingApplication.getManualCibilReason())) {
+            Long reapplyTime = null;
+            supportApiResponseDto.setEligibleToApplyAgain(Boolean.FALSE);
+            if("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibilReason())) {
+                if(SupportApiConstants.notEligibleToApplyReasons.contains(lendingApplication.getManualCibilReason())) {
+                    supportApiResponseDto.setEligibleToApplyAgain(Boolean.TRUE);
+                }
                 Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason())) ?
                         SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
                 reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+            } else if("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+            } else if("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
             }
             supportApiResponseDto.setReapplyTime(reapplyTime);
+            supportApiResponseDto.setEligibleToApplyAgain(reapplyTime<=0);
         }
         LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
         if(Objects.nonNull(lendingApplicationPriority)) {

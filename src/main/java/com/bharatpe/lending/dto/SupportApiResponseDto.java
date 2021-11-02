@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.common.entities.BankList;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import lombok.Data;
 
 import javax.persistence.criteria.CriteriaBuilder;
@@ -27,6 +29,8 @@ public class SupportApiResponseDto {
     Boolean tatBreached;
     Boolean fiRequired;
     Boolean eligibleToApplyAgain;
+    Boolean enachDone;
+    String currentStage;
     //active loan
     Boolean activeLoan;
     Integer dpd;
@@ -34,5 +38,8 @@ public class SupportApiResponseDto {
     Boolean eligibleForRepeat;
     Boolean pfRefunded;
     Date closingDate;
-    List<String> nachableBank = Arrays.asList();
+
+    //additional Params
+    List<LendingPaymentSchedule> closedLoans;
+    List<BankList> nachableBanks;
 }
