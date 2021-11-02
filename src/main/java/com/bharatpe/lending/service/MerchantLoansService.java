@@ -310,7 +310,7 @@ public class MerchantLoansService {
         return false;
     }
 
-    private List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule){
+    public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule){
         Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());

@@ -34,6 +34,7 @@ public class SupportApiResponseDto {
     //active loan
     Boolean activeLoan;
     Integer dpd;
+    Boolean eligibleForTopUp;
     //closed loan;
     Boolean eligibleForRepeat;
     Boolean pfRefunded;

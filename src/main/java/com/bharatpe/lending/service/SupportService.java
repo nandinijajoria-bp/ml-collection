@@ -23,10 +23,7 @@ import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
-import com.bharatpe.lending.enums.ApplicationStage;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.enums.RejectionReason;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -132,6 +129,9 @@ public class SupportService {
 
     @Autowired
     BankListDao bankListDao;
+
+    @Autowired
+    MerchantLoansService merchantLoansService;
 
     private final String basePath = "src/main/resources/templates/";
 
@@ -609,16 +609,22 @@ public class SupportService {
         if(Objects.isNull(lendingPaymentSchedule)) {
             return;
         }
+        supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
+        supportApiResponseDto.setActiveLoan(Boolean.FALSE);
         if("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
             supportApiResponseDto.setActiveLoan(Boolean.TRUE);
             supportApiResponseDto.setDpd(LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(),lendingPaymentSchedule.getDueAmount()));
+            List<LoanEligibilityDTO> topUpLoans = merchantLoansService.topupLoan(lendingPaymentSchedule);
+            if (!topUpLoans.isEmpty()) {
+                supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
+            }
         } else if("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
             LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),lendingPaymentSchedule.getId());
             supportApiResponseDto.setApplicationStage(ApplicationStage.CLOSED_LOAN.getStage());
-            supportApiResponseDto.setActiveLoan(Boolean.FALSE);
             supportApiResponseDto.setPfRefunded(lendingPayouts!=null);
             supportApiResponseDto.setEligibleForRepeat(getEligibility(lendingPaymentSchedule.getMerchant().getId()));
+            supportApiResponseDto.setClosingDate(lendingPaymentSchedule.getClosingDate());
         }
     }
 
