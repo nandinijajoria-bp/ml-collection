@@ -31,6 +31,7 @@ public class SupportApiResponseDto {
     Boolean eligibleToApplyAgain;
     Boolean enachDone;
     String currentStage;
+    List<ApplicationDTO> applicationJourney;
     //active loan
     Boolean activeLoan;
     Integer dpd;

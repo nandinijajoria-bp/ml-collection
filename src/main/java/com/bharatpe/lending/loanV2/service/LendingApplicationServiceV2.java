@@ -374,7 +374,7 @@ public class LendingApplicationServiceV2 {
         return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
     }
 
-    public ApiResponse<?> getApplicationStatus(Long applicationId, Merchant merchant, Boolean isIOS, String token) {
+    public ApiResponse<ApplicationStatusResponseDTO> getApplicationStatus(Long applicationId, Merchant merchant, Boolean isIOS, String token) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
             if (lendingApplication == null) {

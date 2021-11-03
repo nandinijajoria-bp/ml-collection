@@ -66,6 +66,23 @@ public class SupportApiConstants {
         put("CIBIL_RED", 0);
     }};
 
+    public static HashMap<String, String> getApplicationStageFromLmsStage = new HashMap<String, String>() {{
+        put("PENDING_KYC", "PENDING_KYC");
+        put("PENDING_KYC_ASSIGNMENT", "PENDING_KYC");
+        put("PENDING_KYC_CALL_TO_MERCHANT", "PENDING_KYC");
+        put("PENDING_KYC_ESCALATE_ASSIGNMENT", "PENDING_KYC");
+        put("PENDING_QC_ASSIGNMENT", "PENDING_QC");
+        put("PENDING_QC", "PENDING_QC");
+        put("PENDING_QC_CALL_TO_MERCHANT", "PENDING_QC");
+        put("QC_REJECTED", "QC_REJECTED");
+        put("PENDING_DISBURSAL", "PENDING_DISBURSAL");
+        put("DISBURSAL_PROCESSING", "DISBURSAL_PROCESSING");
+        put("SEND_TO_NBFC", "SEND_TO_NBFC");
+        put("DISBURSED", "DISBURSED");
+        put("DISBURSAL_REJECTED", "DISBURSAL_REJECTED");
+        put("SYSTEM_REJECTED", "SYSTEM_REJECTED");
+    }};
+
     public static Integer kycRejectionDefaultReapplyTimeline = 7;
     public static Integer qcRejectionDefaultReapplyTimeline = 7;
     public static Integer experianRejectionDefaultReapplyTimeline = 7;

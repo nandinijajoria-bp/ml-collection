@@ -25,6 +25,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -132,6 +133,9 @@ public class SupportService {
 
     @Autowired
     MerchantLoansService merchantLoansService;
+
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     private final String basePath = "src/main/resources/templates/";
 
@@ -563,6 +567,8 @@ public class SupportService {
         }
         supportApiResponseDto.setApplied(Boolean.TRUE);
         supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
+        supportApiResponseDto.setApplicationJourney(lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(),lendingApplication.getMerchant(),false,null).getData().getApplicationDTOList());
+        supportApiResponseDto.setCurrentStage(getApplicationCureentStage(lendingApplication));
         if("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.DRAFT.getStage());
         }
@@ -652,6 +658,41 @@ public class SupportService {
         }
         return eligibleAmount > 0D;
     }
+
+    private String getApplicationCureentStage(LendingApplication lendingApplication) {
+        if("deleted".equalsIgnoreCase(lendingApplication.getStatus())) {
+            return "DELETED";
+        }
+        if(Objects.nonNull(lendingApplication.getLmsStage())) {
+            return SupportApiConstants.getApplicationStageFromLmsStage.get(lendingApplication.getLmsStage());
+        }
+        if("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
+            if("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                return "KYC_REJECTED";
+            }
+            if("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                return "QC_REJECTED";
+            }
+            if("REJECTED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+                return "DISBURSAL_REJECTED";
+            }
+            return "SYSTEM_REJECTED"
+        }
+        if(!"APPROVED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
+            return "PENDING_KYC";
+        }
+        if(!"APPROVED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+            return "PENDING_QC";
+        }
+        if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())) {
+            return "PENDING_DISBURSAL";
+        }
+        if("DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+            return "DISBURSED";
+        }
+        return "DISBURSAL_PROCESSING";
+    }
+
 
     private String getExperianReason(String reason) {
         switch (reason) {
