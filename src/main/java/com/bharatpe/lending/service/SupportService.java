@@ -1,6 +1,5 @@
 package com.bharatpe.lending.service;
 
-import com.amazonaws.services.dynamodbv2.xspec.B;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
@@ -16,9 +15,10 @@ import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingBulkDisbursalRawDataDao;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
+import com.bharatpe.lending.common.enums.ApplicationStage;
+import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.constant.SupportApiConstants;
+import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -34,7 +34,6 @@ import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -42,10 +41,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -158,14 +155,18 @@ public class SupportService {
             supportApiResponseDto.setMerchantId(merchantId);
             supportApiResponseDto.setClosedLoans(closedLoans);
             supportApiResponseDto.setNachableBanks(nachableBanks);
+            logger.info("Populating Loan Data for merchant: {}", merchantId);
             populateLoanData(supportApiResponseDto,lendingPaymentSchedule);
+            logger.info("Populating Experian Data for merchant: {}", merchantId);
             populateExperianData(supportApiResponseDto,experian, lendingApplication, false);
             if(!ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
                 if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
                     if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                        logger.info("Populating Application Data for merchant: {}", merchantId);
                         populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
                     }
                 } else {
+                    logger.info("Populating Application Data for merchant: {}", merchantId);
                     populateApplicationData(supportApiResponseDto, lendingApplication);
                 }
             }
@@ -521,7 +522,11 @@ public class SupportService {
             supportApiResponseDto.setApplied(Boolean.FALSE);
             return;
         }
+        supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
         supportApiResponseDto.setApplied(Boolean.TRUE);
+        supportApiResponseDto.setApplicationJourney(lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(),lendingApplication.getMerchant(),false,null).getData().getApplicationDTOList());
+        supportApiResponseDto.setCurrentStage(getApplicationCureentStage(lendingApplication));
+        supportApiResponseDto.setApplicationStatus(lendingApplication.getStatus());
         if("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.DRAFT.getStage());
         }
@@ -569,6 +574,7 @@ public class SupportService {
         supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
         supportApiResponseDto.setApplicationJourney(lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(),lendingApplication.getMerchant(),false,null).getData().getApplicationDTOList());
         supportApiResponseDto.setCurrentStage(getApplicationCureentStage(lendingApplication));
+        supportApiResponseDto.setApplicationStatus(lendingApplication.getStatus());
         if("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.DRAFT.getStage());
         }
@@ -615,7 +621,7 @@ public class SupportService {
         if(Objects.isNull(lendingPaymentSchedule)) {
             return;
         }
-        supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
+        supportApiResponseDto.setEligibleForTopUp(Boolean.FALSE);
         supportApiResponseDto.setActiveLoan(Boolean.FALSE);
         if("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
             supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
@@ -676,7 +682,7 @@ public class SupportService {
             if("REJECTED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
                 return "DISBURSAL_REJECTED";
             }
-            return "SYSTEM_REJECTED"
+            return "SYSTEM_REJECTED";
         }
         if(!"APPROVED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
             return "PENDING_KYC";
