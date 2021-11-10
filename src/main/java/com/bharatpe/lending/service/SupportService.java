@@ -487,7 +487,7 @@ public class SupportService {
 
     private void populateExperianData(SupportApiResponseDto supportApiResponseDto, Experian experian, LendingApplication lendingApplication, Boolean refresh) {
         if(Objects.isNull(experian)) {
-            supportApiResponseDto.setApplicationStage(ApplicationStage.ELIGIBLITY_NOT_CHECKED.getStage());
+            supportApiResponseDto.setApplicationStage(ApplicationStage.ELIGIBILITY_NOT_CHECKED.getStage());
             supportApiResponseDto.setExperian(Boolean.FALSE);
             return;
         }
