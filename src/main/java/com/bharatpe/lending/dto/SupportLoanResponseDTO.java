@@ -1,11 +1,13 @@
 package com.bharatpe.lending.dto;
 
+import lombok.Data;
 import org.joda.time.DateTime;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+@Data
 public class SupportLoanResponseDTO {
 
     private Long merchantId;
@@ -28,6 +30,7 @@ public class SupportLoanResponseDTO {
     private Eligibility eligibility;
     private List<Map<String, Object>> loanDetailsList;
     private LoanArrangerFee loanArrangerFee;
+    private SupportApiResponseDto supportApiResponseDto;
 
     public Long getMerchantId() {
         return merchantId;

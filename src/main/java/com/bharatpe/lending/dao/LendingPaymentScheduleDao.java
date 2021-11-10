@@ -51,4 +51,7 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 
 	@Query(value="SELECT lps.* FROM lending_payment_schedule lps join lending_ledger ll on ll.loan_id=lps.id and ll.adjustment_mode in ('TOPUP','HALF_TOPUP','IO_TOPUP') and ll.amount>0 WHERE lps.merchant_id = :merchantId and lps.credit_loan=false order by id desc limit 1", nativeQuery=true)
 	LendingPaymentSchedule findTopupLoan(Long merchantId);
+
+	@Query(nativeQuery = true, value = "select * from lending_payment_schedule where merchant_id =:merchantId and status=:status order by id desc")
+	List<LendingPaymentSchedule> getLoansByMerchantIdAndStatus(Long merchantId, String status);
 }
