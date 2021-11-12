@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 
 public interface LendingConstants {
+	Integer MAX_LOAN_AMOUNT_INTEGER = 1000000;
+	Double MAX_LOAN_AMOUNT_DOUBLE = 1000000d;
 	String GUPSHUP_OTP_API_USERID = "2000182191";
 	String GUPSHUP_OTP_API_PASSWORD = "uelCIwOHu";
 	String GUPSHUP_SMS_SERVICE_URL = "https://enterprise.smsgupshup.com/GatewayAPI/rest";

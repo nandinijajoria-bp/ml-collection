@@ -177,7 +177,8 @@ public class TopupLoanEligibleService {
             case "LIGHT_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;repaidRatio=0.5;break;
             case "DARK_GREEN": prevLoanAmount = lendingApplication.getLoanAmount() * 1.5;repaidRatio=0.4;break;
         }
-        prevLoanAmount = Math.min(prevLoanAmount, 700000);
+
+        prevLoanAmount = Math.min(prevLoanAmount, LendingConstants.MAX_LOAN_AMOUNT_DOUBLE);
         if(paidRatio < repaidRatio || paidRatio > 0.98D) {
             logger.info("Insufficient paid ratio for merchant ID {}", merchant.getId());
             return new ArrayList<>();

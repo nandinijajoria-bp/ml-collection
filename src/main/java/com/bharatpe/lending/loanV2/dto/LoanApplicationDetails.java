@@ -2,8 +2,6 @@ package com.bharatpe.lending.loanV2.dto;
 
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 
@@ -26,4 +24,5 @@ public class LoanApplicationDetails {
     private ProfessionalDetails professionalDetails;
     private AdditionalDetails additionalDetails;
     private EnachErrorMessageDTO enachErrorResponse;
+    private boolean skipEnach;
 }
