@@ -14,7 +14,6 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.MerchantInfoDTO;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -91,7 +90,7 @@ public class LoanDetailsServiceV2 {
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
         try {
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
-            if(isCreditLineMerchant(merchant)) {
+            if (isCreditLineMerchant(merchant)) {
                 log.info("credit line merchant:{}", merchant.getId());
                 loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
                 return new ApiResponse<>(loanDetailsResponse);
@@ -148,7 +147,7 @@ public class LoanDetailsServiceV2 {
                     openApplication.setCkycDate(new Date());
                     openApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
                     lendingApplicationDao.save(openApplication);
-                    executorService.execute(() -> apiGatewayService.globalLimitTxn(openApplication.getMerchant().getId(), "CREDIT",openApplication.getLoanAmount()));
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(openApplication.getMerchant().getId(), "CREDIT", openApplication.getLoanAmount()));
                 }
             } catch (Exception e) {
                 log.error("Exception in updateCkycStatus for application:{}", openApplication.getId());
@@ -202,6 +201,7 @@ public class LoanDetailsServiceV2 {
             return;
         }
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode()));
+        loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
     }
 
     private Integer fetchPincode(Long merchantId) {
@@ -290,6 +290,9 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setApplicationStatus(openApplication.getStatus());
             applicationDetails.setRejectReason(getRejectionReason(openApplication));
             applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
+            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
+                applicationDetails.setSkipEnach(Boolean.TRUE);
+            }
             applicationDetails.setAddressDetails(getShopAddress(openApplication));
             applicationDetails.setProfessionalDetails(getProfessionalDetails(openApplication));
             applicationDetails.setAdditionalDetails(new AdditionalDetails(openApplication.getEmail(), openApplication.getAlternateMobile()));
@@ -297,7 +300,7 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setShopPhotoRequired(isShopPhotoRequired(openApplication));
             if (applicationDetails.getEnachDeeplink() == null && (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus()) || ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()))) {
                 int tat = loanUtil.getApplicationTAT(openApplication.getId());
-                applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat+2) + " Days");
+                applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }
             applicationDetails.setReapply(shouldReapply(openApplication));
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
@@ -355,7 +358,7 @@ public class LoanDetailsServiceV2 {
                 KycStatusDTO kycStatusDTO = kycHandler.getKycStatus(openApplication.getMerchant().getId());
                 if (KycStatus.REJECTED.equals(kycStatusDTO.getKycStatus()) && KycDocType.PAN_NO.equals(kycStatusDTO.getKycDocType())) {
                     return Reapply.PAN.name();
-                } else if ("PANCARD MISMATCH".equalsIgnoreCase(openApplication.getCkycRejectionReason())){
+                } else if ("PANCARD MISMATCH".equalsIgnoreCase(openApplication.getCkycRejectionReason())) {
                     return Reapply.PAN.name();
                 } else {
                     return Reapply.OFFER.name();
@@ -369,7 +372,7 @@ public class LoanDetailsServiceV2 {
 
     private boolean isShopPhotoRequired(LendingApplication openApplication) {
         if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
-            List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(),openApplication.getId());
+            List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
             return lendingShopDocumentsList.size() < 2;
         }
         return false;
@@ -381,7 +384,7 @@ public class LoanDetailsServiceV2 {
     }
 
     private ProfessionalDetails getProfessionalDetails(LendingApplication openApplication) {
-        LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(openApplication.getId());
+        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(openApplication.getId());
         if (lendingGstDetail == null) return null;
         return ProfessionalDetails.builder()
                 .profession(lendingGstDetail.getEntityType())
