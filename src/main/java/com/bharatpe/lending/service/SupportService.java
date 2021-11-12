@@ -25,6 +25,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -497,7 +498,7 @@ public class SupportService {
             if (experian.getRejected() || Objects.nonNull(experian.getReason())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
                 supportApiResponseDto.setIneligibleType(
-                        Objects.nonNull(SupportApiConstants.rejectionTypeMap.get(experian.getReason()).getReason()) ?
+                        Objects.nonNull(SupportApiConstants.rejectionTypeMap.get(experian.getReason())) ?
                                 SupportApiConstants.rejectionTypeMap.get(experian.getReason()).getReason() :
                                 RejectionReason.LOW_TRANSACTION.getReason());
                 supportApiResponseDto.setEligible(Boolean.FALSE);
@@ -529,7 +530,10 @@ public class SupportService {
             }
             supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
             supportApiResponseDto.setApplied(Boolean.TRUE);
-            supportApiResponseDto.setApplicationJourney(lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), lendingApplication.getMerchant(), false, null).getData().getApplicationDTOList());
+            ApiResponse<ApplicationStatusResponseDTO> response = lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), lendingApplication.getMerchant(), false, null);
+            if(Objects.nonNull(response)&&Objects.nonNull(response.getData())) {
+                supportApiResponseDto.setApplicationJourney(response.getData().getApplicationDTOList());
+            }
             supportApiResponseDto.setCurrentStage(getApplicationCureentStage(lendingApplication));
             supportApiResponseDto.setApplicationStatus(lendingApplication.getStatus());
             if ("draft".equalsIgnoreCase(lendingApplication.getStatus())) {

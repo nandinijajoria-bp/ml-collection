@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -11,6 +12,7 @@ import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto.Banner;
 
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -157,6 +156,12 @@ public class IneligibleDetailsService {
     		}
             response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null &&  merchantSummary.getUniqueCustomer1mon() >= 15);
             Experian experian=experianDao.getByMerchantId(merchant.getId());
+
+            if (Objects.nonNull(experian) && Objects.nonNull(experian.getRejectedDate())) {
+                Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.experianRejectionReapplyTimelineMap.get(experian.getReason())) ?
+                        SupportApiConstants.experianRejectionReapplyTimelineMap.get(experian.getReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
+                response.setReapplyTime(reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()));
+            }
             if(experian!=null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(LendingConstants.ENACH_BANK_MESSAGE, LendingConstants.BANK_CHANGE_DEEPLINK);
             } else {

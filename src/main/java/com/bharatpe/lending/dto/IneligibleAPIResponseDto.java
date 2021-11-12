@@ -19,6 +19,7 @@ public class IneligibleAPIResponseDto {
 	private Boolean amountSuccess = false;
 	private Boolean countSuccess;
 	private CtaDto enach;
+	private Long reapplyTime;
 	private List<Banner> banners = new ArrayList<>();
 
 	public IneligibleAPIResponseDto() {
@@ -29,6 +30,7 @@ public class IneligibleAPIResponseDto {
 		super();
 		this.success = success;
 		this.message = message;
+		this.reapplyTime = 0l;
 	}
 
 	public class Banner {
@@ -142,5 +144,13 @@ public class IneligibleAPIResponseDto {
 
 	public void addBanner(Banner banner) {
 		this.banners.add(banner);
+	}
+
+	public Long getReapplyTime() {
+		return reapplyTime;
+	}
+
+	public void setReapplyTime(Long reapplyTime) {
+		this.reapplyTime = reapplyTime;
 	}
 }
