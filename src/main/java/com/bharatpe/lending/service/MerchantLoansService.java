@@ -399,8 +399,8 @@ public class MerchantLoansService {
             return eligiblity;
         }
 
-        if(!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())){
-            logger.info("Lending Application Nach Not Done For this  merchant:{}", lendingApplication.getMerchant().getId());
+        if (!loanUtil.isEnachDone(lendingPaymentSchedule.getMerchant())) {
+            logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
         }
 
