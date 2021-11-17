@@ -124,7 +124,7 @@ public class LoanUtil {
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
-		
+
 		selectedLoan.put("amount", application.getLoanAmount().intValue());
 		selectedLoan.put("category", application.getCategory());
 		selectedLoan.put("construct", application.getLoanConstruct());
@@ -141,10 +141,10 @@ public class LoanUtil {
 		selectedLoan.put("lender", application.getLender());
 		return selectedLoan;
 	}
-	
+
 	public static SelectedLoanDTO prepareSelectedLoanDTO(LendingApplication application, LendingCategories lendingCategories) {
 		SelectedLoanDTO selectedLoan = new SelectedLoanDTO();
-		
+
 		selectedLoan.setId(application.getId());
 		selectedLoan.setAmount(application.getLoanAmount().intValue());
 		selectedLoan.setCategory(application.getCategory());
@@ -164,26 +164,26 @@ public class LoanUtil {
 		if (lendingCategories != null) {
 			selectedLoan.setInstallmentDetails(prepareLabels(application, lendingCategories.getIoTenureMonths().intValue()));
 		}
-		
+
 		return selectedLoan;
 	}
-	
+
 	//for credit line
 	public static SelectedLoanDTO prepareSelectedLoanDTO(CreditApplication application) {
-		
-		
+
+
 		SelectedLoanDTO selectedLoan = new SelectedLoanDTO();
-		
+
 		selectedLoan.setId(application.getId());
 		selectedLoan.setAmount(application.getAmount().intValue());
 		selectedLoan.setCategory(application.getCategory());
-		
+
 		return selectedLoan;
 	}
-	
+
 	public static Map<String, Object> prepareShopDetailsForClient(LendingApplication application, LendingGstDetail lendingGstDetail) {
 		Map<String, Object> shopDetails = new LinkedHashMap<>();
-		
+
 		shopDetails.put("business_name", application.getBusinessName());
 		shopDetails.put("shop_number", application.getShopNumber());
 		shopDetails.put("street_address", application.getStreetAddress());
@@ -204,10 +204,10 @@ public class LoanUtil {
 		}
 		return shopDetails;
 	}
-	
+
 	public static ShopDetailsDTO prepareShopDetailsDTO(LendingApplication application,LendingGstDetail lendingGstDetail) {
 		ShopDetailsDTO shopDetails = new ShopDetailsDTO();
-		
+
 		shopDetails.setBusinessName(application.getBusinessName());
 		shopDetails.setShopNumber(application.getShopNumber());
 		shopDetails.setStreetAddress(application.getStreetAddress());
@@ -252,12 +252,12 @@ public class LoanUtil {
 		}
 		return shopDetails;
 	}
-	
+
 	private static List<LabelDTO> prepareLabels(LendingApplication application, int months) {
 		List<LabelDTO> list = new ArrayList<>();
-		
+
 		if("CONSTRUCT_1".equals(application.getLoanConstruct())) {
-			
+
 		} else if("CONSTRUCT_2".equals(application.getLoanConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
 			list.add(new LabelDTO("EDI for Next " + (application.getTenureInMonths() - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
@@ -274,7 +274,7 @@ public class LoanUtil {
 			logger.error("Construct {} not defined, throwing Exception", application.getLoanConstruct());
 			throw new RuntimeException("Construct not defined.");
 		}
-		
+
 		return list;
 	}
 
@@ -743,13 +743,15 @@ public class LoanUtil {
             List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
             String imageFrontLat = null;
             String imageFrontLng = null;
+            String proof_front_side = null;
             for (LendingShopDocuments lendingShopDocument : lendingShopDocuments) {
                 if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-front")) {
                     imageFrontLat = !StringUtils.isEmpty(lendingShopDocument.getLatitude()) ? lendingShopDocument.getLatitude() : null;
                     imageFrontLng = !StringUtils.isEmpty(lendingShopDocument.getLongitude()) ? lendingShopDocument.getLongitude() : null;
+                    proof_front_side = !StringUtils.isEmpty(lendingShopDocument.getProofFrontSide()) ? lendingShopDocument.getProofFrontSide() : null;
                 }
             }
-            Map<String,Object> request = new HashMap<>();
+            Map<String, Object> request = new HashMap<>();
             request.put("merchantId", lendingApplication.getMerchant().getId());
             request.put("applicationId", lendingApplication.getId());
             request.put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
@@ -763,6 +765,7 @@ public class LoanUtil {
             request.put("street_address", lendingApplication.getStreetAddress());
             request.put("area", lendingApplication.getArea());
             request.put("shop_number", lendingApplication.getShopNumber());
+            request.put("proof_front_side", proof_front_side);
             executorService.execute(() -> {
                 kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
             });
