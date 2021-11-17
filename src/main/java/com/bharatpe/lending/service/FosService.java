@@ -17,6 +17,7 @@ import com.bharatpe.lending.dto.FosAttributionRequestDTO;
 import com.bharatpe.lending.dto.FosAttributionResponseDTO;
 import com.bharatpe.lending.dto.FosResponseDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -269,7 +270,7 @@ public class FosService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            if(eligibleLoan != null && lendingApplication == null){
+            if(eligibleLoan != null && !LoanType.SMALL_TICKET.name().equals(eligibleLoan.getLoanType()) && lendingApplication == null){
                 loanData.put("eligible",Boolean.TRUE);
                 loanData.put("applicationPending",Boolean.FALSE);
                 loanData.put("color","#02A758");
@@ -280,7 +281,7 @@ public class FosService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            if(lendingApplication != null){
+            if(lendingApplication != null && !LoanType.SMALL_TICKET.name().equals(lendingApplication.getLoanType())){
                 MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
                 logger.info("Merchant bank Detais",merchantBankDetail);
                 if("draft".equals(lendingApplication.getStatus())){
