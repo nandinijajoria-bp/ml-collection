@@ -180,7 +180,7 @@ public class VerifyOTPService {
 			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
 			return finalResponse;
 		}
-		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) || "IO_TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) || "HALF_TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(lendingApplication.getMerchant().getId());
 			if(checkDupe != null){
 				logger.info("duplicate application for Topup Loan For MerchantId:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
