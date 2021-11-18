@@ -744,7 +744,11 @@ public class LoanUtil {
             String imageFrontLat = null;
             String imageFrontLng = null;
             String proof_front_side = null;
+            String proof_stock_side = null;
             for (LendingShopDocuments lendingShopDocument : lendingShopDocuments) {
+                if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-stock")) {
+                    proof_stock_side = !StringUtils.isEmpty(lendingShopDocument.getProofFrontSide()) ? lendingShopDocument.getProofFrontSide() : null;
+                }
                 if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-front")) {
                     imageFrontLat = !StringUtils.isEmpty(lendingShopDocument.getLatitude()) ? lendingShopDocument.getLatitude() : null;
                     imageFrontLng = !StringUtils.isEmpty(lendingShopDocument.getLongitude()) ? lendingShopDocument.getLongitude() : null;
@@ -766,6 +770,7 @@ public class LoanUtil {
             request.put("area", lendingApplication.getArea());
             request.put("shop_number", lendingApplication.getShopNumber());
             request.put("proof_front_side", proof_front_side);
+            request.put("proof_stock_side", proof_stock_side);
             executorService.execute(() -> {
                 kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
             });
