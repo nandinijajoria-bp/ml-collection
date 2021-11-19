@@ -654,7 +654,7 @@ public class LendingApplicationServiceV2 {
             }
             if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT)){
                 lendingResubmitTask.setResubmit(Boolean.TRUE);
-                lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason().toString());
+                lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason());
                 lendingResubmitTask.setResubmitTimestamp(new Date());
 
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();

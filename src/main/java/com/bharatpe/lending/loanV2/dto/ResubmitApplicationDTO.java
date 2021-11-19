@@ -6,8 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 
-import java.util.List;
-
 @Data
 @ToString
 @Builder
@@ -15,6 +13,6 @@ import java.util.List;
 public class ResubmitApplicationDTO {
     Long merchantId;
     Long applicationId;
-    List<String> resubmitReason;
+    String resubmitReason;
     LendingResubmitEnum type;
 }
