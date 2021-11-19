@@ -694,7 +694,7 @@ public class LendingApplicationServiceV2 {
             if(loanAmount < 10000d){
                 return false;
             }
-
+            Double amountDiffrence = lendingApplication.getLoanAmount() - loanAmount;
             int processingFee= (int) Math.ceil(loanAmount * Double.parseDouble(lendingCategory.getProcessingFee()));
             Integer edi,repayment;
             edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()))) / lendingCategory.getPayableDays());
@@ -716,6 +716,8 @@ public class LendingApplicationServiceV2 {
             lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
             lendingAuditTrial.setUserId(0L);
             lendingAuditTrialDao.save(lendingAuditTrial);
+
+            executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT", amountDiffrence));
 
             return true;
         }catch (Exception e){
@@ -745,6 +747,9 @@ public class LendingApplicationServiceV2 {
             }
             lendingResubmitTask.setResubmitDone(Boolean.TRUE);
             lendingResubmitTaskDao.save(lendingResubmitTask);
+
+            lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
+            lendingApplicationDao.save(lendingApplication);
 
             LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
             lendingAuditTrial.setMerchantId(lendingApplication.getMerchant().getId());
