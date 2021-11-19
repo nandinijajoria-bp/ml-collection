@@ -585,7 +585,10 @@ public class SupportService {
             }
             supportApiResponseDto.setApplied(Boolean.TRUE);
             supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
-            supportApiResponseDto.setApplicationJourney(lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), lendingApplication.getMerchant(), false, null).getData().getApplicationDTOList());
+            ApiResponse<ApplicationStatusResponseDTO> response = lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), lendingApplication.getMerchant(), false, null);
+            if(Objects.nonNull(response)&&Objects.nonNull(response.getData())) {
+                supportApiResponseDto.setApplicationJourney(response.getData().getApplicationDTOList());
+            }
             supportApiResponseDto.setCurrentStage(getApplicationCureentStage(lendingApplication));
             supportApiResponseDto.setApplicationStatus(lendingApplication.getStatus());
             if ("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
