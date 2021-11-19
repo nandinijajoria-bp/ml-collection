@@ -634,9 +634,9 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> resubmitApplication(ResubmitApplicationDTO resubmitApplicationDTO){
         try{
-            if(Objects.isNull(resubmitApplicationDTO.getApplicationId()) || Objects.isNull(resubmitApplicationDTO.getMerchantId()) || Objects.isNull(resubmitApplicationDTO.getType())){
-                return new ApiResponse<>(false,"Request is Invalid.");
-            }
+//            if(Objects.isNull(resubmitApplicationDTO.getApplicationId()) || Objects.isNull(resubmitApplicationDTO.getMerchantId()) || Objects.isNull(resubmitApplicationDTO.getType())){
+//                return new ApiResponse<>(false,"Request is Invalid.");
+//            }
             LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(resubmitApplicationDTO.getMerchantId(),resubmitApplicationDTO.getApplicationId(),"pending_verification");
             if(Objects.isNull(lendingApplication)){
                 return new ApiResponse<>(false,"application not eligible for resubmit");
@@ -732,9 +732,9 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId){
         try{
-            if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
-                return new ApiResponse<>(false,"Request is Invalid.");
-            }
+//            if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
+//                return new ApiResponse<>(false,"Request is Invalid.");
+//            }
 
             LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(merchantId,applicationId,"pending_verification");
             if(Objects.isNull(lendingApplication)){
