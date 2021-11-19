@@ -376,7 +376,14 @@ public class FosService {
                     return  responseDTO;
                 }
             }else{
-                return  responseDTO;
+                loanData.put("eligible",Boolean.FALSE);
+                loanData.put("color","#ED6A5B");
+                loanData.put("header","Merchant Not Eligible");
+                loanData.put("message","Merchant Not Eligible For Loan.");
+                data.put("loan_data",loanData);
+                data.put("task_enable",Boolean.FALSE);
+                responseDTO.setData(data);
+                return responseDTO;
             }
         }catch(Exception ex){
             logger.error("Error Fos Loan Details API", ex);
