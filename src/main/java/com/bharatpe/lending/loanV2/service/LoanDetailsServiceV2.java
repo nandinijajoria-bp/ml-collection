@@ -4,9 +4,11 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -32,6 +34,7 @@ import org.springframework.util.StringUtils;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -60,6 +63,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     LendingGstDao lendingGstDao;
+
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
     MerchantSummaryDao merchantSummaryDao;
@@ -283,11 +289,18 @@ public class LoanDetailsServiceV2 {
 
     private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian) {
         try {
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(),openApplication.getMerchant().getId());
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
             applicationDetails.setExternalLoanId(openApplication.getExternalLoanId());
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
+            if(Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
+                applicationDetails.setApplicationStatus("RESUBMIT");
+            }
+            if(Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() && !lendingResubmitTask.getDowngradeDone()){
+                applicationDetails.setApplicationStatus("DOWNGRADE");
+            }
             applicationDetails.setRejectReason(getRejectionReason(openApplication));
             applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
             if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {

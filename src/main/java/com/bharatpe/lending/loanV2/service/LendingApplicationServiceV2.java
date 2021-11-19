@@ -2,8 +2,10 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
@@ -11,10 +13,7 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.ApplicationDTO;
 import com.bharatpe.lending.dto.ApplicationStatusResponseDTO;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.KycDocType;
-import com.bharatpe.lending.enums.KycStatus;
-import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -26,13 +25,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -48,6 +45,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
     LoanUtil loanUtil;
@@ -629,5 +629,137 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in applicationStatus v2 for application:{}", applicationId, e);
         }
         return new ApiResponse<>(false, "Something went wrong");
+    }
+
+
+    public ApiResponse<?> resubmitApplication(ResubmitApplicationDTO resubmitApplicationDTO){
+        try{
+            if(Objects.isNull(resubmitApplicationDTO.getApplicationId()) || Objects.isNull(resubmitApplicationDTO.getMerchantId()) || Objects.isNull(resubmitApplicationDTO.getType())){
+                return new ApiResponse<>(false,"Request is Invalid.");
+            }
+            LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(resubmitApplicationDTO.getMerchantId(),resubmitApplicationDTO.getApplicationId(),"pending_verification");
+            if(Objects.isNull(lendingApplication)){
+                return new ApiResponse<>(false,"application not eligible for resubmit");
+            }
+
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(resubmitApplicationDTO.getApplicationId(),resubmitApplicationDTO.getMerchantId());
+            if(Objects.nonNull(lendingResubmitTask) && (resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT) &&(lendingResubmitTask.getResubmit() || lendingResubmitTask.getResubmitDone())) && resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE) &&(lendingResubmitTask.getDowngrade() || lendingResubmitTask.getDowngradeDone())){
+                return new ApiResponse<>(false,"application already resubmited");
+            }
+
+            if(Objects.isNull(lendingResubmitTask)){
+                lendingResubmitTask = new LendingResubmitTask();
+                lendingResubmitTask.setMerchantId(resubmitApplicationDTO.getMerchantId());
+                lendingResubmitTask.setApplicationId(resubmitApplicationDTO.getApplicationId());
+            }
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT)){
+                lendingResubmitTask.setResubmit(Boolean.TRUE);
+                lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason().toString());
+                lendingResubmitTask.setResubmitTimestamp(new Date());
+
+                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                lendingAuditTrial.setMerchantId(lendingApplication.getMerchant().getId());
+                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                lendingAuditTrial.setType("APP_STATUS");
+                lendingAuditTrial.setNewStatus(resubmitApplicationDTO.getType().toString());
+                lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+                lendingAuditTrial.setUserId(0L);
+                lendingAuditTrialDao.save(lendingAuditTrial);
+
+            }else if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE)){
+                Boolean downGradeStatus= downgradeApplication(lendingApplication);
+                if(downGradeStatus){
+                    lendingResubmitTask.setDowngrade(Boolean.TRUE);
+                    lendingResubmitTask.setDowngradeTimestamp(new Date());
+                }
+            }
+            lendingResubmitTaskDao.save(lendingResubmitTask);
+
+            return new ApiResponse<>(true,"Application Submitted Successfully");
+        }catch (Exception e){
+            log.error("Exception in resubmit application for application:{}", resubmitApplicationDTO.getApplicationId(), e);
+        }
+        return new ApiResponse<>(false,"Something went wrong");
+    }
+
+    public Boolean downgradeApplication(LendingApplication lendingApplication){
+        try{
+            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
+            if(Objects.isNull(lendingCategory)){
+                return false;
+            }
+            Double loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
+            loanAmount=Math.min(loanAmount,100000d);
+            if(loanAmount < 10000d){
+                return false;
+            }
+
+            int processingFee= (int) Math.ceil(loanAmount * Double.parseDouble(lendingCategory.getProcessingFee()));
+            Integer edi,repayment;
+            edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()))) / lendingCategory.getPayableDays());
+            repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
+
+            lendingApplication.setEdi(Double.valueOf(edi));
+            lendingApplication.setRepayment(Double.valueOf(repayment));
+            lendingApplication.setProcessingFee((double) processingFee);
+            lendingApplication.setDisbursalAmount(loanAmount - processingFee);
+            lendingApplication.setLoanAmount(loanAmount);
+            lendingApplicationDao.save(lendingApplication);
+
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchant().getId());
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial.setType("APP_STATUS");
+            lendingAuditTrial.setNewStatus("DOWNGRADE");
+            lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+            lendingAuditTrial.setUserId(0L);
+            lendingAuditTrialDao.save(lendingAuditTrial);
+
+            return true;
+        }catch (Exception e){
+            log.error("Exception while downgrading application for applicationId:{}",lendingApplication.getId(),e);
+        }
+        return false;
+    }
+
+    private double roundDown(double limit) {//round down to nearest 1000
+        return (int)(limit/1000) * 1000;
+    }
+
+    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId){
+        try{
+            if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
+                return new ApiResponse<>(false,"Request is Invalid.");
+            }
+
+            LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(merchantId,applicationId,"pending_verification");
+            if(Objects.isNull(lendingApplication)){
+                return new ApiResponse<>(false,"application not eligible for resubmit");
+            }
+
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(applicationId,merchantId);
+            if(Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone()){
+                return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
+            }
+            lendingResubmitTask.setResubmitDone(Boolean.TRUE);
+            lendingResubmitTaskDao.save(lendingResubmitTask);
+
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchant().getId());
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial.setType("APP_STATUS");
+            lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
+            lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+            lendingAuditTrial.setUserId(0L);
+            lendingAuditTrialDao.save(lendingAuditTrial);
+
+            return new ApiResponse<>(true,"Resubmit Done Succesfully.");
+        }catch (Exception e){
+            log.error("Exception in resubmit Done for application:{}", applicationId, e);
+        }
+        return new ApiResponse<>(false,"Something Went Wrong.");
     }
 }

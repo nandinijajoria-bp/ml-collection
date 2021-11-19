@@ -4,11 +4,14 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.CreateApplicationRequest;
 import com.bharatpe.lending.loanV2.dto.InitiateKycRequest;
+import com.bharatpe.lending.loanV2.dto.ResubmitApplicationDTO;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("lending")
@@ -49,4 +52,21 @@ public class LendingApplicationControllerV2 {
         log.info("lending applicationStatus v2 response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping(value = "/application/resubmit")
+    public ResponseEntity<ApiResponse<?>> resubmitApplication(@RequestBody(required = false) ResubmitApplicationDTO resubmitApplicationDTO){
+        log.info("Lending application resubmit request:{} for merchant:{}",resubmitApplicationDTO,resubmitApplicationDTO.getMerchantId());
+        ApiResponse<?> response = lendingApplicationServiceV2.resubmitApplication(resubmitApplicationDTO);
+        log.info("Lending Resubmit Application Response:{} for applicationId:{}",response,resubmitApplicationDTO.getApplicationId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping(value = "/application/resubmitDone")
+    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestParam Long merchantId,@RequestParam Long applicationId){
+        log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchantId,applicationId);
+        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchantId,applicationId);
+        log.info("Lending Resubmit done Application Response:{} for applicationId:{}",response,applicationId);
+        return ResponseEntity.ok(response);
+    }
+
 }

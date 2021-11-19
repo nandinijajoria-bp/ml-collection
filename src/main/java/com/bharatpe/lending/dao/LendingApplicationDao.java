@@ -25,6 +25,9 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value = "select * from lending_application where merchant_id= :merchantId and status = :status and merchant_id is not null and status is not null order by id desc limit 1", nativeQuery = true)
 	LendingApplication findByMerchantIdAndStatus(Long merchantId, String status);
 
+	@Query(value = "select * from lending_application where merchant_id= :merchantId and id=:applicationId and status = :status and status is not null order by id desc limit 1", nativeQuery = true)
+	LendingApplication findByMerchantIdAndApplicationIdAndStatus(Long merchantId,Long applicationId, String status);
+
 	@Query(value = "select * from lending_application where merchant_id= :merchantId and loan_type!= :loanType and status!= :status order by id desc limit 1", nativeQuery = true)
 	LendingApplication findByMerchantIdAndNotLoanTypeAndNotStatus(Long merchantId, String loanType, String status);
 

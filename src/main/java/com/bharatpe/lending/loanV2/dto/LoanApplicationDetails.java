@@ -25,4 +25,5 @@ public class LoanApplicationDetails {
     private AdditionalDetails additionalDetails;
     private EnachErrorMessageDTO enachErrorResponse;
     private boolean skipEnach;
+    private String resubmitReason;
 }
