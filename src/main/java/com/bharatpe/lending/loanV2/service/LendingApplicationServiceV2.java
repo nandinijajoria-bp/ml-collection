@@ -634,9 +634,9 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> resubmitApplication(ResubmitApplicationDTO resubmitApplicationDTO){
         try{
-//            if(Objects.isNull(resubmitApplicationDTO.getApplicationId()) || Objects.isNull(resubmitApplicationDTO.getMerchantId()) || Objects.isNull(resubmitApplicationDTO.getType())){
-//                return new ApiResponse<>(false,"Request is Invalid.");
-//            }
+            if(Objects.isNull(resubmitApplicationDTO.getApplicationId()) || Objects.isNull(resubmitApplicationDTO.getMerchantId()) || Objects.isNull(resubmitApplicationDTO.getType())){
+                return new ApiResponse<>(false,"Request is Invalid.");
+            }
             LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(resubmitApplicationDTO.getMerchantId(),resubmitApplicationDTO.getApplicationId(),"pending_verification");
             if(Objects.isNull(lendingApplication)){
                 return new ApiResponse<>(false,"application not eligible for resubmit");
@@ -652,7 +652,7 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setMerchantId(resubmitApplicationDTO.getMerchantId());
                 lendingResubmitTask.setApplicationId(resubmitApplicationDTO.getApplicationId());
             }
-            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT)){
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT.toString())){
                 lendingResubmitTask.setResubmit(Boolean.TRUE);
                 lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason());
                 lendingResubmitTask.setResubmitTimestamp(new Date());
@@ -667,7 +667,7 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrial.setUserId(0L);
                 lendingAuditTrialDao.save(lendingAuditTrial);
 
-            }else if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE)){
+            }else if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE.toString())){
                 Boolean downGradeStatus= downgradeApplication(lendingApplication);
                 if(downGradeStatus){
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
@@ -732,9 +732,9 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId){
         try{
-//            if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
-//                return new ApiResponse<>(false,"Request is Invalid.");
-//            }
+            if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
+                return new ApiResponse<>(false,"Request is Invalid.");
+            }
 
             LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(merchantId,applicationId,"pending_verification");
             if(Objects.isNull(lendingApplication)){
