@@ -652,7 +652,7 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setMerchantId(resubmitApplicationDTO.getMerchantId());
                 lendingResubmitTask.setApplicationId(resubmitApplicationDTO.getApplicationId());
             }
-            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT.toString())){
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT.name())){
                 lendingResubmitTask.setResubmit(Boolean.TRUE);
                 lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason());
                 lendingResubmitTask.setResubmitTimestamp(new Date());
@@ -667,7 +667,7 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrial.setUserId(0L);
                 lendingAuditTrialDao.save(lendingAuditTrial);
 
-            }else if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE.toString())){
+            }else if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE.name())){
                 Boolean downGradeStatus= downgradeApplication(lendingApplication);
                 if(downGradeStatus){
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
