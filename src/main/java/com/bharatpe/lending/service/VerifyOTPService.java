@@ -147,7 +147,8 @@ public class VerifyOTPService {
 		}
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
 		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-		if(lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getDowngrade() && !lendingResubmitTask.getDowngradeDone()){
+		if(lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getDowngrade() &&( lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
+			lendingApplication=lendingApplicationDao.findById(applicationId).get();
 			return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(),lendingResubmitTask);
 		}
 		if(lendingApplication == null) {
@@ -162,7 +163,7 @@ public class VerifyOTPService {
 		logger.info("Mobile length: {}", merchant.getMobile().length());
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
-		if(lendingApplication == null && lendingResubmitTask!= null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12){
+		if(lendingResubmitTask!= null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12){
 			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
 			if(isOTPVerified){
 				lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
