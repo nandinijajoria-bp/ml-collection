@@ -356,11 +356,11 @@ public class LendingApplicationServiceV2 {
     public ApiResponse<?> getAgreement(Long applicationId, Merchant merchant) {
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
         LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-        if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
+        if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getDowngradeDone())) {
             log.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
             return new ApiResponse<>(false, "Draft application not found");
         }
-        if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
+        if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
             lendingApplication =lendingApplicationDao.findById(applicationId).get();
         }
         if (lendingApplication == null) {
