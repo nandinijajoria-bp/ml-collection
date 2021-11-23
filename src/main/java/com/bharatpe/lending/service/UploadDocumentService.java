@@ -91,6 +91,9 @@ public class UploadDocumentService {
 			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
 			return uploadDocumentResponse;
 		}
+		if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
+			lendingApplication =lendingApplicationDao.findById(requestDTO.getPayload().getApplicationId()).get();
+		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofdao.findByMerchantAndLendingApplication(merchant, lendingApplication);
