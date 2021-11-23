@@ -297,6 +297,7 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setApplicationStatus(openApplication.getStatus());
             if(Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
                 applicationDetails.setApplicationStatus("RESUBMIT");
+                applicationDetails.setResubmitReason(lendingResubmitTask.getResubmitReason());
             }
             if(Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() && !lendingResubmitTask.getDowngradeDone()){
                 applicationDetails.setApplicationStatus("DOWNGRADE");
