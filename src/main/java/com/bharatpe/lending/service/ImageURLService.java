@@ -72,7 +72,7 @@ public class ImageURLService {
 		}
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
 		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-		if(lendingApplication == null  && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
+		if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
 			logger.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
 			result.put("success", false);
 			return result;
