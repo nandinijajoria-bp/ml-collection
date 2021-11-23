@@ -355,9 +355,16 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> getAgreement(Long applicationId, Merchant merchant) {
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+        LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+        if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
+            log.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
+            return new ApiResponse<>(false, "Draft application not found");
+        }
+        if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
+            lendingApplication =lendingApplicationDao.findById(applicationId).get();
+        }
         if (lendingApplication == null) {
             log.info("Draft application not found for id:{}", applicationId);
-            return new ApiResponse<>(false, "Draft application not found");
         }
         LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
         AgreementResponse agreementResponse = AgreementResponse.builder()
