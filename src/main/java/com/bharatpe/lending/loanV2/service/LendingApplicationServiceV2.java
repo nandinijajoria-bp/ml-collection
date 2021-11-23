@@ -661,6 +661,7 @@ public class LendingApplicationServiceV2 {
             }
             if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.RESUBMIT.name())){
                 lendingResubmitTask.setResubmit(Boolean.TRUE);
+                lendingResubmitTask.setResubmitDone(Boolean.FALSE);
                 lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason());
                 lendingResubmitTask.setResubmitTimestamp(new Date());
 
@@ -678,6 +679,7 @@ public class LendingApplicationServiceV2 {
                 Boolean downGradeStatus= downgradeApplication(lendingApplication);
                 if(downGradeStatus){
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
+                    lendingResubmitTask.setDowngradeDone(Boolean.FALSE);
                     lendingResubmitTask.setDowngradeTimestamp(new Date());
                 }
             }
