@@ -655,9 +655,13 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(resubmitApplicationDTO.getApplicationId()) || Objects.isNull(resubmitApplicationDTO.getMerchantId()) || Objects.isNull(resubmitApplicationDTO.getType())){
                 return new ApiResponse<>(false,"Request is Invalid.");
             }
-            LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndApplicationIdAndStatus(resubmitApplicationDTO.getMerchantId(),resubmitApplicationDTO.getApplicationId(),"pending_verification");
-            if(Objects.isNull(lendingApplication)){
-                return new ApiResponse<>(false,"application not eligible for resubmit");
+            LendingApplication lendingApplication = lendingApplicationDao.findById(resubmitApplicationDTO.getApplicationId()).get();
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT) && !"pending_verification".equalsIgnoreCase(lendingApplication.getStatus())){
+                return new ApiResponse<>(false,"application Not Eligible for resubmited");
+            }
+
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE) && !"approved".equalsIgnoreCase(lendingApplication.getStatus())){
+                return new ApiResponse<>(false,"application Not Eligible for downgrade");
             }
 
             LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(resubmitApplicationDTO.getApplicationId(),resubmitApplicationDTO.getMerchantId());
