@@ -131,6 +131,10 @@ public class LendingApplicationServiceV2 {
             if (lendingApplication == null) {
                 LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationRequest.getApplicationId());
                 if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
+                    lendingApplication = lendingApplicationDao.findById(applicationRequest.getApplicationId()).get();
+                    if(lendingApplication==null){
+                        log.info("Application not found for id:{}", applicationRequest.getApplicationId());
+                    }
                     lendingApplication.setBusinessName(applicationRequest.getBusinessName());
                     lendingApplicationDao.save(lendingApplication);
                     log.info("Application Resubmit With Business Name for application id:{}", applicationRequest.getApplicationId());
