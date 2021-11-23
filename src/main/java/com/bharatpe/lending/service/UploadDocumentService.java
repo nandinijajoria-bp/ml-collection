@@ -4,7 +4,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.*;
@@ -53,6 +55,9 @@ public class UploadDocumentService {
 	
 	@Autowired
 	S3BucketHandler s3BucketHandler;
+
+	@Autowired
+	LendingResubmitTaskDao lendingResubmitTaskDao;
 	
 	@Autowired
 	KarzaHandler karzaHandler;
@@ -81,9 +86,13 @@ public class UploadDocumentService {
 		}
 
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
-		if(lendingApplication ==  null) {
+		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(requestDTO.getPayload().getApplicationId());
+		if(lendingApplication ==  null && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
 			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
 			return uploadDocumentResponse;
+		}
+		if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
+			lendingApplication =lendingApplicationDao.findById(requestDTO.getPayload().getApplicationId()).get();
 		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 

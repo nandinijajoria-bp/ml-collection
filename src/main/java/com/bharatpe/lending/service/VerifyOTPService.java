@@ -8,9 +8,11 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -120,6 +122,9 @@ public class VerifyOTPService {
     LendingShopDocumentsDao lendingShopDocumentsDao;
 
     @Autowired
+	LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Autowired
     LoanUtil loanUtil;
 
     @Autowired
@@ -141,20 +146,35 @@ public class VerifyOTPService {
 			return finalResponse;
 		}
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+		if(lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getDowngrade() &&( lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
+			lendingApplication=lendingApplicationDao.findById(applicationId).get();
+			return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(),lendingResubmitTask);
+		}
 		if(lendingApplication == null) {
 			logger.info("No application found in draft status for given application id {}", applicationId);
 			return finalResponse;
 		}
-
-
-		return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta());
+		return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(),null);
 	}
 	
-	private Map<String, Boolean> verifyOTP(String otp, String uuid, Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+	private Map<String, Boolean> verifyOTP(String otp, String uuid, Merchant merchant, LendingApplication lendingApplication, Meta meta,LendingResubmitTask lendingResubmitTask) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+		logger.info("Mobile length: {}", merchant.getMobile().length());
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
-		logger.info("Mobile length: {}", merchant.getMobile().length());
+		if(lendingResubmitTask!= null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12){
+			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
+			if(isOTPVerified){
+				lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
+				lendingResubmitTaskDao.save(lendingResubmitTask);
+				lendingApplication.setLmsStage("PENDING_DISBURSAL");
+				lendingApplicationDao.save(lendingApplication);
+				finalResponse.put("success",true);
+				finalResponse.put("agreement_verified",true);
+				return finalResponse;
+			}
+		}
 		if(merchant.getMobile().length() == 12) {
 			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
 			if(isOTPVerified) {

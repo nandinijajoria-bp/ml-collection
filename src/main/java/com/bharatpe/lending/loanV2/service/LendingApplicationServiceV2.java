@@ -129,6 +129,17 @@ public class LendingApplicationServiceV2 {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationRequest.getApplicationId(), merchant, "draft");
             if (lendingApplication == null) {
+                LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationRequest.getApplicationId());
+                if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
+                    lendingApplication = lendingApplicationDao.findById(applicationRequest.getApplicationId()).get();
+                    if(lendingApplication==null){
+                        log.info("Application not found for id:{}", applicationRequest.getApplicationId());
+                    }
+                    lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    lendingApplicationDao.save(lendingApplication);
+                    log.info("Application Resubmit With Business Name for application id:{}", applicationRequest.getApplicationId());
+                    return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
+                }
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
                 return new ApiResponse<>(false, "Draft application not found");
             }
@@ -344,9 +355,16 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> getAgreement(Long applicationId, Merchant merchant) {
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+        LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+        if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getDowngradeDone())) {
+            log.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
+            return new ApiResponse<>(false, "Draft application not found");
+        }
+        if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
+            lendingApplication =lendingApplicationDao.findById(applicationId).get();
+        }
         if (lendingApplication == null) {
             log.info("Draft application not found for id:{}", applicationId);
-            return new ApiResponse<>(false, "Draft application not found");
         }
         LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
         AgreementResponse agreementResponse = AgreementResponse.builder()
@@ -654,6 +672,7 @@ public class LendingApplicationServiceV2 {
             }
             if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.RESUBMIT.name())){
                 lendingResubmitTask.setResubmit(Boolean.TRUE);
+                lendingResubmitTask.setResubmitDone(Boolean.FALSE);
                 lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason());
                 lendingResubmitTask.setResubmitTimestamp(new Date());
 
@@ -671,6 +690,7 @@ public class LendingApplicationServiceV2 {
                 Boolean downGradeStatus= downgradeApplication(lendingApplication);
                 if(downGradeStatus){
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
+                    lendingResubmitTask.setDowngradeDone(Boolean.FALSE);
                     lendingResubmitTask.setDowngradeTimestamp(new Date());
                 }
             }

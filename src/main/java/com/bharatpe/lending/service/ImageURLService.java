@@ -9,8 +9,10 @@ import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.PhonebookDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
@@ -42,6 +44,9 @@ public class ImageURLService {
 	LendingEkycDao lendingEkycDao;
 
 	@Autowired
+	LendingResubmitTaskDao lendingResubmitTaskDao;
+
+	@Autowired
 	PhonebookDao phonebookDao;
 
 	@Autowired
@@ -66,10 +71,14 @@ public class ImageURLService {
 			return result;
 		}
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
-		if(lendingApplication == null) {
+		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+		if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
 			logger.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
 			result.put("success", false);
 			return result;
+		}
+		if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
+			lendingApplication =lendingApplicationDao.findById(applicationId).get();
 		}
 
 		logger.info("Application: {}", lendingApplication);

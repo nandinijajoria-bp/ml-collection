@@ -11,8 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Objects;
-
 @RestController
 @RequestMapping("lending")
 @Slf4j
@@ -62,9 +60,9 @@ public class LendingApplicationControllerV2 {
     }
 
     @GetMapping(value = "/application/resubmitDone")
-    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestParam Long merchantId,@RequestParam Long applicationId){
-        log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchantId,applicationId);
-        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchantId,applicationId);
+    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestHeader("token") String token,@RequestParam Long applicationId, @RequestAttribute Merchant merchant){
+        log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchant.getId(),applicationId);
+        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId);
         log.info("Lending Resubmit done Application Response:{} for applicationId:{}",response,applicationId);
         return ResponseEntity.ok(response);
     }
