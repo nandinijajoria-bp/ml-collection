@@ -167,6 +167,8 @@ public class VerifyOTPService {
 			if(isOTPVerified){
 				lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
 				lendingResubmitTaskDao.save(lendingResubmitTask);
+				lendingApplication.setLmsStage("PENDING_DISBURSAL");
+				lendingApplicationDao.save(lendingApplication);
 				finalResponse.put("success",true);
 				finalResponse.put("agreement_verified",true);
 				return finalResponse;
