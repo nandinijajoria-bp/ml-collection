@@ -129,6 +129,13 @@ public class LendingApplicationServiceV2 {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationRequest.getApplicationId(), merchant, "draft");
             if (lendingApplication == null) {
+                LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationRequest.getApplicationId());
+                if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
+                    lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    lendingApplicationDao.save(lendingApplication);
+                    log.info("Application Resubmit With Business Name for application id:{}", applicationRequest.getApplicationId());
+                    return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
+                }
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
                 return new ApiResponse<>(false, "Draft application not found");
             }
