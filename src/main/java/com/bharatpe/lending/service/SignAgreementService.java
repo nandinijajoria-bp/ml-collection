@@ -4,8 +4,10 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -86,6 +88,9 @@ public class SignAgreementService {
 	LendingEkycDao lendingEkycDao;
 
 	@Autowired
+	LendingResubmitTaskDao lendingResubmitTaskDao;
+
+	@Autowired
 	LoanUtil loanUtil;
 
 
@@ -118,10 +123,12 @@ public class SignAgreementService {
 		response.put("otp_flow",false);
 		
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
-		
-		if(lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
-			logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
-			return response;
+		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+		if((Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getDowngradeDone())){
+			if(lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
+				logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
+				return response;
+			}
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
 			KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
