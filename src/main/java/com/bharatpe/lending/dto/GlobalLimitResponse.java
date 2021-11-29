@@ -23,6 +23,7 @@ public class GlobalLimitResponse {
         private Double globalLimit;
         private boolean derog;
         private String rejectReason;
+        private String rejectionType;
         private String pancardName;
         private Experian experian;
     }
