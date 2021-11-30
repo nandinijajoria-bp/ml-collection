@@ -26,6 +26,8 @@ public class KycDoc {
     private String city;
     private String xml;
     private String passPhrase;
-    private String DOB;
+    private String dob;
     private String remarks;
+    private String gender;
+    private String response;
 }

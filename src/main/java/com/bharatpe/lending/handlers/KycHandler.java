@@ -81,7 +81,7 @@ public class KycHandler {
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("docs", docs);
-                put("imgRequire", false);
+                put("imgRequire", true);
                 put("acceptRejected", true);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);

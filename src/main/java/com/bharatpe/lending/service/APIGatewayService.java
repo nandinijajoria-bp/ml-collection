@@ -22,6 +22,8 @@ import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.enums.KycDocType;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,6 +44,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.*;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -160,6 +163,12 @@ public class APIGatewayService {
 
     @Autowired
     LendingPincodesDao lendingPincodesDao;
+
+    @Autowired
+    KycHandler kycHandler;
+
+    @Autowired
+    LendingEkycDao lendingEkycDao;
 
     private final String CLIENT = "LENDING";
 
@@ -1692,53 +1701,90 @@ public class APIGatewayService {
         return  "N";
     }
 
-    public Map getKycDetails(Long applicationId,Long merchantId){
-        String dob = null;
-        DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(merchantId,applicationId);
-        DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(merchantId,applicationId);
-        if(panDetail == null){
+    public Map getKycDetails(LendingApplication lendingApplication){
+        Map result = new HashMap();
+        if(ObjectUtils.isEmpty(lendingApplication.getCkycId())) {
+            String dob = null;
+            DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            if (panDetail == null) {
                 panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
-        }
-        if(poaDetail == null){
-            poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
-        }
-        Date dateOfBirth = null;
-        dob = panDetail.getDob();
-        try {
-            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            dateOfBirth = sdf.parse(dob);
-        } catch (ParseException e) {
+            }
+            if (poaDetail == null) {
+                poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
+            }
+            Date dateOfBirth = null;
+            dob = panDetail.getDob();
             try {
-                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-                dateOfBirth= sdf.parse(dob);
-            } catch (ParseException ex) {
-                logger.error("Exception while parsing DOB date:{}", dob, ex);
+                DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                dateOfBirth = sdf.parse(dob);
+            } catch (ParseException e) {
+                try {
+                    DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                    dateOfBirth = sdf.parse(dob);
+                } catch (ParseException ex) {
+                    logger.error("Exception while parsing DOB date:{}", dob, ex);
+                }
+            }
+            String pancardUrl = "";
+            String addressProof1 = "";
+            String addressProof2 = "";
+            try {
+                pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                if (!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
+                    addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                    addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(), "loan-document");
+                }
+                if ("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
+                    addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "lending-ekyc");
+                }
+            } catch (Exception ex) {
+                logger.info("Fetching Document From Bucket", ex);
+            }
+            LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(),lendingApplication.getId());
+            if(Objects.nonNull(lendingEkyc)) {
+                result.put("ekyc_response", lendingEkyc.getResponse());
+            }
+            result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
+            result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
+            result.put("proof_type", poaDetail.getDocType());
+            result.put("gender", poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
+            result.put("pancardUrl", pancardUrl);
+            result.put("addressproof1", addressProof1);
+            result.put("addressproof2", addressProof2);
+        } else {
+            List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchant().getId());
+            for(KycDoc kycDoc : kycDocs) {
+                if(KycDocType.POA.equals(kycDoc.getDocType())) {
+                    result.put("proof_type", kycDoc.getSubDocType());
+                    result.put("addressproof1", kycDoc.getDocFrontImageUrl());
+                    result.put("addressproof2", kycDoc.getDocBackImageUrl());
+                    result.put("gender", ObjectUtils.isEmpty(kycDoc.getGender()) ? "Male" : (kycDoc.getGender().startsWith("M") ? "Male" : "Female"));
+                    result.put("ekyc_response", kycDoc.getResponse());
+                }
+                if(KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
+                    if(Objects.nonNull(kycDoc.getDob())) {
+                        String dob = kycDoc.getDob();
+                        Date dateOfBirth = null;
+                        try {
+                            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                            dateOfBirth = sdf.parse(dob);
+                        } catch (ParseException e) {
+                            try {
+                                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                                dateOfBirth = sdf.parse(dob);
+                            } catch (ParseException ex) {
+                                logger.error("Exception while parsing DOB date:{}", dob, ex);
+                            }
+                        }
+                        result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
+                    }
+                    result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
+                    result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
+
+                }
             }
         }
-        String pancardUrl = "";
-        String addressProof1 = "";
-        String addressProof2 = "";
-        try{
-             pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(),"loan-document");
-             if(!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())){
-                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"loan-document");
-                 addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(),"loan-document");
-             }
-             if("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())){
-                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"lending-ekyc");
-             }
-        }catch(Exception ex){
-            logger.info("Fetching Document From Bucket",ex);
-        }
-
-        Map result = new HashMap();
-        result.put("person_name",panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
-        result.put("dob",dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
-        result.put("proof_type",poaDetail.getDocType());
-        result.put("gender",poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
-        result.put("pancardUrl",pancardUrl);
-        result.put("addressproof1",addressProof1);
-        result.put("addressproof2",addressProof2);
         return  result;
     }
 
