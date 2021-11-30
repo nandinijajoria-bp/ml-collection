@@ -2191,6 +2191,10 @@ public class LendingApplicationService {
 				data.put("bankAccountChange", Boolean.FALSE);
 				data.put("message", "Application Is Pending Verification State!");
 			}
+			if ("draft".equalsIgnoreCase(lendingApplication.getStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+				data.put("bankAccountChange", Boolean.FALSE);
+				data.put("message", "Application is in draft state!");
+			}
 			responseDTO.setData(data);
 			return responseDTO;
 		}catch(Exception ex){
