@@ -907,23 +907,28 @@ public class SupportService {
                         String[] header = { "partner_tag", "loan_type", "Loan_amount","tenure","partner_loan_id","fee_amount","gst_amount","interest_rate","interest_type","partner_computed_disbursement_amount","partner_computed_interest_amount","no_of_EDI","EDI_amount","EDI_schedule","customer_risk_segment","customer_location_category","existing_BP_merchant","customer_type_NTC","any_written_off_loan_in_last_two_years","income_to_debt_ratio","recommendation_from_BP","date_of_birth","consumer_name","gender","email","pan_number","mobile_number","loan_purpose","pincode","address","city","address_state","address_type","address_proof_type","type","stay_type","landmark","customer_bank_name","bank_account_number","customer_bank_account_name","ifsc_code","address_proof_1","address_proof_2","pan_card","loan_agreement","eKycResponse" };
                         data.add(header);
                         for (LendingBulkDisbursalRawData bulklender : lendingBulkDisbursalRawData) {
-                            LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
-                            Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
-                            CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchant().getId(), application.getId());
-                            String ediSchedule = ediScheduleResponse.getData().toString();
-                            String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
-                            String ifscCode = ldcVirtualAccount.getIfsc().toString();
-                            Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
-                            String gender = addressResult.get("gender").toString();
-                            String dob = addressResult.get("dob").toString();
-                            String proofType = addressResult.get("proof_type").toString();
-                            String personName = addressResult.get("person_name").toString();
-                            String pancardUrl = addressResult.get("pancardUrl").toString();
-                            String addressproof1 = addressResult.get("addressproof1").toString();
-                            String addressproof2 = addressResult.get("addressproof2").toString();
-                            data.add(new String[] {"AMPLB","PL",application.getLoanAmount().toString(),application.getTenureInMonths().toString(),application.getExternalLoanId(),application.getProcessingFee().toString(),"0", String.valueOf((application.getInterestRate()*12/100)),"flat",application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment()-application.getLoanAmount())),application.getPayableDays().toString(),lendingApplication.getEdi().toString(),ediSchedule,experian.getColor(),apiGatewayService.getPincodeArea(experian.getPincode()),"Y",apiGatewayService.findNtc(experian),"N","Y","Recommended",dob,personName,gender," ",experian.getPancardNumber(),application.getMerchant().getMobile(),"Personal",application.getPincode().toString(),application.getShopNumber()+application.getStreetAddress()+application.getArea()+application.getLandmark(),application.getCity(),application.getState(),"permanent",proofType,"communication","self owned",application.getLandmark(),"ICICI BANK",accountNumber,application.getMerchant().getBeneficiaryName(),ifscCode,addressproof1,addressproof2,pancardUrl,apiGatewayService.getLoanAgreement(application.getMerchant().getId(),application.getId()),Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
-                            bulklender.setStatus("SUCCESS");
-                            lendingBulkDisbursalRawDataDao.save(bulklender);
+                            try {
+                                LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
+                                Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
+                                CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchant().getId(), application.getId());
+                                String ediSchedule = ediScheduleResponse.getData().toString();
+                                String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
+                                String ifscCode = ldcVirtualAccount.getIfsc().toString();
+                                Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
+                                String gender = addressResult.get("gender").toString();
+                                String dob = addressResult.get("dob").toString();
+                                String proofType = addressResult.get("proof_type").toString();
+                                String personName = addressResult.get("person_name").toString();
+                                String pancardUrl = addressResult.get("pancardUrl").toString();
+                                String addressproof1 = addressResult.get("addressproof1").toString();
+                                String addressproof2 = addressResult.get("addressproof2").toString();
+                                data.add(new String[]{"AMPLB", "PL", application.getLoanAmount().toString(), application.getTenureInMonths().toString(), application.getExternalLoanId(), application.getProcessingFee().toString(), "0", String.valueOf((application.getInterestRate() * 12 / 100)), "flat", application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment() - application.getLoanAmount())), application.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), application.getMerchant().getMobile(), "Personal", application.getPincode().toString(), application.getShopNumber() + application.getStreetAddress() + application.getArea() + application.getLandmark(), application.getCity(), application.getState(), "permanent", proofType, "communication", "self owned", application.getLandmark(), "ICICI BANK", accountNumber, application.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, apiGatewayService.getLoanAgreement(application.getMerchant().getId(), application.getId()), Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
+                                bulklender.setStatus("SUCCESS");
+                                lendingBulkDisbursalRawDataDao.save(bulklender);
+                            } catch (Exception ex) {
+                                logger.error("Exception Occured while bulk lender change for application id: {}",lendingApplication.getId());
+                            }
+
                         }
                         writer.writeAll(data);
                         writer.close();
@@ -1006,13 +1011,13 @@ public class SupportService {
                     continue;
                 }
 
-                if(lendingApplication.getCkycId() != null){
-                    logger.info("New App Application for  merchantId:{} and applicationId:{}",merchantId,applicationId);
-                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),arr[3],"FAILED","New APP application"});
-                    readLine = lenderFileReader.readLine();
-                    latch.countDown();
-                    continue;
-                }
+//                if(lendingApplication.getCkycId() != null){
+//                    logger.info("New App Application for  merchantId:{} and applicationId:{}",merchantId,applicationId);
+//                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),arr[3],"FAILED","New APP application"});
+//                    readLine = lenderFileReader.readLine();
+//                    latch.countDown();
+//                    continue;
+//                }
 
 //                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.toString()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
 //                    logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
