@@ -167,6 +167,9 @@ public class APIGatewayService {
     @Autowired
     KycHandler kycHandler;
 
+    @Autowired
+    LendingEkycDao lendingEkycDao;
+
     private final String CLIENT = "LENDING";
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
@@ -1738,7 +1741,10 @@ public class APIGatewayService {
             } catch (Exception ex) {
                 logger.info("Fetching Document From Bucket", ex);
             }
-
+            LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(),lendingApplication.getId());
+            if(Objects.nonNull(lendingEkyc)) {
+                result.put("ekyc_response", lendingEkyc.getResponse());
+            }
             result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
             result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
             result.put("proof_type", poaDetail.getDocType());
@@ -1754,24 +1760,28 @@ public class APIGatewayService {
                     result.put("addressproof1", kycDoc.getDocFrontImageUrl());
                     result.put("addressproof2", kycDoc.getDocBackImageUrl());
                     result.put("gender", ObjectUtils.isEmpty(kycDoc.getGender()) ? "Male" : (kycDoc.getGender().startsWith("M") ? "Male" : "Female"));
+                    result.put("ekyc_response", kycDoc.getResponse());
                 }
                 if(KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
-                    String dob = kycDoc.getDob();
-                    Date dateOfBirth = null;
-                    try {
-                        DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                        dateOfBirth = sdf.parse(dob);
-                    } catch (ParseException e) {
+                    if(Objects.nonNull(kycDoc.getDob())) {
+                        String dob = kycDoc.getDob();
+                        Date dateOfBirth = null;
                         try {
-                            DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
                             dateOfBirth = sdf.parse(dob);
-                        } catch (ParseException ex) {
-                            logger.error("Exception while parsing DOB date:{}", dob, ex);
+                        } catch (ParseException e) {
+                            try {
+                                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                                dateOfBirth = sdf.parse(dob);
+                            } catch (ParseException ex) {
+                                logger.error("Exception while parsing DOB date:{}", dob, ex);
+                            }
                         }
+                        result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
                     }
                     result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
                     result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
-                    result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
+
                 }
             }
         }

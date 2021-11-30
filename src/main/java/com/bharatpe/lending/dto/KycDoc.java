@@ -29,4 +29,5 @@ public class KycDoc {
     private String dob;
     private String remarks;
     private String gender;
+    private String response;
 }
