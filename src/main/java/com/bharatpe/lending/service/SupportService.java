@@ -913,7 +913,7 @@ public class SupportService {
                             String ediSchedule = ediScheduleResponse.getData().toString();
                             String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
                             String ifscCode = ldcVirtualAccount.getIfsc().toString();
-                            Map addressResult = apiGatewayService.getKycDetails(application.getId(),application.getMerchant().getId());
+                            Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
                             String gender = addressResult.get("gender").toString();
                             String dob = addressResult.get("dob").toString();
                             String proofType = addressResult.get("proof_type").toString();
@@ -1134,7 +1134,7 @@ public class SupportService {
         String ediSchedule = objectMapper.writeValueAsString(ediScheduleResponse.getData());
         String accountNumber = ldcVirtualAccount.getAccountNumber();
         String ifscCode = ldcVirtualAccount.getIfsc();
-        Map addressResult = apiGatewayService.getKycDetails(lendingApplication.getId(),lendingApplication.getMerchant().getId());
+        Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
         String gender = addressResult.get("gender").toString();
         String dob = addressResult.get("dob").toString();
         String proofType = addressResult.get("proof_type").toString();
