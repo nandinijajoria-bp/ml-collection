@@ -1083,7 +1083,7 @@ public class SupportService {
                     if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                         errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
                     logger.error("Exception while writing csv data in lender change for application:{}", lendingApplication.getId(), e);
                 } finally {
@@ -1130,7 +1130,7 @@ public class SupportService {
         logger.info("Lender Change completed For fileName:{}, and lender:{}", fileId, lender);
     }
 
-    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws IOException {
+    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws Exception {
         List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         String shortUrl = getAgreement(lendingApplication,lender);
         LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
