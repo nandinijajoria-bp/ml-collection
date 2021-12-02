@@ -324,8 +324,12 @@ public class LoanDetailsServiceV2 {
                 int tat = loanUtil.getApplicationTAT(openApplication.getId());
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }
-            applicationDetails.setReapply(shouldReapply(openApplication));
-            applicationDetails.setReapplyTime(getReapplyTime(openApplication));
+            Long reapplyTime = getReapplyTime(openApplication);
+            if(reapplyTime <= 0) {
+                applicationDetails.setReapply(shouldReapply(openApplication));
+            }
+            reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
+            applicationDetails.setReapplyTime(reapplyTime);
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
@@ -339,7 +343,7 @@ public class LoanDetailsServiceV2 {
     private Long getReapplyTime(LendingApplication lendingApplication) {
         Long reapplyTime = null;
         if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
-            if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibilReason())) {
+            if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
                 Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason())) ?
                     SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
                 reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
@@ -390,7 +394,7 @@ public class LoanDetailsServiceV2 {
     private String shouldReapply(LendingApplication openApplication) {
         if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus())) {
             if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
-                return null;
+                return Reapply.OFFER.name();
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualKyc())) {
                 return Reapply.OFFER.name();
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getCkycStatus())) {
