@@ -325,9 +325,7 @@ public class LoanDetailsServiceV2 {
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }
             Long reapplyTime = getReapplyTime(openApplication);
-            if(reapplyTime <= 0) {
-                applicationDetails.setReapply(shouldReapply(openApplication));
-            }
+            applicationDetails.setReapply(shouldReapply(openApplication));
             reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
             applicationDetails.setReapplyTime(reapplyTime);
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
