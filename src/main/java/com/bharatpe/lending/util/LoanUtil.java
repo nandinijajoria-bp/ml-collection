@@ -292,7 +292,7 @@ public class LoanUtil {
 		Calendar cal = Calendar.getInstance();
 
 		cal.setTime(date);
-		cal.add(Calendar.DATE, days);
+		cal.add(Calendar.DATE, days.intValue());
 
 		return cal.getTime();
 	}
