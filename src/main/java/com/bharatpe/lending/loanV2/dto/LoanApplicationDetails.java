@@ -27,4 +27,5 @@ public class LoanApplicationDetails {
     private boolean skipEnach;
     private String resubmitReason;
     private Long reapplyTime;
+    private Long reapplyTimeEpoch;
 }

@@ -328,6 +328,7 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setReapply(shouldReapply(openApplication));
             reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
             applicationDetails.setReapplyTime(reapplyTime);
+            applicationDetails.setReapplyTimeEpoch(LoanUtil.addDays(new Date(),reapplyTime).getTime());
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
