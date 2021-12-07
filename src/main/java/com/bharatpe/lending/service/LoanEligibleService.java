@@ -167,6 +167,7 @@ public class LoanEligibleService {
         responseDTO.setEligibleOfferDetails(responseDTO.new EligibleOfferDetails(queryAmount, tenures));
         responseDTO.setMessage("Available tenures for given amount");
         responseDTO.setSuccess(true);
+        logger.info("Eligibility Details response for merchant: {} is: {}",merchantId,responseDTO.toString());
         return responseDTO;
     }
 
