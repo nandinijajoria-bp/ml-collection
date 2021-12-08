@@ -201,7 +201,7 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
         MutableBoolean isDerog = new MutableBoolean(false);
-        Eligibility eligibility = getEligibility(merchant, isDerog);
+        Eligibility eligibility = getEligibility(merchant, isDerog, request.getAppVersion());
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;
@@ -245,7 +245,7 @@ public class LoanDetailsServiceV2 {
         return IneligibleType.INELIGIBLE.name();
     }
 
-    private Eligibility getEligibility(Merchant merchant, MutableBoolean isDerog) {
+    private Eligibility getEligibility(Merchant merchant, MutableBoolean isDerog, Integer appVersion) {
         log.info("Checking eligibility for merchant:{}", merchant.getId());
         try {
             Double eligibleAmount = 0D;
@@ -289,17 +289,17 @@ public class LoanDetailsServiceV2 {
 
     private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian) {
         try {
-            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(),openApplication.getMerchant().getId());
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchant().getId());
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
             applicationDetails.setExternalLoanId(openApplication.getExternalLoanId());
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
-            if(Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() !=null && lendingResubmitTask.getResubmit() && ( lendingResubmitTask.getResubmitDone()== null || !lendingResubmitTask.getResubmitDone())){
+            if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() != null && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
                 applicationDetails.setApplicationStatus("RESUBMIT");
                 applicationDetails.setResubmitReason(lendingResubmitTask.getResubmitReason());
             }
-            if(Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() !=null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
+            if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
                 applicationDetails.setApplicationStatus("DOWNGRADE");
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication));
