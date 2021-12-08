@@ -698,7 +698,7 @@ public class LendingApplicationServiceV2 {
                     lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
                     lendingResubmitTask.setDowngradeDone(Boolean.FALSE);
-                    lendingResubmitTask.setDowngradedAt(new Date());
+                    lendingResubmitTask.setDowngradeTimestamp(new Date());
                 }
             }
             lendingResubmitTaskDao.save(lendingResubmitTask);
