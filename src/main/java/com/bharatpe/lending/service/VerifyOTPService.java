@@ -167,6 +167,7 @@ public class VerifyOTPService {
 			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
 			if(isOTPVerified){
 				lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
+				lendingResubmitTask.setDowngradeTimestamp(new Date());
 				lendingResubmitTaskDao.save(lendingResubmitTask);
 				lendingApplication.setLmsStage("PENDING_DISBURSAL");
 				lendingApplicationDao.save(lendingApplication);
