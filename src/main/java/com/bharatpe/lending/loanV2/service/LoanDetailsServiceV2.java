@@ -250,7 +250,7 @@ public class LoanDetailsServiceV2 {
         log.info("Checking eligibility for merchant:{}", merchant.getId());
         try {
             Double eligibleAmount = 0D;
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId());
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, appVersion);
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
