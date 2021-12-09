@@ -1239,6 +1239,14 @@ public class APIGatewayService {
             put("source", source);
             put("appVersion", appVersion);
         }};
+        StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
+        if (!ObjectUtils.isEmpty(source)) {
+            queryParams.append("&source=").append(source);
+        }
+        if (!ObjectUtils.isEmpty(appVersion)) {
+            queryParams.append("&appVersion=").append(appVersion);
+        }
+        String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + queryParams;
         String payload = hmacCalculator.getObjectPayload(requestParams);
         String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
@@ -1246,11 +1254,11 @@ public class APIGatewayService {
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
         HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
-        logger.info("Get Global Limit request:{} for merchant:{}", request, merchantId);
+        logger.info("Get Global Limit request:{} for merchant:{}, Url :{}", request, merchantId, url);
         int retryCount = 0;
         while (retryCount < 3) {
             try {
-                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, GlobalLimitResponse.class);
+                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, GlobalLimitResponse.class);
                 logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
                     return responseEntity.getBody();

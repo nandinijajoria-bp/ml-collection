@@ -29,6 +29,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.Comparator;
@@ -201,7 +202,7 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
         MutableBoolean isDerog = new MutableBoolean(false);
-        Eligibility eligibility = getEligibility(merchant, isDerog, request.getAppVersion());
+        Eligibility eligibility = getEligibility(merchant, isDerog, ObjectUtils.isEmpty(request) ? null : request.getAppVersion());
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;

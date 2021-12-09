@@ -18,7 +18,8 @@ public class LoanDetailsControllerV2 {
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
     @PostMapping(value = "/loanDetails/v2", produces="application/json")
-    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest){
+    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader("token") String token, @RequestAttribute Merchant merchant,
+                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest){
         log.info("loan details v2 request:{} for merchant:{}", loanDetailsRequest, merchant.getId());
         ApiResponse<?> response;
         try {
