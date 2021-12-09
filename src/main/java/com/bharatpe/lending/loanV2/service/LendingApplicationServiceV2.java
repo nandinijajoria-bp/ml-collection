@@ -691,8 +691,11 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrialDao.save(lendingAuditTrial);
 
             }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
+                Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication);
                 if(downGradeStatus){
+                    lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
+                    lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
                     lendingResubmitTask.setDowngradeDone(Boolean.FALSE);
                     lendingResubmitTask.setDowngradeTimestamp(new Date());
@@ -770,6 +773,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
             }
             lendingResubmitTask.setResubmitDone(Boolean.TRUE);
+            lendingResubmitTask.setResubmittedAt(new Date());
             lendingResubmitTaskDao.save(lendingResubmitTask);
 
             lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
