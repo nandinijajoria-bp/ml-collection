@@ -10,6 +10,10 @@ RUN mvn clean package -Dmaven.test.skip=true #TODO: remove skiptest
 
 FROM openjdk:8
 COPY --from=java-build /app/target/*.jar /app/app.jar
+COPY --from=java-build /app/newrelic.yml /
+COPY --from=java-build /app/newrelic.yml /app/newrelic.yml
+RUN mkdir -p /data/bbps-recon/
 RUN wget https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/infra/apm-agent.jar
-ENTRYPOINT ["java","-javaagent:apm-agent.jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
+RUN wget https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/infra/newrelic.jar
+ENTRYPOINT ["java","-javaagent:apm-agent.jar","-javaagent:newrelic.jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
 #ENTRYPOINT ["java","-jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}", "/app/app.jar"]
