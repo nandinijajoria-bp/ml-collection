@@ -274,7 +274,7 @@ public class VerifyOTPService {
 			logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
 			updateKycStatus(lendingApplication);
 		}
-		logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(),lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
+		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(),lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 
 		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
