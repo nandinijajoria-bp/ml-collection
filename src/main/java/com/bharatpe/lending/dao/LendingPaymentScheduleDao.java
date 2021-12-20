@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -54,4 +55,7 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 
 	@Query(nativeQuery = true, value = "select * from lending_payment_schedule where merchant_id =:merchantId and status=:status order by id desc")
 	List<LendingPaymentSchedule> getLoansByMerchantIdAndStatus(Long merchantId, String status);
+
+	@Query(nativeQuery = true, value = "select * from lending_payment_schedule where merchant_id =:merchantId and status='CLOSED' order by id desc limit 1")
+	Optional<LendingPaymentSchedule> findLatestClosedLoan(Long merchantId);
 }
