@@ -14,6 +14,7 @@ import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.MerchantInfoDTO;
@@ -32,10 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -92,6 +90,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LendingDisbursalStageDao lendingDisbursalStageDao;
 
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
@@ -123,7 +124,13 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setHasExperian(true);
             }
             loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
-            LendingApplication openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
+            Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
+            LendingApplication openApplication;
+            if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullAndPaymentScheduleStatusClosedOrderByIdDesc(merchant.getId(),lendingPaymentSchedule.get().getCreatedAt());
+            } else {
+                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
+            }
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
                 updateCkycStatus(openApplication, experian);
