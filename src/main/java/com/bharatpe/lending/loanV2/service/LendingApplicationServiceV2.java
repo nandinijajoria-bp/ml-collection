@@ -92,12 +92,6 @@ public class LendingApplicationServiceV2 {
         if (experian == null || experian.getPancardNumber() == null) {
             return new ApiResponse<>(false, "Pancard does not exist");
         }
-        if(Objects.nonNull(initiateKycRequest.getApplicationId())) {
-            Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(initiateKycRequest.getApplicationId());
-            if(lendingApplicationOptional.isPresent() && Objects.nonNull(lendingApplicationOptional.get().getAgreementAt())) {
-                return new ApiResponse<>( null);
-            }
-        }
         String callBackURL = env.getProperty("kyc.loan.deeplink");
         if (!StringUtils.isEmpty(initiateKycRequest.getWroute())) {
             callBackURL += "&wroute=" + initiateKycRequest.getWroute();
