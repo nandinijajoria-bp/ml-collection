@@ -134,6 +134,10 @@ public class LoanDetailsServiceV2 {
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
                 updateCkycStatus(openApplication, experian);
+                if(!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
+                    log.info("Kyc status for application: {} is {}",openApplication.getId(), loanDetailsResponse.getKycStatus());
+                    loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
+                }
                 boolean isIOS = request != null && request.isIOS();
                 setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
