@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.lending.common.dto.CallingLeadResponseNimbusDto;
+import com.bharatpe.lending.common.dto.LeadDetailsNimbusDto;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("lending")
@@ -25,11 +26,11 @@ public class CallingLeadNimbusController {
     CallingLeadNimbusService callingLeadNimbusService;
 
     @PostMapping(value = "/push_lead_response", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Object> addLeadResponse(@RequestBody List<CallingLeadResponseNimbusDto> requestDTO) {
+    public ResponseEntity<Object> addLeadResponse(@RequestBody Map<String,List<LeadDetailsNimbusDto>> requestDTO) {
         logger.info("processing leads from nimbus");
-        if (ObjectUtils.isEmpty(requestDTO)) {
+        if (!requestDTO.containsKey("data") || ObjectUtils.isEmpty(requestDTO.get("data"))) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        return new ResponseEntity<>(callingLeadNimbusService.processNimbusLeadResponse(requestDTO), HttpStatus.OK);
+        return new ResponseEntity<>(callingLeadNimbusService.processNimbusLeadResponse(requestDTO.get("data")), HttpStatus.OK);
     }
 }
