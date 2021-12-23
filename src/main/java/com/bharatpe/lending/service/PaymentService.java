@@ -205,11 +205,7 @@ public class PaymentService {
 			} else {
 				pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID=" + orderId);
 			}
-			if (LoanUtil.calculateDPD(activeLoan.getEdiAmount(), activeLoan.getDueAmount()) >= 4){
-				pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
-			}else{
-				pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("BP","UPI","FP"));
-			}
+			pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
 
 			PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchant.getId(), pgCreateTransactionRequestDTO);
 
