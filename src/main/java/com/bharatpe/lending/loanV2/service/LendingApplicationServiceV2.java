@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -716,7 +717,16 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(lendingCategory)){
                 return false;
             }
-            Double loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
+            Double loanAmount;
+            if(OfferDowngradeApplication.eligibleForDowngrade(lendingApplication)) {
+                loanAmount = OfferDowngradeApplication.getOfferRevisedAmount(lendingApplication);
+            } else {
+                loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
+            }
+            if(loanAmount > lendingApplication.getLoanAmount()) {
+                return false;
+            }
+
             loanAmount=Math.min(loanAmount,100000d);
             if(loanAmount < 10000d){
                 return false;
