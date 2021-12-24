@@ -26,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
@@ -718,16 +717,18 @@ public class LendingApplicationServiceV2 {
                 return false;
             }
             Double loanAmount;
-            if(OfferDowngradeApplication.eligibleForDowngrade(lendingApplication)) {
+            if (OfferDowngradeApplication.eligibleForDowngrade(lendingApplication)) {
                 loanAmount = OfferDowngradeApplication.getOfferRevisedAmount(lendingApplication);
+                if (Objects.isNull(loanAmount)) {
+                    loanAmount = 0d;
+                }
             } else {
                 loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
+                loanAmount = Math.min(loanAmount, 100000d);
             }
             if(loanAmount > lendingApplication.getLoanAmount()) {
                 return false;
             }
-
-            loanAmount=Math.min(loanAmount,100000d);
             if(loanAmount < 10000d){
                 return false;
             }
