@@ -5167,7 +5167,7 @@ public class OfferDowngradeApplication {
 //        applicationLoanAmountMap.putAll(applicationOfferMap5);
         applicationLoanAmountMap.put(1911316,21000);
         try {
-            return Objects.nonNull(applicationLoanAmountMap.get(lendingApplication.getId()));
+            return Objects.nonNull(applicationLoanAmountMap.get(lendingApplication.getId().intValue()));
         } catch (Exception ex) {
             log.error("Exception occurred while checking offer revised eligibility for application: {} {}", lendingApplication.getId(), ex.getMessage());
         }
@@ -5183,7 +5183,7 @@ public class OfferDowngradeApplication {
 //        applicationLoanAmountMap.putAll(applicationOfferMap5);
         applicationLoanAmountMap.put(1911316,21000);
         try {
-            return applicationLoanAmountMap.get(lendingApplication.getId()).doubleValue();
+            return applicationLoanAmountMap.get(lendingApplication.getId().intValue()).doubleValue();
         } catch (Exception ex) {
             log.error("Exception occurred while getting revised offer amount for application: {} {}", lendingApplication.getId(), ex.getMessage());
         }
