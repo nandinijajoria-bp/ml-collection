@@ -17,6 +17,8 @@ import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.RejectionReason;
+import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -131,6 +133,9 @@ public class SupportService {
 
     @Autowired
     MerchantLoansService merchantLoansService;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
@@ -495,20 +500,18 @@ public class SupportService {
             }
             supportApiResponseDto.setExperian(Boolean.TRUE);
             supportApiResponseDto.setPincode(experian.getPincode());
-            if (experian.getRejected() || Objects.nonNull(experian.getReason())) {
+            if (experian.getRejected()) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
-                supportApiResponseDto.setIneligibleType(
-                        Objects.nonNull(SupportApiConstants.rejectionTypeMap.get(experian.getReason())) ?
-                                SupportApiConstants.rejectionTypeMap.get(experian.getReason()).getReason() :
-                                RejectionReason.LOW_TRANSACTION.getReason());
+                supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(experian.getReason(), RejectionStage.EXPERIAN));
                 supportApiResponseDto.setEligible(Boolean.FALSE);
-                Long reapplyTime = 0l;
+                Long reapplyTime = null;
                 if (Objects.nonNull(experian.getRejectedDate())) {
-                    Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.experianRejectionReapplyTimelineMap.get(experian.getReason())) ?
-                            SupportApiConstants.experianRejectionReapplyTimelineMap.get(experian.getReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
-                    reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
+                    Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN);
+                    if(Objects.nonNull(reapplyDayDiff)) {
+                        reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
+                    }
                 }
-                if (reapplyTime < 0 && !refresh) {
+                if (Objects.nonNull(reapplyTime) && reapplyTime < 0 && !refresh) {
                     refreshEligibility(supportApiResponseDto, lendingApplication);
                 } else {
                     supportApiResponseDto.setReapplyTime(reapplyTime);
@@ -548,18 +551,20 @@ public class SupportService {
             }
             if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.REJECTED.getStage());
-                Long reapplyTime = 0l;
-                if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibilReason())) {
-                    Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason())) ?
-                            SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
-                    reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                Long reapplyTime;
+                Integer reapplyDayDiff = 0;
+                if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.EXPERIAN);
                 } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                    reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.KYC);
                 } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
-                    reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.QC);
                 }
-                supportApiResponseDto.setReapplyTime(reapplyTime);
-                supportApiResponseDto.setEligibleToApplyAgain(reapplyTime <= 0);
+                if(Objects.nonNull(reapplyDayDiff)) {
+                    reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                    supportApiResponseDto.setReapplyTime(reapplyTime);
+                    supportApiResponseDto.setEligibleToApplyAgain(reapplyTime <= 0);
+                }
             }
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if (Objects.nonNull(lendingApplicationPriority)) {
@@ -603,22 +608,20 @@ public class SupportService {
             }
             if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.REJECTED.getStage());
-                Long reapplyTime = null;
-                supportApiResponseDto.setEligibleToApplyAgain(Boolean.FALSE);
-                if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibilReason())) {
-                    if (SupportApiConstants.notEligibleToApplyReasons.contains(lendingApplication.getManualCibilReason())) {
-                        supportApiResponseDto.setEligibleToApplyAgain(Boolean.TRUE);
-                    }
-                    Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason())) ?
-                            SupportApiConstants.cibilRejectionReapplyTimelineMap.get(lendingApplication.getManualCibilReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
-                    reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                Long reapplyTime;
+                Integer reapplyDayDiff = 0;
+                if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.EXPERIAN);
                 } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                    reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.KYC);
                 } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
-                    reapplyTime = SupportApiConstants.kycRejectionDefaultReapplyTimeline.longValue() - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.QC);
                 }
-                supportApiResponseDto.setReapplyTime(reapplyTime);
-                supportApiResponseDto.setEligibleToApplyAgain(reapplyTime <= 0);
+                if(Objects.nonNull(reapplyDayDiff)) {
+                    reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                    supportApiResponseDto.setReapplyTime(reapplyTime);
+                    supportApiResponseDto.setEligibleToApplyAgain(reapplyTime <= 0);
+                }
             }
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if (Objects.nonNull(lendingApplicationPriority)) {
@@ -907,24 +910,28 @@ public class SupportService {
                         String[] header = { "partner_tag", "loan_type", "Loan_amount","tenure","partner_loan_id","fee_amount","gst_amount","interest_rate","interest_type","partner_computed_disbursement_amount","partner_computed_interest_amount","no_of_EDI","EDI_amount","EDI_schedule","customer_risk_segment","customer_location_category","existing_BP_merchant","customer_type_NTC","any_written_off_loan_in_last_two_years","income_to_debt_ratio","recommendation_from_BP","date_of_birth","consumer_name","gender","email","pan_number","mobile_number","loan_purpose","pincode","address","city","address_state","address_type","address_proof_type","type","stay_type","landmark","customer_bank_name","bank_account_number","customer_bank_account_name","ifsc_code","address_proof_1","address_proof_2","pan_card","loan_agreement","eKycResponse" };
                         data.add(header);
                         for (LendingBulkDisbursalRawData bulklender : lendingBulkDisbursalRawData) {
-                            LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
-                            Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
-                            CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchant().getId(), application.getId());
-                            String ediSchedule = ediScheduleResponse.getData().toString();
-                            String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
-                            String ifscCode = ldcVirtualAccount.getIfsc().toString();
-                            Map addressResult = apiGatewayService.getKycDetails(application.getId(),application.getMerchant().getId());
-                            String gender = addressResult.get("gender").toString();
-                            String dob = addressResult.get("dob").toString();
-                            String proofType = addressResult.get("proof_type").toString();
-                            String personName = addressResult.get("person_name").toString();
-                            String pancardUrl = addressResult.get("pancardUrl").toString();
-                            String addressproof1 = addressResult.get("addressproof1").toString();
-                            String addressproof2 = addressResult.get("addressproof2").toString();
-                            LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(application.getMerchant().getId(),application.getId());
-                            data.add(new String[] {"AMPLB","PL",application.getLoanAmount().toString(),application.getTenureInMonths().toString(),application.getExternalLoanId(),application.getProcessingFee().toString(),"0", String.valueOf((application.getInterestRate()*12/100)),"flat",application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment()-application.getLoanAmount())),application.getPayableDays().toString(),lendingApplication.getEdi().toString(),ediSchedule,experian.getColor(),apiGatewayService.getPincodeArea(experian.getPincode()),"Y",apiGatewayService.findNtc(experian),"N","Y","Recommended",dob,personName,gender," ",experian.getPancardNumber(),application.getMerchant().getMobile(),"Personal",application.getPincode().toString(),application.getShopNumber()+application.getStreetAddress()+application.getArea()+application.getLandmark(),application.getCity(),application.getState(),"permanent",proofType,"communication","self owned",application.getLandmark(),"ICICI BANK",accountNumber,application.getMerchant().getBeneficiaryName(),ifscCode,addressproof1,addressproof2,pancardUrl,apiGatewayService.getLoanAgreement(application.getMerchant().getId(),application.getId()),lendingEkyc != null ? lendingEkyc.getResponse() : null});
-                            bulklender.setStatus("SUCCESS");
-                            lendingBulkDisbursalRawDataDao.save(bulklender);
+                            try {
+                                LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
+                                Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
+                                CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchant().getId(), application.getId());
+                                String ediSchedule = ediScheduleResponse.getData().toString();
+                                String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
+                                String ifscCode = ldcVirtualAccount.getIfsc().toString();
+                                Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
+                                String gender = addressResult.get("gender").toString();
+                                String dob = addressResult.get("dob").toString();
+                                String proofType = addressResult.get("proof_type").toString();
+                                String personName = addressResult.get("person_name").toString();
+                                String pancardUrl = addressResult.get("pancardUrl").toString();
+                                String addressproof1 = addressResult.get("addressproof1").toString();
+                                String addressproof2 = addressResult.get("addressproof2").toString();
+                                data.add(new String[]{"AMPLB", "PL", application.getLoanAmount().toString(), application.getTenureInMonths().toString(), application.getExternalLoanId(), application.getProcessingFee().toString(), "0", String.valueOf((application.getInterestRate() * 12 / 100)), "flat", application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment() - application.getLoanAmount())), application.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), application.getMerchant().getMobile(), "Personal", application.getPincode().toString(), application.getShopNumber() + application.getStreetAddress() + application.getArea() + application.getLandmark(), application.getCity(), application.getState(), "permanent", proofType, "communication", "self owned", application.getLandmark(), "ICICI BANK", accountNumber, application.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, apiGatewayService.getLoanAgreement(application.getMerchant().getId(), application.getId()), Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
+                                bulklender.setStatus("SUCCESS");
+                                lendingBulkDisbursalRawDataDao.save(bulklender);
+                            } catch (Exception ex) {
+                                logger.error("Exception Occured while bulk lender change for application id: {}",lendingApplication.getId());
+                            }
+
                         }
                         writer.writeAll(data);
                         writer.close();
@@ -1007,13 +1014,13 @@ public class SupportService {
                     continue;
                 }
 
-                if(lendingApplication.getCkycId() != null){
-                    logger.info("New App Application for  merchantId:{} and applicationId:{}",merchantId,applicationId);
-                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),arr[3],"FAILED","New APP application"});
-                    readLine = lenderFileReader.readLine();
-                    latch.countDown();
-                    continue;
-                }
+//                if(lendingApplication.getCkycId() != null){
+//                    logger.info("New App Application for  merchantId:{} and applicationId:{}",merchantId,applicationId);
+//                    errorData.add(new String[]{merchantId.toString(),applicationId.toString(),arr[3],"FAILED","New APP application"});
+//                    readLine = lenderFileReader.readLine();
+//                    latch.countDown();
+//                    continue;
+//                }
 
 //                if (!topupLoans.contains(lendingApplication.getLoanType()) && lendingApplication.getLoanType().equalsIgnoreCase(LoanType.NTB.toString()) && lendingApplication.getMerchant().getBusinessCategory() != null && !LendingConstants.ESSENTIAL_CATEGORIES.contains(lendingApplication.getMerchant().getBusinessCategory())) {
 //                    logger.info("Merchant Category not Match for merchantId:{} and applicationId:{}",merchantId,applicationId);
@@ -1079,7 +1086,7 @@ public class SupportService {
                     if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                         errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
                     logger.error("Exception while writing csv data in lender change for application:{}", lendingApplication.getId(), e);
                 } finally {
@@ -1126,7 +1133,7 @@ public class SupportService {
         logger.info("Lender Change completed For fileName:{}, and lender:{}", fileId, lender);
     }
 
-    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws IOException {
+    private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws Exception {
         List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         String shortUrl = getAgreement(lendingApplication,lender);
         LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
@@ -1134,15 +1141,14 @@ public class SupportService {
         String ediSchedule = objectMapper.writeValueAsString(ediScheduleResponse.getData());
         String accountNumber = ldcVirtualAccount.getAccountNumber();
         String ifscCode = ldcVirtualAccount.getIfsc();
-        Map addressResult = apiGatewayService.getKycDetails(lendingApplication.getId(),lendingApplication.getMerchant().getId());
-        String gender = addressResult.get("gender").toString();
-        String dob = addressResult.get("dob").toString();
-        String proofType = addressResult.get("proof_type").toString();
-        String personName = addressResult.get("person_name").toString();
-        String pancardUrl = addressResult.get("pancardUrl").toString();
-        String addressproof1 = addressResult.get("addressproof1").toString();
-        String addressproof2 = addressResult.get("addressproof2").toString();
-        LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(),lendingApplication.getId());
+        Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
+        String gender = Objects.nonNull( addressResult.get("gender")) ? addressResult.get("gender").toString() : "";
+        String dob = Objects.nonNull(addressResult.get("dob")) ? addressResult.get("dob").toString() : "";
+        String proofType = Objects.nonNull(addressResult.get("proof_type")) ? addressResult.get("proof_type").toString() : "";
+        String personName = Objects.nonNull(addressResult.get("person_name")) ? addressResult.get("person_name").toString() : "";
+        String pancardUrl = Objects.nonNull(addressResult.get("pancardUrl")) ? addressResult.get("pancardUrl").toString() : "";
+        String addressproof1 = Objects.nonNull(addressResult.get("addressproof1")) ? addressResult.get("addressproof1").toString() : "";
+        String addressproof2 = Objects.nonNull(addressResult.get("addressproof2")) ? addressResult.get("addressproof2").toString() : "";
         int ediDays = lendingApplication.getPayableDays().intValue();
         if (lendingApplication.getIoPayableDays() != null) {
             ediDays += lendingApplication.getIoPayableDays();
@@ -1153,9 +1159,9 @@ public class SupportService {
         Double disbursalAmount = topupLoans.contains(lendingApplication.getLoanType()) ? lendingApplication.getLoanAmount() : lendingApplication.getDisbursalAmount();
         String location = topupLoans.contains(lendingApplication.getLoanType()) ? "GREEN" : apiGatewayService.getPincodeArea(experian.getPincode());
         if("MAMTA".equalsIgnoreCase(lender)){
-            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
+            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : ""};
         }else{
-            data = new String[]{"HINDON", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), String.valueOf(ediDays), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, lendingEkyc != null ? lendingEkyc.getResponse() : null};
+            data = new String[]{"HINDON", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), String.valueOf(ediDays), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : ""};
         }
         lendingApplication.setLender(lender);
         lendingApplication.setAccountType(accType);

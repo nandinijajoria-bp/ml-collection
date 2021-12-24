@@ -4,6 +4,8 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.entity.CreditApplicationTransition;
+import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -57,6 +59,9 @@ public class IneligibleDetailsService {
 
     @Autowired
     FPAccountDao fpAccountDao;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
@@ -158,12 +163,13 @@ public class IneligibleDetailsService {
             Experian experian=experianDao.getByMerchantId(merchant.getId());
 
             if (Objects.nonNull(experian) && experian.getRejected() && Objects.nonNull(experian.getRejectedDate())) {
-                Integer reapplyDayDiff = Objects.nonNull(SupportApiConstants.experianRejectionReapplyTimelineMap.get(experian.getReason())) ?
-                        SupportApiConstants.experianRejectionReapplyTimelineMap.get(experian.getReason()) : SupportApiConstants.experianRejectionDefaultReapplyTimeline;
-                Long reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
-                reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
-                response.setReapplyTime(reapplyTime);
-                response.setReapplyTimeEpoch(LoanUtil.addDays(new Date(),reapplyTime).getTime());
+                Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN);
+                if(Objects.nonNull(reapplyDayDiff)) {
+                    Long reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
+                    reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
+                    response.setReapplyTime(reapplyTime);
+                    response.setReapplyTimeEpoch(LoanUtil.addDays(new Date(), reapplyTime).getTime());
+                }
             }
             if(experian!=null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(LendingConstants.ENACH_BANK_MESSAGE, LendingConstants.BANK_CHANGE_DEEPLINK);

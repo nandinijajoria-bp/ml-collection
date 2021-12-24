@@ -1,13 +1,7 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.NotificationProvider;
-import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.common.utils.NotificationUtil;
@@ -22,6 +16,8 @@ import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.enums.KycDocType;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,9 +38,11 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.*;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+
 import javax.annotation.PostConstruct;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -70,7 +68,7 @@ public class APIGatewayService {
 
     @Autowired
     AesEncryption aesEncryption;
-    
+
     @Autowired
     MerchantDao merchantDao;
 
@@ -109,7 +107,7 @@ public class APIGatewayService {
 
     @Value("${club.url}")
     public String BHARATPE_CLUB_URL;
-    
+
     private static String SECRET;
     private static String MID;
 
@@ -130,7 +128,7 @@ public class APIGatewayService {
 
     @Autowired
     CrifRequestResponseDao crifRequestResponseDao;
-    
+
     @Autowired
     InternalClientDao internalClientDao;
 
@@ -161,20 +159,26 @@ public class APIGatewayService {
     @Autowired
     LendingPincodesDao lendingPincodesDao;
 
+    @Autowired
+    KycHandler kycHandler;
+
+    @Autowired
+    LendingEkycDao lendingEkycDao;
+
     private final String CLIENT = "LENDING";
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
     private static String clientSecret;
-    
+
     @PostConstruct
     public void init() {
-    	try { 
-    		getSecret();
-    		getMid();
-    	} catch(Exception ex) {
-    		logger.error("Exception while loading Secret in APIGatewayService", ex);
-    	}
+        try {
+            getSecret();
+            getMid();
+        } catch (Exception ex) {
+            logger.error("Exception while loading Secret in APIGatewayService", ex);
+        }
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -185,7 +189,7 @@ public class APIGatewayService {
             requestParams.put("amount", amount);
             requestParams.put("orderId", orderId);
             requestParams.put("mid", getMid());
-            if(vpa!=null) {
+            if (vpa != null) {
                 requestParams.put("payerVpa", vpa);
             }
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
@@ -199,7 +203,7 @@ public class APIGatewayService {
 
             logger.info("createVPA internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
-            while(retryCount < 3) {
+            while (retryCount < 3) {
                 try {
                     Map response = restTemplate.postForObject(env.getProperty("collect.vpa.endpoint") + LendingConstants.COLLECT_VPA_CREATE_TXN_URL, request, Map.class);
                     logger.info("Response received from create VPA API {}", mapper.writeValueAsString(response));
@@ -210,16 +214,16 @@ public class APIGatewayService {
                 retryCount++;
             }
         } catch (HttpClientErrorException ex) {
-			logger.info("Response from API GAteway : {}" , ex.getResponseBodyAsString());
-			logger.error("Error in api call to generate dynamic vpa for merchant:{}", merchant.getId(), ex);
-		} catch (Exception ex) {
+            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+            logger.error("Error in api call to generate dynamic vpa for merchant:{}", merchant.getId(), ex);
+        } catch (Exception ex) {
             logger.error("error processing txn for dynamic vpa for merchant id:{}", merchant.getId(), ex);
         }
         return null;
     }
 
-    public PgCreateTransactionResponseDTO createPgTransaction(Long merchantId, PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO){
-        PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO  = new PgCreateTransactionResponseDTO();
+    public PgCreateTransactionResponseDTO createPgTransaction(Long merchantId, PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO) {
+        PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO = new PgCreateTransactionResponseDTO();
         logger.info("In Create pg transaction for merchnat id {}", merchantId);
         InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
         try {
@@ -242,7 +246,7 @@ public class APIGatewayService {
 
             logger.info("Create pg transaction internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
-            while(retryCount < 3) {
+            while (retryCount < 3) {
                 try {
                     PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + LendingConstants.CREATE_PG_TXN, request, PgCreateTransactionResponseDTO.class);
                     logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
@@ -253,7 +257,7 @@ public class APIGatewayService {
                 retryCount++;
             }
         } catch (HttpClientErrorException ex) {
-            logger.info("Response from API GAteway : {}" , ex.getResponseBodyAsString());
+            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
             logger.error("Error in api call to create pg transaction for merchant:{}", merchantId, ex);
         } catch (Exception ex) {
             logger.error("error processing txn for dynamic vpa for merchant id:{}", merchantId, ex);
@@ -266,12 +270,12 @@ public class APIGatewayService {
         if (merchantOptional.isPresent()) {
             Merchant merchant = merchantOptional.get();
             if (SECRET == null) {
-            	SECRET = aesEncryption.decrypt(merchant.getSecret());
+                SECRET = aesEncryption.decrypt(merchant.getSecret());
             }
         }
         return SECRET;
     }
-    
+
     private String getMid() {
         Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
         if (merchantOptional.isPresent()) {
@@ -283,7 +287,7 @@ public class APIGatewayService {
         return MID;
     }
 
-    public Map<String,String> signzyIdentityDetails(String proofType, Long merchantId, String signzyModule, String signzyPurpose, List<String> images) {
+    public Map<String, String> signzyIdentityDetails(String proofType, Long merchantId, String signzyModule, String signzyPurpose, List<String> images) {
         logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
         try {
             SignzyCredential signzyCredential = signzyCredentialDao.findByModuleAndPurpose(signzyModule, signzyPurpose);
@@ -299,18 +303,18 @@ public class APIGatewayService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("Authorization", signzyCredential.getAccessId());
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/identities";
-            logger.info("Request body to get signzy identity credentials URL {} request {}",URL,request);
-            String response= null;
+            logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
+            String response = null;
             int retryCount = 0;
-            while(retryCount < 3) {
+            while (retryCount < 3) {
                 try {
-                    response = restTemplate.postForObject(URL,request, String.class);
-                    logger.info("Signzy identity response {}",response);
-                    if(response!=null) {
+                    response = restTemplate.postForObject(URL, request, String.class);
+                    logger.info("Signzy identity response {}", response);
+                    if (response != null) {
                         JsonNode jsonNode = mapper.readTree(response);
-                        if(jsonNode!=null && jsonNode.has("id") && jsonNode.has("accessToken")) {
+                        if (jsonNode != null && jsonNode.has("id") && jsonNode.has("accessToken")) {
                             insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
                             Map<String, String> identityDetail = new HashMap<>();
                             identityDetail.put("itemId", jsonNode.get("id").asText());
@@ -322,9 +326,8 @@ public class APIGatewayService {
                         }
                     }
                     break;
-                }
-                catch(Exception e) {
-                    logger.info("Error occurred while fetching identity details",e);
+                } catch (Exception e) {
+                    logger.info("Error occurred while fetching identity details", e);
                     insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
                 }
                 retryCount++;
@@ -338,55 +341,52 @@ public class APIGatewayService {
     public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId, String module) {
         logger.info("Calling Signzy Pan Fetch Api for pancard:{}", pancard);
         try {
-            Map<String, Object> body = new HashMap<String,Object>() {{
-                put("service","Identity");
-                put("itemId",itemId);
-                put("task","verification");
-                put("accessToken",accessToken);
-                put("essentials",new HashMap<String, String>(){{
+            Map<String, Object> body = new HashMap<String, Object>() {{
+                put("service", "Identity");
+                put("itemId", itemId);
+                put("task", "verification");
+                put("accessToken", accessToken);
+                put("essentials", new HashMap<String, String>() {{
                     put("number", pancard);
                     put("name", "test");
                 }});
             }};
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
-            logger.info("Signzy Pan Fetch URL {} request {}",URL,request);
+            logger.info("Signzy Pan Fetch URL {} request {}", URL, request);
             int retryCount = 0;
-            String response=null;
-            while(retryCount < 3) {
+            String response = null;
+            while (retryCount < 3) {
                 try {
                     ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
-                    logger.info("Response for Signzy Pan Fetch: {}",responseEntity);
-                    if(responseEntity.getBody()!=null) {
-                    	response=responseEntity.getBody();
-                    	if(responseEntity.getStatusCode().is2xxSuccessful()) {
-                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
-                    	}
-                    	else {
-                    		insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
+                    logger.info("Response for Signzy Pan Fetch: {}", responseEntity);
+                    if (responseEntity.getBody() != null) {
+                        response = responseEntity.getBody();
+                        if (responseEntity.getStatusCode().is2xxSuccessful()) {
+                            insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
+                        } else {
+                            insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
                         }
                     }
                     break;
-                }
-                catch(HttpStatusCodeException e) {
-                    logger.info("Error occurred while calling pan fetch api",e);
+                } catch (HttpStatusCodeException e) {
+                    logger.info("Error occurred while calling pan fetch api", e);
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
-                    if(e.getRawStatusCode()==404 || e.getRawStatusCode()==400) {
-                    	break;
-                    }
-                    else if(retryCount==2) {
-                    	//to allow merchant to proceed if there's error from Experian end;
-                    	response="ERROR_OCCURRED";
+                    if (e.getRawStatusCode() == 404 || e.getRawStatusCode() == 400) {
+                        break;
+                    } else if (retryCount == 2) {
+                        //to allow merchant to proceed if there's error from Experian end;
+                        response = "ERROR_OCCURRED";
                     }
                     retryCount++;
                 } catch (Exception e) {
-                    logger.info("Error occurred while calling pan fetch api",e);
+                    logger.info("Error occurred while calling pan fetch api", e);
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
-                    if(retryCount==2) {
+                    if (retryCount == 2) {
                         //to allow merchant to proceed if there's error from Experian end;
-                        response="ERROR_OCCURRED";
+                        response = "ERROR_OCCURRED";
                     }
                     retryCount++;
                 }
@@ -408,29 +408,28 @@ public class APIGatewayService {
             }
             Map<String, Object> body = new HashMap<>();
             body.put("task", "fetch");
-            body.put("essentials",new HashMap<String, String>(){{
+            body.put("essentials", new HashMap<String, String>() {{
                 put("number", pancard);
             }});
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("Authorization", signzyCredential.getAccessId());
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/panv2";
-            logger.info("Signzy pan fetch v2 url:{} and request:{} for merchant:{}",URL,request, merchantId);
+            logger.info("Signzy pan fetch v2 url:{} and request:{} for merchant:{}", URL, request, merchantId);
             try {
                 Long a = DateTime.now().getMillis();
                 ResponseEntity<String> response = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
                 Long b = DateTime.now().getMillis();
                 logger.info("Signzy API response time---{}ms", (b - a));
-                logger.info("Signzy pan fetch v2 response:{} for merchant:{}",response, merchantId);
-                if(response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                logger.info("Signzy pan fetch v2 response:{} for merchant:{}", response, merchantId);
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "SUCCESS", mapper.writeValueAsString(request), response.getBody(), signzyModule);
                     return mapper.readTree(response.getBody());
                 } else {
                     insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), response.getBody(), signzyModule);
                 }
-            }
-            catch(Exception e) {
+            } catch (Exception e) {
                 logger.info("Error occurred while calling signzy pan fetch v2 for merchant:{}", merchantId, e);
                 insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), null, signzyModule);
             }
@@ -441,34 +440,33 @@ public class APIGatewayService {
     }
 
     public String getOcrResponse(Long merchantId, Map<String, String> identityDetails, String ocrType, Long applicationId) {
-        String response= null;
-        String itemId=identityDetails.get("itemId");
-        String accessToken=identityDetails.get("accessToken");
-        if(itemId!=null && accessToken!=null && !itemId.isEmpty() && !accessToken.isEmpty()) {
-            Map<String, Object> body = new HashMap<String,Object>() {{
-                put("service","Identity");
-                put("itemId",itemId);
-                put("task","autoRecognition");
-                put("accessToken",accessToken);
-                put("essentials",new HashMap<>());
+        String response = null;
+        String itemId = identityDetails.get("itemId");
+        String accessToken = identityDetails.get("accessToken");
+        if (itemId != null && accessToken != null && !itemId.isEmpty() && !accessToken.isEmpty()) {
+            Map<String, Object> body = new HashMap<String, Object>() {{
+                put("service", "Identity");
+                put("itemId", itemId);
+                put("task", "autoRecognition");
+                put("accessToken", accessToken);
+                put("essentials", new HashMap<>());
             }};
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 //	        headers.set("Authorization", authorization);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
-            String URL=SIGNZY_URL +CreditConstants.SIGNZY_SNOOP_URL;
-            logger.info("Signzy OCR URL {} request {}",URL,request);
-            int retryCount=0;
-            while(retryCount<3) {
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
+            logger.info("Signzy OCR URL {} request {}", URL, request);
+            int retryCount = 0;
+            while (retryCount < 3) {
                 try {
                     response = restTemplate.postForObject(URL, request, String.class);
-                    logger.info("Response for pancard authentication {}",response);
+                    logger.info("Response for pancard authentication {}", response);
                     insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "SUCCESS", mapper.writeValueAsString(request), response, "LENDING");
 
                     break;
-                }
-                catch(Exception e) {
-                    logger.error("Error occured while doing ocr",e);
+                } catch (Exception e) {
+                    logger.error("Error occured while doing ocr", e);
                     try {
                         insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "FAILED", mapper.writeValueAsString(request), response, "LENDING");
                     } catch (JsonProcessingException e1) {
@@ -481,17 +479,16 @@ public class APIGatewayService {
         return response;
     }
 
-    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId,String apiName, String status, String request,String response, String module) {
+    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId, String apiName, String status, String request, String response, String module) {
         try {
-            SignzyRequestResponse signzyRequestResponse=new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response, module);
+            SignzyRequestResponse signzyRequestResponse = new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response, module);
             signzyRequestResponseDao.save(signzyRequestResponse);
-        }
-        catch(Exception e) {
-            logger.error("Error occured while inserting into signzy req res table ",e);
+        } catch (Exception e) {
+            logger.error("Error occured while inserting into signzy req res table ", e);
         }
     }
 
-    public JsonNode crifStage1(String firstName, String lastName, String pancard, String mobile, Long merchantId){
+    public JsonNode crifStage1(String firstName, String lastName, String pancard, String mobile, Long merchantId) {
         try {
             logger.info("Calling CRIF stage1 api for merchant:{} with pancard:{}", merchantId, pancard);
             String accessCode = generateAccessCode();
@@ -623,7 +620,8 @@ public class APIGatewayService {
             }
             logger.info("Response : {} ", response);
             if (response != null && response.getBody() != null) {
-                paymentDetails = mapper.readValue(mapper.writeValueAsString(((Map<String, Object>) response.getBody()).get("data")), new TypeReference<List<PaymentDetailDto>>() {});
+                paymentDetails = mapper.readValue(mapper.writeValueAsString(((Map<String, Object>) response.getBody()).get("data")), new TypeReference<List<PaymentDetailDto>>() {
+                });
             }
         } catch (HttpClientErrorException e) {
             logger.error("Error fetching Balance info", e);
@@ -683,8 +681,8 @@ public class APIGatewayService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", mapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            int retryCount=0;
-            while(retryCount<3) {
+            int retryCount = 0;
+            while (retryCount < 3) {
                 try {
                     ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
                     if (response.getBody() != null) {
@@ -774,7 +772,7 @@ public class APIGatewayService {
             logger.info("create virtual account request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
             VANResponseDTO response = null;
-            while(retryCount < 3) {
+            while (retryCount < 3) {
                 try {
                     response = restTemplate.postForObject(Objects.requireNonNull(env.getProperty("create.van.url")), request, VANResponseDTO.class);
                     logger.info("Response received from create VAN API {}", response);
@@ -813,20 +811,19 @@ public class APIGatewayService {
             HttpEntity<Object> entity = new HttpEntity<>(requestParams, headers);
             result.put("request", mapper.writeValueAsString(entity));
             long startTime = System.currentTimeMillis();
-            int retryCount=0;
-            while(retryCount<3) {
+            int retryCount = 0;
+            while (retryCount < 3) {
                 try {
                     ResponseEntity<Object> response = restTemplate.exchange(requestUrl.encode().toUri(), HttpMethod.POST, entity, Object.class);
                     result.put("response", mapper.writeValueAsString(response.getBody()));
                     logger.info("Response : {} ", mapper.writeValueAsString(response.getBody()));
-                    if(response.getBody()!=null) {
+                    if (response.getBody() != null) {
                         result.put("success", ((Map<String, Object>) response.getBody()).get("success"));
                         logger.info("Successfully resend otp for BP Balance in {} ms", System.currentTimeMillis() - startTime);
                         return result;
                     }
-                }
-                catch(Exception e) {
-                    logger.error("Error occured while sending otp",e);
+                } catch (Exception e) {
+                    logger.error("Error occured while sending otp", e);
                 }
                 retryCount++;
             }
@@ -926,14 +923,14 @@ public class APIGatewayService {
                 logger.info("signzy credentials not found");
                 return;
             }
-            Experian experian=experianDao.getByMerchantId(merchantId);
+            Experian experian = experianDao.getByMerchantId(merchantId);
             LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
             if (lendingPancard != null && lendingPancard.getGstNumber() != null && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber())) {
                 logger.info("Already pulled gst for this pancard");
                 return;
             }
             Integer pincode = experian.getPincode();
-            PincodeCityStateMapping pincodeCityStateMapping =pincodeCityStateMappingDao.findByPincode(pincode);
+            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
             Map<String, Object> body = new HashMap<>();
             Map<String, Object> essentials = new HashMap<>();
             body.put("task", "panSearch");
@@ -948,25 +945,25 @@ public class APIGatewayService {
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/gstns";
             logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
             String response = null;
-                try {
-                    response = restTemplate.postForObject(URL, request, String.class);
-                    logger.info("Signzy Pan To Gst {}", response);
-                    insertIntoSignzyReqRes(merchantId, null, "GST", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
-                    if (response != null) {
-                        JsonNode jsonNode = mapper.readTree(response);
-                        if (jsonNode != null && jsonNode.get("result") != null && jsonNode.get("result").get("gstin") != null) {
-                            if (lendingPancard == null) {
-                                lendingPancard = new LendingPancard();
-                                lendingPancard.setMerchantId(merchantId);
-                            }
-                            lendingPancard.setGstNumber(jsonNode.get("result").get("gstin").asText());
-                            lendingPancardDao.save(lendingPancard);
+            try {
+                response = restTemplate.postForObject(URL, request, String.class);
+                logger.info("Signzy Pan To Gst {}", response);
+                insertIntoSignzyReqRes(merchantId, null, "GST", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+                if (response != null) {
+                    JsonNode jsonNode = mapper.readTree(response);
+                    if (jsonNode != null && jsonNode.get("result") != null && jsonNode.get("result").get("gstin") != null) {
+                        if (lendingPancard == null) {
+                            lendingPancard = new LendingPancard();
+                            lendingPancard.setMerchantId(merchantId);
                         }
+                        lendingPancard.setGstNumber(jsonNode.get("result").get("gstin").asText());
+                        lendingPancardDao.save(lendingPancard);
                     }
-                } catch (Exception e) {
-                    logger.info("Error occurred while fetching gst details", e);
-                    insertIntoSignzyReqRes(merchantId, null, "GST", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
                 }
+            } catch (Exception e) {
+                logger.info("Error occurred while fetching gst details", e);
+                insertIntoSignzyReqRes(merchantId, null, "GST", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+            }
         } catch (Exception e) {
             logger.error("Exception in Signzy GST flow Api", e);
         }
@@ -1002,7 +999,7 @@ public class APIGatewayService {
     public String signzySnoop(String itemId, String accessToken, String task, Long merchantId, String module, HashMap<String, String> essentials) {
         logger.info("Calling Signzy Snoop Api for itemId:{} and task:{}", itemId, task);
         try {
-            Map<String, Object> body = new HashMap<String,Object>() {{
+            Map<String, Object> body = new HashMap<String, Object>() {{
                 put("service", "Identity");
                 put("itemId", itemId);
                 put("task", task);
@@ -1011,15 +1008,15 @@ public class APIGatewayService {
             }};
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
             logger.info("Signzy Snoop URL:{} and request:{}", URL, request);
             int retryCount = 0;
-            while(retryCount < 3) {
+            while (retryCount < 3) {
                 try {
                     ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
                     logger.info("Response for Signzy Snoop: {}", responseEntity);
-                    if(responseEntity.getStatusCode().is2xxSuccessful()) {
+                    if (responseEntity.getStatusCode().is2xxSuccessful()) {
                         insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
                         return responseEntity.getBody();
                     } else {
@@ -1044,7 +1041,7 @@ public class APIGatewayService {
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", requestDTO.getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
-        Map<String, Object> body = new HashMap<String, Object>(){{
+        Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
             put("client_name", requestDTO.getClientName());
             put("nach_amount", requestDTO.getNachAmount());
@@ -1093,7 +1090,7 @@ public class APIGatewayService {
 
     public String getTemporarySignzyURL(String base64File) {
         Map<String, Object> body = new HashMap<>();
-        body.put( "base64String",base64File);
+        body.put("base64String", base64File);
         body.put("mimetype", "image/jpeg");
         body.put("ttl", "7 days");
         HttpHeaders headers = new HttpHeaders();
@@ -1102,11 +1099,11 @@ public class APIGatewayService {
         try {
             String response = restTemplate.postForObject("https://persist.signzy.tech/api/base64", request, String.class);
             logger.info("signzy image URL response:{}", response);
-            Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
-            Map<String,Object> res = ( Map<String,Object>)responseMap.get("file");
-            return (String)res.get("directURL");
-        }
-        catch(Exception e) {
+            Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>() {
+            });
+            Map<String, Object> res = (Map<String, Object>) responseMap.get("file");
+            return (String) res.get("directURL");
+        } catch (Exception e) {
             logger.info("Exception in signzy image URL", e);
         }
         return null;
@@ -1114,20 +1111,20 @@ public class APIGatewayService {
 
     public MerchantInfoDTO getMerchantAddress(Long merchantId) {
         logger.info("Fetching address for merchant:{}", merchantId);
-        Map<String, String> requestParams = new HashMap<String, String>(){{
+        Map<String, String> requestParams = new HashMap<String, String>() {{
             put("scopes", "address");
             put("merchantids", String.valueOf(merchantId));
         }};
         String payload = hmacCalculator.getPayload(requestParams);
-        String hash =hmacCalculator.calculateHMACHexEncoded(payload, getInternalSecret());
+        String hash = hmacCalculator.calculateHMACHexEncoded(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Hash",hash);
-        headers.set("Client-Name","LENDING");
-        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+        headers.set("Hash", hash);
+        headers.set("Client-Name", "LENDING");
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
         logger.info("Fetch merchant address request:{}", request);
-        int retryCount=0;
-        while(retryCount<3) {
+        int retryCount = 0;
+        while (retryCount < 3) {
             try {
                 ResponseEntity<MerchantInfoDTO> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("merchantinfo.endpoint")) + "?scopes=address&merchantids=" + merchantId, HttpMethod.GET, request, MerchantInfoDTO.class);
                 logger.info("Merchant address response:{}", responseEntity.getBody());
@@ -1135,9 +1132,8 @@ public class APIGatewayService {
                     return responseEntity.getBody();
                 }
                 break;
-            }
-            catch(Exception e) {
-                logger.error("Error occurred while fetching merchant address ",e);
+            } catch (Exception e) {
+                logger.error("Error occurred while fetching merchant address ", e);
             }
             retryCount++;
         }
@@ -1145,7 +1141,7 @@ public class APIGatewayService {
     }
 
     private String getInternalSecret() {
-        if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
+        if (org.springframework.util.StringUtils.isEmpty(clientSecret)) {
             InternalClient client = internalClientDao.findByClientName(CLIENT);
             if (client != null) {
                 clientSecret = aesEncryption.decrypt(client.getSecret());
@@ -1154,7 +1150,7 @@ public class APIGatewayService {
         return clientSecret;
     }
 
-    public JsonNode  experianRefreshApi(Long merchantId, String hitId) {
+    public JsonNode experianRefreshApi(Long merchantId, String hitId) {
         logger.info("Calling Experian Refresh API for merchant:{} with hitId:{}", merchantId, hitId);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("clientName", ExperianConstants.CLIENT_NAME);
@@ -1163,7 +1159,7 @@ public class APIGatewayService {
         Long a = DateTime.now().getMillis();
         String response = restTemplate.postForObject(ExperianConstants.REFRESH_API_URL, request, String.class);
         Long b = DateTime.now().getMillis();
-        logger.info("Experian Refresh API response time---{}ms", (b-a));
+        logger.info("Experian Refresh API response time---{}ms", (b - a));
         try {
             JsonNode jsonNode = mapper.readTree(response);
             if (jsonNode == null || jsonNode.get("showHtmlReportForCreditReport").isNull()) {
@@ -1180,7 +1176,7 @@ public class APIGatewayService {
         }
     }
 
-    public Double getNameMatchPercentage(String authorization,String patronId, String name1,String name2,Long merchantId,Long applicationId) {
+    public Double getNameMatchPercentage(String authorization, String patronId, String name1, String name2, Long merchantId, Long applicationId) {
         if (name1 == null || name1.isEmpty() || name2 == null || name2.isEmpty()) {
             return 0D;
         }
@@ -1231,31 +1227,44 @@ public class APIGatewayService {
         return 0D;
     }
 
-//    @Async
     public GlobalLimitResponse getGlobalLimit(Long merchantId) {
+        return getGlobalLimit(merchantId, null, null);
+    }
+
+    //    @Async
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) {
         logger.info("Get global limit for merchant:{}", merchantId);
-        Map<String, Object> requestParams = new HashMap<String, Object>(){{
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
+            put("source", source);
+            put("appVersion", appVersion);
         }};
+        StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
+        if (!ObjectUtils.isEmpty(source)) {
+            queryParams.append("&source=").append(source);
+        }
+        if (!ObjectUtils.isEmpty(appVersion)) {
+            queryParams.append("&appVersion=").append(appVersion);
+        }
+        String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + queryParams;
         String payload = hmacCalculator.getObjectPayload(requestParams);
         String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-        logger.info("Get Global Limit request:{} for merchant:{}", request, merchantId);
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
+        logger.info("Get Global Limit request:{} for merchant:{}, Url :{}", request, merchantId, url);
         int retryCount = 0;
-        while(retryCount < 3) {
+        while (retryCount < 3) {
             try {
-                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId, HttpMethod.GET, request, GlobalLimitResponse.class);
+                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, GlobalLimitResponse.class);
                 logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
                     return responseEntity.getBody();
                 }
                 break;
-            }
-            catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e);
             }
             retryCount++;
@@ -1264,40 +1273,12 @@ public class APIGatewayService {
     }
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) {
-        logger.info("Get global limit for merchant:{}", merchantId);
-        Map<String, Object> requestParams = new HashMap<String, Object>(){{
-            put("merchantId", merchantId);
-            put("source",source);
-        }};
-        String payload = hmacCalculator.getObjectPayload(requestParams);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("hash", hash);
-        headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-        logger.info("Get Global Limit request:{} for merchant:{}", request, merchantId);
-        int retryCount = 0;
-        while(retryCount < 3) {
-            try {
-                ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + "?merchantId=" + merchantId + "&source=" + source, HttpMethod.GET, request, GlobalLimitResponse.class);
-                logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
-                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
-                    return responseEntity.getBody();
-                }
-                break;
-            }
-            catch(Exception e) {
-                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e);
-            }
-            retryCount++;
-        }
-        return null;
+        return getGlobalLimit(merchantId, source, null);
     }
 
     public void globalLimitTxn(Long merchantId, String mode, Double amount) {
         logger.info("Global limit txn for merchant:{}, mode:{} and amount:{}", merchantId, mode, amount);
-        Map<String, Object> requestBody = new HashMap<String, Object>(){{
+        Map<String, Object> requestBody = new HashMap<String, Object>() {{
             put("merchant_id", merchantId);
             put("amount", amount);
             put("mode", mode);
@@ -1308,12 +1289,13 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
         logger.info("Global Limit txn request:{} for merchant:{}", request, merchantId);
         int retryCount = 0;
-        while(retryCount < 3) {
+        while (retryCount < 3) {
             try {
-                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/txn", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/txn", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                });
                 logger.info("Global Limit txn response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                     logger.info("Global limit txn success for merchant:{}", merchantId);
@@ -1321,60 +1303,59 @@ public class APIGatewayService {
                     logger.info("Global limit txn failed for merchant:{}", merchantId);
                 }
                 break;
-            }
-            catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Error occurred while global limit txn", e);
             }
             retryCount++;
         }
     }
 
-    public Map<String,Object> riskByPspApp(Merchant merchant){
+    public Map<String, Object> riskByPspApp(Merchant merchant) {
         Map<String, Object> data = new HashMap<>();
 
-        try{
+        try {
             Map<String, Object> body = new HashMap<>();
             body.put("merchant_id", merchant.getId());
             body.put("limit", 1);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
-            List<String> responseBody = restTemplate.postForObject(MONGET_API+ "?collection_name=merchant_psp_dump", request, List.class);
+            List<String> responseBody = restTemplate.postForObject(MONGET_API + "?collection_name=merchant_psp_dump", request, List.class);
 
-            if(Objects.isNull(responseBody) || responseBody.isEmpty()){
+            if (Objects.isNull(responseBody) || responseBody.isEmpty()) {
                 data.put("status", false);
                 return data;
             }
             JsonNode responseData = mapper.readTree(responseBody.get(0));
-            
 
-            HashSet <String> pspSet = new HashSet <String>();
 
-            if(Objects.nonNull(responseData.get("app_details"))){
-                for(JsonNode response: responseData.get("app_details")){
-                    if(Objects.nonNull(response.get("appName"))){
+            HashSet<String> pspSet = new HashSet<String>();
+
+            if (Objects.nonNull(responseData.get("app_details"))) {
+                for (JsonNode response : responseData.get("app_details")) {
+                    if (Objects.nonNull(response.get("appName"))) {
                         pspSet.add(response.get("appName").asText());
-                    }else if(Objects.nonNull(response.get("app_name"))){
+                    } else if (Objects.nonNull(response.get("app_name"))) {
                         pspSet.add(response.get("app_name").asText());
                     }
                 }
             }
 
-            if(pspSet.contains("BharatPe FOS")){
+            if (pspSet.contains("BharatPe FOS")) {
                 data.put("status", true);
                 data.put("reason", ExperianConstants.FOS_APP);
                 return data;
             }
             pspSet.retainAll(LendingConstants.OTHER_LENDING_APPS);
 
-            if(pspSet.size() >= 10){
+            if (pspSet.size() >= 10) {
                 data.put("status", true);
                 data.put("reason", ExperianConstants.MULTIPLE_PSP_APPS);
                 return data;
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             logger.error("Error occurred while fetching psp apps Error:", ex);
             data.put("status", false);
         }
@@ -1385,7 +1366,7 @@ public class APIGatewayService {
 
     public void updateApplicationPriority(Long merchantId, Long applicationId) {
         logger.info("Updating application priority for merchant:{} and application:{}", merchantId, applicationId);
-        Map<String, Object> requestBody = new HashMap<String, Object>(){{
+        Map<String, Object> requestBody = new HashMap<String, Object>() {{
             put("merchant_id", merchantId);
             put("application_id", applicationId);
         }};
@@ -1395,12 +1376,13 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
         logger.info("Application priority request:{} for merchant:{}", request, merchantId);
         int retryCount = 0;
-        while(retryCount < 3) {
+        while (retryCount < 3) {
             try {
-                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                });
                 logger.info("Application priority response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                     logger.info("Application priority success for merchant:{}", merchantId);
@@ -1408,19 +1390,18 @@ public class APIGatewayService {
                     logger.info("Application priority failed for merchant:{}", merchantId);
                 }
                 break;
-            }
-            catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Error occurred while Application priority", e);
             }
             retryCount++;
         }
     }
 
-    public Boolean eligibleForProcessingFee(Long merchantId){
+    public Boolean eligibleForProcessingFee(Long merchantId) {
 
-        try{
+        try {
             logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
-            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+            Map<String, Object> requestParams = new HashMap<String, Object>() {{
                 put("merchant_id", merchantId);
             }};
             String payload = hmacCalculator.getObjectPayload(requestParams);
@@ -1429,23 +1410,24 @@ public class APIGatewayService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("clientName", CLIENT);
             headers.set("hash", hash);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
 
             logger.info("processing fee redemption eligibility request:{} for merchant:{}", request, merchantId);
 
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+            });
             logger.info("processing fee redemption eligibility response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                 JsonNode response = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
-                if(Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile")) && response.get("data").get("eligibile").asBoolean()){
-                    if(Objects.isNull(response.get("data").get("rewards"))){
+                if (Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile")) && response.get("data").get("eligibile").asBoolean()) {
+                    if (Objects.isNull(response.get("data").get("rewards"))) {
                         return true;
                     }
 
                     List<Map> rewards = mapper.convertValue(response.get("data").get("rewards"), List.class);
                     System.out.println(rewards);
-                    for(Map reward: rewards){
-                        if(Objects.nonNull(reward.get("source_module")) && reward.get("source_module").toString().equals("LOAN")){
+                    for (Map reward : rewards) {
+                        if (Objects.nonNull(reward.get("source_module")) && reward.get("source_module").toString().equals("LOAN")) {
                             return false;
                         }
                     }
@@ -1453,15 +1435,15 @@ public class APIGatewayService {
                     return true;
                 }
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             logger.error("Error occurred while checking processing fee redemption eligibility", ex);
         }
 
         return false;
     }
 
-    public boolean sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan){
-        if("CLOSED".equalsIgnoreCase(activeLoan.getStatus())){
+    public boolean sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan) {
+        if ("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
             logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchant().getId());
             TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(activeLoan.getMerchant().getId());
             if (tokenVerification == null) {
@@ -1471,7 +1453,8 @@ public class APIGatewayService {
             try {
                 Map<String, Object> body = new HashMap<>();
                 body.putIfAbsent("meta", new HashMap<>());
-                body.putIfAbsent("payload", new HashMap<String, Object>(){});
+                body.putIfAbsent("payload", new HashMap<String, Object>() {
+                });
                 logger.info("Calling loan details api from Lending for merchant: {}", activeLoan.getMerchant().getId());
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -1494,9 +1477,9 @@ public class APIGatewayService {
         Merchant merchant = merchantDao.getById(merchantId);
 
         String identifier = "LENDING_PAYMENT_3_PUSH";
-        Map<String,Object> templateParams = new HashMap<>();
-        templateParams.put("loan_amount",amount);
-        templateParams.put("interest_rate",interestRate);
+        Map<String, Object> templateParams = new HashMap<>();
+        templateParams.put("loan_amount", amount);
+        templateParams.put("interest_rate", interestRate);
         String deeplink = notificationUtil.getDeeplink(merchant, "LOAN_DASHBOARD");
         NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
         notificationPayloadDto.setTemplateIdentifier(identifier);
@@ -1511,7 +1494,7 @@ public class APIGatewayService {
 
     public LendingPayoutResponse lendingPayout(LendingPayoutRequest lendingPayoutRequest) {
         logger.info("Calling lending payout api for merchant:{}", lendingPayoutRequest.getMerchantId());
-        Map<String, Object> requestBody = new HashMap<String, Object>(){{
+        Map<String, Object> requestBody = new HashMap<String, Object>() {{
             put("owner_id", lendingPayoutRequest.getOwnerId());
             put("order_id", lendingPayoutRequest.getOrderId());
             put("amount", lendingPayoutRequest.getAmount());
@@ -1527,7 +1510,7 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
         logger.info("Lending payout request:{} for merchant:{}", lendingPayoutRequest, lendingPayoutRequest.getMerchantId());
         String url = lendingPayoutRequest.getTxnType().name().contains("INCENTIVE") ? LendingConstants.LENDING_INCENTIVE_URL : LendingConstants.LENDING_REFUND_URL;
         try {
@@ -1539,13 +1522,13 @@ public class APIGatewayService {
             } else {
                 logger.info("Lending payout failed for merchant:{}", lendingPayoutRequest.getMerchantId());
             }
-        }
-        catch(Exception e) {
+        } catch (Exception e) {
             logger.error("Error occurred while lending payout api", e);
         }
         return null;
     }
-    public LdcVirtualAccount createDisbursalVPA(Merchant merchant,LendingApplication lendingApplication) {
+
+    public LdcVirtualAccount createDisbursalVPA(Merchant merchant, LendingApplication lendingApplication) {
         logger.info("Coming In Create Virtual Account");
         LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(merchant.getId());
         if (ldcVirtualAccount != null) {
@@ -1616,14 +1599,14 @@ public class APIGatewayService {
         return null;
     }
 
-    public String getLoanAgreement(Long merchantId,Long applicationId){
-        try{
-            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId,"agreement");
-            if(loanAgreement!= null && loanAgreement.getShortUrl() != null){
+    public String getLoanAgreement(Long merchantId, Long applicationId) {
+        try {
+            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId, "agreement");
+            if (loanAgreement != null && loanAgreement.getShortUrl() != null) {
                 return loanAgreement.getShortUrl();
             }
-        }catch(Exception ex){
-            logger.info("Exception in Fetching Loan Agreement :{}",ex);
+        } catch (Exception ex) {
+            logger.info("Exception in Fetching Loan Agreement :{}", ex);
         }
         return null;
     }
@@ -1643,7 +1626,7 @@ public class APIGatewayService {
             firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName());
             lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName());
         }
-        return new HashMap<String, String>(){{
+        return new HashMap<String, String>() {{
             put("firstName", firstName);
             put("lastName", lastName);
         }};
@@ -1655,12 +1638,11 @@ public class APIGatewayService {
             Map<String, String> identityDetail = signzyIdentityDetails("individualPan", merchantId, "PAN", "PAN", new ArrayList<>());
             if (identityDetail != null) {
                 String response = signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId, identityDetail.get("module"));
-                if(response!=null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
-                    return new LendingPancard(merchantId,pancardNumber,"NAME",null);
-                }
-                else if (response != null) {
+                if (response != null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
+                    return new LendingPancard(merchantId, pancardNumber, "NAME", null);
+                } else if (response != null) {
                     JsonNode responseNode = mapper.readTree(response);
-                    if(responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("upstreamName") != null) {
+                    if (responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("upstreamName") != null) {
                         String name = responseNode.get("response").get("result").get("upstreamName").asText();
                         logger.info("Name:{} found in pancard:{}", name, pancardNumber);
                         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
@@ -1680,66 +1662,103 @@ public class APIGatewayService {
         return null;
     }
 
-    public String getPincodeArea(Integer pincode){
+    public String getPincodeArea(Integer pincode) {
         LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
         return lendingPincodes != null ? lendingPincodes.getColor().name() : PincodeColor.RED.name();
     }
 
-    public String findNtc(Experian experian){
-        if("2N".equalsIgnoreCase(experian.getCategory()) ||"3N".equalsIgnoreCase(experian.getCategory()) || "4N".equalsIgnoreCase(experian.getCategory()) ){
+    public String findNtc(Experian experian) {
+        if ("2N".equalsIgnoreCase(experian.getCategory()) || "3N".equalsIgnoreCase(experian.getCategory()) || "4N".equalsIgnoreCase(experian.getCategory())) {
             return "Y";
         }
-        return  "N";
+        return "N";
     }
 
-    public Map getKycDetails(Long applicationId,Long merchantId){
-        String dob = null;
-        DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(merchantId,applicationId);
-        DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(merchantId,applicationId);
-        if(panDetail == null){
+    public Map getKycDetails(LendingApplication lendingApplication) {
+        Map result = new HashMap();
+        if (ObjectUtils.isEmpty(lendingApplication.getCkycId())) {
+            String dob = null;
+            DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            if (panDetail == null) {
                 panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
-        }
-        if(poaDetail == null){
-            poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
-        }
-        Date dateOfBirth = null;
-        dob = panDetail.getDob();
-        try {
-            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            dateOfBirth = sdf.parse(dob);
-        } catch (ParseException e) {
+            }
+            if (poaDetail == null) {
+                poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
+            }
+            Date dateOfBirth = null;
+            dob = panDetail.getDob();
             try {
-                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-                dateOfBirth= sdf.parse(dob);
-            } catch (ParseException ex) {
-                logger.error("Exception while parsing DOB date:{}", dob, ex);
+                DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                dateOfBirth = sdf.parse(dob);
+            } catch (ParseException e) {
+                try {
+                    DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                    dateOfBirth = sdf.parse(dob);
+                } catch (ParseException ex) {
+                    logger.error("Exception while parsing DOB date:{}", dob, ex);
+                }
+            }
+            String pancardUrl = "";
+            String addressProof1 = "";
+            String addressProof2 = "";
+            try {
+                pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                if (!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
+                    addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                    addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(), "loan-document");
+                }
+                if ("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
+                    addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "lending-ekyc");
+                }
+            } catch (Exception ex) {
+                logger.info("Fetching Document From Bucket", ex);
+            }
+            LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            if (Objects.nonNull(lendingEkyc)) {
+                result.put("ekyc_response", lendingEkyc.getResponse());
+            }
+            result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
+            result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
+            result.put("proof_type", poaDetail.getDocType());
+            result.put("gender", poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
+            result.put("pancardUrl", pancardUrl);
+            result.put("addressproof1", addressProof1);
+            result.put("addressproof2", addressProof2);
+        } else {
+            List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchant().getId());
+            for (KycDoc kycDoc : kycDocs) {
+                if (KycDocType.POA.equals(kycDoc.getDocType())) {
+                    result.put("proof_type", kycDoc.getSubDocType());
+                    result.put("addressproof1", kycDoc.getDocFrontImageUrl());
+                    result.put("addressproof2", kycDoc.getDocBackImageUrl());
+                    result.put("gender", ObjectUtils.isEmpty(kycDoc.getGender()) ? "Male" : (kycDoc.getGender().startsWith("M") ? "Male" : "Female"));
+                    result.put("ekyc_response", kycDoc.getResponse());
+                }
+                if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
+                    if (Objects.nonNull(kycDoc.getDob())) {
+                        String dob = kycDoc.getDob();
+                        Date dateOfBirth = null;
+                        try {
+                            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                            dateOfBirth = sdf.parse(dob);
+                        } catch (ParseException e) {
+                            try {
+                                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                                dateOfBirth = sdf.parse(dob);
+                            } catch (ParseException ex) {
+                                logger.error("Exception while parsing DOB date:{}", dob, ex);
+                            }
+                        }
+                        result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
+                    }
+                    result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
+                    result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
+
+                }
             }
         }
-        String pancardUrl = "";
-        String addressProof1 = "";
-        String addressProof2 = "";
-        try{
-             pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(),"loan-document");
-             if(!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())){
-                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"loan-document");
-                 addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(),"loan-document");
-             }
-             if("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())){
-                 addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(),"lending-ekyc");
-             }
-        }catch(Exception ex){
-            logger.info("Fetching Document From Bucket",ex);
-        }
-
-        Map result = new HashMap();
-        result.put("person_name",panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
-        result.put("dob",dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
-        result.put("proof_type",poaDetail.getDocType());
-        result.put("gender",poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
-        result.put("pancardUrl",pancardUrl);
-        result.put("addressproof1",addressProof1);
-        result.put("addressproof2",addressProof2);
-        return  result;
+        return result;
     }
 
     private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
@@ -1768,17 +1787,17 @@ public class APIGatewayService {
             }
             for (JsonNode pan : panVariations) {
                 checkPan = pan.get("VALUE").asText().equalsIgnoreCase(panCard);
-                if(checkPan) break;
+                if (checkPan) break;
             }
             for (JsonNode phone : phoneVariations) {
                 checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber) || phone.get("VALUE").asText().equalsIgnoreCase("91" + phoneNumber);
-                if(checkPhone) break;
+                if (checkPhone) break;
             }
         }
         return checkPan && checkPhone;
     }
 
-    public ResponseEntity<Object> fosAttribution(Long merchantId,String taskName,String status) {
+    public ResponseEntity<Object> fosAttribution(Long merchantId, String taskName, String status) {
         try {
             logger.info("FOS Attribution Service Function called lending appliaction: {},taskName: {},status: {}", merchantId, taskName, status);
 
@@ -1805,7 +1824,7 @@ public class APIGatewayService {
             ResponseEntity responseEntity = null;
             logger.info("FOS Attribution Service API request:{} for merchantId:{}", entity, merchantId);
 
-            responseEntity = restTemplate.exchange(env.getProperty("salesdashboard.fos.attribution")+LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
+            responseEntity = restTemplate.exchange(env.getProperty("salesdashboard.fos.attribution") + LendingConstants.FOS_ATTRIBUTION, HttpMethod.POST, entity, String.class);
 
             logger.info("FOS Attribution Service API response:{} for merchantId:{}", responseEntity, merchantId);
 
@@ -1817,34 +1836,34 @@ public class APIGatewayService {
 
     }
 
-    public Boolean ldcDisburse(LendingApplication lendingApplication){
-        try{
-             Map<String, Object> requestParams = new HashMap<String, Object>(){{
+    public Boolean ldcDisburse(LendingApplication lendingApplication) {
+        try {
+            Map<String, Object> requestParams = new HashMap<String, Object>() {{
                 put("application_id", lendingApplication.getId());
-                put("lender_name",lendingApplication.getLender());
+                put("lender_name", lendingApplication.getLender());
             }};
             String payload = hmacCalculator.getObjectPayload(requestParams);
-            String hash = hmacCalculator.calculateHmac(payload,getInternalSecret());
+            String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
             headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
             headers.set("Hash", hash);
             headers.set("Client-Name", CLIENT);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
-            logger.info("Ldc Service Request :{}",request);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
+            logger.info("Ldc Service Request :{}", request);
             ResponseEntity<String> response = null;
             try {
                 response = restTemplate.postForEntity(NBFC_URL, request, String.class);
-                logger.info("Nbfc Service Response :{}",response);
+                logger.info("Nbfc Service Response :{}", response);
             } catch (HttpClientErrorException | HttpServerErrorException ex) {
                 logger.error("Exception In Calling NBFC Service:{}", ex.getResponseBodyAsString());
                 return Boolean.FALSE;
             }
-            logger.info("Ldc Service Response :{}",response);
+            logger.info("Ldc Service Response :{}", response);
             if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
                 JsonNode jsonNode = mapper.readTree(response.getBody());
-                if(jsonNode.get("data")!= null && jsonNode.get("data").get("loan_id") != null){
+                if (jsonNode.get("data") != null && jsonNode.get("data").get("loan_id") != null) {
                     lendingApplication.setSendToNbfc("YES");
                     lendingApplication.setNbfcSendDate(new Date());
                     lendingApplication.setDisbursalPartner("BHARATPE");
@@ -1854,15 +1873,15 @@ public class APIGatewayService {
                     return Boolean.TRUE;
                 }
             }
-        }catch (Exception ex){
-            logger.error("Exception In Creating Loan Agreement :{}",ex);
+        } catch (Exception ex) {
+            logger.error("Exception In Creating Loan Agreement :{}", ex);
         }
-        return  Boolean.FALSE;
+        return Boolean.FALSE;
     }
 
     public void cancelEnach(Long merchantId) {
         logger.info("Cancel enach for merchant:{}", merchantId);
-        Map<String, Object> requestParams = new HashMap<String, Object>(){{
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchant_id", merchantId);
         }};
         String payload = hmacCalculator.getObjectPayload(requestParams);
@@ -1871,46 +1890,47 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
         logger.info("Cancel enach request:{} for merchant:{}", request, merchantId);
         try {
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {
+            });
             logger.info("Cancel enach response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                 logger.info("Cancel enach success for merchant:{}", merchantId);
             } else {
                 logger.info("Cancel enach failed for merchant:{}", merchantId);
             }
-        }
-        catch(Exception e) {
+        } catch (Exception e) {
             logger.error("Error occurred in cancel enach for merchant:{}", merchantId, e);
         }
     }
 
-    public JsonNode getMerchantSmsAnalysisData(Merchant merchant){
-        try{
+    public JsonNode getMerchantSmsAnalysisData(Merchant merchant) {
+        try {
             logger.info("Getting SMS analysis data for merchant:{}", merchant.getId());
             Map<String, Object> body = new HashMap<>();
             body.put("identifier", merchant.getMid());
             body.put("limit", 1);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             logger.info("Monget sms analysis request:{} for merchant:{}", request, merchant.getId());
-            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_sms_analysis", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>(){});
+            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_sms_analysis", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>() {
+            });
             logger.info("Monget sms analysis response:{} for merchant:{}", responseBody, merchant.getId());
-            if(responseBody.getBody() == null || responseBody.getBody().isEmpty()){
+            if (responseBody.getBody() == null || responseBody.getBody().isEmpty()) {
                 logger.info("SMS analysis data not found for merchant:{}", merchant.getId());
                 return null;
             }
             return mapper.readTree(responseBody.getBody().get(0));
-        }catch (Exception ex){
+        } catch (Exception ex) {
             logger.error("Error occurred while fetching sms analysis data for merchant:{}", merchant.getId(), ex);
         }
         return null;
     }
 
-    public boolean checkPennyDrop(MerchantBankDetail merchantBankDetail,Merchant merchant) {
+    public boolean checkPennyDrop(MerchantBankDetail merchantBankDetail, Merchant merchant) {
         boolean success = false;
         try {
             logger.info("Calling penny drop api for merchantId:{}", merchant.getId());
@@ -1948,10 +1968,10 @@ public class APIGatewayService {
         return success;
     }
 
-    public PgStatusResponse checkPgStatus(String orderId){
+    public PgStatusResponse checkPgStatus(String orderId) {
         logger.info("Pg status check for  and orderId:{}", orderId);
-        try{
-            Map<String, String> requestBody = new HashMap<String, String>(){{
+        try {
+            Map<String, String> requestBody = new HashMap<String, String>() {{
                 put("orderId", orderId);
             }};
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestBody), getSecret());
@@ -1964,49 +1984,50 @@ public class APIGatewayService {
 
             logger.info("Pg status Check internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
-            while(retryCount < 3) {
+            while (retryCount < 3) {
                 try {
-                    ResponseEntity<PgStatusResponse> response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK+orderId, HttpMethod.GET, request, PgStatusResponse.class);
+                    ResponseEntity<PgStatusResponse> response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
                     logger.info("Response received from Pg status Check API {}", mapper.writeValueAsString(response));
                     return response.getBody();
                 } catch (Exception e) {
-                    logger.error("Exception in Pg status for order_id:{} error ",orderId, e);
+                    logger.error("Exception in Pg status for order_id:{} error ", orderId, e);
                 }
                 retryCount++;
             }
         } catch (HttpClientErrorException ex) {
-            logger.info("Response from API GAteway : {}" , ex.getResponseBodyAsString());
+            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
             logger.error("Error in api call to Pg status Check for order id:{}, error:", orderId, ex);
         } catch (Exception ex) {
-            logger.error("error in Pg status Check for order id:{}, error",orderId, ex);
+            logger.error("error in Pg status Check for order id:{}, error", orderId, ex);
         }
         return null;
     }
 
     private String getBeneficiaryName(String beneficiaryName) {
-        if(beneficiaryName.length() > 25) {
-            beneficiaryName = beneficiaryName.substring(0,25);
+        if (beneficiaryName.length() > 25) {
+            beneficiaryName = beneficiaryName.substring(0, 25);
         }
         return beneficiaryName;
     }
 
     public Boolean isSdkInvoke(Merchant merchant) {
-        try{
+        try {
             logger.info("Getting variable SMS data for merchant:{}", merchant.getId());
             Map<String, Object> body = new HashMap<>();
             body.put("identifier", merchant.getMid());
             body.put("limit", 1);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(body, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             logger.info("Monget variable sms request:{} for merchant:{}", request, merchant.getId());
-            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_variable_sms_data", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>(){});
+            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_variable_sms_data", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>() {
+            });
             logger.info("Monget variable sms response:{} for merchant:{}", responseBody, merchant.getId());
-            if(responseBody.getBody() == null || responseBody.getBody().isEmpty()){
+            if (responseBody.getBody() == null || responseBody.getBody().isEmpty()) {
                 logger.info("Variable SMS analysis data not found for merchant:{}", merchant.getId());
                 return true;
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             logger.error("Error occurred while fetching variable sms data for merchant:{}", merchant.getId(), ex);
         }
         return false;
@@ -2016,11 +2037,11 @@ public class APIGatewayService {
         try {
             logger.info("Getting credit card due amount for merchant:{}", merchantId);
             String url = env.getProperty("credit.card.base.url") + LendingConstants.CREDIT_CARD_STATUS_URL + merchantId;
-            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+            Map<String, Object> requestParams = new HashMap<String, Object>() {{
                 put("merchant_id", merchantId);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
-            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
             ResponseEntity<CreditCardStatus> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, CreditCardStatus.class);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
                 CreditCardStatus creditCardStatus = responseEntity.getBody();
@@ -2038,12 +2059,13 @@ public class APIGatewayService {
         try {
             logger.info("Getting gold loan due amount for merchant:{}", merchantId);
             String url = env.getProperty("gold.loan.base.url") + LendingConstants.GOLD_LOAN_DUE_URL + merchantId;
-            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+            Map<String, Object> requestParams = new HashMap<String, Object>() {{
                 put("merchantId", merchantId);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
-            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, new ParameterizedTypeReference<Map<String, Object>>() {});
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, new ParameterizedTypeReference<Map<String, Object>>() {
+            });
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("data") != null) {
                 Map<String, Object> dataMap = mapper.convertValue(responseEntity.getBody().get("data"), Map.class);
                 if (dataMap.get("amount") != null) {

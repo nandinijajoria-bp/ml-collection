@@ -7,6 +7,8 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -84,6 +86,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -623,13 +628,21 @@ public class LendingApplicationServiceV2 {
                 headerDTO.setComment("We are reviewing your shop documents");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(kycStatus)) {
                 headerDTO.setTitle("Document Verification Failed");
-                headerDTO.setComment("Please re-apply with correct shop details");
+                String rejectionMessage;
+                if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualCibil())) {
+                    rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+                } else {
+                    rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+                }
+                rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
+                headerDTO.setComment(rejectionMessage);
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(cpvStatus)) {
                 headerDTO.setTitle("Physical Verification Pending");
                 headerDTO.setComment("Our agents will visit your shop to collect business documents");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(cpvStatus)) {
-                headerDTO.setTitle("Physical Verification Failed");
-                headerDTO.setComment("Incomplete documents submitted during physical visit");
+                String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
+                rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
+                headerDTO.setComment(rejectionMessage);
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Pending");
                 headerDTO.setComment("Our agents will call you on " + merchant.getMobile() + " in 1-2 days for verification");
@@ -691,8 +704,11 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrialDao.save(lendingAuditTrial);
 
             }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
+                Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication);
                 if(downGradeStatus){
+                    lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
+                    lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
                     lendingResubmitTask.setDowngradeDone(Boolean.FALSE);
                     lendingResubmitTask.setDowngradeTimestamp(new Date());
@@ -770,6 +786,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
             }
             lendingResubmitTask.setResubmitDone(Boolean.TRUE);
+            lendingResubmitTask.setResubmittedAt(new Date());
             lendingResubmitTaskDao.save(lendingResubmitTask);
 
             lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");

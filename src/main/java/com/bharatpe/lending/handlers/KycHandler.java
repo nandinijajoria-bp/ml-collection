@@ -81,12 +81,12 @@ public class KycHandler {
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("docs", docs);
-                put("imgRequire", false);
+                put("imgRequire", true);
                 put("acceptRejected", true);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=false&acceptRejected=true";
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=true";
             log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
@@ -104,11 +104,18 @@ public class KycHandler {
         try {
             List<KycDoc> kycDocs = getKycDoc(merchantId);
             if (!CollectionUtils.isEmpty(kycDocs)) {
-                for (KycDoc kycDoc : kycDocs) {
-                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
-                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.PENDING)) return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.PENDING).build();
-                }
                 if (kycDocs.size() < kycMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+                    }
+                }
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.PENDING)) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.PENDING).build();
+                    }
+                }
+
                 return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
             }
         } catch (Exception e) {

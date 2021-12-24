@@ -8,5 +8,6 @@ import lombok.ToString;
 public class LoanDetailsRequest {
     private String pancard;
     private String pincode;
+    private Integer appVersion;
     private boolean isIOS = false;
 }

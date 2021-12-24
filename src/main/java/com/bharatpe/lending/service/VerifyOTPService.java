@@ -167,6 +167,7 @@ public class VerifyOTPService {
 			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
 			if(isOTPVerified){
 				lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
+				lendingResubmitTask.setDowngradedAt(new Date());
 				lendingResubmitTaskDao.save(lendingResubmitTask);
 				lendingApplication.setLmsStage("PENDING_DISBURSAL");
 				lendingApplicationDao.save(lendingApplication);
@@ -268,10 +269,12 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(),lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
 			logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
 			updateKycStatus(lendingApplication);
 		}
+		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(),lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 
 		sendPennyDrop(merchant.getId(),lendingApplication.getId());
 		sendLatLong(merchant.getId(),lendingApplication.getId());
@@ -294,23 +297,15 @@ public class VerifyOTPService {
 		try {
 			KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
 			logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
-			if (kycStatus.getKycStatus().equals(KycStatus.APPROVED)) {
-				lendingApplication.setCkycStatus(KycStatus.APPROVED.name());
-				lendingApplication.setCkycDate(new Date());
-				lendingApplicationDao.save(lendingApplication);
-			} else if (kycStatus.getKycStatus().equals(KycStatus.REJECTED)) {
-				lendingApplication.setCkycStatus(KycStatus.REJECTED.name());
+			lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());
+			lendingApplication.setCkycDate(new Date());
+			if (kycStatus.getKycStatus().equals(KycStatus.REJECTED)) {
 				lendingApplication.setCkycRejectionReason(kycStatus.getRemarks());
-				lendingApplication.setCkycDate(new Date());
 				lendingApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
 				lendingApplicationDao.save(lendingApplication);
-			} else if (kycStatus.getKycStatus().equals(KycStatus.PENDING)) {
-				lendingApplication.setCkycStatus(KycStatus.PENDING.name());
-				lendingApplication.setCkycDate(new Date());
-				lendingApplicationDao.save(lendingApplication);
-			} else {
-				logger.error("Unable to update kycStatus:{} for application:{}", kycStatus, lendingApplication.getId());
 			}
+			lendingApplicationDao.save(lendingApplication);
+
 		} catch (Exception e) {
 			logger.error("Exception in updateKycStatus for application:{}", lendingApplication.getId());
 		}
