@@ -5160,20 +5160,11 @@ public class OfferDowngradeApplication {
 
     public static Boolean eligibleForDowngrade(LendingApplication lendingApplication) {
         Map<Integer, Integer> applicationLoanAmountMap = new HashMap<>();
-//        applicationLoanAmountMap.putAll(applicationOfferMap1);
-//        applicationLoanAmountMap.putAll(applicationOfferMap2);
-//        applicationLoanAmountMap.putAll(applicationOfferMap3);
-//        applicationLoanAmountMap.putAll(applicationOfferMap4);
-//        applicationLoanAmountMap.putAll(applicationOfferMap5);
-        applicationLoanAmountMap.put(1911316, 21000);
-        applicationLoanAmountMap.put(1967426, 116000);
-        applicationLoanAmountMap.put(1892477, 24000);
-        applicationLoanAmountMap.put(1892880, 23000);
-        applicationLoanAmountMap.put(1908609, 36000);
-        applicationLoanAmountMap.put(1928511, 15000);
-        applicationLoanAmountMap.put(1955218, 20000);
-        applicationLoanAmountMap.put(1962253, 75000);
-
+        applicationLoanAmountMap.putAll(applicationOfferMap1);
+        applicationLoanAmountMap.putAll(applicationOfferMap2);
+        applicationLoanAmountMap.putAll(applicationOfferMap3);
+        applicationLoanAmountMap.putAll(applicationOfferMap4);
+        applicationLoanAmountMap.putAll(applicationOfferMap5);
         try {
             return Objects.nonNull(applicationLoanAmountMap.get(lendingApplication.getId().intValue()));
         } catch (Exception ex) {
@@ -5184,19 +5175,11 @@ public class OfferDowngradeApplication {
 
     public static Double getOfferRevisedAmount(LendingApplication lendingApplication) {
         Map<Integer, Integer> applicationLoanAmountMap = new HashMap<>();
-//        applicationLoanAmountMap.putAll(applicationOfferMap1);
-//        applicationLoanAmountMap.putAll(applicationOfferMap2);
-//        applicationLoanAmountMap.putAll(applicationOfferMap3);
-//        applicationLoanAmountMap.putAll(applicationOfferMap4);
-//        applicationLoanAmountMap.putAll(applicationOfferMap5);
-        applicationLoanAmountMap.put(1911316, 21000);
-        applicationLoanAmountMap.put(1967426, 116000);
-        applicationLoanAmountMap.put(1892477, 24000);
-        applicationLoanAmountMap.put(1892880, 23000);
-        applicationLoanAmountMap.put(1908609, 36000);
-        applicationLoanAmountMap.put(1928511, 15000);
-        applicationLoanAmountMap.put(1955218, 20000);
-        applicationLoanAmountMap.put(1962253, 75000);
+        applicationLoanAmountMap.putAll(applicationOfferMap1);
+        applicationLoanAmountMap.putAll(applicationOfferMap2);
+        applicationLoanAmountMap.putAll(applicationOfferMap3);
+        applicationLoanAmountMap.putAll(applicationOfferMap4);
+        applicationLoanAmountMap.putAll(applicationOfferMap5);
         try {
             return applicationLoanAmountMap.get(lendingApplication.getId().intValue()).doubleValue();
         } catch (Exception ex) {
