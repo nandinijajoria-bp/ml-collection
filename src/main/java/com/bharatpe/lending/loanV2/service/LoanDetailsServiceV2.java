@@ -342,12 +342,12 @@ public class LoanDetailsServiceV2 {
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }
             Long reapplyTime = getReapplyTime(openApplication);
-            applicationDetails.setReapply(shouldReapply(openApplication));
             if(Objects.nonNull(reapplyTime)) {
                 reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
                 applicationDetails.setReapplyTime(reapplyTime);
                 applicationDetails.setReapplyTimeEpoch(LoanUtil.addDays(new Date(),reapplyTime).getTime());
             }
+            applicationDetails.setReapply(shouldReapply(openApplication, reapplyTime));
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
@@ -363,16 +363,15 @@ public class LoanDetailsServiceV2 {
         if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
             Integer reapplyDayDiff = null;
             if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
-
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.EXPERIAN);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.KYC);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.QC);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
             }
             if(Objects.nonNull(reapplyDayDiff)) {
                 reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
-                reapplyTime = reapplyTime > 0 ? reapplyTime : reapplyTime;
+                reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
             }
         }
         return reapplyTime;
@@ -413,7 +412,10 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String shouldReapply(LendingApplication openApplication) {
+    private String shouldReapply(LendingApplication openApplication, Long reapply) {
+        if(Objects.isNull(reapply) || reapply > 0 ) {
+            return null;
+        }
         if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus())) {
             if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
                 return Reapply.OFFER.name();
