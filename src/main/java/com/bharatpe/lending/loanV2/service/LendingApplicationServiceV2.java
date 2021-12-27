@@ -637,11 +637,12 @@ public class LendingApplicationServiceV2 {
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
                 headerDTO.setComment(rejectionMessage);
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(cpvStatus)) {
-                headerDTO.setTitle("Physical Verification Pending");
+                headerDTO.setTitle("Document Verification Pending");
                 headerDTO.setComment("Our agents will visit your shop to collect business documents");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(cpvStatus)) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
+                headerDTO.setTitle("Document Verification Failed");
                 headerDTO.setComment(rejectionMessage);
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Pending");
