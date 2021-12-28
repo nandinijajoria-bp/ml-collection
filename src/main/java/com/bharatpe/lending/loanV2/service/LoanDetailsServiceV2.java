@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -99,6 +100,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    DateTimeUtil dateTimeUtil;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -321,8 +325,15 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
             if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() != null && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
-                applicationDetails.setApplicationStatus("RESUBMIT");
-                applicationDetails.setResubmitReason(lendingResubmitTask.getResubmitReason());
+                Date currentRequestTimestamp = dateTimeUtil.getCurrentDate();
+                Date resubmitCreatedAt = lendingResubmitTask.getCreatedAt();
+                Date opsStartTimestamp = dateTimeUtil.getDateAtTime(resubmitCreatedAt,9,0,0,0);
+                Date opsSameDayProcessTimestamp = dateTimeUtil.getDateAtTime(resubmitCreatedAt, 18,0,0,0);
+                Date opsNextDayProcessTimestamp = dateTimeUtil.getDateAtTime(dateTimeUtil.getDatePlusDays(resubmitCreatedAt,24), 18,0,0,0);
+                if ((resubmitCreatedAt.before(opsStartTimestamp) && currentRequestTimestamp.after(opsSameDayProcessTimestamp)) || ((resubmitCreatedAt.after(opsStartTimestamp)) && (currentRequestTimestamp.after(opsNextDayProcessTimestamp)))) {
+                    applicationDetails.setApplicationStatus("RESUBMIT");
+                    applicationDetails.setResubmitReason(lendingResubmitTask.getResubmitReason());
+                }
             }
             if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
                 applicationDetails.setApplicationStatus("DOWNGRADE");
