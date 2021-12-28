@@ -20,6 +20,7 @@ public class IneligibleAPIResponseDto {
 	private Boolean countSuccess;
 	private CtaDto enach;
 	private Long reapplyTime;
+	private Long reapplyTimeEpoch;
 	private List<Banner> banners = new ArrayList<>();
 
 	public IneligibleAPIResponseDto() {
@@ -153,4 +154,13 @@ public class IneligibleAPIResponseDto {
 	public void setReapplyTime(Long reapplyTime) {
 		this.reapplyTime = reapplyTime;
 	}
+
+	public Long getReapplyTimeEpoch() {
+		return reapplyTimeEpoch;
+	}
+
+	public void setReapplyTimeEpoch(Long reapplyTimeEpoch) {
+		this.reapplyTimeEpoch = reapplyTimeEpoch;
+	}
+
 }

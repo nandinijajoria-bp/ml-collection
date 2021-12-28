@@ -288,6 +288,15 @@ public class LoanUtil {
 		return TimeUnit.HOURS.convert(diff, TimeUnit.MILLISECONDS);
 	}
 
+	public static Date addDays(Date date, Long days) {
+		Calendar cal = Calendar.getInstance();
+
+		cal.setTime(date);
+		cal.add(Calendar.DATE, days.intValue());
+
+		return cal.getTime();
+	}
+
 	public static Map<String , String> settlementMode = new HashMap<String , String>() {{
 		put("SETTLEMENT", "QR Txns.");
 		put("EXTERNAL_NACH", "NACH");

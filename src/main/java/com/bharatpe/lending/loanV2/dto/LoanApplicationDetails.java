@@ -26,4 +26,6 @@ public class LoanApplicationDetails {
     private EnachErrorMessageDTO enachErrorResponse;
     private boolean skipEnach;
     private String resubmitReason;
+    private Long reapplyTime;
+    private Long reapplyTimeEpoch;
 }

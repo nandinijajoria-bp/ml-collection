@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -10,6 +11,9 @@ import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.ApplicationStage;
+import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -93,6 +97,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     @Autowired
     DateTimeUtil dateTimeUtil;
@@ -217,12 +224,25 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
         MutableBoolean isDerog = new MutableBoolean(false);
-        Eligibility eligibility = getEligibility(merchant, isDerog, ObjectUtils.isEmpty(request) ? null : request.getAppVersion());
+        GlobalLimitResponse globalLimitResponse = getEligibility(merchant, request.getAppVersion());
+        Double eligibleAmount = 0D;
+        if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+            log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
+            eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+            isDerog.setValue(globalLimitResponse.getData().isDerog());
+        }
+        Eligibility eligibility = null;
+        if (eligibleAmount > 0D) {
+            log.info("Eligibility found for merchant:{}", merchant.getId());
+            eligibility = createEligibility(merchant.getId());
+        }
+        log.info("Eligibility not found for merchant:{}", merchant.getId());
+
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;
         }
-        loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode()));
+        loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(),globalLimitResponse));
         loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
     }
 
@@ -243,9 +263,12 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode) {
+    private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
+            if(Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
+                return globalLimitResponse.getData().getRejectionType();
+            }
             if (loanUtil.isOGL(pincode)) {
                 log.info("OGL merchant:{}", merchantId);
                 return IneligibleType.OGL.name();
@@ -261,21 +284,11 @@ public class LoanDetailsServiceV2 {
         return IneligibleType.INELIGIBLE.name();
     }
 
-    private Eligibility getEligibility(Merchant merchant, MutableBoolean isDerog, Integer appVersion) {
+    private GlobalLimitResponse getEligibility(Merchant merchant, Integer appVersion) {
         log.info("Checking eligibility for merchant:{}", merchant.getId());
         try {
-            Double eligibleAmount = 0D;
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, appVersion);
-            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-                log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
-                eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
-                isDerog.setValue(globalLimitResponse.getData().isDerog());
-            }
-            if (eligibleAmount > 0D) {
-                log.info("Eligibility found for merchant:{}", merchant.getId());
-                return createEligibility(merchant.getId());
-            }
-            log.info("Eligibility not found for merchant:{}", merchant.getId());
+            return globalLimitResponse;
         } catch (Exception e) {
             log.error("Exception in getEligibility for merchant:{}", merchant.getId(), e);
         }
@@ -339,7 +352,13 @@ public class LoanDetailsServiceV2 {
                 int tat = loanUtil.getApplicationTAT(openApplication.getId());
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }
-            applicationDetails.setReapply(shouldReapply(openApplication));
+            Long reapplyTime = getReapplyTime(openApplication);
+            if(Objects.nonNull(reapplyTime)) {
+                reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
+                applicationDetails.setReapplyTime(reapplyTime);
+                applicationDetails.setReapplyTimeEpoch(LoanUtil.addDays(new Date(),reapplyTime).getTime());
+            }
+            applicationDetails.setReapply(shouldReapply(openApplication,reapplyTime));
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
@@ -348,6 +367,25 @@ public class LoanDetailsServiceV2 {
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchant().getId(), e);
         }
+    }
+
+    private Long getReapplyTime(LendingApplication lendingApplication) {
+        Long reapplyTime = null;
+        if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
+            Integer reapplyDayDiff = null;
+            if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+            } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+            } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
+            }
+            if(Objects.nonNull(reapplyDayDiff)) {
+                reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
+            }
+        }
+        return reapplyTime;
     }
 
     private String getRejectionReason(LendingApplication openApplication) {
@@ -385,10 +423,15 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String shouldReapply(LendingApplication openApplication) {
+    private String shouldReapply(LendingApplication openApplication, Long reapplyTime) {
+
+        if(ObjectUtils.isEmpty(reapplyTime)) {
+            return null;
+        }
+
         if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus())) {
             if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
-                return null;
+                return Reapply.OFFER.name();
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualKyc())) {
                 return Reapply.OFFER.name();
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getCkycStatus())) {
