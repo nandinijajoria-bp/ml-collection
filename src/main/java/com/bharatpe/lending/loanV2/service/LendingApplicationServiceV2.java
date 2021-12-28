@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -27,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
@@ -730,8 +730,19 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(lendingCategory)){
                 return false;
             }
-            Double loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
-            loanAmount=Math.min(loanAmount,100000d);
+            Double loanAmount;
+            if (OfferDowngradeApplication.eligibleForDowngrade(lendingApplication)) {
+                loanAmount = OfferDowngradeApplication.getOfferRevisedAmount(lendingApplication);
+                if (Objects.isNull(loanAmount)) {
+                    loanAmount = 0d;
+                }
+            } else {
+                loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
+                loanAmount = Math.min(loanAmount, 100000d);
+            }
+            if(loanAmount > lendingApplication.getLoanAmount()) {
+                return false;
+            }
             if(loanAmount < 10000d){
                 return false;
             }
