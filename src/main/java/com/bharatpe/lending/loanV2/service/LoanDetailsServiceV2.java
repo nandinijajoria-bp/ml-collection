@@ -358,7 +358,7 @@ public class LoanDetailsServiceV2 {
                 applicationDetails.setReapplyTime(reapplyTime);
                 applicationDetails.setReapplyTimeEpoch(LoanUtil.addDays(new Date(),reapplyTime).getTime());
             }
-            applicationDetails.setReapply(shouldReapply(openApplication));
+            applicationDetails.setReapply(shouldReapply(openApplication,reapplyTime));
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
@@ -423,7 +423,11 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String shouldReapply(LendingApplication openApplication) {
+    private String shouldReapply(LendingApplication openApplication, Long reapplyTime) {
+
+        if(ObjectUtils.isEmpty(reapplyTime)) {
+            return null;
+        }
 
         if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus())) {
             if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualCibil())) {
