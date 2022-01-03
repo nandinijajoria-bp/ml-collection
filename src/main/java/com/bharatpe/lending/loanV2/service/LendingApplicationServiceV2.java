@@ -817,6 +817,7 @@ public class LendingApplicationServiceV2 {
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
                 lendingApplicationPriority.setTatStartTime(new Date());
+                lendingApplicationPriorityDao.save(lendingApplicationPriority);
             }
 
             LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();

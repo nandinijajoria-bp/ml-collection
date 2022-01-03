@@ -173,6 +173,7 @@ public class VerifyOTPService {
 				lendingApplication.setLmsStage("PENDING_DISBURSAL");
 				lendingApplicationDao.save(lendingApplication);
 
+				// updating ready timestamp on downgrade
 				LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
 				if (Objects.isNull(lendingDisbursalStage)) {
 					lendingDisbursalStage = new LendingDisbursalStage();
@@ -183,6 +184,7 @@ public class VerifyOTPService {
 				lendingDisbursalStage.setReadyTimestamp(new Date().toString());
 				lendingDisbursalStage.setCallStage("YES");
 				lendingDisbursalStage.setCallTimestamp(new Date().toString());
+				lendingDisbursalStageDao.save(lendingDisbursalStage);
 				finalResponse.put("success",true);
 				finalResponse.put("agreement_verified",true);
 				return finalResponse;
