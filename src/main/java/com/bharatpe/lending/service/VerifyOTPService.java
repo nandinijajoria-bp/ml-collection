@@ -180,10 +180,12 @@ public class VerifyOTPService {
 					lendingDisbursalStage.setApplicationId(lendingApplication.getId());
 					lendingDisbursalStage.setMerchantId(lendingApplication.getMerchant().getId());
 				}
+				DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+				String currentDate = dateFormat.format(new Date());
 				lendingDisbursalStage.setReadyStage("YES");
-				lendingDisbursalStage.setReadyTimestamp(new Date().toString());
+				lendingDisbursalStage.setReadyTimestamp(currentDate);
 				lendingDisbursalStage.setCallStage("YES");
-				lendingDisbursalStage.setCallTimestamp(new Date().toString());
+				lendingDisbursalStage.setCallTimestamp(currentDate);
 				lendingDisbursalStageDao.save(lendingDisbursalStage);
 				finalResponse.put("success",true);
 				finalResponse.put("agreement_verified",true);
