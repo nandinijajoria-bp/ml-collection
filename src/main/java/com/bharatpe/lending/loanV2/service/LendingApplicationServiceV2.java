@@ -2,9 +2,11 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.BpEnach;
+import com.bharatpe.lending.common.entity.LendingApplicationPriority;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.RejectionStage;
@@ -30,6 +32,7 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -89,6 +92,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    LendingApplicationPriorityDao lendingApplicationPriorityDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -747,7 +753,10 @@ public class LendingApplicationServiceV2 {
                 return false;
             }
             Double amountDiffrence = lendingApplication.getLoanAmount() - loanAmount;
-            int processingFee= (int) Math.ceil(loanAmount * Double.parseDouble(lendingCategory.getProcessingFee()));
+            int processingFee = 0;
+            if (lendingApplication.getProcessingFee() > 0) {
+                processingFee = (int) Math.ceil(loanAmount * Double.parseDouble(lendingCategory.getProcessingFee()));
+            }
             Integer edi,repayment;
             edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()))) / lendingCategory.getPayableDays());
             repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
@@ -803,6 +812,12 @@ public class LendingApplicationServiceV2 {
 
             lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
             lendingApplicationDao.save(lendingApplication);
+
+            // update tat start time on resubmit
+            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
+            if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
+                lendingApplicationPriority.setTatStartTime(new Date());
+            }
 
             LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
             lendingAuditTrial.setMerchantId(lendingApplication.getMerchant().getId());

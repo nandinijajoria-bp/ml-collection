@@ -15,10 +15,8 @@ import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
-import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
@@ -130,6 +128,9 @@ public class VerifyOTPService {
     @Autowired
 	NotificationUtil notificationUtil;
 
+    @Autowired
+	LendingDisbursalStageDao lendingDisbursalStageDao;
+
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
@@ -171,6 +172,17 @@ public class VerifyOTPService {
 				lendingResubmitTaskDao.save(lendingResubmitTask);
 				lendingApplication.setLmsStage("PENDING_DISBURSAL");
 				lendingApplicationDao.save(lendingApplication);
+
+				LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
+				if (Objects.isNull(lendingDisbursalStage)) {
+					lendingDisbursalStage = new LendingDisbursalStage();
+					lendingDisbursalStage.setApplicationId(lendingApplication.getId());
+					lendingDisbursalStage.setMerchantId(lendingApplication.getMerchant().getId());
+				}
+				lendingDisbursalStage.setReadyStage("YES");
+				lendingDisbursalStage.setReadyTimestamp(new Date().toString());
+				lendingDisbursalStage.setCallStage("YES");
+				lendingDisbursalStage.setCallTimestamp(new Date().toString());
 				finalResponse.put("success",true);
 				finalResponse.put("agreement_verified",true);
 				return finalResponse;
