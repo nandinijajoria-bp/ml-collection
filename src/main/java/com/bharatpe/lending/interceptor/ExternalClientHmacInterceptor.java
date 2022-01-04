@@ -93,6 +93,7 @@ public class ExternalClientHmacInterceptor implements HandlerInterceptor {
             if(!StringUtils.isEmpty(requestBody)) {
                 ObjectMapper mapper = new ObjectMapper();
                 paramMap = mapper.readValue(requestBody, new TypeReference<Map<String, String>>(){});
+//                paramMap = mapper.readValue(requestBody, new TypeReference<Map<String, Object>>(){});
             }
         }
         if(paramMap != null && !paramMap.isEmpty())
