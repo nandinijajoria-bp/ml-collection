@@ -3,7 +3,6 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
@@ -18,6 +17,8 @@ import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -91,6 +92,9 @@ public class MerchantLoansService {
 
     @Autowired
     LendingContactSyncAuditDao lendingContactSyncAuditDao;
+
+    @Value("${topup.enabled:false}")
+    Boolean isTopUpEnabled;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -393,7 +397,10 @@ public class MerchantLoansService {
         Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
-
+        if (!isTopUpEnabled) {
+            logger.info("Topup are loans are disabled");
+            return eligiblity;
+        }
         if (lendingApplication == null) {
             logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
             return eligiblity;
