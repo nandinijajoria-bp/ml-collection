@@ -23,8 +23,8 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	@Autowired
 	CommonInterceptor commonInterceptor;
 
-	@Autowired
-	ExternalClientHmacInterceptor externalClientHmacInterceptor;
+//	@Autowired
+//	ExternalClientHmacInterceptor externalClientHmacInterceptor;
 	
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -39,6 +39,6 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount");
 
-		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");
+//		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");
     }
 }
