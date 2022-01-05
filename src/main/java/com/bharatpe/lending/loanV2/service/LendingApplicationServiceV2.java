@@ -331,6 +331,9 @@ public class LendingApplicationServiceV2 {
             lendingGstDetail.setCompanyName(!StringUtils.isEmpty(professionalDetails.getCompanyName()) ? professionalDetails.getCompanyName() : lendingGstDetail.getCompanyName());
             lendingGstDetail.setAddressType(!StringUtils.isEmpty(professionalDetails.getAddressType()) ? professionalDetails.getAddressType() : lendingGstDetail.getAddressType());
             lendingGstDetail.setCurrentAddress(!StringUtils.isEmpty(professionalDetails.getCurrentAddress()) ? professionalDetails.getCurrentAddress() : lendingGstDetail.getCurrentAddress());
+            lendingGstDetail.setBusinessCategory(!StringUtils.isEmpty(professionalDetails.getBusinessCategory()) ? professionalDetails.getBusinessCategory() : lendingGstDetail.getBusinessCategory());
+            lendingGstDetail.setBusinessSubCategory(!StringUtils.isEmpty(professionalDetails.getBusinessSubCategory()) ? professionalDetails.getBusinessSubCategory() : lendingGstDetail.getBusinessSubCategory());
+
             lendingGstDao.save(lendingGstDetail);
         } catch (Exception e) {
             log.error("Exception in saveGstDetails for application:{}", lendingApplication.getId(), e);
