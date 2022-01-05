@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -169,7 +170,7 @@ public class ImageURLService {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
 		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-
+		String shopDocType = ObjectUtils.isEmpty(commonAPIRequest.getPayload().get("shop_doc_type")) ? null : commonAPIRequest.getPayload().get("shop_doc_type").toString();
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
 				continue;
@@ -210,7 +211,7 @@ public class ImageURLService {
 
 				List<String> imageURL = new ArrayList<>();
 				try {
-					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide())) {
+					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide()) || (!StringUtils.isEmpty(shopDocType) && !shopDocType.contains(lendingShopDocuments.getProofType()))) {
 						logger.error("Empty front Url for Shop Documents: {}", lendingShopDocuments.getId());
 						continue;
 					}
@@ -220,7 +221,6 @@ public class ImageURLService {
 					if(!StringUtils.isEmpty(lendingShopDocuments.getProofBackSide())) {
 						String backURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofBackSide(), bucket);
 						imageURL.add(backURL);
-
 					}
 				} catch (FileNotFoundException e) {
 					logger.info("ImageURLService file not found in S3 bucket for key : {}", lendingShopDocuments.getProofBackSide());
