@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
@@ -18,6 +19,7 @@ import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.ApplicationDTO;
 import com.bharatpe.lending.dto.ApplicationStatusResponseDTO;
+import com.bharatpe.lending.dto.BusinessCategoryResponseDTO;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
@@ -838,5 +840,12 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in resubmit Done for application:{}", applicationId, e);
         }
         return new ApiResponse<>(false,"Something Went Wrong.");
+    }
+
+    public ApiResponse<?> getBusinessCategory(){
+        BusinessCategoryResponseDTO businessCategoryResponseDTO = new BusinessCategoryResponseDTO();
+        businessCategoryResponseDTO.setBusinessCategory(BusinessCategories.getBusinessCategories);
+        businessCategoryResponseDTO.setBusinessSubCategory(BusinessCategories.getBusinessSubCategories);
+        return new ApiResponse<>(businessCategoryResponseDTO);
     }
 }

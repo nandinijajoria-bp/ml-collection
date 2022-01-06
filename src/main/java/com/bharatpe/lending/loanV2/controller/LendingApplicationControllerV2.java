@@ -67,4 +67,10 @@ public class LendingApplicationControllerV2 {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping(value = "/businessCategory")
+    public ResponseEntity<ApiResponse<?>> getBusinessCategories(){
+        ApiResponse<?> response = lendingApplicationServiceV2.getBusinessCategory();
+        return ResponseEntity.ok(response);
+    }
+
 }

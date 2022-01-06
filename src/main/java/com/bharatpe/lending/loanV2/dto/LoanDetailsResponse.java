@@ -27,6 +27,4 @@ public class LoanDetailsResponse {
     private boolean bankLinked = false;
     private boolean repeatLoan = false;
     private BankAccountDetails accountDetails;
-    private List<String> businessCategories;
-    private Map<String, List<String>> businessSubCategories;
 }

@@ -117,8 +117,6 @@ public class LoanDetailsServiceV2 {
                 log.info("organized merchant:{}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
             }
-            loanDetailsResponse.setBusinessCategories(BusinessCategories.getBusinessCategories);
-            loanDetailsResponse.setBusinessSubCategories(BusinessCategories.getBusinessSubCategories);
             loanDetailsResponse.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
             loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
