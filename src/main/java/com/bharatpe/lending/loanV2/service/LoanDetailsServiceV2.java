@@ -464,7 +464,7 @@ public class LoanDetailsServiceV2 {
 
     private ProfessionalDetails getProfessionalDetails(LendingApplication openApplication) {
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(openApplication.getId());
-        LendingGstDetail previousGstDetails = lendingGstDao.findLastByMerchantId(openApplication.getMerchant().getId());
+        LendingGstDetail previousGstDetails = lendingGstDao.findTop1ByMerchantIdOrderByIdDesc(openApplication.getMerchant().getId());
         if (lendingGstDetail == null) return null;
 
         String businessCategory = lendingGstDetail.getBusinessCategory();
