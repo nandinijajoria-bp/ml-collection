@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -88,6 +89,9 @@ public class FosService {
     @Autowired
     LoanUtil loanUtil;
 
+    @Value("${fos.task.enabled:false}")
+    Boolean isFosTaskEnabled;
+
 
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
@@ -140,6 +144,12 @@ public class FosService {
                 return responseDTO;
             }
             if(eligibleLoan == null && lendingApplication == null){
+                data.put("message","Merchant Not Eligible For Loan.");
+                data.put("eligible",Boolean.FALSE);
+                responseDTO.setData(data);
+                return responseDTO;
+            }
+            if(!isFosTaskEnabled){
                 data.put("message","Merchant Not Eligible For Loan.");
                 data.put("eligible",Boolean.FALSE);
                 responseDTO.setData(data);
