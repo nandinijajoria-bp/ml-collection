@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -122,6 +121,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
+            populateProfessionalDetails(merchant,loanDetailsResponse);
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 loanDetailsResponse.setActiveLoan(true);
@@ -160,6 +160,18 @@ public class LoanDetailsServiceV2 {
         } catch (Exception e) {
             log.error("Exception in loan details service v2 for merchant:{}", merchant.getId(), e);
             return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    private void populateProfessionalDetails(Merchant merchant, LoanDetailsResponse loanDetailsResponse) {
+        LendingGstDetail lendingGstDetail = lendingGstDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+        if (Objects.nonNull(lendingApplication)) {
+            loanDetailsResponse.setBusinessName(lendingApplication.getBusinessName());
+        }
+        if (Objects.nonNull(lendingGstDetail)) {
+            loanDetailsResponse.setBusinessCategory(lendingGstDetail.getBusinessCategory());
+            loanDetailsResponse.setBusinessSubCategory(lendingGstDetail.getBusinessSubCategory());
         }
     }
 
