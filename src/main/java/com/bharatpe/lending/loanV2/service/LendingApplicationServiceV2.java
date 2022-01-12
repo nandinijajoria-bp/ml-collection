@@ -4,12 +4,10 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
+import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
-import com.bharatpe.lending.common.entity.BpEnach;
-import com.bharatpe.lending.common.entity.LendingApplicationPriority;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
@@ -97,6 +95,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LendingApplicationPriorityDao lendingApplicationPriorityDao;
+
+    @Autowired
+    LendingMerchantDetailsDao lendingMerchantDetailsDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -333,8 +334,6 @@ public class LendingApplicationServiceV2 {
             lendingGstDetail.setCompanyName(!StringUtils.isEmpty(professionalDetails.getCompanyName()) ? professionalDetails.getCompanyName() : lendingGstDetail.getCompanyName());
             lendingGstDetail.setAddressType(!StringUtils.isEmpty(professionalDetails.getAddressType()) ? professionalDetails.getAddressType() : lendingGstDetail.getAddressType());
             lendingGstDetail.setCurrentAddress(!StringUtils.isEmpty(professionalDetails.getCurrentAddress()) ? professionalDetails.getCurrentAddress() : lendingGstDetail.getCurrentAddress());
-            lendingGstDetail.setBusinessCategory(!StringUtils.isEmpty(professionalDetails.getBusinessCategory()) ? professionalDetails.getBusinessCategory() : lendingGstDetail.getBusinessCategory());
-            lendingGstDetail.setBusinessSubCategory(!StringUtils.isEmpty(professionalDetails.getBusinessSubCategory()) ? professionalDetails.getBusinessSubCategory() : lendingGstDetail.getBusinessSubCategory());
 
             lendingGstDao.save(lendingGstDetail);
         } catch (Exception e) {
@@ -847,5 +846,20 @@ public class LendingApplicationServiceV2 {
         businessCategoryResponseDTO.setBusinessCategory(BusinessCategories.getBusinessCategories);
         businessCategoryResponseDTO.setBusinessSubCategory(BusinessCategories.getBusinessSubCategories);
         return new ApiResponse<>(businessCategoryResponseDTO);
+    }
+
+    public ApiResponse<?> addBusinessDetails(BusinessDetailsDTO businessDetailsDTO, Merchant merchant) {
+        try {
+            LendingMerchantDetails lendingMerchantDetails = new LendingMerchantDetails();
+            lendingMerchantDetails.setMerchantId(merchant.getId());
+            lendingMerchantDetails.setBusinessName(businessDetailsDTO.getBusinessName());
+            lendingMerchantDetails.setBusinessSubCategory(businessDetailsDTO.getBusinessSubCategory());
+            lendingMerchantDetails.setBusinessCategory(businessDetailsDTO.getBusinessCategory());
+            lendingMerchantDetailsDao.save(lendingMerchantDetails);
+            return new ApiResponse<>(true, "Business Details Added Successfully");
+        } catch (Exception ex) {
+            log.error("Exception Occured while adding business details for merchantId: {} {}", merchant.getId(), ex.getMessage());
+        }
+        return new ApiResponse<>(false, "Something Went Wrong.");
     }
 }

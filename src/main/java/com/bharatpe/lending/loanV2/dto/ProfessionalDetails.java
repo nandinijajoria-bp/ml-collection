@@ -11,8 +11,6 @@ import lombok.ToString;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProfessionalDetails {
-    private String businessCategory;
-    private String businessSubCategory;
     private String profession;
     private String gstNumber;
     private String experience;

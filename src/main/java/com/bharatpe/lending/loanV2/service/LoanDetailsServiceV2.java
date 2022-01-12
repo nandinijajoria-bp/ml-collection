@@ -2,14 +2,8 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.dao.BharatPeEnachDao;
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
-import com.bharatpe.lending.common.entity.BharatPeEnach;
-import com.bharatpe.lending.common.entity.CreditLineMerchant;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -102,6 +96,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     DateTimeUtil dateTimeUtil;
 
+    @Autowired
+    LendingMerchantDetailsDao lendingMerchantDetailsDao;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
@@ -121,7 +118,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
-            populateProfessionalDetails(merchant,loanDetailsResponse);
+            populateBusinessDetails(merchant,loanDetailsResponse);
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 loanDetailsResponse.setActiveLoan(true);
@@ -163,15 +160,12 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void populateProfessionalDetails(Merchant merchant, LoanDetailsResponse loanDetailsResponse) {
-        LendingGstDetail lendingGstDetail = lendingGstDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
-        if (Objects.nonNull(lendingApplication)) {
-            loanDetailsResponse.setBusinessName(lendingApplication.getBusinessName());
-        }
-        if (Objects.nonNull(lendingGstDetail)) {
-            loanDetailsResponse.setBusinessCategory(lendingGstDetail.getBusinessCategory());
-            loanDetailsResponse.setBusinessSubCategory(lendingGstDetail.getBusinessSubCategory());
+    private void populateBusinessDetails(Merchant merchant, LoanDetailsResponse loanDetailsResponse) {
+        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        if (Objects.nonNull(lendingMerchantDetails)) {
+            loanDetailsResponse.setBusinessName(lendingMerchantDetails.getBusinessName());
+            loanDetailsResponse.setBusinessCategory(lendingMerchantDetails.getBusinessCategory());
+            loanDetailsResponse.setBusinessSubCategory(lendingMerchantDetails.getBusinessSubCategory());
         }
     }
 
@@ -476,17 +470,7 @@ public class LoanDetailsServiceV2 {
 
     private ProfessionalDetails getProfessionalDetails(LendingApplication openApplication) {
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(openApplication.getId());
-        LendingGstDetail previousGstDetails = lendingGstDao.findTop1ByMerchantIdOrderByIdDesc(openApplication.getMerchant().getId());
         if (lendingGstDetail == null) return null;
-
-        String businessCategory = lendingGstDetail.getBusinessCategory();
-        String businessSubCategory = lendingGstDetail.getBusinessSubCategory();
-        if (Objects.nonNull(previousGstDetails) && StringUtils.isEmpty(businessCategory)) {
-            businessCategory = previousGstDetails.getBusinessCategory();
-        }
-        if (Objects.nonNull(previousGstDetails) && StringUtils.isEmpty(businessCategory)) {
-            businessSubCategory = previousGstDetails.getBusinessSubCategory();
-        }
 
         return ProfessionalDetails.builder()
                 .profession(lendingGstDetail.getEntityType())
@@ -496,8 +480,6 @@ public class LoanDetailsServiceV2 {
                 .companyName(lendingGstDetail.getCompanyName())
                 .addressType(lendingGstDetail.getAddressType())
                 .shopType(lendingGstDetail.getShopType())
-                .businessCategory(businessCategory)
-                .businessSubCategory(businessSubCategory)
                 .build();
     }
 
