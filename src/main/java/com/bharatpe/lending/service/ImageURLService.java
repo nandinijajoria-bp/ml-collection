@@ -212,7 +212,6 @@ public class ImageURLService {
 				List<String> imageURL = new ArrayList<>();
 				try {
 					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide()) || (!StringUtils.isEmpty(shopDocType) && !shopDocType.contains(lendingShopDocuments.getProofType()))) {
-						logger.error("Empty front Url for Shop Documents: {}", lendingShopDocuments.getId());
 						continue;
 					}
 					String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);

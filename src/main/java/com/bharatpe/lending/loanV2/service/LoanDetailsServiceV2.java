@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -11,10 +10,10 @@ import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
-import com.bharatpe.lending.common.enums.ApplicationStage;
+import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -266,7 +265,10 @@ public class LoanDetailsServiceV2 {
     private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
-            if(Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
+            if (Objects.isNull(globalLimitResponse)) {
+                log.error("Global limit response is null for merchantId: {}", merchantId);
+            }
+            if (Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
                 return globalLimitResponse.getData().getRejectionType();
             }
             if (loanUtil.isOGL(pincode)) {
@@ -281,7 +283,7 @@ public class LoanDetailsServiceV2 {
             log.error("Exception in getIneligibleReason for merchant:{}", merchantId, e);
         }
         log.info("Ineligible merchant:{}", merchantId);
-        return IneligibleType.INELIGIBLE.name();
+        return RejectionReason.LOW_TRANSACTION.getReason();
     }
 
     private GlobalLimitResponse getEligibility(Merchant merchant, Integer appVersion) {

@@ -151,7 +151,13 @@ public class SupportService {
             SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
             supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
             CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
-            Experian experian = experianDao.getByMerchantId(merchantId);
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+            Experian experian;
+            if(Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData())) {
+                experian = globalLimitResponse.getData().getExperian();
+            } else {
+                experian = experianDao.getByMerchantId(merchantId);
+            }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
