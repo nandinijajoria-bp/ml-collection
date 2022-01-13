@@ -2,19 +2,11 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.Constants.SupportApiConstants;
-import com.bharatpe.lending.common.dao.BharatPeEnachDao;
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
-import com.bharatpe.lending.common.entity.BharatPeEnach;
-import com.bharatpe.lending.common.entity.CreditLineMerchant;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
-import com.bharatpe.lending.common.enums.ApplicationStage;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -104,6 +96,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     DateTimeUtil dateTimeUtil;
 
+    @Autowired
+    LendingMerchantDetailsDao lendingMerchantDetailsDao;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
@@ -123,6 +118,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
+            populateBusinessDetails(merchant,loanDetailsResponse);
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 loanDetailsResponse.setActiveLoan(true);
@@ -161,6 +157,15 @@ public class LoanDetailsServiceV2 {
         } catch (Exception e) {
             log.error("Exception in loan details service v2 for merchant:{}", merchant.getId(), e);
             return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    private void populateBusinessDetails(Merchant merchant, LoanDetailsResponse loanDetailsResponse) {
+        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        if (Objects.nonNull(lendingMerchantDetails)) {
+            loanDetailsResponse.setBusinessName(lendingMerchantDetails.getBusinessName());
+            loanDetailsResponse.setBusinessCategory(lendingMerchantDetails.getBusinessCategory());
+            loanDetailsResponse.setBusinessSubCategory(lendingMerchantDetails.getBusinessSubCategory());
         }
     }
 
@@ -466,6 +471,7 @@ public class LoanDetailsServiceV2 {
     private ProfessionalDetails getProfessionalDetails(LendingApplication openApplication) {
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(openApplication.getId());
         if (lendingGstDetail == null) return null;
+
         return ProfessionalDetails.builder()
                 .profession(lendingGstDetail.getEntityType())
                 .gstNumber(lendingGstDetail.getGstNumber())
@@ -473,7 +479,8 @@ public class LoanDetailsServiceV2 {
                 .salary(String.valueOf(lendingGstDetail.getSalary()))
                 .companyName(lendingGstDetail.getCompanyName())
                 .addressType(lendingGstDetail.getAddressType())
-                .shopType(lendingGstDetail.getShopType()).build();
+                .shopType(lendingGstDetail.getShopType())
+                .build();
     }
 
     private AddressDetails getShopAddress(LendingApplication lendingApplication) {

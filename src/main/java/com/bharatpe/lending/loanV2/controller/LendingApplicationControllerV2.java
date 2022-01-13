@@ -1,13 +1,11 @@
 package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV2.dto.CreateApplicationRequest;
-import com.bharatpe.lending.loanV2.dto.InitiateKycRequest;
-import com.bharatpe.lending.loanV2.dto.ResubmitApplicationDTO;
+import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -64,6 +62,19 @@ public class LendingApplicationControllerV2 {
         log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchant.getId(),applicationId);
         ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId);
         log.info("Lending Resubmit done Application Response:{} for applicationId:{}",response,applicationId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping(value = "/businessCategory")
+    public ResponseEntity<ApiResponse<?>> getBusinessCategories(){
+        ApiResponse<?> response = lendingApplicationServiceV2.getBusinessCategory();
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/businessDetails", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<?>> addBusinessDetails(@RequestBody BusinessDetailsDTO businessDetailsDTO, @RequestAttribute Merchant merchant){
+        log.info("Adding business Details for merchantId:{}",merchant.getId(),businessDetailsDTO.toString());
+        ApiResponse<?> response = lendingApplicationServiceV2.addBusinessDetails(businessDetailsDTO,merchant);
         return ResponseEntity.ok(response);
     }
 
