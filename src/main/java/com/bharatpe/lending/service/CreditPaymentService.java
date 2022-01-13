@@ -5,8 +5,8 @@ import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.Gateway;
+import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
@@ -16,28 +16,23 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
-import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.CreditUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.apache.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
-import com.bharatpe.common.enums.NotificationProvider;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -975,6 +970,10 @@ public class CreditPaymentService {
             sendFiledNotification(lendingClTransaction);
         } else if (CreditConstants.PaymentStatus.SUCCESS.equals(status)) {
             CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
+            if (ObjectUtils.isEmpty(creditAccount)) {
+                logger.error("Credit Account not found for merchantId : {}", lendingClTransaction.getMerchantId());
+                return;
+            }
             updateBalances(creditAccount, lendingClTransaction);
         }
     }

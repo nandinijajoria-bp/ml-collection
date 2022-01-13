@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
@@ -271,7 +272,10 @@ public class LoanDetailsServiceV2 {
     private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
-            if(Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
+            if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+                log.error("Global limit response is null for merchantId: {} , {}", merchantId, globalLimitResponse);
+            }
+            if (Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
                 return globalLimitResponse.getData().getRejectionType();
             }
             if (loanUtil.isOGL(pincode)) {
@@ -286,7 +290,7 @@ public class LoanDetailsServiceV2 {
             log.error("Exception in getIneligibleReason for merchant:{}", merchantId, e);
         }
         log.info("Ineligible merchant:{}", merchantId);
-        return IneligibleType.INELIGIBLE.name();
+        return RejectionReason.LOW_TRANSACTION.getReason();
     }
 
     private GlobalLimitResponse getEligibility(Merchant merchant, Integer appVersion) {
