@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.ToString;
 
+import java.util.List;
+import java.util.Map;
+
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -24,4 +27,7 @@ public class LoanDetailsResponse {
     private boolean bankLinked = false;
     private boolean repeatLoan = false;
     private BankAccountDetails accountDetails;
+    private String businessName;
+    private String businessCategory;
+    private String businessSubCategory;
 }
