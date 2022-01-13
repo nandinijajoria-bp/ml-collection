@@ -1,9 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
-import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
@@ -21,13 +19,11 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.CreditLineRepaymentHistoryResponseDto.Repayment;
 import com.bharatpe.lending.dto.DailySettlementResponseDto.DailyRepayment;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.util.creditresponse.CrifResponseUtil;
 import com.bharatpe.lending.util.creditresponse.ExperianResponseUtil;
 import com.bharatpe.lending.util.creditresponse.ResponseUtil;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -36,19 +32,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.IOException;
-import java.text.DateFormat;
 import java.text.DecimalFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Service
 public class CreditLineService {
@@ -970,14 +959,14 @@ public class CreditLineService {
 
 		loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse);
 
-		if(Objects.nonNull(loanAndCreditCardDetailDTO.getLoanDetail())) {
+		if (Objects.nonNull(loanAndCreditCardDetailDTO) && Objects.nonNull(loanAndCreditCardDetailDTO.getLoanDetail())) {
 			Collections.sort(loanAndCreditCardDetailDTO.getLoanDetail(),
 					(o1, o2) -> Boolean.compare(o2.isStatus(), o1.isStatus()));
 		}
 
-		if(Objects.nonNull(loanAndCreditCardDetailDTO.getCreditCardDetail())) {
+		if (Objects.nonNull(loanAndCreditCardDetailDTO) && Objects.nonNull(loanAndCreditCardDetailDTO.getCreditCardDetail())) {
 			Collections.sort(loanAndCreditCardDetailDTO.getCreditCardDetail(),
-					(o1, o2) -> Boolean.compare(o2.isStatus(),o1.isStatus()));
+					(o1, o2) -> Boolean.compare(o2.isStatus(), o1.isStatus()));
 		}
 
 		logger.info("Credit score loan_creditcard_details response for merchant:{} is:{}", merchant.getId(), loanAndCreditCardDetailDTO);
