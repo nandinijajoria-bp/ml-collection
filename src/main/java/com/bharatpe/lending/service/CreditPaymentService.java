@@ -971,6 +971,7 @@ public class CreditPaymentService {
         } else if (CreditConstants.PaymentStatus.SUCCESS.equals(status)) {
             CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
             if (ObjectUtils.isEmpty(creditAccount)) {
+                logger.error("Credit Account not found for merchantId : {}", lendingClTransaction.getMerchantId());
                 return;
             }
             updateBalances(creditAccount, lendingClTransaction);

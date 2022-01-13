@@ -265,8 +265,8 @@ public class LoanDetailsServiceV2 {
     private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
-            if (Objects.isNull(globalLimitResponse)) {
-                log.error("Global limit response is null for merchantId: {}", merchantId);
+            if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+                log.error("Global limit response is null for merchantId: {} , {}", merchantId, globalLimitResponse);
             }
             if (Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
                 return globalLimitResponse.getData().getRejectionType();
