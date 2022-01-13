@@ -7,25 +7,19 @@ import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.EmailHandler;
+import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.dao.BharatPeEnachDao;
-import com.bharatpe.lending.common.dao.CreditLineMerchantDao;
-import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
-import com.bharatpe.lending.common.dao.LendingBulkDisbursalRawDataDao;
-import com.bharatpe.lending.common.entity.CreditLineMerchant;
-import com.bharatpe.lending.common.entity.LendingApplicationPriority;
 import com.bharatpe.lending.common.enums.ApplicationStage;
-import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
-import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -169,17 +163,19 @@ public class SupportService {
             supportApiResponseDto.setNachableBanks(nachableBanks);
             logger.info("Populating Loan Data for merchant: {}", merchantId);
             populateLoanData(supportApiResponseDto,lendingPaymentSchedule);
-            logger.info("Populating Experian Data for merchant: {}", merchantId);
-            populateExperianData(supportApiResponseDto,experian, lendingApplication, false);
-            if(!ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
-                if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
-                    if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+            if (!ApplicationStage.ACTIVE_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                logger.info("Populating Experian Data for merchant: {}", merchantId);
+                populateExperianData(supportApiResponseDto, experian, lendingApplication, false);
+                if (!ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                    if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
+                        if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                            logger.info("Populating Application Data for merchant: {}", merchantId);
+                            populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
+                        }
+                    } else {
                         logger.info("Populating Application Data for merchant: {}", merchantId);
-                        populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
+                        populateApplicationData(supportApiResponseDto, lendingApplication);
                     }
-                } else {
-                    logger.info("Populating Application Data for merchant: {}", merchantId);
-                    populateApplicationData(supportApiResponseDto, lendingApplication);
                 }
             }
             supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
@@ -517,11 +513,7 @@ public class SupportService {
                         reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
                     }
                 }
-                if (Objects.nonNull(reapplyTime) && reapplyTime < 0 && !refresh) {
-                    refreshEligibility(supportApiResponseDto, lendingApplication);
-                } else {
-                    supportApiResponseDto.setReapplyTime(reapplyTime);
-                }
+                supportApiResponseDto.setReapplyTime(reapplyTime);
             } else {
                 supportApiResponseDto.setEligible(Boolean.TRUE);
             }
