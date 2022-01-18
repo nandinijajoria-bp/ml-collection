@@ -312,7 +312,7 @@ public class LendingApplicationServiceV2 {
             lendingApplication.setBusinessName(!StringUtils.isEmpty(applicationRequest.getBusinessName()) ? applicationRequest.getBusinessName() : lendingApplication.getBusinessName());
             lendingApplicationDao.save(lendingApplication);
         } catch (Exception e) {
-            log.error("Exception in updateApplicationData for application:{}", lendingApplication.getId(), e);
+            log.error("Exception in updateApplicationData for application:{} , {} {}", lendingApplication.getId(), applicationRequest, e);
         }
     }
 

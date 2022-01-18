@@ -1081,7 +1081,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     }
 
 
-    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse){
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, Merchant merchant){
         try{
             boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
 
@@ -1170,8 +1170,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             loanAndCreditCardDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
             return loanAndCreditCardDetailDTO;
         }catch(Exception ex){
-            logger.error("Error Occurred while checking loan and credit card details, Error :{0}", ex);
-
+            logger.error("Error Occurred while checking loan and credit card details for merchantId : {}, Error : {}", merchant.getId(), ex.getMessage());
         }
         return null;
 

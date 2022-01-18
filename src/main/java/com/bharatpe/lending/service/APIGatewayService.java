@@ -978,6 +978,13 @@ public class APIGatewayService {
         if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L) || merchantId.equals(4340760L) || merchantId.equals(2097359L) || merchantId.equals(7090157L) || merchantId.equals(5358374L)) {
             return "bharatpe://enachdigio";
         }
+        if (ObjectUtils.isEmpty(token)) {
+            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(merchantId);
+            if(ObjectUtils.isEmpty(tokenVerification)) {
+                return null;
+            }
+            token = tokenVerification.getAccessToken();
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -1265,7 +1272,7 @@ public class APIGatewayService {
                 }
                 break;
             } catch (Exception e) {
-                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e);
+                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e.getMessage());
             }
             retryCount++;
         }
@@ -2064,8 +2071,10 @@ public class APIGatewayService {
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
+            logger.info("Request of get gold-loan due amount is {}, for merchantId: {}", request, merchantId);
             ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, new ParameterizedTypeReference<Map<String, Object>>() {
             });
+            logger.info("Response fof get gold-loan due amount is {}, for merchantId: {}", request, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("data") != null) {
                 Map<String, Object> dataMap = mapper.convertValue(responseEntity.getBody().get("data"), Map.class);
                 if (dataMap.get("amount") != null) {

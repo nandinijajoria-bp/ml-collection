@@ -18,8 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
@@ -240,6 +240,9 @@ public class MerchantLoansService {
             Long totalEntries = 0l, nameEntries = 0l, mobileEntries = 0l;
             try {
                 InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook", "us-west-2");
+                if (ObjectUtils.isEmpty(inputStream)) {
+                    return true;
+                }
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
                 String readLine = bufferedReader.readLine();
                 readLine = bufferedReader.readLine();

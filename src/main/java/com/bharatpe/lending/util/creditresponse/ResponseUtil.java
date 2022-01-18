@@ -36,7 +36,7 @@ public interface ResponseUtil {
 
     public CreditScoreReportDetailDTO getCreditDetailReport(JsonNode beruaeResponse);
 
-    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse);
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, Merchant merchant);
 
     public CreditScoreReportDetailDTO.CreditCardUtilization getCreditCardUtilization(JsonNode beruaeMap);
 
