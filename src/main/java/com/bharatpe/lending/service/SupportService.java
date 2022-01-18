@@ -793,7 +793,7 @@ public class SupportService {
             List<Map<String, Object>> loanHistoryList = new ArrayList<>();
             List<LendingPaymentSchedule> lendingPaymentScheduleNew = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, Boolean.FALSE);
             for (LendingPaymentSchedule lendingPaymentSchedule1 : lendingPaymentScheduleNew) {
-                logger.info("Loan found in payment schedule for merchant id: {}, and applicationId: {}, with status: {}", merchantId, lendingPaymentSchedule1.getLoanApplication().getId(), lendingPaymentSchedule1.getStatus());
+                logger.info("Loan found in payment schedule for merchant id: {}, and loanId: {}, with status: {}", merchantId, lendingPaymentSchedule1.getId(), lendingPaymentSchedule1.getStatus());
                 List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
                 List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDescAmountAsc(lendingPaymentSchedule1);
                 for (LendingLedger lendingLedger1 : lendingLedgerList) {
@@ -806,7 +806,7 @@ public class SupportService {
                 }
 
                 SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
-                loanArrangerFee.setFeeAmount(lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
+
                 LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchant().getId(), lendingPaymentSchedule1.getId());
                 if (!ObjectUtils.isEmpty(lendingPayouts)) {
                     loanArrangerFee.setArrangerFeeRefundEligible(true);
@@ -817,25 +817,28 @@ public class SupportService {
                     populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
                 }
                 Map<String, Object> loanDetails = new HashMap<>();
-                loanDetails.put("agreementAt", lendingPaymentSchedule1.getLoanApplication().getAgreementAt());
                 loanDetails.put("loanStatus", lendingPaymentSchedule1.getStatus());
                 loanDetails.put("closingDate", lendingPaymentSchedule1.getClosingDate());
-                loanDetails.put("disbursalAmount", lendingPaymentSchedule1.getLoanApplication().getDisbursalAmount());
-                loanDetails.put("edi", lendingPaymentSchedule1.getLoanApplication().getEdi());
                 loanDetails.put("ediRemainingCount", lendingPaymentSchedule1.getEdiRemainingCount());
-                loanDetails.put("externalLoanId", lendingPaymentSchedule1.getLoanApplication().getExternalLoanId());
-                loanDetails.put("id", lendingPaymentSchedule1.getLoanApplication().getId());
-                loanDetails.put("interestRate", lendingPaymentSchedule1.getLoanApplication().getInterestRate());
-                loanDetails.put("loanAmount", lendingPaymentSchedule1.getLoanApplication().getLoanAmount());
                 loanDetails.put("nextEdiDate", lendingPaymentSchedule1.getNextEdiDate());
                 loanDetails.put("paidAmount", lendingPaymentSchedule1.getPaidAmount());
-                loanDetails.put("processingFee", lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
-                loanDetails.put("repayment", lendingPaymentSchedule1.getLoanApplication().getRepayment());
                 loanDetails.put("tentativeClosingDate", lendingPaymentSchedule1.getTentativeClosingDate());
-                loanDetails.put("tenure", lendingPaymentSchedule1.getLoanApplication().getTenure());
                 loanDetails.put("dpd", getDPD(lendingPaymentSchedule1));
                 loanDetails.put("ledgerDetails", lendingLedgerDetailList);
                 loanDetails.put("loanArrangerFee", loanArrangerFee);
+                if(!ObjectUtils.isEmpty(lendingPaymentSchedule.getLoanApplication())) {
+                    loanArrangerFee.setFeeAmount(lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
+                    loanDetails.put("processingFee", lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
+                    loanDetails.put("repayment", lendingPaymentSchedule1.getLoanApplication().getRepayment());
+                    loanDetails.put("tenure", lendingPaymentSchedule1.getLoanApplication().getTenure());
+                    loanDetails.put("externalLoanId", lendingPaymentSchedule1.getLoanApplication().getExternalLoanId());
+                    loanDetails.put("id", lendingPaymentSchedule1.getLoanApplication().getId());
+                    loanDetails.put("interestRate", lendingPaymentSchedule1.getLoanApplication().getInterestRate());
+                    loanDetails.put("loanAmount", lendingPaymentSchedule1.getLoanApplication().getLoanAmount());
+                    loanDetails.put("disbursalAmount", lendingPaymentSchedule1.getLoanApplication().getDisbursalAmount());
+                    loanDetails.put("edi", lendingPaymentSchedule1.getLoanApplication().getEdi());
+                    loanDetails.put("agreementAt", lendingPaymentSchedule1.getLoanApplication().getAgreementAt());
+                }
 
                 loanHistoryList.add(loanDetails);
             }
@@ -856,6 +859,7 @@ public class SupportService {
 
             if (maxDpd.intValue() <= 5 && dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger)) && ObjectUtils.isEmpty(loanId)) {
                 loanArrangerFee.setArrangerFeeRefundEligible(Boolean.TRUE);
+                return;
             }
 
             if(maxDpd.intValue() <= 5 && dpd <= 5 && dpd >= -5) {
@@ -869,6 +873,7 @@ public class SupportService {
             if(!ObjectUtils.isEmpty(lendingLedger)) {
                 loanArrangerFee.setInEligibleReason(SupportConstants.FORE_CLOSER_LOAN);
             }
+
         }
 
         if(!"CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
