@@ -957,7 +957,7 @@ public class CreditLineService {
 			responseUtil = new ExperianResponseUtil(experianDao);
 		}
 
-		loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse);
+		loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse, merchant);
 
 		if (Objects.nonNull(loanAndCreditCardDetailDTO) && Objects.nonNull(loanAndCreditCardDetailDTO.getLoanDetail())) {
 			Collections.sort(loanAndCreditCardDetailDTO.getLoanDetail(),

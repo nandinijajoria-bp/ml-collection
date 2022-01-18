@@ -1035,7 +1035,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         return experianNumber;
     }
 
-    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse){
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, Merchant merchant){
 
         LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO = new LoanAndCreditCardDetailDTO();
         LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
@@ -1139,7 +1139,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
             loanAndCreditCardDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
 
         }catch ( Exception ex){
-            logger.error("Error Occurred while checking loan and credit details, Error :{0}", ex);
+            logger.error("Error Occurred while checking loan and credit details for merchantId : {}, Error :{}", merchant.getId(), ex.getMessage());
         }
 
         return loanAndCreditCardDetailDTO;
