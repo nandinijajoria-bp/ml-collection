@@ -273,7 +273,7 @@ public class LoanDetailsServiceV2 {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
             if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
-                log.error("Global limit response is null for merchantId: {} , {}", merchantId, globalLimitResponse);
+                log.info("Global limit response is null for merchantId: {} , {}", merchantId, globalLimitResponse);
             }
             if (Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getRejectionType())) {
                 return globalLimitResponse.getData().getRejectionType();
