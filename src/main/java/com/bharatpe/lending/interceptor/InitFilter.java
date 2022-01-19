@@ -1,12 +1,9 @@
 package com.bharatpe.lending.interceptor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bharatpe.common.constants.RequestConstants;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.util.ContentCachingResponseWrapper;
@@ -15,8 +12,6 @@ import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -39,35 +34,24 @@ public class InitFilter implements Filter {
         UUID uniqueId = UUID.randomUUID();
         String loggerCode = String.valueOf(rand_int1) + "-" + String.valueOf(rand_int2);
 
-        MDC.put("requestId",
-                ObjectUtils.isEmpty(httpServletRequest.getHeader("requestId")) ? uniqueId.toString() : httpServletRequest.getHeader("requestId"));
-        MDC.put("loggerCode",
-                ObjectUtils.isEmpty(httpServletRequest.getHeader("loggerCode")) ? loggerCode : httpServletRequest.getHeader("loggerCode"));
+        MDC.put(RequestConstants.requestId,
+                ObjectUtils.isEmpty(httpServletRequest.getHeader(RequestConstants.requestId)) ? uniqueId.toString() : httpServletRequest.getHeader(RequestConstants.requestId));
+        MDC.put(RequestConstants.loggerCode,
+                ObjectUtils.isEmpty(httpServletRequest.getHeader(RequestConstants.loggerCode)) ? loggerCode : httpServletRequest.getHeader(RequestConstants.loggerCode));
 
         log.info("Request IP address is {}", servletRequest.getRemoteAddr());
         log.info("Request content type is {}", servletRequest.getContentType());
 
+        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(httpServletResponse);
 
-        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(
-                httpServletResponse
-        );
+        InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper(httpServletRequest);
 
-        try {
-            if (servletRequest != null && servletRequest.getContentType() != null &&
-                    servletRequest.getContentType().equals(MediaType.APPLICATION_JSON_VALUE)) {
-                InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper(
-                        httpServletRequest);
-                filterChain.doFilter(interceptorRequestWrapper, responseWrapper);
-            } else {
-                filterChain.doFilter(servletRequest, responseWrapper);
-            }
-        } finally {
-            responseWrapper.setHeader("loggerCode", MDC.get("loggerCode"));
-            responseWrapper.setHeader("requestId", MDC.get("requestId"));
-            log.info("Response header is set with requestId {} and loggerCode: {}", responseWrapper.getHeader("requestId"), responseWrapper.getHeader("loggerCode"));
-            responseWrapper.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "loggerCode, requestId");
-            responseWrapper.copyBodyToResponse();
-        }
+        filterChain.doFilter(interceptorRequestWrapper, responseWrapper);
+        responseWrapper.setHeader(RequestConstants.loggerCode, MDC.get(RequestConstants.loggerCode));
+        responseWrapper.setHeader(RequestConstants.requestId, MDC.get(RequestConstants.requestId));
+        log.info("Response header is set with requestId {} and loggerCode: {}", responseWrapper.getHeader(RequestConstants.requestId), responseWrapper.getHeader(RequestConstants.loggerCode));
+        responseWrapper.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, RequestConstants.loggerCode + ", " + RequestConstants.requestId);
+        responseWrapper.copyBodyToResponse();
     }
 
     public void destroy() {
