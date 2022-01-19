@@ -1091,7 +1091,7 @@ public class APIGatewayService {
             ResponseEntity<String> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL, HttpMethod.POST, request, String.class);
             logger.info("Submit enach response:{} for merchant:{}", response.getBody(), merchantId);
         } catch (Exception e) {
-            logger.error("Exception in enach submit for merchant:{}", merchantId, e);
+            logger.info("Exception in enach submit for merchant:{}", merchantId, e);
         }
     }
 
@@ -1276,7 +1276,7 @@ public class APIGatewayService {
             }
             retryCount++;
         }
-        return null;
+        throw new RuntimeException("Something went wrong");
     }
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) {

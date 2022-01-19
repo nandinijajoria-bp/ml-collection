@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -67,9 +68,16 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             "staff loan", "business loan unsecured");
     List<String> categoryC = Arrays.asList("housing loan", "property loan");
     ExperianDao experianDao;
+    EasyLoanUtil easyLoanUtil;
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     SimpleDateFormat dateFormat = new SimpleDateFormat(CrifConstants.DATE_FORMAT);
+
+    public CrifResponseUtil(ExperianDao experianDao, EasyLoanUtil easyLoanUtil) {
+        this.type = "CRIF";
+        this.experianDao = experianDao;
+        this.easyLoanUtil = easyLoanUtil;
+    }
 
     public CrifResponseUtil(ExperianDao experianDao) {
         this.type = "CRIF";
@@ -87,7 +95,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     public String getEmail() {
         JsonNode email = response.get(CrifConstants.REPORT_HEADER).get(CrifConstants.REQUEST);
         email = email != null ? email.get("EMAIL-1") : null;
-        return email != null ? email.asText() : null;
+        return email != null ? easyLoanUtil.getNodeValueAsString(email) : null;
     }
 
     @Override
@@ -108,7 +116,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         try {
             JsonNode dateOfIssue = response.get(CrifConstants.REPORT_HEADER).get("HEADER");
             dateOfIssue = dateOfIssue != null ? dateOfIssue.get("DATE-OF-ISSUE") : null;
-            return dateFormat.parse(dateOfIssue.asText());
+            return dateFormat.parse(easyLoanUtil.getNodeValueAsString(dateOfIssue));
         } catch (Exception e) {
             logger.info("Exception in parsing reportDate in CrifResponseUtil", e);
             return null;
@@ -157,7 +165,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             for (JsonNode jsonNode : accountDetails) {
                 jsonNode = jsonNode.get(CrifConstants.LOAN_DETAILS);
                 if (jsonNode != null) {
-                    String acctType = jsonNode.get(CrifConstants.ACCT_TYPE).asText();
+                    String acctType = easyLoanUtil.getNodeValueAsString(jsonNode.get(CrifConstants.ACCT_TYPE));
                     if (categoryA.contains(acctType.toLowerCase())) {
                         a = true;
                     }
@@ -172,7 +180,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         } else if (accountDetails != null && accountDetails.isObject()) {
             JsonNode jsonNode = accountDetails.get(CrifConstants.LOAN_DETAILS);
             if (jsonNode != null) {
-                String acctType = jsonNode.get(CrifConstants.ACCT_TYPE).asText();
+                String acctType = easyLoanUtil.getNodeValueAsString(jsonNode.get(CrifConstants.ACCT_TYPE));
                 if (categoryA.contains(acctType.toLowerCase())) {
                     a = true;
                 }
@@ -213,11 +221,11 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 phoneNumber = phoneNumber.substring(2);// remove 91
             }
             for (JsonNode pan : panVariations) {
-                checkPan = pan.get("VALUE").asText().equalsIgnoreCase(panCard);
+                checkPan = easyLoanUtil.getNodeValueAsString(pan.get("VALUE")).equalsIgnoreCase(panCard);
                 if(checkPan) break;
             }
             for (JsonNode phone : phoneVariations) {
-                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber);
+                checkPhone = easyLoanUtil.getNodeValueAsString(phone.get("VALUE")).equalsIgnoreCase(phoneNumber);
                 if(checkPhone) break;
             }
         }
@@ -231,7 +239,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         responses = responses != null ? responses.get(CrifConstants.RESPONSE) : null;
         if (responses != null && responses.isObject() && responses.get(CrifConstants.LOAN_DETAILS) != null
                 && derogChecks(responses.get(CrifConstants.LOAN_DETAILS), merchant.getId(), isRepeatLoanNoDerog,
-                        reportDate, experian)) {
+                reportDate, experian)) {
             logger.info("Derog check failed, rejecting merchant: {}", merchant.getId());
             return true;
         } else if (responses != null) {
@@ -287,10 +295,10 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     }
 
     public boolean derogChecks(JsonNode jsonNode, Long merchantId, boolean isRepeatLoanNoDerog, Date reportDate,
-            Experian experian) {
+                               Experian experian) {
         // Check for Derog Account Status
         if (jsonNode.get(CrifConstants.ACCT_STATUS) != null
-                && jsonNode.get(CrifConstants.ACCT_STATUS).asText().equalsIgnoreCase("\"WRITTEN-OFF\"")) {
+                && easyLoanUtil.getNodeValueAsString(jsonNode.get(CrifConstants.ACCT_STATUS)).equalsIgnoreCase("\"WRITTEN-OFF\"")) {
             logger.info("Derog Account Status check failed, rejecting merchant: {}", merchantId);
             experian.setRejected(true);
             experian.setRejectedDate(new Date());
@@ -337,7 +345,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         try {
             JsonNode dateRep = jsonNode.get(CrifConstants.DATE_REPORTED);
             if (dateRep != null && !dateRep.toString().equalsIgnoreCase("\"\"")) {
-                dateReported = dateFormat.parse(dateRep.asText());
+                dateReported = dateFormat.parse(easyLoanUtil.getNodeValueAsString(dateRep));
             }
         } catch (Exception e) {
             logger.error("Exception:", e);
@@ -376,7 +384,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         JsonNode paymentHistory = jsonNode.get("COMBINED-PAYMENT-HISTORY");
         int dpdCount = 0;
         if (paymentHistory != null && !paymentHistory.toString().equalsIgnoreCase("\"\"")) {
-            List<String> loanHistory = Arrays.asList(paymentHistory.asText().split("\\|"));
+            List<String> loanHistory = Arrays.asList(easyLoanUtil.getNodeValueAsString(paymentHistory).split("\\|"));
             for (String monthNode : loanHistory) {
                 String date = monthNode.split(",")[0];
                 String code1 = monthNode.split(",")[1].split("/")[0];
@@ -392,9 +400,9 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     }
 
     private boolean checkUnsecuredLiveLoans(JsonNode jsonNode) {
-        return (jsonNode.get(CrifConstants.ACCT_STATUS).asText().equalsIgnoreCase("\"ACTIVE\"")
-                || jsonNode.get(CrifConstants.ACCT_STATUS).asText().equalsIgnoreCase("\"CURRENT\""))
-                && unsecuredProducts.contains(jsonNode.get(CrifConstants.ACCT_TYPE).asText().toLowerCase());
+        return (easyLoanUtil.getNodeValueAsString(jsonNode.get(CrifConstants.ACCT_STATUS)).equalsIgnoreCase("\"ACTIVE\"")
+                || easyLoanUtil.getNodeValueAsString(jsonNode.get(CrifConstants.ACCT_STATUS)).equalsIgnoreCase("\"CURRENT\""))
+                && unsecuredProducts.contains(easyLoanUtil.getNodeValueAsString(jsonNode.get(CrifConstants.ACCT_TYPE)).toLowerCase());
     }
 
     @Override
@@ -413,7 +421,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 inquiryDate = history.get(CrifConstants.INQUIRY_DATE);
                 if (inquiryDate == null)
                     continue;
-                Date inqDate = dateFormat.parse(inquiryDate.asText());
+                Date inqDate = dateFormat.parse(easyLoanUtil.getNodeValueAsString(inquiryDate));
                 if (LoanUtil.getDateDiffInDays(inqDate, reportDate) <= 90)
                     inquiryCount += 1;
             }
@@ -421,7 +429,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             inquiryDate = inquiryHistory.get(CrifConstants.INQUIRY_DATE);
             if (inquiryDate == null)
                 return inquiryCount;
-            Date inqDate = dateFormat.parse(inquiryDate.asText());
+            Date inqDate = dateFormat.parse(easyLoanUtil.getNodeValueAsString(inquiryDate));
             if (LoanUtil.getDateDiffInDays(inqDate, reportDate) <= 90)
                 inquiryCount += 1;
         }
@@ -446,9 +454,9 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 purpose = history.get("PURPOSE");
                 if (inquiryDate == null || purpose == null)
                     continue;
-                Date inqDate = dateFormat.parse(inquiryDate.asText());
+                Date inqDate = dateFormat.parse(easyLoanUtil.getNodeValueAsString(inquiryDate));
                 if (LoanUtil.getDateDiffInDays(inqDate, reportDate) <= 180
-                        && unsecuredProducts.contains(purpose.asText().toLowerCase()))
+                        && unsecuredProducts.contains(easyLoanUtil.getNodeValueAsString(purpose).toLowerCase()))
                     inquiryCount += 1;
             }
         } else if (inquiryHistory.isObject()) {
@@ -456,9 +464,9 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             purpose = inquiryHistory.get("PURPOSE");
             if (inquiryDate == null || purpose == null)
                 return inquiryCount;
-            Date inqDate = dateFormat.parse(inquiryDate.asText());
+            Date inqDate = dateFormat.parse(easyLoanUtil.getNodeValueAsString(inquiryDate));
             if (LoanUtil.getDateDiffInDays(inqDate, reportDate) <= 180
-                    && unsecuredProducts.contains(purpose.asText().toLowerCase()))
+                    && unsecuredProducts.contains(easyLoanUtil.getNodeValueAsString(purpose).toLowerCase()))
                 inquiryCount += 1;
         }
         return inquiryCount;
@@ -468,7 +476,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         JsonNode closedDate = loan.get(CrifConstants.CLOSED_DATE);
         Date clsDate = null;
         try {
-            clsDate = dateFormat.parse(closedDate.asText());
+            clsDate = dateFormat.parse(easyLoanUtil.getNodeValueAsString(closedDate));
         } catch (Exception e) {
             clsDate = null;
         }
@@ -482,10 +490,10 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     private Double getLoanAmount(JsonNode loan) {
         Double amount = 0D;
         if (loan.get(CrifConstants.DISBURSED_AMT) != null) {
-            amount = Double.valueOf(loan.get(CrifConstants.DISBURSED_AMT).asText().replace(",", ""));
+            amount = Double.valueOf(easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.DISBURSED_AMT)).replace(",", ""));
         }
         if (loan.get(CrifConstants.CREDIT_LIMIT) != null) {
-            amount = Math.max(Double.valueOf(loan.get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), amount);
+            amount = Math.max(Double.valueOf(easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.CREDIT_LIMIT)).replace(",", "")), amount);
         }
         return amount;
     }
@@ -493,8 +501,8 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     private boolean isLoanClosedWithinOneYear(JsonNode loan) {
         String date = (loan.has(CrifConstants.CLOSED_DATE) && !loan.get(CrifConstants.CLOSED_DATE).isNull()
                 && !loan.get(CrifConstants.CLOSED_DATE).asText().equalsIgnoreCase(""))
-                        ? loan.get(CrifConstants.CLOSED_DATE).asText()
-                        : null;
+                ? loan.get(CrifConstants.CLOSED_DATE).asText()
+                : null;
         if (date != null) {
             try {
                 Date closingDate = dateFormat.parse(date);
@@ -546,7 +554,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
         double loanAmount = getLoanAmount(loan);
         boolean isLoanClosed = isLoanClosed(loan);
         boolean isLoanClosedWithinAYear = isLoanClosedWithinOneYear(loan);
-        String loanType = getLoanType(loan.get(CrifConstants.ACCT_TYPE).asText());
+        String loanType = getLoanType(easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.ACCT_TYPE)));
         if (loanAmount >= 5000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
             if (!isLoanClosedWithinAYear) {
                 debt += loanAmount * CreditConstants.EMI.get(loanType);
@@ -578,7 +586,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             double loanAmount = getLoanAmount(loan);
             boolean isLoanClosed = isLoanClosed(loan);
             boolean isLoanClosedWithinAYear = isLoanClosedWithinOneYear(loan);
-            String loanType = getLoanType(loan.get(CrifConstants.ACCT_TYPE).asText());
+            String loanType = getLoanType(easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.ACCT_TYPE)));
             if (loanAmount >= 5000 && (!isLoanClosed || isLoanClosedWithinAYear)) {
                 double income = loanAmount * CreditConstants.EMI.get(loanType) / CreditConstants.DBI.get(loanType);
                 incomeMap.put(loanType, incomeMap.getOrDefault(loanType, 0D) + income);
@@ -695,7 +703,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             delinquencyCount6mon += countDPDLastXmonths(loanDetails, 6, reportDate);
             loanSanctioned3mon += loanSanctioned3mon(loanDetails, reportDate);
             unsecuredLoanCount6mon += unsecuredLoan6mon(loanDetails, reportDate);
-            loanTypes.add(getLoanType(acctType.asText()));
+            loanTypes.add(getLoanType(easyLoanUtil.getNodeValueAsString(acctType)));
             if (openDt != null && !openDt.toString().equalsIgnoreCase("\"\"")) {
                 Date openDate = dateFormat.parse(openDt.asText());
                 if (openDate.before(minOpenDate)) {
@@ -711,7 +719,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                 delinquencyCount6mon += countDPDLastXmonths(detail, 6, reportDate);
                 loanSanctioned3mon += loanSanctioned3mon(detail, reportDate);
                 unsecuredLoanCount6mon += unsecuredLoan6mon(detail, reportDate);
-                loanTypes.add(getLoanType(acctType.asText()));
+                loanTypes.add(getLoanType(easyLoanUtil.getNodeValueAsString(acctType)));
                 if (openDt != null && !openDt.toString().equalsIgnoreCase("\"\"")) {
                     Date openDate = dateFormat.parse(openDt.asText());
                     if (openDate.before(minOpenDate)) {
@@ -742,7 +750,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
             if(responseCheck){
                 JsonNode responses = beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE);
 
-                if(responses.isObject() && (responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card")) && !isLoanClosed(responses.get(CrifConstants.LOAN_DETAILS))){
+                if(responses.isObject() && (easyLoanUtil.getNodeValueAsString(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)).equals("Credit Card") || easyLoanUtil.getNodeValueAsString(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)).equals("Corporate Credit Card")) && !isLoanClosed(responses.get(CrifConstants.LOAN_DETAILS))){
                     if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
                         cardLimit += Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0);
                     }else if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
@@ -753,7 +761,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                     }
                 }else if(responses.isArray()){
                     for(JsonNode response: responses){
-                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)) && (response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card") && !isLoanClosed(response.get(CrifConstants.LOAN_DETAILS)))){
+                        if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)) && (easyLoanUtil.getNodeValueAsString(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)).equals("Credit Card") || easyLoanUtil.getNodeValueAsString(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.ACCT_TYPE)).equals("Corporate Credit Card") && !isLoanClosed(response.get(CrifConstants.LOAN_DETAILS)))){
                             if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
                                 cardLimit += Math.max(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0);
                             }else if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
@@ -1096,12 +1104,12 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                     JsonNode loan = responses.get(CrifConstants.LOAN_DETAILS);
                     LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
                     LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
-                    if(Objects.nonNull(loan) && (loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || loan.get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card"))){
-                        creditCardDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                    if(Objects.nonNull(loan) && (easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.ACCT_TYPE)).equals("Credit Card") || easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.ACCT_TYPE)).equals("Corporate Credit Card"))){
+                        creditCardDetail.setBankName(easyLoanUtil.getNodeValueAsString(loan.get("CREDIT-GUARANTOR")));
                         creditCardDetail.setStatus(!isLoanClosed(loan));
-                        creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
+                        creditCardDetail.setCreditCardNumber(easyLoanUtil.getNodeValueAsString(loan.get("ACCT-NUMBER")));
                         if(Objects.nonNull(loan.get("CURRENT-BAL"))) {
-                            creditCardDetail.setBalance(Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
+                            creditCardDetail.setBalance(Math.max(Integer.parseInt(easyLoanUtil.getNodeValueAsString(loan.get("CURRENT-BAL")).replace(",", "")), 0));
                         }
                         if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT))){
                             creditCardDetail.setCardLimit(Math.max(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.CREDIT_LIMIT).asText().replace(",", "")), 0));
@@ -1110,8 +1118,8 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                         }
                         creditCardDetails.add(creditCardDetail);
                     }else{
-                        loanDetail.setAccountNumber(loan.get("ACCT-NUMBER").asText());
-                        loanDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                        loanDetail.setAccountNumber(easyLoanUtil.getNodeValueAsString(loan.get("ACCT-NUMBER")));
+                        loanDetail.setBankName(easyLoanUtil.getNodeValueAsString(loan.get("CREDIT-GUARANTOR")));
                         loanDetail.setStatus(!isLoanClosed(loan));
                         if(Objects.nonNull(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
                             loanDetail.setSanctionedAmount(Integer.parseInt(responses.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")));
@@ -1119,7 +1127,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                         if(Objects.nonNull(loan.get("ORIGINAL-TERM"))){
                             loanDetail.setTenure(loan.get("ORIGINAL-TERM").asText());
                         }
-                        loanDetail.setCurrentBalance(loan.get("CURRENT-BAL").asText());
+                        loanDetail.setCurrentBalance(easyLoanUtil.getNodeValueAsString(loan.get("CURRENT-BAL")));
                         if(Objects.nonNull(loan.get("INTEREST-RATE"))) {
                             loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
                         }
@@ -1130,10 +1138,10 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                         JsonNode loan = response.get(CrifConstants.LOAN_DETAILS);
                         LoanAndCreditCardDetailDTO.CreditCardDetail creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
                         LoanAndCreditCardDetailDTO.LoanDetail loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
-                        if(Objects.nonNull(loan) && (loan.get(CrifConstants.ACCT_TYPE).asText().equals("Credit Card") || loan.get(CrifConstants.ACCT_TYPE).asText().equals("Corporate Credit Card"))){
-                            creditCardDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                        if(Objects.nonNull(loan) && (easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.ACCT_TYPE)).equals("Credit Card") || easyLoanUtil.getNodeValueAsString(loan.get(CrifConstants.ACCT_TYPE)).equals("Corporate Credit Card"))){
+                            creditCardDetail.setBankName(easyLoanUtil.getNodeValueAsString(loan.get("CREDIT-GUARANTOR")));
                             creditCardDetail.setStatus(!isLoanClosed(loan));
-                            creditCardDetail.setCreditCardNumber(loan.get("ACCT-NUMBER").asText());
+                            creditCardDetail.setCreditCardNumber(easyLoanUtil.getNodeValueAsString(loan.get("ACCT-NUMBER")));
                             if(Objects.nonNull(loan.get("CURRENT-BAL"))) {
                                 creditCardDetail.setBalance(Math.max(Integer.parseInt(loan.get("CURRENT-BAL").asText().replace(",", "")), 0));
                             }
@@ -1145,8 +1153,8 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
 
                             creditCardDetails.add(creditCardDetail);
                         }else{
-                            loanDetail.setAccountNumber(loan.get("ACCT-NUMBER").asText());
-                            loanDetail.setBankName(loan.get("CREDIT-GUARANTOR").asText());
+                            loanDetail.setAccountNumber(easyLoanUtil.getNodeValueAsString(loan.get("ACCT-NUMBER")));
+                            loanDetail.setBankName(easyLoanUtil.getNodeValueAsString(loan.get("CREDIT-GUARANTOR")));
                             if(Objects.nonNull(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT))){
                                 loanDetail.setSanctionedAmount(Integer.parseInt(response.get(CrifConstants.LOAN_DETAILS).get(CrifConstants.DISBURSED_AMT).asText().replace(",", "")));
                             }
@@ -1154,7 +1162,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
                                 loanDetail.setTenure(loan.get("ORIGINAL-TERM").asText());
                             }
                             loanDetail.setStatus(!isLoanClosed(loan));
-                            loanDetail.setCurrentBalance(loan.get("CURRENT-BAL").asText());
+                            loanDetail.setCurrentBalance(easyLoanUtil.getNodeValueAsString(loan.get("CURRENT-BAL")));
                             if(Objects.nonNull(loan.get("INTEREST-RATE"))){
                                 loanDetail.setRateOfInterest(loan.get("INTEREST-RATE").asText());
                             }

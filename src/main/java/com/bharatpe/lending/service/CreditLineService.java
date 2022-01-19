@@ -11,6 +11,7 @@ import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -41,15 +42,15 @@ import java.util.*;
 
 @Service
 public class CreditLineService {
-	
+
 	Logger logger=LoggerFactory.getLogger(CreditLineService.class);
-	
+
 	@Autowired
 	CreditApplicationDao creditApplicationDao;
-	
+
 	@Autowired
 	ExperianDao experianDao;
-	
+
 	@Autowired
 	CreditAccountDao creditAccountDao;
 
@@ -82,7 +83,7 @@ public class CreditLineService {
 
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
-	
+
 	@Autowired
 	CreditDayEndBalanceDao creditDayEndBalanceDao;
 
@@ -109,13 +110,13 @@ public class CreditLineService {
 
 	@Autowired
 	CreditUtil creditUtil;
-	
+
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
-	
+
 	@Autowired
 	SmsServiceHandler smsServiceHandler;
-	
+
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
 
@@ -124,10 +125,10 @@ public class CreditLineService {
 
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
-	
+
 	@Autowired
 	PushNotificationHandler pushNotificationHandler;
-	
+
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
 
@@ -140,9 +141,12 @@ public class CreditLineService {
 	@Autowired
 	LendingCityCreditScoreDao lendingCityCreditScoreDao;
 
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
+
 	@Value("${cl.deeplink}")
 	private String clDeeplink;
-	
+
 	private final DecimalFormat df = new DecimalFormat("#.##");
 
 	@Autowired
@@ -155,38 +159,38 @@ public class CreditLineService {
 			logger.error("Merchant:{} not applicable for credit line", merchant.getId());
 			return new ResponseDTO(false,"Merchant not applicable for credit line", null,null);
 		}
-		
+
 		if(request.getApplicationId()!=null){
-			
+
 			try {
-				
+
 				logger.info("Fetching credit application details for the application id {}",request.getApplicationId());
-				
+
 				Optional<CreditApplication> optionalCreditApplication=creditApplicationDao.findById(request.getApplicationId());
-				
+
 				if(optionalCreditApplication==null || !optionalCreditApplication.isPresent()){
-					
+
 					logger.warn("Credit application not found for the application id {}",request.getApplicationId());
 					return new ResponseDTO(false,"No loan application found for the requested application id", null,null);
-				
+
 				}
-				
+
 				CreditApplication creditApplication=optionalCreditApplication.get();
 				if(creditApplication.getAccountCreated()) {
 					logger.info("Credit account already exists");
 					return new ResponseDTO(true,"Successful",null,null);
 				}
-				
+
 				logger.info("Fetching segment detail from experian table");
-				
+
 				Experian experian= experianDao.getByMerchantId(merchant.getId());
-				
+
 				if(experian!=null && experian.getColor()!=null) {
-					
+
 					logger.info("Inserting new entry in credit_account table");
-					
+
 					CreditAccount creditAccount=new CreditAccount();
-					
+
 					creditAccount.setMerchantId(creditApplication.getMerchantId());
 					creditAccount.setMerchantStoreId(creditApplication.getMerchantStoreId());
 					creditAccount.setStatus("ACTIVE");
@@ -202,7 +206,7 @@ public class CreditLineService {
 					creditAccount.setUpdatedAt(new Date());
 					creditAccount.setNextBillDate(DateTimeUtil.addDays(new Date(), 20));
 					creditAccount.setDueDate(DateTimeUtil.addDays(new Date(), 29));
-					
+
 					creditAccount = creditAccountDao.save(creditAccount);
 
 					LendingCaBalanceDetail lendingCaBalanceDetail = new LendingCaBalanceDetail();
@@ -220,38 +224,38 @@ public class CreditLineService {
 					lendingCaBalanceDetail.setCreatedAt(new Date());
 					lendingCaBalanceDetail.setUpdatedAt(new Date());
 					lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
-					
+
 					creditApplication.setAccountCreated(true);
 					creditApplicationDao.save(creditApplication);
 					creditLineMerchant.setCreditAccountId(creditAccount.getId());
 					creditLineMerchantDao.save(creditLineMerchant);
-					
+
 					sendActivationNotification(creditApplication, merchant);
 					redisNotificationService.sendPromotionalNotificationForCreditLine(merchant,creditAccount);
 					return new ResponseDTO(true,"Successful",null,null);
 				}
 				else {
-					
+
 					logger.error("Experian details or segment details not found");
-					
+
 					return new ResponseDTO(false,"Experian details not found",null,null);
 				}
-				
-				
+
+
 			}
 			catch(Exception e) {
-				
+
 				logger.error("Error occured while creating new credit line account",e);
 				return new ResponseDTO(false,"Eroor occured while creating credit account",null,null);
 			}
-			
+
 		}
 		else {
 			logger.error("Application id is absent in the request body");
 			return new ResponseDTO(false,"Application id missing from the request body", null,null);
 		}
 	}
-	
+
 	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
@@ -262,7 +266,7 @@ public class CreditLineService {
 		if(merchantFcmToken != null) {
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=credit-line");
 		}
-		
+
 	}
 
 	public CreditSpendResponseDTO getSpendDetails(Merchant merchant, Long requestId) {
@@ -478,30 +482,30 @@ public class CreditLineService {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 //		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-//				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+//				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" +
 //				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
-		
+
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successsfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" +
 				"Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 	}
-	
+
 	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-		
+
 //		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-//				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" + 
+//				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" +
 //				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+
-//				".\nDaily installment of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your QR Settlements. \n" + 
+//				".\nDaily installment of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your QR Settlements. \n" +
 //				"More details: " + CreditConstants.MESSAGE_NOTIFICATION_LINK;
-		
+
 		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
-				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" + 
-				"EDI of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" + 
+				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" from your BharatPe Loan Balance has been successfully used towards "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+".\n" +
+				"EDI of Rs."+Double.valueOf(df.format(lendingTlDetails.getEdi()))+" will be deducted from your BharatPe settlement over the next "+lendingTlDetails.getPayableDays()+" days. Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". \n" +
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
-		
+
 	}
 	public void sendNotification(String message, Merchant merchant) {
 		List<String> mobiles=new LinkedList<>();
@@ -509,17 +513,17 @@ public class CreditLineService {
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 		whatsappNotificationService.send(merchant, null, message+" for more details.", mobiles, null);
 	}
-	
+
 	public void sendFiledTransNotification(LendingClTransaction lendingClTransaction, Merchant merchant) {
-		String message="Hi "+merchant.getBeneficiaryName()+",\n" + 
-				"Your Loans Balance transaction of Rs."+lendingClTransaction.getAmount()+" has Failed. Please try again after some time.\n" + 
+		String message="Hi "+merchant.getBeneficiaryName()+",\n" +
+				"Your Loans Balance transaction of Rs."+lendingClTransaction.getAmount()+" has Failed. Please try again after some time.\n" +
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.";
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 		whatsappNotificationService.send(merchant, null, message, mobiles, null);
 	}
-	
+
 	@SuppressWarnings("unchecked, rawtypes")
 	private BankTransferResponseDTO callPayoutAPI(LendingClTransaction lendingClTransaction) {
 		try {
@@ -567,8 +571,8 @@ public class CreditLineService {
 				}
 				retryCount++;
 			}
-			
-			
+
+
 		} catch (Exception e) {
 			logger.error("Exception in payout api---", e);
 		}
@@ -577,13 +581,13 @@ public class CreditLineService {
 	}
 
 	public CreditLineRepaymentHistoryResponseDto getRepaymentHistory(Merchant merchant) {
-		
+
 		try {
 			logger.info("Fetching repayment history for merchant {}",merchant.getId());
 			CreditLineRepaymentHistoryResponseDto response=new CreditLineRepaymentHistoryResponseDto();
 			List<LendingClTransaction> repaymentTransactions=lendingClTransactionDao.findByMerchantIdAndModeAndTypeOrderByCreatedAtDesc(merchant.getId(), "CREDIT","PAYMENT");
 			List<Repayment> repaymentList=new LinkedList<>();
-			
+
 			for(LendingClTransaction transaction:repaymentTransactions) {
 				Repayment repayment=new Repayment();
 				repayment.setId(transaction.getId());
@@ -594,7 +598,7 @@ public class CreditLineService {
 				}
 				else {
 					repayment.setMode(transaction.getSubType());
-				}	
+				}
 				if(transaction.getStatus().equalsIgnoreCase("CANCELLED")) {
 					repayment.setStatus("FAILED");
 				}
@@ -614,7 +618,7 @@ public class CreditLineService {
 			return getErrorResponseForRepaymentHistory("Error occured while fetching repayment history");
 		}
 	}
-	
+
 	public Map<String,Double> getClAndTlPartOfPayment(LendingClTransaction lendingClTransaction){
 		Map<String,Double> breakUpMap=new HashMap<String, Double>();
 		List<LendingClLedger> lendingClLedgers=lendingClLedgerDao.findByClTransactionId(lendingClTransaction.getId());
@@ -628,9 +632,9 @@ public class CreditLineService {
 		}
 		return breakUpMap;
 	}
-	
+
 	public CreditLineRepaymentHistoryResponseDto getErrorResponseForRepaymentHistory(String message) {
-		
+
 		CreditLineRepaymentHistoryResponseDto errorResponse=new CreditLineRepaymentHistoryResponseDto();
 		errorResponse.setSuccess(false);
 		errorResponse.setMessage(message);
@@ -698,7 +702,7 @@ public class CreditLineService {
 
 	public DailySettlementResponseDto fetchDailySettlementDetail(Merchant merchant) {
 		try {
-			
+
 			DailySettlementResponseDto dailySettlementResponseDto=new DailySettlementResponseDto();
 			List<LendingPaymentSchedule> termLoanList=lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(merchant.getId(), "ACTIVE", true);
 			double totalAmount=0D;
@@ -713,7 +717,7 @@ public class CreditLineService {
 //			}
 			List<DailyRepayment> repaymentList=new LinkedList<>();
 			for(LendingPaymentSchedule loan:termLoanList) {
-				if(DateTimeUtil.getCurrentDayStartTime().compareTo(DateTimeUtil.getStartTimeFromDateTime(loan.getCreatedAt()))==0) {					
+				if(DateTimeUtil.getCurrentDayStartTime().compareTo(DateTimeUtil.getStartTimeFromDateTime(loan.getCreatedAt()))==0) {
 					continue;
 				}
 				Double dueAmount=loan.getDueAmount();
@@ -768,7 +772,7 @@ public class CreditLineService {
 			return getDailySettlementErrorResponse("Error occured while fetching daily settlement details");
 		}
 	}
-	
+
 //	public Double getDueAmount(LendingPaymentSchedule lendingPaymentSchedule) {
 //		try {
 //			Double positiveSum=0D;
@@ -791,22 +795,22 @@ public class CreditLineService {
 //			return null;
 //		}
 //	}
-	
+
 	public DailySettlementResponseDto getDailySettlementErrorResponse(String message) {
-		
+
 		DailySettlementResponseDto errorResponse=new DailySettlementResponseDto();
 		errorResponse.setSuccess(false);
 		errorResponse.setMessage(message);
 		return errorResponse;
 	}
-	
+
 	public CreditLineRepaymentDetailResponseDto getRepaymentDetail(Long transactionId, Merchant merchant) {
 		try {
 			logger.info("fetching repayment detail for transaction id {}",transactionId);
 			CreditLineRepaymentDetailResponseDto response=new CreditLineRepaymentDetailResponseDto();
 			Optional<LendingClTransaction> lendingClTransactionOptional=lendingClTransactionDao.findById(transactionId);
 			if(lendingClTransactionOptional==null || !lendingClTransactionOptional.isPresent()) {
-				return getRepaymentDetailErrorMessage("Transaction details not found");		
+				return getRepaymentDetailErrorMessage("Transaction details not found");
 			}
 			LendingClTransaction lendingClTransaction=lendingClTransactionOptional.get();
 			Calendar date = Calendar.getInstance();
@@ -830,7 +834,7 @@ public class CreditLineService {
 			}
 			if(creditDayEndBalance==null){
 				CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
-				response.setAvailableBalance(creditAccount.getAvailableBalance());	
+				response.setAvailableBalance(creditAccount.getAvailableBalance());
 			}
 			response.setAmount(lendingClTransaction.getAmount());
 			response.setDate(lendingClTransaction.getCreatedAt());
@@ -840,7 +844,7 @@ public class CreditLineService {
 			else {
 				response.setPaymentMode(lendingClTransaction.getSubType());
 			}
-			
+
 			response.setStatus(lendingClTransaction.getStatus());
 			response.setTranscId(lendingClTransaction.getBankReferenceId());
 			response.setIcon(lendingClTransaction.getIcon());
@@ -854,14 +858,14 @@ public class CreditLineService {
 			return getRepaymentDetailErrorMessage("Error occured while fetching repayment detail");
 		}
 	}
-	
+
 	public CreditLineRepaymentDetailResponseDto getRepaymentDetailErrorMessage(String message) {
-		
+
 		CreditLineRepaymentDetailResponseDto errorResponse=new CreditLineRepaymentDetailResponseDto();
 		errorResponse.setSuccess(false);
 		errorResponse.setMessage(message);
 		return errorResponse;
-		
+
 	}
 
 	private JsonNode parseStringResponse(String response){
@@ -932,9 +936,9 @@ public class CreditLineService {
 		}
 		ResponseUtil responseUtil;
 		if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
-			responseUtil = new CrifResponseUtil(experianDao);
+			responseUtil = new CrifResponseUtil(experianDao, easyLoanUtil);
 		} else {
-			responseUtil = new ExperianResponseUtil(experianDao);
+			responseUtil = new ExperianResponseUtil(experianDao, easyLoanUtil);
 		}
 		CreditScoreReportDetailDTO creditScoreReportDetailDTO =  responseUtil.getCreditDetailReport(bureauResponse);
 		creditScoreReportDetailDTO.setAverageCreditScore(getAverageCreditScore(merchant,experian));
@@ -952,9 +956,9 @@ public class CreditLineService {
 		}
 		ResponseUtil responseUtil;
 		if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
-			responseUtil = new CrifResponseUtil(experianDao);
+			responseUtil = new CrifResponseUtil(experianDao, easyLoanUtil);
 		} else {
-			responseUtil = new ExperianResponseUtil(experianDao);
+			responseUtil = new ExperianResponseUtil(experianDao, easyLoanUtil);
 		}
 
 		loanAndCreditCardDetailDTO =  responseUtil.getLoanAndCreditDetail(bureauResponse, merchant);
