@@ -588,6 +588,7 @@ public class LoanUtil {
 				snapshot.setTotalTxnAmount(summary.getDailyTxnAmount());
 				snapshot.setCategory(summary.getCategory());
 				snapshot.setAvgTpv(summary.getAvgTpv());
+				snapshot.setAdjustedTpv(summary.getAdjustedTpv());
 				snapshot.setLoanType(summary.getLoanType());
 				snapshot.setTpv1Mon(summary.getTpv1Mon());
 				snapshot.setTpv2Mon(summary.getTpv2Mon());
