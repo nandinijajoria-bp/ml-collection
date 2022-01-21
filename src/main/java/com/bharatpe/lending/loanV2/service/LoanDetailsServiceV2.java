@@ -378,7 +378,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private Long getReapplyTime(LendingApplication lendingApplication) {
+    public Long getReapplyTime(LendingApplication lendingApplication) {
         Long reapplyTime = null;
         if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
             Integer reapplyDayDiff = null;
