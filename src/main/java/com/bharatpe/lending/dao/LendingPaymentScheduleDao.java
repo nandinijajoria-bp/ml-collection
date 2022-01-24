@@ -60,5 +60,5 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	@Query(nativeQuery = true, value = "select * from lending_payment_schedule where merchant_id =:merchantId and status='CLOSED' order by id desc limit 1")
 	Optional<LendingPaymentSchedule> findLatestClosedLoan(Long merchantId);
 
-	LendingPaymentSchedule findTop1ByMerchantIdOrderByIdDesc(Merchant merchant);
+	LendingPaymentSchedule findTop1ByMerchantIdOrderByIdDesc(Long merchantId);
 }

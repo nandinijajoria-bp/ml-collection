@@ -4,7 +4,11 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.common.entity.LendingPennydrop;
+import com.bharatpe.lending.common.entity.LoanAttribution;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -16,7 +20,6 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -858,7 +861,7 @@ public class FosService {
                         logger.info("merchant {} has an approved but not disbursed application", merchantId);
                         return computeEligibilityParams("ineligible", null, merchantId);
                     } else {
-                        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchant);
+                        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
                         if (Objects.nonNull(lendingPaymentSchedule)) {
                             // active loans
                             if (lendingPaymentSchedule.getStatus().equalsIgnoreCase("ACTIVE")) {
