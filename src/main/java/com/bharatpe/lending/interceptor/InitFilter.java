@@ -1,49 +1,57 @@
 package com.bharatpe.lending.interceptor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.bharatpe.common.constants.RequestConstants;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Random;
+import java.util.UUID;
 
 @Component
+@Slf4j
 public class InitFilter implements Filter {
 
-    private static final Logger logger = LoggerFactory.getLogger(InitFilter.class);
-
-    public static final String REQUEST_ID = "requestId";
-    public static final String LOGGER_CODE = "loggerCode";
 
     public void init(FilterConfig filterConfig) throws ServletException {
     }
 
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
 
-//        Random rand = new Random();
-//        String loggerCode = rand.nextInt(10000) + "-" + rand.nextInt(10000);
-//        UUID uniqueId = UUID.randomUUID();
-//
-//
-//        MDC.put(REQUEST_ID, uniqueId.toString());
-//        MDC.put(LOGGER_CODE, loggerCode);
-//        HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-//        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(
-//                httpServletResponse
-//        );
-//        chain.doFilter(request, responseWrapper);
-//        responseWrapper.setHeader(REQUEST_ID, uniqueId.toString());
-//        responseWrapper.setHeader(LOGGER_CODE, loggerCode);
-//        responseWrapper.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "loggerCode, requestId");
-//        responseWrapper.copyBodyToResponse();
-        long startTime = System.currentTimeMillis();
+        HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
+        HttpServletResponse httpServletResponse = (HttpServletResponse) servletResponse;
 
-        InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper((HttpServletRequest) request);
-        chain.doFilter(interceptorRequestWrapper, response);
-        long endTime = System.currentTimeMillis();
-        logger.info("Time taken by API: " + interceptorRequestWrapper.getRequestURI() + " = " + (endTime - startTime) + " miliseconds");
+        Random rand = new Random();
+        int rand_int1 = rand.nextInt(10000);
+        int rand_int2 = rand.nextInt(10000);
+        UUID uniqueId = UUID.randomUUID();
+        String loggerCode = String.valueOf(rand_int1) + "-" + String.valueOf(rand_int2);
 
+        MDC.put(RequestConstants.requestId,
+                ObjectUtils.isEmpty(httpServletRequest.getHeader(RequestConstants.requestId)) ? uniqueId.toString() : httpServletRequest.getHeader(RequestConstants.requestId));
+        MDC.put(RequestConstants.loggerCode,
+                ObjectUtils.isEmpty(httpServletRequest.getHeader(RequestConstants.loggerCode)) ? loggerCode : httpServletRequest.getHeader(RequestConstants.loggerCode));
+
+        log.info("Request IP address is {}", servletRequest.getRemoteAddr());
+        log.info("Request content type is {}", servletRequest.getContentType());
+
+        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(httpServletResponse);
+
+        InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper(httpServletRequest);
+
+        filterChain.doFilter(interceptorRequestWrapper, responseWrapper);
+        responseWrapper.setHeader(RequestConstants.loggerCode, MDC.get(RequestConstants.loggerCode));
+        responseWrapper.setHeader(RequestConstants.requestId, MDC.get(RequestConstants.requestId));
+        log.info("Response header is set with requestId {} and loggerCode: {}", responseWrapper.getHeader(RequestConstants.requestId), responseWrapper.getHeader(RequestConstants.loggerCode));
+        responseWrapper.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, RequestConstants.loggerCode + ", " + RequestConstants.requestId);
+        responseWrapper.copyBodyToResponse();
     }
 
     public void destroy() {
