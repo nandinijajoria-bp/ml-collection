@@ -400,124 +400,127 @@ public class MerchantLoansService {
         Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
-        if (!isTopUpEnabled) {
-            logger.info("Topup are loans are disabled");
-            return eligiblity;
+        try {
+            if (!isTopUpEnabled) {
+                logger.info("Topup are loans are disabled");
+                return eligiblity;
+            }
+            if (lendingApplication == null) {
+                logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            if (!loanUtil.isEnachDone(lendingPaymentSchedule.getMerchant())) {
+                logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
+            if (dpd > 3D) {
+                logger.info("DPD is greater than 3 for merchant ID {}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
+            if (maxDpd.intValue() > 10) {
+                logger.info("Merchant Dpd Greater than 10 merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            double paidRatio = 0d;
+            if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
+                paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
+            }
+
+            if (paidRatio < 0.6D || paidRatio > 0.95D) {
+                logger.info("Insufficient paid ratio for merchant ID {}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
+            double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
+            if (qrPaidRatio < 50) {
+                logger.info("QR payment less than 50% for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
+            int paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+            logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchant().getId());
+            double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
+
+            Double eligibleAmount = 0D;
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
+            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+                logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
+                eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+            }
+            if (eligibleAmount.equals(0D)) {
+                logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+            if (ediPaidRatio < 65D) {
+                logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
+                eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+            }
+            int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+            if (eligibleAmount - posAmount < 10000) {
+                logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                return eligiblity;
+            }
+
+            List<LendingCategories> lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1("TOPUP");
+            LoanCalculationUtil.LoanBreakupDetail breakup;
+            AvailableLoan availableLoan = new AvailableLoan();
+            availableLoan.setAmount(eligibleAmount);
+
+            for (LendingCategories category : lendingCategories) {
+
+                breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, category, "TOPUP");
+                EligibleLoan eligibleLoan = new EligibleLoan();
+                eligibleLoan.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+                eligibleLoan.setExperianId(experian.getId());
+                eligibleLoan.setTenure(category.getPayableConverter());
+                eligibleLoan.setStatus("ACTIVE");
+                eligibleLoan.setAmount(eligibleAmount);
+                eligibleLoan.setCategory(category.getCategory());
+                eligibleLoan.setEdi(breakup.getEdi());
+                eligibleLoan.setIoEdi(breakup.getIoEdi());
+                eligibleLoan.setRepayment(breakup.getRepayment());
+                eligibleLoan.setLoanConstruct(breakup.getConstruct());
+                eligibleLoan.setLoanType("TOPUP");
+                eligibleLoanDao.save(eligibleLoan);
+
+                double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
+                LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+                loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
+                loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
+                loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
+                loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
+                loanEligibilityDTO.setAmount(breakup.getLoanAmount());
+                loanEligibilityDTO.setCategory(category.getCategory());
+                loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
+                loanEligibilityDTO.setEdi(breakup.getEdi());
+                loanEligibilityDTO.setRepayment(breakup.getRepayment());
+                loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
+                loanEligibilityDTO.setConstruct(breakup.getConstruct());
+                loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+                loanEligibilityDTO.setType(breakup.getType());
+                loanEligibilityDTO.setOptionEnable(true);
+                loanEligibilityDTO.setPrincipleEdiTenure(breakup.getPrincipleEdiTenure());
+                loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getDisbursementAmount() - (int) prevLoanUnpaidAmount);
+                loanEligibilityDTO.setLoanType("TOPUP");
+                loanEligibilityDTO.setEdiCount(category.getPayableDays());
+                eligiblity.add(loanEligibilityDTO);
+            }
+            experian.setEligibleAmount(eligibleAmount);
+            experian.setLoanType("TOPUP");
+            experianDao.save(experian);
+
+            int deleteNonTopup = eligibleLoanDao.deleteNonTopUp(lendingPaymentSchedule.getMerchant().getId());
+        } catch (Exception ex) {
+            logger.info("Exception Occured while checking eligibilty for topup");
         }
-        if (lendingApplication == null) {
-            logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        if (!loanUtil.isEnachDone(lendingPaymentSchedule.getMerchant())) {
-            logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
-        if(dpd > 3D) {
-            logger.info("DPD is greater than 3 for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
-        if(maxDpd.intValue() > 10){
-            logger.info("Merchant Dpd Greater than 10 merchant:{}",  lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        double paidRatio = 0d;
-        if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
-            paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
-        }
-
-        if(paidRatio < 0.6D || paidRatio >0.95D){
-            logger.info("Insufficient paid ratio for merchant ID {}",  lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
-        double qrPaidRatio = (settlementAmount/lendingPaymentSchedule.getPaidAmount()) * 100;
-        if (qrPaidRatio < 50) {
-            logger.info("QR payment less than 50% for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
-        int paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
-        logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchant().getId());
-        double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
-
-        Double eligibleAmount = 0D;
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
-        if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-            logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
-            eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
-        }
-        if (eligibleAmount.equals(0D)) {
-            logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-        if (ediPaidRatio < 65D) {
-            logger.info("EDI paid ratio:{} is less than 65% for merchant:{}",ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
-            eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
-        }
-        int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-        if (eligibleAmount - posAmount < 10000) {
-            logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-            return eligiblity;
-        }
-
-        List<LendingCategories> lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1("TOPUP");
-        LoanCalculationUtil.LoanBreakupDetail breakup;
-        AvailableLoan availableLoan = new AvailableLoan();
-        availableLoan.setAmount(eligibleAmount);
-
-        for(LendingCategories category : lendingCategories){
-
-            breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, category, "TOPUP");
-            EligibleLoan eligibleLoan = new EligibleLoan();
-            eligibleLoan.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
-            eligibleLoan.setExperianId(experian.getId());
-            eligibleLoan.setTenure(category.getPayableConverter());
-            eligibleLoan.setStatus("ACTIVE");
-            eligibleLoan.setAmount(eligibleAmount);
-            eligibleLoan.setCategory(category.getCategory());
-            eligibleLoan.setEdi(breakup.getEdi());
-            eligibleLoan.setIoEdi(breakup.getIoEdi());
-            eligibleLoan.setRepayment(breakup.getRepayment());
-            eligibleLoan.setLoanConstruct(breakup.getConstruct());
-            eligibleLoan.setLoanType("TOPUP");
-            eligibleLoanDao.save(eligibleLoan);
-
-            double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
-            LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
-            loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
-            loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
-            loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
-            loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
-            loanEligibilityDTO.setAmount(breakup.getLoanAmount());
-            loanEligibilityDTO.setCategory(category.getCategory());
-            loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
-            loanEligibilityDTO.setEdi(breakup.getEdi());
-            loanEligibilityDTO.setRepayment(breakup.getRepayment());
-            loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
-            loanEligibilityDTO.setConstruct(breakup.getConstruct());
-            loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
-            loanEligibilityDTO.setType(breakup.getType());
-            loanEligibilityDTO.setOptionEnable(true);
-            loanEligibilityDTO.setPrincipleEdiTenure(breakup.getPrincipleEdiTenure());
-            loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getDisbursementAmount() - (int) prevLoanUnpaidAmount);
-            loanEligibilityDTO.setLoanType("TOPUP");
-            loanEligibilityDTO.setEdiCount(category.getPayableDays());
-            eligiblity.add(loanEligibilityDTO);
-        }
-        experian.setEligibleAmount(eligibleAmount);
-        experian.setLoanType("TOPUP");
-        experianDao.save(experian);
-
-        int deleteNonTopup = eligibleLoanDao.deleteNonTopUp(lendingPaymentSchedule.getMerchant().getId());
-
         return eligiblity;
     }
 

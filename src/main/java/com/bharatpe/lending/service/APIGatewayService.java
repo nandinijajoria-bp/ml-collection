@@ -1234,12 +1234,12 @@ public class APIGatewayService {
         return 0D;
     }
 
-    public GlobalLimitResponse getGlobalLimit(Long merchantId) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId) throws Exception {
         return getGlobalLimit(merchantId, null, null);
     }
 
     //    @Async
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) throws Exception {
         logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1276,10 +1276,10 @@ public class APIGatewayService {
             }
             retryCount++;
         }
-        throw new RuntimeException("Something went wrong");
+        throw new Exception("Something went wrong");
     }
 
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         return getGlobalLimit(merchantId, source, null);
     }
 

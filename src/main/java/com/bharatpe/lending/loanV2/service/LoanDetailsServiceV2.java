@@ -190,7 +190,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) {
+    private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) throws Exception {
         String kycPancard = kycHandler.getPanNumber(merchant.getId());
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
