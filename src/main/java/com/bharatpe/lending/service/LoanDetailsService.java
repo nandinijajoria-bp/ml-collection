@@ -22,7 +22,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
-import com.bharatpe.lending.entity.LendingBlockedPancard;
+//import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
