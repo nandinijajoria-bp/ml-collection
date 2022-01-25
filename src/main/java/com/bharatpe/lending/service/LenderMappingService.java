@@ -51,7 +51,7 @@ public class LenderMappingService {
                     lendingApplication.setLender("LDC");
                 } else {
                     logger.info("Repeat loan application Lender Change To MAMTA merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
-                    lendingApplication.setLender("HINDON");
+                    lendingApplication.setLender("MAMTA");
                 }
                 lendingApplicationDao.save(lendingApplication);
                 return;
