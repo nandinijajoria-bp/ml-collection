@@ -1,6 +1,6 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.lending.entity.LendingBlockedPancard;
+import com.bharatpe.lending.common.entity.LendingBlockedPancard;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
