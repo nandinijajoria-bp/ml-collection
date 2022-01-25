@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.util.ObjectUtils;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -439,9 +440,12 @@ public class LendingMerchantLoansResponseDTO {
 
     public void setLoansFromLendingPaymentSchedule(List<LendingPaymentSchedule> loansList) {
         this.loans = loansList.stream().map(this::lendingPaymentScheduleToLoan).collect(Collectors.toList());
-        this.totalAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getLoanAmount(), Double::sum);
-        this.totalDueAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getDueAmount(), Double::sum);
-        this.totalPaidAmount = this.loans.stream().reduce(0D,(partialAmount, loan)->partialAmount+loan.getPaidAmount(), Double::sum);
+        this.totalAmount = this.loans.stream().reduce(0D,
+                (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getLoanAmount()) ? 0 : loan.getLoanAmount()), Double::sum);
+        this.totalDueAmount = this.loans.stream().reduce(0D,
+                (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getDueAmount()) ? 0 : loan.getDueAmount()) , Double::sum);
+        this.totalPaidAmount = this.loans.stream().reduce(0D,
+                (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getPaidAmount()) ? 0 : loan.getPaidAmount()), Double::sum);
     }
 
     public void setHalfLoan(LendingPaymentSchedule lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {

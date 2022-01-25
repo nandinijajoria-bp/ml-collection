@@ -768,7 +768,7 @@ public class LoanDetailsService {
 		return null;
 	}
 
-	private LoanEligibilityDTO getEligibilty(Long merchantId, Experian experian) {
+	private LoanEligibilityDTO getEligibilty(Long merchantId, Experian experian) throws Exception {
 		logger.info("Getting eligibility for merchant:{}", merchantId);
 		Double eligibleAmount = 0D;
 		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
@@ -1105,117 +1105,117 @@ public class LoanDetailsService {
 	}
 
 
-	public ResponseDTO creditScore(Merchant merchant,RequestDTO<CreditScoreRequestDto> requestDTO,String clientIp){
+	public ResponseDTO creditScore(Merchant merchant,RequestDTO<CreditScoreRequestDto> requestDTO,String clientIp) {
+		try {
+			ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
+			CreditScoreResponseDto creditScoreResponseDto = new CreditScoreResponseDto();
+			creditScoreResponseDto.setTimeout(Boolean.FALSE);
+			creditScoreResponseDto.setNTC(Boolean.FALSE);
+			creditScoreResponseDto.setEligible(Boolean.FALSE);
+			CreditScoreRequestDto creditScoreRequestDto = requestDTO.getPayload();
+			String pancard = creditScoreRequestDto.getPanNumber();
+			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			String key = "bharatpe.in/creditscore";
 
-		ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
-		CreditScoreResponseDto creditScoreResponseDto = new CreditScoreResponseDto();
-		creditScoreResponseDto.setTimeout(Boolean.FALSE);
-		creditScoreResponseDto.setNTC(Boolean.FALSE);
-		creditScoreResponseDto.setEligible(Boolean.FALSE);
-		CreditScoreRequestDto creditScoreRequestDto=requestDTO.getPayload();
-		String pancard = creditScoreRequestDto.getPanNumber();
-		Experian experian = experianDao.getByMerchantId(merchant.getId());
-		String key="bharatpe.in/creditscore";
+			if (requestDTO.getPayload().getPanNumber() == null && experian == null) {
+				creditScoreResponseDto.setPanNumber("null");
+				creditScoreResponseDto.setPinCode(0);
+				responseDTO.setData(creditScoreRequestDto);
+				return responseDTO;
+			}
+			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 
-		if(requestDTO.getPayload().getPanNumber() == null && experian == null) {
-			creditScoreResponseDto.setPanNumber("null");
-			creditScoreResponseDto.setPinCode(0);
-			responseDTO.setData(creditScoreRequestDto);
-			return  responseDTO;
-		}
-		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
-
-		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-		Boolean sms = Boolean.FALSE;
-		Integer pincode = creditScoreRequestDto.getPinCode() != null ? creditScoreRequestDto.getPinCode() : experian.getPincode();
-		LendingApplication lendingApplicationList = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
-		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
-		LendingApplication latestApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
-		if(requestDTO.getPayload().getPanNumber() != null){
-			if (experian != null ) {
-				experian.setPancardNumber(requestDTO.getPayload().getPanNumber());
-				experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
-				experian.setPincode(requestDTO.getPayload().getPinCode());
-				experian.setSkip(false);
-				experianDao.save(experian);
-				if(experian.getSource() == null || !experian.getSource().equals("CREDIT_SCORE")){
+			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+			Boolean sms = Boolean.FALSE;
+			Integer pincode = creditScoreRequestDto.getPinCode() != null ? creditScoreRequestDto.getPinCode() : experian.getPincode();
+			LendingApplication lendingApplicationList = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
+			LendingApplication latestApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+			if (requestDTO.getPayload().getPanNumber() != null) {
+				if (experian != null) {
+					experian.setPancardNumber(requestDTO.getPayload().getPanNumber());
+					experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
+					experian.setPincode(requestDTO.getPayload().getPinCode());
+					experian.setSkip(false);
+					experianDao.save(experian);
+					if (experian.getSource() == null || !experian.getSource().equals("CREDIT_SCORE")) {
+						sms = Boolean.TRUE;
+					}
+				} else {
+					experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, pancard, (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, 0, pincode));
+					experian.setSource("CREDIT_SCORE");
+					experianDao.save(experian);
 					sms = Boolean.TRUE;
 				}
-			} else {
-				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, pancard, (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, 0, pincode));
-				experian.setSource("CREDIT_SCORE");
-				experianDao.save(experian);
-				sms = Boolean.TRUE;
 			}
-		}
-		Double eligibleAmount = 0D;
-		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(),"CREDIT_SCORE");
-		if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-			logger.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
-			experian = globalLimitResponse.getData().getExperian();
-			eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
-		}
-		logger.info("Experian after global limit call for merchant:{} is {}", merchant.getId(),experian.toString());
+			Double eligibleAmount = 0D;
+			GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), "CREDIT_SCORE");
+			if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+				logger.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
+				experian = globalLimitResponse.getData().getExperian();
+				eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+			}
+			logger.info("Experian after global limit call for merchant:{} is {}", merchant.getId(), experian.toString());
 //		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
-		String tenure = null;
-		Integer edi = null;
-		if (eligibleAmount > 0D) {
-			EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchant.getId());
-			if (eligibleLoan != null) {
-				tenure = eligibleLoan.getTenure();
-				edi = eligibleLoan.getEdi();
-				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
-				loanEligibilityDTO.setAmount(eligibleAmount.intValue());
-				loanEligibilityDTO.setEdi(edi);
-				loanEligibilityDTO.setTenure(tenure);
-				loanEligibilityDTOs.add(loanEligibilityDTO);
+			String tenure = null;
+			Integer edi = null;
+			if (eligibleAmount > 0D) {
+				EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchant.getId());
+				if (eligibleLoan != null) {
+					tenure = eligibleLoan.getTenure();
+					edi = eligibleLoan.getEdi();
+					LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+					loanEligibilityDTO.setAmount(eligibleAmount.intValue());
+					loanEligibilityDTO.setEdi(edi);
+					loanEligibilityDTO.setTenure(tenure);
+					loanEligibilityDTOs.add(loanEligibilityDTO);
+				}
 			}
-		}
 
-		boolean rejected = false;
-		if (experian.getRejected()) {
-			if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
-				rejected = false;
-			}else{
-				rejected = true;
+			boolean rejected = false;
+			if (experian.getRejected()) {
+				if (Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
+					rejected = false;
+				} else {
+					rejected = true;
+				}
+				creditScoreResponseDto.setMessage(experian.getReason());
 			}
-			creditScoreResponseDto.setMessage(experian.getReason());
-		}
-		if(latestApplication != null && "rejected".equals(latestApplication.getStatus())) {
-			if("REJECTED".equalsIgnoreCase(latestApplication.getManualCibil()) || rejectedInLastNDays(latestApplication, 7)) {
-				loanEligibilityDTOs.clear();
-				eligibleAmount = 0D;
-				tenure = null;
-				edi = null;
+			if (latestApplication != null && "rejected".equals(latestApplication.getStatus())) {
+				if ("REJECTED".equalsIgnoreCase(latestApplication.getManualCibil()) || rejectedInLastNDays(latestApplication, 7)) {
+					loanEligibilityDTOs.clear();
+					eligibleAmount = 0D;
+					tenure = null;
+					edi = null;
+				}
 			}
-		}
 
-		LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
-		creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
-		creditScoreResponseDto.setPinCode(experian.getPincode());
-		creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : merchant.getBeneficiaryName());
-		creditScoreResponseDto.setScore(experian.getExperianScore());
-		creditScoreResponseDto.setCreditDate(experian.getReportDate());
-		creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
-		creditScoreResponseDto.setNoExperian(false);
-		creditScoreResponseDto.setActiveLoan(lendingPaymentSchedule != null);
+			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+			creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
+			creditScoreResponseDto.setPinCode(experian.getPincode());
+			creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : merchant.getBeneficiaryName());
+			creditScoreResponseDto.setScore(experian.getExperianScore());
+			creditScoreResponseDto.setCreditDate(experian.getReportDate());
+			creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
+			creditScoreResponseDto.setNoExperian(false);
+			creditScoreResponseDto.setActiveLoan(lendingPaymentSchedule != null);
 
-		String identifier ;
-		String deeplink = notificationUtil.getDeeplink(merchant,"CREDIT_SCORE");
-		Map<String,Object> templateParams = new HashMap<>();
-		templateParams.put("pan_name",creditScoreResponseDto.getPanName());
-		NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
-		notificationPayloadDto.setMobile(merchant.getMobile());
-		notificationPayloadDto.setClientName("LENDING");
-		notificationPayloadDto.setPushDeepLink(deeplink);
-		notificationPayloadDto.setPushTitle("BHARATPE");
+			String identifier;
+			String deeplink = notificationUtil.getDeeplink(merchant, "CREDIT_SCORE");
+			Map<String, Object> templateParams = new HashMap<>();
+			templateParams.put("pan_name", creditScoreResponseDto.getPanName());
+			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+			notificationPayloadDto.setMobile(merchant.getMobile());
+			notificationPayloadDto.setClientName("LENDING");
+			notificationPayloadDto.setPushDeepLink(deeplink);
+			notificationPayloadDto.setPushTitle("BHARATPE");
 
-		if (rejected || experian.getReason() != null) {
-			if("NTC".equals(experian.getReason())){
-				creditScoreResponseDto.setNTC(Boolean.TRUE);
-			}
-			creditScoreResponseDto.setMessage(experian.getReason());
-			responseDTO.setData(creditScoreResponseDto);
+			if (rejected || experian.getReason() != null) {
+				if ("NTC".equals(experian.getReason())) {
+					creditScoreResponseDto.setNTC(Boolean.TRUE);
+				}
+				creditScoreResponseDto.setMessage(experian.getReason());
+				responseDTO.setData(creditScoreResponseDto);
 //			if(sms){
 //				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
 //				templateParams.put("key",key);
@@ -1223,73 +1223,77 @@ public class LoanDetailsService {
 //				notificationPayloadDto.setTemplateIdentifier(identifier);
 //				lendingNotificationService.notify(notificationPayloadDto);
 //			}
-			return responseDTO;
-		}
-		if (lendingApplicationList!= null) {
-			creditScoreResponseDto.setApplicationPending(Boolean.TRUE);
-			creditScoreResponseDto.setEligible(Boolean.TRUE);
+				return responseDTO;
+			}
+			if (lendingApplicationList != null) {
+				creditScoreResponseDto.setApplicationPending(Boolean.TRUE);
+				creditScoreResponseDto.setEligible(Boolean.TRUE);
+				creditScoreResponseDto.setEligibleAmount(eligibleAmount);
+				creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
+				creditScoreResponseDto.setEdi(edi);
+				creditScoreResponseDto.setTenure(tenure);
+				responseDTO.setData(creditScoreResponseDto);
+				if (sms) {
+					identifier = "LENDING_CREDIT_SCORE_PUSH";
+					templateParams.put("experian_score", experian.getExperianScore());
+					notificationPayloadDto.setTemplateParams(templateParams);
+					notificationPayloadDto.setTemplateIdentifier(identifier);
+					lendingNotificationService.notify(notificationPayloadDto);
+				}
+				return responseDTO;
+			}
+
+			if (lendingPaymentSchedule != null) {
+				creditScoreResponseDto.setActiveLoan(Boolean.TRUE);
+				responseDTO.setData(creditScoreResponseDto);
+				if (sms) {
+					identifier = "LENDING_CREDIT_SCORE_PUSH";
+					templateParams.put("experian_score", experian.getExperianScore());
+					notificationPayloadDto.setTemplateParams(templateParams);
+					notificationPayloadDto.setTemplateIdentifier(identifier);
+					lendingNotificationService.notify(notificationPayloadDto);
+				}
+				return responseDTO;
+			}
+			if (experian.getExperianScore() == null || experian.getExperianScore().equals(0D) || experian.getExperianScore() < 300D) {
+				creditScoreResponseDto.setNTC(Boolean.TRUE);
+				creditScoreResponseDto.setMessage("CRIF");
+				responseDTO.setData(creditScoreResponseDto);
+//			if(sms){
+//				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
+//				templateParams.put("key",key);
+//				notificationPayloadDto.setTemplateParams(templateParams);
+//				notificationPayloadDto.setTemplateIdentifier(identifier);
+//				lendingNotificationService.notify(notificationPayloadDto);
+//			}
+				return responseDTO;
+			}
+
+			if (eligibleAmount > 0D) {
+				experian.setSource("CREDIT_SCORE");
+				experianDao.save(experian);
+				redisNotificationService.sendNotificationForSeenOffer(merchant.getId());
+			}
+			if (sms) {
+				String message = "Dear " + creditScoreResponseDto.getPanName() + ",\n" +
+						"Your Credit Score is generated and your current Score is " + experian.getExperianScore();
+				identifier = "LENDING_CREDIT_SCORE_PUSH";
+				templateParams.put("experian_score", experian.getExperianScore());
+				notificationPayloadDto.setTemplateParams(templateParams);
+				notificationPayloadDto.setTemplateIdentifier(identifier);
+				lendingNotificationService.notify(notificationPayloadDto);
+			}
+			creditScoreResponseDto.setEligible(eligibleAmount > 0D);
 			creditScoreResponseDto.setEligibleAmount(eligibleAmount);
 			creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
 			creditScoreResponseDto.setEdi(edi);
 			creditScoreResponseDto.setTenure(tenure);
 			responseDTO.setData(creditScoreResponseDto);
-			if(sms){
-				identifier = "LENDING_CREDIT_SCORE_PUSH";
-				templateParams.put("experian_score",experian.getExperianScore());
-				notificationPayloadDto.setTemplateParams(templateParams);
-				notificationPayloadDto.setTemplateIdentifier(identifier);
-				lendingNotificationService.notify(notificationPayloadDto);
-			}
 			return responseDTO;
+		} catch (Exception ex) {
+			logger.error("Error occured while checking credit score for merchantId : {} {}", merchant.getId(), ex);
 		}
-
-		if (lendingPaymentSchedule != null){
-			creditScoreResponseDto.setActiveLoan(Boolean.TRUE);
-			responseDTO.setData(creditScoreResponseDto);
-			if(sms){
-				identifier = "LENDING_CREDIT_SCORE_PUSH";
-				templateParams.put("experian_score",experian.getExperianScore());
-				notificationPayloadDto.setTemplateParams(templateParams);
-				notificationPayloadDto.setTemplateIdentifier(identifier);
-				lendingNotificationService.notify(notificationPayloadDto);
-			}
-			return responseDTO;
-		}
-		if(experian.getExperianScore() == null || experian.getExperianScore().equals(0D) || experian.getExperianScore() < 300D ){
-			creditScoreResponseDto.setNTC(Boolean.TRUE);
-			creditScoreResponseDto.setMessage("CRIF");
-			responseDTO.setData(creditScoreResponseDto);
-//			if(sms){
-//				identifier = "LENDING_CREDIT_SCORE_2_PUSH";
-//				templateParams.put("key",key);
-//				notificationPayloadDto.setTemplateParams(templateParams);
-//				notificationPayloadDto.setTemplateIdentifier(identifier);
-//				lendingNotificationService.notify(notificationPayloadDto);
-//			}
-			return responseDTO;
-		}
-
-		if(eligibleAmount > 0D){
-			experian.setSource("CREDIT_SCORE");
-			experianDao.save(experian);
-			redisNotificationService.sendNotificationForSeenOffer(merchant.getId());
-		}
-		if(sms){
-			String message = "Dear "+creditScoreResponseDto.getPanName()+",\n"+
-					"Your Credit Score is generated and your current Score is "+experian.getExperianScore();
-			identifier = "LENDING_CREDIT_SCORE_PUSH";
-			templateParams.put("experian_score",experian.getExperianScore());
-			notificationPayloadDto.setTemplateParams(templateParams);
-			notificationPayloadDto.setTemplateIdentifier(identifier);
-			lendingNotificationService.notify(notificationPayloadDto);
-		}
-		creditScoreResponseDto.setEligible(eligibleAmount > 0D);
-		creditScoreResponseDto.setEligibleAmount(eligibleAmount);
-		creditScoreResponseDto.setEligibility(loanEligibilityDTOs);
-		creditScoreResponseDto.setEdi(edi);
-		creditScoreResponseDto.setTenure(tenure);
-		responseDTO.setData(creditScoreResponseDto);
-		return  responseDTO;
+		return new ResponseDTO(Boolean.FALSE, "Something went wrong!");
 	}
 
 	private void sendSms(String messageForSms, Merchant merchant) {

@@ -664,7 +664,7 @@ public class SupportService {
         }
     }
 
-    private void refreshEligibility(SupportApiResponseDto supportApiResponseDto, LendingApplication lendingApplication) {
+    private void refreshEligibility(SupportApiResponseDto supportApiResponseDto, LendingApplication lendingApplication) throws Exception {
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
         Experian experian = globalLimitResponse.getData().getExperian();
         populateExperianData(supportApiResponseDto,experian, lendingApplication,true);
@@ -679,7 +679,7 @@ public class SupportService {
         }
     }
 
-    private Boolean getEligibility(Long merchantId) {
+    private Boolean getEligibility(Long merchantId) throws Exception {
         Double eligibleAmount = 0D;
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {

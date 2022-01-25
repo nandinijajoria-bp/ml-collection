@@ -1091,7 +1091,7 @@ public class APIGatewayService {
             ResponseEntity<String> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL, HttpMethod.POST, request, String.class);
             logger.info("Submit enach response:{} for merchant:{}", response.getBody(), merchantId);
         } catch (Exception e) {
-            logger.error("Exception in enach submit for merchant:{}", merchantId, e);
+            logger.info("Exception in enach submit for merchant:{}", merchantId, e);
         }
     }
 
@@ -1234,12 +1234,12 @@ public class APIGatewayService {
         return 0D;
     }
 
-    public GlobalLimitResponse getGlobalLimit(Long merchantId) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId) throws Exception {
         return getGlobalLimit(merchantId, null, null);
     }
 
     //    @Async
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) throws Exception {
         logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1276,10 +1276,10 @@ public class APIGatewayService {
             }
             retryCount++;
         }
-        return null;
+        throw new Exception("Something went wrong");
     }
 
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         return getGlobalLimit(merchantId, source, null);
     }
 

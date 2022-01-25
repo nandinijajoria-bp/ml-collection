@@ -190,7 +190,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) {
+    private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) throws Exception {
         String kycPancard = kycHandler.getPanNumber(merchant.getId());
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
@@ -230,7 +230,7 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
         MutableBoolean isDerog = new MutableBoolean(false);
-        GlobalLimitResponse globalLimitResponse = getEligibility(merchant, request.getAppVersion());
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, request.getAppVersion());
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());

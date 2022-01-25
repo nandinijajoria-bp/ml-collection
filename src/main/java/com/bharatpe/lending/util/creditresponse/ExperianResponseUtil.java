@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
@@ -16,6 +17,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Months;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 import java.text.ParseException;
@@ -39,6 +41,14 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     SimpleDateFormat dateFormat = new SimpleDateFormat(ExperianConstants.DATE_FORMAT);
+
+    EasyLoanUtil easyLoanUtil;
+
+    public ExperianResponseUtil(ExperianDao experianDao, EasyLoanUtil easyLoanUtil) {
+        this.type = "EXPERIAN";
+        this.experianDao = experianDao;
+        this.easyLoanUtil = easyLoanUtil;
+    }
 
     public ExperianResponseUtil(ExperianDao experianDao) {
         this.type = "EXPERIAN";
@@ -168,7 +178,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         if (response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)
                 .get(ExperianConstants.ACCT_DETAILS) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)
-                        .get(ExperianConstants.ACCT_DETAILS).isObject()) {
+                .get(ExperianConstants.ACCT_DETAILS).isObject()) {
             JsonNode caisAccountDetails = response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)
                     .get(ExperianConstants.ACCT_DETAILS);
             if (derogChecks(caisAccountDetails, merchant.getId(), isRepeatLoanNoDerog, reportDate, experian)) {
@@ -178,7 +188,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         } else if (response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)
                 .get(ExperianConstants.ACCT_DETAILS) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)
-                        .get(ExperianConstants.ACCT_DETAILS).isArray()) {
+                .get(ExperianConstants.ACCT_DETAILS).isArray()) {
             int unsecuredLoanCount = 0;
             for (JsonNode caisAccountDetails : response.get(ExperianConstants.PROFILE_RESPONSE)
                     .get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS)) {
@@ -230,7 +240,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
     }
 
     private boolean derogChecks(JsonNode jsonNode, Long merchantId, boolean isRepeatLoanNoDerog, Date reportDate,
-            Experian experian) {
+                                Experian experian) {
         // Check for Derog Account Status
         if (jsonNode.get(ExperianConstants.ACCT_STATUS) != null
                 && derogAccountStatus.contains(jsonNode.get(ExperianConstants.ACCT_STATUS).asInt())) {
@@ -421,7 +431,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         JsonNode closedDate = loan.get(ExperianConstants.DATE_CLOSED);
         Date clsDate = null;
         try {
-            clsDate = dateFormat.parse(closedDate.asText());
+            clsDate = dateFormat.parse(easyLoanUtil.getNodeValueAsString(closedDate));
         } catch (Exception e) {
             clsDate = null;
         }
@@ -431,7 +441,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         }
         Integer accountStatus = loan.has(ExperianConstants.ACCT_STATUS)
                 && !loan.get(ExperianConstants.ACCT_STATUS).isNull() ? (Integer) loan.get(ExperianConstants.ACCT_STATUS).asInt()
-                        : null;
+                : null;
         return isClosed || !activeStatusList.contains(accountStatus);
     }
 
@@ -446,8 +456,8 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
     private boolean isLoanClosedWithinOneYear(JsonNode loan) {
         String date = (loan.has(ExperianConstants.DATE_CLOSED) && !loan.get(ExperianConstants.DATE_CLOSED).isNull()
                 && !loan.get(ExperianConstants.DATE_CLOSED).asText().equalsIgnoreCase(""))
-                        ? loan.get(ExperianConstants.DATE_CLOSED).asText()
-                        : null;
+                ? loan.get(ExperianConstants.DATE_CLOSED).asText()
+                : null;
         if (date != null) {
             try {
                 Date closingDate = dateFormat.parse(date);
@@ -564,7 +574,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
     public int countLoanEnquiriesInLast3Months() throws ParseException {
         if (response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
-                        .get("TotalCAPSLast90Days") != null)
+                .get("TotalCAPSLast90Days") != null)
             return response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
                     .get("TotalCAPSLast90Days").asInt();
         return 0;
@@ -575,7 +585,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         Date reportDate = getReportDate();
         if (response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
-                        .get("TotalCAPSLast180Days") != null) {
+                .get("TotalCAPSLast180Days") != null) {
             return response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.CAPS_SUMMARY)
                     .get("TotalCAPSLast180Days").asInt();
         }
@@ -589,7 +599,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         long previous6MonthDate = Long.parseLong(c.get(Calendar.YEAR) + month + day);
         if (response.get(ExperianConstants.PROFILE_RESPONSE).get("CAPS").get(ExperianConstants.CAPS_DETAILS) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get("CAPS").get(ExperianConstants.CAPS_DETAILS)
-                        .isObject()) {
+                .isObject()) {
             JsonNode jsonNode = response.get(ExperianConstants.PROFILE_RESPONSE).get("CAPS")
                     .get(ExperianConstants.CAPS_DETAILS);
             return jsonNode.get(ExperianConstants.PRODUCT) != null && jsonNode.get(ExperianConstants.DOR) != null
@@ -598,7 +608,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
         } else if (response.get(ExperianConstants.PROFILE_RESPONSE).get("CAPS")
                 .get(ExperianConstants.CAPS_DETAILS) != null
                 && response.get(ExperianConstants.PROFILE_RESPONSE).get("CAPS").get(ExperianConstants.CAPS_DETAILS)
-                        .isArray()) {
+                .isArray()) {
             for (JsonNode jsonNode : response.get(ExperianConstants.PROFILE_RESPONSE).get("CAPS")
                     .get(ExperianConstants.CAPS_DETAILS)) {
                 if (jsonNode.get(ExperianConstants.PRODUCT) != null
@@ -973,7 +983,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                 JsonNode currentApplicationDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get("Current_Application").get("Current_Application_Details");
                 if (currentApplicationDetails.isObject()) {
                     JsonNode enquiryReason = currentApplicationDetails.get("Enquiry_Reason");
-                    if (enquiryReason.asText().equals("7")) {
+                    if (easyLoanUtil.getNodeValueAsString(enquiryReason).equals("7")) {
                         creditCardEnquries += 1;
                     }else{
                         loanEnqueries +=1;
@@ -1051,10 +1061,10 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
             if(totalAccountCheck) {
                 JsonNode caisAccountDetails = beruaeResponse.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT).get(ExperianConstants.ACCT_DETAILS);
                 if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isObject()){
-                    if(caisAccountDetails.get(ExperianConstants.ACCT_TYPE).asInt() == 10){
-                        creditCardDetail.setBankName(caisAccountDetails.get("Subscriber_Name").asText());
+                    if(easyLoanUtil.getNodeValueAsInt(caisAccountDetails.get(ExperianConstants.ACCT_TYPE)) == 10){
+                        creditCardDetail.setBankName(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Subscriber_Name")));
                         creditCardDetail.setStatus(!isLoanClosed(caisAccountDetails));
-                        creditCardDetail.setCreditCardNumber(caisAccountDetails.get("Account_Number").asText());
+                        creditCardDetail.setCreditCardNumber(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Account_Number")));
                         if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount"))) {
                             creditCardDetail.setCardLimit(Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), 0));
                         }
@@ -1064,7 +1074,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                         if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
                             creditCardDetail.setCardLimit(Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt()));
                         }
-                        creditCardDetail.setBalance(caisAccountDetails.get("Current_Balance").asInt());
+                        creditCardDetail.setBalance(easyLoanUtil.getNodeValueAsInt(caisAccountDetails.get("Current_Balance")));
 
                         creditCardDetails.add(creditCardDetail);
                     }else{
@@ -1077,54 +1087,54 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
                         if (Objects.nonNull(caisAccountDetails.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount"))) {
                             senctionedAmount = Math.max(caisAccountDetails.get("Credit_Limit_Amount").asInt(), caisAccountDetails.get("Highest_Credit_or_Original_Loan_Amount").asInt());
                         }
-                        loanDetail.setAccountNumber(caisAccountDetails.get("Account_Number").asText());
-                        loanDetail.setBankName(caisAccountDetails.get("Subscriber_Name").asText());
+                        loanDetail.setAccountNumber(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Account_Number")));
+                        loanDetail.setBankName(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Subscriber_Name")));
                         loanDetail.setSanctionedAmount(senctionedAmount);
-                        loanDetail.setTenure(caisAccountDetails.get("Repayment_Tenure").asText());
+                        loanDetail.setTenure(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Repayment_Tenure")));
                         loanDetail.setStatus(!isLoanClosed(caisAccountDetails));
-                        loanDetail.setCurrentBalance(caisAccountDetails.get("Current_Balance").asText());
-                        loanDetail.setRateOfInterest(caisAccountDetails.get("Rate_of_Interest").asText());
+                        loanDetail.setCurrentBalance(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Current_Balance")));
+                        loanDetail.setRateOfInterest(easyLoanUtil.getNodeValueAsString(caisAccountDetails.get("Rate_of_Interest")));
                         loanDetails.add(loanDetail);
                     }
                 }else if(Objects.nonNull(caisAccountDetails) && caisAccountDetails.isArray()){
                     for (JsonNode caisAccountDetail: caisAccountDetails){
                         creditCardDetail = loanAndCreditCardDetailDTO.new CreditCardDetail();
                         loanDetail = loanAndCreditCardDetailDTO.new LoanDetail();
-                        if(caisAccountDetail.get(ExperianConstants.ACCT_TYPE).asInt() == 10){
-                            creditCardDetail.setBankName(caisAccountDetail.get("Subscriber_Name").asText());
+                        if(easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get(ExperianConstants.ACCT_TYPE)) == 10){
+                            creditCardDetail.setBankName(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Subscriber_Name")));
 
                             creditCardDetail.setStatus(!isLoanClosed(caisAccountDetail));
-                            creditCardDetail.setCreditCardNumber(caisAccountDetail.get("Account_Number").asText());
+                            creditCardDetail.setCreditCardNumber(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Account_Number")));
                             if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount"))) {
-                                creditCardDetail.setCardLimit(Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), 0));
+                                creditCardDetail.setCardLimit(Math.max(easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Credit_Limit_Amount")), 0));
                             }
                             if (Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
-                                creditCardDetail.setCardLimit(Math.max(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt(), 0));
+                                creditCardDetail.setCardLimit(Math.max(easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount")), 0));
                             }
                             if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
-                                creditCardDetail.setCardLimit(Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt()));
+                                creditCardDetail.setCardLimit(Math.max(easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Credit_Limit_Amount")), easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))));
                             }
-                            creditCardDetail.setBalance(Math.max(caisAccountDetail.get("Current_Balance").asInt(), 0));
+                            creditCardDetail.setBalance(Math.max(easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Current_Balance")), 0));
 
 
                             creditCardDetails.add(creditCardDetail);
                         }else{
                             if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount"))) {
-                                senctionedAmount = caisAccountDetail.get("Credit_Limit_Amount").asInt();
+                                senctionedAmount = easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Credit_Limit_Amount"));
                             }
                             if (Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
-                                senctionedAmount = caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt();
+                                senctionedAmount = easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"));
                             }
                             if (Objects.nonNull(caisAccountDetail.get("Credit_Limit_Amount")) && Objects.nonNull(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount"))) {
-                                senctionedAmount = Math.max(caisAccountDetail.get("Credit_Limit_Amount").asInt(), caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount").asInt());
+                                senctionedAmount = Math.max(easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Credit_Limit_Amount")), easyLoanUtil.getNodeValueAsInt(caisAccountDetail.get("Highest_Credit_or_Original_Loan_Amount")));
                             }
-                            loanDetail.setAccountNumber(caisAccountDetail.get("Account_Number").asText());
+                            loanDetail.setAccountNumber(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Account_Number")));
                             loanDetail.setStatus(!isLoanClosed(caisAccountDetail));
-                            loanDetail.setBankName(caisAccountDetail.get("Subscriber_Name").asText());
+                            loanDetail.setBankName(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Subscriber_Name")));
                             loanDetail.setSanctionedAmount(senctionedAmount);
-                            loanDetail.setTenure(caisAccountDetail.get("Repayment_Tenure").asText());
-                            loanDetail.setCurrentBalance(caisAccountDetail.get("Current_Balance").asText());
-                            loanDetail.setRateOfInterest(caisAccountDetail.get("Rate_of_Interest").asText());
+                            loanDetail.setTenure(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Repayment_Tenure")));
+                            loanDetail.setCurrentBalance(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Current_Balance")));
+                            loanDetail.setRateOfInterest(easyLoanUtil.getNodeValueAsString(caisAccountDetail.get("Rate_of_Interest")));
                             loanDetails.add(loanDetail);
                         }
                     }
@@ -1139,7 +1149,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
             loanAndCreditCardDetailDTO.setExperianNumber(getExperianNumber(beruaeResponse));
 
         }catch ( Exception ex){
-            logger.error("Error Occurred while checking loan and credit details for merchantId : {}, Error :{}", merchant.getId(), ex.getMessage());
+            logger.error("Error Occurred while checking loan and credit details for merchantId : {}, Error :{}", merchant.getId(), ex);
         }
 
         return loanAndCreditCardDetailDTO;
