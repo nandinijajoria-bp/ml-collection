@@ -327,25 +327,27 @@ public class LoanDetailsServiceV2 {
 
     private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian) {
         try {
-            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchant().getId());
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
             applicationDetails.setExternalLoanId(openApplication.getExternalLoanId());
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
-            if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() != null && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
-                Date currentRequestTimestamp = dateTimeUtil.getCurrentDate();
-                Date resubmitCreatedAt = lendingResubmitTask.getCreatedAt();
-                Date opsStartTimestamp = dateTimeUtil.getDateAtTime(resubmitCreatedAt,9,0,0,0);
-                Date opsSameDayProcessTimestamp = dateTimeUtil.getDateAtTime(resubmitCreatedAt, 18,0,0,0);
-                Date opsNextDayProcessTimestamp = dateTimeUtil.getDateAtTime(dateTimeUtil.getDatePlusDays(resubmitCreatedAt,24), 18,0,0,0);
-                if ((resubmitCreatedAt.before(opsStartTimestamp) && currentRequestTimestamp.after(opsSameDayProcessTimestamp)) || ((resubmitCreatedAt.after(opsStartTimestamp)) && (currentRequestTimestamp.after(opsNextDayProcessTimestamp)))) {
-                    applicationDetails.setApplicationStatus("RESUBMIT");
-                    applicationDetails.setResubmitReason(lendingResubmitTask.getResubmitReason());
+            if("approved".equalsIgnoreCase(openApplication.getStatus()) || "pending_verification".equalsIgnoreCase(openApplication.getStatus())) {
+                LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchant().getId());
+                if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() != null && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
+                    Date currentRequestTimestamp = dateTimeUtil.getCurrentDate();
+                    Date resubmitCreatedAt = lendingResubmitTask.getCreatedAt();
+                    Date opsStartTimestamp = dateTimeUtil.getDateAtTime(resubmitCreatedAt, 9, 0, 0, 0);
+                    Date opsSameDayProcessTimestamp = dateTimeUtil.getDateAtTime(resubmitCreatedAt, 18, 0, 0, 0);
+                    Date opsNextDayProcessTimestamp = dateTimeUtil.getDateAtTime(dateTimeUtil.getDatePlusDays(resubmitCreatedAt, 24), 18, 0, 0, 0);
+                    if ((resubmitCreatedAt.before(opsStartTimestamp) && currentRequestTimestamp.after(opsSameDayProcessTimestamp)) || ((resubmitCreatedAt.after(opsStartTimestamp)) && (currentRequestTimestamp.after(opsNextDayProcessTimestamp)))) {
+                        applicationDetails.setApplicationStatus("RESUBMIT");
+                        applicationDetails.setResubmitReason(lendingResubmitTask.getResubmitReason());
+                    }
                 }
-            }
-            if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
-                applicationDetails.setApplicationStatus("DOWNGRADE");
+                if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
+                    applicationDetails.setApplicationStatus("DOWNGRADE");
+                }
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication));
             applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
