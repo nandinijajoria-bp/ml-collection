@@ -1271,12 +1271,16 @@ public class APIGatewayService {
                     return responseEntity.getBody();
                 }
                 break;
-            } catch (Exception e) {
+            }
+            catch (ResourceAccessException ex) {
+                logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
+            }
+            catch (Exception e) {
                 logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e.getMessage());
             }
             retryCount++;
         }
-        throw new Exception("Something went wrong");
+        return null;
     }
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
