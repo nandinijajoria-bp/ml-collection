@@ -119,6 +119,9 @@ public class FosService {
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
         Map<String,Object> data= new HashMap<>();
@@ -969,8 +972,9 @@ public class FosService {
         ResponseDTO responseDTO = new ResponseDTO();
         FosTaskStatusDto fosTaskStatusDto = new FosTaskStatusDto();
         try {
-            Date taskTimestamp = new Date( taskTimestampEpoch * 1000 );
-            logger.info("task status timestamp: {}", taskTimestamp);
+            Date taskStartTimestamp = new Date( taskTimestampEpoch * 1000 );
+            logger.info("task status timestamp: {}", taskStartTimestamp);
+            Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
             Merchant merchant = merchantDao.getById(merchantId);
             if (ObjectUtils.isEmpty(merchant)) {
                 logger.info("invalid merchant ID");
@@ -981,7 +985,10 @@ public class FosService {
             }
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
             BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchantId);
-            if (ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(bpEnach) || (lendingApplication.getCreatedAt().before(taskTimestamp) && lendingApplication.getAgreementAt().before(taskTimestamp) && bpEnach.getCreatedAt().before(taskTimestamp))) {
+            if (ObjectUtils.isEmpty(lendingApplication) ||
+                    ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
+                            (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) || lendingApplication.getAgreementAt().after(taskEndTimeStamp))) &&
+                            (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp)))) {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
                 fosTaskStatusDto.setMessage("no application found against this task");
@@ -999,9 +1006,15 @@ public class FosService {
                     fosTaskStatusDto.setMessage("Nach pending for the application");
                     logger.info("nach pending for merchant {}", merchantId);
                 }
-                fosTaskStatusDto.setEligibleForPayout(lendingApplication.getLoanType().equals("SMALL_TICKET") ? "NO" : "YES");
                 populateApplicationStage(lendingApplication, fosTaskStatusDto);
-                fosTaskStatusDto.setLoanType(lendingApplication.getLoanType());
+                if (lendingApplication.getLoanType().equalsIgnoreCase("SMALL_TICKET")) {
+                    fosTaskStatusDto.setEligibleForPayout("NO");
+                    fosTaskStatusDto.setLoanType(lendingApplication.getLoanType());
+                } else {
+                    LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+                    fosTaskStatusDto.setEligibleForPayout("YES");
+                    fosTaskStatusDto.setLoanType(lendingRiskVariablesSnapshot.getRiskSegment().name());
+                }
                 fosTaskStatusDto.setApplicationId(lendingApplication.getId());
                 responseDTO.setData(fosTaskStatusDto);
                 responseDTO.setSuccess(Boolean.TRUE);
