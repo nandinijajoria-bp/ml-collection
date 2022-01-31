@@ -5,6 +5,7 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -962,5 +963,76 @@ public class FosService {
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);
         return responseDTO;
+    }
+
+    public ResponseDTO getFosTaskStatus(Long merchantId, Long taskTimestampEpoch) {
+        ResponseDTO responseDTO = new ResponseDTO();
+        FosTaskStatusDto fosTaskStatusDto = new FosTaskStatusDto();
+        try {
+            Date taskTimestamp = new Date( taskTimestampEpoch * 1000 );
+            logger.info("task status timestamp: {}", taskTimestamp);
+            Merchant merchant = merchantDao.getById(merchantId);
+            if (ObjectUtils.isEmpty(merchant)) {
+                logger.info("invalid merchant ID");
+                fosTaskStatusDto.setMessage("merchant doesn't exist");
+                responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                return responseDTO;
+            }
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+            BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchantId);
+            if (ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(bpEnach) || (lendingApplication.getCreatedAt().before(taskTimestamp) && lendingApplication.getAgreementAt().before(taskTimestamp) && bpEnach.getCreatedAt().before(taskTimestamp))) {
+                fosTaskStatusDto.setStatus("INCOMPLETE");
+                fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
+                fosTaskStatusDto.setMessage("no application found against this task");
+                responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                logger.info("no application found against this task for merchant {} {}", merchantId, fosTaskStatusDto);
+                return responseDTO;
+            } else {
+                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED")) {
+                    fosTaskStatusDto.setStatus("COMPLETE");
+                    fosTaskStatusDto.setMessage("task completed");
+                    logger.info("nach done for merchant {}", merchantId);
+                } else {
+                    fosTaskStatusDto.setStatus("INCOMPLETE");
+                    fosTaskStatusDto.setMessage("Nach pending for the application");
+                    logger.info("nach pending for merchant {}", merchantId);
+                }
+                fosTaskStatusDto.setEligibleForPayout(lendingApplication.getLoanType().equals("SMALL_TICKET") ? "NO" : "YES");
+                populateApplicationStage(lendingApplication, fosTaskStatusDto);
+                fosTaskStatusDto.setLoanType(lendingApplication.getLoanType());
+                fosTaskStatusDto.setApplicationId(lendingApplication.getId());
+                responseDTO.setData(fosTaskStatusDto);
+                responseDTO.setSuccess(Boolean.TRUE);
+                logger.info("fos task status for merchant, {} {}", merchantId, fosTaskStatusDto);
+                return responseDTO;
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while fetching fos task status for merchant: {}", merchantId, e);
+        }
+        return new ResponseDTO(Boolean.FALSE,"something went wrong!!");
+    }
+
+    private void populateApplicationStage(LendingApplication lendingApplication, FosTaskStatusDto fosTaskStatusDto) {
+        try {
+            if ("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
+                fosTaskStatusDto.setStage(ApplicationStage.DRAFT.getStage());
+            } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus())) {
+                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                    fosTaskStatusDto.setStage(ApplicationStage.RELEVANT.getStage());
+                } else {
+                    fosTaskStatusDto.setStage(ApplicationStage.SUBMITTED.getStage());
+                }
+            } else if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
+                fosTaskStatusDto.setStage(ApplicationStage.REJECTED.getStage());
+            } else if ("deleted".equalsIgnoreCase(lendingApplication.getStatus())) {
+                fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
+            } else if ("approved".equalsIgnoreCase(lendingApplication.getStatus())) {
+                fosTaskStatusDto.setStage(ApplicationStage.RELEVANT.getStage());
+            }
+        } catch (Exception ex) {
+            logger.error("Exception Occurred while populating Application stage for merchant: {}, {}", lendingApplication.getMerchant().getId(), ex);
+        }
     }
 }
