@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -92,6 +93,9 @@ public class SignAgreementService {
 
 	@Autowired
 	LoanUtil loanUtil;
+
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
 
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -477,6 +481,14 @@ public class SignAgreementService {
 	
 	private Map<String, Object> sendOTP(Merchant merchant, String appSign) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
+
+		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+			finalResponse.put("success", Boolean.TRUE);
+			finalResponse.put("otp_flow", true);
+			finalResponse.put("uuid", UUID.randomUUID().toString());
+			return finalResponse;
+		}
+
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
 		
