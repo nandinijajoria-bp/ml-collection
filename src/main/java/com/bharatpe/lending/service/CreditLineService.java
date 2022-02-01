@@ -374,7 +374,7 @@ public class CreditLineService {
 		if (!validateSpendVerifyRequest(paymentRequest)) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid request");
 		}
-		if (!bharatPeOtpHandler.verifyOtp(merchant.getMobile(), requestDTO.getOtp(), requestDTO.getUuid())) {
+		if (!bharatPeOtpHandler.verifyOtp(merchant, requestDTO.getOtp(), requestDTO.getUuid())) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid OTP");
 		}
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");

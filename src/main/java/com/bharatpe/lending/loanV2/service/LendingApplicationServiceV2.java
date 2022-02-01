@@ -342,6 +342,11 @@ public class LendingApplicationServiceV2 {
     }
 
     private String baseChecks(Merchant merchant, CreateApplicationRequest applicationRequest) {
+
+        if(easyLoanUtil.isDummyMerchant(merchant.getId())) {
+            return null;
+        }
+
         if (applicationRequest.getCategory() == null) {
             log.info("category not found in createNewApplication for merchant:{}", merchant.getId());
             return "category not found";

@@ -1,8 +1,10 @@
 package com.bharatpe.lending.handlers;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.service.APIGatewayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,9 @@ public class BharatPeOtpHandler{
     RestTemplate restTemplate;
     private final String CLIENT = "LENDING";
     private static String clientSecret;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     private String getInternalSecret() {
         if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
@@ -81,7 +86,13 @@ public class BharatPeOtpHandler{
     }
 
 
-    public Boolean verifyOtp(String mobile, String otp, String uuid) {
+    public Boolean verifyOtp(Merchant merchant, String otp, String uuid) {
+
+        if(easyLoanUtil.isDummyMerchant(merchant.getId()) && "1234".equalsIgnoreCase(otp)) {
+            //for dummy merchants skipped otp verification
+            return Boolean.TRUE;
+        }
+
         boolean responseFlag=false;
         Map<String, Object> requestBody = new HashMap<String, Object>(){{
             put("uuid", uuid);
