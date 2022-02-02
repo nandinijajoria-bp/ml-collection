@@ -370,6 +370,11 @@ public class LendingApplicationServiceV2 {
             log.info("pincode mismatch for merchant:{}", merchant.getId());
             return "pincode mismatch";
         }
+        Map<String,Object> addressValidity = apiGatewayService.validateAddress(applicationRequest.getAddressDetails());
+        if (addressValidity.get("is_valid_address").equals(false)) {
+            log.info("address quality score less than 55");
+            return "The address is incomplete. Enter complete address to go to the next page.";
+        }
         return null;
     }
 

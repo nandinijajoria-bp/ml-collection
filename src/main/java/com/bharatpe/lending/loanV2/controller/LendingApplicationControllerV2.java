@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV2.controller;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -16,6 +17,9 @@ public class LendingApplicationControllerV2 {
 
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
 
     @PostMapping(value = "/initiateKyc")
     public ResponseEntity<ApiResponse<?>> initiateKyc(@RequestAttribute Merchant merchant, @RequestBody InitiateKycRequest initiateKycRequest) {
@@ -78,4 +82,9 @@ public class LendingApplicationControllerV2 {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "/validate/address", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<ApiResponse<?>> validateAddress(@RequestBody AddressDetails addressDetails) {
+        ApiResponse<?> response = new ApiResponse<>(apiGatewayService.validateAddress(addressDetails));
+        return ResponseEntity.ok(response);
+    }
 }
