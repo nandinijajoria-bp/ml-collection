@@ -293,6 +293,8 @@ public class VerifyOTPService {
 			lendingApplication.setNachType("ENACH");
 			lendingApplication.setNachLender("BHARATPE");
 			lendingApplication.setNachStatus("APPROVED");
+			lendingApplication.setCkycStatus("APPROVED");
+			lendingApplication.setCkycDate(new Date());
 		} else {
 			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
