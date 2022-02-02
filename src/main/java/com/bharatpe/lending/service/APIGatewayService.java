@@ -44,6 +44,7 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
+import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -2108,5 +2109,19 @@ public class APIGatewayService {
             logger.error("Exception occurred while generating hmac", e);
         }
         return hmac;
+    }
+
+    public String getShortUrl(String url)  {
+        try {
+            String shortApiUrl = "https://bharatpe.in/yourls-api.php?signature=a872b1348e&action=shorturl&format=json&keyword=&url="+ URLEncoder.encode(url,"UTF-8");
+            JsonNode response = restTemplate.getForObject(shortApiUrl,JsonNode.class);
+            logger.info("ShortUrl Api Response : {}", response);
+            if(Objects.nonNull(response) && "success".equalsIgnoreCase(response.get("status").asText())) {
+                return response.get("shorturl").asText();
+            }
+        } catch (Exception e) {
+            logger.error("Exception while parsing short url---", e);
+        }
+        return null;
     }
 }

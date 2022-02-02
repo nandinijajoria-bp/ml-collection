@@ -24,13 +24,18 @@ public class SupportApiResponseDto {
     String applicationStatus;
     Integer remainingTat;
     Integer tat;
-    String rejectedStage;
     Boolean applied;
     Boolean tatBreached;
     Boolean fiRequired;
     Boolean eligibleToApplyAgain;
     Boolean enachDone;
     String currentStage;
+    String loanType;
+    Date agreementAt;
+    Double processingFee;
+    String processingType;
+    String applicationRejectReason;
+    String processingStage;
     List<ApplicationDTO> applicationJourney;
     //active loan
     Boolean activeLoan;
