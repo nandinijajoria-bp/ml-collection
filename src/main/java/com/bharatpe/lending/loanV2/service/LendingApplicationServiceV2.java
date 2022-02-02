@@ -15,6 +15,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.dto.AddressValidationDto;
 import com.bharatpe.lending.dto.ApplicationDTO;
 import com.bharatpe.lending.dto.ApplicationStatusResponseDTO;
 import com.bharatpe.lending.dto.BusinessCategoryResponseDTO;
@@ -370,8 +371,8 @@ public class LendingApplicationServiceV2 {
             log.info("pincode mismatch for merchant:{}", merchant.getId());
             return "pincode mismatch";
         }
-        Map<String,Object> addressValidity = apiGatewayService.validateAddress(applicationRequest.getAddressDetails());
-        if (addressValidity.get("is_valid_address").equals(false)) {
+        AddressValidationDto addressValidationDto = apiGatewayService.validateAddress(applicationRequest.getAddressDetails());
+        if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
             log.info("address quality score less than 55");
             return "The address is incomplete. Enter complete address to go to the next page.";
         }
@@ -880,5 +881,26 @@ public class LendingApplicationServiceV2 {
             log.error("Exception Occured while adding business details for merchantId: {} {}", merchant.getId(), ex.getMessage());
         }
         return new ApiResponse<>(false, "Something Went Wrong.");
+    }
+
+    public ApiResponse<?> checkAddressValidity(AddressDetails addressDetails) {
+        Map<String,Object> response = new HashMap<>();
+        response.put("is_valid_address", true);
+        try {
+            AddressValidationDto addressValidationDto = apiGatewayService.validateAddress(addressDetails);
+            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                response.put("is_valid_address", false);
+            }
+            return new ApiResponse<>(response);
+        } catch (Exception e) {
+            log.error("exception occurred while validating address {}", addressDetails);
+        }
+        return new ApiResponse<>(false,"something went wrong !!");
+    }
+
+    public boolean addressQltyScoreLessThanThreshold(AddressValidationDto addressValidationDto) {
+        return (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult()) &&
+                !ObjectUtils.isEmpty(addressValidationDto.getResult().getAddressQualityScore()) &&
+                addressValidationDto.getResult().getAddressQualityScore() < 55);
     }
 }

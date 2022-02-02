@@ -2170,9 +2170,8 @@ public class APIGatewayService {
         }
         return null;
     }
-    public Map<String,Object> validateAddress(AddressDetails addressDetails) {
-        Map<String,Object> addressValidity = new HashMap<>();
-        addressValidity.put("is_valid_address", true);
+
+    public AddressValidationDto validateAddress(AddressDetails addressDetails) {
         try {
             logger.info("fetching address validation score from delhivery for address {}", addressDetails);
             String url = env.getProperty("delhivery.address.validation.url");
@@ -2206,16 +2205,13 @@ public class APIGatewayService {
             }
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody()) ) {
                 AddressValidationDto addressValidationDto = responseEntity.getBody();
-                if (!ObjectUtils.isEmpty(addressValidationDto.getResult().getAddressQualityScore()) && addressValidationDto.getResult().getAddressQualityScore() <55) {
-                    logger.info("address quality score less than 55");
-                    addressValidity.put("is_valid_address", false);
-                }
+                return addressValidationDto;
             } else {
                 logger.info("unable to fetch address validation score from delhivery");
             }
         } catch (Exception e) {
             logger.error("Exception occurred while fetching validity of the address {}", addressDetails, e);
         }
-        return addressValidity;
+        return null;
     }
 }

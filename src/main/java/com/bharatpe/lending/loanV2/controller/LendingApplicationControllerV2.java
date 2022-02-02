@@ -84,7 +84,7 @@ public class LendingApplicationControllerV2 {
 
     @PostMapping(value = "/validate/address", consumes = "application/json", produces = "application/json")
     public ResponseEntity<ApiResponse<?>> validateAddress(@RequestBody AddressDetails addressDetails) {
-        ApiResponse<?> response = new ApiResponse<>(apiGatewayService.validateAddress(addressDetails));
+        ApiResponse<?> response = lendingApplicationServiceV2.checkAddressValidity(addressDetails);
         return ResponseEntity.ok(response);
     }
 }
