@@ -150,9 +150,9 @@ public class PaymentService {
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			Integer amount = request.getPayload().getAmount();
-			if(amount < 1 || amount > 100000) {
-				logger.info("Amount not between 1-100000 for merchant id {}", merchant.getId());
-				return new InitiatePaymentResponseDTO("Amount should be between 1-100000.");
+			if(amount < 1 ) {
+				logger.info("Amount is less than 1 for merchant id {}", merchant.getId());
+				return new InitiatePaymentResponseDTO("Amount is less than 1");
 			}
 			String paymentType = request.getPayload().getPaymentType();
 			if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
