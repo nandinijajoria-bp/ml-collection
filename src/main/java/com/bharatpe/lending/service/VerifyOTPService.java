@@ -295,6 +295,7 @@ public class VerifyOTPService {
 			lendingApplication.setNachStatus("APPROVED");
 			lendingApplication.setCkycStatus("APPROVED");
 			lendingApplication.setCkycDate(new Date());
+			lendingApplicationDao.save(lendingApplication);
 		} else {
 			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
 			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));

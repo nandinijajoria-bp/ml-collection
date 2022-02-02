@@ -433,7 +433,7 @@ public class LendingApplicationServiceV2 {
             boolean diy = loanUtil.isDIY(merchant);
             boolean showOrderQr = (orderSticker == null && diy);
             boolean isLowPriority = loanUtil.isLowPriority(lendingApplication.getId());
-            int tat = loanUtil.getApplicationTAT(lendingApplication.getId());
+            int tat = easyLoanUtil.isDummyMerchant(merchant.getId()) ? 4 : loanUtil.getApplicationTAT(lendingApplication.getId());
             List<ApplicationDTO> applicationDTO = new ArrayList<>();
             ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
             applicationLoanDetailsDTO.setAmount(lendingApplication.getLoanAmount());
@@ -471,7 +471,16 @@ public class LendingApplicationServiceV2 {
             }
 
             ApplicationDTO applicationDTO2 = new ApplicationDTO();
-            if (successEnach != null) {
+            if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+                applicationDTO2.setStatus("APPROVED");
+                applicationDTO2.setText("e-NACH Done");
+                applicationDTO2.setButtonContextDTO(null);
+                ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+                dateDTO.setDay(lendingApplication.getAgreementAt().toString());
+                dateDTO.setTime(lendingApplication.getAgreementAt().toString());
+                applicationDTO2.setDateDTO(dateDTO);
+                applicationDTO.add(applicationDTO2);
+            } else if (successEnach != null) {
                 applicationDTO2.setStatus(successEnach.getStatus());
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);

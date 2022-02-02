@@ -2,9 +2,9 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -507,7 +507,7 @@ public class LoanDetailsServiceV2 {
         if (!ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             return null;
         }
-        if (loanUtil.isEnachDone(openApplication.getMerchant())) {
+        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchant().getId()) || loanUtil.isEnachDone(openApplication.getMerchant())) {
             return null;
         }
         BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
