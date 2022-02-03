@@ -312,6 +312,9 @@ public class LoanDetailsServiceV2 {
         log.info("Creating eligibility for merchant:{}", merchantId);
         try {
             EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+            if (ObjectUtils.isEmpty(eligibleLoan)) {
+                return null;
+            }
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
             return Eligibility.builder()
                     .loanAmount(eligibleLoan.getAmount())
