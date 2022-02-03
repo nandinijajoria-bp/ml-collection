@@ -10,6 +10,8 @@ public class UploadDocumentResponseDTO {
 
     private List<Document> document;
 
+    private boolean isInValidPhoto;
+
     @JsonProperty("selected_loan")
     Map<String, Object> selectedLoan;
 
@@ -35,6 +37,14 @@ public class UploadDocumentResponseDTO {
 
     public void setSelectedLoan(Map<String, Object> selectedLoan) {
         this.selectedLoan = selectedLoan;
+    }
+
+    public boolean isInValidPhoto() {
+        return isInValidPhoto;
+    }
+
+    public void setInValidPhoto(boolean inValidPhoto) {
+        isInValidPhoto = inValidPhoto;
     }
 
     @Override

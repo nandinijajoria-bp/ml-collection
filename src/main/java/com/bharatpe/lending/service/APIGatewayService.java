@@ -32,6 +32,7 @@ import org.json.XML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
@@ -166,6 +167,10 @@ public class APIGatewayService {
 
     @Autowired
     LendingEkycDao lendingEkycDao;
+
+    @Autowired
+    @Qualifier("customRestTemplate")
+    RestTemplate customRestTemplate;
 
     private final String CLIENT = "LENDING";
 
@@ -2126,4 +2131,39 @@ public class APIGatewayService {
         return null;
     }
 
+    public DsImageValidationResponseDto validateImage(DsImageValidationRequestDto dsImageValidationRequestDto) {
+        try {
+            logger.info("validating image from ds api : {}", dsImageValidationRequestDto);
+            String url = env.getProperty("ds.image.validation.url");
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Content-type","multipart/form-data; boundary=---011000010111000001101001");
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("s3_url", dsImageValidationRequestDto.getS3Url());
+            body.add("file",dsImageValidationRequestDto.getFile());
+            body.add("extract_structure", dsImageValidationRequestDto.getExtractStructure());
+            body.add("extract_existence", dsImageValidationRequestDto.getExtractExistence());
+            body.add("extract_category", dsImageValidationRequestDto.getExtractCategory());
+            body.add("verify_google", dsImageValidationRequestDto.getVerifyGoogle());
+            HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+            int retryCount = 0;
+            ResponseEntity<DsImageValidationResponseDto> responseEntity = null;
+            while (retryCount < 2) {
+                try {
+                    responseEntity = customRestTemplate.exchange(url, HttpMethod.POST, request, DsImageValidationResponseDto.class);
+                    logger.info("ds vision api response:{}", responseEntity);
+                    break;
+                } catch (Exception e) {
+                    logger.info("ds vision api timeout", e);
+                }
+                retryCount++;
+            }
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
+                DsImageValidationResponseDto dsImageValidationResponseDto = responseEntity.getBody();
+                return dsImageValidationResponseDto;
+            }
+        } catch (Exception e) {
+            logger.error("error occurred while validating image",e);
+        }
+        return null;
+    }
 }

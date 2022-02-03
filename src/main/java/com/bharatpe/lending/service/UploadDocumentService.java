@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.dao.LendingCategoryDao;
+import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.UploadDocumentUtil;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.dao.DocKycDetailsDao;
@@ -71,10 +73,17 @@ public class UploadDocumentService {
 	@Autowired
 	UploadDocumentUtil uploadDocumentUtil;
 
+	@Autowired
+	APIGatewayService apiGatewayService;
+
+	@Autowired
+	LendingGstDao lendingGstDao;
+
 	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		UploadDocumentResponseDTO uploadDocumentResponse = new UploadDocumentResponseDTO();
 		uploadDocumentResponse.setSuccess(false);
+		uploadDocumentResponse.setInValidPhoto(false);
 
 		UploadDocumentRequestDTO uploadDocumentRequest = requestDTO.getPayload();
 		Long applicationId =  uploadDocumentRequest.getApplicationId();
@@ -124,7 +133,7 @@ public class UploadDocumentService {
 			if(isUpdate && !document.getChangeFlag()) {
 				continue;
 			}
-			
+
 			if(document.getProof() == null || document.getProof().isEmpty() || document.getProof().get(0) == null) {
 				logger.error("Empty Documents");
 			}
@@ -167,13 +176,49 @@ public class UploadDocumentService {
 				documentResponse.setProofType(proofType);
 				documentResponse.setSinglePageDocument(1);
 				documentList.add(documentResponse);
+				if(lendingShopDocuments.getProofType().equalsIgnoreCase("shop-front")) {
+					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
+							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), true, false, true, true));
+					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {
+						DsImageValidationResponseDto.ShopParams shopFrontExistence = dsImageValidationResponseDto.getShopFrontExistence();
+						DsImageValidationResponseDto.ShopParams shopFrontStructure = dsImageValidationResponseDto.getShopFrontStructure();
+						if (!ObjectUtils.isEmpty(shopFrontExistence)) {
+							saveLendingShopDocumentsDsParams(lendingShopDocuments, shopFrontExistence.getDsClass(), shopFrontExistence.getConfidence(), shopFrontExistence.getVerifiedShop());
+							uploadDocumentResponse.setInValidPhoto(shopFrontExistence.getDsClass().equalsIgnoreCase("NO_SHOP") && shopFrontExistence.getConfidence() > 80);
+						}
+						if (!ObjectUtils.isEmpty(shopFrontStructure)) {
+							LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+							if (!ObjectUtils.isEmpty(lendingGstDetail)) {
+								lendingGstDetail.setComputedShopType(shopFrontStructure.getDsClass());
+								lendingGstDetail.setConfidence(shopFrontStructure.getConfidence());
+								lendingGstDao.save(lendingGstDetail);
+							}
+						}
+					}
+				} else if (lendingShopDocuments.getProofType().equalsIgnoreCase("shop-stock")) {
+					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
+							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), false, true, false, false));
+					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {
+						DsImageValidationResponseDto.ShopParams shopStockCategory = dsImageValidationResponseDto.getShopStockCategory();
+						if (!ObjectUtils.isEmpty(shopStockCategory)) {
+							saveLendingShopDocumentsDsParams(lendingShopDocuments, shopStockCategory.getDsClass(), shopStockCategory.getConfidence(), shopStockCategory.getVerifiedShop());
+						}
+					}
+				}
 			}
 			sinzyCorrectPanCheck(documentsIdProof, proofType, merchant, lendingApplication.getId());
 			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
 		return documentList;
 	}
-	
+
+	public void saveLendingShopDocumentsDsParams (LendingShopDocuments lendingShopDocuments, String outputClass, Double confidence, Boolean verified) {
+		lendingShopDocuments.setOutputClass(outputClass);
+		lendingShopDocuments.setConfidence(confidence);
+		lendingShopDocuments.setVerified(verified);
+		lendingShopDocumentsDao.save(lendingShopDocuments);
+	}
+
 	public void sinzyCorrectPanCheck(DocumentsIdProof documentsIdProof ,String proofType, Merchant merchant, Long applicationId){
 
 		if(proofType.equals("pancard")){
