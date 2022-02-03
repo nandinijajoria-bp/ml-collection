@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.enums.KycStatus;
@@ -131,6 +132,9 @@ public class VerifyOTPService {
     @Autowired
 	LendingDisbursalStageDao lendingDisbursalStageDao;
 
+    @Autowired
+	EasyLoanUtil easyLoanUtil;
+
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
@@ -165,7 +169,7 @@ public class VerifyOTPService {
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
 		if(lendingResubmitTask!= null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12){
-			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
+			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
 			if(isOTPVerified){
 				lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
 				lendingResubmitTask.setDowngradedAt(new Date());
@@ -193,7 +197,7 @@ public class VerifyOTPService {
 			}
 		}
 		if(merchant.getMobile().length() == 12) {
-			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp, uuid);
+			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
 			if(isOTPVerified) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
 				//createPrebookTarget(lendingApplication, merchant);
@@ -272,7 +276,6 @@ public class VerifyOTPService {
         }
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
-		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
 
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 		lendingAuditTrial.setApplicationId(lendingApplication.getId());
@@ -284,25 +287,36 @@ public class VerifyOTPService {
 		lendingAuditTrial.setType("APP_STATUS");
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
-		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-		logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(),lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
-		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
-			logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
-			updateKycStatus(lendingApplication);
+
+		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+			// skipping enach for dummy merchant
+			lendingApplication.setNachType("ENACH");
+			lendingApplication.setNachLender("BHARATPE");
+			lendingApplication.setNachStatus("APPROVED");
+			lendingApplication.setCkycStatus("APPROVED");
+			lendingApplication.setCkycDate(new Date());
+			lendingApplicationDao.save(lendingApplication);
+		} else {
+			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
+			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+			logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
+			if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
+				logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
+				updateKycStatus(lendingApplication);
+			}
+			logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
+			sendPennyDrop(merchant.getId(), lendingApplication.getId());
+			sendLatLong(merchant.getId(), lendingApplication.getId());
+
+			if (repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())) {
+				sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+				if (lendingApplication.getLoanAmount() <= 200000)
+					sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
+			}
+
+			sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
+			loanUtil.publishApplicationEvent(lendingApplication);
 		}
-		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(),lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
-
-		sendPennyDrop(merchant.getId(),lendingApplication.getId());
-		sendLatLong(merchant.getId(),lendingApplication.getId());
-
-		if(repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())){
-			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
-			if (lendingApplication.getLoanAmount() <= 200000)
-				sendDetailsForKycVerification(merchant.getId(),lendingApplication.getId(),false);
-		}
-
-		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
-		loanUtil.publishApplicationEvent(lendingApplication);
 
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);

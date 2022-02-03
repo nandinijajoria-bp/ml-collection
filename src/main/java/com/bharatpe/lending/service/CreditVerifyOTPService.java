@@ -153,7 +153,7 @@ private Logger logger = LoggerFactory.getLogger(VerifyOTPService.class);
 		finalResponse.put("agreement_verified",false);
 		
 		if(merchant.getMobile().length() == 12) {
-			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp,uuid);
+			Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp,uuid);
 			if(isOTPVerified) {
 				finalResponse = updateApplicationStatusAndSuccessSms(merchant, creditApplication, meta);
 			}

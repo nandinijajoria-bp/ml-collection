@@ -51,7 +51,7 @@ public class PreBookService {
     }
 
     public PreBookResponseDTO verifyOTP(Merchant merchant, String otp, String uuid) {
-        Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant.getMobile(), otp,uuid);
+        Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp,uuid);
         LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
         if (lendingPrebookLoans == null) {
             return new PreBookResponseDTO(false, "Merchant not applicable for pre book loan");

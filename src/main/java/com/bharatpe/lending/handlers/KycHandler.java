@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.enums.KycDocStatus;
@@ -47,6 +48,9 @@ public class KycHandler {
 
     @Autowired
     Environment env;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     private static final String CLIENT = "LENDING";
 
@@ -101,6 +105,12 @@ public class KycHandler {
 
     public KycStatusDTO getKycStatus(Long merchantId) {
         log.info("Checking kyc status for merchant:{}", merchantId);
+
+        if(easyLoanUtil.isDummyMerchant(merchantId)) {
+            log.info("Merchant is Dummy, return kyc status as approved");
+            return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+        }
+
         try {
             List<KycDoc> kycDocs = getKycDoc(merchantId);
             if (!CollectionUtils.isEmpty(kycDocs)) {
