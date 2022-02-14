@@ -178,13 +178,15 @@ public class UploadDocumentService {
 				documentList.add(documentResponse);
 				if(lendingShopDocuments.getProofType().equalsIgnoreCase("shop-front")) {
 					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
-							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), true, false, true, true));
+							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), true, false, false, true));
 					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {
 						DsImageValidationResponseDto.ShopParams shopFrontExistence = dsImageValidationResponseDto.getShopFrontExistence();
 						DsImageValidationResponseDto.ShopParams shopFrontStructure = dsImageValidationResponseDto.getShopFrontStructure();
 						if (!ObjectUtils.isEmpty(shopFrontExistence)) {
 							saveLendingShopDocumentsDsParams(lendingShopDocuments, shopFrontExistence.getDsClass(), shopFrontExistence.getConfidence(), shopFrontExistence.getVerifiedShop());
-							uploadDocumentResponse.setInValidPhoto(shopFrontExistence.getDsClass().equalsIgnoreCase("NO_SHOP") && shopFrontExistence.getConfidence() > 80);
+							if (shopFrontExistence.getVerifiedShop()) {
+								uploadDocumentResponse.setInValidPhoto(shopFrontExistence.getDsClass().equalsIgnoreCase("NO_SHOP") && shopFrontExistence.getConfidence() > 75);
+							}
 						}
 						if (!ObjectUtils.isEmpty(shopFrontStructure)) {
 							LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
