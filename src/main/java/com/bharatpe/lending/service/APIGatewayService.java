@@ -2135,8 +2135,11 @@ public class APIGatewayService {
         try {
             logger.info("validating image from ds api : {}", dsImageValidationRequestDto);
             String url = env.getProperty("ds.image.validation.url");
+            String user = env.getProperty("ds.image.validation.user");
+            String pass = env.getProperty("ds.image.validation.pass");
             HttpHeaders headers = new HttpHeaders();
             headers.add("Content-type","multipart/form-data; boundary=---011000010111000001101001");
+            headers.setBasicAuth(user,pass);
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("s3_url", dsImageValidationRequestDto.getS3Url());
             body.add("file",dsImageValidationRequestDto.getFile());

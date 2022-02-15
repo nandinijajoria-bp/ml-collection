@@ -184,8 +184,8 @@ public class UploadDocumentService {
 						DsImageValidationResponseDto.ShopParams shopFrontStructure = dsImageValidationResponseDto.getShopFrontStructure();
 						if (!ObjectUtils.isEmpty(shopFrontExistence)) {
 							saveLendingShopDocumentsDsParams(lendingShopDocuments, shopFrontExistence.getDsClass(), shopFrontExistence.getConfidence(), shopFrontExistence.getVerifiedShop());
-							if (shopFrontExistence.getVerifiedShop()) {
-								uploadDocumentResponse.setInValidPhoto(shopFrontExistence.getDsClass().equalsIgnoreCase("NO_SHOP") && shopFrontExistence.getConfidence() > 75);
+							if (!ObjectUtils.isEmpty(shopFrontExistence.getVerifiedShop()) && !shopFrontExistence.getVerifiedShop()) {
+								uploadDocumentResponse.setInValidPhoto(shopFrontExistence.getDsClass().equalsIgnoreCase("NO_SHOP") && shopFrontExistence.getConfidence() > 0.75);
 							}
 						}
 						if (!ObjectUtils.isEmpty(shopFrontStructure)) {
