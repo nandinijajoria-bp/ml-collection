@@ -2195,6 +2195,7 @@ public class APIGatewayService {
             ResponseEntity<AddressValidationDto> responseEntity = null;
             while (retryCount < 2) {
                 try {
+                    logger.info("calling delhivery for address validation");
                     responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, AddressValidationDto.class);
                     logger.info("Delhivery address validation response:{}", responseEntity);
                     break;

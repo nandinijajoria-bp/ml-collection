@@ -81,10 +81,4 @@ public class LendingApplicationControllerV2 {
         ApiResponse<?> response = lendingApplicationServiceV2.addBusinessDetails(businessDetailsDTO,merchant);
         return ResponseEntity.ok(response);
     }
-
-    @PostMapping(value = "/validate/address", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ApiResponse<?>> validateAddress(@RequestBody AddressDetails addressDetails) {
-        ApiResponse<?> response = lendingApplicationServiceV2.checkAddressValidity(addressDetails);
-        return ResponseEntity.ok(response);
-    }
 }
