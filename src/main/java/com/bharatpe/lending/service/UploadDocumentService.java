@@ -176,7 +176,7 @@ public class UploadDocumentService {
 				documentResponse.setProofType(proofType);
 				documentResponse.setSinglePageDocument(1);
 				documentList.add(documentResponse);
-				if(lendingShopDocuments.getProofType().equalsIgnoreCase("shop-front")) {
+				if(lendingShopDocuments.getProofType().equalsIgnoreCase("shop-front") && (merchant.getId())%10 == 0) {
 					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
 							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), true, false, false, true));
 					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {
@@ -197,7 +197,7 @@ public class UploadDocumentService {
 							}
 						}
 					}
-				} else if (lendingShopDocuments.getProofType().equalsIgnoreCase("shop-stock")) {
+				} else if (lendingShopDocuments.getProofType().equalsIgnoreCase("shop-stock") && (merchant.getId())%10 == 0) {
 					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
 							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), false, true, false, false));
 					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {

@@ -2156,7 +2156,7 @@ public class APIGatewayService {
                     logger.info("ds vision api response:{}", responseEntity);
                     break;
                 } catch (Exception e) {
-                    logger.info("ds vision api timeout", e);
+                    logger.info("ds vision api timeout {}", e);
                 }
                 retryCount++;
             }
