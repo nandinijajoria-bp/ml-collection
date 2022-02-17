@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -394,9 +395,12 @@ public class SignAgreementService {
 
 		LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(prevApplication.getId());
 		if(lendingGstDetail != null){
-			LendingGstDetail replicateGst = new LendingGstDetail();
-			replicateGst.setApplicationId(newApplication.getId());
-			replicateGst.setMerchantId(newApplication.getMerchant().getId());
+			LendingGstDetail replicateGst = lendingGstDao.findByApplicationId(newApplication.getId());
+			if(ObjectUtils.isEmpty(replicateGst)) {
+				replicateGst = new LendingGstDetail();
+				replicateGst.setApplicationId(newApplication.getId());
+				replicateGst.setMerchantId(newApplication.getMerchant().getId());
+			}
 			replicateGst.setGst(lendingGstDetail.getGst());
 			replicateGst.setBusinessCategory(lendingGstDetail.getBusinessCategory());
 			replicateGst.setExperience(lendingGstDetail.getExperience());
