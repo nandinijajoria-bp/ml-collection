@@ -3,12 +3,12 @@ package com.bharatpe.lending.loanV2.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
-import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
-import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.AddLeadRequestNimbusDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.service.CallingLeadNimbusService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -96,6 +96,18 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LendingMerchantDetailsDao lendingMerchantDetailsDao;
+
+    @Autowired
+    DateTimeUtil dateTimeUtil;
+
+    @Autowired
+    CallingLeadNimbusService callingLeadNimbusService;
+
+    @Autowired
+    CallingLeadResponseNimbusDao callingLeadResponseNimbusDao;
+
+    @Autowired
+    MerchantDao merchantDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -943,5 +955,38 @@ public class LendingApplicationServiceV2 {
         return (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult()) &&
                 !ObjectUtils.isEmpty(addressValidationDto.getResult().getAddressQualityScore()) &&
                 addressValidationDto.getResult().getAddressQualityScore() < 20);
+    }
+
+    public ApiResponse<?> addCallbackRequest(RequestCallbackDto requestCallbackDto, Merchant merchant) {
+        try {
+            if (ObjectUtils.isEmpty(requestCallbackDto) || ObjectUtils.isEmpty(requestCallbackDto.getApplicationStage())) {
+                return new ApiResponse<>(false, "something went wrong !");
+            }
+            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(),-24);
+            Optional<CallingLeadResponseNimbus> callingLeadResponseNimbus =
+                    callingLeadResponseNimbusDao.findTopByMerchantIdAndCreatedAtAfter(merchant.getId(),dateWindow);
+            log.info("fetching existing callback requests for merchant after {}",dateWindow);
+            if (ObjectUtils.isEmpty(callingLeadResponseNimbus) || !callingLeadResponseNimbus.get().getSource().equalsIgnoreCase("RC")) {
+                AddLeadRequestNimbusDto addLeadRequestNimbusDto = new AddLeadRequestNimbusDto();
+                addLeadRequestNimbusDto.setMerchantId(merchant.getId());
+                if (!ObjectUtils.isEmpty(requestCallbackDto.getApplicationId())) {
+                    addLeadRequestNimbusDto.setApplicationId(requestCallbackDto.getApplicationId());
+                    Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(requestCallbackDto.getApplicationId());
+                    addLeadRequestNimbusDto.setProcessedAt(!ObjectUtils.isEmpty(lendingApplication.get()) ? lendingApplication.get().getUpdatedAt() : null);
+                }
+                addLeadRequestNimbusDto.setPhoneNo(merchant.getMobile());
+                addLeadRequestNimbusDto.setListId(new Long(66666));
+                addLeadRequestNimbusDto.setPhoneCode(new Integer(1));
+                addLeadRequestNimbusDto.setSource("RC");
+                addLeadRequestNimbusDto.setComments("RC:"+ requestCallbackDto.getApplicationStage());
+                callingLeadNimbusService.addLeadToNimbusWithoutException(addLeadRequestNimbusDto);
+                return new ApiResponse<>(true,"callback request queued");
+            } else {
+                return new ApiResponse<>(false, "Callback request already in queue");
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while adding callback request for merchantId: {} {}", requestCallbackDto, Arrays.toString(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong !");
     }
 }

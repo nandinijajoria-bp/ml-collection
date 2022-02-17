@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.dto.RequestCallbackDto;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -79,6 +80,13 @@ public class LendingApplicationControllerV2 {
     public ResponseEntity<ApiResponse<?>> addBusinessDetails(@RequestBody BusinessDetailsDTO businessDetailsDTO, @RequestAttribute Merchant merchant){
         log.info("Adding business Details for merchantId:{}",merchant.getId(),businessDetailsDTO.toString());
         ApiResponse<?> response = lendingApplicationServiceV2.addBusinessDetails(businessDetailsDTO,merchant);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/requestCallback", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<?>> addCallbackRequest(@RequestBody RequestCallbackDto requestCallbackDto, @RequestAttribute Merchant merchant){
+        log.info("Adding callback request for {}",requestCallbackDto.toString());
+        ApiResponse<?> response = lendingApplicationServiceV2.addCallbackRequest(requestCallbackDto, merchant);
         return ResponseEntity.ok(response);
     }
 }
