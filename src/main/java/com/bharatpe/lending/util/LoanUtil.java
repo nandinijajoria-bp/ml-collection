@@ -19,12 +19,12 @@ import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.StringUtils;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -446,6 +446,9 @@ public class LoanUtil {
 //				logger.info("Penny drop success for merchant:{}", merchant.getId());
 //				return true;
 //			}
+			if (ObjectUtils.isEmpty(merchantBankDetail)) {
+				return false;
+			}
 			LendingPennydrop successPennyDrop = lendingPennydropDao.isSuccess(merchant.getId(), merchantBankDetail.getAccountNumber());
 			if (successPennyDrop != null) {
 				logger.info("Penny drop success for merchant:{}", merchant.getId());

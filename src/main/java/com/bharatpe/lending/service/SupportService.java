@@ -819,7 +819,7 @@ public class SupportService {
                 loanDetails.put("dpd", getDPD(lendingPaymentSchedule1));
                 loanDetails.put("ledgerDetails", lendingLedgerDetailList);
                 loanDetails.put("loanArrangerFee", loanArrangerFee);
-                if(!ObjectUtils.isEmpty(lendingPaymentSchedule.getLoanApplication())) {
+                if(!ObjectUtils.isEmpty(lendingPaymentSchedule1.getLoanApplication())) {
                     loanArrangerFee.setFeeAmount(lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
                     loanDetails.put("processingFee", lendingPaymentSchedule1.getLoanApplication().getProcessingFee());
                     loanDetails.put("repayment", lendingPaymentSchedule1.getLoanApplication().getRepayment());
