@@ -2126,25 +2126,4 @@ public class APIGatewayService {
         return null;
     }
 
-    public FpWithdrawStatusCheckDTO getTransactionStatus(String orderId) {
-        try {
-            logger.info("checking status of BP Account for {}", orderId);
-            Map<String, Object> requestParamsMap = new HashMap<>();
-            requestParamsMap.put("source_id", orderId);
-            requestParamsMap.put("source", "LENDING");
-            HttpHeaders headers = getApiHeaders(requestParamsMap);
-            HttpEntity<Map> request = new HttpEntity<>(requestParamsMap, headers);
-            String url = env.getProperty("fp.balance.withdraw.status.url");
-            FpWithdrawStatusCheckDTO responseDto = restTemplate.postForObject(url, request, FpWithdrawStatusCheckDTO.class);
-            logger.info("Status check response for order_id {} {}", responseDto, orderId);
-            return responseDto;
-        } catch (ResourceAccessException ex) {
-            logger.info("FP Withdraw status timed out for orderId: {} {}", orderId, ex);
-        } catch (Exception e) {
-            logger.error("Exception in checking status for order id :{}", orderId, e);
-        }
-        logger.info("Check Status failed for order id:{}", orderId);
-        return null;
-    }
-
 }
