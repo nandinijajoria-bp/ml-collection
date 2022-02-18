@@ -8,6 +8,7 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.service.MerchantLoansService;
+import com.bharatpe.lending.service.PaymentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import com.bharatpe.lending.service.PincodeVerificationServices;
 import com.bharatpe.lending.service.TopupLoanEligibleService;
 
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("lending/common/*")
@@ -46,6 +48,9 @@ public class CommonController {
 	@Autowired
 	MerchantLoansService merchantLoansService;
 
+	@Autowired
+	PaymentService paymentService;
+
 	@RequestMapping(value="/generateTopupLoan", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity initiateEnach(@RequestParam(name = "mid") Long merchantId) {
 		try {
@@ -61,16 +66,13 @@ public class CommonController {
 		return pincodeVerify.checkPincodeValidity(pincode);
 	}
 
-//	@RequestMapping(value="/hash", method=RequestMethod.POST)
-//	public ResponseEntity<String> generateHash(@RequestBody Map<String, String> requestMap, @RequestHeader(name = "clientName") String clientName){
-//		InternalClient internalClient = internalClientDao.findByClientName(clientName);
-//		if (internalClient != null) {
-//			logger.info("lending secret:{}", aesEncryption.decrypt(internalClient.getSecret()));
-//			String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestMap), aesEncryption.decrypt(internalClient.getSecret()));
-//			return new ResponseEntity<>(hash, HttpStatus.OK);
-//		}
-//		return null;
-//	}
+	@RequestMapping(value="/hash", method=RequestMethod.POST)
+	public ResponseEntity<String> generateHash(@RequestBody Map<String, String> requestMap,@RequestParam(name="startOrderId") Long startOrderId, @RequestParam(name="endOrderId") Long endOrderId, @RequestHeader(name = "clientName") String clientName){
+		if(Objects.nonNull(startOrderId) && Objects.nonNull(endOrderId)) {
+			paymentService.statusCheck(startOrderId, endOrderId);
+		}
+		return null;
+	}
 
 	@RequestMapping(value="/merchant", method=RequestMethod.GET)
 	public ResponseEntity<CommonResponse> checkMerchant(@RequestParam(name = "mobile", required = false) String mobile, @RequestParam(name = "pancard", required = false) String pancard){

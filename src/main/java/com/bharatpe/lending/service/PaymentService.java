@@ -11,6 +11,7 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.FpWithdrawStatusCheckDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -1209,4 +1210,98 @@ public class PaymentService {
 		loanRefundsResponseDTO.setSuccess(false);
 		return loanRefundsResponseDTO;
 	}
+
+
+	public void statusCheck(Long startOrderId, Long endOrderId) {
+		//todo: get ids instead of objects
+		List<BigInteger> orders = loanPaymentOrderDao.findPendingTransactionInRange(startOrderId, endOrderId);
+		logger.info("Fp Order Pending size: {}", orders.size());
+		for (BigInteger orderId : orders) {
+			try {
+				Optional<LoanPaymentOrder> order = loanPaymentOrderDao.findById(orderId.longValue());
+				if(order.isPresent()) {
+					logger.info("Checking FP withdraw status for loanId: {}", order.get().getOwnerId());
+					FpWithdrawStatusCheckDTO fpWithdrawStatusCheckDTO = apiGatewayService.getTransactionStatus(String.valueOf(order.get().getId()));
+					if (fpWithdrawStatusCheckDTO.getMessage().equalsIgnoreCase("source id not found")) {
+						logger.error("FP deduction failed for loanId:{}", order.get().getOwnerId());
+						order.get().setStatus("FAILED");
+						loanPaymentOrderDao.save(order.get());
+					}
+					if (Objects.nonNull(fpWithdrawStatusCheckDTO.getData()) && Objects.nonNull(fpWithdrawStatusCheckDTO.getData().getTxnId())) {
+						logger.info("FP withdraw status is success for loanId: {}", order.get().getOwnerId());
+						Optional<LendingPaymentSchedule> loan = lendingPaymentScheduleDao.findById(order.get().getOwnerId());
+						settleAmountOnSuccess(loan.get(), order.get(), fpWithdrawStatusCheckDTO.getData().getTxnId(), null);
+					}
+				}
+			} catch (Exception ex) {
+				logger.error("Exception Occurred while checking status for orderId: {} {}", orderId, ex);
+			}
+		}
+	}
+
+	private void settleAmountOnSuccess(LendingPaymentSchedule loan, LoanPaymentOrder order, Integer txnId, Double accountBalance) {
+		Double paidInterestAmount = 0D;
+		Double paidPrincipalAmount = 0D;
+		Double deductionAmount = order.getAmount();
+		loan.setDueAmount(loan.getDueAmount() - deductionAmount);
+		loan.setPaidAmount(loan.getPaidAmount() + deductionAmount);
+		Double balance = deductionAmount - loan.getDueInterest();
+		if (balance > 0) { // Paid amount is greater than due interest
+			paidInterestAmount = loan.getDueInterest();
+			paidPrincipalAmount = balance;
+			loan.setPaidInterest(loan.getPaidInterest() + loan.getDueInterest());
+			loan.setDueInterest(0D);
+			loan.setDuePrinciple(loan.getDuePrinciple() - balance);
+			loan.setPaidPrinciple(loan.getPaidPrinciple() + balance);
+		} else {
+			paidInterestAmount = deductionAmount;
+			loan.setPaidInterest(loan.getPaidInterest() + paidInterestAmount);
+			loan.setDueInterest(loan.getDueInterest() - paidInterestAmount);
+		}
+		createLedger(loan, deductionAmount, paidPrincipalAmount, paidInterestAmount, String.valueOf(txnId));
+		lendingPaymentScheduleDao.save(loan);
+		order.setStatus("SUCCESS");
+		order.setBankRefNo(String.valueOf(txnId));
+		loanPaymentOrderDao.save(order);
+		sendComms(order, loan.getMerchant());
+	}
+
+	private void createLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle, Double interest, String description) {
+		if (amount == 0) {
+			return;
+		}
+		Date currentDate = DateTimeUtil.getCurrentDayStartTime();
+		LendingLedger lendingLedger = new LendingLedger();
+		lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+		if (lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0) {
+			lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+		}
+		lendingLedger.setLendingPaymentSchedule(lendingPaymentSchedule);
+		lendingLedger.setDate(DateTimeUtil.addDays(currentDate, -1));
+		lendingLedger.setTxnType("EDI");
+		lendingLedger.setAmount(amount);
+		lendingLedger.setInterest(interest);
+		lendingLedger.setOtherCharges(0D);
+		lendingLedger.setPenalty(0D);
+		lendingLedger.setPrinciple(principle);
+		lendingLedger.setDescription(description);
+		lendingLedger.setAdjustmentMode("SETTLEMENT");
+		lendingLedgerDao.save(lendingLedger);
+	}
+
+	public void sendComms(LoanPaymentOrder loanPaymentOrder, Merchant merchant) {
+		String identifier = "LENDING_EDI_DEDUCTION_PUSH";
+		Map<String, Object> templateParams = new HashMap<>();
+		templateParams.put("amount", loanPaymentOrder.getAmount());
+		NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+		notificationPayloadDto.setTemplateIdentifier(identifier);
+		notificationPayloadDto.setTemplateParams(templateParams);
+		notificationPayloadDto.setPushTitle("Payment Received!");
+		notificationPayloadDto.setMobile(merchant.getMobile());
+		notificationPayloadDto.setClientName("LENDING");
+		notificationPayloadDto.setPushDeepLink("dynamic?key=loan-dashboard");
+		lendingNotificationService.notify(notificationPayloadDto);
+	}
+
+
 }
