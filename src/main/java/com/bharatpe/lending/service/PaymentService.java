@@ -1,44 +1,79 @@
 package com.bharatpe.lending.service;
 
-import java.math.BigInteger;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.common.utils.NotificationUtil;
-import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.FpWithdrawStatusCheckDTO;
-import com.bharatpe.lending.common.dto.NotificationPayloadDto;
-import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.service.LendingNotificationService;
-import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.enums.LendingPayoutType;
-import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.enums.PaymentType;
-import com.bharatpe.lending.enums.WaiverType;
-import com.bharatpe.lending.util.LoanUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.common.entities.LendingEDISchedule;
+import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
-import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
+import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
+import com.bharatpe.lending.common.dao.LendingInterestWaiverDao;
+import com.bharatpe.lending.common.dao.LendingPayoutsDao;
+import com.bharatpe.lending.common.dao.LendingPrepaymentAuditDao;
+import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
+import com.bharatpe.lending.common.dao.LoanDpdDao;
+import com.bharatpe.lending.common.dto.FpWithdrawStatusCheckDTO;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
+import com.bharatpe.lending.common.entity.LendingInterestWaiver;
+import com.bharatpe.lending.common.entity.LendingPayouts;
+import com.bharatpe.lending.common.entity.LendingPrepayment;
+import com.bharatpe.lending.common.entity.LendingPrepaymentAudit;
+import com.bharatpe.lending.common.entity.LendingVirtualAccount;
+import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
+import com.bharatpe.lending.dto.CreditSpendRequestDTO;
+import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
+import com.bharatpe.lending.dto.InitiatePaymentResponseDTO;
+import com.bharatpe.lending.dto.LendingPayoutRequest;
+import com.bharatpe.lending.dto.LendingPayoutResponse;
+import com.bharatpe.lending.dto.LoanRefundsResponseDTO;
+import com.bharatpe.lending.dto.PaymentDetailDto;
+import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
+import com.bharatpe.lending.dto.PaymentResendOTP;
+import com.bharatpe.lending.dto.PaymentStatusResponseDTO;
+import com.bharatpe.lending.dto.PaymentStatusV3ResponseDTO;
+import com.bharatpe.lending.dto.PgCreateTransactionRequestDTO;
+import com.bharatpe.lending.dto.PgCreateTransactionResponseDTO;
+import com.bharatpe.lending.dto.PgPaymentCallbackDTO;
+import com.bharatpe.lending.dto.PgStatusResponse;
+import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.LendingPayoutType;
+import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.PaymentType;
+import com.bharatpe.lending.enums.WaiverType;
+import com.bharatpe.lending.util.LoanUtil;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.TimeZone;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -1218,21 +1253,26 @@ public class PaymentService {
 		logger.info("Fp Order Pending size: {}", orders.size());
 		for (BigInteger orderId : orders) {
 			try {
-				Optional<LoanPaymentOrder> order = loanPaymentOrderDao.findById(orderId.longValue());
-				if(order.isPresent()) {
-					logger.info("Checking FP withdraw status for loanId: {}", order.get().getOwnerId());
-					FpWithdrawStatusCheckDTO fpWithdrawStatusCheckDTO = apiGatewayService.getTransactionStatus(String.valueOf(order.get().getId()));
-					if (fpWithdrawStatusCheckDTO.getMessage().equalsIgnoreCase("source id not found")) {
-						logger.error("FP deduction failed for loanId:{}", order.get().getOwnerId());
-						order.get().setStatus("FAILED");
-						loanPaymentOrderDao.save(order.get());
-					}
-					if (Objects.nonNull(fpWithdrawStatusCheckDTO.getData()) && Objects.nonNull(fpWithdrawStatusCheckDTO.getData().getTxnId())) {
-						logger.info("FP withdraw status is success for loanId: {}", order.get().getOwnerId());
-						Optional<LendingPaymentSchedule> loan = lendingPaymentScheduleDao.findById(order.get().getOwnerId());
-						settleAmountOnSuccess(loan.get(), order.get(), fpWithdrawStatusCheckDTO.getData().getTxnId(), null);
-					}
+				LoanPaymentOrder order = loanPaymentOrderDao.findById(orderId.longValue()).get();
+
+				logger.info("Checking FP withdraw status for loanId: {}", order.getOwnerId());
+				FpWithdrawStatusCheckDTO fpWithdrawStatusCheckDTO = apiGatewayService.getTransactionStatus(String.valueOf(order.getId()));
+				if (Objects.isNull(fpWithdrawStatusCheckDTO)) {
+					logger.info("Unable to get any response from fp " + order.getId());
+					continue;
 				}
+				if (fpWithdrawStatusCheckDTO.getMessage().equalsIgnoreCase("source id not found")) {
+					logger.error("FP deduction failed for loanId:{}", order.getOwnerId());
+					order.setStatus("FAILED");
+					loanPaymentOrderDao.save(order);
+				}
+				if (Objects.nonNull(fpWithdrawStatusCheckDTO.getData())
+						&& Objects.nonNull(fpWithdrawStatusCheckDTO.getData().getTxnId())) {
+					logger.info("FP withdraw status is success for loanId: {}", order.getOwnerId());
+					Optional<LendingPaymentSchedule> loan = lendingPaymentScheduleDao.findById(order.getOwnerId());
+					settleAmountOnSuccess(loan.get(), order, fpWithdrawStatusCheckDTO.getData().getTxnId(), null);
+				}
+
 			} catch (Exception ex) {
 				logger.error("Exception Occurred while checking status for orderId: {} {}", orderId, ex);
 			}
