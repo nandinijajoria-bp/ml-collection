@@ -806,7 +806,7 @@ public class FosService {
             }
             if (Objects.nonNull(experian)) {
                 // blocked pan card
-                LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findByPancard(experian.getPancardNumber());
+                LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findTop1ByPancard(experian.getPancardNumber());
                 if (Objects.nonNull(lendingBlockedPancard)) {
                     logger.info("merchant {} 's pan card is blocked", merchantId);
                     return computeEligibilityParams("ineligible", null, merchantId);
