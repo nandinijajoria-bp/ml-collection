@@ -158,7 +158,15 @@ public class LendingApplicationServiceV2 {
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
                 return new ApiResponse<>(false, "Draft application not found");
             }
-            updateApplicationData(lendingApplication, applicationRequest, null);
+            AddressValidationDto addressValidationDto = null;
+            if (isAddressUpdated(lendingApplication,applicationRequest)) {
+                addressValidationDto = getAddressValidationScore(applicationRequest);
+                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                    log.info("address quality score less than 20");
+                    return new ApiResponse<>(false, "The address is incomplete. Enter correct address to complete the application");
+                }
+            }
+            updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
             log.error("Exception in updateApplication for merchant:{}", merchant.getId(), e);
@@ -323,8 +331,9 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setAlternateMobile(!StringUtils.isEmpty(additionalDetails.getAlternateContact()) ? additionalDetails.getAlternateContact() : lendingApplication.getAlternateMobile());
             }
             if (applicationRequest.getProfessionalDetails() != null) {
-                saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails(), addressValidationDto);
+                saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
             }
+            saveAddressQltyDetails(lendingApplication,addressValidationDto);
             lendingApplication.setBusinessName(!StringUtils.isEmpty(applicationRequest.getBusinessName()) ? applicationRequest.getBusinessName() : lendingApplication.getBusinessName());
             lendingApplicationDao.save(lendingApplication);
         } catch (Exception e) {
@@ -332,7 +341,41 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    private void saveGstDetails(LendingApplication lendingApplication, ProfessionalDetails professionalDetails, AddressValidationDto addressValidationDto) {
+    public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
+        try {
+            return !(!ObjectUtils.isEmpty(applicationRequest.getAddressDetails()) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getShopNumber()) && lendingApplication.getShopNumber().equalsIgnoreCase(applicationRequest.getAddressDetails().getAddress1())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) && lendingApplication.getStreetAddress().equalsIgnoreCase(applicationRequest.getAddressDetails().getAddress2())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getLandmark()) && lendingApplication.getLandmark().equalsIgnoreCase(applicationRequest.getAddressDetails().getLandmark())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getPincode()) && lendingApplication.getPincode().toString().equalsIgnoreCase(applicationRequest.getAddressDetails().getPincode())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getCity()) && lendingApplication.getCity().equalsIgnoreCase(applicationRequest.getAddressDetails().getCity())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getState()) && lendingApplication.getState().equalsIgnoreCase(applicationRequest.getAddressDetails().getState())));
+        } catch (Exception e) {
+            log.error("exception occurred while comparing address for application : {}", applicationRequest.getApplicationId());
+        }
+        return true;
+    }
+
+    private void saveAddressQltyDetails(LendingApplication lendingApplication, AddressValidationDto addressValidationDto) {
+        try {
+            if (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult())) {
+                LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+                if (lendingGstDetail == null) {
+                    lendingGstDetail = new LendingGstDetail();
+                    lendingGstDetail.setMerchantId(lendingApplication.getMerchant().getId());
+                    lendingGstDetail.setApplicationId(lendingApplication.getId());
+                    lendingGstDetail.setGst(false);
+                }
+                lendingGstDetail.setAddressQlty(addressValidationDto.getResult().getAddressValidity());
+                lendingGstDetail.setAddressQltyScore(addressValidationDto.getResult().getAddressQualityScore());
+                lendingGstDao.save(lendingGstDetail);
+            }
+        } catch (Exception e) {
+            log.error("exception occurred while saving application address quality: {}", e);
+        }
+    }
+
+    private void saveGstDetails(LendingApplication lendingApplication, ProfessionalDetails professionalDetails) {
         try {
             LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
             if (lendingGstDetail == null) {
@@ -350,10 +393,6 @@ public class LendingApplicationServiceV2 {
             lendingGstDetail.setCompanyName(!StringUtils.isEmpty(professionalDetails.getCompanyName()) ? professionalDetails.getCompanyName() : lendingGstDetail.getCompanyName());
             lendingGstDetail.setAddressType(!StringUtils.isEmpty(professionalDetails.getAddressType()) ? professionalDetails.getAddressType() : lendingGstDetail.getAddressType());
             lendingGstDetail.setCurrentAddress(!StringUtils.isEmpty(professionalDetails.getCurrentAddress()) ? professionalDetails.getCurrentAddress() : lendingGstDetail.getCurrentAddress());
-            if (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult())) {
-                lendingGstDetail.setAddressQlty(addressValidationDto.getResult().getAddressValidity());
-                lendingGstDetail.setAddressQltyScore(addressValidationDto.getResult().getAddressQualityScore());
-            }
             lendingGstDao.save(lendingGstDetail);
         } catch (Exception e) {
             log.error("Exception in saveGstDetails for application:{}", lendingApplication.getId(), e);
