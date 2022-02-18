@@ -37,10 +37,7 @@ public class FosController {
 
     @RequestMapping(value="/get-address", method = RequestMethod.GET)
     public ResponseEntity<ResponseDTO> getMerchantAddress(@RequestParam Long merchantId){
-
         return new ResponseEntity<>(fosService.getMerchantAddress(merchantId), HttpStatus.OK);
-
-
     }
 
     @RequestMapping(value="/get_fos_attributes", method = RequestMethod.POST, produces="application/json", consumes = "application/json")
