@@ -40,7 +40,7 @@ public class LenderMappingService {
             }
             Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(lendingApplication.getMerchant().getId());
             if (repeatLoan > 0) {
-                if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+                if (true) {
                     lendingApplication.setLender("LDC");
                     lendingApplicationDao.save(lendingApplication);
                     return;
