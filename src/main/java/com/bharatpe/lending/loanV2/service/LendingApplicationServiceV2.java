@@ -15,10 +15,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
-import com.bharatpe.lending.dto.AddressValidationDto;
-import com.bharatpe.lending.dto.ApplicationDTO;
-import com.bharatpe.lending.dto.ApplicationStatusResponseDTO;
-import com.bharatpe.lending.dto.BusinessCategoryResponseDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
@@ -163,7 +160,7 @@ public class LendingApplicationServiceV2 {
                 addressValidationDto = getAddressValidationScore(applicationRequest);
                 if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
                     log.info("address quality score less than 20");
-                    return new ApiResponse<>(false, "The address is incomplete. Enter correct address to complete the application");
+                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false));
                 }
             }
             updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
@@ -178,8 +175,12 @@ public class LendingApplicationServiceV2 {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
             AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
-            String error = baseChecks(merchant, applicationRequest, addressValidationDto);
+            String error = baseChecks(merchant, applicationRequest);
             if (error != null) return new ApiResponse<>(false, error);
+            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                log.info("address quality score less than 20");
+                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false));
+            }
             List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), applicationRequest.getCategory(), applicationRequest.getOfferType());
             LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (eligibleLoans.isEmpty() || Objects.isNull(lendingCategory)) {
@@ -399,7 +400,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    private String baseChecks(Merchant merchant, CreateApplicationRequest applicationRequest, AddressValidationDto addressValidationDto) {
+    private String baseChecks(Merchant merchant, CreateApplicationRequest applicationRequest) {
 
         if(easyLoanUtil.isDummyMerchant(merchant.getId())) {
             return null;
@@ -427,10 +428,6 @@ public class LendingApplicationServiceV2 {
         if (experian != null && experian.getPincode() != null && !pincode.equals(experian.getPincode())) {
             log.info("pincode mismatch for merchant:{}", merchant.getId());
             return "pincode mismatch";
-        }
-        if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-            log.info("address quality score less than 20");
-            return "The address is incomplete. Enter complete address to complete the application";
         }
         return null;
     }
