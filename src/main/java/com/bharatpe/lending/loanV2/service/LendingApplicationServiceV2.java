@@ -964,9 +964,10 @@ public class LendingApplicationServiceV2 {
             }
             Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(),-24);
             Optional<CallingLeadResponseNimbus> callingLeadResponseNimbus =
-                    callingLeadResponseNimbusDao.findTopByMerchantIdAndCreatedAtAfter(merchant.getId(),dateWindow);
-            log.info("fetching existing callback requests for merchant after {}",dateWindow);
-            if (ObjectUtils.isEmpty(callingLeadResponseNimbus) || !callingLeadResponseNimbus.get().getSource().equalsIgnoreCase("RC")) {
+                    callingLeadResponseNimbusDao.findTopByMerchantIdAndSourceOrderByCreatedAtDesc(merchant.getId(),"RC");
+            log.info("fetching latest existing callback requests for merchant {}",merchant);
+            if (ObjectUtils.isEmpty(callingLeadResponseNimbus) || (callingLeadResponseNimbus.get().getCreatedAt().before(dateWindow) &&
+                    !ObjectUtils.isEmpty(callingLeadResponseNimbus.get().getDisposition()))) {
                 AddLeadRequestNimbusDto addLeadRequestNimbusDto = new AddLeadRequestNimbusDto();
                 addLeadRequestNimbusDto.setMerchantId(merchant.getId());
                 if (!ObjectUtils.isEmpty(requestCallbackDto.getApplicationId())) {
@@ -980,13 +981,14 @@ public class LendingApplicationServiceV2 {
                 addLeadRequestNimbusDto.setSource("RC");
                 addLeadRequestNimbusDto.setComments("RC:"+ requestCallbackDto.getApplicationStage());
                 callingLeadNimbusService.addLeadToNimbusWithoutException(addLeadRequestNimbusDto);
-                return new ApiResponse<>(true,"callback request queued");
+                return new ApiResponse<>(CallBackRequestResponseDto.builder().callbackStatus("Thank you! We will reach out to you soon").build());
             } else {
-                return new ApiResponse<>(false, "Callback request already in queue");
+                return new ApiResponse<>(CallBackRequestResponseDto.builder().callbackStatus("Your request is already in queue !").build());
             }
         } catch (Exception e) {
             log.error("Exception occurred while adding callback request for merchantId: {} {}", requestCallbackDto, Arrays.toString(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong !");
     }
+
 }
