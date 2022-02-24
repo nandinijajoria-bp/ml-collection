@@ -160,7 +160,7 @@ public class LendingApplicationServiceV2 {
                 addressValidationDto = getAddressValidationScore(applicationRequest);
                 if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
                     log.info("address quality score less than 20");
-                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false));
+                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
                 }
             }
             updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
@@ -179,7 +179,7 @@ public class LendingApplicationServiceV2 {
             if (error != null) return new ApiResponse<>(false, error);
             if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
                 log.info("address quality score less than 20");
-                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false));
+                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
             }
             List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), applicationRequest.getCategory(), applicationRequest.getOfferType());
             LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());

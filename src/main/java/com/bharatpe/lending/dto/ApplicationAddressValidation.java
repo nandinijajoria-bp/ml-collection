@@ -6,10 +6,8 @@ import lombok.*;
 
 @Data
 @ToString
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ApplicationAddressValidation {
-    Boolean hasAValidAddress;
+    private Boolean hasAValidAddress;
 }
