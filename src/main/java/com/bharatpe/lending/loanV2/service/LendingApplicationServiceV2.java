@@ -15,9 +15,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
-import com.bharatpe.lending.dto.ApplicationDTO;
-import com.bharatpe.lending.dto.ApplicationStatusResponseDTO;
-import com.bharatpe.lending.dto.BusinessCategoryResponseDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
@@ -157,7 +155,15 @@ public class LendingApplicationServiceV2 {
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
                 return new ApiResponse<>(false, "Draft application not found");
             }
-            updateApplicationData(lendingApplication, applicationRequest);
+            AddressValidationDto addressValidationDto = null;
+            if (isAddressUpdated(lendingApplication,applicationRequest)) {
+                addressValidationDto = getAddressValidationScore(applicationRequest);
+                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                    log.info("address quality score less than 20");
+                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+                }
+            }
+            updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
             log.error("Exception in updateApplication for merchant:{}", merchant.getId(), e);
@@ -168,15 +174,20 @@ public class LendingApplicationServiceV2 {
     private ApiResponse<?> createNewApplication(Merchant merchant, CreateApplicationRequest applicationRequest) {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
+            AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
             String error = baseChecks(merchant, applicationRequest);
             if (error != null) return new ApiResponse<>(false, error);
+            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                log.info("address quality score less than 20");
+                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+            }
             List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), applicationRequest.getCategory(), applicationRequest.getOfferType());
             LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (eligibleLoans.isEmpty() || Objects.isNull(lendingCategory)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoans.get(0), applicationRequest, lendingCategory);
+            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoans.get(0), applicationRequest, lendingCategory, addressValidationDto);
             loanUtil.createApplicationSnapshot(lendingApplication);
             createStatusAuditTrail(lendingApplication);
             loanUtil.publishApplicationEvent(lendingApplication);
@@ -185,6 +196,18 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in createNewApplication for merchant:{}", merchant.getId(), e);
             return new ApiResponse<>(false, "Something went wrong");
         }
+    }
+
+    private AddressValidationDto getAddressValidationScore(CreateApplicationRequest createApplicationRequest) {
+        AddressValidationDto addressValidationDto = null;
+        try {
+            if (!ObjectUtils.isEmpty(createApplicationRequest.getAddressDetails())) {
+                addressValidationDto = apiGatewayService.validateAddress(createApplicationRequest.getAddressDetails());
+            }
+        } catch (Exception e) {
+            log.error("error occured while validating address: {}", e);
+        }
+        return addressValidationDto;
     }
 
     private void createStatusAuditTrail(LendingApplication lendingApplication) {
@@ -198,7 +221,7 @@ public class LendingApplicationServiceV2 {
         lendingAuditTrialDao.save(lendingAuditTrial);
     }
 
-    private LendingApplication saveLendingApplication(Merchant merchant, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory) {
+    private LendingApplication saveLendingApplication(Merchant merchant, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto) {
         LendingApplication lendingApplication = new LendingApplication();
         int processingFee;
         if (apiGatewayService.eligibleForProcessingFee(merchant.getId())) {
@@ -231,7 +254,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
         lendingApplication = lendingApplicationDao.save(lendingApplication);
         lenderMappingService.lenderMapping(lendingApplication);
-        updateApplicationData(lendingApplication, lendingApplicationRequest);
+        updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchant.getId(), "DEBIT", eligibleLoan.getAmount()));
         executorService.execute(() -> {
@@ -263,6 +286,8 @@ public class LendingApplicationServiceV2 {
                     replicateGst.setCompanyName(lendingGstDetail.getCompanyName());
                     replicateGst.setAddressType(lendingGstDetail.getAddressType());
                     replicateGst.setCurrentAddress(lendingGstDetail.getCurrentAddress());
+                    replicateGst.setAddressQlty(lendingGstDetail.getAddressQlty());
+                    replicateGst.setAddressQltyScore(lendingGstDetail.getAddressQltyScore());
                     lendingGstDao.save(replicateGst);
                 }
                 List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchant().getId(), prevApplication.getId());
@@ -290,7 +315,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    private void updateApplicationData(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
+    private void updateApplicationData(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest, AddressValidationDto addressValidationDto) {
         try {
             if (applicationRequest.getAddressDetails() != null) {
                 AddressDetails addressDetails = applicationRequest.getAddressDetails();
@@ -309,10 +334,45 @@ public class LendingApplicationServiceV2 {
             if (applicationRequest.getProfessionalDetails() != null) {
                 saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
             }
+            saveAddressQltyDetails(lendingApplication,addressValidationDto);
             lendingApplication.setBusinessName(!StringUtils.isEmpty(applicationRequest.getBusinessName()) ? applicationRequest.getBusinessName() : lendingApplication.getBusinessName());
             lendingApplicationDao.save(lendingApplication);
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{} , {} {}", lendingApplication.getId(), applicationRequest, e);
+        }
+    }
+
+    public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
+        try {
+            return !(!ObjectUtils.isEmpty(applicationRequest.getAddressDetails()) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getShopNumber()) && lendingApplication.getShopNumber().equalsIgnoreCase(applicationRequest.getAddressDetails().getAddress1())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) && lendingApplication.getStreetAddress().equalsIgnoreCase(applicationRequest.getAddressDetails().getAddress2())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getLandmark()) && lendingApplication.getLandmark().equalsIgnoreCase(applicationRequest.getAddressDetails().getLandmark())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getPincode()) && lendingApplication.getPincode().toString().equalsIgnoreCase(applicationRequest.getAddressDetails().getPincode())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getCity()) && lendingApplication.getCity().equalsIgnoreCase(applicationRequest.getAddressDetails().getCity())) &&
+                    (!ObjectUtils.isEmpty(lendingApplication.getState()) && lendingApplication.getState().equalsIgnoreCase(applicationRequest.getAddressDetails().getState())));
+        } catch (Exception e) {
+            log.error("exception occurred while comparing address for application : {}", applicationRequest.getApplicationId());
+        }
+        return true;
+    }
+
+    private void saveAddressQltyDetails(LendingApplication lendingApplication, AddressValidationDto addressValidationDto) {
+        try {
+            if (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult())) {
+                LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+                if (lendingGstDetail == null) {
+                    lendingGstDetail = new LendingGstDetail();
+                    lendingGstDetail.setMerchantId(lendingApplication.getMerchant().getId());
+                    lendingGstDetail.setApplicationId(lendingApplication.getId());
+                    lendingGstDetail.setGst(false);
+                }
+                lendingGstDetail.setAddressQlty(addressValidationDto.getResult().getAddressValidity());
+                lendingGstDetail.setAddressQltyScore(addressValidationDto.getResult().getAddressQualityScore());
+                lendingGstDao.save(lendingGstDetail);
+            }
+        } catch (Exception e) {
+            log.error("exception occurred while saving application address quality: {}", e);
         }
     }
 
@@ -334,7 +394,6 @@ public class LendingApplicationServiceV2 {
             lendingGstDetail.setCompanyName(!StringUtils.isEmpty(professionalDetails.getCompanyName()) ? professionalDetails.getCompanyName() : lendingGstDetail.getCompanyName());
             lendingGstDetail.setAddressType(!StringUtils.isEmpty(professionalDetails.getAddressType()) ? professionalDetails.getAddressType() : lendingGstDetail.getAddressType());
             lendingGstDetail.setCurrentAddress(!StringUtils.isEmpty(professionalDetails.getCurrentAddress()) ? professionalDetails.getCurrentAddress() : lendingGstDetail.getCurrentAddress());
-
             lendingGstDao.save(lendingGstDetail);
         } catch (Exception e) {
             log.error("Exception in saveGstDetails for application:{}", lendingApplication.getId(), e);
@@ -875,5 +934,11 @@ public class LendingApplicationServiceV2 {
             log.error("Exception Occured while adding business details for merchantId: {} {}", merchant.getId(), ex.getMessage());
         }
         return new ApiResponse<>(false, "Something Went Wrong.");
+    }
+
+    public boolean addressQltyScoreLessThanThreshold(AddressValidationDto addressValidationDto) {
+        return (!ObjectUtils.isEmpty(addressValidationDto) && !ObjectUtils.isEmpty(addressValidationDto.getResult()) &&
+                !ObjectUtils.isEmpty(addressValidationDto.getResult().getAddressQualityScore()) &&
+                addressValidationDto.getResult().getAddressQualityScore() < 20);
     }
 }

@@ -20,6 +20,7 @@ import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -2138,11 +2139,11 @@ public class APIGatewayService {
             String user = env.getProperty("ds.image.validation.user");
             String pass = env.getProperty("ds.image.validation.pass");
             HttpHeaders headers = new HttpHeaders();
-            headers.add("Content-type","multipart/form-data; boundary=---011000010111000001101001");
-            headers.setBasicAuth(user,pass);
+            headers.add("Content-type", "multipart/form-data; boundary=---011000010111000001101001");
+            headers.setBasicAuth(user, pass);
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("s3_url", dsImageValidationRequestDto.getS3Url());
-            body.add("file",dsImageValidationRequestDto.getFile());
+            body.add("file", dsImageValidationRequestDto.getFile());
             body.add("extract_structure", dsImageValidationRequestDto.getExtractStructure());
             body.add("extract_existence", dsImageValidationRequestDto.getExtractExistence());
             body.add("extract_category", dsImageValidationRequestDto.getExtractCategory());
@@ -2165,7 +2166,52 @@ public class APIGatewayService {
                 return dsImageValidationResponseDto;
             }
         } catch (Exception e) {
-            logger.error("error occurred while validating image",e);
+            logger.error("error occurred while validating image", e);
+        }
+        return null;
+    }
+
+    public AddressValidationDto validateAddress(AddressDetails addressDetails) {
+        try {
+            logger.info("fetching address validation score from delhivery for address {}", addressDetails);
+            String url = env.getProperty("delhivery.address.validation.url");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.add("x-api-key", env.getProperty("delhivery.address.validation.key"));
+            Map<String, Object> body = new HashMap<>();
+            Map<String, Object> requestBodyParams = new HashMap<>();
+            String address = "";
+            address += !ObjectUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1(): "";
+            address += !ObjectUtils.isEmpty(addressDetails.getAddress2()) ? ", " + addressDetails.getAddress2(): "";
+            address += !ObjectUtils.isEmpty(addressDetails.getLandmark()) ? ", " +addressDetails.getLandmark(): "";
+            requestBodyParams.put("address", address);
+            requestBodyParams.put("pincode", addressDetails.getPincode());
+            requestBodyParams.put("city",addressDetails.getCity());
+            requestBodyParams.put("state", addressDetails.getState());
+            body.put("data", requestBodyParams);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            logger.info("Request {} for address validation", request);
+            int retryCount = 0;
+            ResponseEntity<AddressValidationDto> responseEntity = null;
+            while (retryCount < 2) {
+                try {
+                    logger.info("calling delhivery for address validation");
+                    responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, AddressValidationDto.class);
+                    logger.info("Delhivery address validation response:{}", responseEntity);
+                    break;
+                } catch (Exception e) {
+                    logger.info("Delhivery api timeout", e);
+                }
+                retryCount++;
+            }
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody()) ) {
+                AddressValidationDto addressValidationDto = responseEntity.getBody();
+                return addressValidationDto;
+            } else {
+                logger.info("unable to fetch address validation score from delhivery");
+            }
+        } catch (Exception e) {
+            logger.error("Exception occurred while fetching validity of the address {}", addressDetails, e);
         }
         return null;
     }
