@@ -273,9 +273,14 @@ public class LendingApplicationServiceV2 {
                 log.info("Replicating application for merchant:{} and previous application:{}", lendingApplication.getMerchant().getId(), prevApplication.getId());
                 LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(prevApplication.getId());
                 if (lendingGstDetail != null) {
-                    LendingGstDetail replicateGst = new LendingGstDetail();
-                    replicateGst.setApplicationId(lendingApplication.getId());
-                    replicateGst.setMerchantId(lendingApplication.getMerchant().getId());
+                    LendingGstDetail replicateGst = lendingGstDao.findByApplicationId(lendingApplication.getId());
+                    if (replicateGst == null) {
+                        replicateGst = new LendingGstDetail();
+                        replicateGst.setApplicationId(lendingApplication.getId());
+                        replicateGst.setMerchantId(lendingApplication.getMerchant().getId());
+                        replicateGst.setAddressQlty(lendingGstDetail.getAddressQlty());
+                        replicateGst.setAddressQltyScore(lendingGstDetail.getAddressQltyScore());
+                    }
                     replicateGst.setGst(lendingGstDetail.getGst());
                     replicateGst.setBusinessCategory(lendingGstDetail.getBusinessCategory());
                     replicateGst.setExperience(lendingGstDetail.getExperience());
@@ -286,8 +291,6 @@ public class LendingApplicationServiceV2 {
                     replicateGst.setCompanyName(lendingGstDetail.getCompanyName());
                     replicateGst.setAddressType(lendingGstDetail.getAddressType());
                     replicateGst.setCurrentAddress(lendingGstDetail.getCurrentAddress());
-                    replicateGst.setAddressQlty(lendingGstDetail.getAddressQlty());
-                    replicateGst.setAddressQltyScore(lendingGstDetail.getAddressQltyScore());
                     lendingGstDao.save(replicateGst);
                 }
                 List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchant().getId(), prevApplication.getId());
