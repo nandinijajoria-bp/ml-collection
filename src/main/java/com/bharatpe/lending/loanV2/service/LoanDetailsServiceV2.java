@@ -13,14 +13,13 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.EnachErrorMessageDTO;
-import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.MerchantInfoDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
+import com.bharatpe.lending.service.FosService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -100,6 +99,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LendingMerchantDetailsDao lendingMerchantDetailsDao;
 
+    @Autowired
+    FosService fosService;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
@@ -134,6 +136,7 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setHasExperian(true);
             }
             loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+            loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
@@ -541,4 +544,18 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(accountDetails);
     }
 
+    public boolean checkEligibilityForCallback(Long merchantId) {
+        try {
+            ResponseDTO responseDTO = fosService.checkMerchantEligibilty(merchantId);
+            if (responseDTO.isSuccess() && responseDTO.getData() != null) {
+                FosMerchantEligibilityDto fosMerchantEligibilityDto = (FosMerchantEligibilityDto) responseDTO.getData();
+                if (!"ineligible".equalsIgnoreCase(fosMerchantEligibilityDto.getEligibility())) {
+                    return Boolean.TRUE;
+                }
+            }
+        } catch (Exception e) {
+            log.error("error occurred while fetching eligibility: {}",e);
+        }
+        return Boolean.FALSE;
+    }
 }

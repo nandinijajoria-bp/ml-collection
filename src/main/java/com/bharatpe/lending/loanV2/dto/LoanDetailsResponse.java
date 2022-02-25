@@ -31,4 +31,5 @@ public class LoanDetailsResponse {
     private String businessName;
     private String businessCategory;
     private String businessSubCategory;
+    private boolean eligibleForCallback;
 }
