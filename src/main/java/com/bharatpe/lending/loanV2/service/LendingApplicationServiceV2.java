@@ -274,7 +274,7 @@ public class LendingApplicationServiceV2 {
                 LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(prevApplication.getId());
                 if (lendingGstDetail != null) {
                     LendingGstDetail replicateGst = lendingGstDao.findByApplicationId(lendingApplication.getId());
-                    if (lendingGstDetail == null) {
+                    if (replicateGst == null) {
                         replicateGst = new LendingGstDetail();
                         replicateGst.setApplicationId(lendingApplication.getId());
                         replicateGst.setMerchantId(lendingApplication.getMerchant().getId());
