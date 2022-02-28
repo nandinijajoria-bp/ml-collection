@@ -223,6 +223,7 @@ public class PaymentService {
 			if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
 				order.setDescription(PaymentType.ADVANCE_EDI.name());
 			}
+
 			order = loanPaymentOrderDao.save(order);
 			String orderId = "LOAN" + (10000000L + order.getId());
 			order.setOrderId(orderId);

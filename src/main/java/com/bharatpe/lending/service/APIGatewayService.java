@@ -1242,12 +1242,12 @@ public class APIGatewayService {
         return 0D;
     }
 
-    public GlobalLimitResponse getGlobalLimit(Long merchantId) throws Exception {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId)  {
         return getGlobalLimit(merchantId, null, null);
     }
 
     //    @Async
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) throws Exception {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) {
         logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);

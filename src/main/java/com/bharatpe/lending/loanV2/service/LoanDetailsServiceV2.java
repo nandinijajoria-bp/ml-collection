@@ -247,6 +247,7 @@ public class LoanDetailsServiceV2 {
         Eligibility eligibility = null;
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
+            recomputeEligibleLoan(globalLimitResponse, null);
             eligibility = createEligibility(merchant.getId());
         }
         log.info("Eligibility not found for merchant:{}", merchant.getId());
@@ -257,6 +258,33 @@ public class LoanDetailsServiceV2 {
         }
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(),globalLimitResponse));
         loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
+    }
+
+
+
+    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount) {
+        if(Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+            return;
+        }
+        Long merchantId = globalLimitResponse.getData().getMerchantId();
+        Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
+        String loanType = globalLimitResponse.getData().getLoanType();
+        String version = globalLimitResponse.getData().getVersion();
+        try {
+            eligibleLoanDao.deleteByMerchantId(merchantId);
+            List<GlobalLimitResponse.TenureDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();
+            for (GlobalLimitResponse.TenureDetail tenureDetail : tenureDetails) {
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= tenureDetail.getMaxLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, customAmount, null, version);
+                }
+                if(finalLimit <= tenureDetail.getMaxLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, finalLimit, null, version);
+                }
+            }
+            eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
+        } catch (Exception e) {
+            log.error("Exception while recomputing eligible loan for merchant:{}", merchantId, e);
+        }
     }
 
     private Integer fetchPincode(Long merchantId) {
