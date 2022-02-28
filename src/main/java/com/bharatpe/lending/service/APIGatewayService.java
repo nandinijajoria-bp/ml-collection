@@ -1261,7 +1261,7 @@ public class APIGatewayService {
         if (!ObjectUtils.isEmpty(appVersion)) {
             queryParams.append("&appVersion=").append(appVersion);
         }
-        String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + queryParams;
+        String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
         String payload = hmacCalculator.getObjectPayload(requestParams);
         String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
