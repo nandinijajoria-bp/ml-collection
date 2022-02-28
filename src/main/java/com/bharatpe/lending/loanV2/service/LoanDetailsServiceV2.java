@@ -269,7 +269,7 @@ public class LoanDetailsServiceV2 {
         Long merchantId = globalLimitResponse.getData().getMerchantId();
         Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
         String loanType = globalLimitResponse.getData().getLoanType();
-        String version = globalLimitResponse.getData().getVersion();
+        Double version = globalLimitResponse.getData().getVersion();
         try {
             eligibleLoanDao.deleteByMerchantId(merchantId);
             List<GlobalLimitResponse.TenureDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();

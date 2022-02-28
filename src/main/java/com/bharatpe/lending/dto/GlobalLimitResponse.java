@@ -30,7 +30,7 @@ public class GlobalLimitResponse {
         private String pancardName;
         private Experian experian;
         List<TenureDetail> tenureDetails;
-        String version;
+        Double version;
         String riskSegment;
         String riskGroup;
         Double limit;

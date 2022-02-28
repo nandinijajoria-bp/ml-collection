@@ -799,7 +799,7 @@ public class LoanUtil {
     }
 
 
-	public LoanEligibilityDTO calculateLoanBreakup(GlobalLimitResponse.TenureDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, String version) {
+	public LoanEligibilityDTO calculateLoanBreakup(GlobalLimitResponse.TenureDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
 
 		Integer ediAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / tenureDetail.getEdiCount());
 		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
