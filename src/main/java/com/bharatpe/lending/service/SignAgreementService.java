@@ -193,12 +193,11 @@ public class SignAgreementService {
 			return response;
 		}
 		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-		List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
-		if(eligibleLoans == null || eligibleLoans.isEmpty() || selectedCategoriesData == null) {
+		EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferType(merchant.getId(), selectedCategory);
+		if(Objects.isNull(eligibleLoan)) {
 			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
 			return response;
 		}
-		EligibleLoan eligibleLoan = eligibleLoans.get(0);
 		// pin code check for loan eligibility(removing this check for topup loan)
 		try {
 			logger.info("Starting pin code check for loan eligibilty ");
@@ -225,7 +224,7 @@ public class SignAgreementService {
         if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
             processingFee = 0;
         }else {
-            processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+            processingFee = eligibleLoan.getProcessingFee();
         }
         if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
             processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
@@ -236,7 +235,7 @@ public class SignAgreementService {
         if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
             newApplication.setInterestRate(1.75D);
         } else {
-            newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
+            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
         }
         newApplication.setProcessingFee((double)processingFee);
         newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
@@ -253,11 +252,11 @@ public class SignAgreementService {
         newApplication.setStatus("draft");
         newApplication.setMode("AUTO");
         newApplication.setCategory(selectedCategory);
-        newApplication.setTenure(selectedCategoriesData.getPayableConverter());
-        newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-        newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
-        newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
-        newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
+        newApplication.setTenure(eligibleLoan.getTenure());
+        newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+        newApplication.setPayableDays((long) eligibleLoan.getEdiCount());
+        newApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
+        newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
         newApplication.setLoanAmount(eligibleLoan.getAmount());
         newApplication.setLoanType(eligibleLoan.getLoanType());
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))

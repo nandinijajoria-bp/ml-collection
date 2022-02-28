@@ -193,7 +193,7 @@ public class LendingApplicationServiceV2 {
                 log.info("address quality score less than 20");
                 return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
             }
-            EligibleLoan eligibleLoan = eligibleLoanDao.findCustomOfferByMerchantId(merchant.getId());
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferType(merchant.getId(), "CUSTOM");
             LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (Objects.isNull(eligibleLoan)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
@@ -239,13 +239,13 @@ public class LendingApplicationServiceV2 {
         if (apiGatewayService.eligibleForProcessingFee(merchant.getId())) {
             processingFee = 0;
         } else {
-            processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
+            processingFee = eligibleLoan.getProcessingFee();
         }
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        lendingApplication.setProcessingFee(Double.valueOf(eligibleLoan.getProcessingFee()));
+        lendingApplication.setProcessingFee(Double.valueOf(processingFee));
         lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - eligibleLoan.getProcessingFee());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
