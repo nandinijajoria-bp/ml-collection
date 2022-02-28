@@ -193,7 +193,7 @@ public class LendingApplicationServiceV2 {
                 log.info("address quality score less than 20");
                 return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
             }
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferType(merchant.getId(), "CUSTOM");
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
             LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (Objects.isNull(eligibleLoan)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());

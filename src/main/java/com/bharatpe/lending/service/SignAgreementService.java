@@ -193,7 +193,7 @@ public class SignAgreementService {
 			return response;
 		}
 		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-		EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferType(merchant.getId(), selectedCategory);
+		EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), selectedCategory);
 		if(Objects.isNull(eligibleLoan)) {
 			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
 			return response;

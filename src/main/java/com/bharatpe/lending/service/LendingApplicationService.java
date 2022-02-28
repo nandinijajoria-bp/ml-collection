@@ -201,7 +201,7 @@ public class LendingApplicationService {
 			}
 			else {
 				String offerType = lendingApplicationRequest.getOfferType();
-				EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferType(merchantId, "CUSTOM");
+				EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, "CUSTOM");
 				LendingCategories lendingCategory = lendingCategoryDao.getByCategory(lendingApplicationRequest.getCategory());
 				if(Objects.isNull(eligibleLoan)) {
 					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
