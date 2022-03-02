@@ -66,16 +66,16 @@ public class CommonController {
 		return pincodeVerify.checkPincodeValidity(pincode);
 	}
 
-//	@RequestMapping(value="/hash", method=RequestMethod.POST)
-//	public ResponseEntity<String> generateHash(@RequestBody Map<String, String> requestMap, @RequestHeader(name = "clientName") String clientName){
-//		InternalClient internalClient = internalClientDao.findByClientName(clientName);
-//		if (internalClient != null) {
-//			logger.info("lending secret:{}", aesEncryption.decrypt(internalClient.getSecret()));
-//			String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestMap), aesEncryption.decrypt(internalClient.getSecret()));
-//			return new ResponseEntity<>(hash, HttpStatus.OK);
-//		}
-//		return null;
-//	}
+	@RequestMapping(value="/hash", method=RequestMethod.POST)
+	public ResponseEntity<String> generateHash(@RequestBody Map<String, String> requestMap, @RequestHeader(name = "clientName") String clientName){
+		InternalClient internalClient = internalClientDao.findByClientName(clientName);
+		if (internalClient != null) {
+			logger.info("lending secret:{}", aesEncryption.decrypt(internalClient.getSecret()));
+			String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestMap), aesEncryption.decrypt(internalClient.getSecret()));
+			return new ResponseEntity<>(hash, HttpStatus.OK);
+		}
+		return null;
+	}
 
 	@RequestMapping(value="/merchant", method=RequestMethod.GET)
 	public ResponseEntity<CommonResponse> checkMerchant(@RequestParam(name = "mobile", required = false) String mobile, @RequestParam(name = "pancard", required = false) String pancard){
