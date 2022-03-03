@@ -1284,7 +1284,7 @@ public class APIGatewayService {
                 logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
             }
             catch (Exception e) {
-                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e.getMessage());
+                logger.error("Error occurred while getting global limit for merchant:{} {} {}", merchantId, e.getMessage(), e);
             }
             retryCount++;
         }
