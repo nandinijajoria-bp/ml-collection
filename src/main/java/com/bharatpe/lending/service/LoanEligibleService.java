@@ -173,7 +173,7 @@ public class LoanEligibleService {
     
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
-        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureOrderByIdDesc(merchantId, body.getAmount(), body.getTenure());
+        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsOrderByIdDesc(merchantId, body.getAmount(), body.getTenure());
         if(Objects.nonNull(eligibleLoan)) {
             EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
             customLoan.setOfferType("CUSTOM");
