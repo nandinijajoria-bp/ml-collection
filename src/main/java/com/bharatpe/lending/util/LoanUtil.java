@@ -823,7 +823,7 @@ public class LoanUtil {
 				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
 				.version(version)
 				.build();
-		eligibleLoanDao.save(eligibleLoan);
+		eligibleLoanDao.saveAndFlush(eligibleLoan);
 		return null;
 	}
 }

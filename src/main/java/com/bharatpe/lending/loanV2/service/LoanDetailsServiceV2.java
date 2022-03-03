@@ -251,12 +251,11 @@ public class LoanDetailsServiceV2 {
             recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
             eligibility = createEligibility(merchant.getId());
         }
-        log.info("Eligibility not found for merchant:{}", merchant.getId());
-
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;
         }
+        log.info("Eligibility not found for merchant:{}", merchant.getId());
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(),globalLimitResponse));
         loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
     }
@@ -341,12 +340,12 @@ public class LoanDetailsServiceV2 {
     }
 
     private Eligibility createEligibility(Long merchantId) {
-        log.info("Creating eligibility for merchant:{}", merchantId);
         try {
             EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
+            log.info("Creating eligibility for merchant:{}", merchantId);
             return Eligibility.builder()
                     .loanAmount(eligibleLoan.getAmount())
                     .arrangerFee(eligibleLoan.getProcessingFee())
