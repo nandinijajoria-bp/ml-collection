@@ -38,6 +38,9 @@ public class GlobalLimitResponse {
     }
 
     @lombok.Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ToString
     public class TenureDetail {
         private Double interestRate;
         private Double maxLoanAmount;
