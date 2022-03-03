@@ -194,12 +194,12 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
             }
             EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
-            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
+//            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (Objects.isNull(eligibleLoan)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, lendingCategory, addressValidationDto);
+            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
             loanUtil.createApplicationSnapshot(lendingApplication);
             createStatusAuditTrail(lendingApplication);
             loanUtil.publishApplicationEvent(lendingApplication);
@@ -421,10 +421,6 @@ public class LendingApplicationServiceV2 {
             return null;
         }
 
-        if (applicationRequest.getCategory() == null) {
-            log.info("category not found in createNewApplication for merchant:{}", merchant.getId());
-            return "category not found";
-        }
         if (Objects.isNull(applicationRequest.getAddressDetails()) || Objects.isNull(applicationRequest.getAddressDetails().getPincode())) {
             log.info("pincode not found in createNewApplication for merchant:{}", merchant.getId());
             return "pincode not found";
