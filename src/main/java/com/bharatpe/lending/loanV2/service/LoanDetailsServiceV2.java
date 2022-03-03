@@ -346,13 +346,12 @@ public class LoanDetailsServiceV2 {
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
-            LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
             return Eligibility.builder()
                     .loanAmount(eligibleLoan.getAmount())
-                    .arrangerFee(LoanCalculationUtil.getProcessingFee(eligibleLoan.getAmount(), lendingCategories))
-                    .interestRate(lendingCategories.getInterestRate())
+                    .arrangerFee(eligibleLoan.getProcessingFee())
+                    .interestRate(eligibleLoan.getRateOfInterest())
                     .repaymentAmount(eligibleLoan.getRepayment())
-                    .ediCount(lendingCategories.getPayableDays())
+                    .ediCount(eligibleLoan.getEdiCount())
                     .ediAmount(eligibleLoan.getEdi())
                     .tenure(eligibleLoan.getTenure())
                     .category(eligibleLoan.getCategory())
