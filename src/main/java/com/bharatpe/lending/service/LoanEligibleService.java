@@ -168,6 +168,7 @@ public class LoanEligibleService {
         tenureDetails.setRateOfInterest(eligibleLoan.getRateOfInterest());
         tenureDetails.setRepaymentAmount(eligibleLoan.getRepayment());
         tenureDetails.setEdiCount(eligibleLoan.getEdiCount());
+        tenureDetails.setTenureInMonths(eligibleLoan.getTenureInMonths());
         return tenureDetails;
     }
     
