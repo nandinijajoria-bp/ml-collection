@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -275,7 +276,7 @@ public class LoanDetailsServiceV2 {
             List<GlobalLimitResponse.TenureDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();
             for (GlobalLimitResponse.TenureDetail tenureDetail : tenureDetails) {
                 if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= tenureDetail.getMaxLoanAmount()) {
-                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, customAmount, null, version, );
+                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, customAmount, null, version);
                 }
                 if(finalLimit <= tenureDetail.getMaxLoanAmount()) {
                     loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, finalLimit, null, version);
@@ -342,7 +343,7 @@ public class LoanDetailsServiceV2 {
     private Eligibility createEligibility(Long merchantId) {
         log.info("Creating eligibility for merchant:{}", merchantId);
         try {
-            EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
