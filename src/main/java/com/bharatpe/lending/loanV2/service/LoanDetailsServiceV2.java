@@ -247,7 +247,7 @@ public class LoanDetailsServiceV2 {
         Eligibility eligibility = null;
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
-            recomputeEligibleLoan(globalLimitResponse, null);
+            recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
             eligibility = createEligibility(merchant.getId());
         }
         log.info("Eligibility not found for merchant:{}", merchant.getId());
@@ -262,11 +262,11 @@ public class LoanDetailsServiceV2 {
 
 
 
-    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount) {
+    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
         if(Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+            log.info("Global Limit not found");
             return;
         }
-        Long merchantId = globalLimitResponse.getData().getMerchantId();
         Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
         String loanType = globalLimitResponse.getData().getLoanType();
         Double version = globalLimitResponse.getData().getVersion();

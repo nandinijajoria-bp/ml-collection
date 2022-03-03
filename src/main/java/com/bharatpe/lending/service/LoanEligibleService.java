@@ -144,7 +144,7 @@ public class LoanEligibleService {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
         eligibleLoanDao.deleteCustomOffers(merchantId);
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
-        loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount);
+        loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount);
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
         for (EligibleLoan eligibleLoan : eligibleLoans) {
