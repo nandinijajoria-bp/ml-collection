@@ -41,7 +41,7 @@ public class GlobalLimitResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @ToString
-    public class TenureDetail {
+    public static class TenureDetail {
         private Double interestRate;
         private Double maxLoanAmount;
         private Integer tenure;
