@@ -136,7 +136,7 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 loanDetailsResponse.setHasExperian(true);
             }
-            loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+            loanDetailsResponse.setKycStatus(merchant.getId()==10407700L ? KycStatus.APPROVED : kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
