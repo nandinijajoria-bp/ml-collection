@@ -260,6 +260,9 @@ public class SignAgreementService {
         newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
         newApplication.setLoanAmount(eligibleLoan.getAmount());
         newApplication.setLoanType(eligibleLoan.getLoanType());
+        if("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
+        	newApplication.setCkycId(String.valueOf(merchant.getId()));
+		}
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
