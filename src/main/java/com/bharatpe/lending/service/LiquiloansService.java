@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -33,6 +34,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -175,6 +177,9 @@ public class LiquiloansService {
     @Autowired
 	NotificationUtil notificationUtil;
 
+	@Autowired
+	LendingVpaDetailsDao lendingVpaDetailsDao;
+
 	private static String secretKey;
 
 	private static String SID;
@@ -218,6 +223,7 @@ public class LiquiloansService {
 			liquiloansDirectDisbursalRawResponse.setLiquiloanId(lendingApplication.getNbfcId());
 			lendingApplication.setLoanDisbursalStatus("PROCESSING");
 			lendingApplicationDao.save(lendingApplication);
+			updateLendingVpaStage(lendingApplication, VpaTrackingStatus.PROCESSING.name());
 			if (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name())) {
 				logger.info("Creating LPS directly for applicationId:{}", lendingApplication.getId());
 				populateLendingPaymentSchedule(new LiquidatePostPayoutStatusUpdateRequestDTO(String.valueOf(lendingApplication.getId()), String.valueOf(lendingApplication.getMerchant().getId()), "SUCCESS"));
@@ -229,6 +235,14 @@ public class LiquiloansService {
 		catch(Exception e){
 			logger.error("Error occured while updating lending application disbursal status",e);
 			return new ResponseDTO(false,"Error occurred while updating loan",null,null);
+		}
+	}
+
+	public void updateLendingVpaStage (LendingApplication lendingApplication, String stage) {
+		LendingVpaDetails lendingVpaDetails = lendingVpaDetailsDao.findTopByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+		if (!ObjectUtils.isEmpty(lendingVpaDetails)) {
+			lendingVpaDetails.setStatus(stage);
+			lendingVpaDetailsDao.save(lendingVpaDetails);
 		}
 	}
     
@@ -273,6 +287,7 @@ public class LiquiloansService {
 			lendingApplication.setDisburseTimestamp(new Date());
 			lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
     		lendingApplicationDao.save(lendingApplication);
+			updateLendingVpaStage(lendingApplication,VpaTrackingStatus.DISBURSED.name());
 
     		lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchant.get().getId(), lendingApplication.getId());
     		if (lendingPaymentSchedule != null) {
