@@ -307,9 +307,8 @@ public class VerifyOTPService {
 			logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 			sendPennyDrop(merchant.getId(), lendingApplication.getId());
 			sendLatLong(merchant.getId(), lendingApplication.getId());
-
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 			if (repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())) {
-				sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 				if (lendingApplication.getLoanAmount() <= 200000)
 					sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
 			}
@@ -452,7 +451,7 @@ public class VerifyOTPService {
 			Map<String, Long> detailMap = new HashMap<>();
 			detailMap.put("merchantId", merchantId);
 			detailMap.put("applicationId", applicationId);
-			kafkaTemplate.send("verify_contacts_for_application", merchantId.toString(), detailMap);
+			kafkaTemplate.send("lending_post_application_submission_checks", merchantId.toString(), detailMap);
 			logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
 		} catch (Exception e) {
 			logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
