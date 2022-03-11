@@ -288,7 +288,7 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+		if (easyLoanUtil.isDummyMerchant(merchant.getId()) || merchant.getId() == 10407700L) {
 			// skipping enach for dummy merchant
 			lendingApplication.setNachType("ENACH");
 			lendingApplication.setNachLender("BHARATPE");
