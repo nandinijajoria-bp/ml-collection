@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.dto.BusinessDetailsDTO;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import lombok.extern.slf4j.Slf4j;
@@ -36,4 +37,11 @@ public class LoanDetailsControllerV2 {
     public ResponseEntity<ApiResponse<?>> getEnachBankList() {
         return ResponseEntity.ok(loanDetailsServiceV2.getEnachBanks());
     }
+
+    @GetMapping(value = "/businessCategorySubCategory")
+    public ResponseEntity<ApiResponse<?>> getBusinessCategoryDetails(@RequestParam Long merchantId) {
+        log.info("Fetching business Details for merchantId:{}",merchantId);
+        return ResponseEntity.ok(loanDetailsServiceV2.getBusinessCategorySubCategory(merchantId));
+    }
 }
+
