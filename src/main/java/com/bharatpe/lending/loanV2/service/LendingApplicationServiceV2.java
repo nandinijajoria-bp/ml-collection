@@ -193,13 +193,13 @@ public class LendingApplicationServiceV2 {
                 log.info("address quality score less than 20");
                 return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
             }
-            List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), applicationRequest.getCategory(), applicationRequest.getOfferType());
-            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
-            if (eligibleLoans.isEmpty() || Objects.isNull(lendingCategory)) {
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
+//            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
+            if (Objects.isNull(eligibleLoan)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoans.get(0), applicationRequest, lendingCategory, addressValidationDto);
+            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
             loanUtil.createApplicationSnapshot(lendingApplication);
             createStatusAuditTrail(lendingApplication);
             loanUtil.publishApplicationEvent(lendingApplication);
@@ -239,24 +239,24 @@ public class LendingApplicationServiceV2 {
         if (apiGatewayService.eligibleForProcessingFee(merchant.getId())) {
             processingFee = 0;
         } else {
-            processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
+            processingFee = eligibleLoan.getProcessingFee();
         }
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-        lendingApplication.setInterestRate(lendingCategory.getInterestRate());
-        lendingApplication.setProcessingFee((double) processingFee);
-        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+        lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+        lendingApplication.setProcessingFee(Double.valueOf(processingFee));
+        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - eligibleLoan.getProcessingFee());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
         lendingApplication.setMerchant(merchant);
         lendingApplication.setLoanAmount(eligibleLoan.getAmount());
         lendingApplication.setCategory(eligibleLoan.getCategory());
-        lendingApplication.setTenure(lendingCategory.getPayableConverter());
-        lendingApplication.setTenureInMonths(lendingCategory.getTenureMonths().intValue());
-        lendingApplication.setPayableDays((long) lendingCategory.getPayableDays());
-        lendingApplication.setEdiFreeDays(lendingCategory.getEdiFreeDays());
-        lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
+        lendingApplication.setTenure(eligibleLoan.getTenure());
+        lendingApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+        lendingApplication.setPayableDays(Long.valueOf(eligibleLoan.getEdiCount()));
+        lendingApplication.setEdiFreeDays(0);
+        lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
         lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
         lendingApplication.setLoanType(eligibleLoan.getLoanType());
         lendingApplication.setTotalLoansCount(loanUtil.getPreviousLoans(merchant.getId()).size());
@@ -421,10 +421,6 @@ public class LendingApplicationServiceV2 {
             return null;
         }
 
-        if (applicationRequest.getCategory() == null) {
-            log.info("category not found in createNewApplication for merchant:{}", merchant.getId());
-            return "category not found";
-        }
         if (Objects.isNull(applicationRequest.getAddressDetails()) || Objects.isNull(applicationRequest.getAddressDetails().getPincode())) {
             log.info("pincode not found in createNewApplication for merchant:{}", merchant.getId());
             return "pincode not found";

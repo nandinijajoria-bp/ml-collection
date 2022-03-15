@@ -201,15 +201,15 @@ public class LendingApplicationService {
 			}
 			else {
 				String offerType = lendingApplicationRequest.getOfferType();
-				List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchantId, lendingApplicationRequest.getCategory(), offerType);
+				EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, "CUSTOM");
 				LendingCategories lendingCategory = lendingCategoryDao.getByCategory(lendingApplicationRequest.getCategory());
-				if(eligibleLoans == null || eligibleLoans.isEmpty() || lendingCategory == null) {
+				if(Objects.isNull(eligibleLoan)) {
 					logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
 					lendingApplicationResponse = new LendingApplicationResponseDTO();
 					lendingApplicationResponse.setSuccess(false);
 					return lendingApplicationResponse;
 				}
-				lendingApplication = createApplication(merchant, eligibleLoans.get(0), lendingApplicationRequest);
+				lendingApplication = createApplication(merchant, eligibleLoan, lendingApplicationRequest);
 				createGstDetail(merchant,lendingApplicationRequest);
 				if (requestDTO.getMeta() != null && requestDTO.getMeta().getLatitude() != null && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("") && !requestDTO.getMeta().getLatitude().equalsIgnoreCase("undefined")) {
 					lendingApplication.setLatitude(requestDTO.getMeta().getLatitude());
@@ -547,12 +547,12 @@ public class LendingApplicationService {
 		if(apiGatewayService.eligibleForProcessingFee(prevLoan.getMerchant().getId())){
 			processingFee = 0;
 		}else {
-			processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(selectedCategoriesData.getProcessingFee()));
+			processingFee = eligibleLoan.getProcessingFee();
 		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
 		newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-		newApplication.setInterestRate(selectedCategoriesData.getInterestRate());
+		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 		newApplication.setProcessingFee((double)processingFee);
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
@@ -573,11 +573,11 @@ public class LendingApplicationService {
 		newApplication.setStatus("draft");
 		newApplication.setMode("AUTO");
 		newApplication.setCategory(selectedCategory);
-		newApplication.setTenure(selectedCategoriesData.getPayableConverter());
-		newApplication.setTenureInMonths(selectedCategoriesData.getTenureMonths().intValue());
-		newApplication.setPayableDays((long) selectedCategoriesData.getPayableDays());
-		newApplication.setEdiFreeDays(selectedCategoriesData.getEdiFreeDays());
-		newApplication.setIoPayableDays(selectedCategoriesData.getIoPayableDays());
+		newApplication.setTenure(eligibleLoan.getTenure());
+		newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+		newApplication.setPayableDays((long) eligibleLoan.getEdiCount());
+		newApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
+		newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
 		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLoanType(eligibleLoan.getLoanType());
 		newApplication.setAlternateMobile(prevLoan.getAlternateMobile());

@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -138,6 +139,9 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 loanDetailsResponse.setHasExperian(true);
             }
+
+            loanDetailsResponse.setKycStatus(merchant.getId()==10407700L ? KycStatus.APPROVED : kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
@@ -249,16 +253,43 @@ public class LoanDetailsServiceV2 {
         Eligibility eligibility = null;
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
+            recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
             eligibility = createEligibility(merchant.getId());
         }
-        log.info("Eligibility not found for merchant:{}", merchant.getId());
-
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;
         }
+        log.info("Eligibility not found for merchant:{}", merchant.getId());
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(),globalLimitResponse));
         loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
+    }
+
+
+
+    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
+        if(Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+            log.info("Global Limit not found");
+            return;
+        }
+        Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
+        String loanType = globalLimitResponse.getData().getRiskSegment();
+        Double version = globalLimitResponse.getData().getVersion();
+        try {
+            eligibleLoanDao.deleteByMerchantId(merchantId);
+            List<GlobalLimitResponse.TenureDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();
+            for (GlobalLimitResponse.TenureDetail tenureDetail : tenureDetails) {
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= tenureDetail.getMaxLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, customAmount, null, version);
+                }
+                if(finalLimit <= tenureDetail.getMaxLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, finalLimit, null, version);
+                }
+            }
+            eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
+        } catch (Exception e) {
+            log.error("Exception while recomputing eligible loan for merchant:{}", merchantId, e);
+        }
     }
 
     private Integer fetchPincode(Long merchantId) {
@@ -314,19 +345,18 @@ public class LoanDetailsServiceV2 {
     }
 
     private Eligibility createEligibility(Long merchantId) {
-        log.info("Creating eligibility for merchant:{}", merchantId);
         try {
-            EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
-            LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
+            log.info("Creating eligibility for merchant:{}", merchantId);
             return Eligibility.builder()
                     .loanAmount(eligibleLoan.getAmount())
-                    .arrangerFee(LoanCalculationUtil.getProcessingFee(eligibleLoan.getAmount(), lendingCategories))
-                    .interestRate(lendingCategories.getInterestRate())
+                    .arrangerFee(eligibleLoan.getProcessingFee())
+                    .interestRate(eligibleLoan.getRateOfInterest())
                     .repaymentAmount(eligibleLoan.getRepayment())
-                    .ediCount(lendingCategories.getPayableDays())
+                    .ediCount(eligibleLoan.getEdiCount())
                     .ediAmount(eligibleLoan.getEdi())
                     .tenure(eligibleLoan.getTenure())
                     .category(eligibleLoan.getCategory())

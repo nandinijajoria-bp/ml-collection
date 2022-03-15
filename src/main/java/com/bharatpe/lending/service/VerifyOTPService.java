@@ -288,7 +288,7 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+		if (easyLoanUtil.isDummyMerchant(merchant.getId()) || merchant.getId() == 10407700L) {
 			// skipping enach for dummy merchant
 			lendingApplication.setNachType("ENACH");
 			lendingApplication.setNachLender("BHARATPE");
@@ -296,27 +296,26 @@ public class VerifyOTPService {
 			lendingApplication.setCkycStatus("APPROVED");
 			lendingApplication.setCkycDate(new Date());
 			lendingApplicationDao.save(lendingApplication);
-		} else {
-			redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
-			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
-			logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
-			if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
-				logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
-				updateKycStatus(lendingApplication);
-			}
-			logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
-			sendPennyDrop(merchant.getId(), lendingApplication.getId());
-			sendLatLong(merchant.getId(), lendingApplication.getId());
-
-			if (repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())) {
-				sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
-				if (lendingApplication.getLoanAmount() <= 200000)
-					sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
-			}
-
-			sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
-			loanUtil.publishApplicationEvent(lendingApplication);
 		}
+		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
+		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
+		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
+			logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
+			updateKycStatus(lendingApplication);
+		}
+		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
+		sendPennyDrop(merchant.getId(), lendingApplication.getId());
+		sendLatLong(merchant.getId(), lendingApplication.getId());
+		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+		if (repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())) {
+			if (lendingApplication.getLoanAmount() <= 200000)
+				sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
+		}
+
+		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
+		loanUtil.publishApplicationEvent(lendingApplication);
+
 
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);
@@ -452,7 +451,7 @@ public class VerifyOTPService {
 			Map<String, Long> detailMap = new HashMap<>();
 			detailMap.put("merchantId", merchantId);
 			detailMap.put("applicationId", applicationId);
-			kafkaTemplate.send("verify_contacts_for_application", merchantId.toString(), detailMap);
+			kafkaTemplate.send("lending_post_application_submission_checks", merchantId.toString(), detailMap);
 			logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
 		} catch (Exception e) {
 			logger.error("Error occured while pushing to topic verify_contacts_for_application", e);

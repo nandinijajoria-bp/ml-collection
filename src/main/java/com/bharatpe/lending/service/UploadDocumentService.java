@@ -127,7 +127,7 @@ public class UploadDocumentService {
 			uploadDocumentResponse.setSuccess(true);
 		}
 		uploadDocumentResponse.setDocument(documentList);
-		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
+//		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
 		return uploadDocumentResponse;
 	}
 	

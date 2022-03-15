@@ -3,12 +3,16 @@ package com.bharatpe.lending.dto;
 import java.io.Serializable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
+@Data
 public class EligibleLoanUpdateRequestDTO implements Serializable {
 
     private String category;
 
     private Double amount;
+
+    private Integer tenure;
 
     private Integer edi;
 
@@ -34,62 +38,6 @@ public class EligibleLoanUpdateRequestDTO implements Serializable {
         this.ioEdi = ioEdi;
         this.ioEdiDays = ioEdiDays;
         this.ediFreeDays = ediFreeDays;
-        this.repayment = repayment;
-    }
-
-    public String getCategory() {
-        return this.category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public Double getAmount() {
-        return this.amount;
-    }
-
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public Integer getEdi() {
-        return this.edi;
-    }
-
-    public void setEdi(Integer edi) {
-        this.edi = edi;
-    }
-
-    public Integer getIoEdi() {
-        return this.ioEdi;
-    }
-
-    public void setIoEdi(Integer ioEdi) {
-        this.ioEdi = ioEdi;
-    }
-
-    public Integer getIoEdiDays() {
-        return this.ioEdiDays;
-    }
-
-    public void setIoEdiDays(Integer ioEdiDays) {
-        this.ioEdiDays = ioEdiDays;
-    }
-
-    public Integer getEdiFreeDays() {
-        return this.ediFreeDays;
-    }
-
-    public void setEdiFreeDays(Integer ediFreeDays) {
-        this.ediFreeDays = ediFreeDays;
-    }
-
-    public Integer getRepayment() {
-        return this.repayment;
-    }
-
-    public void setRepayment(Integer repayment) {
         this.repayment = repayment;
     }
 

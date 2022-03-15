@@ -12,11 +12,8 @@ import com.bharatpe.lending.common.entity.ExperianRawResponse;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.dto.ApplicationDerogResponseDTO;
-import com.bharatpe.lending.dto.EligibleLendingOffersResponseDTO;
-import com.bharatpe.lending.dto.EligibleLoanUpdateRequestDTO;
-import com.bharatpe.lending.dto.LoanEligibilityDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.util.creditresponse.*;
@@ -138,31 +135,20 @@ public class LoanEligibleService {
     @Autowired
     BharatSwipeAccountDao bharatSwipeAccountDao;
 
+    @Autowired
+    LoanDetailsServiceV2 loanDetailsServiceV2;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
-        Set<String> categorySet = new HashSet<>();
         eligibleLoanDao.deleteCustomOffers(merchantId);
-        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndGreaterThanAmount(merchantId, queryAmount);
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+        loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
+        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount);
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
-        for(EligibleLoan eligibleLoan : eligibleLoans){
-            String loanType = eligibleLoan.getLoanType();
-            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
-            LoanCalculationUtil.LoanBreakupDetail breakup = null;
-            if (lendingCategory != null) {
-                if(categorySet.contains(lendingCategory.getCategory())) {
-                    logger.debug("Category already evaluated");
-                    continue;
-                }
-                categorySet.add(lendingCategory.getCategory());
-                AvailableLoan availableLoan = new AvailableLoan();
-                availableLoan.setAmount(queryAmount);
-                breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, loanType);
-            }
-            if(breakup != null){
-                tenures.add(convertLoanToTenureDetails(eligibleLoan, responseDTO, breakup, lendingCategory));
-            }
+        for (EligibleLoan eligibleLoan : eligibleLoans) {
+            tenures.add(convertLoanToTenureDetails(eligibleLoan, responseDTO));
         }
         responseDTO.setEligibleOfferDetails(responseDTO.new EligibleOfferDetails(queryAmount, tenures));
         responseDTO.setMessage("Available tenures for given amount");
@@ -172,35 +158,28 @@ public class LoanEligibleService {
     }
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
-            EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO,
-            LoanCalculationUtil.LoanBreakupDetail breakup, LendingCategories lendingCategory){
+            EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO) {
         EligibleLendingOffersResponseDTO.TenureDetails tenureDetails =  responseDTO.new TenureDetails();
         tenureDetails.setTenure(eligibleLoan.getTenure());
         tenureDetails.setCategory(eligibleLoan.getCategory());
-        tenureDetails.setEdi(breakup.getEdi());
-        tenureDetails.setIoEdi(breakup.getIoEdi());
-        tenureDetails.setFinanceCharge(breakup.getProcessingFee());
-        tenureDetails.setRateOfInterest(lendingCategory.getInterestRate());
-        tenureDetails.setRepaymentAmount(breakup.getRepayment());
-        tenureDetails.setEdiCount(lendingCategory.getPayableDays());
+        tenureDetails.setEdi(eligibleLoan.getEdi());
+        tenureDetails.setIoEdi(eligibleLoan.getIoEdi());
+        tenureDetails.setFinanceCharge(eligibleLoan.getProcessingFee());
+        tenureDetails.setRateOfInterest(eligibleLoan.getRateOfInterest());
+        tenureDetails.setRepaymentAmount(eligibleLoan.getRepayment());
+        tenureDetails.setEdiCount(eligibleLoan.getEdiCount());
+        tenureDetails.setTenureInMonths(eligibleLoan.getTenureInMonths());
         return tenureDetails;
     }
     
-    public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body){
+    public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
-        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, body.getCategory());
-        if(eligibleLoans != null) {
-            LendingCategories lendingCategories = lendingCategoryDao.getByCategory(body.getCategory());
-            EligibleLoan eligibleLoan = new EligibleLoan(eligibleLoans.get(0));
-            eligibleLoan.setAmount(body.getAmount());
-            eligibleLoan.setEdi(body.getEdi());
-            eligibleLoan.setIoEdi(body.getIoEdi() != null ? body.getIoEdi() : 0);
-            eligibleLoan.setIoEdiDays(body.getIoEdiDays() != null ? body.getIoEdiDays() : 0);
-            eligibleLoan.setEdiFreeDays(body.getEdiFreeDays() != null ? body.getEdiFreeDays() : 0);
-            eligibleLoan.setRepayment(body.getRepayment() != null ? body.getRepayment() : (body.getEdi() * lendingCategories.getPayableDays()));
-            eligibleLoan.setOfferType("CUSTOM");
-            eligibleLoanDao.save(eligibleLoan);
-            eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(eligibleLoan));
+        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsOrderByIdDesc(merchantId, body.getAmount(), body.getTenure());
+        if(Objects.nonNull(eligibleLoan)) {
+            EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
+            customLoan.setOfferType("CUSTOM");
+            eligibleLoanDao.save(customLoan);
+            eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(customLoan));
             responseDTO.setMessage("Created eligible loan entry successfully");
             responseDTO.setSuccess(true);
             return responseDTO;
