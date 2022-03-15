@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
@@ -79,12 +80,15 @@ public class UploadDocumentService {
 	@Autowired
 	LendingGstDao lendingGstDao;
 
+	@Autowired
+	MongoPublisher mongoPublisher;
+
 	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		UploadDocumentResponseDTO uploadDocumentResponse = new UploadDocumentResponseDTO();
 		uploadDocumentResponse.setSuccess(false);
 		uploadDocumentResponse.setInValidPhoto(false);
-
+		Boolean resubmitRequest = false;
 		UploadDocumentRequestDTO uploadDocumentRequest = requestDTO.getPayload();
 		Long applicationId =  uploadDocumentRequest.getApplicationId();
 		List<UploadDocumentRequestDTO.Document> documents = uploadDocumentRequest.getDocuments();
@@ -102,6 +106,7 @@ public class UploadDocumentService {
 		}
 		if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
 			lendingApplication =lendingApplicationDao.findById(requestDTO.getPayload().getApplicationId()).get();
+			resubmitRequest = true;
 		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
@@ -115,7 +120,7 @@ public class UploadDocumentService {
 		if(lendingShopDocumentsList.size()>0){
 			isUpdateMoreDocument = true;
 		}
-		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse,isUpdateMoreDocument);
+		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse,isUpdateMoreDocument, resubmitRequest);
 
 		if(documentList.size() > 0) {
 			finalResponse.put("success", true);
@@ -126,9 +131,10 @@ public class UploadDocumentService {
 		return uploadDocumentResponse;
 	}
 	
-	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse,Boolean isUpdateMoreDocument) {
+	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, Merchant merchant, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse,Boolean isUpdateMoreDocument, Boolean resubmitRequest) {
 		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
+		List<LendingShopDocumentsAudit> lendingShopDocumentsAuditList = new ArrayList<>();
 		for(UploadDocumentRequestDTO.Document document : documents) {
 			if(isUpdate && !document.getChangeFlag()) {
 				continue;
@@ -207,9 +213,13 @@ public class UploadDocumentService {
 						}
 					}
 				}
+				lendingShopDocumentsAuditList.add(new LendingShopDocumentsAudit(lendingShopDocuments,resubmitRequest));
 			}
 			sinzyCorrectPanCheck(documentsIdProof, proofType, merchant, lendingApplication.getId());
 			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
+		}
+		if (lendingShopDocumentsAuditList.size() > 0) {
+			mongoPublisher.publish("Lending", "lending_shop_documents_audit", merchant.getId().toString(),lendingShopDocumentsAuditList);
 		}
 		return documentList;
 	}
