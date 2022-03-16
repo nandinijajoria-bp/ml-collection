@@ -56,6 +56,13 @@ public class SupportLoanController {
         return new ResponseDTO(true,"FLDG Report Upload Successfully!");
     }
 
+    @RequestMapping(value="/nbfcRetry/{fileName}", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO retryNbfc(@PathVariable(value = "fileName") String fileName){
+        logger.info("Nbfc Retry File : {}", fileName);
+        executorService.execute(()->fldgReportService.nbfcRetry(fileName));
+        return new ResponseDTO(true,"Nbfc Retry File Upload Successfully!");
+    }
+
     @RequestMapping(value="/createAgreement/{applicationId}", method = RequestMethod.POST, produces="application/json")
     public ResponseDTO createAgreement(@PathVariable(value = "applicationId") Long applicationId){
         return supportService.createAgreement(applicationId);
