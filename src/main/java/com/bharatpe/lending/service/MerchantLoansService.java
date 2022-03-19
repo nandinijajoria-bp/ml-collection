@@ -93,7 +93,7 @@ public class MerchantLoansService {
     @Autowired
     LendingContactSyncAuditDao lendingContactSyncAuditDao;
 
-    @Value("${topup.enabled:false}")
+    @Value("${topup.loan.enabled:false}")
     Boolean isTopUpEnabled;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
