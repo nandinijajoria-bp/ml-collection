@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
@@ -83,24 +84,32 @@ public class FLDGReportService {
         }
     }
 
-    public void nbfcRetry(String fileName) {
+    public ResponseDTO nbfcRetry(String fileName) {
         try {
             logger.info("Getting file : {} from s3", fileName);
             InputStream nbfcRetryFile = s3BucketHandler.getObject(fileName, "loan-document");
             BufferedReader nbfcRetryFileReader = new BufferedReader(new InputStreamReader(nbfcRetryFile));
             String readLine = nbfcRetryFileReader.readLine();
             readLine = nbfcRetryFileReader.readLine();
+            String message = "";
+            Integer count = 0;
             while(Objects.nonNull(readLine)) {
                 try {
+                    count++;
+                    if(count>20) {
+                        break;
+                    }
                     logger.info("readline: {}", readLine);
                     String[] arr = readLine.split(",");
+                    if(arr.length != 4) {
+                        message +="Invalid Row: "+ readLine + "\n";
+                        continue;
+                    }
                     Long applicationId = Long.valueOf(arr[1]);
                     LendingEnum.LENDER lender = LendingEnum.LENDER.valueOf(arr[2]);
                     Long retryCount = Long.valueOf(arr[3]);
-                    nbfcRetryFileReader.readLine();
                     LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).get();
-                    if(Objects.nonNull(lendingApplication) &&
-                            Objects.isNull(lendingApplication.getNbfcId()) &&
+                    if(Objects.isNull(lendingApplication.getNbfcId()) &&
                             Objects.isNull(lendingApplication.getDisburseTimestamp()) &&
                             Objects.isNull(lendingApplication.getLoanDisbursalStatus())
                     ) {
@@ -123,12 +132,17 @@ public class FLDGReportService {
                         lendingApplicationDao.save(lendingApplication);
                     }
                 } catch (Exception exception) {
-                    logger.error("Exception Occurred while adding retry nbfc : {}", exception);
+                    message +="Failed for row: "+ readLine + " " + exception.getMessage() + "\n" ;
+                    logger.error("Exception Occurred while adding retry nbfc : {}", exception.getMessage(), exception);
+                } finally {
+                    nbfcRetryFileReader.readLine();
                 }
             }
+            return new ResponseDTO(true, message);
         } catch (Exception e) {
             logger.error("Error occurred while processing nbfc retry file: {}",e);
         }
+        return new ResponseDTO(true, "Something went wrong");
     }
 
 }
