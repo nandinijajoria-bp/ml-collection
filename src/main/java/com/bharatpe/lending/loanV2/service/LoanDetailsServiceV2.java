@@ -105,6 +105,8 @@ public class LoanDetailsServiceV2 {
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
+    public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
+
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
         try {
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
@@ -118,6 +120,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(loanDetailsResponse);
             }
             // dummy merchant flag exposed to FE
+            loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             loanDetailsResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchant.getId()));
             loanDetailsResponse.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
             loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
@@ -136,7 +139,9 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 loanDetailsResponse.setHasExperian(true);
             }
+
             loanDetailsResponse.setKycStatus(merchant.getId()==10407700L ? KycStatus.APPROVED : kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
@@ -427,6 +432,8 @@ public class LoanDetailsServiceV2 {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
+            } else if("REJECTED".equalsIgnoreCase(lendingApplication.getCkycStatus())) {
+                reapplyDayDiff = 0;
             }
             if(Objects.nonNull(reapplyDayDiff)) {
                 reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
@@ -584,5 +591,26 @@ public class LoanDetailsServiceV2 {
             log.error("error occurred while fetching eligibility: {}",e);
         }
         return Boolean.FALSE;
+    }
+
+    public ApiResponse<?> getBusinessCategorySubCategory(Long merchantId) {
+        try {
+            LendingMerchantDetails merchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            BusinessDetailsDTO businessDetailsDTO = new BusinessDetailsDTO();
+            if (Objects.nonNull(merchantDetails) && !exceptedMerchantList.contains(merchantId)) {
+                businessDetailsDTO.setIsEdit(true);
+            }
+            if(Objects.nonNull(merchantDetails)) {
+                businessDetailsDTO.setBusinessCategory(merchantDetails.getBusinessCategory());
+                businessDetailsDTO.setBusinessName(merchantDetails.getBusinessName());
+                businessDetailsDTO.setBusinessSubCategory(merchantDetails.getBusinessSubCategory());
+                businessDetailsDTO.setMerchantId(merchantDetails.getMerchantId());
+            }
+            return new ApiResponse<>(businessDetailsDTO);
+        }
+         catch (Exception ex) {
+            log.error("Exception Occured while fetching business details for merchantId: {} {}", merchantId, ex.getMessage());
+        }
+        return new ApiResponse<>(false, "Something Went Wrong.");
     }
 }
