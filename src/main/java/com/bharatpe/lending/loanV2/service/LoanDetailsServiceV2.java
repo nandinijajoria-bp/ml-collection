@@ -268,12 +268,12 @@ public class LoanDetailsServiceV2 {
             return;
         }
         Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
-        String loanType = globalLimitResponse.getData().getRiskSegment();
+        String loanType = globalLimitResponse.getData().getLoanType();
         Double version = globalLimitResponse.getData().getVersion();
         try {
             eligibleLoanDao.deleteByMerchantId(merchantId);
-            List<GlobalLimitResponse.TenureDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();
-            for (GlobalLimitResponse.TenureDetail tenureDetail : tenureDetails) {
+            List<GlobalLimitResponse.OfferDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();
+            for (GlobalLimitResponse.OfferDetail tenureDetail : tenureDetails) {
                 if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= tenureDetail.getMaxLoanAmount()) {
                     loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, customAmount, null, version);
                 }
