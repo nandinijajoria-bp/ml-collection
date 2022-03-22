@@ -279,16 +279,14 @@ public class LoanDetailsServiceV2 {
             eligibleLoanDao.deleteByMerchantId(merchantId);
             List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
             offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));
-            Double previousOfferAmount = 0D;
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
-                log.info("Tenure: {}, finalLimit: {}, previousOfferAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, previousOfferAmount, customAmount);
-                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount >= previousOfferAmount && customAmount <= offerDetail.getLoanAmount()) {
+                log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
                 }
-                if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit >= previousOfferAmount && finalLimit <= offerDetail.getLoanAmount()) {
+                if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
                 }
-                previousOfferAmount = offerDetail.getLoanAmount();
             }
             eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
         } catch (Exception e) {
