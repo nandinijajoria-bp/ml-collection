@@ -204,10 +204,10 @@ public class LiquiloansService {
 				return new ResponseDTO(false,"Merchant Has Already Active Loan",null,null);
 			}
 
-			LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
-			if (ldcVirtualAccount == null) {
-				LenderVirtualAccount lendingVirtualAccount = lenderVirtualAccountDao.findByMerchantId(lendingApplication.getMerchant().getId());
-					if(lendingVirtualAccount == null){
+			List<LdcVirtualAccount> ldcVirtualAccount = ldcVirtualAccountDao.getByMerchantId(lendingApplication.getMerchant().getId());
+			if (ldcVirtualAccount.isEmpty()) {
+				List<LenderVirtualAccount> lendingVirtualAccount = lenderVirtualAccountDao.getByMerchantId(lendingApplication.getMerchant().getId());
+					if(lendingVirtualAccount.isEmpty()){
 						logger.info("LDC Virtual account not found for merchant:{}", lendingApplication.getMerchant().getId());
 						return new ResponseDTO(false,"ldc virtual account not found",null,null);
 					}
