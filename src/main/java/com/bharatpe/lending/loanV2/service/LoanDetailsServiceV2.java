@@ -277,7 +277,7 @@ public class LoanDetailsServiceV2 {
         Double version = globalLimitResponse.getData().getVersion();
         try {
             eligibleLoanDao.deleteByMerchantId(merchantId);
-            List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getTenureDetails();
+            List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
                 if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getMaxLoanAmount() && customAmount >= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);

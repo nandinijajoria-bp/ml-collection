@@ -28,7 +28,7 @@ public class GlobalLimitResponse {
         private String rejectionType;
         private String pancardName;
         private Experian experian;
-        List<OfferDetail> tenureDetails;
+        List<OfferDetail> offerDetails;
         Double version;
         String riskSegment;
         String riskGroup;
