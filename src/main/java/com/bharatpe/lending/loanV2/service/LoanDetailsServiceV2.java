@@ -277,13 +277,13 @@ public class LoanDetailsServiceV2 {
         Double version = globalLimitResponse.getData().getVersion();
         try {
             eligibleLoanDao.deleteByMerchantId(merchantId);
-            List<GlobalLimitResponse.OfferDetail> tenureDetails = globalLimitResponse.getData().getTenureDetails();
-            for (GlobalLimitResponse.OfferDetail tenureDetail : tenureDetails) {
-                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= tenureDetail.getMaxLoanAmount()) {
-                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, customAmount, null, version);
+            List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getTenureDetails();
+            for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getMaxLoanAmount() && customAmount >= offerDetail.getLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
                 }
-                if(finalLimit <= tenureDetail.getMaxLoanAmount()) {
-                    loanUtil.calculateLoanBreakup(tenureDetail, merchantId, loanType, finalLimit, null, version);
+                if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit >= offerDetail.getLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
                 }
             }
             eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
