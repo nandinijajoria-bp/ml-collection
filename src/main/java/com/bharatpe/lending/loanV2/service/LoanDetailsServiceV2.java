@@ -281,10 +281,11 @@ public class LoanDetailsServiceV2 {
             offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));
             Double previousOfferAmount = 0D;
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
-                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount >= previousOfferAmount) {
+                log.info("Tenure: {}, finalLimit: {}, previousOfferAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, previousOfferAmount, customAmount);
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount >= previousOfferAmount && customAmount <= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
                 }
-                if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit >= offerDetail.getLoanAmount()) {
+                if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit >= previousOfferAmount && finalLimit <= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
                 }
                 previousOfferAmount = offerDetail.getLoanAmount();
