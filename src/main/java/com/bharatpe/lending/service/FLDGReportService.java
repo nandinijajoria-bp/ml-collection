@@ -135,7 +135,7 @@ public class FLDGReportService {
                     message +="Failed for row: "+ readLine + " " + exception.getMessage() + "\n" ;
                     logger.error("Exception Occurred while adding retry nbfc : {}", exception.getMessage(), exception);
                 } finally {
-                    nbfcRetryFileReader.readLine();
+                    readLine = nbfcRetryFileReader.readLine();
                 }
             }
             return new ResponseDTO(true, message);
