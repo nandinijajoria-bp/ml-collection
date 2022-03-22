@@ -278,13 +278,16 @@ public class LoanDetailsServiceV2 {
         try {
             eligibleLoanDao.deleteByMerchantId(merchantId);
             List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
+            offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));
+            Double previousOfferAmount = 0D;
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
-                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getMaxLoanAmount() && customAmount >= offerDetail.getLoanAmount()) {
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount >= previousOfferAmount) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
                 }
                 if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit >= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
                 }
+                previousOfferAmount = offerDetail.getLoanAmount();
             }
             eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
         } catch (Exception e) {
