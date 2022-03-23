@@ -1071,17 +1071,19 @@ public class SupportService {
                     continue;
                 }
                 Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
-                if(!topupLoans.contains(lendingApplication.getLoanType())){
-                    if("RED".equalsIgnoreCase(experian.getColor())){
-                        logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
-                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
-                        readLine = lenderFileReader.readLine();
-                        latch.countDown();
-                        continue;
-                    }
-                }
+//                if(!topupLoans.contains(lendingApplication.getLoanType())){
+//                    if("RED".equalsIgnoreCase(experian.getColor())){
+//                        logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
+//                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
+//                        readLine = lenderFileReader.readLine();
+//                        latch.countDown();
+//                        continue;
+//                    }
+//                }
                 try {
-                    data.add(getCsvData(lendingApplication,lender,experian));
+                    String[] csvData = getCsvData(lendingApplication,lender,experian);
+                    logger.info("CSV Data: {}", csvData);
+                    data.add(csvData);
                     if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                         errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                     }
@@ -1170,7 +1172,6 @@ public class SupportService {
         lendingApplication.setDisbursalPartner("BHARATPE");
         lendingApplicationDao.save(lendingApplication);
         return data;
-
     }
 
     public String getAgreement(LendingApplication lendingApplication,String lender) throws IOException {
