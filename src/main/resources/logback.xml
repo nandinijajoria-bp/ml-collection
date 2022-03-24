@@ -40,7 +40,8 @@
     </appender>
      
     <logger name="com.bharatpe" level="INFO"></logger>
-    
+    <logger name="com.zaxxer.hikari.pool.HikariPool" level="DEBUG"/>
+
     <root level="ERROR">
         <appender-ref ref="${LOG.APPENDER}"/>
         <appender-ref ref="Sentry"/>
