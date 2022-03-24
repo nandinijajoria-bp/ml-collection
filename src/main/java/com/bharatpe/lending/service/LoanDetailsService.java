@@ -1156,17 +1156,17 @@ public class LoanDetailsService {
 				eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
 			}
 			logger.info("Experian after global limit call for merchant:{} is {}", merchant.getId(), experian.toString());
-//		experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
 			String tenure = null;
 			Integer edi = null;
 			if (eligibleAmount > 0D) {
-				EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchant.getId());
-				if (eligibleLoan != null) {
-					tenure = eligibleLoan.getTenure();
-					edi = eligibleLoan.getEdi();
+				List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
+				if (!offerDetails.isEmpty()) {
+					GlobalLimitResponse.OfferDetail offerDetail = offerDetails.get(0);
+					Integer ediAmount = (int) Math.ceil(((eligibleAmount + (eligibleAmount * (offerDetail.getInterestRate() / 100) * offerDetail.getTenure()))) / offerDetail.getEdiCount());
+					tenure = offerDetail.getTenure() + "Months";
 					LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
 					loanEligibilityDTO.setAmount(eligibleAmount.intValue());
-					loanEligibilityDTO.setEdi(edi);
+					loanEligibilityDTO.setEdi(ediAmount);
 					loanEligibilityDTO.setTenure(tenure);
 					loanEligibilityDTOs.add(loanEligibilityDTO);
 				}

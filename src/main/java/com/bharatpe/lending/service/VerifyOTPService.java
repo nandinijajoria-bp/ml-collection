@@ -305,17 +305,17 @@ public class VerifyOTPService {
 			updateKycStatus(lendingApplication);
 		}
 		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
-		sendPennyDrop(merchant.getId(), lendingApplication.getId());
 		sendLatLong(merchant.getId(), lendingApplication.getId());
 		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
-		if (repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())) {
-			if (lendingApplication.getLoanAmount() <= 200000)
-				sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
-		}
-
 		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
 		loanUtil.publishApplicationEvent(lendingApplication);
 
+
+//		sendPennyDrop(merchant.getId(), lendingApplication.getId());
+//		if (repeatLoan == 0 && !topupLoans.contains(lendingApplication.getLoanType())) {
+//			if (lendingApplication.getLoanAmount() <= 200000)
+//				sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
+//		}
 
 		finalResponse.put("success",true);
 		finalResponse.put("agreement_verified",true);

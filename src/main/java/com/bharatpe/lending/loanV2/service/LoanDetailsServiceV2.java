@@ -239,6 +239,15 @@ public class LoanDetailsServiceV2 {
                 experianDao.save(experian);
             }
         }
+        Boolean eligibleToApplyAgain = easyLoanUtil.isEligibleToApplyAgain(experian.getReason());
+        if(!eligibleToApplyAgain) {
+            return;
+        }
+        Integer experianReapplyTimeline = easyLoanUtil.getExperianReapplyLine(experian.getReason());
+        if (experian.getRejected() && experian.getRejectedDate() != null && dateTimeUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < experianReapplyTimeline) {
+            log.info("Derog within {} days, rejecting merchant:{}", experianReapplyTimeline, merchant.getId());
+            return ;
+        }
         loanDetailsResponse.setPancard(experian.getPancardNumber());
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
