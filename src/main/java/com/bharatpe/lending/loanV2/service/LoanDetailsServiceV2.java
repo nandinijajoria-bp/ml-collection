@@ -143,6 +143,11 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setKycStatus(merchant.getId()==10407700L ? KycStatus.APPROVED : kycHandler.getKycStatus(merchant.getId()).getKycStatus());
 
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
+            LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(),"INACTIVE");
+            if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
+                loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
+                return new ApiResponse<>(loanDetailsResponse);
+            }
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
