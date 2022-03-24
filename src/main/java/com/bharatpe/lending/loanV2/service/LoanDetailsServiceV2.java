@@ -172,7 +172,7 @@ public class LoanDetailsServiceV2 {
             checkEligibility(loanDetailsResponse, request, experian, merchant);
             return new ApiResponse<>(loanDetailsResponse);
         } catch (Exception e) {
-            log.error("Exception in loan details service v2 for merchant:{}", merchant.getId(), e);
+            log.error("Exception in loan details service v2 for merchant: {} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
         }
     }
