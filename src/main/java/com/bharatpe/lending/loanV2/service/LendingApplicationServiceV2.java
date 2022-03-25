@@ -246,7 +246,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
         lendingApplication.setProcessingFee(Double.valueOf(processingFee));
-        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - eligibleLoan.getProcessingFee());
+        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
         lendingApplication.setMerchant(merchant);
