@@ -94,9 +94,9 @@ public class FLDGReportService {
             while(Objects.nonNull(readLine)) {
                 try {
                     count++;
-                    if(count>20) {
-                        break;
-                    }
+//                    if(count>20) {
+//                        break;
+//                    }
                     logger.info("readline: {}", readLine);
                     String[] arr = readLine.split(",");
                     if(arr.length != 4) {
