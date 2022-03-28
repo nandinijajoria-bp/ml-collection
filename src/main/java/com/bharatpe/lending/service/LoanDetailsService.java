@@ -336,7 +336,7 @@ public class LoanDetailsService {
 					experian.setRejectedDate(null);
 					experianDao.save(experian);
 				}
-			} else {
+			} else if(Objects.isNull(panCard)){
 				panCard = requestDTO.getPayload().getPanCard();
 			}
 			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
