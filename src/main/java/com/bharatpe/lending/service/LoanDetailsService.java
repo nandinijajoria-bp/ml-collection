@@ -321,7 +321,7 @@ public class LoanDetailsService {
 				return response;
 			}
 			LendingApplication lendingApplicationCheck = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
-			if (Objects.nonNull(lendingApplicationCheck) && EXPERIAN_ENABLED) {
+			if (Objects.isNull(lendingApplicationCheck) && EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 
 					if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
@@ -623,7 +623,7 @@ public class LoanDetailsService {
 				loanEligibilityDTOs.add(loanEligibilityDTO);
 			}
 //			experian = experianDao.getByMerchantId(merchant.getId());// refreshing object after update
-			if (experian != null && experian.getRejected()) {
+			if (Objects.isNull(lendingApplicationCheck)&& experian != null && experian.getRejected()) {
 				if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
 					rejected = false;
 				}else{
