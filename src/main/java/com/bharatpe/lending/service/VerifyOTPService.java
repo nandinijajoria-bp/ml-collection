@@ -444,9 +444,9 @@ public class VerifyOTPService {
 	}
 
 	public void sendDetailsForContactsVerification(Long merchantId, Long applicationId) {
-		if (exemptMerchant.contains(merchantId)) {
-			return;
-		}
+//		if (exemptMerchant.contains(merchantId)) {
+//			return;
+//		}
 		try {
 			Map<String, Long> detailMap = new HashMap<>();
 			detailMap.put("merchantId", merchantId);

@@ -320,8 +320,8 @@ public class LoanDetailsService {
 				}
 				return response;
 			}
-
-			if (EXPERIAN_ENABLED) {
+			LendingApplication lendingApplicationCheck = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
+			if (Objects.nonNull(lendingApplicationCheck) && EXPERIAN_ENABLED) {
 				if (experian != null && experian.getRejected() && experian.getRejectedDate() != null && LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < 30) {
 
 					if(Objects.nonNull(experian.getReason()) && (experian.getReason().equalsIgnoreCase(ExperianConstants.FOS_APP) || experian.getReason().equalsIgnoreCase(ExperianConstants.MULTIPLE_PSP_APPS))) {
