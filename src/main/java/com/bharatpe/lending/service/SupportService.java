@@ -965,7 +965,7 @@ public class SupportService {
             responseDTO.setMessage("Already Proceed");
             return responseDTO;
         }
-        new Thread(() -> lenderChange(lender, fileId, lines, lendingBulkDisbursal.get())).start();
+        lenderChange(lender, fileId, lines, lendingBulkDisbursal.get());
         return responseDTO;
     }
 

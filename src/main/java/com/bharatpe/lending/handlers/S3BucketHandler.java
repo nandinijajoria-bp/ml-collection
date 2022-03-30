@@ -130,6 +130,23 @@ public class S3BucketHandler {
 		    }
 	}
 
+	public String getS3Url(String key, String bucket1)  {
+		try {
+			logger.info("Getting temp URL for keu: {}", key);
+			Instant start = Instant.now();
+			AmazonS3 s3client = createS3BucketConnection();
+			String tempUrl = s3client.generatePresignedUrl(bucket1, key, new DateTime().plusMinutes(7*24*60).toDate()).toString();
+			logger.info("Temp Url: {}", tempUrl);
+			Instant end = Instant.now();
+			logger.info("Time Taken by AWS S3 tempPublicURL API : {} miliseconds", Duration.between(start, end).toMillis());
+			return tempUrl;
+		}
+		catch (Exception exception){
+			logger.info("Exception Occured while getting object from s3: {} {}", exception.getMessage(), exception);
+		}
+		return null;
+	}
+
 	public InputStream getObject(String key, String bucket) {
 		try {
 			logger.info("Fetching object for key:{}", key);

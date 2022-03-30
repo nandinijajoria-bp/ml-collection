@@ -1707,7 +1707,7 @@ public class APIGatewayService {
                     poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
                 }
                 Date dateOfBirth = null;
-                dob = panDetail.getDob();
+                dob = Objects.nonNull(panDetail) ? panDetail.getDob() : null;
                 try {
                     DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
                     dateOfBirth = sdf.parse(dob);
@@ -1718,18 +1718,20 @@ public class APIGatewayService {
                     } catch (ParseException ex) {
                         logger.error("Exception while parsing DOB date:{}", dob, ex);
                     }
+                } catch (Exception ex) {
+                    logger.error("Exception while parsing DOB date: {} {}", dob, ex);
                 }
                 String pancardUrl = "";
                 String addressProof1 = "";
                 String addressProof2 = "";
                 try {
-                    pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                    pancardUrl = s3BucketHandler.getS3Url(panDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
                     if (!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
-                        addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
-                        addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(), "loan-document");
+                        addressProof1 = s3BucketHandler.getS3Url(poaDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                        addressProof2 = s3BucketHandler.getS3Url(poaDetail.getDocumentsIdProof().getProofBackSide(), "loan-document");
                     }
                     if ("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
-                        addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "lending-ekyc");
+                        addressProof1 = s3BucketHandler.getS3Url(poaDetail.getDocumentsIdProof().getProofFrontSide(), "lending-ekyc");
                     }
                 } catch (Exception ex) {
                     logger.info("Fetching Document From Bucket", ex);
@@ -1756,6 +1758,8 @@ public class APIGatewayService {
                         result.put("ekyc_response", kycDoc.getResponse());
                     }
                     if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
+                        result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
+                        result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
                         if (Objects.nonNull(kycDoc.getDob())) {
                             String dob = kycDoc.getDob();
                             Date dateOfBirth = null;
@@ -1772,8 +1776,6 @@ public class APIGatewayService {
                             }
                             result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
                         }
-                        result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
-                        result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
                     }
                 }
             }
