@@ -521,6 +521,8 @@ public class SupportService {
                     }
                     supportApiResponseDto.setReapplyTime(reapplyTime);
                 } else {
+                    supportApiResponseDto.setApplicationStage(ApplicationStage.NOT_STARTED.getStage());
+                    supportApiResponseDto.setApplied(Boolean.FALSE);
                     supportApiResponseDto.setEligible(Boolean.TRUE);
                 }
             }
@@ -532,8 +534,6 @@ public class SupportService {
     private void populateApplicationData(SupportApiResponseDto supportApiResponseDto, LendingApplication lendingApplication) {
         try {
             if (Objects.isNull(lendingApplication)) {
-                supportApiResponseDto.setApplicationStage(ApplicationStage.NOT_STARTED.getStage());
-                supportApiResponseDto.setApplied(Boolean.FALSE);
                 return;
             }
             supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
