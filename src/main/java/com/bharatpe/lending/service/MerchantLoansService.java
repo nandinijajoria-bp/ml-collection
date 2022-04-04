@@ -414,11 +414,11 @@ public class MerchantLoansService {
                 logger.info("Topup are loans are disabled");
                 return eligiblity;
             }
-            if (lendingApplication == null) {
-                logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-                return eligiblity;
-            }
             if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchant().getId())) {
+                if (lendingApplication == null) {
+                    logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                    return eligiblity;
+                }
                 if (!loanUtil.isEnachDone(lendingPaymentSchedule.getMerchant())) {
                     logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                     return eligiblity;
@@ -498,6 +498,9 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setConstruct(eligibleLoan.getLoanConstruct());
                 loanEligibilityDTO.setOptionEnable(true);
                 loanEligibilityDTO.setInterestAmount(eligibleLoan.getRepayment() - eligibleLoan.getAmount().intValue());
+                loanEligibilityDTO.setIoEdiCount(eligibleLoan.getIoEdiDays());
+                loanEligibilityDTO.setIoEdi(eligibleLoan.getIoEdi());
+                loanEligibilityDTO.setTenureInMonths(eligibleLoan.getTenureInMonths());
 //                loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //                loanEligibilityDTO.setType();
                 loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());

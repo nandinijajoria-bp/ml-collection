@@ -14,6 +14,9 @@ public class SignAgreementDTO {
 
 	private String appSign;
 
+	@JsonProperty(value = "tenure_in_months")
+	private Integer tenureInMonths;
+
 	public Boolean getAgreement() {
 		return agreement;
 	}
@@ -42,6 +45,14 @@ public class SignAgreementDTO {
 		return appSign;
 	}
 
+	public Integer getTenureInMonths() {
+		return tenureInMonths;
+	}
+
+	public void setTenureInMonths(Integer tenureInMonths) {
+		this.tenureInMonths = tenureInMonths;
+	}
+
 	public void setAppSign(String appSign) {
 		this.appSign = appSign;
 	}
@@ -53,6 +64,8 @@ public class SignAgreementDTO {
 				", category='" + category + '\'' +
 				", applicationId=" + applicationId +
 				", appSign='" + appSign + '\'' +
+				", tenureInMonths=" + tenureInMonths +
 				'}';
 	}
+
 }
