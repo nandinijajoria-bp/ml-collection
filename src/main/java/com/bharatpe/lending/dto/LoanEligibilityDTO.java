@@ -52,7 +52,6 @@ public class LoanEligibilityDTO {
 
 	private boolean skipEnatch = true;
 	private String enach;
-	@JsonIgnore
 	private String loanType;
 
 	private Integer ioEdi;
