@@ -322,8 +322,8 @@ public class LiquiloansService {
     		lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
     		lendingPaymentSchedule.setCreatedAt(new Date());
     		lendingPaymentSchedule.setUpdatedAt(new Date());
-    		String construct=lendingApplication.getLoanConstruct();
-    		lendingPaymentSchedule.setLoanConstruct(construct);
+//    		String construct=lendingApplication.getLoanConstruct();
+//    		lendingPaymentSchedule.setLoanConstruct(construct);
     		
     		Date date=new Date();
     		
@@ -339,28 +339,28 @@ public class LiquiloansService {
     		tomorrow=format.parse(format.format(tomorrow));
     		
     		//getting date after one month
-    		Date oneMonthLaterDate=getDateAfterNMonths(date, 1);
-    		if(oneMonthLaterDate.getDay()==0) {
-    			oneMonthLaterDate = new Date(oneMonthLaterDate.getTime() + (1000 * 60 * 60 * 24));
-    		}
-    		oneMonthLaterDate=format.parse(format.format(oneMonthLaterDate));
+//    		Date oneMonthLaterDate=getDateAfterNMonths(date, 1);
+//    		if(oneMonthLaterDate.getDay()==0) {
+//    			oneMonthLaterDate = new Date(oneMonthLaterDate.getTime() + (1000 * 60 * 60 * 24));
+//    		}
+//    		oneMonthLaterDate=format.parse(format.format(oneMonthLaterDate));
     	    
     	    
-    		if(construct.equals("CONSTRUCT_1")) {
-        		lendingPaymentSchedule.setStartDate(tomorrow);
-    		}
-    		else if(construct.equals("CONSTRUCT_2") || construct.equals("CONSTRUCT_3")) {
-    			
-    			lendingPaymentSchedule.setStartDate(oneMonthLaterDate);
-    			lendingPaymentSchedule.setInterestOnlyStartDate(tomorrow);		
-    			lendingPaymentSchedule.setInterestOnlyEdiAmount(lendingApplication.getIoEdi());
-    			lendingPaymentSchedule.setInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
-    			lendingPaymentSchedule.setRemainingInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
-    		}
-    		else {
-    			logger.error("Wrong construct type found for applicationId: {}", lendingApplication.getId());
-    			return new ResponseEntity<>("Wrong construct type found in application", HttpStatus.BAD_REQUEST);
-    		}	
+//    		if(construct.equals("CONSTRUCT_1")) {
+			lendingPaymentSchedule.setStartDate(tomorrow);
+//    		}
+//    		else if(construct.equals("CONSTRUCT_2") || construct.equals("CONSTRUCT_3")) {
+//
+//    			lendingPaymentSchedule.setStartDate(oneMonthLaterDate);
+//    			lendingPaymentSchedule.setInterestOnlyStartDate(tomorrow);
+//    			lendingPaymentSchedule.setInterestOnlyEdiAmount(lendingApplication.getIoEdi());
+//    			lendingPaymentSchedule.setInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
+//    			lendingPaymentSchedule.setRemainingInterestOnlyEdiCount(lendingApplication.getIoPayableDays());
+//    		}
+//    		else {
+//    			logger.error("Wrong construct type found for applicationId: {}", lendingApplication.getId());
+//    			return new ResponseEntity<>("Wrong construct type found in application", HttpStatus.BAD_REQUEST);
+//    		}
     		
     		lendingPaymentSchedule.setNextEdiDate(tomorrow);
     		
@@ -375,7 +375,7 @@ public class LiquiloansService {
 			}
     	}
     	catch(Exception e){
-    		logger.error("Error occured while populating data into lending_payment_schedule table",e);
+    		logger.error("Error occured while populating data into lending_payment_schedule table {}",Arrays.toString(e.getStackTrace()));
     		logger.info("Changing loan_disbursal_status back to 'PENDING'");
     		if(lendingApplication!=null){
     			lendingApplication.setDisburseTimestamp(null);
