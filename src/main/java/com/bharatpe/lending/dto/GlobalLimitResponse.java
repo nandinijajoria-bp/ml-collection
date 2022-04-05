@@ -3,6 +3,8 @@ package com.bharatpe.lending.dto;
 import com.bharatpe.common.entities.Experian;
 import lombok.*;
 
+import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -26,5 +28,26 @@ public class GlobalLimitResponse {
         private String rejectionType;
         private String pancardName;
         private Experian experian;
+        List<OfferDetail> offerDetails;
+        Double version;
+        String riskSegment;
+        String riskGroup;
+        Double limit;
+        String loanType;
+    }
+
+    @lombok.Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ToString
+    public static class OfferDetail {
+        private Double interestRate;
+        private Double maxLoanAmount;
+        private Double loanAmount;
+        private Double bureauLimit;
+        private Double ntcLimit;
+        private Integer tenure;
+        private Integer ediCount;
+        private Double processingFee;
     }
 }

@@ -11,11 +11,9 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.LabelDTO;
-import com.bharatpe.lending.dto.MerchantSmsAnalysis;
-import com.bharatpe.lending.dto.SelectedLoanDTO;
-import com.bharatpe.lending.dto.ShopDetailsDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import com.bharatpe.lending.loanV2.dto.GlobalResponseDTO;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.StringUtils;
@@ -117,6 +115,9 @@ public class LoanUtil {
 
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+			EligibleLoanDao eligibleLoanDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -796,4 +797,33 @@ public class LoanUtil {
 	    int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
 	    return (int) Math.ceil(foreclosureAmount * 0.05);
     }
+
+
+	public LoanEligibilityDTO calculateLoanBreakup(GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
+
+		Integer ediAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / tenureDetail.getEdiCount());
+		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
+
+		EligibleLoan eligibleLoan = EligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(repayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.edi(ediAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getEdiCount())
+				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
+				.version(version)
+				.build();
+		eligibleLoanDao.saveAndFlush(eligibleLoan);
+		return null;
+	}
 }

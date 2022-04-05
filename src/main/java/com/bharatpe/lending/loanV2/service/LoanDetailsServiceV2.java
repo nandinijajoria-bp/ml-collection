@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -104,6 +105,8 @@ public class LoanDetailsServiceV2 {
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
+    public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
+
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
         try {
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
@@ -136,6 +139,9 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 loanDetailsResponse.setHasExperian(true);
             }
+
+            loanDetailsResponse.setKycStatus(merchant.getId()==10407700L ? KycStatus.APPROVED : kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(),"INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
@@ -166,7 +172,7 @@ public class LoanDetailsServiceV2 {
             checkEligibility(loanDetailsResponse, request, experian, merchant);
             return new ApiResponse<>(loanDetailsResponse);
         } catch (Exception e) {
-            log.error("Exception in loan details service v2 for merchant:{}", merchant.getId(), e);
+            log.error("Exception in loan details service v2 for merchant: {} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
         }
     }
@@ -238,6 +244,15 @@ public class LoanDetailsServiceV2 {
                 experianDao.save(experian);
             }
         }
+//        Boolean eligibleToApplyAgain = easyLoanUtil.isEligibleToApplyAgain(experian.getReason());
+//        if(!eligibleToApplyAgain) {
+//            return;
+//        }
+//        Integer experianReapplyTimeline = easyLoanUtil.getExperianReapplyLine(experian.getReason());
+//        if (experian.getRejected() && experian.getRejectedDate() != null && dateTimeUtil.getDateDiffInDays(experian.getRejectedDate(), new Date()) < experianReapplyTimeline) {
+//            log.info("Derog within {} days, rejecting merchant:{}", experianReapplyTimeline, merchant.getId());
+//            return ;
+//        }
         loanDetailsResponse.setPancard(experian.getPancardNumber());
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
@@ -252,16 +267,45 @@ public class LoanDetailsServiceV2 {
         Eligibility eligibility = null;
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
+            recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
             eligibility = createEligibility(merchant.getId());
         }
-        log.info("Eligibility not found for merchant:{}", merchant.getId());
-
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
             return;
         }
+        log.info("Eligibility not found for merchant:{}", merchant.getId());
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(),globalLimitResponse));
         loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
+    }
+
+
+
+    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
+        if(Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+            log.info("Global Limit not found");
+            return;
+        }
+        Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
+        String loanType = globalLimitResponse.getData().getLoanType();
+        Double version = globalLimitResponse.getData().getVersion();
+        try {
+            eligibleLoanDao.deleteByMerchantId(merchantId);
+            List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
+            offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));
+            for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
+                log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
+                if(Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
+                }
+                if(finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= offerDetail.getLoanAmount()) {
+                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
+                }
+            }
+            eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
+        } catch (Exception e) {
+            log.error("Exception while recomputing eligible loan for merchant:{}", merchantId, e);
+        }
     }
 
     private Integer fetchPincode(Long merchantId) {
@@ -317,19 +361,18 @@ public class LoanDetailsServiceV2 {
     }
 
     private Eligibility createEligibility(Long merchantId) {
-        log.info("Creating eligibility for merchant:{}", merchantId);
         try {
-            EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
-            LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
+            log.info("Creating eligibility for merchant:{}", merchantId);
             return Eligibility.builder()
                     .loanAmount(eligibleLoan.getAmount())
-                    .arrangerFee(LoanCalculationUtil.getProcessingFee(eligibleLoan.getAmount(), lendingCategories))
-                    .interestRate(lendingCategories.getInterestRate())
+                    .arrangerFee(eligibleLoan.getProcessingFee())
+                    .interestRate(eligibleLoan.getRateOfInterest())
                     .repaymentAmount(eligibleLoan.getRepayment())
-                    .ediCount(lendingCategories.getPayableDays())
+                    .ediCount(eligibleLoan.getEdiCount())
                     .ediAmount(eligibleLoan.getEdi())
                     .tenure(eligibleLoan.getTenure())
                     .category(eligibleLoan.getCategory())
@@ -564,5 +607,26 @@ public class LoanDetailsServiceV2 {
             log.error("error occurred while fetching eligibility: {}",e);
         }
         return Boolean.FALSE;
+    }
+
+    public ApiResponse<?> getBusinessCategorySubCategory(Long merchantId) {
+        try {
+            LendingMerchantDetails merchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            BusinessDetailsDTO businessDetailsDTO = new BusinessDetailsDTO();
+            if (Objects.nonNull(merchantDetails) && !exceptedMerchantList.contains(merchantId)) {
+                businessDetailsDTO.setIsEdit(true);
+            }
+            if(Objects.nonNull(merchantDetails)) {
+                businessDetailsDTO.setBusinessCategory(merchantDetails.getBusinessCategory());
+                businessDetailsDTO.setBusinessName(merchantDetails.getBusinessName());
+                businessDetailsDTO.setBusinessSubCategory(merchantDetails.getBusinessSubCategory());
+                businessDetailsDTO.setMerchantId(merchantDetails.getMerchantId());
+            }
+            return new ApiResponse<>(businessDetailsDTO);
+        }
+         catch (Exception ex) {
+            log.error("Exception Occured while fetching business details for merchantId: {} {}", merchantId, ex.getMessage());
+        }
+        return new ApiResponse<>(false, "Something Went Wrong.");
     }
 }

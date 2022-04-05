@@ -41,6 +41,7 @@ public class EligibleLendingOffersResponseDTO {
 
         private String category;
         private String tenure;
+        private Integer tenureInMonths;
         private Double rateOfInterest;
         private Integer repaymentAmount;
         private Integer edi;
@@ -49,6 +50,22 @@ public class EligibleLendingOffersResponseDTO {
         private Integer ediCount;
 
         public TenureDetails() {
+        }
+
+        public Integer getTenureInMonths() {
+            return tenureInMonths;
+        }
+
+        public void setTenureInMonths(Integer tenureInMonths) {
+            this.tenureInMonths = tenureInMonths;
+        }
+
+        public Integer getIoedi() {
+            return ioedi;
+        }
+
+        public void setIoedi(Integer ioedi) {
+            this.ioedi = ioedi;
         }
 
         public TenureDetails(String category, String tenure, Double rateOfInterest, Integer repaymentAmount, Integer edi, Integer ioedi) {

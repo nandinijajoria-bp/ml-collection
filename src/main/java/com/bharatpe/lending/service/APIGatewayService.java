@@ -1242,12 +1242,12 @@ public class APIGatewayService {
         return 0D;
     }
 
-    public GlobalLimitResponse getGlobalLimit(Long merchantId) throws Exception {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId)  {
         return getGlobalLimit(merchantId, null, null);
     }
 
     //    @Async
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) throws Exception {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) {
         logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1261,7 +1261,7 @@ public class APIGatewayService {
         if (!ObjectUtils.isEmpty(appVersion)) {
             queryParams.append("&appVersion=").append(appVersion);
         }
-        String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit" + queryParams;
+        String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
         String payload = hmacCalculator.getObjectPayload(requestParams);
         String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
@@ -1284,7 +1284,7 @@ public class APIGatewayService {
                 logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
             }
             catch (Exception e) {
-                logger.error("Error occurred while getting global limit for merchant:{}", merchantId, e.getMessage());
+                logger.error("Error occurred while getting global limit for merchant:{} {} {}", merchantId, e.getMessage(), e);
             }
             retryCount++;
         }
@@ -1695,87 +1695,92 @@ public class APIGatewayService {
 
     public Map getKycDetails(LendingApplication lendingApplication) {
         Map result = new HashMap();
-        if (ObjectUtils.isEmpty(lendingApplication.getCkycId())) {
-            String dob = null;
-            DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-            DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-            if (panDetail == null) {
-                panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
-            }
-            if (poaDetail == null) {
-                poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
-            }
-            Date dateOfBirth = null;
-            dob = panDetail.getDob();
-            try {
-                DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                dateOfBirth = sdf.parse(dob);
-            } catch (ParseException e) {
+        try {
+            if (ObjectUtils.isEmpty(lendingApplication.getCkycId())) {
+                String dob = null;
+                DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                if (panDetail == null) {
+                    panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
+                }
+                if (poaDetail == null) {
+                    poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
+                }
+                Date dateOfBirth = null;
+                dob = Objects.nonNull(panDetail) ? panDetail.getDob() : null;
                 try {
-                    DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                    DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
                     dateOfBirth = sdf.parse(dob);
-                } catch (ParseException ex) {
-                    logger.error("Exception while parsing DOB date:{}", dob, ex);
-                }
-            }
-            String pancardUrl = "";
-            String addressProof1 = "";
-            String addressProof2 = "";
-            try {
-                pancardUrl = s3BucketHandler.getPreSignedPublicURL(panDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
-                if (!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
-                    addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
-                    addressProof2 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofBackSide(), "loan-document");
-                }
-                if ("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
-                    addressProof1 = s3BucketHandler.getPreSignedPublicURL(poaDetail.getDocumentsIdProof().getProofFrontSide(), "lending-ekyc");
-                }
-            } catch (Exception ex) {
-                logger.info("Fetching Document From Bucket", ex);
-            }
-            LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-            if (Objects.nonNull(lendingEkyc)) {
-                result.put("ekyc_response", lendingEkyc.getResponse());
-            }
-            result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
-            result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
-            result.put("proof_type", poaDetail.getDocType());
-            result.put("gender", poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
-            result.put("pancardUrl", pancardUrl);
-            result.put("addressproof1", addressProof1);
-            result.put("addressproof2", addressProof2);
-        } else {
-            List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchant().getId());
-            for (KycDoc kycDoc : kycDocs) {
-                if (KycDocType.POA.equals(kycDoc.getDocType())) {
-                    result.put("proof_type", kycDoc.getSubDocType());
-                    result.put("addressproof1", kycDoc.getDocFrontImageUrl());
-                    result.put("addressproof2", kycDoc.getDocBackImageUrl());
-                    result.put("gender", ObjectUtils.isEmpty(kycDoc.getGender()) ? "Male" : (kycDoc.getGender().startsWith("M") ? "Male" : "Female"));
-                    result.put("ekyc_response", kycDoc.getResponse());
-                }
-                if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
-                    if (Objects.nonNull(kycDoc.getDob())) {
-                        String dob = kycDoc.getDob();
-                        Date dateOfBirth = null;
-                        try {
-                            DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                            dateOfBirth = sdf.parse(dob);
-                        } catch (ParseException e) {
-                            try {
-                                DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-                                dateOfBirth = sdf.parse(dob);
-                            } catch (ParseException ex) {
-                                logger.error("Exception while parsing DOB date:{}", dob, ex);
-                            }
-                        }
-                        result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
+                } catch (ParseException e) {
+                    try {
+                        DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                        dateOfBirth = sdf.parse(dob);
+                    } catch (ParseException ex) {
+                        logger.error("Exception while parsing DOB date:{}", dob, ex);
                     }
-                    result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
-                    result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
-
+                } catch (Exception ex) {
+                    logger.error("Exception while parsing DOB date: {} {}", dob, ex);
+                }
+                String pancardUrl = "";
+                String addressProof1 = "";
+                String addressProof2 = "";
+                try {
+                    pancardUrl = s3BucketHandler.getS3Url(panDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                    if (!"eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) && !"e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
+                        addressProof1 = s3BucketHandler.getS3Url(poaDetail.getDocumentsIdProof().getProofFrontSide(), "loan-document");
+                        addressProof2 = s3BucketHandler.getS3Url(poaDetail.getDocumentsIdProof().getProofBackSide(), "loan-document");
+                    }
+                    if ("eAadhar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType()) || "e_aadhaar".equalsIgnoreCase(poaDetail.getDocumentsIdProof().getProofType())) {
+                        addressProof1 = s3BucketHandler.getS3Url(poaDetail.getDocumentsIdProof().getProofFrontSide(), "lending-ekyc");
+                    }
+                } catch (Exception ex) {
+                    logger.info("Fetching Document From Bucket", ex);
+                }
+                LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                if (Objects.nonNull(lendingEkyc)) {
+                    result.put("ekyc_response", lendingEkyc.getResponse());
+                }
+                result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
+                result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
+                result.put("proof_type", poaDetail.getDocType());
+                result.put("gender", poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
+                result.put("pancardUrl", pancardUrl);
+                result.put("addressproof1", addressProof1);
+                result.put("addressproof2", addressProof2);
+            } else {
+                List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchant().getId());
+                for (KycDoc kycDoc : kycDocs) {
+                    if (KycDocType.POA.equals(kycDoc.getDocType())) {
+                        result.put("proof_type", kycDoc.getSubDocType());
+                        result.put("addressproof1", kycDoc.getDocFrontImageUrl());
+                        result.put("addressproof2", kycDoc.getDocBackImageUrl());
+                        result.put("gender", ObjectUtils.isEmpty(kycDoc.getGender()) ? "Male" : (kycDoc.getGender().startsWith("M") ? "Male" : "Female"));
+                        result.put("ekyc_response", kycDoc.getResponse());
+                    }
+                    if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
+                        result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
+                        result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
+                        if (Objects.nonNull(kycDoc.getDob())) {
+                            String dob = kycDoc.getDob();
+                            Date dateOfBirth = null;
+                            try {
+                                DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                                dateOfBirth = sdf.parse(dob);
+                            } catch (ParseException e) {
+                                try {
+                                    DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                                    dateOfBirth = sdf.parse(dob);
+                                } catch (ParseException ex) {
+                                    logger.error("Exception while parsing DOB date:{}", dob, ex);
+                                }
+                            }
+                            result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
+                        }
+                    }
                 }
             }
+        } catch (Exception ex) {
+            logger.error("Exception Occurred while getting kyc data for merchantId: {} {} {}", merchantId, ex.getMessage(), ex);
         }
         return result;
     }

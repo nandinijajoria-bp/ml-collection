@@ -965,7 +965,7 @@ public class SupportService {
             responseDTO.setMessage("Already Proceed");
             return responseDTO;
         }
-        new Thread(() -> lenderChange(lender, fileId, lines, lendingBulkDisbursal.get())).start();
+        lenderChange(lender, fileId, lines, lendingBulkDisbursal.get());
         return responseDTO;
     }
 
@@ -1089,7 +1089,7 @@ public class SupportService {
                     }
                 } catch (Exception e) {
                     errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
-                    logger.error("Exception while writing csv data in lender change for application:{}", lendingApplication.getId(), e);
+                    logger.error("Exception while writing csv data in lender change for application: {} {} {}", lendingApplication.getId(), e.getMessage(), e);
                 } finally {
                     latch.countDown();
                 }
@@ -1145,13 +1145,13 @@ public class SupportService {
         String accountNumber = ldcVirtualAccount.getAccountNumber();
         String ifscCode = ldcVirtualAccount.getIfsc();
         Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
-        String gender = Objects.nonNull( addressResult.get("gender")) ? addressResult.get("gender").toString() : "";
-        String dob = Objects.nonNull(addressResult.get("dob")) ? addressResult.get("dob").toString() : "";
-        String proofType = Objects.nonNull(addressResult.get("proof_type")) ? addressResult.get("proof_type").toString() : "";
-        String personName = Objects.nonNull(addressResult.get("person_name")) ? addressResult.get("person_name").toString() : "";
-        String pancardUrl = Objects.nonNull(addressResult.get("pancardUrl")) ? addressResult.get("pancardUrl").toString() : "";
-        String addressproof1 = Objects.nonNull(addressResult.get("addressproof1")) ? addressResult.get("addressproof1").toString() : "";
-        String addressproof2 = Objects.nonNull(addressResult.get("addressproof2")) ? addressResult.get("addressproof2").toString() : "";
+        String gender = Objects.nonNull(addressResult) && Objects.nonNull( addressResult.get("gender")) ? addressResult.get("gender").toString() : "";
+        String dob = Objects.nonNull(addressResult) && Objects.nonNull(addressResult.get("dob")) ? addressResult.get("dob").toString() : "";
+        String proofType = Objects.nonNull(addressResult) && Objects.nonNull(addressResult.get("proof_type")) ? addressResult.get("proof_type").toString() : "";
+        String personName = Objects.nonNull(addressResult) && Objects.nonNull(addressResult.get("person_name")) ? addressResult.get("person_name").toString() : "";
+        String pancardUrl = Objects.nonNull(addressResult) && Objects.nonNull(addressResult.get("pancardUrl")) ? addressResult.get("pancardUrl").toString() : "";
+        String addressproof1 = Objects.nonNull(addressResult) && Objects.nonNull(addressResult.get("addressproof1")) ? addressResult.get("addressproof1").toString() : "";
+        String addressproof2 = Objects.nonNull(addressResult) && Objects.nonNull(addressResult.get("addressproof2")) ? addressResult.get("addressproof2").toString() : "";
         int ediDays = lendingApplication.getPayableDays().intValue();
         if (lendingApplication.getIoPayableDays() != null) {
             ediDays += lendingApplication.getIoPayableDays();

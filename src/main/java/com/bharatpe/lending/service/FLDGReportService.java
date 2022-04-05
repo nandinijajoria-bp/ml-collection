@@ -13,12 +13,10 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -96,9 +94,9 @@ public class FLDGReportService {
             while(Objects.nonNull(readLine)) {
                 try {
                     count++;
-                    if(count>20) {
-                        break;
-                    }
+//                    if(count>20) {
+//                        break;
+//                    }
                     logger.info("readline: {}", readLine);
                     String[] arr = readLine.split(",");
                     if(arr.length != 4) {
