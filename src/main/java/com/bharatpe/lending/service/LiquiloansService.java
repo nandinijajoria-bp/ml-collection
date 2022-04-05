@@ -381,7 +381,8 @@ public class LiquiloansService {
     			lendingApplication.setDisburseTimestamp(null);
     			lendingApplication.setLoanDisbursalStatus("PENDING");
     			lendingApplicationDao.save(lendingApplication);
-    			if (lendingPaymentSchedule != null) {
+                updateLendingVpaStage(lendingApplication, VpaTrackingStatus.PROCESSING.name());
+                if (lendingPaymentSchedule != null) {
 					lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
 				}
     		}
