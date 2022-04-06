@@ -152,13 +152,8 @@ public class SupportService {
             SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
             supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
             CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
-            Experian experian;
-            if(Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData())) {
-                experian = globalLimitResponse.getData().getExperian();
-            } else {
-                experian = experianDao.getByMerchantId(merchantId);
-            }
+//            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+            Experian experian = experianDao.getByMerchantId(merchantId);
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
@@ -171,19 +166,17 @@ public class SupportService {
             logger.info("Populating Loan Data for merchant: {}", merchantId);
             populateLoanData(supportApiResponseDto,lendingPaymentSchedule);
             if (!ApplicationStage.ACTIVE_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
+                    if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
+                        logger.info("Populating Application Data for merchant: {}", merchantId);
+                        populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
+                    }
+                } else {
+                    logger.info("Populating Application Data for merchant: {}", merchantId);
+                    populateApplicationData(supportApiResponseDto, lendingApplication);
+                }
                 logger.info("Populating Experian Data for merchant: {}", merchantId);
                 populateExperianData(supportApiResponseDto, experian, lendingApplication, false);
-                if (!ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
-                    if (Objects.nonNull(supportApiResponseDto.getApplicationStage())) {
-                        if (ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
-                            logger.info("Populating Application Data for merchant: {}", merchantId);
-                            populateApplicationData(supportApiResponseDto, supportApiResponseDto.getClosingDate());
-                        }
-                    } else {
-                        logger.info("Populating Application Data for merchant: {}", merchantId);
-                        populateApplicationData(supportApiResponseDto, lendingApplication);
-                    }
-                }
             }
             supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
             responseDTO.setData(supportLoanResponseDTO);
@@ -211,7 +204,7 @@ public class SupportService {
                 return responseDTO;
             }
 
-            if (experian.getRejected()) {
+            if ( (Objects.isNull(lendingApplication) || Boolean.TRUE.equals(supportApiResponseDto.getEligibleToApplyAgain())) && experian.getRejected()) {
                 logger.info("Experian Rejected for merchantId: {}, experianId: {}", merchantId, experian.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
                 supportLoanResponseDTO.setMessage("NA");
@@ -221,15 +214,15 @@ public class SupportService {
                 return responseDTO;
             }
 
-            if (!StringUtils.isEmpty(experian.getReason())) {
-                logger.info("Experian Rejected Reason found for merchanID: {}, Reason: {}", merchantId, experian.getReason());
-                supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
-                supportLoanResponseDTO.setMessage("NA");
-                supportLoanResponseDTO.setConditionalMessage(getExperianReason(experian.getReason()));
-                supportLoanResponseDTO.setEligible(Boolean.FALSE);
-                responseDTO.setData(supportLoanResponseDTO);
-                return responseDTO;
-            }
+//            if (!StringUtils.isEmpty(experian.getReason())) {
+//                logger.info("Experian Rejected Reason found for merchanID: {}, Reason: {}", merchantId, experian.getReason());
+//                supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
+//                supportLoanResponseDTO.setMessage("NA");
+//                supportLoanResponseDTO.setConditionalMessage(getExperianReason(experian.getReason()));
+//                supportLoanResponseDTO.setEligible(Boolean.FALSE);
+//                responseDTO.setData(supportLoanResponseDTO);
+//                return responseDTO;
+//            }
 
             LendingApplication lendingApplicationNew =
                 lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
@@ -509,20 +502,29 @@ public class SupportService {
             }
             supportApiResponseDto.setExperian(Boolean.TRUE);
             supportApiResponseDto.setPincode(experian.getPincode());
-            if (experian.getRejected()) {
-                supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
-                supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(experian.getReason(), RejectionStage.EXPERIAN));
-                supportApiResponseDto.setEligible(Boolean.FALSE);
-                Long reapplyTime = null;
-                if (Objects.nonNull(experian.getRejectedDate())) {
-                    Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN);
-                    if(Objects.nonNull(reapplyDayDiff)) {
-                        reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
+            if(Objects.isNull(supportApiResponseDto.getApplicationStage()) ||
+                    ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage()) ||
+                    (ApplicationStage.REJECTED.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())
+                            && Boolean.TRUE.equals(supportApiResponseDto.getEligibleToApplyAgain()))) {
+                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
+                experian = experianDao.getByMerchantId(supportApiResponseDto.getMerchantId());
+                if (experian.getRejected()) {
+                    supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
+                    supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(experian.getReason(), RejectionStage.EXPERIAN));
+                    supportApiResponseDto.setEligible(Boolean.FALSE);
+                    Long reapplyTime = null;
+                    if (Objects.nonNull(experian.getRejectedDate())) {
+                        Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN);
+                        if(Objects.nonNull(reapplyDayDiff)) {
+                            reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
+                        }
                     }
+                    supportApiResponseDto.setReapplyTime(reapplyTime);
+                } else {
+                    supportApiResponseDto.setApplicationStage(ApplicationStage.NOT_STARTED.getStage());
+                    supportApiResponseDto.setApplied(Boolean.FALSE);
+                    supportApiResponseDto.setEligible(Boolean.TRUE);
                 }
-                supportApiResponseDto.setReapplyTime(reapplyTime);
-            } else {
-                supportApiResponseDto.setEligible(Boolean.TRUE);
             }
         } catch (Exception ex) {
             logger.error("Exception Occurred while populating experian data for merchant: {}, {}", supportApiResponseDto.getMerchantId(), ex);
@@ -532,8 +534,6 @@ public class SupportService {
     private void populateApplicationData(SupportApiResponseDto supportApiResponseDto, LendingApplication lendingApplication) {
         try {
             if (Objects.isNull(lendingApplication)) {
-                supportApiResponseDto.setApplicationStage(ApplicationStage.NOT_STARTED.getStage());
-                supportApiResponseDto.setApplied(Boolean.FALSE);
                 return;
             }
             supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));

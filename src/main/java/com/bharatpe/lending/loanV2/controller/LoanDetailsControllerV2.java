@@ -39,9 +39,9 @@ public class LoanDetailsControllerV2 {
     }
 
     @GetMapping(value = "/businessCategorySubCategory")
-    public ResponseEntity<ApiResponse<?>> getBusinessCategoryDetails(@RequestParam Long merchantId) {
-        log.info("Fetching business Details for merchantId:{}",merchantId);
-        return ResponseEntity.ok(loanDetailsServiceV2.getBusinessCategorySubCategory(merchantId));
+    public ResponseEntity<ApiResponse<?>> getBusinessCategoryDetails(@RequestAttribute Merchant merchant) {
+        log.info("Fetching business Details for merchantId:{}",merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.getBusinessCategorySubCategory(merchant.getId()));
     }
 }
 
