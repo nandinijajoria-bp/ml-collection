@@ -401,7 +401,7 @@ public class MerchantLoansService {
     }
 
     public boolean excludeTopUpBaseChecks (Long merchantId) {
-        List<Long> exclusionMerchantIDs = Arrays.asList(9319451L);
+        List<Long> exclusionMerchantIDs = Arrays.asList(9319451L,6518986L,10407700L);
         return exclusionMerchantIDs.contains(merchantId);
     }
 
@@ -482,9 +482,11 @@ public class MerchantLoansService {
 
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchant().getId());
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchant().getId(), "TOPUP");
-
             double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
-            for (EligibleLoan eligibleLoan: eligibleLoanList) {
+            if (!eligibleLoanList.isEmpty()) {
+                Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
+                EligibleLoan eligibleLoan = eligibleLoanList.get(0);
+                logger.info("eligible loan: {}", eligibleLoan);
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
                 loanEligibilityDTO.setProcessingFee(eligibleLoan.getProcessingFee());
@@ -501,8 +503,8 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setIoEdiCount(eligibleLoan.getIoEdiDays());
                 loanEligibilityDTO.setIoEdi(eligibleLoan.getIoEdi());
                 loanEligibilityDTO.setTenureInMonths(eligibleLoan.getTenureInMonths());
-//                loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
-//                loanEligibilityDTO.setType();
+//              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+//              loanEligibilityDTO.setType();
                 loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
                 loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getDisbursementAmount() - (int) prevLoanUnpaidAmount);
                 loanEligibilityDTO.setLoanType("TOPUP");
