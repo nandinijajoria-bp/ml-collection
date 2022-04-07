@@ -1728,6 +1728,7 @@ public class LendingApplicationService {
 				if ("draft".equals(lendingApplication.getStatus())) {
 					loanData.put("applicationPending", Boolean.TRUE);
 					loanData.put("loan_applied", Boolean.TRUE);
+					loanData.put("eligible",Boolean.TRUE);
 					loanData.put("color", "#02a758");
 					loanData.put("header", "Application is in Draft State.");
 					loanData.put("message", "Please Complete Application.");
@@ -1740,6 +1741,7 @@ public class LendingApplicationService {
 					loanData.put("applicationPending", Boolean.FALSE);
 					loanData.put("loan_applied", Boolean.TRUE);
 					loanData.put("color", "#02a758");
+					loanData.put("eligible",Boolean.TRUE);
 					loanData.put("header", "Merchant Application is in approved state.");
 					loanData.put("message", "It will take 7-10 days for disbursal process.");
 					data.put("loan_data", loanData);
@@ -1759,6 +1761,7 @@ public class LendingApplicationService {
 					loanData.put("applicationPending", Boolean.FALSE);
 					loanData.put("limited_cpv_required", Boolean.FALSE);
 					loanData.put("header", "Loan applied Succesfully");
+					loanData.put("eligible",Boolean.TRUE);
 					loanData.put("message", "Merchant Loan Application Is in Pending Verification State.");
 					data.put("task_enable", Boolean.FALSE);
 					loanData.put("agreement_at", lendingApplication.getAgreementAt().toString());
