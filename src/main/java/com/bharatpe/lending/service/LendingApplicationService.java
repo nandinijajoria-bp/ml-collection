@@ -1718,92 +1718,94 @@ public class LendingApplicationService {
 			}
 
 			LendingApplication lendingApplication=lendingApplicationDao.findBymerchantId(merchantId);
-			if(lendingApplication != null){
-				MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId,"ACTIVE");
-				logger.info("Merchant bank Detais",merchantBankDetail);
-				if("draft".equals(lendingApplication.getStatus())){
-					loanData.put("applicationPending",Boolean.TRUE);
-					loanData.put("loan_applied",Boolean.TRUE);
-					loanData.put("color","#02a758");
-					loanData.put("header","Application is in Draft State.");
-					loanData.put("message","Please Complete Application.");
-					data.put("loan_data",loanData);
-					data.put("task_enable",Boolean.TRUE);
-					responseDTO.setData(data);
-					return  responseDTO;
-				}
-				if("approved".equals(lendingApplication.getStatus())){
-					loanData.put("applicationPending",Boolean.FALSE);
-					loanData.put("loan_applied",Boolean.TRUE);
-					loanData.put("color","#02a758");
-					loanData.put("header","Merchant Application is in approved state.");
-					loanData.put("message","It will take 7-10 days for disbursal process.");
-					data.put("loan_data",loanData);
-					details.put("external_loan_id",lendingApplication.getExternalLoanId());
-					details.put("loan_amount",lendingApplication.getLoanAmount());
-					details.put("beneficiary_name",lendingApplication.getMerchant().getBeneficiaryName());
-					details.put("bank_name",merchantBankDetail.getBankName());
-					details.put("account_number",merchantBankDetail.getAccountNumber());
-					details.put("ifsc_code",merchantBankDetail.getIfscCode());
-					details.put("application_id",lendingApplication.getId());
-					data.put("details",details);
-					data.put("task_enable",Boolean.FALSE);
-					responseDTO.setData(data);
-					return  responseDTO;
-				}
-				if("pending_verification".equals(lendingApplication.getStatus())){
-					loanData.put("applicationPending",Boolean.FALSE);
-					loanData.put("limited_cpv_required",Boolean.FALSE);
-					loanData.put("header","Loan applied Succesfully");
-					loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
-					data.put("task_enable",Boolean.FALSE);
-					loanData.put("agreement_at",lendingApplication.getAgreementAt().toString());
-					if(!"APPROVED".equals(lendingApplication.getNachStatus())){
-						BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId,lendingApplication.getId());
-						Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId,lendingApplication.getId());
-						if(bharatPeEnachSkipped == null && bharatPeEnach != null){
-							if(bharatPeEnach > 2){
-								loanData.put("limited_cpv_required",Boolean.TRUE);
-							}
-						}
-						loanData.put("nachStatus","Pending");
-						loanData.put("header","Please Complete Enach For Further Process Application.");
-						loanData.put("message","Please get the NACH Form completed.");
-						data.put("task_enable",Boolean.TRUE);
-					}else{
-						loanData.put("nachStatus",lendingApplication.getNachStatus().toLowerCase());
+			if(!"rejected".equalsIgnoreCase(lendingApplication.getStatus()) && !"SMALL_TICKET".equalsIgnoreCase(lendingApplication.getLoanType())) {
+				if (lendingApplication != null) {
+					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+					logger.info("Merchant bank Detais", merchantBankDetail);
+					if ("draft".equals(lendingApplication.getStatus())) {
+						loanData.put("applicationPending", Boolean.TRUE);
+						loanData.put("loan_applied", Boolean.TRUE);
+						loanData.put("color", "#02a758");
+						loanData.put("header", "Application is in Draft State.");
+						loanData.put("message", "Please Complete Application.");
+						data.put("loan_data", loanData);
+						data.put("task_enable", Boolean.TRUE);
+						responseDTO.setData(data);
+						return responseDTO;
 					}
+					if ("approved".equals(lendingApplication.getStatus())) {
+						loanData.put("applicationPending", Boolean.FALSE);
+						loanData.put("loan_applied", Boolean.TRUE);
+						loanData.put("color", "#02a758");
+						loanData.put("header", "Merchant Application is in approved state.");
+						loanData.put("message", "It will take 7-10 days for disbursal process.");
+						data.put("loan_data", loanData);
+						details.put("external_loan_id", lendingApplication.getExternalLoanId());
+						details.put("loan_amount", lendingApplication.getLoanAmount());
+						details.put("beneficiary_name", lendingApplication.getMerchant().getBeneficiaryName());
+						details.put("bank_name", merchantBankDetail.getBankName());
+						details.put("account_number", merchantBankDetail.getAccountNumber());
+						details.put("ifsc_code", merchantBankDetail.getIfscCode());
+						details.put("application_id", lendingApplication.getId());
+						data.put("details", details);
+						data.put("task_enable", Boolean.FALSE);
+						responseDTO.setData(data);
+						return responseDTO;
+					}
+					if ("pending_verification".equals(lendingApplication.getStatus())) {
+						loanData.put("applicationPending", Boolean.FALSE);
+						loanData.put("limited_cpv_required", Boolean.FALSE);
+						loanData.put("header", "Loan applied Succesfully");
+						loanData.put("message", "Merchant Loan Application Is in Pending Verification State.");
+						data.put("task_enable", Boolean.FALSE);
+						loanData.put("agreement_at", lendingApplication.getAgreementAt().toString());
+						if (!"APPROVED".equals(lendingApplication.getNachStatus())) {
+							BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId, lendingApplication.getId());
+							Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId, lendingApplication.getId());
+							if (bharatPeEnachSkipped == null && bharatPeEnach != null) {
+								if (bharatPeEnach > 2) {
+									loanData.put("limited_cpv_required", Boolean.TRUE);
+								}
+							}
+							loanData.put("nachStatus", "Pending");
+							loanData.put("header", "Please Complete Enach For Further Process Application.");
+							loanData.put("message", "Please get the NACH Form completed.");
+							data.put("task_enable", Boolean.TRUE);
+						} else {
+							loanData.put("nachStatus", lendingApplication.getNachStatus().toLowerCase());
+						}
 
-					data.put("loan_data",loanData);
-					details.put("external_loan_id",lendingApplication.getExternalLoanId());
-					details.put("loan_amount",lendingApplication.getLoanAmount());
-					details.put("beneficiary_name",lendingApplication.getMerchant().getBeneficiaryName());
-					details.put("bank_name",merchantBankDetail.getBankName());
-					details.put("account_number",merchantBankDetail.getAccountNumber());
-					details.put("ifsc_code",merchantBankDetail.getIfscCode());
-					details.put("application_id",lendingApplication.getId());
-					data.put("details",details);
-					responseDTO.setData(data);
-					return  responseDTO;
+						data.put("loan_data", loanData);
+						details.put("external_loan_id", lendingApplication.getExternalLoanId());
+						details.put("loan_amount", lendingApplication.getLoanAmount());
+						details.put("beneficiary_name", lendingApplication.getMerchant().getBeneficiaryName());
+						details.put("bank_name", merchantBankDetail.getBankName());
+						details.put("account_number", merchantBankDetail.getAccountNumber());
+						details.put("ifsc_code", merchantBankDetail.getIfscCode());
+						details.put("application_id", lendingApplication.getId());
+						data.put("details", details);
+						responseDTO.setData(data);
+						return responseDTO;
+					}
 				}
-			}
-			GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
-			if(Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
-				logger.error("Global Response is null for merchantId: {}", merchantId);
-				responseDTO.setSuccess(false);
-				responseDTO.setMessage("Something Went Wrong!!");
-				return responseDTO;
-			}
-			if(globalLimitResponse.getData().getGlobalLimit() >= 10000) {
-				loanData.put("eligible",Boolean.TRUE);
-				loanData.put("applicationPending",Boolean.FALSE);
-				loanData.put("color","#02a758");
-				loanData.put("header","");
-				loanData.put("message","Merchant is Eligible For Loan.");
-				data.put("loan_data",loanData);
-				data.put("task_enable",Boolean.TRUE);
-				responseDTO.setData(data);
-				return responseDTO;
+				GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+				if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+					logger.error("Global Response is null for merchantId: {}", merchantId);
+					responseDTO.setSuccess(false);
+					responseDTO.setMessage("Something Went Wrong!!");
+					return responseDTO;
+				}
+				if (globalLimitResponse.getData().getGlobalLimit() >= 10000) {
+					loanData.put("eligible", Boolean.TRUE);
+					loanData.put("applicationPending", Boolean.FALSE);
+					loanData.put("color", "#02a758");
+					loanData.put("header", "");
+					loanData.put("message", "Merchant is Eligible For Loan.");
+					data.put("loan_data", loanData);
+					data.put("task_enable", Boolean.TRUE);
+					responseDTO.setData(data);
+					return responseDTO;
+				}
 			}
 			loanData.put("experian",Boolean.TRUE);
 			loanData.put("eligible",Boolean.FALSE);
