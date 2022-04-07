@@ -1696,6 +1696,10 @@ public class LendingApplicationService {
 		Map<String,Object> loanData= new HashMap<>();
 		Map<String,Object> details= new HashMap<>();
 		try{
+			loanData.put("color", "#02a758");
+			loanData.put("header", "");
+			loanData.put("message", "");
+			loanData.put("eligible",Boolean.FALSE);
 			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
 			if(lendingPaymentSchedule != null){
 				loanData.put("activeLoan",Boolean.TRUE);
@@ -1760,6 +1764,7 @@ public class LendingApplicationService {
 				if ("pending_verification".equals(lendingApplication.getStatus())) {
 					loanData.put("applicationPending", Boolean.FALSE);
 					loanData.put("limited_cpv_required", Boolean.FALSE);
+					loanData.put("color", "#02a758");
 					loanData.put("header", "Loan applied Succesfully");
 					loanData.put("eligible",Boolean.TRUE);
 					loanData.put("message", "Merchant Loan Application Is in Pending Verification State.");
@@ -1801,12 +1806,18 @@ public class LendingApplicationService {
 
 				GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
 				if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
-					logger.error("Global Response is null for merchantId: {}", merchantId);
-					responseDTO.setSuccess(false);
-					responseDTO.setMessage("Something Went Wrong!!");
+					loanData.put("experian",Boolean.TRUE);
+					loanData.put("eligible",Boolean.FALSE);
+					loanData.put("color","#ed6a5b");
+					loanData.put("header","Merchant Not Eligible");
+					loanData.put("message","");
+					data.put("loan_data",loanData);
+					data.put("task_enable",Boolean.FALSE);
+					responseDTO.setData(data);
 					return responseDTO;
 				}
 				if (globalLimitResponse.getData().getGlobalLimit() >= 10000) {
+					loanData.put("experian",Boolean.TRUE);
 					loanData.put("eligible", Boolean.TRUE);
 					loanData.put("applicationPending", Boolean.FALSE);
 					loanData.put("color", "#02a758");
