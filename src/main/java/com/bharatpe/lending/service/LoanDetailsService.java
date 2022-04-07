@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Pair;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -731,32 +732,35 @@ public class LoanDetailsService {
 
 	private LoanEligibilityDTO createEligibilty(Long merchantId) {
 		try {
-			EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
-			LoanCalculationUtil.LoanBreakupDetail breakup;
+			//EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+			EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
 			if (eligibleLoan != null) {
-				LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
+				//LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 				AvailableLoan availableLoan = new AvailableLoan();
 				availableLoan.setAmount(eligibleLoan.getAmount());
-				logger.info("Calculating loan breakup for merchant:{}, category:{}, loanType:{}", merchantId, lendingCategories, eligibleLoan.getLoanType());
-				breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, eligibleLoan.getLoanType());
+				logger.info("Calculating loan breakup for merchant:{}, loanType:{}", merchantId, eligibleLoan.getLoanType());
+				//breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, eligibleLoan.getLoanType());
 				LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
 				loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
 				loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
-				loanEligibilityDTO.setInterestRate(lendingCategories.getInterestRate());
+				loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
 				int processingFee;
 				if (apiGatewayService.eligibleForProcessingFee(merchantId)) {
 					processingFee = 0;
 				} else {
-					processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategories.getProcessingFee()));
+					processingFee = (int) Math.ceil(eligibleLoan.getAmount() * eligibleLoan.getProcessingFee());
 				}
+				LoanCalculationUtil.LoanBreakupDetail breakup = new LoanCalculationUtil.LoanBreakupDetail();
+				breakup.setEdi(eligibleLoan.getEdi());
+				breakup.setRepayment(eligibleLoan.getRepayment());
 				loanEligibilityDTO.setProcessingFee(processingFee);
 				loanEligibilityDTO.setDisbursementAmount((int) (eligibleLoan.getAmount() - processingFee));
 				loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
 				loanEligibilityDTO.setInterestAmount((int) (eligibleLoan.getRepayment() - eligibleLoan.getAmount()));
 				loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
 				loanEligibilityDTO.setCategory(eligibleLoan.getCategory());
-				loanEligibilityDTO.setEdiCount(lendingCategories.getPayableDays());
-				loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+				loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
+				loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, 0));
 				loanEligibilityDTO.setConstruct(eligibleLoan.getLoanConstruct());
 				return loanEligibilityDTO;
 			} else {
