@@ -503,10 +503,10 @@ public class LendingApplicationService {
 	private LendingApplicationResponseDTO copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan, String offerType) {
 		try {
 			String selectedCategory = requestDTO.getPayload().getCategory();
-			if(selectedCategory==null || selectedCategory.isEmpty()) {
-				logger.error("Loan category not found in the request {}",requestDTO.toString());
-				return new LendingApplicationResponseDTO(false, "Category missing");
-			}
+//			if(selectedCategory==null || selectedCategory.isEmpty()) {
+//				logger.error("Loan category not found in the request {}",requestDTO.toString());
+//				return new LendingApplicationResponseDTO(false, "Category missing");
+//			}
 			//LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
 			EligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(prevLoan.getMerchant().getId(), offerType);
 			if(Objects.isNull(eligibleLoan)) {
