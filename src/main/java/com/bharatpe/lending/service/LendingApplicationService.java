@@ -13,6 +13,7 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -155,6 +156,9 @@ public class LendingApplicationService {
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	DecimalFormat df = new DecimalFormat("##.00");
+
+	@Autowired
+	LoanDetailsServiceV2 loanDetailsServiceV2;
 
 	public LendingApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		LendingApplicationResponseDTO lendingApplicationResponse=null;
@@ -1788,23 +1792,29 @@ public class LendingApplicationService {
 						return responseDTO;
 					}
 				}
-				GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
-				if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
-					logger.error("Global Response is null for merchantId: {}", merchantId);
-					responseDTO.setSuccess(false);
-					responseDTO.setMessage("Something Went Wrong!!");
-					return responseDTO;
-				}
-				if (globalLimitResponse.getData().getGlobalLimit() >= 10000) {
-					loanData.put("eligible", Boolean.TRUE);
-					loanData.put("applicationPending", Boolean.FALSE);
-					loanData.put("color", "#02a758");
-					loanData.put("header", "");
-					loanData.put("message", "Merchant is Eligible For Loan.");
-					data.put("loan_data", loanData);
-					data.put("task_enable", Boolean.TRUE);
-					responseDTO.setData(data);
-					return responseDTO;
+				if("rejected".equalsIgnoreCase(lendingApplication.getStatus())
+						&& Objects.nonNull(loanDetailsServiceV2.getReapplyTime(lendingApplication))
+						&& loanDetailsServiceV2.getReapplyTime(lendingApplication) <=0
+				) {
+
+					GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+					if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
+						logger.error("Global Response is null for merchantId: {}", merchantId);
+						responseDTO.setSuccess(false);
+						responseDTO.setMessage("Something Went Wrong!!");
+						return responseDTO;
+					}
+					if (globalLimitResponse.getData().getGlobalLimit() >= 10000) {
+						loanData.put("eligible", Boolean.TRUE);
+						loanData.put("applicationPending", Boolean.FALSE);
+						loanData.put("color", "#02a758");
+						loanData.put("header", "");
+						loanData.put("message", "Merchant is Eligible For Loan.");
+						data.put("loan_data", loanData);
+						data.put("task_enable", Boolean.TRUE);
+						responseDTO.setData(data);
+						return responseDTO;
+					}
 				}
 			}
 			loanData.put("experian",Boolean.TRUE);
