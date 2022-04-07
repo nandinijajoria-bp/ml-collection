@@ -1782,7 +1782,9 @@ public class LendingApplicationService {
 						loanData.put("header", "Please Complete Enach For Further Process Application.");
 						loanData.put("message", "Please get the NACH Form completed.");
 						data.put("task_enable", Boolean.TRUE);
+						loanData.put("loan_applied",Boolean.FALSE);
 					} else {
+						loanData.put("loan_applied",Boolean.TRUE);
 						loanData.put("nachStatus", lendingApplication.getNachStatus().toLowerCase());
 					}
 
