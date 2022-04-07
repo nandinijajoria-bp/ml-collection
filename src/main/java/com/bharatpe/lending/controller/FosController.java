@@ -1,7 +1,9 @@
 package com.bharatpe.lending.controller;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.FosService;
+import com.bharatpe.lending.service.LendingApplicationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ public class FosController {
     @Autowired
     FosService fosService;
 
+    @Autowired
+    LendingApplicationService lendingApplicationService;
+
     @RequestMapping(value="/loan", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<ResponseDTO> fosLoanDetails(@RequestParam Long merchantId) {
         return new ResponseEntity<>(fosService.fosLoan(merchantId), HttpStatus.OK);
@@ -27,7 +32,7 @@ public class FosController {
 
     @RequestMapping(value="/v2/loan", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<ResponseDTO> fosnewLoanDetails(@RequestParam Long merchantId) {
-        return new ResponseEntity<>(fosService.fosnewLoan(merchantId), HttpStatus.OK);
+        return new ResponseEntity<>(lendingApplicationService.fosnewLoan(merchantId), HttpStatus.OK);
     }
 
     @RequestMapping(value="/nach/update", method = RequestMethod.POST, produces="application/json")
