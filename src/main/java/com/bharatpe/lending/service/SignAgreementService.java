@@ -162,10 +162,15 @@ public class SignAgreementService {
 		response.put("otp_flow",false);
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
-		String selectedCategory = requestDTO.getPayload().getCategory();
+//		String selectedCategory = requestDTO.getPayload().getCategory();
+		Integer selectedTenure = requestDTO.getPayload().getTenureInMonths();
 		
-		if(StringUtils.isEmpty(selectedCategory)) {
-			logger.error("Selected category is null/empty for merchant {}", merchant.getId());
+//		if(StringUtils.isEmpty(selectedCategory)) {
+//			logger.error("Selected category is null/empty for merchant {}", merchant.getId());
+//			return response;
+//		}
+		if (selectedTenure == null || selectedTenure == 0) {
+			logger.error("Selected tenure is null/empty for merchant {}", merchant.getId());
 			return response;
 		}
 		
@@ -192,10 +197,10 @@ public class SignAgreementService {
 			logger.error("Topup loan already created for merchant:{}", merchant.getId());
 			return response;
 		}
-		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-		EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), selectedCategory);
+//		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
+		EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndTenureInMonthsAndLoanTypeOrderByIdDesc(merchant.getId(), selectedTenure, "TOPUP");
 		if(Objects.isNull(eligibleLoan)) {
-			logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
+			logger.error("No available loan found with merchant id {} and loan tenure {}", merchant.getId(), selectedTenure);
 			return response;
 		}
 		// pin code check for loan eligibility(removing this check for topup loan)
@@ -232,12 +237,13 @@ public class SignAgreementService {
         newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
         newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
-            newApplication.setInterestRate(1.75D);
-        } else {
-            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        }
-        newApplication.setProcessingFee((double)processingFee);
+//        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
+//            newApplication.setInterestRate(1.75D);
+//        } else {
+//            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+//        }
+		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+		newApplication.setProcessingFee((double)processingFee);
         newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
         newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
         newApplication.setMerchant(merchant);
@@ -251,7 +257,7 @@ public class SignAgreementService {
         newApplication.setBusinessName(prevApplication.getBusinessName());
         newApplication.setStatus("draft");
         newApplication.setMode("AUTO");
-        newApplication.setCategory(selectedCategory);
+        newApplication.setCategory(eligibleLoan.getCategory());
         newApplication.setTenure(eligibleLoan.getTenure());
         newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
         newApplication.setPayableDays((long) eligibleLoan.getEdiCount());

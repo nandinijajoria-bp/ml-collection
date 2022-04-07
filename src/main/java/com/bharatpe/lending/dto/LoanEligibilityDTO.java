@@ -37,16 +37,42 @@ public class LoanEligibilityDTO {
 	private String type;
 	@JsonIgnore
 	private Integer principleEdiTenure;
-	
+	private Integer tenureInMonths;
+
+	public Integer getTenureInMonths() {
+		return tenureInMonths;
+	}
+
+	public void setTenureInMonths(Integer tenureInMonths) {
+		this.tenureInMonths = tenureInMonths;
+	}
+
 	@JsonProperty(value = "installment_details")
 	private List<LabelDTO> list;
 
 	private boolean skipEnatch = true;
 	private String enach;
-	@JsonIgnore
 	private String loanType;
 
-	
+	private Integer ioEdi;
+	private Integer ioEdiCount;
+
+	public Integer getIoEdi() {
+		return ioEdi;
+	}
+
+	public void setIoEdi(Integer ioEdi) {
+		this.ioEdi = ioEdi;
+	}
+
+	public Integer getIoEdiCount() {
+		return ioEdiCount;
+	}
+
+	public void setIoEdiCount(Integer ioEdiCount) {
+		this.ioEdiCount = ioEdiCount;
+	}
+
 	public Integer getProcessingFee() {
 		return processingFee;
 	}
