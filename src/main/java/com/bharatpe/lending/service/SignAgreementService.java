@@ -237,12 +237,13 @@ public class SignAgreementService {
         newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
         newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
-            newApplication.setInterestRate(1.75D);
-        } else {
-            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        }
-        newApplication.setProcessingFee((double)processingFee);
+//        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
+//            newApplication.setInterestRate(1.75D);
+//        } else {
+//            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+//        }
+		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+		newApplication.setProcessingFee((double)processingFee);
         newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
         newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
         newApplication.setMerchant(merchant);
