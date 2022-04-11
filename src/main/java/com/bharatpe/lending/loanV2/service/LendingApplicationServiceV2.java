@@ -717,9 +717,6 @@ public class LendingApplicationServiceV2 {
             } else if (lendingApplication.getCkycStatus() != null && lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.REJECTED.name())) {
                 headerDTO.setTitle("KYC Verification Failed");
                 headerDTO.setComment(lendingApplication.getCkycRejectionReason());
-            } else if (KycStatus.PENDING.name().equalsIgnoreCase(kycStatus)) {
-                headerDTO.setTitle("Document Verification Pending");
-                headerDTO.setComment("We are reviewing your shop documents");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(kycStatus)) {
                 headerDTO.setTitle("Document Verification Failed");
                 String rejectionMessage;
@@ -730,21 +727,29 @@ public class LendingApplicationServiceV2 {
                 }
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
                 headerDTO.setComment(rejectionMessage);
-            } else if (KycStatus.PENDING.name().equalsIgnoreCase(cpvStatus)) {
-                headerDTO.setTitle("Document Verification Pending");
-                headerDTO.setComment("Our agents will visit your shop to collect business documents");
-            } else if (KycStatus.REJECTED.name().equalsIgnoreCase(cpvStatus)) {
+            }  else if (KycStatus.REJECTED.name().equalsIgnoreCase(cpvStatus)) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
                 headerDTO.setTitle("Document Verification Failed");
                 headerDTO.setComment(rejectionMessage);
-            } else if (KycStatus.PENDING.name().equalsIgnoreCase(callingStatus)) {
-                headerDTO.setTitle("Verification Call Pending");
-                headerDTO.setComment("Our agents will call you on " + merchant.getMobile() + " in 1-2 days for verification");
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Failed");
                 headerDTO.setComment("You were unreachable on " + merchant.getMobile());
-            } else {
+            } else if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+                String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
+                rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
+                headerDTO.setTitle("Document Verification Failed");
+                headerDTO.setComment(rejectionMessage);
+            } else if (KycStatus.PENDING.name().equalsIgnoreCase(kycStatus)) {
+                headerDTO.setTitle("Document Verification Pending");
+                headerDTO.setComment("We are reviewing your shop documents");
+            } else if (KycStatus.PENDING.name().equalsIgnoreCase(cpvStatus)) {
+                headerDTO.setTitle("Document Verification Pending");
+                headerDTO.setComment("Our agents will visit your shop to collect business documents");
+            } else if (KycStatus.PENDING.name().equalsIgnoreCase(callingStatus)) {
+                headerDTO.setTitle("Verification Call Pending");
+                headerDTO.setComment("Our agents will call you on " + merchant.getMobile() + " in 1-2 days for verification");
+            }  else {
                 headerDTO = null;
             }
             applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);

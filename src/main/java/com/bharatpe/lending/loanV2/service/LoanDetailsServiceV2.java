@@ -448,7 +448,7 @@ public class LoanDetailsServiceV2 {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
-            } else if("REJECTED".equalsIgnoreCase(lendingApplication.getCkycStatus())) {
+            } else {
                 reapplyDayDiff = 0;
             }
             if(Objects.nonNull(reapplyDayDiff)) {
