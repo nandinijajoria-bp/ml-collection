@@ -56,6 +56,7 @@ public class LoanEligibilityDTO {
 
 	private Integer ioEdi;
 	private Integer ioEdiCount;
+	private Long activeApplicationId;
 
 	public Integer getIoEdi() {
 		return ioEdi;
@@ -190,6 +191,14 @@ public class LoanEligibilityDTO {
 
 	public void setEdiCount(Integer ediCount) {
 		this.ediCount = ediCount;
+	}
+
+	public Long getActiveApplicationId() {
+		return activeApplicationId;
+	}
+
+	public void setActiveApplicationId(Long activeApplicationId) {
+		this.activeApplicationId = activeApplicationId;
 	}
 
 	@Override
