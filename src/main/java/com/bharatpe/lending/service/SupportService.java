@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
+import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -29,13 +30,19 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.opencsv.CSVWriter;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -140,6 +147,12 @@ public class SupportService {
 
     @Autowired
     LendingNocDetailsDao lendingNocDetailsDao;
+
+    @Autowired
+    CrmBulkContactsService crmBulkContactsService;
+
+    @Autowired
+    CrmBulkContactsDao crmBulkContactsDao;
 
     private final String basePath = "src/main/resources/templates/";
 
@@ -1875,5 +1888,80 @@ public class SupportService {
             logger.error("Exception Occured While getting noc url for loanId: {} {}", lendingPaymentSchedule.getId(), ex);
         }
         return null;
+    }
+
+    public ResponseDTO getBulkContacts(String fileName) {
+        try {
+            logger.info("Getting file : {} from s3", fileName);
+            byte[] bytes = IOUtils.toByteArray(s3BucketHandler.getObject(fileName, "loan-document"));
+            InputStream bulkContactFile = new ByteArrayInputStream(bytes);
+            String validateCsvResponse = validateCsvFile(bulkContactFile);
+            if ( validateCsvResponse != null) {
+                return new ResponseDTO(false,validateCsvResponse);
+            }
+            CrmBulkContacts crmBulkContacts = new CrmBulkContacts();
+            crmBulkContacts.setStatus(CrmBulkContactsResponseStatus.PENDING.name());
+            crmBulkContacts = crmBulkContactsDao.save(crmBulkContacts);
+            bulkContactFile =  new ByteArrayInputStream(bytes);
+            crmBulkContactsService.fetchCrmBulkContacts(bulkContactFile,crmBulkContacts.getId());
+            BulkContactResponse bulkContactResponse = new BulkContactResponse();
+            bulkContactResponse.setResponseId(crmBulkContacts.getId());
+            bulkContactResponse.setStatus(CrmBulkContactsResponseStatus.PENDING.name());
+            ResponseDTO responseDTO = new ResponseDTO(true,"success");
+            responseDTO.setData(bulkContactResponse);
+            return responseDTO;
+        } catch (Exception e) {
+            logger.error("error while fetching bulk contacts {}", Arrays.asList(e.getStackTrace()));
+        }
+        return new ResponseDTO(false,"Something went wrong");
+    }
+
+    public String validateCsvFile (InputStream bulkContactFile) throws IOException {
+        BufferedReader bulkContactFileReader = new BufferedReader(new InputStreamReader(bulkContactFile));
+        String readLine = bulkContactFileReader.readLine();
+        if (readLine == null) {
+            return "Empty Csv file";
+        }
+        int count = 0;
+        while(Objects.nonNull(readLine)) {
+            try {
+                String[] temp = ((readLine.replaceAll("\\s", "")).toLowerCase()).split(",");
+                if (count == 0) {
+                    if (temp[0].isEmpty()) {
+                        return "Invalid CSV file";
+                    }
+                    count++;
+                } else {
+                    if (temp[0].isEmpty()) {
+                        return "Invalid CSV file";
+                    }
+                    if (!temp[0].matches("^[0-9]{10}$|^[0-9]{12}$")) {
+                        return "Invalid CSV file";
+                    }
+                    if (temp[0].length() > 12 || temp[0].length() < 10) {
+                        return "Invalid CSV file";
+                    }
+                    count++;
+                }
+            } catch (Exception e) {
+                logger.error("Exception occurred while validating csv file {}", Arrays.asList(e.getStackTrace()));
+                return "Exception occurred";
+            }
+            readLine = bulkContactFileReader.readLine();
+        }
+        return null;
+    }
+
+    public ResponseDTO showBulkContacts() {
+        try {
+            Pageable pageable = PageRequest.of(0,10, Sort.by("Id"));
+            Page<CrmBulkContacts> crmBulkContactsList = crmBulkContactsDao.findAll(pageable);
+            ResponseDTO responseDTO = new ResponseDTO(true,"success");
+            responseDTO.setData(crmBulkContactsList.getContent());
+            return responseDTO;
+        } catch (Exception e) {
+            logger.error("Exception while fetching bulk contacts {}", Arrays.asList(e.getStackTrace()));
+        }
+        return new ResponseDTO(false, "something went wrong !");
     }
 }

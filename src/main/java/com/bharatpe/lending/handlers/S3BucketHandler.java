@@ -193,6 +193,23 @@ public class S3BucketHandler {
 		logger.info("Time Taken by AWS S3 File upload API : {} miliseconds", Duration.between(start, end).toMillis());
 	}
 
+	public void uploadFileToS3WithTtl(InputStream inputStream, String bucket, String fileName, int ttlInDays) {
+		Instant start = Instant.now();
+		ObjectMetadata metadata = new ObjectMetadata();
+		metadata.setExpirationTime(DateTime.now().plusDays(ttlInDays).toDate());
+		AmazonS3 s3client = createS3BucketConnection();
+
+		try {
+			if(s3client != null) {
+				s3client.putObject(bucket, fileName, inputStream, metadata);
+			}
+		}catch(Exception e) {
+			logger.info("Exception while uploading file to S3", e);
+		}
+		Instant end = Instant.now();
+		logger.info("Time Taken by AWS S3 File upload API : {} miliseconds", Duration.between(start, end).toMillis());
+	}
+
 	public String uploadToS3PdfBucket(InputStream pdfStream, String fileName, String bucket) {
 		Instant start = Instant.now();
 		AmazonS3 s3client = createS3BucketConnection();

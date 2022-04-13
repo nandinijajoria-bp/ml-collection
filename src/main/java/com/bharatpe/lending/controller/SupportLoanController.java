@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +66,18 @@ public class SupportLoanController {
     @RequestMapping(value="/createAgreement/{applicationId}", method = RequestMethod.POST, produces="application/json")
     public ResponseDTO createAgreement(@PathVariable(value = "applicationId") Long applicationId){
         return supportService.createAgreement(applicationId);
+    }
+
+    @RequestMapping(value="/fetchBulkContacts/{fileName}", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO fetchBulkContact(@PathVariable(value = "fileName") String fileName){
+        logger.info("Fetching bulk contacts for File : {}", fileName);
+        return  supportService.getBulkContacts(fileName);
+    }
+
+    @RequestMapping(value="/showBulkContacts", method = RequestMethod.GET, produces="application/json")
+    public ResponseDTO showBulkContacts(){
+        logger.info("Fetching bulk contacts");
+        return supportService.showBulkContacts();
     }
 }
 
