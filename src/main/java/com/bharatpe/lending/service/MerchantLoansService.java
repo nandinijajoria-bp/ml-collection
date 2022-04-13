@@ -184,7 +184,8 @@ public class MerchantLoansService {
                         if (!loans.isEmpty()) {
                             responseDTO.setEligibility(loans);
                             responseDTO.setTopup(Boolean.TRUE);
-                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
+//                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
+                            responseDTO.setTopupLender(Lender.LDC.name());
                         }
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
@@ -488,6 +489,7 @@ public class MerchantLoansService {
                 EligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+                loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
                 loanEligibilityDTO.setProcessingFee(eligibleLoan.getProcessingFee());
                 loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
