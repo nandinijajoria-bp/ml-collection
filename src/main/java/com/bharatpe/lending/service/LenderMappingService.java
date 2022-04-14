@@ -38,31 +38,33 @@ public class LenderMappingService {
                 lendingApplicationDao.save(lendingApplication);
                 return;
             }
+
             Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(lendingApplication.getMerchant().getId());
-            if (repeatLoan > 0) {
-                if (true) {
-                    lendingApplication.setLender("LDC");
-                    lendingApplicationDao.save(lendingApplication);
-                    return;
-                }
-                LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(lendingApplication.getMerchant().getId());
-                if (!"LDC".equalsIgnoreCase(oldLoan.getNbfc())) {
-                    logger.info("Repeat loan application Lender Change To LDC merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
-                    lendingApplication.setLender("LDC");
-                } else {
-                    logger.info("Repeat loan application Lender Change To MAMTA merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
-                    lendingApplication.setLender("MAMTA");
-                }
-                lendingApplicationDao.save(lendingApplication);
-                return;
-            }
-            String lender = "LDC";
-            LendingLenderMapping llm = lendingLenderMappingDao.findByMappingLender();
+            String loanType = repeatLoan > 0 ? "REPEAT" : "NORMAL";
+//            if (repeatLoan > 0) {
+//                if (true) {
+//                    lendingApplication.setLender("LDC");
+//                    lendingApplicationDao.save(lendingApplication);
+//                    return;
+//                }
+//                LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(lendingApplication.getMerchant().getId());
+//                if (!"LDC".equalsIgnoreCase(oldLoan.getNbfc())) {
+//                    logger.info("Repeat loan application Lender Change To LDC merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
+//                    lendingApplication.setLender("LDC");
+//                } else {
+//                    logger.info("Repeat loan application Lender Change To MAMTA merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
+//                    lendingApplication.setLender("MAMTA");
+//                }
+//                lendingApplicationDao.save(lendingApplication);
+//                return;
+//            }
+            String lender = "LIQUILOANS_NBFC";
+            LendingLenderMapping llm = lendingLenderMappingDao.findByMappingLender(loanType);
             if(llm == null){
                 lendingLenderMappingDao.updateMultiplier();
-                llm = lendingLenderMappingDao.findByMappingLender();
+                llm = lendingLenderMappingDao.findByMappingLender(loanType);
             }
-            lendingLenderMappingDao.updateLenderMultiplier(llm.getLender());
+            lendingLenderMappingDao.updateLenderMultiplier(llm.getLender(), loanType);
             lender=llm.getLender();
 
             LendingAuditTrial auditLender = new LendingAuditTrial();
@@ -79,7 +81,7 @@ public class LenderMappingService {
 
         }catch (Exception e){
             logger.error("Exception In Lending Lender Mapping for applicationId:{}", lendingApplication.getId(), e);
-            lendingApplication.setLender("LDC");
+            lendingApplication.setLender("LIQUILOANS_NBFC");
             lendingApplicationDao.save(lendingApplication);
         }
     }
