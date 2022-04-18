@@ -462,7 +462,7 @@ public class LendingApplicationServiceV2 {
                 .lender(lendingApplication.getLender())
                 .loanAmount(lendingApplication.getLoanAmount())
                 .interestRate(lendingApplication.getInterestRate())
-                .arrangerFee(LoanCalculationUtil.getProcessingFee(lendingApplication.getLoanAmount(), lendingCategories))
+                .arrangerFee(lendingApplication.getProcessingFee().intValue())
                 .disbursalAmount(lendingApplication.getDisbursalAmount())
                 .tenure(lendingApplication.getTenure())
                 .ediAmount(lendingApplication.getEdi().intValue())
