@@ -616,7 +616,7 @@ public class LendingApplicationService {
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
 			processingFee = 0;
 		}else {
-			processingFee = (int) Math.ceil(eligibleLoan.getAmount() * (eligibleLoan.getProcessingFee()));
+			processingFee = eligibleLoan.getProcessingFee();
 		}
 		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
