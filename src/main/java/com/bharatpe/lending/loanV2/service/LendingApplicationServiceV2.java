@@ -825,10 +825,6 @@ public class LendingApplicationServiceV2 {
 
     public Boolean downgradeApplication(LendingApplication lendingApplication){
         try{
-            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            if(Objects.isNull(lendingCategory)){
-                return false;
-            }
             Double loanAmount;
             if (OfferDowngradeApplication.eligibleForDowngrade(lendingApplication)) {
                 loanAmount = OfferDowngradeApplication.getOfferRevisedAmount(lendingApplication);
@@ -848,10 +844,10 @@ public class LendingApplicationServiceV2 {
             Double amountDiffrence = lendingApplication.getLoanAmount() - loanAmount;
             int processingFee = 0;
             if (lendingApplication.getProcessingFee() > 0) {
-                processingFee = (int) Math.ceil(loanAmount * Double.parseDouble(lendingCategory.getProcessingFee()));
+                processingFee = (int) Math.ceil((loanAmount * lendingApplication.getProcessingFee())/lendingApplication.getLoanAmount());
             }
             Integer edi,repayment;
-            edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingCategory.getInterestRate() / 100) * lendingCategory.getTenureMonths()))) / lendingCategory.getPayableDays());
+            edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingApplication.getInterestRate() / 100) * lendingApplication.getTenureInMonths()))) / lendingApplication.getPayableDays());
             repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
 
             lendingApplication.setEdi(Double.valueOf(edi));
