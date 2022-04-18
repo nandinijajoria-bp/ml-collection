@@ -609,19 +609,19 @@ public class LendingApplicationService {
 
 	private LendingApplication createApplication(Merchant merchant, EligibleLoan eligibleLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
 		LendingApplication lendingApplication = new LendingApplication();
-		LendingCategories lendingCategory = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
+		//LendingCategories lendingCategory = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 
 		//LoanBreakupDetail breakupDetail = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory);
 		int processingFee;
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
 			processingFee = 0;
 		}else {
-			processingFee = (int) Math.ceil(eligibleLoan.getAmount() * Double.parseDouble(lendingCategory.getProcessingFee()));
+			processingFee = (int) Math.ceil(eligibleLoan.getAmount() * (eligibleLoan.getProcessingFee()));
 		}
 		lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
 		lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
-		lendingApplication.setInterestRate(lendingCategory.getInterestRate());
+		lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 		lendingApplication.setProcessingFee((double) processingFee);
 		lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
 		lendingApplication.setStatus("draft");
@@ -629,11 +629,11 @@ public class LendingApplicationService {
 		lendingApplication.setMerchant(merchant);
 		lendingApplication.setLoanAmount(eligibleLoan.getAmount());
 		lendingApplication.setCategory(eligibleLoan.getCategory());
-		lendingApplication.setTenure(lendingCategory.getPayableConverter());
-		lendingApplication.setTenureInMonths(lendingCategory.getTenureMonths().intValue());
-		lendingApplication.setPayableDays((long) lendingCategory.getPayableDays());
-		lendingApplication.setEdiFreeDays(lendingCategory.getEdiFreeDays());
-		lendingApplication.setIoPayableDays(lendingCategory.getIoPayableDays());
+		lendingApplication.setTenure(eligibleLoan.getTenure());
+		lendingApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+		lendingApplication.setPayableDays((long) eligibleLoan.getEdiCount());
+		lendingApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
+		lendingApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
 		lendingApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 		lendingApplication.setLoanType(eligibleLoan.getLoanType());
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(merchant.getId(), "DEBIT",eligibleLoan.getAmount()));
