@@ -12,6 +12,7 @@ import com.bharatpe.lending.enums.LoanType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,10 +32,16 @@ public class LenderMappingService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
+    @Value("${disbursal.lender.default}")
+    String defaultLender;
+
+    @Value("${disbursal.lender.io.topup}")
+    String defaultIoTopupLender;
+
     public void lenderMapping(LendingApplication lendingApplication){
         try{
             if (LoanType.IO_TOPUP.name().equals(lendingApplication.getLoanType())) {
-                lendingApplication.setLender("LIQUILOANS_NBFC");
+                lendingApplication.setLender(defaultIoTopupLender);
                 lendingApplicationDao.save(lendingApplication);
                 return;
             }
@@ -58,7 +65,8 @@ public class LenderMappingService {
 //                lendingApplicationDao.save(lendingApplication);
 //                return;
 //            }
-            String lender = "LIQUILOANS_NBFC";
+//            String lender = "LIQUILOANS_NBFC";
+            String lender = defaultLender;
             LendingLenderMapping llm = lendingLenderMappingDao.findByMappingLender(loanType);
             if(llm == null){
                 lendingLenderMappingDao.updateMultiplier();
@@ -81,7 +89,7 @@ public class LenderMappingService {
 
         }catch (Exception e){
             logger.error("Exception In Lending Lender Mapping for applicationId:{}", lendingApplication.getId(), e);
-            lendingApplication.setLender("LIQUILOANS_NBFC");
+            lendingApplication.setLender(defaultLender);
             lendingApplicationDao.save(lendingApplication);
         }
     }
