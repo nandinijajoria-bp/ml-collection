@@ -863,7 +863,7 @@ private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant me
 				loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
 				loanEligibilityDTO.setTenure(lendingCategoryDetail.getPayableConverter());
 				loanEligibilityDTO.setConstruct(availableLoan.getLoanConstruct());
-				loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+				//loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 				loanEligibilityDTO.setType(breakup.getType());
 				loanEligibilityDTO.setOptionEnable(true);
 

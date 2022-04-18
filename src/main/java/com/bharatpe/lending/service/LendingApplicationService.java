@@ -243,20 +243,19 @@ public class LendingApplicationService {
 	private LendingApplicationResponseDTO prepopulateData(Merchant merchant, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		logger.info("Pre populating data for merchant:{}", merchant.getId());
 		try {
-			String selectedCategory = requestDTO.getPayload().getCategory();
-			if(selectedCategory==null || selectedCategory.isEmpty()) {
-				logger.error("Loan category not found in the request:{}", requestDTO.toString());
-				return new LendingApplicationResponseDTO(false, "Category missing");
-			}
-			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(merchant.getId(), selectedCategory, requestDTO.getPayload().getOfferType());
-			LendingCategories lendingCategory = lendingCategoryDao.getByCategory(selectedCategory);
-			if(eligibleLoans.isEmpty() || lendingCategory == null) {
+			//String selectedCategory = requestDTO.getPayload().getCategory();
+//			if(selectedCategory==null || selectedCategory.isEmpty()) {
+//				logger.error("Loan category not found in the request:{}", requestDTO.toString());
+//				return new LendingApplicationResponseDTO(false, "Category missing");
+//			}
+			EligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(merchant.getId(), requestDTO.getPayload().getOfferType());
+			//LendingCategories lendingCategory = lendingCategoryDao.getByCategory(selectedCategory);
+			if(Objects.isNull(eligibleLoan)) {
 				logger.info("No eligible loan found for merchant:{}", merchant.getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
 			Experian experian = experianDao.getByMerchantId(merchant.getId());
-			EligibleLoan eligibleLoan = eligibleLoans.get(0);
 			MerchantInfoDTO merchantInfoDTO = apiGatewayService.getMerchantAddress(merchant.getId());
 			String address = fetchMerchantAddress(merchantInfoDTO);
 			LendingApplicationRequestDTO lendingApplicationRequestDTO = requestDTO.getPayload();
@@ -493,30 +492,29 @@ public class LendingApplicationService {
 		return null;
 	}
 
-	private List<EligibleLoan> fetchEligibleLoansForCreateApplication(Long merchantId, String category, String offerType){
+	private EligibleLoan fetchEligibleLoansForCreateApplication(Long merchantId, String offerType){
 
-		if("CUSTOM".equalsIgnoreCase(offerType) && !category.equalsIgnoreCase("SMALL_TICKET2")){
-			return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
-		}
-		return eligibleLoanDao.findByMerchantIdAndCategory(merchantId, category);
+//		if("CUSTOM".equalsIgnoreCase(offerType) && !category.equalsIgnoreCase("SMALL_TICKET2")){
+//			return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
+//		}
+		return eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, offerType);
 	}
 
 	private LendingApplicationResponseDTO copyApplicationData(RequestDTO<LendingApplicationRequestDTO> requestDTO,LendingApplication prevLoan, String offerType) {
 		try {
 			String selectedCategory = requestDTO.getPayload().getCategory();
-			if(selectedCategory==null || selectedCategory.isEmpty()) {
-				logger.error("Loan category not found in the request {}",requestDTO.toString());
-				return new LendingApplicationResponseDTO(false, "Category missing");
-			}
-			LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-			List<EligibleLoan> eligibleLoans = fetchEligibleLoansForCreateApplication(prevLoan.getMerchant().getId(), selectedCategory, offerType);
-			if(eligibleLoans.isEmpty() || selectedCategoriesData == null) {
+//			if(selectedCategory==null || selectedCategory.isEmpty()) {
+//				logger.error("Loan category not found in the request {}",requestDTO.toString());
+//				return new LendingApplicationResponseDTO(false, "Category missing");
+//			}
+			//LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
+			EligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(prevLoan.getMerchant().getId(), offerType);
+			if(Objects.isNull(eligibleLoan)) {
 				logger.error("No eligible loan/category found for merchant {}",prevLoan.getMerchant().getId());
 				return new LendingApplicationResponseDTO(false,"No eligible loan found");
 			}
 			MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(prevLoan.getMerchant().getId());
-			EligibleLoan eligibleLoan=eligibleLoans.get(0);
-			LendingApplication newApplication = copyApplicationDataWhenExperianEnabled(eligibleLoan, selectedCategoriesData, prevLoan, selectedCategory);
+			LendingApplication newApplication = copyApplicationDataWhenExperianEnabled(eligibleLoan, prevLoan, selectedCategory);
 			if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 				newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 			if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
@@ -543,7 +541,7 @@ public class LendingApplicationService {
 		return new LendingApplicationResponseDTO(false,"Error occured while creating loan application");
 	}
 
-	private LendingApplication copyApplicationDataWhenExperianEnabled(EligibleLoan eligibleLoan, LendingCategories selectedCategoriesData, LendingApplication prevLoan,String selectedCategory) {
+	private LendingApplication copyApplicationDataWhenExperianEnabled(EligibleLoan eligibleLoan, LendingApplication prevLoan,String selectedCategory) {
 		Experian experian = experianDao.getByMerchantId(prevLoan.getMerchant().getId());
 		LendingApplication newApplication=new LendingApplication();
 		// check here we need check or not
