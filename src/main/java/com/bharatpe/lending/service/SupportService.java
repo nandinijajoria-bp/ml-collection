@@ -1893,7 +1893,7 @@ public class SupportService {
     public ResponseDTO getBulkContacts(String fileName) {
         try {
             logger.info("Getting file : {} from s3", fileName);
-            byte[] bytes = IOUtils.toByteArray(s3BucketHandler.getObject(fileName, "loan-document"));
+            byte[] bytes = IOUtils.toByteArray(s3BucketHandler.getObject(fileName + ".csv", "loan-document"));
             InputStream bulkContactFile = new ByteArrayInputStream(bytes);
             String validateCsvResponse = validateCsvFile(bulkContactFile);
             if ( validateCsvResponse != null) {
