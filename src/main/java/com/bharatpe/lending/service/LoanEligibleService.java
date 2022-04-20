@@ -14,6 +14,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -145,7 +146,7 @@ public class LoanEligibleService {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
         if(queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
-            !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(RiskSegment.SMALL_TICKET.name())) {
+            !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) {
             responseDTO.setSuccess(false);
             responseDTO.setMessage("Invalid Loan Amount");
             return responseDTO;
