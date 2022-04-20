@@ -9,6 +9,7 @@ import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -142,13 +143,14 @@ public class LoanEligibleService {
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
-        if(queryAmount < 10000) {
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+        if(queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
+            !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(RiskSegment.SMALL_TICKET.name())) {
             responseDTO.setSuccess(false);
             responseDTO.setMessage("Invalid Loan Amount");
             return responseDTO;
         }
         eligibleLoanDao.deleteCustomOffers(merchantId);
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
         loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount);
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
