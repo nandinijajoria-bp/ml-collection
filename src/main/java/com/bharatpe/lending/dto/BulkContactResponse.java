@@ -10,4 +10,5 @@ public class BulkContactResponse {
     Long responseId;
     String status;
     String result;
+    String fileName;
 }

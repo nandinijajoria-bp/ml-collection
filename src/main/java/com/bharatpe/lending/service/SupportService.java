@@ -1901,12 +1901,14 @@ public class SupportService {
             }
             CrmBulkContacts crmBulkContacts = new CrmBulkContacts();
             crmBulkContacts.setStatus(CrmBulkContactsResponseStatus.PENDING.name());
+            crmBulkContacts.setFileName(fileName+ ".csv");
             crmBulkContacts = crmBulkContactsDao.save(crmBulkContacts);
             bulkContactFile =  new ByteArrayInputStream(bytes);
             crmBulkContactsService.fetchCrmBulkContacts(bulkContactFile,crmBulkContacts.getId());
             BulkContactResponse bulkContactResponse = new BulkContactResponse();
             bulkContactResponse.setResponseId(crmBulkContacts.getId());
             bulkContactResponse.setStatus(CrmBulkContactsResponseStatus.PENDING.name());
+            bulkContactResponse.setFileName(fileName+ ".csv");
             ResponseDTO responseDTO = new ResponseDTO(true,"success");
             responseDTO.setData(bulkContactResponse);
             return responseDTO;
@@ -1954,7 +1956,7 @@ public class SupportService {
 
     public ResponseDTO showBulkContacts() {
         try {
-            Pageable pageable = PageRequest.of(0,10, Sort.by("Id"));
+            Pageable pageable = PageRequest.of(0,10, Sort.by(Sort.Direction.DESC,"Id"));
             Page<CrmBulkContacts> crmBulkContactsList = crmBulkContactsDao.findAll(pageable);
             ResponseDTO responseDTO = new ResponseDTO(true,"success");
             responseDTO.setData(crmBulkContactsList.getContent());
