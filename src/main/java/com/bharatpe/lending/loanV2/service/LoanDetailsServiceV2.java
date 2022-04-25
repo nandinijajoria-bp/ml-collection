@@ -111,12 +111,12 @@ public class LoanDetailsServiceV2 {
         try {
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
             if (isCreditLineMerchant(merchant)) {
-                log.info("credit line merchant:{}", merchant.getId());
+                log.info("credit line merchant: {}", merchant.getId());
                 loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
                 return new ApiResponse<>(loanDetailsResponse);
             }
             if (isOrganizedMerchant(merchant)) {
-                log.info("organized merchant:{}", merchant.getId());
+                log.info("organized merchant: {}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
             }
             // dummy merchant flag exposed to FE
