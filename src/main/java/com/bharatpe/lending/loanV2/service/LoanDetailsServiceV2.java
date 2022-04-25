@@ -566,10 +566,10 @@ public class LoanDetailsServiceV2 {
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchant().getId()) || loanUtil.isEnachDone(openApplication.getMerchant())) {
             return null;
         }
-        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
-        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
-            return null;
-        }
+//        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+//        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
+//            return null;
+//        }
         if (isIOS) return Deeplink.TECHPROCESS;
         return apiGatewayService.getEnachProvider(token, openApplication.getMerchant().getId());
     }

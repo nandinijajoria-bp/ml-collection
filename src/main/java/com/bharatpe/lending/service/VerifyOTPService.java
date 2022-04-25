@@ -292,15 +292,15 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-//		if (easyLoanUtil.isDummyMerchant(merchant.getId()) || merchant.getId() == 10407700L) {
-//			// skipping enach for dummy merchant
-//			lendingApplication.setNachType("ENACH");
-//			lendingApplication.setNachLender("BHARATPE");
-//			lendingApplication.setNachStatus("APPROVED");
-//			lendingApplication.setCkycStatus("APPROVED");
-//			lendingApplication.setCkycDate(new Date());
-//			lendingApplicationDao.save(lendingApplication);
-//		}
+		if (easyLoanUtil.isDummyMerchant(merchant.getId()) || merchant.getId() == 10407700L) {
+			// skipping enach for dummy merchant
+			lendingApplication.setNachType("ENACH");
+			lendingApplication.setNachLender("BHARATPE");
+			lendingApplication.setNachStatus("APPROVED");
+			lendingApplication.setCkycStatus("APPROVED");
+			lendingApplication.setCkycDate(new Date());
+			lendingApplicationDao.save(lendingApplication);
+		}
 		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
 		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
 		logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
