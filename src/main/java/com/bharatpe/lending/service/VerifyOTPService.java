@@ -310,7 +310,9 @@ public class VerifyOTPService {
 		}
 		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 		sendLatLong(merchant.getId(), lendingApplication.getId());
-		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+		if(Objects.nonNull(enachSuccess)) {
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+		}
 		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
 		loanUtil.publishApplicationEvent(lendingApplication);
 
