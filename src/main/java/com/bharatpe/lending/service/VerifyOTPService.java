@@ -255,6 +255,7 @@ public class VerifyOTPService {
 		if (enachSuccess != null && merchantBankDetail != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachSuccess = null;
 		}
+		logger.info("enach success status: {}",enachSuccess);
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
@@ -311,6 +312,7 @@ public class VerifyOTPService {
 		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 		sendLatLong(merchant.getId(), lendingApplication.getId());
 		if(Objects.nonNull(enachSuccess)) {
+			logger.info("entered before sending to topic for post checks");
 			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
 		}
 		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
