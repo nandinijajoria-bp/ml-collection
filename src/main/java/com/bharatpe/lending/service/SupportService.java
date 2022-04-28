@@ -1956,7 +1956,7 @@ public class SupportService {
 
     public ResponseDTO showBulkContacts() {
         try {
-            Pageable pageable = PageRequest.of(0,10, Sort.by(Sort.Direction.DESC,"Id"));
+            Pageable pageable = PageRequest.of(0,50, Sort.by(Sort.Direction.DESC,"Id"));
             Page<CrmBulkContacts> crmBulkContactsList = crmBulkContactsDao.findAll(pageable);
             ResponseDTO responseDTO = new ResponseDTO(true,"success");
             responseDTO.setData(crmBulkContactsList.getContent());
