@@ -775,7 +775,7 @@ public class FosService {
 //        }
 //    }
 
-    public ResponseDTO checkMerchantEligibilty(Long merchantId) {
+    public ResponseDTO checkMerchantEligibilty(Long merchantId, Boolean forceEligibilityCheck) {
         try {
             Merchant merchant = merchantDao.getById(merchantId);
             // check for existing merchant
@@ -870,13 +870,13 @@ public class FosService {
                             // closed loans and eligibility check
                             else if (lendingPaymentSchedule.getStatus().equalsIgnoreCase("CLOSED")) {
                                 logger.info("merchant {} has a closed loan", merchantId);
-                                return computeEligibilityParams(hasFinalOfferGtZero(merchant), null, merchantId);
+                                return computeEligibilityParams(hasFinalOfferGtZero(merchant,forceEligibilityCheck), null, merchantId);
                             }
                         }
                     }
                 }
             }
-            String finalOfferEligibility = hasFinalOfferGtZero(merchant);
+            String finalOfferEligibility = hasFinalOfferGtZero(merchant, forceEligibilityCheck);
             return finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId) : computeEligibilityParams(finalOfferEligibility, null, merchantId);
         } catch (Exception e) {
             logger.error("error while checking fos loan eligibility for merchant: {}",merchantId, e);
@@ -884,11 +884,13 @@ public class FosService {
         return new ResponseDTO(Boolean.FALSE,"something went wrong !!");
     }
 
-    public String hasFinalOfferGtZero(Merchant merchant) {
-        try {
-            apiGatewayService.getGlobalLimit(merchant.getId());
-        } catch (Exception e) {
-            logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);
+    public String hasFinalOfferGtZero(Merchant merchant, Boolean forceEligibilityCheck) {
+        if (forceEligibilityCheck) {
+            try {
+                apiGatewayService.getGlobalLimit(merchant.getId());
+            } catch (Exception e) {
+                logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);
+            }
         }
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
         if (Objects.isNull(lendingRiskVariables)) {

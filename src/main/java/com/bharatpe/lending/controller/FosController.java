@@ -52,7 +52,7 @@ public class FosController {
 
     @RequestMapping(value = "/merchant_eligibility",method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<ResponseDTO> getMerchantEligibilityForLoan(@RequestParam Long merchantId) {
-        return new ResponseEntity<>(fosService.checkMerchantEligibilty(merchantId),HttpStatus.OK);
+        return new ResponseEntity<>(fosService.checkMerchantEligibilty(merchantId, Boolean.TRUE),HttpStatus.OK);
     }
 
     @RequestMapping(value = "/task_status",method = RequestMethod.GET, produces = "application/json")

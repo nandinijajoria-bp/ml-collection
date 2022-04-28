@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV2.service;
 
+import com.bharatpe.cache.DTO.AddCacheDto;
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
@@ -26,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -103,6 +106,12 @@ public class LoanDetailsServiceV2 {
     @Autowired
     FosService fosService;
 
+    @Value("${eligibility.refresh.window:1}")
+    int eligibilityRefreshWindow;
+
+    @Autowired
+    LendingCache lendingCache;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
@@ -124,7 +133,19 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchant.getId()));
             loanDetailsResponse.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
             loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
-            loanDetailsResponse.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchant.getId()));
+            String bpMembershipKey = "BP_CLUB_MEMBERSHIP_" + merchant.getId();
+            Object bpCLubResponse = lendingCache.get(bpMembershipKey);
+            if (ObjectUtils.isEmpty(bpCLubResponse)) {
+                Boolean isBpClubMember = apiGatewayService.eligibleForProcessingFee(merchant.getId());
+                loanDetailsResponse.setBpClubMember(isBpClubMember);
+                AddCacheDto addCacheDto = new AddCacheDto();
+                addCacheDto.setKey(bpMembershipKey);
+                addCacheDto.setValue(isBpClubMember);
+                addCacheDto.setTtl(7*24);
+                lendingCache.add(addCacheDto);
+            } else {
+                loanDetailsResponse.setBpClubMember((Boolean) bpCLubResponse);
+            }
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
             populateBusinessDetails(merchant,loanDetailsResponse);
@@ -256,6 +277,17 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPancard(experian.getPancardNumber());
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
+        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchant.getId(),Sort.by(Sort.Direction.ASC,"id"));
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(),-24*eligibilityRefreshWindow);
+        Eligibility eligibility = null;
+        if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow)) {
+            log.info("Eligible offers exist for merchant:{}", merchant.getId());
+            eligibility = createEligibility(merchant.getId());
+            if (eligibility != null) {
+                loanDetailsResponse.setEligibility(eligibility);
+                return;
+            }
+        }
         MutableBoolean isDerog = new MutableBoolean(false);
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, request.getAppVersion());
         Double eligibleAmount = 0D;
@@ -264,7 +296,6 @@ public class LoanDetailsServiceV2 {
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
         }
-        Eligibility eligibility = null;
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
             recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
@@ -596,7 +627,7 @@ public class LoanDetailsServiceV2 {
 
     public boolean checkEligibilityForCallback(Long merchantId) {
         try {
-            ResponseDTO responseDTO = fosService.checkMerchantEligibilty(merchantId);
+            ResponseDTO responseDTO = fosService.checkMerchantEligibilty(merchantId,Boolean.FALSE);
             if (responseDTO.isSuccess() && responseDTO.getData() != null) {
                 FosMerchantEligibilityDto fosMerchantEligibilityDto = (FosMerchantEligibilityDto) responseDTO.getData();
                 if (!"ineligible".equalsIgnoreCase(fosMerchantEligibilityDto.getEligibility())) {
