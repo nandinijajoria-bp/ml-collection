@@ -28,6 +28,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -134,6 +135,9 @@ public class VerifyOTPService {
 
     @Autowired
 	EasyLoanUtil easyLoanUtil;
+
+	@Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
+	String kafkaTopicPostChecks;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -251,6 +255,7 @@ public class VerifyOTPService {
 		if (enachSuccess != null && merchantBankDetail != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachSuccess = null;
 		}
+		logger.info("enach success status: {}",enachSuccess);
 		DateFormat df = new SimpleDateFormat("ddMMyy");
 		Date dateobj = new Date();
 		String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
@@ -306,7 +311,10 @@ public class VerifyOTPService {
 		}
 		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 		sendLatLong(merchant.getId(), lendingApplication.getId());
-		sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+		if(Objects.nonNull(enachSuccess)) {
+			logger.info("entered before sending to topic for post checks");
+			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+		}
 		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
 		loanUtil.publishApplicationEvent(lendingApplication);
 
@@ -451,7 +459,7 @@ public class VerifyOTPService {
 			Map<String, Long> detailMap = new HashMap<>();
 			detailMap.put("merchantId", merchantId);
 			detailMap.put("applicationId", applicationId);
-			kafkaTemplate.send("lending_post_application_submission_checks", merchantId.toString(), detailMap);
+			kafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
 			logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
 		} catch (Exception e) {
 			logger.error("Error occured while pushing to topic verify_contacts_for_application", e);

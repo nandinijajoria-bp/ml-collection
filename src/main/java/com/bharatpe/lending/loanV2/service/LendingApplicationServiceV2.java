@@ -559,7 +559,7 @@ public class LendingApplicationServiceV2 {
                 dateDTO.setTime(successEnach.getCreatedAt().toString());
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
-            } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchant.getId()) && !isSmallTicketLoan) {
+            } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchant.getId())) {
                 applicationDTO2.setStatus("PENDING");
                 applicationDTO2.setText("e-NACH Pending");
                 applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");

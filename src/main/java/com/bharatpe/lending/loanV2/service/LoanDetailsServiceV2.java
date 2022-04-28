@@ -409,9 +409,9 @@ public class LoanDetailsServiceV2 {
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication));
             applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
-            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
-                applicationDetails.setSkipEnach(Boolean.TRUE);
-            }
+//            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
+//                applicationDetails.setSkipEnach(Boolean.TRUE);
+//            }
             applicationDetails.setAddressDetails(getShopAddress(openApplication));
             applicationDetails.setProfessionalDetails(getProfessionalDetails(openApplication));
             applicationDetails.setAdditionalDetails(new AdditionalDetails(openApplication.getEmail(), openApplication.getAlternateMobile()));
@@ -566,10 +566,10 @@ public class LoanDetailsServiceV2 {
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchant().getId()) || loanUtil.isEnachDone(openApplication.getMerchant())) {
             return null;
         }
-        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
-        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
-            return null;
-        }
+//        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+//        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
+//            return null;
+//        }
         if (isIOS) return Deeplink.TECHPROCESS;
         return apiGatewayService.getEnachProvider(token, openApplication.getMerchant().getId());
     }
