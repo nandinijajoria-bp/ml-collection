@@ -631,6 +631,7 @@ public class LoanDetailsServiceV2 {
             if (responseDTO.isSuccess() && responseDTO.getData() != null) {
                 FosMerchantEligibilityDto fosMerchantEligibilityDto = (FosMerchantEligibilityDto) responseDTO.getData();
                 if (!"ineligible".equalsIgnoreCase(fosMerchantEligibilityDto.getEligibility())) {
+                    log.info("merchant ineligible for callback");
                     return Boolean.TRUE;
                 }
             }
