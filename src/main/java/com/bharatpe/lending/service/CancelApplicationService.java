@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,6 +38,7 @@ public class CancelApplicationService {
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId, String reason) {
+
 		Map<String, Boolean> resp = new HashMap<> ();
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
 

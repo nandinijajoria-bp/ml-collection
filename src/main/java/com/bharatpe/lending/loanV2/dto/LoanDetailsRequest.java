@@ -10,4 +10,5 @@ public class LoanDetailsRequest {
     private String pincode;
     private Integer appVersion;
     private boolean isIOS = false;
+//    private boolean cachedData;
 }

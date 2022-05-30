@@ -32,4 +32,5 @@ public class LoanDetailsResponse {
     private String businessCategory;
     private String businessSubCategory;
     private boolean eligibleForCallback;
+    private String source;
 }

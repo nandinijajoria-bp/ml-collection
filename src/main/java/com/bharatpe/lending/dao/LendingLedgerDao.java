@@ -52,6 +52,6 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
       + "adjustment_mode in ('TOPUP','IO_TOPUP','HALF_TOPUP') order by created_at desc limit 1")
     Long getLedgerByAdjustmentModes(Long loanId);
 
-    @Query(nativeQuery = true, value = "select ifnull(sum(amount),0) from lending_ledger where loan_id=:loanId and amount>0 and adjustment_mode='SETTLEMENT'")
+    @Query(nativeQuery = true, value = "select ifnull(sum(amount),0) from lending_ledger where loan_id=:loanId and amount>0 and adjustment_mode in ('SETTLEMENT', 'FP')")
     Double findSettlementAmount(Long loanId);
 }

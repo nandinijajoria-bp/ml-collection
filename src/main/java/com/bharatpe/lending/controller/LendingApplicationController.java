@@ -2,6 +2,7 @@
   
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -20,6 +21,7 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("lending")
@@ -56,6 +58,9 @@ public class LendingApplicationController {
 
 	@Autowired
 	RefundService refundService;
+
+	@Autowired
+	LendingCache lendingCache;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
@@ -119,6 +124,13 @@ public class LendingApplicationController {
 	@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("cancelApplication request : {}",commonAPIRequest);
+		if(Objects.nonNull(merchant.getId())) {
+			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+			logger.info("deleting cached key of loan details in create application for merchant: {}",merchant.getId());
+			lendingCache.delete(loanDetailsCacheKey);
+		} else {
+			logger.info("merchant id not found in create application");
+		}
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		String reason = commonAPIRequest.getPayload().get("reason") != null ? commonAPIRequest.getPayload().get("reason").toString() : null;
 		if(applicationId == null || applicationId <=0) {

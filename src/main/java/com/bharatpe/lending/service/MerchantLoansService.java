@@ -1,11 +1,14 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.DTO.AddCacheDto;
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
+import com.bharatpe.lending.common.slave.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -13,6 +16,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.slave.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -28,6 +32,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class MerchantLoansService {
@@ -75,7 +80,7 @@ public class MerchantLoansService {
 
     @Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
-    
+
     @Autowired
     MerchantDao merchantDao;
 
@@ -98,7 +103,16 @@ public class MerchantLoansService {
     Boolean isTopUpEnabled;
 
     @Autowired
+    LendingCache lendingCache;
+
+    @Value("${due.amount.caching.window:60}")
+    int dueAmountCachingWindow;
+
+    @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
+
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -120,10 +134,19 @@ public class MerchantLoansService {
     private List<LendingPaymentSchedule> fetchLendingPaymentSchedule(Long merchantId, Long merchantStoreId, String status) {
         if (merchantStoreId != null) {
             return lendingPaymentScheduleDao.findByMerchantIdAndMerchantStoreIdAndStatus(merchantId, merchantStoreId,
-                    status);
+              status);
         }
         return lendingPaymentScheduleDao.findByMerchantIdAndStatusList(merchantId, status);
     }
+
+    private List<LendingPaymentScheduleSlave> fetchLendingPaymentScheduleSlave(Long merchantId, Long merchantStoreId, String status) {
+        if (merchantStoreId != null) {
+            return lendingPaymentScheduleDaoSlave.findByMerchantIdAndMerchantStoreIdAndStatus(merchantId, merchantStoreId,
+                    status);
+        }
+        return lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(merchantId, status);
+    }
+
     public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
@@ -139,14 +162,14 @@ public class MerchantLoansService {
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
                 LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
-                loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(),loan.getDueAmount()));
+                loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount()));
                 if (lendingLedger != null) {
                     loan.setLastEdiPaid(lendingLedger.getAmount());
                 } else {
                     loan.setLastEdiPaid(0D);
                 }
                 LendingEDISchedule lendingEDISchedule = lendingEDIScheduleDao.getLatestByLoanId(loan.getLoanId());
-                if(lendingEDISchedule != null){
+                if (lendingEDISchedule != null) {
                     loan.setShowCustomAmount(true);
                 }
                 LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(merchantId, loan.getLoanId());
@@ -155,17 +178,17 @@ public class MerchantLoansService {
                 loan.setPendingAmount((ObjectUtils.isEmpty(loan.getPendingAmount()) ? 0 : loan.getPendingAmount()) - advanceEdiAmount);
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             if (lendingPaymentSchedule != null) {
                 Date date = new Date();
-                if(date.after(lendingPaymentSchedule.getStartDate())) {
+                if (date.after(lendingPaymentSchedule.getStartDate())) {
                     responseDTO.setEdiStarted(Boolean.TRUE);
                 } else {
                     responseDTO.setEdiStarted(Boolean.FALSE);
                 }
                 List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
-                List<LoanPaymentOrder> loanPaymentOrderList = loanPaymentOrderDao.findRecentTransactions(lendingPaymentSchedule.getId(),lendingPaymentSchedule.getMerchant().getId());
-                if(loanPaymentOrderList != null) {
+                List<LoanPaymentOrder> loanPaymentOrderList = loanPaymentOrderDao.findRecentTransactions(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchant().getId());
+                if (loanPaymentOrderList != null) {
                     for (LoanPaymentOrder loanPaymentOrder : loanPaymentOrderList) {
                         LendingMerchantLoansResponseDTO.RepaymentDetails repaymentDetails = new LendingMerchantLoansResponseDTO.RepaymentDetails();
                         repaymentDetails.setAmount(loanPaymentOrder.getAmount());
@@ -178,7 +201,7 @@ public class MerchantLoansService {
                     responseDTO.setRepaymentDetails(repaymentDetailsList);
                 }
                 boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchant());
-                if(pennyDrop){
+                if (pennyDrop) {
                     try {
                         List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
                         if (!loans.isEmpty()) {
@@ -190,7 +213,7 @@ public class MerchantLoansService {
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
-                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule,responseDTO)) {
+                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule, responseDTO)) {
                         logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
                         LendingIoHalfTopup lendingIoHalfTopup = lendingIoHalfTopupDao.findByLoanId(lendingPaymentSchedule.getId());
                         LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
@@ -221,9 +244,9 @@ public class MerchantLoansService {
         try {
             LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findTop1ByMerchantId(lendingPaymentSchedule.getMerchant().getId());
             if (Objects.nonNull(lendingContactSyncAudit) &&
-                    lendingContactSyncAudit.getTotalEntries() >= 100 &&
-                    (float) lendingContactSyncAudit.getNameEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25 &&
-                    (float) lendingContactSyncAudit.getMobileEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25
+              lendingContactSyncAudit.getTotalEntries() >= 100 &&
+              (float) lendingContactSyncAudit.getNameEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25 &&
+              (float) lendingContactSyncAudit.getMobileEntries() / lendingContactSyncAudit.getTotalEntries() >= 0.25
             ) {
                 return false;
             }
@@ -256,11 +279,11 @@ public class MerchantLoansService {
                     logger.info("phonebook for loan id : {}, readline: {}", lendingPaymentSchedule.getId(), readLine);
                     String[] arr = readLine.split(",");
                     String name = "";
-                    if(arr.length >= 1) {
+                    if (arr.length >= 1) {
                         name = arr[0];
                     }
                     String mobile = "";
-                    if(arr.length >= 2) {
+                    if (arr.length >= 2) {
                         mobile = arr[1];
                     }
                     if (!StringUtils.isEmpty(name)) {
@@ -292,7 +315,7 @@ public class MerchantLoansService {
             int foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
             int processingFee = loanUtil.getIoHalfPF(lendingPaymentSchedule);
             double loanAmount = Math.ceil((foreclosureAmount + processingFee) / 1000.0) * 1000;
-            int ediPaidCount = (int)Math.ceil(lendingPaymentSchedule.getPaidAmount()/lendingPaymentSchedule.getEdiAmount());
+            int ediPaidCount = (int) Math.ceil(lendingPaymentSchedule.getPaidAmount() / lendingPaymentSchedule.getEdiAmount());
             int ediRemainingCount = lendingPaymentSchedule.getEdiCount() - ediPaidCount;
             if (loanAmount < 10000d || ediRemainingCount < 26) {
                 logger.info("loan amount less than 10k for merchant:{} and loanType:{}", merchantId, loanType.name());
@@ -372,7 +395,7 @@ public class MerchantLoansService {
     }
 
     private boolean baseChecksForHalfAndIOEdi(LendingPaymentSchedule lendingPaymentSchedule, LendingMerchantLoansResponseDTO responseDTO) {
-        if(responseDTO.getTopup()){
+        if (responseDTO.getTopup()) {
             return false;
         }
         if (lendingPaymentSchedule.getMerchant().getId().equals(9319451L) || lendingPaymentSchedule.getMerchant().getId().equals(5352114L))
@@ -390,7 +413,7 @@ public class MerchantLoansService {
             if (LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getCreatedAt(), new Date()) <= 30) {
                 return false;
             }
-            int ediPaidCount = (int)Math.ceil(lendingPaymentSchedule.getPaidAmount()/lendingPaymentSchedule.getEdiAmount());
+            int ediPaidCount = (int) Math.ceil(lendingPaymentSchedule.getPaidAmount() / lendingPaymentSchedule.getEdiAmount());
             int ediRemainingCount = lendingPaymentSchedule.getEdiCount() - ediPaidCount;
             double foreclosureAmount = (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0));
             foreclosureAmount = Math.ceil(foreclosureAmount / 1000.0) * 1000;
@@ -401,13 +424,13 @@ public class MerchantLoansService {
         return false;
     }
 
-    public boolean excludeTopUpBaseChecks (Long merchantId) {
-        List<Long> exclusionMerchantIDs = Arrays.asList(9319451L,6518986L,10407700L);
+    public boolean excludeTopUpBaseChecks(Long merchantId) {
+        List<Long> exclusionMerchantIDs = Arrays.asList(9319451L, 6518986L, 10407700L);
         return exclusionMerchantIDs.contains(merchantId);
     }
 
-    public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule){
-        Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
+    public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
+
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
         try {
@@ -459,30 +482,58 @@ public class MerchantLoansService {
             logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchant().getId());
             double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
 
-            Double eligibleAmount = 0D;
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
-            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-                logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
-                eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
-            }
-            if (eligibleAmount.equals(0D)) {
-                logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
-                return eligiblity;
-            }
-            if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchant().getId())) {
-                if (ediPaidRatio < 65D) {
-                    logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
-                    eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+            //Double eligibleAmount = 0D;
+//            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
+//            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+//                logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
+//                eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+//            }
+//            if (eligibleAmount.equals(0D)) {
+//                logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+//                return eligiblity;
+//            }
+//            if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchant().getId())) {
+//                if (ediPaidRatio < 65D) {
+//                    logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
+//                    eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+//                }
+//                int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+//                if (eligibleAmount - posAmount < 10000) {
+//                    logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+//                    return eligiblity;
+//                }
+//            }
+
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchant().getId(), "TOPUP");
+            if (ObjectUtils.isEmpty(eligibleLoanList)) {
+                Double eligibleAmount = 0D;
+                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchant().getId());
+                if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+                    logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
+                    eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 }
-                int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-                if (eligibleAmount - posAmount < 10000) {
-                    logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                if (eligibleAmount.equals(0D)) {
+                    logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
                     return eligiblity;
                 }
+                if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchant().getId())) {
+                    if (ediPaidRatio < 65D) {
+                        logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchant().getId());
+                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+                    }
+                    int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+                    if (eligibleAmount - posAmount < 10000) {
+                        logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchant().getId());
+                        return eligiblity;
+                    }
+                }
+                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchant().getId());
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchant().getId(), "TOPUP");
+                Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchant().getId());
+                experian.setEligibleAmount(eligibleAmount);
+                experian.setLoanType("TOPUP");
+                experianDao.save(experian);
             }
-
-            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchant().getId());
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchant().getId(), "TOPUP");
             double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
             if (!eligibleLoanList.isEmpty()) {
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
@@ -558,11 +609,9 @@ public class MerchantLoansService {
 //                loanEligibilityDTO.setEdiCount(category.getPayableDays());
 //                eligiblity.add(loanEligibilityDTO);
 //            }
-            experian.setEligibleAmount(eligibleAmount);
-            experian.setLoanType("TOPUP");
-            experianDao.save(experian);
 
-            int deleteNonTopup = eligibleLoanDao.deleteNonTopUp(lendingPaymentSchedule.getMerchant().getId());
+
+//            int deleteNonTopup = eligibleLoanDao.deleteNonTopUp(lendingPaymentSchedule.getMerchant().getId());
         } catch (Exception ex) {
             logger.info("Exception Occured while checking eligibilty for topup");
         }
@@ -577,10 +626,16 @@ public class MerchantLoansService {
             return new CommonResponse(false, "merchant does not exist");
         }
         Map<String, Double> responseMap = new HashMap<>();
+        String dueAmountCacheKey = "DUE_AMT_" + merchant.getId() + (ObjectUtils.isEmpty(merchantStoreId) ? "" : ("_" + merchantStoreId));
+        Object dueAmountCached = lendingCache.get(dueAmountCacheKey);
+        if (!ObjectUtils.isEmpty(dueAmountCached)) {
+            responseMap.put("due_amount", (Double) dueAmountCached);
+            return new CommonResponse(responseMap);
+        }
         Double dueAmount = 0D;
-        List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchant.getId(), merchantStoreId, "ACTIVE");
+        List<LendingPaymentScheduleSlave> activeLoans = fetchLendingPaymentScheduleSlave(merchant.getId(), merchantStoreId, "ACTIVE");
         if (!activeLoans.isEmpty()) {
-            for (LendingPaymentSchedule activeLoan : activeLoans) {
+            for (LendingPaymentScheduleSlave activeLoan : activeLoans) {
                 dueAmount += activeLoan.getDueAmount();
             }
         }
@@ -588,7 +643,20 @@ public class MerchantLoansService {
         Double goldLoanDueAmount = apiGatewayService.getGoldLoanDueAmount(merchant.getId());
         dueAmount += creditCardDueAmount + goldLoanDueAmount;
         responseMap.put("due_amount", dueAmount);
+        cacheDueAmtData(dueAmount,dueAmountCacheKey,dueAmountCachingWindow);
         return new CommonResponse(responseMap);
+    }
+
+    private void cacheDueAmtData(Double dueAmt, String key, int ttl) {
+        try {
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(key);
+            addCacheDto.setValue(dueAmt);
+            addCacheDto.setTtl(ttl);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            logger.error("exception occured while caching loan details for {} !!", key);
+        }
     }
 
     public CommonResponse checkMerchant(String mobile, String pancard) {
@@ -620,7 +688,7 @@ public class MerchantLoansService {
                         isBpMerchant = true;
                         break;
                     }
-                    if (LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(),lendingPaymentSchedule.getDueAmount()) > 5) {
+                    if (LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()) > 5) {
                         isBpMerchant = true;
                         break;
                     }

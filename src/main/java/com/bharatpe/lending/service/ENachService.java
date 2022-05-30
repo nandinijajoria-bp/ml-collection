@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
@@ -76,6 +77,9 @@ public class ENachService {
     @Autowired
     Environment env;
 
+    @Autowired
+    LendingCache lendingCache;
+
     ExecutorService executorService = Executors.newFixedThreadPool(50);
 
     public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
@@ -101,6 +105,11 @@ public class ENachService {
     }
 
     public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO, String token){
+        String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+        logger.info("deleting cached key of loan details where nach is done for merchant: {}",merchant.getId());
+        if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
+            lendingCache.delete(loanDetailsCacheKey);
+        }
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");

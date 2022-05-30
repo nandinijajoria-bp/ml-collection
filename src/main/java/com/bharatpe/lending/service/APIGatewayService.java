@@ -1590,7 +1590,7 @@ public class APIGatewayService {
     public JsonNode fetchCrifResponse(Merchant merchant, Experian experian) {
         try {
             logger.info("Fetching Crif for merchant:{}", merchant.getId());
-            Map<String, String> merchantName = getFirstLastName(merchant, experian.getPancardNumber());
+            Map<String, String> merchantName = getFirstLastName(merchant.getId(), experian.getPancardNumber());
             String firstName = merchantName.get("first");
             String lastName = merchantName.get("last");
             String contact = merchant.getMobile().substring(2);
@@ -1630,13 +1630,13 @@ public class APIGatewayService {
         return null;
     }
 
-    private Map<String, String> getFirstLastName(Merchant merchant, String pancard) {
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
+    public Map<String, String> getFirstLastName(Long merchantId, String pancard) {
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
         String firstName;
         String lastName;
         if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
-            lendingPancard = fetchNameFromSignzy(pancard, merchant.getId());
+            lendingPancard = fetchNameFromSignzy(pancard, merchantId);
         }
         if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
             firstName = LoanUtil.getFirstName(lendingPancard.getName());

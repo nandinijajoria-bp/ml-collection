@@ -89,4 +89,11 @@ public class LendingApplicationControllerV2 {
         ApiResponse<?> response = lendingApplicationServiceV2.addCallbackRequest(requestCallbackDto, merchant);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping(value = "/evictCache")
+    public ResponseEntity<?> evictCache(@RequestAttribute Merchant merchant){
+        log.info("evicting cache for :{}",merchant.getId());
+        lendingApplicationServiceV2.evictCache(merchant.getId());
+        return ResponseEntity.ok().build();
+    }
 }

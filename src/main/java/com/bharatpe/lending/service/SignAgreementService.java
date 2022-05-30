@@ -1,6 +1,7 @@
   
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
@@ -98,10 +99,19 @@ public class SignAgreementService {
 	@Autowired
 	EasyLoanUtil easyLoanUtil;
 
+	@Autowired
+	LendingCache lendingCache;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
+		if (!ObjectUtils.isEmpty(merchant.getId())) {
+			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+			logger.info("deleting cached key of loan details where merchant initiates agreement: {}",merchant.getId());
+			if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
+				lendingCache.delete(loanDetailsCacheKey);
+			}
+		}
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);

@@ -6,7 +6,6 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status.LendingStatus;
-import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.common.utils.NotificationUtil;
@@ -42,6 +41,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Pair;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
@@ -1382,5 +1382,23 @@ public class LoanDetailsService {
 		settlementV2ResponseDTO.setSettlement(settlementList);
 		settlementV2ResponseDTO.setLender(lendingPaymentSchedule.getNbfc());
 		return settlementV2ResponseDTO;
+	}
+
+	public CommonResponse updateLendingGstDetails(Long applicationId,
+												  UpdateLendingGstDetailsRequestDTO updateLendingGstDetailsRequestDTO) {
+
+		LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
+
+		if (ObjectUtils.isEmpty(lendingGstDetail)) {
+			return new CommonResponse(false,
+			"Lending gst details does not exist for the applicationId : " + applicationId);
+		}
+
+		if (Objects.nonNull(updateLendingGstDetailsRequestDTO.getArrivedScore()))
+			lendingGstDetail.setArrivedScore(updateLendingGstDetailsRequestDTO.getArrivedScore());
+
+		lendingGstDao.save(lendingGstDetail);
+
+		return new CommonResponse(lendingGstDetail);
 	}
 }

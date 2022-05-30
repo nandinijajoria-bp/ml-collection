@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
@@ -136,12 +137,22 @@ public class VerifyOTPService {
     @Autowired
 	EasyLoanUtil easyLoanUtil;
 
+	@Autowired
+	LendingCache lendingCache;
+
 	@Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
 	String kafkaTopicPostChecks;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
 	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
+		if(Objects.nonNull(merchant.getId())) {
+			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+			logger.info("deleting cached key of loan details in verifyOtp flow for merchant: {}",merchant.getId());
+			lendingCache.delete(loanDetailsCacheKey);
+		} else {
+			logger.info("merchant id not found in verifyOtp flow");
+		}
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);

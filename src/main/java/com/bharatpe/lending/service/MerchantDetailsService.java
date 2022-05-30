@@ -1,6 +1,7 @@
   
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.CpvDocumentsIdProofDao;
 import com.bharatpe.common.dao.LendingCpvDetailsDao;
 import com.bharatpe.common.entities.CpvDocumentsIdProof;
@@ -35,6 +36,9 @@ public class MerchantDetailsService {
 
     @Autowired
     S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    LendingCache lendingCache;
 
     private static final String S3_BUCKET = "loan-document";
 
@@ -160,6 +164,13 @@ public class MerchantDetailsService {
     }
     
     public MerchantDetailsDTO updateBusinessDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
+        if(Objects.nonNull(merchant.getId())) {
+            String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+            logger.info("deleting cached key of loan details in update business details flow for merchant: {}",merchant.getId());
+            lendingCache.delete(loanDetailsCacheKey);
+        } else {
+            logger.info("merchant id not found in verifyOtp flow");
+        }
     	 String module;
          if(merchantDetailsDTO.getModule()!=null)
           module=merchantDetailsDTO.getModule();

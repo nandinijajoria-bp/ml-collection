@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
@@ -121,6 +122,9 @@ public class FosService {
 
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    LendingCache lendingCache;
 
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
@@ -887,6 +891,11 @@ public class FosService {
     public String hasFinalOfferGtZero(Merchant merchant, Boolean forceEligibilityCheck) {
         if (forceEligibilityCheck) {
             try {
+                String globalDetailsCacheKey = "LENDING_GLOBAL_DETAILS_" + merchant.getId();
+                if(Objects.nonNull(lendingCache.get(globalDetailsCacheKey))) {
+                    logger.info("clearing cache for fos eligibility computation {}", merchant.getId());
+                    lendingCache.delete(globalDetailsCacheKey);
+                }
                 apiGatewayService.getGlobalLimit(merchant.getId());
             } catch (Exception e) {
                 logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);

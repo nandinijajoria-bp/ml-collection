@@ -91,12 +91,12 @@ public class CrmBulkContactsService {
                         readLine = bulkContactFileReader.readLine();
                         continue;
                     }
-                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-                    if (ObjectUtils.isEmpty(lendingPaymentSchedule) || !"ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
-                        emptyPhoneBookData.add(new String[]{contact, "no active loan"});
-                        readLine = bulkContactFileReader.readLine();
-                        continue;
-                    }
+//                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+//                    if (ObjectUtils.isEmpty(lendingPaymentSchedule) || !"ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
+//                        emptyPhoneBookData.add(new String[]{contact, "no active loan"});
+//                        readLine = bulkContactFileReader.readLine();
+//                        continue;
+//                    }
                     Phonebook phonebook = phonebookDao.findTop1ByMerchantIdOrderByContactsCountDesc(merchant.getId());
                     if (ObjectUtils.isEmpty(phonebook)) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});

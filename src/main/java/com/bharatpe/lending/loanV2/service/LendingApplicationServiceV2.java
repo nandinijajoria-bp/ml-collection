@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV2.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
@@ -29,6 +30,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -109,6 +111,9 @@ public class LendingApplicationServiceV2 {
     @Autowired
     MerchantDao merchantDao;
 
+    @Autowired
+    LendingCache lendingCache;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public ApiResponse<?> initiateKyc(Merchant merchant, InitiateKycRequest initiateKycRequest) {
@@ -141,6 +146,13 @@ public class LendingApplicationServiceV2 {
     }
 
     public ApiResponse<?> createApplication(Merchant merchant, CreateApplicationRequest applicationRequest) {
+        if(Objects.nonNull(merchant.getId())) {
+            String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+            log.info("deleting cached key of loan details in create application for merchant: {}",merchant.getId());
+            lendingCache.delete(loanDetailsCacheKey);
+        } else {
+            log.info("merchant id not found in create application");
+        }
         if (applicationRequest.getApplicationId() == null) {
             return createNewApplication(merchant, applicationRequest);
         } else {
@@ -935,6 +947,13 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> addBusinessDetails(BusinessDetailsDTO businessDetailsDTO, Merchant merchant) {
         try {
+            if(Objects.nonNull(merchant.getId())) {
+                String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+                log.info("deleting cached key of loan details in business details for merchant: {}",merchant.getId());
+                lendingCache.delete(loanDetailsCacheKey);
+            } else {
+                log.info("merchant id not found in add business details");
+            }
             LendingMerchantDetails lendingMerchantDetails = new LendingMerchantDetails();
             lendingMerchantDetails.setMerchantId(merchant.getId());
             lendingMerchantDetails.setBusinessName(businessDetailsDTO.getBusinessName());
@@ -988,4 +1007,14 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong !");
     }
 
+    @Async
+    public void evictCache( Long merchantId) {
+        if(Objects.nonNull(merchantId)) {
+            String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchantId;
+            log.info("deleting cached key of loan details in create application for merchant: {}",merchantId);
+            lendingCache.delete(loanDetailsCacheKey);
+        } else {
+            log.info("no key exists!");
+        }
+    }
 }
