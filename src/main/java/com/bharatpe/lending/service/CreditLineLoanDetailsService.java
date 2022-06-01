@@ -1,52 +1,50 @@
 package com.bharatpe.lending.service;
 
-import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import com.bharatpe.common.dao.AvailableLoanDao;
-import com.bharatpe.common.dao.ExperianAuditTrailDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
 import com.bharatpe.common.dao.LendingClosedAuditDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantStoreDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.dao.PaymentTransactionNewDao;
 import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.ExperianAuditTrail;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.entities.LendingCities;
 import com.bharatpe.common.entities.LendingClosedAudit;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantStore;
-import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.entities.PincodeCityStateMapping;
 import com.bharatpe.common.enums.Status.GeneralStatus;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dto.CreditLoanDetailsResponseDto;
 import com.bharatpe.lending.dto.CreditLoanDetailsResponseDto.LoanDetailsDTO;
 import com.bharatpe.lending.dto.DocumentDTO;
 import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.LoanApplicationDTO;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
 import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SelectedLoanDTO;
 import com.bharatpe.lending.dto.ShopDetailsDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -59,8 +57,8 @@ public class CreditLineLoanDetailsService {
 	@Autowired
 	ExperianDao experianDao;
 	
-	@Autowired
-	MerchantSummaryDao merchantSummeryDao;
+//	@Autowired
+//	MerchantSummaryDao merchantSummeryDao;
 	
 	@Autowired
 	MerchantStoreDao merchantStoreDao;
@@ -135,8 +133,11 @@ public class CreditLineLoanDetailsService {
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
+
+	@Autowired
+	MerchantHandler merchantHandler;
 	
-	public CreditLoanDetailsResponseDto getLoanDetails(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp){
+	public CreditLoanDetailsResponseDto getLoanDetails(BasicDetailsDto merchant, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp){
 		
 		try {
 			
@@ -150,7 +151,7 @@ public class CreditLineLoanDetailsService {
 				response.setDetails(null);
 				return response;
 			}
-			MerchantSummary merchantSummary=null;
+//			MerchantSummary merchantSummary=null;
 			
 			CreditApplication creditApplication=null;
 			LoanDetailsDTO loanDetailsDto=new LoanDetailsDTO();
@@ -173,8 +174,12 @@ public class CreditLineLoanDetailsService {
 				return response;
 			}
 			
-			merchantSummary=merchantSummeryDao.getByMerchantId(merchant.getId());
-			experian=populateExperianDetailsInExperianTable(merchant, requestDTO, clientIp, merchantSummary,experian);
+//			merchantSummary=merchantSummeryDao.getByMerchantId(merchant.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+				throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+			}
+			experian=populateExperianDetailsInExperianTable(merchant, requestDTO, clientIp, merchantResponseDTO,experian);
 			
 			if(experian==null){
 				
@@ -189,8 +194,8 @@ public class CreditLineLoanDetailsService {
 			else if (experian != null && experian.getPancardNumber() != null) {
 				
 				panCard = experian.getPancardNumber();
-				if (merchantSummary != null && merchantSummary.getBpScore() != null) {
-					experian.setBpScore(merchantSummary.getBpScore());
+				if (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) {
+					experian.setBpScore(merchantResponseDTO.getBpScore());
 				}	
 			}
 			
@@ -235,7 +240,7 @@ public class CreditLineLoanDetailsService {
 			creditApplication=creditApplicationDao.findOpenApplication(merchant.getId());
 			
 			if(creditApplication==null){
-				return getResponseForNewLoanApplication(merchant, requestDTO, merchantSummary,experian,response,panCard,pincode);
+				return getResponseForNewLoanApplication(merchant, requestDTO, merchantResponseDTO,experian,response,panCard,pincode);
 			}
 			else {
 				return getResponseForExistingCreditApplication(merchant,creditApplication,requestDTO,response,panCard,pincode);
@@ -249,7 +254,7 @@ public class CreditLineLoanDetailsService {
 		
 	}
 	
-	private CreditLoanDetailsResponseDto getResponseForNewLoanApplication(Merchant merchant, RequestDTO<IneligibleRequestDTO> requestDTO, MerchantSummary merchantSummary,Experian experian, CreditLoanDetailsResponseDto response,String panCard, Integer pincode) {
+	private CreditLoanDetailsResponseDto getResponseForNewLoanApplication(BasicDetailsDto merchant, RequestDTO<IneligibleRequestDTO> requestDTO, MerchantResponseDTO merchantResponseDTO,Experian experian, CreditLoanDetailsResponseDto response,String panCard, Integer pincode) {
 		
 		List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 		
@@ -266,7 +271,7 @@ public class CreditLineLoanDetailsService {
 				logger.info("Checking cibil score through experian for getting loan eligibility");	
 				//merchantSummery field was populated in populateExperianDetailsInExperianTable function which is called before this function
 				
-				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantSummary, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), false,"CREDITLINE", false, null));
+				loanEligibilityDTOs.addAll(loanEligibleService.getNewLoanDetails(merchant, experian, merchantResponseDTO, merchantBankDetail, requestDTO.getPayload().isSkip(), requestDTO.getPayload().getPanCard(), false,"CREDITLINE", false, null));
 				//send notification
 				//redisNotificationService.sendEligibleNotificationForCreditLine(merchant, loanEligibilityDTOs);
 				loanUtil.auditExperian(experian);
@@ -313,8 +318,8 @@ public class CreditLineLoanDetailsService {
 			}
 			
 		} 
-		else if (merchantSummary != null){
-			loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantSummary.getLoanType(), merchant));
+		else if (merchantResponseDTO != null){
+			loanEligibilityDTOs.addAll(fetchEligibleLoans(merchantResponseDTO.getLoanType(), merchant));
 		}
 			
 		if(loanEligibilityDTOs==null || loanEligibilityDTOs.isEmpty()) {
@@ -374,7 +379,7 @@ public class CreditLineLoanDetailsService {
 		return maxLoan;
 	}
 	
-	private CreditLoanDetailsResponseDto getResponseForExistingCreditApplication(Merchant merchant, CreditApplication creditApplication,RequestDTO<IneligibleRequestDTO> requestDTO, CreditLoanDetailsResponseDto response,String panCard, Integer pincode){
+	private CreditLoanDetailsResponseDto getResponseForExistingCreditApplication(BasicDetailsDto merchant, CreditApplication creditApplication,RequestDTO<IneligibleRequestDTO> requestDTO, CreditLoanDetailsResponseDto response,String panCard, Integer pincode){
 		try {
 
 			logger.info("Fetching appliaction detail for application id {}",creditApplication.getId());
@@ -527,7 +532,7 @@ public class CreditLineLoanDetailsService {
 //	}
 
 	
-	private CreditLoanDetailsResponseDto responseForLoanPendingForVerification(CreditApplication creditApplication,RequestDTO<IneligibleRequestDTO> requestDTO,Merchant merchant, CreditLoanDetailsResponseDto response) {
+	private CreditLoanDetailsResponseDto responseForLoanPendingForVerification(CreditApplication creditApplication,RequestDTO<IneligibleRequestDTO> requestDTO,BasicDetailsDto merchant, CreditLoanDetailsResponseDto response) {
 		try {
 			response.getDetails().setEligible(false);
 			
@@ -629,7 +634,7 @@ public class CreditLineLoanDetailsService {
 		
 	}
 	
-	private LoanApplicationDTO fetchLoanApplication(Merchant merchant, CreditApplication application) {
+	private LoanApplicationDTO fetchLoanApplication(BasicDetailsDto merchant, CreditApplication application) {
 		
 		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
 		
@@ -695,7 +700,8 @@ public class CreditLineLoanDetailsService {
 		return response;
 	}
 	
-	private Experian populateExperianDetailsInExperianTable(Merchant merchant,RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, MerchantSummary merchantSummary,Experian experian){
+	private Experian populateExperianDetailsInExperianTable(BasicDetailsDto merchant,RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, MerchantResponseDTO merchantResponseDTO,Experian experian){
+
 		try {
 			logger.info("Fetching experian details for merchant {}",merchant.getId());
 			 experian=experianDao.getByMerchantId(merchant.getId());
@@ -706,7 +712,7 @@ public class CreditLineLoanDetailsService {
 				experianDao.deleteByMerchantId(merchant.getId());
 				
 				logger.info("Entering new experian details");
-				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
+				experian = experianDao.save(new Experian(merchant.getId(), clientIp, merchant.getLatitude(), merchant.getLongitude(), 0, requestDTO.getPayload().getPanCard(), (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				
 			}
 		}
@@ -719,7 +725,7 @@ public class CreditLineLoanDetailsService {
 		return experian;
 	}
 		
-	private Boolean checkForOgl(Merchant merchant, CreditLoanDetailsResponseDto response,Integer pincode,String panCard){
+	private Boolean checkForOgl(BasicDetailsDto merchant, CreditLoanDetailsResponseDto response,Integer pincode,String panCard){
 		try {
 			
 			logger.info("Fetching lending city for pincode {}",pincode);
@@ -808,7 +814,7 @@ public class CreditLineLoanDetailsService {
 		return false;
 		}
 	
-	private List<DocumentDTO> fetchDocuments(Merchant merchant, CreditApplication creditApplication) {
+	private List<DocumentDTO> fetchDocuments(BasicDetailsDto merchant, CreditApplication creditApplication) {
 		
 		try {
 			
@@ -830,7 +836,7 @@ public class CreditLineLoanDetailsService {
 		return null;
 	}
 	
-private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant merchant) {
+private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, BasicDetailsDto merchant) {
 		
 		List<LoanEligibilityDTO> availableLoanDTOList = new ArrayList<>();
 
@@ -902,7 +908,7 @@ private List<LoanEligibilityDTO> fetchEligibleLoans(String loanType, Merchant me
 		
 	}
 	
-	public boolean isMerchantFromCreditLine(Merchant merchant) {
+	public boolean isMerchantFromCreditLine(BasicDetailsDto merchant) {
 		CreditLineMerchant creditLineMerchant=creditLineMerchantDao.findByMerchantId(merchant.getId());
 		return creditLineMerchant != null;
 	}

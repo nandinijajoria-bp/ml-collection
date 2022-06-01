@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV2.controller;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -20,7 +22,7 @@ public class LoanDetailsControllerV2 {
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
     @PostMapping(value = "/loanDetails/v2", produces="application/json")
-    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader("token") String token, @RequestAttribute Merchant merchant,
+    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant,
                                                          @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest){
         log.info("loan details v2 request:{} for merchant:{}", loanDetailsRequest, merchant.getId());
         ApiResponse<?> response;
@@ -40,7 +42,7 @@ public class LoanDetailsControllerV2 {
     }
 
     @GetMapping(value = "/businessCategorySubCategory")
-    public ResponseEntity<ApiResponse<?>> getBusinessCategoryDetails(@RequestAttribute Merchant merchant) {
+    public ResponseEntity<ApiResponse<?>> getBusinessCategoryDetails(@RequestAttribute BasicDetailsDto merchant) {
         log.info("Fetching business Details for merchantId:{}",merchant.getId());
         return ResponseEntity.ok(loanDetailsServiceV2.getBusinessCategorySubCategory(merchant.getId()));
     }
@@ -52,13 +54,13 @@ public class LoanDetailsControllerV2 {
     }
 
     @PostMapping(value="/getCreditScoreReportDetail")
-    public ResponseEntity<ApiResponse<?>> getCreditScoreReportDetail(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest){
+    public ResponseEntity<ApiResponse<?>> getCreditScoreReportDetail(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
         ApiResponse<?> apiResponse= loanDetailsServiceV2.getCreditScoreReportDetail(merchant,commonAPIRequest);
         return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping(value="/getLoanAndCreditCardDetail")
-    public ResponseEntity<ApiResponse<?>> getLoanAndCreditCardDetail(@RequestAttribute Merchant merchant, @RequestBody CommonAPIRequest commonAPIRequest){
+    public ResponseEntity<ApiResponse<?>> getLoanAndCreditCardDetail(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
         ApiResponse<?> apiResponse= loanDetailsServiceV2.getLoanAndCreditCardDetail(merchant,commonAPIRequest);
         return ResponseEntity.ok(apiResponse);
     }

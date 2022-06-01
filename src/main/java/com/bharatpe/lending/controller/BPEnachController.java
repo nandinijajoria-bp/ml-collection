@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.BPEnachRawRequestDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
@@ -34,7 +34,7 @@ public class BPEnachController {
     BPEnachRawRequestDao bpEnachRawRequestDao;
 
     @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute Merchant merchant,
+    public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute BasicDetailsDto merchant,
                                                                      @RequestParam(name = "app_version", required = false) String appVersion,
                                                                      @RequestParam(name = "platform", required = true) String module,
                                                                      @RequestParam(name = "loan_amount", required = true) String amount,
@@ -80,7 +80,7 @@ public class BPEnachController {
 
 
     @RequestMapping(value = "/submit", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
+    public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestBody ENachSubmitRequestDTO body) {
         logger.info("Enach Submit request : {}", body);
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse;
         BPEnachRawRequest bpEnachRawRequest = new BPEnachRawRequest(merchant.getId(), "SUBMIT");
@@ -108,7 +108,7 @@ public class BPEnachController {
     }
 
     @RequestMapping(value = "/skip", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
+    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
         return new ResponseEntity<>(bpEnachService.setEnachSkipStatus(merchant, referenceNumber), HttpStatus.OK);
     }
 

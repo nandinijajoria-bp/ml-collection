@@ -5,10 +5,9 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.Constants.BPEnachConstant;
-import com.bharatpe.lending.common.dao.IfscNewDao;
 import com.bharatpe.lending.common.entity.BpEnachSkip;
-import com.bharatpe.lending.common.entity.IfscNew;
 import com.bharatpe.lending.common.enums.BPEnachEnum;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.BPEnachSkipDao;
@@ -25,11 +24,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -82,9 +78,9 @@ public class BPEnachService {
     
     private static String drfDeepLinkStr = "drf-onboard";
 
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion,
+    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String appVersion,
                                                      String module, Double nachAmount,
-                                                     String type,String referenceNumber,
+                                                     String type, String referenceNumber,
                                                      String ownerId, String clientName) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
@@ -130,7 +126,7 @@ public class BPEnachService {
     }
 
 
-    public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO) {
+    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO) {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
@@ -191,7 +187,7 @@ public class BPEnachService {
     }
 
 
-    public ResponseDTO setEnachSkipStatus(Merchant merchant, String referenceNumber) {
+    public ResponseDTO setEnachSkipStatus(BasicDetailsDto merchant, String referenceNumber) {
         BpEnach bpEnach = bpEnachDao.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         if (bpEnachSkip == null) {

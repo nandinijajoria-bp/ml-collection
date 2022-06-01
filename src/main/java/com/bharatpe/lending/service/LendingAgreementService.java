@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,6 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.common.entities.LendingNbfscs;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingNbfscsDao;
 
@@ -29,7 +29,7 @@ public class LendingAgreementService {
 	@Autowired
 	LendingNbfscsDao lendingNbfscsDao;
 	
-	public Map<String, Object> fetchLendingAgreement(Merchant merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> fetchLendingAgreement(BasicDetailsDto merchant, HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Long id = null;
 		String lenderText = "";
 		Map<String, Object> resp = new LinkedHashMap<> ();
@@ -63,7 +63,7 @@ public class LendingAgreementService {
 //		}
 		
 		Optional<LendingNbfscs> optionalObj = lendingNbfscsDao.findById(id);
-		LendingApplication application = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+		LendingApplication application = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 		if(optionalObj.isPresent()) {
 			LendingNbfscs lendingNbfscs = optionalObj.orElse(null);
 			Map<String, Object> lenderInfo = new LinkedHashMap<> ();

@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -18,7 +19,6 @@ import com.bharatpe.lending.common.dao.LendingPayoutsDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentAuditDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
-import com.bharatpe.lending.common.dto.FpWithdrawStatusCheckDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingInterestWaiver;
@@ -27,6 +27,7 @@ import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.LendingPrepaymentAudit;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -100,6 +101,9 @@ public class PaymentService {
 	MerchantBankDetailDao merchantBankDetailDao;
 
 	@Autowired
+	MerchantDao merchantDao;
+
+	@Autowired
 	LoanPaymentOrderDao loanPaymentOrderDao;
 	
 	@Autowired
@@ -136,7 +140,7 @@ public class PaymentService {
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
-	public PaymentDetailsResponseDTO getPaymentDetails(Merchant merchant) {
+	public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
 		logger.info("Received payment details request for merchant id {}", merchant.getId());
 		try {
 			
@@ -177,42 +181,47 @@ public class PaymentService {
 		return new PaymentDetailsResponseDTO("Something went wrong.");
 	}
 	
-	public InitiatePaymentResponseDTO initiatePaymentV2(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request) {
-		logger.info("Received initiate payment request  for merchant {} : {}", merchant.getId(), request);
+	public InitiatePaymentResponseDTO initiatePaymentV2(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request) {
+		logger.info("Received initiate payment request  for merchant {} : {}", merchantBasicDetails.getId(), request);
 		try {
-			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(), "ACTIVE");
 			if(activeLoan == null) {
-				logger.info("No active loan found for merchant id {}", merchant.getId());
+				logger.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			Integer amount = request.getPayload().getAmount();
 			if(amount < 1 ) {
-				logger.info("Amount is less than 1 for merchant id {}", merchant.getId());
+				logger.info("Amount is less than 1 for merchant id {}", merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("Amount is less than 1");
 			}
 			String paymentType = request.getPayload().getPaymentType();
 			if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
-				logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchant.getId());
+				logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
 			}
 			if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
 				Integer advanceEdiCount = request.getPayload().getAdvanceEdiCount();
 				if (advanceEdiCount == null) {
-					logger.info("advance edi count is not present for merchant:{}", merchant.getId());
+					logger.info("advance edi count is not present for merchant:{}", merchantBasicDetails.getId());
 					return new InitiatePaymentResponseDTO("Advance edi count not present");
 				}
 				if (advanceEdiCount > activeLoan.getEdiRemainingCount()) {
-					logger.info("advance edi count is more than remaining edi count for merchant:{}", merchant.getId());
+					logger.info("advance edi count is more than remaining edi count for merchant:{}", merchantBasicDetails.getId());
 					return new InitiatePaymentResponseDTO("Advance edi count should be less than remaining edi count");
 				}
 				Integer advanceEdiAmount = activeLoan.getDueAmount().intValue() + (request.getPayload().getAdvanceEdiCount() * activeLoan.getEdiAmount().intValue());
 				if (!amount.equals(advanceEdiAmount)) {
-					logger.info("advance edi amount:{} is not matching for merchant:{}", advanceEdiAmount, merchant.getId());
+					logger.info("advance edi amount:{} is not matching for merchant:{}", advanceEdiAmount, merchantBasicDetails.getId());
 					return new InitiatePaymentResponseDTO("Advance edi amount is not correct");
 				}
 			}
 			LoanPaymentOrder order = new LoanPaymentOrder();
+
+			// TODO : remove this and use api
+			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+
 			order.setMerchant(merchant);
+
 			order.setOwner("lending_payment_schedule");
 			order.setOwnerId(activeLoan.getId());
 			order.setAmount(Double.valueOf(amount));
@@ -244,7 +253,7 @@ public class PaymentService {
 			}
 			pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
 
-			PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchant.getId(), pgCreateTransactionRequestDTO);
+			PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), pgCreateTransactionRequestDTO);
 
 			if(response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode())) {
 				paymentSuccess = true;
@@ -261,23 +270,23 @@ public class PaymentService {
 			data.setPaymentLink(response.getData().getPaymentURIDeeplink());
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
-			logger.error("Exception while initiating payment for merchant id {}", merchant.getId(), ex);
+			logger.error("Exception while initiating payment for merchant id {}", merchantBasicDetails.getId(), ex);
 		}
 		return new InitiatePaymentResponseDTO("Something went wrong.");
 	}
 
-	public InitiatePaymentResponseDTO initiatePayment(Merchant merchant, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
-		logger.info("Received initiate payment request  for merchant {} : {}", merchant.getId(), request);
+	public InitiatePaymentResponseDTO initiatePayment(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
+		logger.info("Received initiate payment request  for merchant {} : {}", merchantBasicDetails.getId(), request);
 		try {
-			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(), "ACTIVE");
 			if(activeLoan == null) {
-				logger.info("No active loan found for merchant id {}", merchant.getId());
+				logger.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("No active loan found.");
 			}
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
-				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchant.getId(), activeLoan.getId());
+				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchantBasicDetails.getId(), activeLoan.getId());
 				if (lendingVirtualAccount != null) {
-					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetails.getId(), "ACTIVE");
 					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc(), merchantBankDetail.getBeneficiaryName());
 					return new InitiatePaymentResponseDTO(data);
 				}
@@ -296,16 +305,20 @@ public class PaymentService {
 			}
 			List<String> psps = Arrays.asList("com.google.android.apps.nbu.paisa.user","net.one97.paytm","in.org.npci.upiapp","com.csam.icici.bank.imobile","com.mobikwik_new","com.myairtelapp","com.phonepe.app","com.olacabs.customer");
 			if(amount < 1 || amount > 100000) {
-				logger.info("Amount not between 1-100000 for merchant id {}", merchant.getId());
+				logger.info("Amount not between 1-100000 for merchant id {}", merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("Amount should be between 1-100000.");
 			}
 			if (amount > 2000 && request.getPayload().getVpa() == null && request.getPayload().getType() == null) {
-				logger.info("VPA missing for merchant id {}", merchant.getId());
+				logger.info("VPA missing for merchant id {}", merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("VPA missing");
 			}
 
 			LoanPaymentOrder order = new LoanPaymentOrder();
+
+			// TODO : remove this and use api
+			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 			order.setMerchant(merchant);
+
 			order.setOwner("lending_payment_schedule");
 			order.setOwnerId(activeLoan.getId());
 			order.setAmount(Double.valueOf(amount));
@@ -327,7 +340,7 @@ public class PaymentService {
 				otpFlow = result.containsKey("otp_flow") ? (Boolean) result.get("otp_flow") : null;
 				authMode = result.containsKey("auth_mode") ? (String) result.get("auth_mode") : null;
 			} else { //UPI
-				Map vpaResponse = apiGatewayService.createVPA(merchant, Double.valueOf(amount), orderId, request.getPayload().getVpa());
+				Map vpaResponse = apiGatewayService.createVPA(merchantBasicDetails, Double.valueOf(amount), orderId, request.getPayload().getVpa());
 				if(vpaResponse != null && vpaResponse.get("status") != null && "OK".equalsIgnoreCase((String) vpaResponse.get("status"))) {
 					paymentSuccess = true;
 					order.setVpa((String) vpaResponse.get("bharatpeTxnId"));
@@ -348,7 +361,7 @@ public class PaymentService {
 			data.setPsps(psps);
 			return new InitiatePaymentResponseDTO(data);
 		} catch(Exception ex) {
-			logger.error("Exception while initiating payment for merchant id {}", merchant.getId(), ex);
+			logger.error("Exception while initiating payment for merchant id {}", merchantBasicDetails.getId(), ex);
 		}
 		return new InitiatePaymentResponseDTO("Something went wrong.");
 	}
@@ -542,7 +555,7 @@ public class PaymentService {
 		return 0;
 	}
 
-	public PaymentStatusResponseDTO getStatus(String orderId, Merchant merchant) {
+	public PaymentStatusResponseDTO getStatus(String orderId, BasicDetailsDto merchant) {
 		logger.info("Received status check request for orderId:{}", orderId);
 		try {
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
@@ -557,7 +570,7 @@ public class PaymentService {
 		}
 	}
 
-	public PaymentStatusResponseDTO getStatusV2(String orderId, Merchant merchant) {
+	public PaymentStatusResponseDTO getStatusV2(String orderId, BasicDetailsDto merchant) {
 		logger.info("Received status check request for orderId:{}", orderId);
 		try {
 			LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
@@ -653,7 +666,7 @@ public class PaymentService {
 		return paymentDetailDto;
 	}
 
-	public ResponseDTO resendOTP(RequestDTO<PaymentResendOTP> requestDTO, Merchant merchant, String token) {
+	public ResponseDTO resendOTP(RequestDTO<PaymentResendOTP> requestDTO, BasicDetailsDto merchant, String token) {
 		LoanPaymentOrder loanPaymentOrder = loanPaymentOrderDao.findByOrderId(requestDTO.getPayload().getOrderId());
 		if (loanPaymentOrder == null) {
 			return new ResponseDTO(false, "Order not found");
@@ -1032,7 +1045,7 @@ public class PaymentService {
 		}
 	}
 
-	public ResponseDTO verifyPayment(RequestDTO<PaymentResendOTP> requestDTO, Merchant merchant, String token) {
+	public ResponseDTO verifyPayment(RequestDTO<PaymentResendOTP> requestDTO, BasicDetailsDto merchant, String token) {
 		LoanPaymentOrder loanPaymentOrder = loanPaymentOrderDao.findByOrderId(requestDTO.getPayload().getOrderId());
 		if (loanPaymentOrder == null) {
 			return new ResponseDTO(false, "Order not found");
@@ -1138,7 +1151,7 @@ public class PaymentService {
 		return beneficiaryName;
 	}
 
-	public PaymentStatusV3ResponseDTO getStatusV3(String orderId, Merchant merchant) {
+	public PaymentStatusV3ResponseDTO getStatusV3(String orderId, BasicDetailsDto merchant) {
 		logger.info("Received status check request for orderId:{}", orderId);
 		try {
 			dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));

@@ -4,6 +4,7 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.slave.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
@@ -16,6 +17,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.slave.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -60,8 +62,8 @@ public class MerchantLoansService {
     @Autowired
     LendingCategoryDao lendingCategoryDao;
 
-    @Autowired
-    MerchantSummaryDao merchantSummaryDao;
+//    @Autowired
+//    MerchantSummaryDao merchantSummaryDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -432,7 +434,8 @@ public class MerchantLoansService {
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
 
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant());
+        LendingApplication lendingApplication =
+          lendingApplicationDao.findByIdAndMerchantId(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchant().getId());
         try {
             if (!isTopUpEnabled) {
                 logger.info("Topup are loans are disabled");
@@ -618,19 +621,26 @@ public class MerchantLoansService {
         return eligiblity;
     }
 
-    public CommonResponse getDueAmount(Long merchantId, Long merchantStoreId, Merchant merchant) {
-        if (merchant == null) {
+    public CommonResponse getDueAmount(Long merchantId, Long merchantStoreId, BasicDetailsDto basicDetailsDto) {
+
+        Merchant merchant;
+        if (basicDetailsDto == null) {
             merchant = merchantDao.getById(merchantId);
-        }
+        } else merchant = merchantDao.getById(basicDetailsDto.getId());
+
         if (merchant == null) {
             return new CommonResponse(false, "merchant does not exist");
         }
         Map<String, Double> responseMap = new HashMap<>();
         String dueAmountCacheKey = "DUE_AMT_" + merchant.getId() + (ObjectUtils.isEmpty(merchantStoreId) ? "" : ("_" + merchantStoreId));
-        Object dueAmountCached = lendingCache.get(dueAmountCacheKey);
-        if (!ObjectUtils.isEmpty(dueAmountCached)) {
-            responseMap.put("due_amount", (Double) dueAmountCached);
-            return new CommonResponse(responseMap);
+        try {
+            Object dueAmountCached = lendingCache.get(dueAmountCacheKey);
+            if (!ObjectUtils.isEmpty(dueAmountCached)) {
+                responseMap.put("due_amount", (Double) dueAmountCached);
+                return new CommonResponse(responseMap);
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while retrieving data from redis for: {} {}", merchant.getId(), e.getMessage());
         }
         Double dueAmount = 0D;
         List<LendingPaymentScheduleSlave> activeLoans = fetchLendingPaymentScheduleSlave(merchant.getId(), merchantStoreId, "ACTIVE");

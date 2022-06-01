@@ -9,6 +9,9 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LoanEligibilityDTO;
+import com.bharatpe.lending.dto.MerchantResponseDTO;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.util.creditresponse.ResponseUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -17,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.text.ParseException;
 import java.util.*;
@@ -41,8 +45,8 @@ public class TopupLoanEligibleService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
     
-	@Autowired
-	MerchantSummaryDao merchantSummaryDao;
+//	@Autowired
+//	MerchantSummaryDao merchantSummaryDao;
 	
 	@Autowired
 	MerchantBankDetailDao merchantBankDetailDao;
@@ -68,6 +72,9 @@ public class TopupLoanEligibleService {
     @Autowired
     LoanUtil loanUtil;
 
+    @Autowired
+    MerchantHandler merchantHandler;
+
     List<Long> exemptMerchant = Arrays.asList(3692069L);
     
     public void generateTopupLoan(Long merchantId) {
@@ -77,29 +84,34 @@ public class TopupLoanEligibleService {
     			 logger.error("No merchant found with merchant id {}", merchantId);
     			 return;
     		 }
-    		 MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.get().getId());
+//    		 MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.get().getId());
+             MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.get().getId());
+             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+                 throw new MerchantSummaryExceptionHandler(merchant.get().getId().toString());
+             }
     		 Experian experian = experianDao.getByMerchantId(merchant.get().getId());
     		 MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.get().getId(), "ACTIVE");
     		 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.get().getId(),false);
-             fetchTopupLoans(merchant.get(), experian, merchantSummary, merchantBankDetail, lendingPaymentScheduleList, null);
+             fetchTopupLoans(merchant.get(), experian, merchantResponseDTO, merchantBankDetail, lendingPaymentScheduleList, null);
     	 } catch(Exception ex) {
     		 logger.error("Exception while generating new loans for merchant with ID {}, Exception is {}", merchantId, ex);
     	 }
     }
 
-    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantSummary merchantSummary, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) throws ParseException {
+    public List<LoanEligibilityDTO> fetchTopupLoans(Merchant merchant, Experian experian, MerchantResponseDTO merchantResponseDTO, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) throws ParseException {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
         if (true) {
             logger.info("topup loan closed");
             return new ArrayList<>();
         }
-        double bpScore = (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0d;
+        double bpScore = (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0d;
         LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
         if(lendingPaymentScheduleList == null || lendingPaymentScheduleList.isEmpty() || activeLoan == null || activeLoan.getLoanAmount() <= 5000) {
             logger.info("No previous loan/active loan for merchant ID {}", merchant.getId());
             return new ArrayList<>();
         }
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(activeLoan.getApplicationId(), merchant);
+        LendingApplication lendingApplication =
+          lendingApplicationDao.findByIdAndMerchantId(activeLoan.getApplicationId(), merchant.getId());
         if (lendingApplication == null || "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
             logger.info("Lending Application not found/topup loan for merchant:{}", merchant.getId());
             return new ArrayList<>();
@@ -117,7 +129,7 @@ public class TopupLoanEligibleService {
             logger.info("DPD is greater than 5 for merchant ID {}", merchant.getId());
             return new ArrayList<>();
         }
-        if (loanEligibleService.checkFraud(merchantSummary)) {
+        if (loanEligibleService.checkFraud(merchantResponseDTO)) {
             logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
             return new ArrayList<>();
         }

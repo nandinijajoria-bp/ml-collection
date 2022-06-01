@@ -1,6 +1,5 @@
 package com.bharatpe.lending.service;
 
-import java.io.IOException;
 import java.util.*;
 
 import com.bharatpe.common.dao.DocKycDetailsDao;
@@ -13,6 +12,7 @@ import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 import org.json.XML;
@@ -115,7 +115,7 @@ public class CreditLineKycService {
 	@Autowired
 	VerifyOTPService verifyOTPService;
 	
-	public  CreditLineKycResponseDto fetchAddress(Merchant merchant) {
+	public  CreditLineKycResponseDto fetchAddress(BasicDetailsDto merchant) {
 
 		CreditLineKycResponseDto creditLineKycResponseDto =new CreditLineKycResponseDto();
 		LendingManualKyc lendingManualKyc=lendingManualKycDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -156,7 +156,7 @@ public class CreditLineKycService {
 //		}
 //	}
 
-	public   Object verifyAddress(Merchant merchant,RequestDTO< EkycManualRequestDTO> requestDTO) {
+	public   Object verifyAddress(BasicDetailsDto merchantBasicDetails,RequestDTO< EkycManualRequestDTO> requestDTO) {
 
 		Map<String,Object>map=new HashMap<>();
 		EkycManualRequestDTO eKycManualRequestDTO=requestDTO.getPayload();
@@ -166,7 +166,7 @@ public class CreditLineKycService {
 			map.put("message", "empty request");
 			return map;
 		}
-		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantBasicDetails.getId());
 		if(creditApplication==null)
 		{
 			map.put("success", false);
@@ -184,8 +184,8 @@ public class CreditLineKycService {
 		{
 			LendingManualKyc lendingManualKyc=new LendingManualKyc();
 			lendingManualKyc.setApplicationId(creditApplication.getId());
-			lendingManualKyc.setMerchantId(merchant.getId());
-			lendingManualKyc.setmId(merchant.getMid());
+			lendingManualKyc.setMerchantId(merchantBasicDetails.getId());
+			lendingManualKyc.setmId(merchantBasicDetails.getMid());
 			lendingManualKyc.setAddress(eKycManualRequestDTO.getFullAdress());
 			lendingManualKyc.setCity(eKycManualRequestDTO.getCity());
 			lendingManualKyc.setPincode(String.valueOf(eKycManualRequestDTO.getPincode()));
@@ -214,14 +214,18 @@ public class CreditLineKycService {
 		creditApplicationTransitionDao.save(creditApplicationTransition);
 		map.put("success", true);
 		map.put("message", "address same");
+
+		// TODO : remove this and use api
+		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 		sendNotification(merchant,creditApplication);
 		redisNotificationService.sendEnachNotificationForCreditLine(merchant, creditApplication);
-		if ((merchant.getId().equals(1141505L) || merchant.getId().equals(3612680L)) && creditApplication.getAmount() <= 50000)
-			verifyOTPService.sendDetailsForKycVerification(merchant.getId(),creditApplication.getId(),true);
+
+		if ((merchantBasicDetails.getId().equals(1141505L) || merchantBasicDetails.getId().equals(3612680L)) && creditApplication.getAmount() <= 50000)
+			verifyOTPService.sendDetailsForKycVerification(merchantBasicDetails.getId(),creditApplication.getId(),true);
 		return map;
 	}
 
-	public Object eKycInitiate(Merchant merchant) {
+	public Object eKycInitiate(BasicDetailsDto merchant) {
 
 		Map<String,Object>map=new HashMap<>();
 
@@ -233,8 +237,8 @@ public class CreditLineKycService {
 
 	}
 
-	public Object eKycSubmit(Merchant merchant, RequestDTO<EKycRequestDTO> requestDTO) {
-		logger.info("Ekyc response for merchant:{} is {}", merchant.getId(), requestDTO);
+	public Object eKycSubmit(BasicDetailsDto merchantBasicDetails, RequestDTO<EKycRequestDTO> requestDTO) {
+		logger.info("Ekyc response for merchant:{} is {}", merchantBasicDetails.getId(), requestDTO);
 		Map<String,Object>map=new HashMap<>();
 		String module="CREDIT_LINE";
 		EKycRequestDTO eKycRequestDTO=requestDTO.getPayload();
@@ -245,11 +249,11 @@ public class CreditLineKycService {
 			return map;
 		}
 		Long applicationId=null;
-		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+		CreditApplication creditApplication=creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantBasicDetails.getId());
 		LendingApplication lendingApplication=null;
 		if(creditApplication==null || !creditApplication.getStatus().equalsIgnoreCase("draft"))
 		{   
-			lendingApplication=lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+			lendingApplication=lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantBasicDetails.getId());
 			if(lendingApplication==null) {
 				map.put("success", false);
 				map.put("message", "Application not found");
@@ -263,7 +267,7 @@ public class CreditLineKycService {
 		}
 		LendingEkyc lendingEkyc=new LendingEkyc();
 		lendingEkyc.setApplicationId(applicationId);
-		lendingEkyc.setMerchantId(merchant.getId());;
+		lendingEkyc.setMerchantId(merchantBasicDetails.getId());;
 		lendingEkyc.setmId(eKycRequestDTO.getmId());
 		lendingEkyc.setAddress(eKycRequestDTO.getAddress());
 		lendingEkyc.setCity(eKycRequestDTO.getCity());
@@ -297,14 +301,15 @@ public class CreditLineKycService {
 		} catch (Exception e) {
 			logger.error("Exception while parsing ekyc", e);
 		}
-		String imagePath = uploadAdhaarImage(uidData, merchant.getId());
+		String imagePath = uploadAdhaarImage(uidData, merchantBasicDetails.getId());
 		lendingEkyc.setImagePath(imagePath);
 		lendingEkycDao.save(lendingEkyc);
 		if (lendingEkyc.getStatus() != null && lendingEkyc.getStatus()) {
 			if (module.equalsIgnoreCase("CREDIT_LINE")) {
-				MerchantDocumentProof merchantDocumentProof = insertInMerchantDocumentProof(merchant, lendingEkyc, applicationId);
-				insertInMerchantDocumentProofOcr(merchant, lendingEkyc, applicationId, merchantDocumentProof);
+				MerchantDocumentProof merchantDocumentProof = insertInMerchantDocumentProof(merchantBasicDetails, lendingEkyc, applicationId);
+				insertInMerchantDocumentProofOcr(merchantBasicDetails, lendingEkyc, applicationId, merchantDocumentProof);
 			} else {
+				Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 				DocumentsIdProof documentIdProof = insertIntoDocumentIdProof(merchant, lendingEkyc, lendingApplication);
 				insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
 			}
@@ -325,7 +330,8 @@ public class CreditLineKycService {
 		return null;
 	}
 	
-	private MerchantDocumentProof insertInMerchantDocumentProof(Merchant merchant, LendingEkyc lendingEkyc,Long applicationId) {
+	private MerchantDocumentProof insertInMerchantDocumentProof(BasicDetailsDto merchant, LendingEkyc lendingEkyc,
+																Long applicationId) {
 		
 		MerchantDocumentProof merchantDocumentProof=new MerchantDocumentProof();
 		merchantDocumentProof.setMerchantId(merchant.getId());
@@ -342,7 +348,8 @@ public class CreditLineKycService {
 		return merchantDocumentProof;
 	}
 	
-	private void insertInMerchantDocumentProofOcr(Merchant merchant, LendingEkyc lendingEkyc,Long applicationId,MerchantDocumentProof merchantDocumentProof) {
+	private void insertInMerchantDocumentProofOcr(BasicDetailsDto merchant, LendingEkyc lendingEkyc,Long applicationId,
+												  MerchantDocumentProof merchantDocumentProof) {
 		
 		MerchantDocumentProofOcr merchantDocumentProofOcr=new MerchantDocumentProofOcr();
 		merchantDocumentProofOcr.setMerchantId(merchant.getId());
@@ -412,7 +419,7 @@ public class CreditLineKycService {
 	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {
 		List<String> mobiles = new ArrayList<>();
 		mobiles.add(merchant.getMobile());
-		String message=getNotificationContent(merchant, creditApplication);
+		String message=getNotificationContent(merchant.getId(), creditApplication);
 		if(message!=null) {
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
 			whatsappNotificationService.send(merchant, null, message, mobiles, null);
@@ -424,8 +431,8 @@ public class CreditLineKycService {
 		}
 	}
 
-	public String getNotificationContent(Merchant merchant,CreditApplication creditApplication) {
-		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+	public String getNotificationContent(Long merchantId,CreditApplication creditApplication) {
+		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 		if(merchantBankDetail==null) {
 			return null;
 		}

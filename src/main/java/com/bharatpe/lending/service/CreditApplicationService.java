@@ -6,9 +6,14 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +25,6 @@ import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.EligibleLoan;
@@ -28,7 +32,6 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingCities;
 import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.common.entities.MerchantSummarySnapshot;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
@@ -37,10 +40,11 @@ import com.bharatpe.lending.dto.CreditApplicationRequestDTO;
 import com.bharatpe.lending.dto.CreditApplicationResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
- 
+import org.springframework.util.ObjectUtils;
 
 
 @Service
@@ -72,8 +76,11 @@ public class CreditApplicationService {
 	@Autowired
 	MerchantSummarySnapshotDao merchantSummarySnapshotDao;
 
+//	@Autowired
+//	MerchantSummaryDao merchantSummaryDao;
+
 	@Autowired
-	MerchantSummaryDao merchantSummaryDao;
+	MerchantDao merchantDao;
 
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;
@@ -105,7 +112,10 @@ public class CreditApplicationService {
 	@Autowired
 	ExperianSnapshotDao experianSnapshotDao;
 
-	public CreditApplicationResponseDTO createApplication(Merchant merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
+	@Autowired
+	MerchantHandler merchantHandler;
+	public CreditApplicationResponseDTO createApplication(BasicDetailsDto merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
+
 		CreditApplicationResponseDTO creditApplicationResponse;
 		CreditApplication creditApplication;
 		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
@@ -153,7 +163,11 @@ public class CreditApplicationService {
 					return creditApplicationResponse;
 				}
 			}
-	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
+//	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+				throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+			}
 			if (EXPERIAN_ENABLED) {
 				creditApplication = createApplication(merchant, eligibleLoans.get(0), creditApplicationRequest);
 			} else {
@@ -161,7 +175,7 @@ public class CreditApplicationService {
 			}
 			creditApplication.setExternalLoanId(getExternalLoanId(creditApplication));
 			creditApplicationDao.save(creditApplication);
-			createMerchantSummarySnapshot(merchant, creditApplication, summary);
+			createMerchantSummarySnapshot(merchant, creditApplication, merchantResponseDTO);
 			createExperianSnapshot(merchant, creditApplication);
 			creditLineMerchant.setCreditApplicationId(creditApplication.getId());
 			creditLineMerchantDao.save(creditLineMerchant); 
@@ -179,7 +193,7 @@ public class CreditApplicationService {
 		
 	}
 	
-	private void createExperianSnapshot(Merchant merchant,CreditApplication creditApplication) {
+	private void createExperianSnapshot(BasicDetailsDto merchant,CreditApplication creditApplication) {
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
 		if(experian!=null) {
 			ExperianSnapshot experianSnapshot=new ExperianSnapshot();
@@ -227,7 +241,7 @@ public class CreditApplicationService {
 		return creditApplication;
 	}
 
-	private CreditApplication createApplication(Merchant merchant, EligibleLoan eligibleLoan, CreditApplicationRequestDTO creditApplicationRequest) {
+	private CreditApplication createApplication(BasicDetailsDto merchant, EligibleLoan eligibleLoan, CreditApplicationRequestDTO creditApplicationRequest) {
 		CreditApplication creditApplication = new CreditApplication();
 		 //LendingCategories lendingCategory = lendingCategoryDao.findByCategory(eligibleLoan.getCategory()).get(0);
 
@@ -263,7 +277,7 @@ public class CreditApplicationService {
 		return loanId;
 	}
 	
-	private CreditApplication createApplication(Merchant merchant, AvailableLoan availableLoan, CreditApplicationRequestDTO creditApplicationRequest) {
+	private CreditApplication createApplication(BasicDetailsDto merchant, AvailableLoan availableLoan, CreditApplicationRequestDTO creditApplicationRequest) {
 		CreditApplication creditApplication = new CreditApplication();
 		//LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 	   
@@ -314,39 +328,42 @@ public class CreditApplicationService {
 		creditApplicationResponse.setLoanApplication(loanApplication);
 		return creditApplicationResponse;
 	}
-	
- 	public void createMerchantSummarySnapshot(Merchant merchant, CreditApplication application, MerchantSummary summary) {
+
+ 	public void createMerchantSummarySnapshot(BasicDetailsDto merchantBasicDetails, CreditApplication application, MerchantResponseDTO merchantResponseDTO) {
 		try {
 			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
-			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchant.getId());
+			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchantBasicDetails.getId());
+
+			// TODO : remove this and use api
+			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
 			snapshot.setApplication(application.getId());
 			snapshot.setMerchant(merchant);
-			snapshot.setLastTransactionDate(summary.getLastTransactionDate());
-			snapshot.setTotalTxnCount(summary.getDailyTxnCount());
-			snapshot.setTotalTxnAmount(summary.getDailyTxnAmount());
-			snapshot.setCategory(summary.getCategory());
-			snapshot.setAvgTpv(summary.getAvgTpv());
+			snapshot.setLastTransactionDate(merchantResponseDTO.getLastTransactionDate());
+			snapshot.setTotalTxnCount(merchantResponseDTO.getDailyTxnCount());
+			snapshot.setTotalTxnAmount(merchantResponseDTO.getDailyTxnAmount());
+			snapshot.setCategory(merchantResponseDTO.getCategory());
+			snapshot.setAvgTpv(merchantResponseDTO.getAvgTpv());
 		 //	snapshot.setMaxEligibleLoanAmount(((BigDecimal) data.get(0)[0]).doubleValue());
 			snapshot.setEligibleLoanCategories((String) data.get(0)[1]);
-			snapshot.setLoanType(summary.getLoanType());
-			snapshot.setTpv1Mon(summary.getTpv1Mon());
-			snapshot.setTpv2Mon(summary.getTpv2Mon());
-			snapshot.setTpv3Mon(summary.getTpv3Mon());
-			snapshot.setTxnDayCount1Mon(summary.getTxnDayCount1Mon());
-			snapshot.setTxnDayCount2Mon(summary.getTxnDayCount2Mon());
-			snapshot.setTxnDayCount3Mon(summary.getTxnDayCount3Mon());
-			snapshot.setTotalTxns1Month(summary.getTotalTxns1Month());
-			snapshot.setTotalTxns2Month(summary.getTotalTxns2Month());
-			snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
-			snapshot.setTotalLoansCount(summary.getTotalLoansCount());
-			snapshot.setBpScore(summary.getBpScore());
-			snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
-			snapshot.setFraudCustomer(summary.getFraudCustomer());
+			snapshot.setLoanType(merchantResponseDTO.getLoanType());
+			snapshot.setTpv1Mon(merchantResponseDTO.getTpv1Mon());
+			snapshot.setTpv2Mon(merchantResponseDTO.getTpv2Mon());
+			snapshot.setTpv3Mon(merchantResponseDTO.getTpv3Mon());
+			snapshot.setTxnDayCount1Mon(merchantResponseDTO.getTxnDayCount1Mon());
+			snapshot.setTxnDayCount2Mon(merchantResponseDTO.getTxnDayCount2Mon());
+			snapshot.setTxnDayCount3Mon(merchantResponseDTO.getTxnDayCount3Mon());
+			snapshot.setTotalTxns1Month(merchantResponseDTO.getTotalTxns1Month());
+			snapshot.setTotalTxns2Month(merchantResponseDTO.getTotalTxns2Month());
+			snapshot.setTotalTxns3Month(merchantResponseDTO.getTotalTxns3Month());
+			snapshot.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount());
+			snapshot.setBpScore(merchantResponseDTO.getBpScore());
+			snapshot.setUniqueCustomer1mon(merchantResponseDTO.getUniqueCustomer1mon());
+			snapshot.setFraudCustomer(merchantResponseDTO.getFraudCustomer());
 
 			merchantSummarySnapshotDao.save(snapshot);
 		} catch(Exception ex) {
-			logger.error("Exception while creating merchant summary snapshot for merchant id {} and application id {}, Exception is {}", merchant.getId(), application.getId(), ex);
+			logger.error("Exception while creating merchant summary snapshot for merchant id {} and application id {}, Exception is {}", merchantBasicDetails.getId(), application.getId(), ex);
 		}
 	}
 
@@ -362,7 +379,7 @@ public class CreditApplicationService {
 		return false;
 	}
 	
-	public ResponseDTO sendOtp(Merchant merchant) {
+	public ResponseDTO sendOtp(BasicDetailsDto merchant) {
 		String message = "BharatPe: {otp} is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
 		Map<String, Object> response = new HashMap<String, Object>();
 		response= bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);

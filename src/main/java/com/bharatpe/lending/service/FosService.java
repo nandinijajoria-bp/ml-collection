@@ -14,6 +14,8 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -115,9 +117,6 @@ public class FosService {
     MerchantStoreDao merchantStoreDao;
 
     @Autowired
-    MerchantSummaryDao merchantSummaryDao;
-
-    @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
     @Autowired
@@ -125,6 +124,9 @@ public class FosService {
 
     @Autowired
     LendingCache lendingCache;
+
+    @Autowired
+    MerchantHandler merchantHandler;
 
     public ResponseDTO fosLoan(Long merchantId) {
         ResponseDTO responseDTO = new ResponseDTO(true, null, null,null);
@@ -916,7 +918,14 @@ public class FosService {
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
                 return lendingRiskVariables != null ? lendingRiskVariables.getLoanType() : null;
             case "maybe":
-                return Objects.nonNull(merchantSummaryDao.getRegularMerchantSummary(merchantId)) ? "REGULAR" : "NTB";
+                MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchantId);
+                if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+                    throw new MerchantSummaryExceptionHandler(merchantId.toString());
+                }
+                return (!ObjectUtils.isEmpty(merchantResponseDTO.getUniqueCustomer1mon()) && merchantResponseDTO.getUniqueCustomer1mon() > 15 &&
+                        !ObjectUtils.isEmpty(merchantResponseDTO.getFirstTransactionDate()) &&
+                        dateTimeUtil.getDateDiffInDays(dateTimeUtil.getCurrentDate(),merchantResponseDTO.getFirstTransactionDate()) > 60 &&
+                        merchantResponseDTO.getBpScore() >=9) ? "REGULAR" : "NTB";
             default:
                 return null;
         }

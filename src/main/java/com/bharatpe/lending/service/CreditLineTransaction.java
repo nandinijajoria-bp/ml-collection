@@ -10,12 +10,11 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.BankTransferResponseDTO;
 import com.bharatpe.lending.dto.CreditSpendResponseDTO;
-import com.bharatpe.lending.util.CreditUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -275,16 +274,17 @@ public class CreditLineTransaction {
         return new CreditSpendResponseDTO.TL(edi, tenure, 2D, 0, amount, interestAmount, repayment, ediCount);
     }
 
-    public void createLPS(Merchant merchant, LendingClTransaction lendingClTransaction) {
+    public void createLPS(BasicDetailsDto merchantBasicDetails, LendingClTransaction lendingClTransaction) {
         try {
             LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
+            Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
             LendingPaymentSchedule lendingPaymentSchedule = new LendingPaymentSchedule();
-            logger.info("Populating data into lending_payment_schedule table for merchant: {}", merchant.getId());
+            logger.info("Populating data into lending_payment_schedule table for merchant: {}", merchantBasicDetails.getId());
             lendingPaymentSchedule.setCreditLoan(true);
             lendingPaymentSchedule.setLoanType("CREDIT_LINE");
             lendingPaymentSchedule.setMerchant(merchant);
             lendingPaymentSchedule.setLoanAmount(lendingTlDetails.getAmount());
-            lendingPaymentSchedule.setMobile(merchant.getMobile());
+            lendingPaymentSchedule.setMobile(merchantBasicDetails.getMobile());
             lendingPaymentSchedule.setEdiAmount(lendingTlDetails.getEdi());
             lendingPaymentSchedule.setStatus("ACTIVE");
             lendingPaymentSchedule.setNbfc("LIQUILOANS");
@@ -326,11 +326,11 @@ public class CreditLineTransaction {
             lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
             lendingPaymentSchedule = insertLPS(lendingPaymentSchedule);
             liquiloansService.createEdiSchedule(lendingPaymentSchedule);
-            liquiloansService.changeDeductionFromInstantToDaily(merchant);
+            liquiloansService.changeDeductionFromInstantToDaily(merchantBasicDetails);
 //            LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
 //            createLeadExecutor.submit(() -> liquiloansService.createLead(finalLendingPaymentSchedule, lendingTlDetails));
         } catch (Exception e) {
-            logger.error("Error creating LPS for merchant:{} and transaction:{}", merchant.getId(), lendingClTransaction.getId());
+            logger.error("Error creating LPS for merchant:{} and transaction:{}", merchantBasicDetails.getId(), lendingClTransaction.getId());
         }
     }
 
@@ -463,7 +463,7 @@ public class CreditLineTransaction {
     private void startPromotionalNotification(CreditAccount creditAccount) {
     	Optional<Merchant> merchOptional=merchantDao.findById(creditAccount.getMerchantId());
     	if(merchOptional.isPresent()) {
-    		redisNotificationService.sendPromotionalNotificationForCreditLine(merchOptional.get(), creditAccount);
+    		redisNotificationService.sendPromotionalNotificationForCreditLine(merchOptional.get().getId(), creditAccount);
     	}
     }
     

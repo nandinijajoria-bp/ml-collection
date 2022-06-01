@@ -21,7 +21,10 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.SettlementType;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.util.Finance;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -117,8 +120,8 @@ public class LiquiloansService {
     @Autowired
 	IfscDao ifscDao;
 
-    @Autowired
-	MerchantSummaryDao merchantSummaryDao;
+//    @Autowired
+//	MerchantSummaryDao merchantSummaryDao;
 
     @Autowired
 	ExperianDao experianDao;
@@ -179,6 +182,9 @@ public class LiquiloansService {
 
 	@Autowired
 	LendingVpaDetailsDao lendingVpaDetailsDao;
+
+	@Autowired
+	MerchantHandler merchantHandler;
 
 	private static String secretKey;
 
@@ -271,7 +277,9 @@ public class LiquiloansService {
     			return new ResponseEntity<>("Invalid merchantId", HttpStatus.BAD_REQUEST);
     		}
     		logger.info("Fetching loan application on the basis of application id and merchant");
-    		lendingApplication=lendingApplicationDao.findByIdAndMerchant(Long.parseLong(postPayoutRequestDto.getApplicationId()), merchant.get());
+    		lendingApplication=
+			lendingApplicationDao.findByIdAndMerchantId(Long.parseLong(postPayoutRequestDto.getApplicationId()),
+			merchant.get().getId());
     		
     		
 //    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
@@ -509,7 +517,7 @@ public class LiquiloansService {
 		}
 	}
 
-	public void changeDeductionFromInstantToDaily(Merchant merchant) {
+	public void changeDeductionFromInstantToDaily(BasicDetailsDto merchant) {
 
     		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
 			List<PayloadDTO> merchantPayload = new ArrayList<>();
@@ -534,6 +542,32 @@ public class LiquiloansService {
     		}
     		
     }
+
+	public void changeDeductionFromInstantToDaily(Merchant merchant) {
+
+		logger.info("Changing settlement from instant to daily for merchant {}",merchant.getId());
+		List<PayloadDTO> merchantPayload = new ArrayList<>();
+		merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
+
+		List<Validate> validateList=validateDao.findByMobile(merchant.getMobile());
+		for(Validate validate:validateList){
+			validate.setSettlement("daily");
+		}
+		SettlementSchedule settlementSchedule=settlementScheduleDao.findTop1ByMerchantIdAndStatus(merchant.getId(), "PENDING");
+		if(settlementSchedule!=null) {
+			settlementSchedule.setSettlementDate(new Date());
+			settlementSchedule.setMoveDaily("YES");
+			settlementScheduleDao.save(settlementSchedule);
+		}
+		boolean merchantUpdated = merchantUpdateService.curlMerchantPartialUpdateAPI(merchant.getId(), merchantPayload);
+		if (!merchantUpdated) {
+			logger.info("Error while updating merchant info!");
+		}
+		if(!validateList.isEmpty()){
+			validateDao.saveAll(validateList);
+		}
+
+	}
 
 	private void sendSms(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
 		try {
@@ -758,7 +792,11 @@ public class LiquiloansService {
 			List<MerchantDocumentProofOcr> documents = merchantDocumentProofOcrDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingTlDetails.getMerchantId(), "ACTIVE");
 			List<Ifsc> ifscList = ifscDao.findByIfsc(merchantBankDetail.getIfscCode());
-			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingTlDetails.getMerchantId());
+//			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingTlDetails.getMerchantId());
+			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(lendingTlDetails.getMerchantId());
+			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+				throw new MerchantSummaryExceptionHandler(lendingTlDetails.getMerchantId().toString());
+			}
 			Experian experian = experianDao.getByMerchantId(lendingTlDetails.getMerchantId());
 			CreditApplicationAddress creditApplicationAddress = creditApplicationAddressDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
 			MerchantDocumentProofOcr pancard = null;
@@ -827,7 +865,7 @@ public class LiquiloansService {
 			Map<String, Object> incomeDetails = new LinkedHashMap<>();
 			incomeDetails.put("occupation", "SelfEmployed");
 			incomeDetails.put("name_of_company", lendingPaymentSchedule.getMerchant().getBusinessName().trim());
-			incomeDetails.put("monthly_income", merchantSummary.getTpv1Mon().toString());
+			incomeDetails.put("monthly_income", merchantResponseDTO.getTpv1Mon().toString());
 			request.put("income_details", incomeDetails);
 			Map<String, Object> kycDetails = new LinkedHashMap<>();
 			kycDetails.put("file_name", "test.zip");

@@ -6,7 +6,7 @@ import com.bharatpe.common.dao.CpvDocumentsIdProofDao;
 import com.bharatpe.common.dao.LendingCpvDetailsDao;
 import com.bharatpe.common.entities.CpvDocumentsIdProof;
 import com.bharatpe.common.entities.LendingCpvDetails;
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ImageDTO;
 import com.bharatpe.lending.dto.MerchantDetailsDTO;
 import com.bharatpe.lending.dto.UploadImageDTO;
@@ -57,7 +57,7 @@ public class MerchantDetailsService {
         put("OTHER", 10);
     }};
 
-    public MerchantDetailsDTO updatePersonalDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
+    public MerchantDetailsDTO updatePersonalDetails(MerchantDetailsDTO merchantDetailsDTO, BasicDetailsDto merchant, String lat, String lng) {
     	String module;
         if(merchantDetailsDTO.getModule()!=null)
            module=merchantDetailsDTO.getModule();
@@ -92,7 +92,7 @@ public class MerchantDetailsService {
         return merchantDetailsDTO;
     }
 
-    public MerchantDetailsDTO updateShopDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
+    public MerchantDetailsDTO updateShopDetails(MerchantDetailsDTO merchantDetailsDTO, BasicDetailsDto merchant, String lat, String lng) {
     	 String module;
          if(merchantDetailsDTO.getModule()!=null)
           module=merchantDetailsDTO.getModule();
@@ -163,7 +163,7 @@ public class MerchantDetailsService {
         }
     }
     
-    public MerchantDetailsDTO updateBusinessDetails(MerchantDetailsDTO merchantDetailsDTO, Merchant merchant, String lat, String lng) {
+    public MerchantDetailsDTO updateBusinessDetails(MerchantDetailsDTO merchantDetailsDTO, BasicDetailsDto merchant, String lat, String lng) {
         if(Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             logger.info("deleting cached key of loan details in update business details flow for merchant: {}",merchant.getId());
@@ -240,7 +240,7 @@ public class MerchantDetailsService {
         }
     }
 
-    public UploadImageDTO uploadImage(UploadImageDTO uploadImageDTO, Merchant merchant, String lat, String lng) {
+    public UploadImageDTO uploadImage(UploadImageDTO uploadImageDTO, BasicDetailsDto merchant, String lat, String lng) {
     	 String module;
          if(uploadImageDTO.getModule()!=null)
             module=uploadImageDTO.getModule();
@@ -301,7 +301,7 @@ public class MerchantDetailsService {
         return uploadImageDTO;
     }
 
-    public int deleteImage(Merchant merchant, UploadImageDTO uploadImageDTO) {
+    public int deleteImage(BasicDetailsDto merchant, UploadImageDTO uploadImageDTO) {
     	Long applicationId=uploadImageDTO.getApplicationId();
     	Long imageId=uploadImageDTO.getImageData().getImageId();
     	 String module;

@@ -16,4 +16,6 @@ public interface LendingPaymentScheduleDaoSlave extends CrudRepository<LendingPa
     @Query(value="SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId and status=:status and credit_loan=false order by id", nativeQuery=true)
     List<LendingPaymentScheduleSlave> findByMerchantIdAndStatusList(Long merchantId, String status);
 
+    @Query(value="SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId and status=:status and credit_loan=false order by id limit 1",nativeQuery=true)
+    LendingPaymentScheduleSlave findByMerchantIdAndStatus(Long merchantId, String status);
 }

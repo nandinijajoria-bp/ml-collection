@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.PreBookResponseDTO;
 import com.bharatpe.lending.service.PreBookService;
 import org.slf4j.Logger;
@@ -20,7 +20,7 @@ public class PreBookController {
     PreBookService preBookService;
 
     @RequestMapping(value="/prebook", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<PreBookResponseDTO> experianDetails(@RequestAttribute Merchant merchant) {
+    public ResponseEntity<PreBookResponseDTO> experianDetails(@RequestAttribute BasicDetailsDto merchant) {
         try {
             return new ResponseEntity<>(preBookService.getDetails(merchant), HttpStatus.OK);
         } catch (Exception e) {
@@ -30,7 +30,7 @@ public class PreBookController {
     }
 
     @RequestMapping(value="/prebook/verifyOTP", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<PreBookResponseDTO> verifyOTP(@RequestAttribute Merchant merchant, @RequestParam String otp, @RequestParam String uuid) {
+    public ResponseEntity<PreBookResponseDTO> verifyOTP(@RequestAttribute BasicDetailsDto merchant, @RequestParam String otp, @RequestParam String uuid) {
         try {
             return new ResponseEntity<>(preBookService.verifyOTP(merchant, otp, uuid),HttpStatus.OK);
         } catch (Exception e) {

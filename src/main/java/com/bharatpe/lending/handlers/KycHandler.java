@@ -121,7 +121,6 @@ public class KycHandler {
                     }
                 }
                 for (KycDoc kycDoc : kycDocs) {
-
                     if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.REJECTED) && !kycDoc.getStatus().equals(KycDocStatus.APPROVED)) {
                         return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
                     }

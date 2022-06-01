@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanSurveyDao;
 import com.bharatpe.lending.common.entity.LoanSurvey;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.LoanSurveyHeaderDto;
@@ -35,7 +35,7 @@ public class LoanSurveyService {
     @Autowired
     EligibleLoanDao eligibleLoanDao;
 
-    public LoanSurveyHeaderDto getSurveyMerchantHeader(Merchant merchant) {
+    public LoanSurveyHeaderDto getSurveyMerchantHeader(BasicDetailsDto merchant) {
         if(merchant == null) return null;
         logger.info("Fetching Loan Survey Data for merchant:{}", merchant.getId());
         String amount;
@@ -59,13 +59,13 @@ public class LoanSurveyService {
         return LoanSurveyHeaderDto
             .builder()
             .success(Boolean.TRUE)
-            .name(merchant.getMerchantName())
+            .name(merchant.getName())
             .amount(amount)
             .interestRate(interestRate)
             .build();
     }
 
-    public LoanSurveyRequestDto submitSurvey(Merchant merchant, LoanSurveyRequestDto dto) {
+    public LoanSurveyRequestDto submitSurvey(BasicDetailsDto merchant, LoanSurveyRequestDto dto) {
         LoanSurveyRequestDto.LoanSurveyRequestDtoBuilder
             builder = LoanSurveyRequestDto.builder();
 

@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.service.PaymentCallbackRequestDTO;
 import com.bharatpe.lending.service.PaymentService;
 
@@ -22,17 +22,17 @@ public class PaymentController {
 	PaymentService paymentService;
 
     @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute Merchant merchant) {
+    public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant) {
     	return new ResponseEntity<>(paymentService.getPaymentDetails(merchant), HttpStatus.OK);
     }
     
     @RequestMapping(value="/initiate", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
-    public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
+    public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
     	return new ResponseEntity<>(paymentService.initiatePayment(merchant, requestDTO, token), HttpStatus.OK);
     }
 
     @RequestMapping(value="/initiate/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
-    public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV2(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
+    public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV2(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
         return new ResponseEntity<>(paymentService.initiatePaymentV2(merchant, requestDTO), HttpStatus.OK);
     }
     
@@ -47,21 +47,21 @@ public class PaymentController {
     }
 
     @RequestMapping(value="/status", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus(@RequestAttribute BasicDetailsDto merchant, @RequestParam String orderId) {
         PaymentStatusResponseDTO responseDTO = paymentService.getStatus(orderId, merchant);
         logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
 
     @RequestMapping(value="/status/v2", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatusV2(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatusV2(@RequestAttribute BasicDetailsDto merchant, @RequestParam String orderId) {
         PaymentStatusResponseDTO responseDTO = paymentService.getStatusV2(orderId, merchant);
         logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
 
     @RequestMapping(value="/modes", method = RequestMethod.POST, produces="application/json")
-    public ResponseEntity<ResponseDTO> paymentModes(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<CreditSpendRequestDTO> requestDTO) {
+    public ResponseEntity<ResponseDTO> paymentModes(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<CreditSpendRequestDTO> requestDTO) {
         logger.info("paymentModes request : {} for merchant:{}", requestDTO, merchant.getId());
         try {
             return new ResponseEntity<>(paymentService.getPaymentModes(requestDTO, token), HttpStatus.OK);
@@ -72,7 +72,7 @@ public class PaymentController {
     }
 
     @RequestMapping(value="/resendOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<ResponseDTO> resendOTP(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<PaymentResendOTP> requestDTO) {
+    public ResponseEntity<ResponseDTO> resendOTP(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<PaymentResendOTP> requestDTO) {
         logger.info("payment resend otp request for merchant {} : {}", merchant.getId(), requestDTO);
         try {
             return new ResponseEntity<>(paymentService.resendOTP(requestDTO, merchant, token), HttpStatus.OK);
@@ -83,7 +83,7 @@ public class PaymentController {
     }
 
     @RequestMapping(value="/verify", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<ResponseDTO> verifyPayment(@RequestHeader("token") String token, @RequestAttribute Merchant merchant, @RequestBody RequestDTO<PaymentResendOTP> requestDTO) {
+    public ResponseEntity<ResponseDTO> verifyPayment(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<PaymentResendOTP> requestDTO) {
         logger.info("payment verify request for merchant {} : {}", merchant.getId(), requestDTO);
         try {
             return new ResponseEntity<>(paymentService.verifyPayment(requestDTO, merchant, token), HttpStatus.OK);
@@ -94,7 +94,7 @@ public class PaymentController {
     }
 
     @RequestMapping(value="/status/v3", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentStatusV3ResponseDTO> getPaymentStatusV3(@RequestAttribute Merchant merchant, @RequestParam String orderId) {
+    public ResponseEntity<PaymentStatusV3ResponseDTO> getPaymentStatusV3(@RequestAttribute BasicDetailsDto merchant, @RequestParam String orderId) {
         PaymentStatusV3ResponseDTO responseDTO = paymentService.getStatusV3(orderId, merchant);
         logger.info("Response for status check request for orderId:{} and merchant:{} is {}", orderId, merchant.getId(), responseDTO);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);

@@ -4,7 +4,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.PincodeCityStateMappingDao;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
@@ -14,8 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.PincodeCityStateMapping;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
 import javax.servlet.http.HttpServletResponse;
@@ -63,7 +61,7 @@ public class LendingApplicationController {
 	LendingCache lendingCache;
 	
 	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public LendingApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+	public LendingApplicationResponseDTO createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 		
 		if(requestDTO.getPayload() != null && requestDTO.getPayload().getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
 			logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
@@ -89,7 +87,8 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public UploadDocumentResponseDTO uploadDocument(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequestDTO> requestDTO) {
+	public UploadDocumentResponseDTO uploadDocument(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp,
+													HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		logger.info("UploadDocument request : {}",requestDTO);
 		if(requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
@@ -104,7 +103,7 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object signAgreement(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp,  @RequestBody RequestDTO<SignAgreementDTO> requestDTO) {
+	public Object signAgreement(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp,  @RequestBody RequestDTO<SignAgreementDTO> requestDTO) {
 		logger.info("singAgreement request : {}",requestDTO);
 		requestDTO.getMeta().setIp(clientIp);
 		Object resp = signAgreementService.signAgreement(merchant, requestDTO);
@@ -113,7 +112,7 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object verifyOTP(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Object verifyOTP(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("verifyOTP request : {}",commonAPIRequest);
 		commonAPIRequest.getMeta().setIp(clientIp);
 		Object resp = verifyOTPService.verifyOTP(merchant, commonAPIRequest);
@@ -122,7 +121,7 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Object cancelApplication(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("cancelApplication request : {}",commonAPIRequest);
 		if(Objects.nonNull(merchant.getId())) {
 			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -148,12 +147,12 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/sendOTP", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant, @RequestParam(name = "app_hash", required = false) String appHash) {
+	public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "app_hash", required = false) String appHash) {
 		return new ResponseEntity<>(lendingApplicationService.sendOtp(merchant, appHash), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/tnc", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<TncDto> tnc(@RequestAttribute Merchant merchant, @RequestParam(required = false) Long applicationId,@RequestParam(required = false) String category, @RequestParam(required = false) String lender) {
+	public ResponseEntity<TncDto> tnc(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) Long applicationId,@RequestParam(required = false) String category, @RequestParam(required = false) String lender) {
 		return new ResponseEntity<>(lendingApplicationService.getTnc(merchant, applicationId,category, lender), HttpStatus.OK);
 	}
 
@@ -168,7 +167,8 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/kafka/publish", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity publish(@RequestBody CreateTxnRequestDTO requestDTO, @RequestAttribute Merchant merchant) {
+	public ResponseEntity publish(@RequestBody CreateTxnRequestDTO requestDTO,
+								  @RequestAttribute BasicDetailsDto merchant) {
 		lendingApplicationService.publishKafka(requestDTO, merchant.getId());
 		return new ResponseEntity(HttpStatus.OK);
 	}
@@ -184,12 +184,14 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/creditScore", method= RequestMethod.POST,produces = "application/json")
-	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<CreditScoreRequestDto> requestDTO){
+	public ResponseEntity<ResponseDTO> creditscore(@RequestAttribute BasicDetailsDto merchant,
+												   @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<CreditScoreRequestDto> requestDTO){
 		return new ResponseEntity<>(loanDetailsService.creditScore(merchant,requestDTO,clientIp), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/applicationStatus", method= RequestMethod.POST,produces = "application/json")
-	public ResponseEntity<ResponseDTO> applicationStatus(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<ApplicationStatusRequestDTO> requestDTO, @RequestHeader("token") String token) {
+	public ResponseEntity<ResponseDTO> applicationStatus(@RequestAttribute BasicDetailsDto merchant,
+														 @RequestAttribute String clientIp, HttpServletResponse response,@RequestBody(required = false) RequestDTO<ApplicationStatusRequestDTO> requestDTO, @RequestHeader("token") String token) {
 		return new ResponseEntity<>(lendingApplicationService.applicationStatus(merchant, requestDTO, clientIp, token), HttpStatus.OK);
 	}
 
@@ -230,7 +232,8 @@ public class LendingApplicationController {
 	}
 
 	@RequestMapping(value="/repayment_history", method = RequestMethod.GET)
-	public ResponseEntity<CommonResponse> repaymentHistory(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id") String lendingPaymentScheduleId){
+	public ResponseEntity<CommonResponse> repaymentHistory(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name =
+	"loan_id") String lendingPaymentScheduleId){
 		logger.info("repayment History request for lendingPaymentScheduleId :{}", lendingPaymentScheduleId);
 		CommonResponse response = loanDetailsService.getRepaymentHistory(merchant, lendingPaymentScheduleId);
 		logger.info("repayment History Response: {}", response);

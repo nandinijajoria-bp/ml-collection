@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
@@ -25,7 +22,6 @@ import com.bharatpe.lending.common.dao.MerchantDocumentProofDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 
 @Service
@@ -48,7 +44,7 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 	@Value("${aws.s3.creditline.bucket}")
 	private String bucket;
 	
-	public Map<String, Object> fetchAndWrapResult(Merchant merchant, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> fetchAndWrapResult(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> result = new HashMap<String, Object>();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 		if(applicationId == null || applicationId <= 0) {
@@ -77,7 +73,7 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		return result;
 	}
 
-	private boolean allowRoute(CreditApplication creditApplication, Merchant merchant, Boolean isEkycDone) {
+	private boolean allowRoute(CreditApplication creditApplication, BasicDetailsDto merchant, Boolean isEkycDone) {
 		boolean selfie = false;
 		boolean pancard = false;
 		boolean poa = false;
@@ -94,7 +90,7 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		return selfie && pancard && (isEkycDone || poa);
 	}
 	
-	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
+	public Boolean isEkycDone(BasicDetailsDto merchant, Long applicationId) {
 		try{
 			LendingEkyc lendingEkyc=lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
 			if(lendingEkyc!=null){
@@ -108,7 +104,7 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		}
 	}
 	
-	public List<Map<String, Object>> fetchImageUrl(Merchant merchant,CreditApplication creditApplication, CommonAPIRequest commonAPIRequest) {
+	public List<Map<String, Object>> fetchImageUrl(BasicDetailsDto merchant,CreditApplication creditApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 

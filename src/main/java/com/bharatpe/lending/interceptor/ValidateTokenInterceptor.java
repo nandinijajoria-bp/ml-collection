@@ -2,13 +2,13 @@ package com.bharatpe.lending.interceptor;
 
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
-import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +19,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.entities.TokenVerification;
 
 @Component
 public class ValidateTokenInterceptor implements HandlerInterceptor {
@@ -31,6 +30,9 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
 	
 	@Autowired
 	Environment env;
+
+	@Autowired
+	MerchantService merchantService;
 	
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		logger.info("Pre handle Interceptor of ValidateTokenInterceptor for {}",request);
@@ -45,16 +47,17 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
         	} else {
                 String normalized = Normalizer.normalize(token, Form.NFD);
                 token = normalized.replaceAll("[^A-Za-z0-9-]", "");
-                
-        		List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
-        		
-        		if(tokenDetails == null || tokenDetails.isEmpty()) {
-        			logger.error("No valid session found for the passed token, sending unauthorized response.");
-        			sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
-        			return false;
-        		}
+//
+//        		List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
+//
+//        		if(tokenDetails == null || tokenDetails.isEmpty()) {
+//        			logger.error("No valid session found for the passed token, sending unauthorized response.");
+//        			sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+//        			return false;
+//        		}
+// 				Merchant merchant = tokenDetails.get(0).getMerchant();
 
-				Merchant merchant = tokenDetails.get(0).getMerchant();
+				BasicDetailsDto merchant = merchantService.fetchMerchantDetails(token);
         		if(merchant != null) {
         			String ip = request.getHeader("True-Client-IP");
         			if(StringUtils.isEmpty(ip)) {

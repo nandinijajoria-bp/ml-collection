@@ -4,11 +4,13 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.slave.entity.LendingApplicationSlave;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
@@ -19,6 +21,8 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.loanV2.dto.LoanAndCreditCardDetailDTO;
@@ -82,9 +86,6 @@ public class LoanDetailsServiceV2 {
     LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
-    MerchantSummaryDao merchantSummaryDao;
-
-    @Autowired
     EligibleLoanDao eligibleLoanDao;
 
     @Autowired
@@ -132,11 +133,14 @@ public class LoanDetailsServiceV2 {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    MerchantHandler merchantHandler;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
 
-    public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, Merchant merchant, String token) {
+    public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
         try {
             if(Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
                 if(Objects.nonNull(merchant.getId())) {
@@ -169,7 +173,7 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
                 return new ApiResponse<>(loanDetailsResponse);
             }
-            if (isOrganizedMerchant(merchant)) {
+            if (isOrganizedMerchant(merchant.getId())) {
                 log.info("organized merchant: {}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
             }
@@ -193,7 +197,7 @@ public class LoanDetailsServiceV2 {
             }
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
-            populateBusinessDetails(merchant, loanDetailsResponse);
+            populateBusinessDetails(merchant.getId(), loanDetailsResponse);
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 loanDetailsResponse.setActiveLoan(true);
@@ -258,8 +262,8 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void populateBusinessDetails(Merchant merchant, LoanDetailsResponse loanDetailsResponse) {
-        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+    private void populateBusinessDetails(Long merchantId, LoanDetailsResponse loanDetailsResponse) {
+        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if (Objects.nonNull(lendingMerchantDetails)) {
             loanDetailsResponse.setBusinessName(lendingMerchantDetails.getBusinessName());
             loanDetailsResponse.setBusinessCategory(lendingMerchantDetails.getBusinessCategory());
@@ -287,14 +291,19 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request, Experian experian, Merchant merchant) throws Exception {
+    private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request,
+                                  Experian experian, BasicDetailsDto merchant) throws Exception {
         String kycPancard = kycHandler.getPanNumber(merchant.getId());
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
             loanDetailsResponse.setPancard(kycPancard);
             return;
         }
-        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+        MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+        if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+            throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+        }
+//        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
         if (experian == null) {
             if(Objects.nonNull(merchant.getId())) {
                 String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -303,11 +312,11 @@ public class LoanDetailsServiceV2 {
             } else {
                 log.info("merchant id not found in verifyOtp flow");
             }
-            experian = experianDao.save(new Experian(merchant.getId(), null, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, request.getPancard(), (merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D, 0, Integer.valueOf(request.getPincode())));
+            experian = experianDao.save(new Experian(merchant.getId(), null, merchant.getLatitude() != null && merchant.getLatitude() <= 90 ? merchant.getLatitude() : null, merchant.getLongitude() != null && merchant.getLongitude() <= 90 ? merchant.getLongitude() : null, 0, request.getPancard(), (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D, 0, Integer.valueOf(request.getPincode())));
         } else if (request != null && request.getPancard() != null && request.getPincode() != null && !experian.getPancardNumber().equalsIgnoreCase(request.getPancard())) {
             log.info("Found different pancard for merchant:{}, old pancard:{}, new pancard:{}", merchant.getId(), experian.getPancardNumber(), request.getPancard());
             experian.setPancardNumber(request.getPancard());
-            experian.setBpScore((merchantSummary != null && merchantSummary.getBpScore() != null) ? merchantSummary.getBpScore() : 0D);
+            experian.setBpScore((merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D);
             experian.setPincode(Integer.valueOf(request.getPincode()));
             experian.setResponse(null);
             experian.setBureau(null);
@@ -565,6 +574,27 @@ public class LoanDetailsServiceV2 {
         return reapplyTime;
     }
 
+    public Long getReapplyTime(LendingApplicationSlave lendingApplication) {
+        Long reapplyTime = null;
+        if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
+            Integer reapplyDayDiff = null;
+            if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+            } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+            } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
+            } else {
+                reapplyDayDiff = 0;
+            }
+            if (Objects.nonNull(reapplyDayDiff)) {
+                reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(lendingApplication.getUpdatedAt(), new Date());
+                reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
+            }
+        }
+        return reapplyTime;
+    }
+
     private String getRejectionReason(LendingApplication openApplication) {
         if (!ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus()))
             return null;
@@ -592,7 +622,8 @@ public class LoanDetailsServiceV2 {
         try {
             BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
             if (bharatPeEnach != null) {
-                return enachErrorHandingService.enachErrorResponse(bharatPeEnach, openApplication.getMerchant(), openApplication, experian);
+                return enachErrorHandingService.enachErrorResponse(bharatPeEnach, openApplication.getMerchant().getId(),
+                  openApplication, experian);
             }
         } catch (Exception e) {
             log.error("Exception in getEnachError for merchant:{}", openApplication.getMerchant().getId());
@@ -680,13 +711,13 @@ public class LoanDetailsServiceV2 {
         return apiGatewayService.getEnachProvider(token, openApplication.getMerchant().getId());
     }
 
-    private boolean isCreditLineMerchant(Merchant merchant) {
+    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
         CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
         return creditLineMerchant != null;
     }
 
-    private boolean isOrganizedMerchant(Merchant merchant) {
-        List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+    private boolean isOrganizedMerchant(Long merchantId) {
+        List<MerchantStore> stores = merchantStoreDao.findByMerchantId(merchantId);
         return !stores.isEmpty();
     }
 
@@ -842,7 +873,7 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    public ApiResponse<?> getCreditScoreReportDetail(Merchant merchant, CommonAPIRequest commonAPIRequest) {
+    public ApiResponse<?> getCreditScoreReportDetail(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         log.info("getCreditScoreReportDetail");
         Integer pin_code = commonAPIRequest.getPayload().get("pin_code") != null ? Integer.parseInt(commonAPIRequest.getPayload().get("pin_code").toString()) : null;
         String pan_card = commonAPIRequest.getPayload().get("pan_card") != null ? commonAPIRequest.getPayload().get("pan_card").toString() : null;
@@ -861,7 +892,7 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(creditScoreDetails);
     }
 
-    public ApiResponse<?> getLoanAndCreditCardDetail(Merchant merchant, CommonAPIRequest commonAPIRequest) {
+    public ApiResponse<?> getLoanAndCreditCardDetail(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         String pan_card = commonAPIRequest.getPayload().get("pan_card") != null ? commonAPIRequest.getPayload().get("pan_card").toString() : null;
         String mobile = merchant.getMobile().substring(2);
         Long merchantId = merchant.getId();

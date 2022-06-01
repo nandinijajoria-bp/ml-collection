@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,7 @@ public class ImageURLService {
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 	
-	public Map<String, Object> fetchAndWrapResult(Merchant merchant, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Object> fetchAndWrapResult(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> result = new HashMap<String, Object>();
 		Map<String, String> panNameCheck = new HashMap<>();
 		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
@@ -71,7 +72,8 @@ public class ImageURLService {
 			result.put("success", false);
 			return result;
 		}
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
+		merchant.getId(), "draft");
 		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
 		if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
 			logger.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
@@ -114,7 +116,7 @@ public class ImageURLService {
 		return result;
 	}
 
-	public Map<String, String> getBanificaryAndPanName(Merchant merchant, LendingApplication lendingApplication){
+	public Map<String, String> getBanificaryAndPanName(BasicDetailsDto merchant, LendingApplication lendingApplication){
 		Map<String, String> result = new HashMap<>();
 		DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchant.getId(), lendingApplication.getId(), "pancard");
 		if(Objects.nonNull(documentsIdProof) && Objects.nonNull(documentsIdProof.getPanNameMatch()) && !documentsIdProof.getPanNameMatch().isEmpty() && documentsIdProof.getPanNameMatch().equals("NO")){
@@ -137,11 +139,13 @@ public class ImageURLService {
 		return null;
 	}
 
-	private boolean allowRoute(LendingApplication lendingApplication, Merchant merchant, Boolean isEkycDone) {
+	private boolean allowRoute(LendingApplication lendingApplication, BasicDetailsDto merchant, Boolean isEkycDone) {
 		boolean selfie = false;
 		boolean pancard = false;
 		boolean poa = false;
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+
+		List<DocumentsIdProof> documentsIdProofList =
+		documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
 		for (DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("selfie")) {
 				selfie = true;
@@ -154,7 +158,7 @@ public class ImageURLService {
 		return selfie && pancard && (isEkycDone || poa);
 	}
 	
-	public Boolean isEkycDone(Merchant merchant, Long applicationId) {
+	public Boolean isEkycDone(BasicDetailsDto merchant, Long applicationId) {
 		try{
 			LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
 			DocumentsIdProof ekycDoc = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchant.getId(), applicationId, "eAadhar");
@@ -166,7 +170,7 @@ public class ImageURLService {
 		}
 	}
 	
-	public List<Map<String, Object>> fetchImageUrl(Merchant merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
+	public List<Map<String, Object>> fetchImageUrl(BasicDetailsDto merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
 		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());

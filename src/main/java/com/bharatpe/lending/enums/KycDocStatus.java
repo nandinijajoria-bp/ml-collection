@@ -4,5 +4,6 @@ public enum KycDocStatus {
     PENDING,
     APPROVED,
     REJECTED,
-    DRAFT
+    DRAFT,
+    NEW
 }

@@ -10,9 +10,11 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.MerchantResponseDTO;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
@@ -20,6 +22,8 @@ import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -51,8 +55,8 @@ public class SignAgreementService {
 	@Autowired
 	LendingGstDao lendingGstDao;
 
-	@Autowired
-	MerchantSummaryDao merchantSummaryDao;
+//	@Autowired
+//	MerchantSummaryDao merchantSummaryDao;
 	
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -102,24 +106,36 @@ public class SignAgreementService {
 	@Autowired
 	LendingCache lendingCache;
 
+	@Autowired
+	MerchantDao merchantDao;
+
+	@Autowired
+	MerchantHandler merchantHandler;
+
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
-		if (!ObjectUtils.isEmpty(merchant.getId())) {
-			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
-			logger.info("deleting cached key of loan details where merchant initiates agreement: {}",merchant.getId());
-			if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
+
+
+	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
+
+		if (!ObjectUtils.isEmpty(merchantBasicDetails.getId())) {
+			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchantBasicDetails.getId();
+			logger.info("deleting cached key of loan details where merchant initiates agreement: {}",
+			merchantBasicDetails.getId());
+			if (Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
 				lendingCache.delete(loanDetailsCacheKey);
 			}
 		}
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
-		finalResponse.put("success",false);
-		finalResponse.put("otp_flow",false);
+		finalResponse.put("success", false);
+		finalResponse.put("otp_flow", false);
 
-		Boolean agreement =  requestDTO.getPayload().getAgreement();
-		if(agreement == null || !agreement) {
+		Boolean agreement = requestDTO.getPayload().getAgreement();
+		if (agreement == null || !agreement) {
 			return finalResponse;
 		}
+
+		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
 		Long applicationId =  requestDTO.getPayload().getApplicationId();
 
@@ -131,16 +147,19 @@ public class SignAgreementService {
 
 		return finalResponse;
 	}
+
+
 	
 	private Map<String, Object> verifyApplicationAndSendOTP(Merchant merchant, Long applicationId, String appSign) {
 		Map<String, Object> response = new LinkedHashMap<>();
-		response.put("success",false);
-		response.put("otp_flow",false);
-		
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(applicationId, merchant);
-		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-		if((Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getDowngradeDone())){
-			if(lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
+		response.put("success", false);
+		response.put("otp_flow", false);
+
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
+		merchant.getId());
+		LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+		if ((Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getDowngradeDone())) {
+			if (lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
 				logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
 				return response;
 			}
@@ -165,16 +184,18 @@ public class SignAgreementService {
 		response.put("application_id", applicationId);
 		return response;
 	}
+
 	
 	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, Merchant merchant) {
 		Map<String, Object> response = new LinkedHashMap<>();
-		response.put("success",false);
-		response.put("otp_flow",false);
-		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
+		response.put("success", false);
+		response.put("otp_flow", false);
+		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
+		LoanType.IO_TOPUP.name());
 		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 //		String selectedCategory = requestDTO.getPayload().getCategory();
 		Integer selectedTenure = requestDTO.getPayload().getTenureInMonths();
-		
+
 //		if(StringUtils.isEmpty(selectedCategory)) {
 //			logger.error("Selected category is null/empty for merchant {}", merchant.getId());
 //			return response;
@@ -184,22 +205,27 @@ public class SignAgreementService {
 			return response;
 		}
 		
-		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
-		if(merchantSummary == null) {
+//		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
+		MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+		if(merchantResponseDTO == null) {
 			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
 			return response;
 		}
 
 		LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(merchant.getId());
-		if(checkDupe != null){
-			logger.error("Merchant Has Already Active Application for merchantId: {} And ApplicationId:{}", merchant.getId(),checkDupe.getId());
+		if (checkDupe != null) {
+			logger.error("Merchant Has Already Active Application for merchantId: {} And ApplicationId:{}",
+			merchant.getId(), checkDupe.getId());
 			return response;
 		}
 
-		LendingPaymentSchedule prevLendingSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
-		LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantAndStatusOrderByIdDesc(merchant, "APPROVED");
+		LendingPaymentSchedule prevLendingSchedule =
+		lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+		LendingApplication prevApplication =
+		lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
+		, "APPROVED");
 
-		if(prevLendingSchedule == null || prevApplication == null) {
+		if (prevLendingSchedule == null || prevApplication == null) {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			return response;
 		}
@@ -283,7 +309,7 @@ public class SignAgreementService {
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
 		newApplication.setIp(requestDTO.getMeta().getIp());
-		newApplication.setTotalLoansCount(merchantSummary.getTotalLoansCount() == null ? 0 : merchantSummary.getTotalLoansCount());
+		newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
         newApplication = lendingApplicationDao.save(newApplication);
         loanUtil.publishApplicationEvent(newApplication);
 		lenderMappingService.lenderMapping(newApplication);
@@ -500,7 +526,34 @@ public class SignAgreementService {
 		
 		docAuthenticationDao.save(docAuthentication);
 	}
-	
+
+	private Map<String, Object> sendOTP(BasicDetailsDto merchant, String appSign) {
+		Map<String, Object> finalResponse = new LinkedHashMap<>();
+
+		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+			finalResponse.put("success", Boolean.TRUE);
+			finalResponse.put("otp_flow", true);
+			finalResponse.put("uuid", UUID.randomUUID().toString());
+			return finalResponse;
+		}
+
+		finalResponse.put("success", false);
+		finalResponse.put("otp_flow",false);
+		
+		if(merchant.getMobile().length() == 12) {
+			String hash = appSign != null ? appSign : "";
+			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+//			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+			Map<String, Object> response = bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+			if(response != null) {
+				finalResponse.put("success", response.get("success"));
+				finalResponse.put("otp_flow",true);
+				finalResponse.put("uuid",response.get("uuid"));
+			}
+		}
+		return finalResponse;
+	}
+
 	private Map<String, Object> sendOTP(Merchant merchant, String appSign) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 
@@ -513,7 +566,7 @@ public class SignAgreementService {
 
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
-		
+
 		if(merchant.getMobile().length() == 12) {
 			String hash = appSign != null ? appSign : "";
 			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;

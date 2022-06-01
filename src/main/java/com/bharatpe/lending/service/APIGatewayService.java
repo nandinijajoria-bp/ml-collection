@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
@@ -190,7 +191,7 @@ public class APIGatewayService {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Map createVPA(Merchant merchant, Double amount, String orderId, String vpa) {
+    public Map createVPA(BasicDetailsDto merchant, Double amount, String orderId, String vpa) {
         logger.info("In Create VPA of APIGatewayService for merchnat id {}", merchant.getId());
         try {
             Map requestParams = new HashMap<>();
@@ -1587,7 +1588,7 @@ public class APIGatewayService {
         return ldcVirtualAccount;
     }
 
-    public JsonNode fetchCrifResponse(Merchant merchant, Experian experian) {
+    public JsonNode fetchCrifResponse(BasicDetailsDto merchant, Experian experian) {
         try {
             logger.info("Fetching Crif for merchant:{}", merchant.getId());
             Map<String, String> merchantName = getFirstLastName(merchant.getId(), experian.getPancardNumber());
@@ -2035,6 +2036,29 @@ public class APIGatewayService {
     }
 
     public Boolean isSdkInvoke(Merchant merchant) {
+        try {
+            logger.info("Getting variable SMS data for merchant:{}", merchant.getId());
+            Map<String, Object> body = new HashMap<>();
+            body.put("identifier", merchant.getMid());
+            body.put("limit", 1);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            logger.info("Monget variable sms request:{} for merchant:{}", request, merchant.getId());
+            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_variable_sms_data", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>() {
+            });
+            logger.info("Monget variable sms response:{} for merchant:{}", responseBody, merchant.getId());
+            if (responseBody.getBody() == null || responseBody.getBody().isEmpty()) {
+                logger.info("Variable SMS analysis data not found for merchant:{}", merchant.getId());
+                return true;
+            }
+        } catch (Exception ex) {
+            logger.error("Error occurred while fetching variable sms data for merchant:{}", merchant.getId(), ex);
+        }
+        return false;
+    }
+
+    public Boolean isSdkInvoke(BasicDetailsDto merchant) {
         try {
             logger.info("Getting variable SMS data for merchant:{}", merchant.getId());
             Map<String, Object> body = new HashMap<>();

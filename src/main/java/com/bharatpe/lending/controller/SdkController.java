@@ -2,6 +2,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.service.APIGatewayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +42,7 @@ public class SdkController {
     }
 
     @GetMapping(value = "/sdkInvoke")
-    ResponseEntity<Map<String,Object>> sdkInvode(@RequestAttribute Merchant merchant) {
+    ResponseEntity<Map<String,Object>> sdkInvode(@RequestAttribute BasicDetailsDto merchant) {
         logger.info("Get SDK Status Api Called for merchant:{}", merchant.getId());
         Map<String, Object> response = new HashMap<>();
         Boolean isInvoke = apiGatewayService.isSdkInvoke(merchant);

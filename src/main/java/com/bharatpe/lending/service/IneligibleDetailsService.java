@@ -2,11 +2,9 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.Constants.SupportApiConstants;
-import com.bharatpe.lending.common.entity.CreditApplicationTransition;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
@@ -14,24 +12,27 @@ import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto.Banner;
 
+import com.bharatpe.lending.dto.MerchantResponseDTO;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class IneligibleDetailsService {
 
     private Logger logger = LoggerFactory.getLogger(IneligibleDetailsService.class);
 
-    @Autowired
-    private MerchantSummaryDao merchantSummaryDao;
+//    @Autowired
+//    private MerchantSummaryDao merchantSummaryDao;
 
     @Autowired
     private MerchantLoanRequestDoa merchantLoanRequestDoa;
@@ -63,10 +64,17 @@ public class IneligibleDetailsService {
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
+    @Autowired
+    MerchantHandler merchantHandler;
+
     public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
         logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
-        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-        int previousLoanCount = (merchantSummary != null && merchantSummary.getTotalLoansCount() != null) ? merchantSummary.getTotalLoansCount() : 0;
+//        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+        MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+        if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+            throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+        }
+        int previousLoanCount = (merchantResponseDTO.getTotalLoansCount() != null) ? merchantResponseDTO.getTotalLoansCount() : 0;
         IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
         MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
         ScoreCategoryMaster scoreCategoryMaster = null;
@@ -82,22 +90,22 @@ public class IneligibleDetailsService {
         if (ineligibleRequestDTO != null && ineligibleRequestDTO.getPanCard() != null && !ineligibleRequestDTO.getPanCard().trim().equalsIgnoreCase("")) {
             logger.info("New Ineligible Loan request with panCard : {} and merchantId : {}", ineligibleRequestDTO.getPanCard(), merchant.getId());
             merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
-            merchantLoanRequest = calculateTarget(merchantSummary, merchant.getId(), ineligibleRequestDTO.getPanCard(), scoreCategoryMaster);
+            merchantLoanRequest = calculateTarget(merchantResponseDTO, merchant.getId(), ineligibleRequestDTO.getPanCard(), scoreCategoryMaster);
             MerchantLoanRequestAuditTrail merchantLoanRequestAuditTrail = MerchantLoanRequestAuditTrail.createObject(merchantLoanRequest);
             merchantLoanRequestAuditTrailDoa.save(merchantLoanRequestAuditTrail);
         }
         if (merchantLoanRequest != null) {
-            calculateIneligibleLoanDetails(merchantSummary, merchantLoanRequest, ineligibleResponseDTO);
+            calculateIneligibleLoanDetails(merchantResponseDTO, merchantLoanRequest, ineligibleResponseDTO);
         }
         return ineligibleResponseDTO;
     }
 
-    private void calculateIneligibleLoanDetails(MerchantSummary merchantSummary, MerchantLoanRequest merchantLoanRequest, IneligibleResponseDTO ineligibleResponseDTO) {
+    private void calculateIneligibleLoanDetails(MerchantResponseDTO merchantResponseDTO, MerchantLoanRequest merchantLoanRequest, IneligibleResponseDTO ineligibleResponseDTO) {
         Map<String, Object> transactionCountDetails = new HashMap<>();
         Map<String, Object> transactionAmountDetails = new HashMap<>();
         Map<String, Object> loanDetails = new HashMap<>();
-        int currentTxnCount = (merchantSummary != null && merchantSummary.getDailyTxnCount() != null) ? merchantSummary.getDailyTxnCount() : 0;
-        double currentTxnValue = (merchantSummary != null && merchantSummary.getDailyTxnAmount() != null) ? merchantSummary.getDailyTxnAmount() : 0;
+        int currentTxnCount = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnCount() != null) ? merchantResponseDTO.getDailyTxnCount() : 0;
+        double currentTxnValue = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnAmount() != null) ? merchantResponseDTO.getDailyTxnAmount() : 0;
         int onGoingTransactions = currentTxnCount - merchantLoanRequest.getInitialTransactionCount();
         double onGoingAmount = currentTxnValue - merchantLoanRequest.getInitialTransactionAmount();
         int transactionCountLeft = Math.max(merchantLoanRequest.getTargetTransactionCount() - onGoingTransactions, 0);
@@ -135,9 +143,9 @@ public class IneligibleDetailsService {
         ineligibleResponseDTO.setPanCard(merchantLoanRequest.getPancardNumber());
     }
 
-    private MerchantLoanRequest calculateTarget(MerchantSummary merchantSummary, Long merchantId, String panCard, ScoreCategoryMaster scoreCategoryMaster) {
-        int currentTxnCount = (merchantSummary != null && merchantSummary.getDailyTxnCount() != null) ? merchantSummary.getDailyTxnCount() : 0;
-        double currentTxnValue = (merchantSummary != null && merchantSummary.getDailyTxnAmount() != null) ? merchantSummary.getDailyTxnAmount() : 0;
+    private MerchantLoanRequest calculateTarget(MerchantResponseDTO merchantResponseDTO, Long merchantId, String panCard, ScoreCategoryMaster scoreCategoryMaster) {
+        int currentTxnCount = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnCount() != null) ? merchantResponseDTO.getDailyTxnCount() : 0;
+        double currentTxnValue = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnAmount() != null) ? merchantResponseDTO.getDailyTxnAmount() : 0;
         logger.info("Calculating target for ineligible loan---");
         double totalTxnRequired = 2 * scoreCategoryMaster.getTxnCount();
         double totalAmountRequired = 2 * scoreCategoryMaster.getAvgDailyTpv();
@@ -145,12 +153,17 @@ public class IneligibleDetailsService {
         return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, 0,  currentTxnCount, currentTxnValue, (int)totalTxnRequired, totalAmountRequired, panCard));
     }
     
-    public IneligibleAPIResponseDto getIneligibleDetails(Merchant merchant) {
+    public IneligibleAPIResponseDto getIneligibleDetails(BasicDetailsDto merchant) {
     	try {
-            MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
+//            MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
+            MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+            if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+                throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+
+            }
             IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
     		Date onboardDate=getMerchantOnboardDate(merchant);
-            Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantSummary);
+            Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantResponseDTO);
     		response.setRegistrationDate(onboardDate);
     		if (transactionDetail != null) {
                 response.setPaymentAmount(transactionDetail.getOrDefault("amount", 0));
@@ -159,7 +172,7 @@ public class IneligibleDetailsService {
     		if(response.getPaymentCount() == 0) {
     			response.setNewMerchant(true);
     		}
-            response.setCountSuccess(merchantSummary != null && merchantSummary.getUniqueCustomer1mon() != null &&  merchantSummary.getUniqueCustomer1mon() >= 15);
+            response.setCountSuccess(merchantResponseDTO != null && merchantResponseDTO.getUniqueCustomer1mon() != null &&  merchantResponseDTO.getUniqueCustomer1mon() >= 15);
             Experian experian=experianDao.getByMerchantId(merchant.getId());
 
             if (Objects.nonNull(experian) && experian.getRejected() && Objects.nonNull(experian.getRejectedDate())) {
@@ -206,12 +219,12 @@ public class IneligibleDetailsService {
         return fpAccount != null;
     }
     
-    private Map<String,Integer> getTransactionDetails(Merchant merchant, MerchantSummary merchantSummary){
+    private Map<String,Integer> getTransactionDetails(BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO){
     	try {
-    		if(merchantSummary!=null && merchantSummary.getDailyTxnAmount()!=null && merchantSummary.getDailyTxnCount()!=null) {
+    		if(merchantResponseDTO!=null && merchantResponseDTO.getDailyTxnAmount()!=null && merchantResponseDTO.getDailyTxnCount()!=null) {
     			Map<String,Integer> transactionDetails=new HashMap<>();
-    			transactionDetails.put("count", merchantSummary.getDailyTxnCount());
-    			transactionDetails.put("amount", merchantSummary.getDailyTxnAmount().intValue());
+    			transactionDetails.put("count", merchantResponseDTO.getDailyTxnCount());
+    			transactionDetails.put("amount", merchantResponseDTO.getDailyTxnAmount().intValue());
     			return transactionDetails;
     		}
     		else {
@@ -224,7 +237,7 @@ public class IneligibleDetailsService {
     	return null;
     }
     
-    private Map<String,Integer> getTransactionDetailsFromPaymentTable(Merchant merchant){
+    private Map<String,Integer> getTransactionDetailsFromPaymentTable(BasicDetailsDto merchant){
     	Map<String,Integer> transactionMap=new HashMap<>();
     	Object[] transactionDetail = (Object[])paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
         BigDecimal transactionAmount = (BigDecimal) transactionDetail[0];
@@ -234,7 +247,7 @@ public class IneligibleDetailsService {
     	return transactionMap;
     }
     
-    private Date getMerchantOnboardDate(Merchant merchant) {
+    private Date getMerchantOnboardDate(BasicDetailsDto merchant) {
     	try {
     		PaymentTransactionNew firstTransaction=paymentTransactionNewDao.getFirstTransaction(merchant.getId());
     		if(firstTransaction!=null) {

@@ -3,6 +3,8 @@ package com.bharatpe.lending.service;
 import java.util.Date;
 import java.util.Optional;
 
+import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,8 +30,11 @@ public class TncService {
 	
 	@Autowired
 	CreditApplicationAddressDao creditApplicationAddressDao;
+
+	@Autowired
+	MerchantDao merchantDao;
 	
-	public TncDto getTnc(Merchant merchant,TncRequestDto requestDto) {
+	public TncDto getTnc(BasicDetailsDto merchant, TncRequestDto requestDto) {
 		TncDto tncDto=new TncDto();
 		String htmlString=null;
 		Optional<CreditApplication> creditApplicationOptional=creditApplicationDao.findById(requestDto.getApplicationId());
@@ -60,8 +65,9 @@ public class TncService {
 		return tncDto;
 	}
 	
-	public String getTncForApplication(Merchant merchant,CreditApplication creditApplication,TncRequestDto requestDto) {
-		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(merchant.getId(), creditApplication.getId());
+	public String getTncForApplication(BasicDetailsDto merchantBasicDetailsDto,CreditApplication creditApplication,TncRequestDto requestDto) {
+		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), creditApplication.getId());
+		Merchant merchant  = merchantDao.getById(merchantBasicDetailsDto.getId());
 //		if(creditApplicationAddress==null) {
 //			return null;
 //		}
@@ -88,7 +94,7 @@ public class TncService {
 				"    </style>\n" + 
 				"    <p class=\"p2\">Credit Line ID: <span class=\"data-insert\">"+(creditApplication.getExternalLoanId()==null?"":creditApplication.getExternalLoanId())+"</span></p>\n" + 
 				"    <p class=\"p0\">Credit Lime Amount (INR):  <span class=\"data-insert\">"+(creditApplication.getAmount()==null?"":creditApplication.getAmount())+"</span></p>\n" + 
-				"    <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(merchant.getMobile()==null?"":merchant.getMobile())+"</span></p>\n" + 
+				"    <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(merchantBasicDetailsDto.getMobile()==null?"":merchantBasicDetailsDto.getMobile())+"</span></p>\n" +
 				"    <p class=\"p2\">Location: <span class=\"data-insert\">"+(creditApplicationAddress!=null?(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity()):"")+"</span></p>\n" + 
 				"    <p class=\"p2\">Shop/Business Address: <span class=\"data-insert\">"+(creditApplicationAddress!=null?((creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))):"")+"</span></p>\n" + 
 				"    <p class=\"p2\">Landmark: <span class=\"data-insert\"></span>"+(creditApplicationAddress!=null?(creditApplicationAddress.getLandmark()==null?"":creditApplicationAddress.getLandmark()):"")+"<span>&nbsp;</span> PIN: <span class=\"data-insert\">"+(creditApplicationAddress!=null?(creditApplicationAddress.getPincode()==null?"":creditApplicationAddress.getPincode()):"")+"</span></p>\n" + 
@@ -594,7 +600,7 @@ public class TncService {
 				"   <p class=\"p31\">Name of Borrower</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+(merchant.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchant.getBeneficiaryName())+"</span></p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(merchantBasicDetailsDto.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchantBasicDetailsDto.getBeneficiaryName())+"</span></p>\n" +
 				"   </td>\n" + 
 				"   </tr>\n" + 
 				"   <tr>\n" + 
@@ -655,7 +661,7 @@ public class TncService {
 				"   <p class=\"p31\">Business of the Borrower</p>\n" + 
 				"   </td>\n" + 
 				"   <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"   <p class=\"p32\"><span class=\"s5\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"</span></p>\n" + 
+				"   <p class=\"p32\"><span class=\"s5\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"</span></p>\n" +
 				"   <p class=\"p36\">&nbsp;</p>\n" + 
 				"   </td>\n" + 
 				"   </tr>\n" + 
@@ -821,8 +827,9 @@ public class TncService {
 		return html;
 	}
 	
-	public String getTncForFixed(Merchant merchant,CreditApplication creditApplication,TncRequestDto requestDto) {
-		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(merchant.getId(), creditApplication.getId());
+	public String getTncForFixed(BasicDetailsDto merchantBasicDetailsDto,CreditApplication creditApplication,TncRequestDto requestDto) {
+		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), creditApplication.getId());
+		Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
 //		if(creditApplicationAddress==null) {
 //			return null;
 //		}
@@ -849,7 +856,7 @@ public class TncService {
 				"   <p class=\"p2\">Flat Rate of Interest (% per month)<span class=\"data-insert\">2</span></p>\n" + 
 				"   <p class=\"p2\">Flat Rate of Interest<span class=\"Apple-converted-space\">&nbsp; </span>(% per annum)<span class=\"data-insert\">24</span></p>\n" + 
 				"   <p class=\"p2\">Amount of EDI <span class=\"data-insert\">"+getEdiAmount(requestDto.getTenure(), requestDto.getAmount())+"</span></p>\n" + 
-				"   <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(merchant.getMobile()==null?"":merchant.getMobile())+"</span></p>\n" + 
+				"   <p class=\"p2\">BharatPe Registered Mobile Number: <span class=\"data-insert\">"+(merchantBasicDetailsDto.getMobile()==null?"":merchantBasicDetailsDto.getMobile())+"</span></p>\n" +
 				"   <p class=\"p2\">Location: <span class=\"data-insert\"></span>"+(creditApplicationAddress!=null?(creditApplicationAddress.getCity()==null?"":creditApplicationAddress.getCity()):"")+"</p>\n" + 
 				"   <p class=\"p2\">EDI Due Date &ndash; Everyday from Monday to Saturday from the successive day of disbursal</p>\n" + 
 				"   <p class=\"p2\">Shop/Business Address: <span class=\"data-insert\">Shop no "+(creditApplicationAddress!=null?((creditApplicationAddress.getShopNumber()==null?"":(creditApplicationAddress.getShopNumber()+","))+(creditApplicationAddress.getStreetAddress()==null?"":(creditApplicationAddress.getStreetAddress()+","))+(creditApplicationAddress.getArea()==null?"":(creditApplicationAddress.getArea()+","))+(creditApplicationAddress.getCity()==null?"":(creditApplicationAddress.getCity()+","))+(creditApplicationAddress.getState()==null?"":(creditApplicationAddress.getState()+","))+(creditApplicationAddress.getPincode()==null?"":(creditApplicationAddress.getPincode()))):"")+"</span></p>\n" + 
@@ -1205,7 +1212,7 @@ public class TncService {
 				"    <p class=\"p25\">Name of Borrower</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+(merchant.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchant.getBeneficiaryName())+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(merchantBasicDetailsDto.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchantBasicDetailsDto.getBeneficiaryName())+"&nbsp;</p>\n" +
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1264,7 +1271,7 @@ public class TncService {
 				"    <p class=\"p25\">Business of the Borrower</p>\n" + 
 				"    </td>\n" + 
 				"    <td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"    <p class=\"p20\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"&nbsp;</p>\n" + 
+				"    <p class=\"p20\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"&nbsp;</p>\n" +
 				"    </td>\n" + 
 				"    </tr>\n" + 
 				"    <tr>\n" + 
@@ -1421,9 +1428,12 @@ public class TncService {
 		return html;
 	}
 	
-	public String getTncForFlexible(Merchant merchant,CreditApplication creditApplication,TncRequestDto requestDto) {
+	public String getTncForFlexible(BasicDetailsDto merchantBasicDetailsDto,CreditApplication creditApplication,TncRequestDto requestDto) {
 		
-		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(merchant.getId(), creditApplication.getId());
+		CreditApplicationAddress creditApplicationAddress=creditApplicationAddressDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), creditApplication.getId());
+
+		Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
+
 //		if(creditApplicationAddress==null) {
 //			return null;
 //		}
@@ -1794,7 +1804,8 @@ public class TncService {
 				"<p class=\"p25\">Name of Borrower</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+(merchant.getBeneficiaryName()==null?(merchant.getMerchantName()==null?"":merchant.getMerchantName()):merchant.getBeneficiaryName())+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(merchantBasicDetailsDto.getBeneficiaryName()==null?(merchantBasicDetailsDto.getName()==null?"":
+		merchantBasicDetailsDto.getName()):merchantBasicDetailsDto.getBeneficiaryName())+"&nbsp;</p>\n" +
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 
@@ -1853,7 +1864,7 @@ public class TncService {
 				"<p class=\"p25\">Business of the Borrower</p>\n" + 
 				"</td>\n" + 
 				"<td class=\"td1\" colspan=\"5\" valign=\"middle\">\n" + 
-				"<p class=\"p20\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"&nbsp;</p>\n" + 
+				"<p class=\"p20\">"+(merchant.getBusinessCategory()==null?"":merchant.getBusinessCategory())+"&nbsp;</p>\n" +
 				"</td>\n" + 
 				"</tr>\n" + 
 				"<tr>\n" + 

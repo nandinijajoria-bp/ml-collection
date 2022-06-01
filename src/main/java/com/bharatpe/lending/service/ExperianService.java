@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
@@ -227,7 +228,7 @@ public class ExperianService {
         return new ArrayList<>();
     }
 
-    public ResponseDTO sendOtp(String mobile, Merchant merchant) {
+    public ResponseDTO sendOtp(String mobile, BasicDetailsDto merchant) {
         String message = "BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
         Boolean otp1 = gupShupOTPHandler.sendOTP(mobile, message);
         if (otp1) {
@@ -240,7 +241,7 @@ public class ExperianService {
         return new ResponseDTO(true, null, null,null);
     }
 
-    public ResponseDTO verifyOtp(String mobile, Merchant merchant, String otp, boolean retry) {
+    public ResponseDTO verifyOtp(String mobile, BasicDetailsDto merchant, String otp, boolean retry) {
         Boolean isOTPVerified = gupShupOTPHandler.verifyOTP(merchant.getMobile(), otp);
         ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
         try {

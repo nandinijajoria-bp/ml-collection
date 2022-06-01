@@ -4,18 +4,15 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dto.ResponseDTO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -37,10 +34,11 @@ public class CancelApplicationService {
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId, String reason) {
+	public Map<String, Boolean> cancelApplication(BasicDetailsDto merchant, Long applicationId, String reason) {
 
 		Map<String, Boolean> resp = new HashMap<> ();
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
+		merchant.getId(), "draft");
 
 		if(lendingApplication == null) {
 			logger.info("CancelApplicationService lending application not found with application id {}", applicationId);

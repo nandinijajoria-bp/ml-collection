@@ -1,6 +1,6 @@
 package com.bharatpe.lending.loanV2.controller;
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.RequestCallbackDto;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -23,7 +23,8 @@ public class LendingApplicationControllerV2 {
     APIGatewayService apiGatewayService;
 
     @PostMapping(value = "/initiateKyc")
-    public ResponseEntity<ApiResponse<?>> initiateKyc(@RequestAttribute Merchant merchant, @RequestBody InitiateKycRequest initiateKycRequest) {
+    public ResponseEntity<ApiResponse<?>> initiateKyc(@RequestAttribute BasicDetailsDto merchant,
+                                                      @RequestBody InitiateKycRequest initiateKycRequest) {
         log.info("kyc initiate request:{} for merchant:{}", initiateKycRequest, merchant.getId());
         ApiResponse<?> response = lendingApplicationServiceV2.initiateKyc(merchant, initiateKycRequest);
         log.info("kyc initiate response:{} for merchant:{}", response, merchant.getId());
@@ -31,7 +32,7 @@ public class LendingApplicationControllerV2 {
     }
 
     @PostMapping(value = "/createApplication/v2")
-    public ResponseEntity<ApiResponse<?>> createApplication(@RequestAttribute Merchant merchant, @RequestBody CreateApplicationRequest applicationRequest) {
+    public ResponseEntity<ApiResponse<?>> createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestBody CreateApplicationRequest applicationRequest) {
         log.info("create application request:{} for merchant:{}", applicationRequest, merchant.getId());
         ApiResponse<?> response = lendingApplicationServiceV2.createApplication(merchant, applicationRequest);
         log.info("create application response:{} for merchant:{}", response, merchant.getId());
@@ -39,7 +40,7 @@ public class LendingApplicationControllerV2 {
     }
 
     @GetMapping(value = "/agreement/v2")
-    public ResponseEntity<ApiResponse<?>> getAgreement(@RequestParam Long applicationId, @RequestAttribute Merchant merchant) {
+    public ResponseEntity<ApiResponse<?>> getAgreement(@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant) {
         log.info("lending agreement v2 request:{} for merchant:{}", applicationId, merchant.getId());
         ApiResponse<?> response = lendingApplicationServiceV2.getAgreement(applicationId, merchant);
         log.info("lending agreement v2 response:{} for merchant:{}", response, merchant.getId());
@@ -47,7 +48,10 @@ public class LendingApplicationControllerV2 {
     }
 
     @GetMapping(value = "/applicationStatus/v2")
-    public ResponseEntity<ApiResponse<?>> getApplicationStatus(@RequestHeader("token") String token, @RequestParam Long applicationId, @RequestParam(required = false) Boolean isIOS, @RequestAttribute Merchant merchant) {
+    public ResponseEntity<ApiResponse<?>> getApplicationStatus(@RequestHeader("token") String token,
+                                                               @RequestParam Long applicationId,
+                                                               @RequestParam(required = false) Boolean isIOS,
+                                                               @RequestAttribute BasicDetailsDto merchant) {
         log.info("lending applicationStatus v2 request:{} for merchant:{}", applicationId, merchant.getId());
         ApiResponse<?> response = lendingApplicationServiceV2.getApplicationStatus(applicationId, merchant, isIOS, token);
         log.info("lending applicationStatus v2 response:{} for merchant:{}", response, merchant.getId());
@@ -63,7 +67,7 @@ public class LendingApplicationControllerV2 {
     }
 
     @GetMapping(value = "/application/resubmitDone")
-    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestHeader("token") String token,@RequestParam Long applicationId, @RequestAttribute Merchant merchant){
+    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestHeader("token") String token,@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant){
         log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchant.getId(),applicationId);
         ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId);
         log.info("Lending Resubmit done Application Response:{} for applicationId:{}",response,applicationId);
@@ -77,21 +81,21 @@ public class LendingApplicationControllerV2 {
     }
 
     @PostMapping(value = "/businessDetails", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<?>> addBusinessDetails(@RequestBody BusinessDetailsDTO businessDetailsDTO, @RequestAttribute Merchant merchant){
+    public ResponseEntity<ApiResponse<?>> addBusinessDetails(@RequestBody BusinessDetailsDTO businessDetailsDTO, @RequestAttribute BasicDetailsDto merchant){
         log.info("Adding business Details for merchantId:{}",merchant.getId(),businessDetailsDTO.toString());
         ApiResponse<?> response = lendingApplicationServiceV2.addBusinessDetails(businessDetailsDTO,merchant);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping(value = "/requestCallback", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ApiResponse<?>> addCallbackRequest(@RequestBody RequestCallbackDto requestCallbackDto, @RequestAttribute Merchant merchant){
+    public ResponseEntity<ApiResponse<?>> addCallbackRequest(@RequestBody RequestCallbackDto requestCallbackDto, @RequestAttribute BasicDetailsDto merchant){
         log.info("Adding callback request for {}",requestCallbackDto.toString());
         ApiResponse<?> response = lendingApplicationServiceV2.addCallbackRequest(requestCallbackDto, merchant);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping(value = "/evictCache")
-    public ResponseEntity<?> evictCache(@RequestAttribute Merchant merchant){
+    public ResponseEntity<?> evictCache(@RequestAttribute BasicDetailsDto merchant){
         log.info("evicting cache for :{}",merchant.getId());
         lendingApplicationServiceV2.evictCache(merchant.getId());
         return ResponseEntity.ok().build();

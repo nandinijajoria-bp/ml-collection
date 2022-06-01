@@ -1,8 +1,8 @@
 package com.bharatpe.lending.service;
 
-import java.util.Date;
 import java.util.List;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CreditAccountBillDao;
 import com.bharatpe.lending.common.dao.CreditAccountDao;
@@ -23,7 +22,6 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.CreditLimitWidget;
 import com.bharatpe.lending.dto.DashboardDetailsResponseDto;
 import com.bharatpe.lending.dto.RepaymentWidget;
-import com.bharatpe.lending.dto.SpendModeWidget;
 
 @Service
 public class CreditLineDashboardDetailsService {
@@ -51,7 +49,7 @@ public class CreditLineDashboardDetailsService {
 	
 	Logger logger=LoggerFactory.getLogger(CreditLineDashboardDetailsService.class); 
 	
-	public DashboardDetailsResponseDto getDetailsForDashboard(Merchant merchant){
+	public DashboardDetailsResponseDto getDetailsForDashboard(BasicDetailsDto merchant){
 		
 		DashboardDetailsResponseDto dashboardResponse;
 		
@@ -107,7 +105,7 @@ public class CreditLineDashboardDetailsService {
 		}
 	}
 	
-	public DashboardDetailsResponseDto populateCreditLineDetails(Merchant merchant){
+	public DashboardDetailsResponseDto populateCreditLineDetails(BasicDetailsDto merchant){
 		
 		DashboardDetailsResponseDto dashboardResponse=new DashboardDetailsResponseDto();
 		
@@ -189,7 +187,7 @@ public class CreditLineDashboardDetailsService {
 		
 	}
 	
-	public DashboardDetailsResponseDto responseAfterInsertingMerchantBankDetails(Merchant merchant, DashboardDetailsResponseDto dashboardResponse) {
+	public DashboardDetailsResponseDto responseAfterInsertingMerchantBankDetails(BasicDetailsDto merchant, DashboardDetailsResponseDto dashboardResponse) {
 		
 		try {
 			
@@ -219,7 +217,7 @@ public class CreditLineDashboardDetailsService {
 		
 	}
 	
-	public Double getEdiAmount(Merchant merchant){
+	public Double getEdiAmount(BasicDetailsDto merchant){
 		
 		Double ediAmount=0D;
 		try{

@@ -2,12 +2,11 @@ package com.bharatpe.lending.service;
 
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +17,6 @@ import com.bharatpe.common.dao.IfscDao;
 import com.bharatpe.common.entities.Ifsc;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditAccountDao;
 import com.bharatpe.lending.common.dao.CreditDayEndBalanceDao;
 import com.bharatpe.lending.common.dao.LendingClTransactionDao;
@@ -66,7 +64,7 @@ public class CreditLineLoanHistoryService {
 	@Autowired
 	CreditUtil creditUtil;
 	
-	public CreditLineHistoryResponseDto getLoanHistory(Merchant merchant){
+	public CreditLineHistoryResponseDto getLoanHistory(BasicDetailsDto merchant){
 		
 	   try{
 		  
@@ -144,7 +142,7 @@ public class CreditLineLoanHistoryService {
 		}
 	}
 	
-	public List<Loan> getTermLoanDetails(Merchant merchant) {
+	public List<Loan> getTermLoanDetails(BasicDetailsDto merchant) {
 		try {
 
 			logger.info("Fetching active term loan from lending_payment_schedule table for merchant {}",merchant);
@@ -213,7 +211,7 @@ public class CreditLineLoanHistoryService {
 		
 	}
 	
-	public CreditLineTlHistoryResponseDto getTlHistory(Long id, Merchant merchant){
+	public CreditLineTlHistoryResponseDto getTlHistory(Long id, BasicDetailsDto merchant){
 	
 		try {
 			CreditLineTlHistoryResponseDto creditLineTlHistoryResponseDto=new CreditLineTlHistoryResponseDto();
@@ -388,7 +386,7 @@ public class CreditLineLoanHistoryService {
 		}
 	}
 	
-	public CreditLineClHistoryResponseDto getClHistory(Long id, Merchant merchant) {
+	public CreditLineClHistoryResponseDto getClHistory(Long id, BasicDetailsDto merchant) {
 		try {
 			Optional<LendingClTransaction> optional=lendingClTransactionDao.findById(id);
 			if(optional!=null && optional.isPresent()) {

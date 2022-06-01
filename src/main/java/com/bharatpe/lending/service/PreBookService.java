@@ -4,12 +4,11 @@ import com.bharatpe.common.dao.LendingPrebookLoansDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPrebookLoans;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.PreBookResponseDTO;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -30,14 +29,15 @@ public class PreBookService {
 
     private final String DEEP_LINK = "bharatpe://dynamic?key=loan";
 
-    public PreBookResponseDTO getDetails(Merchant merchant) {
+    public PreBookResponseDTO getDetails(BasicDetailsDto merchant) {
         LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
         if (lendingPrebookLoans == null || lendingPrebookLoans.getOtpVerified()) {
             PreBookResponseDTO preBookResponseDTO = new PreBookResponseDTO();
             preBookResponseDTO.setDeepLink(DEEP_LINK);
             return preBookResponseDTO;
         }
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(lendingPrebookLoans.getApplicationId(), merchant);
+        LendingApplication lendingApplication =
+          lendingApplicationDao.findByIdAndMerchantId(lendingPrebookLoans.getApplicationId(), merchant.getId());
         if (lendingApplication == null) {
             PreBookResponseDTO preBookResponseDTO = new PreBookResponseDTO();
             preBookResponseDTO.setDeepLink(DEEP_LINK);
@@ -50,7 +50,7 @@ public class PreBookService {
         return new PreBookResponseDTO(merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), lendingApplication.getLoanAmount(), lendingApplication.getEdi(), null);
     }
 
-    public PreBookResponseDTO verifyOTP(Merchant merchant, String otp, String uuid) {
+    public PreBookResponseDTO verifyOTP(BasicDetailsDto merchant, String otp, String uuid) {
         Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp,uuid);
         LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
         if (lendingPrebookLoans == null) {

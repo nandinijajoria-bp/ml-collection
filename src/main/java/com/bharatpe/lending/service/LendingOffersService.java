@@ -5,6 +5,7 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
@@ -12,7 +13,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.entity.LendingGlobalLimit;
-import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.CoolOffRequestDTO;
@@ -57,6 +58,9 @@ public class LendingOffersService {
 
 	@Autowired
 	ExperianDao experianDao;
+
+	@Autowired
+	MerchantDao merchantDao;
 
 	@Autowired
 	BPEnachDao bpEnachDao;
@@ -138,21 +142,25 @@ public class LendingOffersService {
 		return true;
 	}
 
-	public CommonResponse checkCoolOffPeriod(Merchant merchant, CoolOffRequestDTO requestDTO) {
+	public CommonResponse checkCoolOffPeriod(BasicDetailsDto merchantBasicDetails, CoolOffRequestDTO requestDTO) {
 		try {
-			Experian experian = experianDao.getByMerchantId(merchant.getId());
-			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
-			boolean diy = (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
+			Experian experian = experianDao.getByMerchantId(merchantBasicDetails.getId());
+			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchantBasicDetails.getId());
+
+			// TODO : remove this and use api
+			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+
+			boolean diy = (merchantBasicDetails.getMerchantType() != null && "DIY".equals(merchantBasicDetails.getMerchantType())) || merchant.getReferalCode() == null;
 			if (experian != null || activeLoan != null) {
-				logger.info("Pancard/Active Loan already exist for merchant:{}", merchant.getId());
+				logger.info("Pancard/Active Loan already exist for merchant:{}", merchantBasicDetails.getId());
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(true, false, null, null);
 				return new CommonResponse(true, "success", responseDTO);
 			}
-			LendingCoolOff lendingCoolOff = lendingCoolOffDao.findByMerchantId(merchant.getId());
-			OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchant.getId());
+			LendingCoolOff lendingCoolOff = lendingCoolOffDao.findByMerchantId(merchantBasicDetails.getId());
+			OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchantBasicDetails.getId());
 			boolean showOrderQr = (orderSticker == null && diy);
 			if (lendingCoolOff != null) {
-				logger.info("lending_cool_off entry already exist for merchant:{}", merchant.getId());
+				logger.info("lending_cool_off entry already exist for merchant:{}", merchantBasicDetails.getId());
 				if (!diy && !lendingCoolOff.isEligible()) {
 					lendingCoolOff.setEligible(true);
 					lendingCoolOffDao.save(lendingCoolOff);
@@ -161,29 +169,29 @@ public class LendingOffersService {
 				return new CommonResponse(true, "success", responseDTO);
 			}
 			if (requestDTO.getPanCard() == null) {
-				logger.info("First time merchant:{}, returning null pancard", merchant.getId());
+				logger.info("First time merchant:{}, returning null pancard", merchantBasicDetails.getId());
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(false, false, null, null);
 				return new CommonResponse(true, "success", responseDTO);
 			}
 			boolean isEligible = true;
-			if (!diy || LoanUtil.getDateDiffInDays(merchant.getCreatedAt(), new Date()) > 1) {
-				logger.info("Merchant:{} not DIY/created before 1 day, so eligible for cool off period", merchant.getId());
+			if (!diy || LoanUtil.getDateDiffInDays(merchantBasicDetails.getCreatedAt(), new Date()) > 1) {
+				logger.info("Merchant:{} not DIY/created before 1 day, so eligible for cool off period", merchantBasicDetails.getId());
 				isEligible = true;
 			} else {
-				logger.info("Merchant:{} not eligible for cool off period", merchant.getId());
+				logger.info("Merchant:{} not eligible for cool off period", merchantBasicDetails.getId());
 			}
-			lendingCoolOff = new LendingCoolOff(merchant.getId(), requestDTO.getPanCard(), requestDTO.getPincode(), isEligible);
-			lendingCoolOff.setCreatedAt(merchant.getCreatedAt());
+			lendingCoolOff = new LendingCoolOff(merchantBasicDetails.getId(), requestDTO.getPanCard(), requestDTO.getPincode(), isEligible);
+			lendingCoolOff.setCreatedAt(merchantBasicDetails.getCreatedAt());
 			lendingCoolOffDao.save(lendingCoolOff);
 			CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(lendingCoolOff.isEligible(), showOrderQr, lendingCoolOff.getPancard(), lendingCoolOff.getPincode());
 			return new CommonResponse(true, "success", responseDTO);
 		} catch (Exception e) {
-			logger.error("Exception while checking cool off period for merchant:{}", merchant.getId(), e);
+			logger.error("Exception while checking cool off period for merchant:{}", merchantBasicDetails.getId(), e);
 		}
 		return new CommonResponse(false, "Something went wrong");
 	}
 
-	public void makeMeFresh(Merchant merchant) {
+	public void makeMeFresh(BasicDetailsDto merchant) {
 		experianDao.deleteByMerchantId(merchant.getId());
 		lendingApplicationDao.deleteByMerchantId(merchant.getId());
 		bpEnachDao.deleteByMerchantId(merchant.getId());
@@ -198,7 +206,7 @@ public class LendingOffersService {
 		}
 	}
 
-	public void checkNTBSMS(Merchant merchant) {
+	public void checkNTBSMS(BasicDetailsDto merchant) {
 		try {
 			logger.info("Checking NTB SMS after 5 min for merchant:{}", merchant.getId());
 			String hashKey = merchant.getId() + "_" + UUID.randomUUID().toString();

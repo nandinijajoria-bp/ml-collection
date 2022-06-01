@@ -1,7 +1,5 @@
 package com.bharatpe.lending.service;
 
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -9,13 +7,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.entities.LendingLedger;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditAccountDao;
 import com.bharatpe.lending.common.dao.LendingClLedgerDao;
 import com.bharatpe.lending.common.dao.LendingClTransactionDao;
@@ -209,7 +207,7 @@ public class CreditSummaryService {
 //		return cal.getTime();
 //	}
 
-	public SummaryResponseDTO getSummary(Merchant merchant) {
+	public SummaryResponseDTO getSummary(BasicDetailsDto merchant) {
 		try {
 			CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 			if(creditAccount!=null) {
@@ -271,7 +269,7 @@ public class CreditSummaryService {
 		return response;
 	}
 	
-	public List<Transactions> getTransactionFromLedger(CreditAccount creditAccount,Merchant merchant){
+	public List<Transactions> getTransactionFromLedger(CreditAccount creditAccount,BasicDetailsDto merchant){
 		try {
 			List<LendingLedger> ledgerList=lendingLedgerDao.findByMerchantIdOrderByDateDesc(merchant.getId());
 			List<Transactions> transactionList=new LinkedList<>();
@@ -294,7 +292,7 @@ public class CreditSummaryService {
 		}
 	}
 	
-	public List<Transactions> getTransactionFromLendingClTransaction(CreditAccount creditAccount,Merchant merchant){
+	public List<Transactions> getTransactionFromLendingClTransaction(CreditAccount creditAccount,BasicDetailsDto merchant){
 		try {
 			List<LendingClTransaction>lendingClTransactionlist=lendingClTransactionDao.findByMerchantIdAndStatusOrderByCreatedAtDesc(merchant.getId(),"SUCCESS");
 			List<Transactions> transactionList=new LinkedList<>();

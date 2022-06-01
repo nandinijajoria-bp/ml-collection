@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.PayloadDTO;
 
 import org.springframework.http.CacheControl;
@@ -121,7 +122,7 @@ public class MerchantUpdateService {
 		return this.clientSecret;
 	}
 
-	public void saveAlgo360Logs(Merchant merchant, String data){
+	public void saveAlgo360Logs(BasicDetailsDto merchant, String data){
 
 		logger.info("start processing logs for merchant_id: {}", merchant.getId());
 

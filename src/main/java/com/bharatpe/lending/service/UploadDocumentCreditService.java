@@ -8,54 +8,37 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletResponse;
-
-import com.amazonaws.services.dynamodbv2.xspec.M;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.DocAuthenticationDao;
-import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.MerchantDocumentProofDao;
 import com.bharatpe.lending.common.dao.MerchantDocumentProofOcrDao;
 import com.bharatpe.lending.common.dao.MerchantDocumentProofRequestDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
-import com.bharatpe.lending.common.entity.CreditApplicationAddress;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofRequest;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.handlers.SignzyHandler;
 import com.bharatpe.lending.util.CreditUtil;
-import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Date;
 import java.util.Iterator;
 
 @Service
@@ -94,7 +77,7 @@ public class UploadDocumentCreditService {
 	@Value("${aws.s3.creditline.bucket}")
 	private String bucket;
 
-	public UploadDocumentResponseDTO uploadDocument(Merchant merchant, RequestDTO<CreditUploadDocumentRequestDTO> requestDTO) {
+	public UploadDocumentResponseDTO uploadDocument(BasicDetailsDto merchant, RequestDTO<CreditUploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		UploadDocumentResponseDTO uploadDocumentResponse = new UploadDocumentResponseDTO();
 		uploadDocumentResponse.setSuccess(false);
@@ -146,7 +129,7 @@ public class UploadDocumentCreditService {
 		 return uploadDocumentResponse;
 	}
 	
-	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<CreditUploadDocumentRequestDTO.Document> documents, Boolean isUpdate, Merchant merchant, CreditApplication creditApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse) {
+	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<CreditUploadDocumentRequestDTO.Document> documents, Boolean isUpdate, BasicDetailsDto merchant, CreditApplication creditApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse) {
 		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
 		for(CreditUploadDocumentRequestDTO.Document document : documents) {
@@ -195,7 +178,7 @@ public class UploadDocumentCreditService {
 		return documentList;
 	}
 	
-	private Map<String, String> processAndUploadProof(List<String> proof, Merchant merchant) {
+	private Map<String, String> processAndUploadProof(List<String> proof, BasicDetailsDto merchant) {
 		Map<String, String> proofSides = new LinkedHashMap<>();
 		proofSides.put("frontSide", "");
 		proofSides.put("backSide", "");
@@ -229,7 +212,7 @@ public class UploadDocumentCreditService {
 	}
 	
 	
-	private MerchantDocumentProof insertDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, CreditApplication creditApplication, MetaDTO meta) {
+	private MerchantDocumentProof insertDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, BasicDetailsDto merchant, CreditApplication creditApplication, MetaDTO meta) {
 		
 		MerchantDocumentProof merchantDocumentProof =new MerchantDocumentProof();
 		merchantDocumentProof.setMerchantId(merchant.getId());
@@ -244,7 +227,7 @@ public class UploadDocumentCreditService {
 		return merchantDocumentProof;
 	}
 	
-	private MerchantDocumentProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, Merchant merchant, CreditApplication creditApplication, MetaDTO meta) {
+	private MerchantDocumentProof updateDocumentIdProof(String proofType, String frontSide, String backSide, int singlePageDocument, BasicDetailsDto merchant, CreditApplication creditApplication, MetaDTO meta) {
 		MerchantDocumentProof merchantDocumentProof = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerTypeAndProofType(merchant.getId(), creditApplication.getId(), "LENDING",proofType);
 		if(merchantDocumentProof != null) {
 			merchantDocumentProof.setStatus("PENDING");
@@ -257,7 +240,7 @@ public class UploadDocumentCreditService {
 		return merchantDocumentProof;
 	}
 
-	private void signzyVerification(String proofType, String frontSide, String backSide, int singlePageDocument, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
+	private void signzyVerification(String proofType, String frontSide, String backSide, int singlePageDocument, MerchantDocumentProof merchantDocumentProof, BasicDetailsDto merchant, CreditApplication creditApplication) {
 		if(proofType.equals("pancard")  || proofType.equals("votercard") || proofType.equals("passport")||proofType.equals("adhaarcard")||proofType.equals("driving_license")) {
 			new Thread(() -> {
 				kycUsingSignzyAPI(proofType, frontSide,backSide, merchantDocumentProof, merchant, creditApplication);
@@ -266,7 +249,7 @@ public class UploadDocumentCreditService {
 		}
 	}
 
-	private void kycUsingSignzyAPI(String proofType, String frontSide,String backSide, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
+	private void kycUsingSignzyAPI(String proofType, String frontSide,String backSide, MerchantDocumentProof merchantDocumentProof, BasicDetailsDto merchant, CreditApplication creditApplication) {
 		try {
 
 			Instant start = Instant.now();
@@ -338,7 +321,8 @@ public class UploadDocumentCreditService {
 
 	}
 	
-	private MerchantDocumentProofOcr processAndSaveKycResponse(String responseString,String request, String proofType, MerchantDocumentProof merchantDocumentProof, Merchant merchant) {
+	private MerchantDocumentProofOcr processAndSaveKycResponse(String responseString,String request, String proofType
+	, MerchantDocumentProof merchantDocumentProof, BasicDetailsDto merchant) {
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode=null;
 		try {
@@ -599,7 +583,7 @@ public class UploadDocumentCreditService {
 		merchantDocumentProofRequestDao.save(merchantDocumentProofRequest);
 	}
 	
-	private MerchantDocumentProofOcr  createFailedDocKycDetails(String docType,  MerchantDocumentProof merchantDocumentProof, Merchant merchant) {
+	private MerchantDocumentProofOcr  createFailedDocKycDetails(String docType,  MerchantDocumentProof merchantDocumentProof, BasicDetailsDto merchant) {
 		MerchantDocumentProofOcr merchantDocumentProofOcr = new MerchantDocumentProofOcr();
 		merchantDocumentProofOcr.setDocumentId(merchantDocumentProof.getId());
 		merchantDocumentProofOcr.setMerchantId(merchant.getId());

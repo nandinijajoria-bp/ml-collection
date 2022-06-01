@@ -14,6 +14,7 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -234,7 +235,7 @@ public class CreditPaymentService {
         return paymentDetails;
     }
 
-    public PaymentInitiateResponseDTO initiatePayment(RequestDTO<CreditPaymentRequestDTO> requestDTO, Merchant merchant, String token) throws JsonProcessingException {
+    public PaymentInitiateResponseDTO initiatePayment(RequestDTO<CreditPaymentRequestDTO> requestDTO, BasicDetailsDto merchant, String token) throws JsonProcessingException {
         CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
         if (creditAccount == null) {
             return new PaymentInitiateResponseDTO(false, "Credit Account does not exist");
@@ -301,8 +302,9 @@ public class CreditPaymentService {
         }
     }
 
-    public CreditSpendResponseDTO verifyPayment(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, Merchant merchant, String token) {
-        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
+    public CreditSpendResponseDTO verifyPayment(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, BasicDetailsDto merchantBasicDetailsDto, String token) {
+        CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchantBasicDetailsDto.getId());
+        Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
         if (creditAccount == null) {
             return new CreditSpendResponseDTO(false, "Credit Account does not exist");
         }
@@ -361,7 +363,7 @@ public class CreditPaymentService {
     	return "";
     }
     
-    public PaymentInitiateResponseDTO resendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, Merchant merchant, String token) {
+    public PaymentInitiateResponseDTO resendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, BasicDetailsDto merchant, String token) {
         CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
         if (creditAccount == null) {
             return new PaymentInitiateResponseDTO(false, "Credit Account does not exist");

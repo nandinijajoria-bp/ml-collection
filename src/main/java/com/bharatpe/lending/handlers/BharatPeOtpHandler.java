@@ -1,11 +1,10 @@
 package com.bharatpe.lending.handlers;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.service.APIGatewayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,7 +85,7 @@ public class BharatPeOtpHandler{
     }
 
 
-    public Boolean verifyOtp(Merchant merchant, String otp, String uuid) {
+    public Boolean verifyOtp(BasicDetailsDto merchant, String otp, String uuid) {
 
         if(easyLoanUtil.isDummyMerchant(merchant.getId()) && "1234".equalsIgnoreCase(otp)) {
             //for dummy merchants skipped otp verification

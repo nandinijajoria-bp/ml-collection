@@ -3,13 +3,13 @@ package com.bharatpe.lending.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
- 
-import com.bharatpe.common.entities.Merchant;
+
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
@@ -28,7 +28,7 @@ public class CreditCancelApplicationService {
 	@Autowired
 	CreditApplicationTransitionDao creditApplicationTransitionDao;
 
-	public Map<String, Boolean> cancelApplication(Merchant merchant, Long applicationId) {
+	public Map<String, Boolean> cancelApplication(BasicDetailsDto merchant, Long applicationId) {
 		Map<String, Boolean> resp = new HashMap<> ();
 		CreditApplication creditApplication = creditApplicationDao.findByIdAndMerchantIdAndStatus(applicationId, merchant.getId(), "draft");
 

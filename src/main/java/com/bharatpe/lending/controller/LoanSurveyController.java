@@ -1,7 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.lending.dto.CrifResponseDTO;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.LoanSurveyHeaderDto;
 import com.bharatpe.lending.dto.LoanSurveyRequestDto;
 import com.bharatpe.lending.service.LoanSurveyService;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,14 +26,14 @@ public class LoanSurveyController {
     LoanSurveyService loanSurveyService;
 
     @GetMapping(value = "/info", produces = "application/json")
-    public ResponseEntity<LoanSurveyHeaderDto> information(@RequestAttribute Merchant merchant) {
+    public ResponseEntity<LoanSurveyHeaderDto> information(@RequestAttribute BasicDetailsDto merchant) {
         LoanSurveyHeaderDto dto =  loanSurveyService.getSurveyMerchantHeader(merchant);
         if(dto == null) return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         return new ResponseEntity<>(dto, HttpStatus.OK);
     }
 
     @PostMapping(value = "/submit", produces = "application/json")
-    public ResponseEntity<LoanSurveyRequestDto> submitSurvey(@RequestAttribute Merchant merchant,
+    public ResponseEntity<LoanSurveyRequestDto> submitSurvey(@RequestAttribute BasicDetailsDto merchant,
                                                         @RequestBody LoanSurveyRequestDto loanSurveyRequestDto) {
         logger.info("LoanSurveyRequestDto answer request for merchant:{} and loanSurveyRequestDto:{}",
             merchant.getId(), loanSurveyRequestDto);

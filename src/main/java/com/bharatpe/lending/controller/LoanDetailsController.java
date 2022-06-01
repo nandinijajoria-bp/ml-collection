@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,7 +53,7 @@ public class LoanDetailsController {
 	MerchantUpdateService merchantUpdateService;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO, @RequestHeader("token") String token) {
+	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO, @RequestHeader("token") String token) {
 		logger.info("loanDetails request : {}", requestDTO);
 
 		LoanDetailsResponseDTO resp = loanDetailsService.fetchLoanDetails(merchant, requestDTO, clientIp, token);
@@ -69,7 +69,8 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/lendingAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object lendingAgreement(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Object lendingAgreement(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response,
+								   @RequestBody CommonAPIRequest commonAPIRequest) {
 
 		Object resp = lendingAgreementService.fetchLendingAgreement(merchant, response, commonAPIRequest);
 
@@ -78,7 +79,7 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/imageURL", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object imageURL(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+	public Object imageURL(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 		logger.info("ImageURLController request : {}",commonAPIRequest);
 
 		Object resp = imageURLService.fetchAndWrapResult(merchant, commonAPIRequest);
@@ -88,7 +89,8 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
+	public ResponseEntity<SettlementResponseDTO> settlement(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name =
+	"loan_id", required = false) Long loanId) {
 		try {
 			return new ResponseEntity<>(loanDetailsService.getSettlements(merchant, loanId), HttpStatus.OK);
 		} catch (Exception e) {
@@ -108,13 +110,13 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value = "/get_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<LendingOffersResponseDTO> getAvailableLoans(@RequestAttribute BasicDetailsDto merchant) {
 		logger.info("LendingOffers request with merchant_id : {}", merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.getOffers(merchant.getId()), HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/verify_pan_card", method = RequestMethod.GET)
-	public VerifyPanCardDto verifyPanCard(@RequestAttribute Merchant merchant,@RequestParam("panCard") String panCard) {
+	public VerifyPanCardDto verifyPanCard(@RequestAttribute BasicDetailsDto merchant,@RequestParam("panCard") String panCard) {
 		logger.info("verify pancard check request for merchant:{} and pancard:{}", merchant.getId(), panCard);
 		VerifyPanCardDto verifyPanCardDto =  verifyDocService.verifyPanCard(merchant, panCard);
 		logger.info("verify pancard check response for merchant:{} and pancard:{} is :{}", merchant.getId(), panCard, verifyPanCardDto);
@@ -129,7 +131,7 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute Merchant merchant,
+	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute BasicDetailsDto merchant,
 			@RequestParam(name = "query_amount", required = true) Double queryAmount) {
 		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}", merchant.getId(), queryAmount);
 		EligibleLendingOffersResponseDTO resp = loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount);
@@ -138,7 +140,7 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute Merchant merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
+	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute BasicDetailsDto merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
 		logger.info("updateEligibleLoanAmount request with merchant_id: {}, with body: {}", merchant.getId(), requestDTO);
 		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
 	}
@@ -151,7 +153,7 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute BasicDetailsDto merchant) {
 		logger.info("merchantLoans request merchant_id: {}", merchant.getId());
 		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchant.getId());
 		logger.info("merchantLoans response : {}", resp);
@@ -159,34 +161,35 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/algo360_logs", method=RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity<String> processAlgo360Logs(@RequestAttribute Merchant merchant, @RequestBody String data, @RequestHeader("token") String token){
+	public ResponseEntity<String> processAlgo360Logs(@RequestAttribute BasicDetailsDto merchant, @RequestBody String data, @RequestHeader("token") String token){
 
 		merchantUpdateService.saveAlgo360Logs(merchant, data);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 	@PostMapping(value = "/check_new_merchant")
-	public ResponseEntity<CommonResponse> checkCoolOff(@RequestAttribute Merchant merchant, @RequestBody CoolOffRequestDTO requestDTO) {
+	public ResponseEntity<CommonResponse> checkCoolOff(@RequestAttribute BasicDetailsDto merchant, @RequestBody CoolOffRequestDTO requestDTO) {
 		logger.info("check_new_merchant request:{} for merchantId: {}", requestDTO, merchant.getId());
 		return new ResponseEntity<>(lendingOffersService.checkCoolOffPeriod(merchant, requestDTO), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/make_me_fresh", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<CommonResponse> fresh(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<CommonResponse> fresh(@RequestAttribute BasicDetailsDto merchant) {
 		logger.info("make me fresh request merchant_id: {}", merchant.getId());
 		lendingOffersService.makeMeFresh(merchant);
 		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/sms_permission", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<CommonResponse> smsPermission(@RequestAttribute Merchant merchant) {
+	public ResponseEntity<CommonResponse> smsPermission(@RequestAttribute BasicDetailsDto merchant) {
 		logger.info("sms_permission request for merchant_id: {}", merchant.getId());
 		lendingOffersService.checkNTBSMS(merchant);
 		return new ResponseEntity<>(new CommonResponse(true, "success"), HttpStatus.OK);
 	}
 
 	@GetMapping(value = "/due_amount")
-	public ResponseEntity<CommonResponse> getDueAmount(@RequestAttribute(required = false) Merchant merchant, @RequestParam(required = false) Long merchantId, @RequestParam(required = false) Long merchantStoreId) {
+	public ResponseEntity<CommonResponse> getDueAmount(@RequestAttribute(required = false) BasicDetailsDto merchant,
+													   @RequestParam(required = false) Long merchantId, @RequestParam(required = false) Long merchantStoreId) {
 		logger.info("request to get due amount for merchantId:{} and merchantStoreId:{}", merchant != null ? merchant.getId() : merchantId, merchantStoreId);
 		if (merchant == null && merchantId == null) {
 			return ResponseEntity.badRequest().body(new CommonResponse(false, "merchantId/token is required"));
@@ -195,7 +198,7 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/v2/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<SettlementV2ResponseDTO> settlementV2(@RequestAttribute Merchant merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
+	public ResponseEntity<SettlementV2ResponseDTO> settlementV2(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "loan_id", required = false) Long loanId) {
 		try {
 			return new ResponseEntity<>(loanDetailsService.getSettlementsV2(merchant,loanId), HttpStatus.OK);
 		} catch (Exception e) {

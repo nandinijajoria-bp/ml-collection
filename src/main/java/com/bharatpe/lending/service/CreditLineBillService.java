@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditAccountBillDao;
 import com.bharatpe.lending.common.dao.CreditAccountDao;
 import com.bharatpe.lending.common.dao.CreditDayEndBalanceDao;
@@ -27,7 +27,6 @@ import com.bharatpe.lending.common.entity.CreditAccountBill;
 import com.bharatpe.lending.common.entity.CreditDayEndBalance;
 import com.bharatpe.lending.common.entity.LendingClPaymentBreakup;
 import com.bharatpe.lending.common.entity.LendingClTransaction;
-import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dto.BillDetailResponseDto;
 import com.bharatpe.lending.dto.BillDetailResponseDto.Transaction;
@@ -67,7 +66,7 @@ public class CreditLineBillService {
 	
 	Logger logger=LoggerFactory.getLogger(CreditLineBillService.class);
 	
-	public CreditLineBillResponseDto fetchBills(Merchant merchant) {
+	public CreditLineBillResponseDto fetchBills(BasicDetailsDto merchant) {
 		try {
 			CreditLineBillResponseDto response=new CreditLineBillResponseDto();
 			CreditAccount creditAccount=creditAccountDao.findByMerchantIdForDashBoard(merchant.getId());
@@ -170,7 +169,7 @@ public class CreditLineBillService {
 		return errorResponse;
 	}
 	
-	public BillDetailResponseDto fetchBillDetail(Merchant merchant,Long id) {
+	public BillDetailResponseDto fetchBillDetail(BasicDetailsDto merchant,Long id) {
 		
 		try {
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");

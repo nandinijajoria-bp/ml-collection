@@ -1,8 +1,9 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
+
+
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
-import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SendOtpDTO;
 import com.bharatpe.lending.service.ExperianService;
@@ -23,7 +24,9 @@ public class ExperianController {
     ExperianService experianService;
 
     @RequestMapping(value="/details", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<ResponseDTO> experianDetails(@RequestAttribute Merchant merchant, @RequestBody ExperianDetailsDTO experianDetailsDTO) {
+    public ResponseEntity<ResponseDTO> experianDetails(
+
+      @RequestAttribute BasicDetailsDto merchant, @RequestBody ExperianDetailsDTO experianDetailsDTO) {
         try {
             return new ResponseEntity<>(experianService.updateDetails(experianDetailsDTO, merchant.getId(), merchant.getMobile()),HttpStatus.OK);
         } catch (Exception e) {
@@ -33,7 +36,7 @@ public class ExperianController {
     }
 
     @RequestMapping(value="/sendOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant, @RequestBody SendOtpDTO requestDTO) {
+    public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute BasicDetailsDto merchant, @RequestBody SendOtpDTO requestDTO) {
         if (requestDTO.getMobile() == null) {
             return new ResponseEntity<>(new ResponseDTO(false, "Invalid Request", null,null), HttpStatus.OK);
         }
@@ -46,7 +49,7 @@ public class ExperianController {
     }
 
     @RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<ResponseDTO> verifyOTP(@RequestAttribute Merchant merchant, @RequestBody SendOtpDTO requestDTO) {
+    public ResponseEntity<ResponseDTO> verifyOTP(@RequestAttribute BasicDetailsDto merchant, @RequestBody SendOtpDTO requestDTO) {
         if (requestDTO.getMobile() == null || requestDTO.getOtp() == null) {
             return new ResponseEntity<>(new ResponseDTO(false, "Invalid Request", null,null), HttpStatus.OK);
         }

@@ -1,15 +1,13 @@
 package com.bharatpe.lending.service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.EligibleLoan;
-import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +22,6 @@ import com.bharatpe.lending.common.entity.CreditAccount;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dto.InstantNotificationDto;
-import com.bharatpe.lending.dto.LoanEligibilityDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class RedisNotificationService {
@@ -173,27 +169,28 @@ public class RedisNotificationService {
 		}
 	}
 	
-	public void sendPromotionalNotificationForCreditLine(Merchant merchant, CreditAccount creditAccount) {
+	public void sendPromotionalNotificationForCreditLine(Long merchantId, CreditAccount creditAccount) {
 		try {
 			if (true) return;
-			logger.info("Sending promotional notification got merchant {}",merchant);
-			MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			logger.info("Sending promotional notification got merchant {}",merchantId);
+			MerchantBankDetail bankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(creditAccount.getId());
-			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMerchantId(merchantId);
 			notificationDto.setMessageCategory("CREDIT_LINE_PROMOTIONAL");
 			String message= "Hi "+bankDetail.getBeneficiaryName()+",\n" +
 					"BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "promotional_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(12, 3));
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,
+			"promotional_"+merchantId.toString(), DateTimeUtil.getSecondsTillTime(12, 3));
 		}
 		catch(Exception e) {
-			logger.error("Error occured while sending redis based promotional notification for merchant {}",merchant,e);
+			logger.error("Error occured while sending redis based promotional notification for merchant {}",merchantId,e);
 			
 		}
 	}
 	
-	public void sendPendingEnachNotification(Merchant merchant, LendingApplication lendingApplication) {
+	public void sendPendingEnachNotification(BasicDetailsDto merchant, LendingApplication lendingApplication) {
 		try {
 			logger.info("Sending pending enach notification for merchant {}",merchant);
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");

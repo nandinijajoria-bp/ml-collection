@@ -7,13 +7,15 @@ import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
-import com.bharatpe.lending.loanV2.dto.GlobalResponseDTO;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.StringUtils;
@@ -65,8 +67,8 @@ public class LoanUtil {
 	@Autowired
 	LendingPincodesDao lendingPincodesDao;
 
-	@Autowired
-	MerchantSummaryDao merchantSummaryDao;
+//	@Autowired
+//	MerchantSummaryDao merchantSummaryDao;
 
 	@Autowired
 	MerchantSummarySnapshotDao merchantSummarySnapshotDao;
@@ -118,6 +120,9 @@ public class LoanUtil {
 
     @Autowired
 			EligibleLoanDao eligibleLoanDao;
+
+	@Autowired
+	MerchantHandler merchantHandler;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -426,6 +431,19 @@ public class LoanUtil {
 		return covidCities != null;
 	}
 
+	public void publishSmsAnalysisData(BasicDetailsDto merchant) {
+		if (merchant == null) {
+			return;
+		}
+		try {
+			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
+			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
+			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>(){{add(merchantSmsAnalysis);}});
+		} catch (Exception e) {
+			logger.error("Exception in mongo publish merchant_sms_analysis for merchant:{}", merchant.getId(), e);
+		}
+	}
+
 	public void publishSmsAnalysisData(Merchant merchant) {
 		if (merchant == null) {
 			return;
@@ -473,7 +491,7 @@ public class LoanUtil {
 		return (int)Math.round(dueAmount/ediAmount);
 	}
 
-	public boolean hasActiveLoan(Merchant merchant) {
+	public boolean hasActiveLoan(BasicDetailsDto merchant) {
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 		return activeLoan != null;
 	}
@@ -583,30 +601,34 @@ public class LoanUtil {
 
 	public void createMerchantSummarySnapshot(Merchant merchant, LendingApplication application) {
 		try {
-			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
-			if (summary != null) {
+//			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+				throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+			}
+			if (merchantResponseDTO != null) {
 				MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
 				snapshot.setApplication(application.getId());
 				snapshot.setMerchant(merchant);
-				snapshot.setLastTransactionDate(summary.getLastTransactionDate());
-				snapshot.setTotalTxnCount(summary.getDailyTxnCount());
-				snapshot.setTotalTxnAmount(summary.getDailyTxnAmount());
-				snapshot.setCategory(summary.getCategory());
-				snapshot.setAvgTpv(summary.getAvgTpv());
-				snapshot.setAdjustedTpv(summary.getAdjustedTpv());
-				snapshot.setLoanType(summary.getLoanType());
-				snapshot.setTpv1Mon(summary.getTpv1Mon());
-				snapshot.setTpv2Mon(summary.getTpv2Mon());
-				snapshot.setTpv3Mon(summary.getTpv3Mon());
-				snapshot.setTxnDayCount1Mon(summary.getTxnDayCount1Mon());
-				snapshot.setTxnDayCount2Mon(summary.getTxnDayCount2Mon());
-				snapshot.setTxnDayCount3Mon(summary.getTxnDayCount3Mon());
-				snapshot.setTotalTxns1Month(summary.getTotalTxns1Month());
-				snapshot.setTotalTxns2Month(summary.getTotalTxns2Month());
-				snapshot.setTotalTxns3Month(summary.getTotalTxns3Month());
-				snapshot.setTotalLoansCount(summary.getTotalLoansCount());
-				snapshot.setBpScore(summary.getBpScore());
-				snapshot.setUniqueCustomer1mon(summary.getUniqueCustomer1mon());
+				snapshot.setLastTransactionDate(merchantResponseDTO.getLastTransactionDate());
+				snapshot.setTotalTxnCount(merchantResponseDTO.getDailyTxnCount());
+				snapshot.setTotalTxnAmount(merchantResponseDTO.getDailyTxnAmount());
+				snapshot.setCategory(merchantResponseDTO.getCategory());
+				snapshot.setAvgTpv(merchantResponseDTO.getAvgTpv());
+				snapshot.setAdjustedTpv(merchantResponseDTO.getAdjustedTpv());
+				snapshot.setLoanType(merchantResponseDTO.getLoanType());
+				snapshot.setTpv1Mon(merchantResponseDTO.getTpv1Mon());
+				snapshot.setTpv2Mon(merchantResponseDTO.getTpv2Mon());
+				snapshot.setTpv3Mon(merchantResponseDTO.getTpv3Mon());
+				snapshot.setTxnDayCount1Mon(merchantResponseDTO.getTxnDayCount1Mon());
+				snapshot.setTxnDayCount2Mon(merchantResponseDTO.getTxnDayCount2Mon());
+				snapshot.setTxnDayCount3Mon(merchantResponseDTO.getTxnDayCount3Mon());
+				snapshot.setTotalTxns1Month(merchantResponseDTO.getTotalTxns1Month());
+				snapshot.setTotalTxns2Month(merchantResponseDTO.getTotalTxns2Month());
+				snapshot.setTotalTxns3Month(merchantResponseDTO.getTotalTxns3Month());
+				snapshot.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount());
+				snapshot.setBpScore(merchantResponseDTO.getBpScore());
+				snapshot.setUniqueCustomer1mon(merchantResponseDTO.getUniqueCustomer1mon());
 				merchantSummarySnapshotDao.save(snapshot);
 			}
 		} catch(Exception ex) {
@@ -651,9 +673,18 @@ public class LoanUtil {
 		return !prevLoans.isEmpty();
 	}
 
-	public BpEnach getSuccessNach(Merchant merchant) {
+	public BpEnach getSuccessNach(BasicDetailsDto merchant) {
 		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			return enachSuccess;
+		}
+		return null;
+	}
+
+	public BpEnach getSuccessNach(Long merchantId) {
+		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchantId);
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			return enachSuccess;
 		}

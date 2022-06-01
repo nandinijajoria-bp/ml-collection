@@ -5,6 +5,7 @@ import java.util.List;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
 
 @Service
@@ -33,7 +33,7 @@ public class VerifyDocService {
 	@Autowired
 	ExperianDao experianDao;
 	
-	public VerifyPanCardDto verifyPanCard(Merchant merchant, String  panCard) {
+	public VerifyPanCardDto verifyPanCard(BasicDetailsDto merchant, String  panCard) {
 		try {
 			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
 			Experian experian =experianDao.getByPancardNumber(panCard, merchant.getId());

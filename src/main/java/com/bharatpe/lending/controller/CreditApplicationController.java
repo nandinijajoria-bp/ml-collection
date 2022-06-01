@@ -5,6 +5,7 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.CreditApplicationRequestDTO;
@@ -26,20 +26,16 @@ import com.bharatpe.lending.dto.CreditUploadDocumentRequestDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
-import com.bharatpe.lending.dto.UploadDocumentRequestDTO;
 import com.bharatpe.lending.dto.UploadDocumentResponseDTO;
-import com.bharatpe.lending.service.CancelApplicationService;
 import com.bharatpe.lending.service.CreditApplicationService;
 import com.bharatpe.lending.service.CreditCancelApplicationService;
 import com.bharatpe.lending.service.CreditImageURLService;
 import com.bharatpe.lending.service.CreditSignAgreementService;
 import com.bharatpe.lending.service.CreditVerifyOTPService;
-import com.bharatpe.lending.service.SignAgreementService;
 import com.bharatpe.lending.service.UploadDocumentCreditService;
-import com.bharatpe.lending.service.VerifyOTPService; 
 
- 
-	@RestController
+
+@RestController
 	@RequestMapping("lending/credit_line")
 	public class CreditApplicationController {
 		
@@ -64,7 +60,7 @@ import com.bharatpe.lending.service.VerifyOTPService;
 			CreditCancelApplicationService creditCancelApplicationService;
 		
 		@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	    public CreditApplicationResponseDTO createApplication(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<CreditApplicationRequestDTO> requestDTO) {
+	    public CreditApplicationResponseDTO createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 
 	        if(requestDTO.getPayload().getPincode() != null && !creditApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
 	            logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
@@ -90,7 +86,7 @@ import com.bharatpe.lending.service.VerifyOTPService;
 	    }
 		
 		@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-		public UploadDocumentResponseDTO uploadDocument(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<CreditUploadDocumentRequestDTO> requestDTO) {
+		public UploadDocumentResponseDTO uploadDocument(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<CreditUploadDocumentRequestDTO> requestDTO) {
 			logger.info("UploadDocument request : {}",requestDTO);
 			if(requestDTO.getPayload() == null) {
 				logger.info("Invalid request parameters : {}", requestDTO);
@@ -105,7 +101,7 @@ import com.bharatpe.lending.service.VerifyOTPService;
 		}
 	 
 		@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-		public Object signAgreement(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp,  @RequestBody RequestDTO<SignAgreementDTO> requestDTO) {
+		public Object signAgreement(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp,  @RequestBody RequestDTO<SignAgreementDTO> requestDTO) {
 			logger.info("singAgreement request : {}",requestDTO);
 			requestDTO.getMeta().setIp(clientIp);
 			Object resp = creditSignAgreementService.signAgreement(merchant, requestDTO);
@@ -114,7 +110,7 @@ import com.bharatpe.lending.service.VerifyOTPService;
 		}
 
 		@RequestMapping(value="/verifyOTP", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-		public Object verifyOTP(@RequestAttribute Merchant merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
+		public Object verifyOTP(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, @RequestBody CommonAPIRequest commonAPIRequest) {
 			logger.info("verifyOTP request : {}",commonAPIRequest);
 			commonAPIRequest.getMeta().setIp(clientIp);
 			Object resp = creditVerifyOTPService.verifyOTP(merchant, commonAPIRequest);
@@ -123,7 +119,7 @@ import com.bharatpe.lending.service.VerifyOTPService;
 		}
 		
 		@RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-		public Object cancelApplication(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		public Object cancelApplication(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 			logger.info("cancelApplication request : {}",commonAPIRequest);
 			Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
 
@@ -142,12 +138,12 @@ import com.bharatpe.lending.service.VerifyOTPService;
 		}
 
 		@RequestMapping(value="/sendOTP", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-		public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute Merchant merchant) {
+		public ResponseEntity<ResponseDTO> sendOTP(@RequestAttribute BasicDetailsDto merchant) {
 			return new ResponseEntity<>(creditApplicationService.sendOtp(merchant), HttpStatus.OK);
 		}
 		
 		@RequestMapping(value="/imageURL", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-		public Object imageURL(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+		public Object imageURL(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
 			logger.info("ImageURLController request : {}",commonAPIRequest);
 
 			Object resp = creditImageURLService.fetchAndWrapResult(merchant, commonAPIRequest);

@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -16,20 +17,16 @@ import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantSummaryLendingDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingEnach;
 import com.bharatpe.common.entities.LendingNachBank;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.entities.MerchantSummaryLending;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationNachDao;
 import com.bharatpe.lending.common.dao.LendingClEnachDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.CreditApplicationNach;
 import com.bharatpe.lending.common.entity.LendingClEnach;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.DigioEnachInitiationRequestDTO;
@@ -103,7 +100,7 @@ public class CreditENachService {
     // fetch loan detail by merchant IFSC [pending verification state]
     // validate bank for mandate support
     // if bank is suported , insert in ENach Detail Table.
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String appVersion){
+    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String appVersion){
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         String mandateDate = sdf.format(new Date(new Date().getTime() + (1000 * 60 * 60 * 24)));
         final double LOAN_AMOUNT = 100000d;
@@ -152,7 +149,7 @@ public class CreditENachService {
 
     //Submit enach for digio
 
-    public ENachIntitiationResponseDTO submitEnachForDigio(Merchant merchant, ENachSubmitRequestDTO requestDTO){
+    public ENachIntitiationResponseDTO submitEnachForDigio(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
 
@@ -210,7 +207,7 @@ public class CreditENachService {
         return responseDTO;
     }
 
-    public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO){
+    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         LendingClEnach lendingClEnach = lendingClEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
@@ -277,7 +274,7 @@ public class CreditENachService {
     }
 
     //changing skip status to true
-    public ResponseDTO setEnachSkipStatus(Merchant merchant){
+    public ResponseDTO setEnachSkipStatus(BasicDetailsDto merchant){
     	CreditApplication creditApplication = creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if (creditApplication == null) {
             return new ResponseDTO(false, "Loan Application not found", null,null);
@@ -299,7 +296,7 @@ public class CreditENachService {
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
     
-    public ENachIntitiationResponseDTO enachInititateForDigio(Merchant merchant){
+    public ENachIntitiationResponseDTO enachInititateForDigio(BasicDetailsDto merchant){
     	ENachIntitiationResponseDTO enachInitiationResponseDto=new ENachIntitiationResponseDTO();
     	enachInitiationResponseDto.setData(new ENachIntitiationResponseDTO.Data());
     	//populating lending application

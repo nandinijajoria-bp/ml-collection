@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
 import com.bharatpe.lending.common.dao.LendingBulkNachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -22,14 +23,12 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -82,9 +81,9 @@ public class ENachService {
 
     ExecutorService executorService = Executors.newFixedThreadPool(50);
 
-    public ENachIntitiationResponseDTO eNachInitiate(Merchant merchant, String token, String provider){
+    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if(lendingApplication == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Loan Application not found");
@@ -104,7 +103,7 @@ public class ENachService {
         return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(), String.valueOf(lendingApplication.getLoanAmount()), provider));
     }
 
-    public ENachIntitiationResponseDTO submitEnach(Merchant merchant, ENachSubmitRequestDTO requestDTO, String token){
+    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token){
         String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
         logger.info("deleting cached key of loan details where nach is done for merchant: {}",merchant.getId());
         if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
@@ -114,7 +113,8 @@ public class ENachService {
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchant(requestDTO.getApplicationId(), merchant);
+        LendingApplication lendingApplication =
+          lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
         if (bharatPeEnach == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Enach not initiated");
@@ -164,7 +164,7 @@ public class ENachService {
         return responseDTO;
     }
 
-    public String checkForApplicationRejection(Merchant merchant, ENachSubmitRequestDTO response, LendingApplication lendingApplication){
+    public String checkForApplicationRejection(BasicDetailsDto merchant, ENachSubmitRequestDTO response, LendingApplication lendingApplication){
         logger.info("check for Application need to reject on Enach failure for Merchant - {}", merchant.getId());
 
         try{
@@ -216,8 +216,8 @@ public class ENachService {
     }
 
     //changing skip status to true
-    public ResponseDTO setEnachSkipStatus(Merchant merchant){
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantOrderByIdDesc(merchant);
+    public ResponseDTO setEnachSkipStatus(BasicDetailsDto merchant){
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if (lendingApplication == null) {
             return new ResponseDTO(false, "Loan Application not found", null,null);
         }
@@ -243,7 +243,7 @@ public class ENachService {
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
 
-    public CommonResponse cancelEnach(Merchant merchant) {
+    public CommonResponse cancelEnach(BasicDetailsDto merchant) {
         BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchant.getId());
         if (bpEnach == null) {
             logger.info("Enach not found for merchant:{}", merchant.getId());

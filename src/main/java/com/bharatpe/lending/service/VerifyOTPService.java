@@ -16,13 +16,17 @@ import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.MerchantResponseDTO;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -32,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.text.DateFormat;
@@ -69,8 +74,11 @@ public class VerifyOTPService {
 	@Autowired
 	MerchantSummaryLendingDao merchantSummaryLendingDao;
 
+//	@Autowired
+//	MerchantSummaryDao merchantSummaryDao;
+
 	@Autowired
-	MerchantSummaryDao merchantSummaryDao;
+	MerchantDao merchantDao;
 
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
@@ -140,12 +148,15 @@ public class VerifyOTPService {
 	@Autowired
 	LendingCache lendingCache;
 
+	@Autowired
+	MerchantHandler merchantHandler;
+
 	@Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
 	String kafkaTopicPostChecks;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
-	public Map<String, Boolean> verifyOTP(Merchant merchant, CommonAPIRequest commonAPIRequest) {
+	public Map<String, Boolean> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 		if(Objects.nonNull(merchant.getId())) {
 			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
 			logger.info("deleting cached key of loan details in verifyOtp flow for merchant: {}",merchant.getId());
@@ -165,7 +176,8 @@ public class VerifyOTPService {
 			logger.info("No application found in draft status for given application id {}", applicationId);
 			return finalResponse;
 		}
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantAndStatus(applicationId, merchant, "draft");
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
+		merchant.getId(), "draft");
 		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
 		if(lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getDowngrade() &&( lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
 			lendingApplication=lendingApplicationDao.findById(applicationId).get();
@@ -178,7 +190,7 @@ public class VerifyOTPService {
 		return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(),null);
 	}
 	
-	private Map<String, Boolean> verifyOTP(String otp, String uuid, Merchant merchant, LendingApplication lendingApplication, Meta meta,LendingResubmitTask lendingResubmitTask) {
+	private Map<String, Boolean> verifyOTP(String otp, String uuid, BasicDetailsDto merchant, LendingApplication lendingApplication, Meta meta,LendingResubmitTask lendingResubmitTask) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		logger.info("Mobile length: {}", merchant.getMobile().length());
 		finalResponse.put("success",false);
@@ -221,16 +233,19 @@ public class VerifyOTPService {
 		return finalResponse;
 	}
 	
-	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(Merchant merchant, LendingApplication lendingApplication, Meta meta) {
+	private Map<String, Boolean> updateApplicationStatusAndSuccessSms(BasicDetailsDto merchantBasicDetailsDto,
+																	  LendingApplication lendingApplication, Meta meta) {
 		Map<String, Boolean> finalResponse = new LinkedHashMap<>();
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 		finalResponse.put("success",false);
 		finalResponse.put("agreement_verified",false);
-		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchant.getId());
-		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchant.getId());
-		Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchant.getId());
+		LendingApplication openApplication = lendingApplicationDao.findOpenApplication(merchantBasicDetailsDto.getId());
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchantBasicDetailsDto.getId());
+		Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
+
+		Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(merchantBasicDetailsDto.getId());
 		if (!topupLoans.contains(lendingApplication.getLoanType()) && (openApplication != null || activeLoan != null)) {
-			logger.info("duplicate application for merchant:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
+			logger.info("duplicate application for merchant:{} and applicationId:{}", merchantBasicDetailsDto.getId(), lendingApplication.getId());
 			lendingApplication.setStatus("deleted");
 			lendingApplicationDao.save(lendingApplication);
 			notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
@@ -239,7 +254,7 @@ public class VerifyOTPService {
 		if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) || "IO_TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) || "HALF_TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
 			LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(lendingApplication.getMerchant().getId());
 			if(checkDupe != null){
-				logger.info("duplicate application for Topup Loan For MerchantId:{} and applicationId:{}", merchant.getId(), lendingApplication.getId());
+				logger.info("duplicate application for Topup Loan For MerchantId:{} and applicationId:{}", merchantBasicDetailsDto.getId(), lendingApplication.getId());
 				lendingApplication.setStatus("deleted");
 				lendingApplicationDao.save(lendingApplication);
 				notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
@@ -248,7 +263,7 @@ public class VerifyOTPService {
 		}
         if (!topupLoans.contains(lendingApplication.getLoanType()) && StringUtils.isEmpty(lendingApplication.getCkycId())) {
             List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
-            List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+            List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), lendingApplication.getId());
             if (documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
                 logger.error("documents not found for application:{}", lendingApplication.getId());
                 return finalResponse;
@@ -261,8 +276,8 @@ public class VerifyOTPService {
 			lendingApplication.setProcessingFee(0D);
 		}
 
-		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchantBasicDetailsDto.getId());
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetailsDto.getId(), "ACTIVE");
 		if (enachSuccess != null && merchantBankDetail != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachSuccess = null;
 		}
@@ -286,7 +301,7 @@ public class VerifyOTPService {
 			lendingApplication.setNachStatus("APPROVED");
 		}
 		if(topupLoans.contains(lendingApplication.getLoanType())){
-			logger.info("TOPUP loan submitted for merchant {}", merchant.getId());
+			logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
 			updateDocuments(lendingApplication, meta);
 			topUpLoans(lendingApplication);
         }
@@ -295,7 +310,7 @@ public class VerifyOTPService {
 
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 		lendingAuditTrial.setApplicationId(lendingApplication.getId());
-		lendingAuditTrial.setMerchantId(merchant.getId());
+		lendingAuditTrial.setMerchantId(merchantBasicDetailsDto.getId());
 		lendingAuditTrial.setLoanId(loanId);
 		lendingAuditTrial.setUserId(Long.parseLong("0"));
 		lendingAuditTrial.setOldStatus("draft");
@@ -304,7 +319,7 @@ public class VerifyOTPService {
 
 		lendingAuditTrialDao.save(lendingAuditTrial);
 
-		if (easyLoanUtil.isDummyMerchant(merchant.getId()) || merchant.getId() == 10407700L) {
+		if (easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) || merchantBasicDetailsDto.getId() == 10407700L) {
 			// skipping enach for dummy merchant
 			lendingApplication.setNachType("ENACH");
 			lendingApplication.setNachLender("BHARATPE");
@@ -313,20 +328,20 @@ public class VerifyOTPService {
 			lendingApplication.setCkycDate(new Date());
 			lendingApplicationDao.save(lendingApplication);
 		}
-		redisNotificationService.sendPendingEnachNotification(merchant, lendingApplication);
-		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		redisNotificationService.sendPendingEnachNotification(merchantBasicDetailsDto, lendingApplication);
+		notificationExecutor.submit(() -> sendNotification(merchantBasicDetailsDto, lendingApplication));
 		logger.info("Lending application status for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
 			logger.info("Checking kyc status for new flow application:{}", lendingApplication.getId());
 			updateKycStatus(lendingApplication);
 		}
 		logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
-		sendLatLong(merchant.getId(), lendingApplication.getId());
+		sendLatLong(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 		if(Objects.nonNull(enachSuccess)) {
 			logger.info("entered before sending to topic for post checks");
-			sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+			sendDetailsForContactsVerification(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 		}
-		sendDuplicatePancardCheck(merchant.getId(), lendingApplication.getId());
+		sendDuplicatePancardCheck(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 		loanUtil.publishApplicationEvent(lendingApplication);
 
 
@@ -485,7 +500,9 @@ public class VerifyOTPService {
 				logger.info("No previous loan/active loan for merchant ID {}", lendingApplication.getMerchant().getId());
 				return;
 			}
-			LendingApplication prevApplication = lendingApplicationDao.findByIdAndMerchant(activeLoan.getApplicationId(), lendingApplication.getMerchant());
+			LendingApplication prevApplication =
+			lendingApplicationDao.findByIdAndMerchantId(activeLoan.getApplicationId(),
+			lendingApplication.getMerchant().getId());
 			signAgreementService.replicateDocumentsForNewApplication(prevApplication, lendingApplication, lendingApplication.getMerchant(), new MetaDTO(meta));
 		} catch (Exception e) {
 			logger.error("Exception replicating documents for topup---", e);
@@ -515,25 +532,30 @@ public class VerifyOTPService {
 		}
 	}
 
-	private void checkPreBook(Merchant merchant, LendingApplication lendingApplication) {
-		LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchant.getId());
+	private void checkPreBook(BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication) {
+		LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchantBasicDetails.getId());
 		if (lendingPrebookLoans != null) {
-			logger.info("Prebook loan already exists for merchant: {}", merchant.getId());
-			notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+			logger.info("Prebook loan already exists for merchant: {}", merchantBasicDetails.getId());
+			notificationExecutor.submit(() -> sendNotification(merchantBasicDetails, lendingApplication));
 			return;
 		}
-		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchant.getId());
-		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+		MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchantBasicDetails.getId());
+//		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchantBasicDetails.getId());
+		MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchantBasicDetails.getId());
+		if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+			throw new MerchantSummaryExceptionHandler(merchantBasicDetails.getId().toString());
+		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 		List<String> preBookCategories = Arrays.asList("Grocery","Medical","Dairy");
 		List<String> etcCategories = Arrays.asList("S1LG","S1DG","S2LG","S2DG");
 		List<String> cities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi");
-		if (preBookCategories.contains(merchant.getBusinessCategory()) && merchantSummaryLending != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2") && merchantSummary.getBpScore() > 10 && lendingCategories.getMasterCategory() != null && etcCategories.contains(lendingCategories.getMasterCategory()) && cities.contains(lendingApplication.getCity())) {
+		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+		if (preBookCategories.contains(merchant.getBusinessCategory()) && merchantSummaryLending != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2") && merchantResponseDTO.getBpScore() > 10 && lendingCategories.getMasterCategory() != null && etcCategories.contains(lendingCategories.getMasterCategory()) && cities.contains(lendingApplication.getCity())) {
 			Calendar c = Calendar.getInstance();
 			c.setTime(lendingApplication.getAgreementAt());
 			c.add(Calendar.DATE, -9);
 			Date startDate = c.getTime();
-			List<Object[]> transactions = paymentTransactionNewDao.getCountForPreBook(merchant.getId(), startDate, lendingApplication.getAgreementAt());
+			List<Object[]> transactions = paymentTransactionNewDao.getCountForPreBook(merchantBasicDetails.getId(), startDate, lendingApplication.getAgreementAt());
 			if (transactions != null && transactions.size() >= 8) {
 				Double previousLoanAmount = lendingApplication.getLoanAmount();
 				AvailableLoan availableLoan = new AvailableLoan();
@@ -545,14 +567,14 @@ public class VerifyOTPService {
 				lendingApplication.setDisbursalAmount((double)breakup.getLoanAmount());
 				lendingApplication.setLoanAmount((double)breakup.getLoanAmount());
 				lendingApplicationDao.save(lendingApplication);
-				lendingPrebookLoansDao.save(new LendingPrebookLoans(merchant.getId(), lendingApplication.getId(), previousLoanAmount));
-				logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchant.getId(), lendingApplication.getId());
+				lendingPrebookLoansDao.save(new LendingPrebookLoans(merchantBasicDetails.getId(), lendingApplication.getId(), previousLoanAmount));
+				logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchantBasicDetails.getId(), lendingApplication.getId());
 			}
 		}
-		notificationExecutor.submit(() -> sendNotification(merchant, lendingApplication));
+		notificationExecutor.submit(() -> sendNotification(merchantBasicDetails, lendingApplication));
 	}
 
-	private void sendNotification(Merchant merchant, LendingApplication lendingApplication) {
+	private void sendNotification(BasicDetailsDto merchant, LendingApplication lendingApplication) {
 		
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		if(merchantBankDetail == null) {

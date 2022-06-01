@@ -7,20 +7,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.MerchantResponseDTO;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
+import com.bharatpe.lending.handlers.MerchantHandler;
+import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import com.bharatpe.common.dao.AvailableLoanDao;
-import com.bharatpe.common.dao.DocAuthenticationDao;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.dao.MerchantSummaryDao;
 import com.bharatpe.common.entities.AvailableLoan;
  
 import com.bharatpe.common.entities.EligibleLoan;
@@ -29,16 +30,13 @@ import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantSummary;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
-import com.bharatpe.lending.common.dao.CreditLineCategoriesDao;
 import com.bharatpe.lending.common.dao.MerchantDocumentProofDao;
 import com.bharatpe.lending.common.dao.MerchantDocumentProofOcrDao;
 import com.bharatpe.lending.common.dao.MerchantDocumentProofRequestDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.CreditApplicationAddress;
-import com.bharatpe.lending.common.entity.CreditLineCategories;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofRequest;
@@ -51,7 +49,6 @@ import com.bharatpe.lending.dao.TmpLoanGenerateDao;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil.LoanBreakupDetail;
 
@@ -70,8 +67,8 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 	@Autowired
 	MerchantDocumentProofDao merchantDocumentProofDao;
 
-	@Autowired
-	MerchantSummaryDao merchantSummaryDao;
+//	@Autowired
+//	MerchantSummaryDao merchantSummaryDao;
 	
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -109,7 +106,10 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 	@Autowired
 	APIGatewayService apiGatewayService;
 
-	public Map<String, Object> signAgreement(Merchant merchant, RequestDTO<SignAgreementDTO> requestDTO) {
+	@Autowired
+	MerchantHandler merchantHandler;
+
+	public Map<String, Object> signAgreement(BasicDetailsDto merchant, RequestDTO<SignAgreementDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
 		finalResponse.put("success",false);
 		finalResponse.put("otp_flow",false);
@@ -130,7 +130,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 		return finalResponse;
 	}
 	
-	private Map<String, Object> verifyApplicationAndSendOTP(Merchant merchant, Long applicationId) {
+	private Map<String, Object> verifyApplicationAndSendOTP(BasicDetailsDto merchant, Long applicationId) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
@@ -151,7 +151,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 		return response;
 	}
 	
-	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, Merchant merchant) {
+	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, BasicDetailsDto merchant) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success",false);
 		response.put("otp_flow",false);
@@ -163,8 +163,9 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 			return response;
 		}
 		
-		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
-		if(merchantSummary == null) {
+//		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
+		MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+		if(merchantResponseDTO == null) {
 			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
 			return response;
 		}
@@ -230,7 +231,7 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 			newApplication.setAmount(eligibleLoan.getAmount());
 			newApplication.setLoanType(eligibleLoan.getLoanType());
 		} else {
-			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantSummary.getLoanType());
+			List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantResponseDTO.getLoanType());
 			AvailableLoan selectedAvailableLoan = null;
 			
 			if(!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getStatus()))) {
@@ -298,12 +299,13 @@ Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
 			
-			 creditApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantSummary);
+			 creditApplicationService.createMerchantSummarySnapshot(merchant, newApplication, merchantResponseDTO);
 		}
 		return response;
 	}
 	
-	private void replicateDocumentsForNewApplication(CreditApplication prevApplication, CreditApplication newApplication, Merchant merchant, MetaDTO meta) {
+	private void replicateDocumentsForNewApplication(CreditApplication prevApplication,
+													 CreditApplication newApplication, BasicDetailsDto merchant, MetaDTO meta) {
 		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), prevApplication.getId(), "LENDING");
 		for(MerchantDocumentProof documentsIdProof  : documentsIdProofList) {
 			MerchantDocumentProof toSaveDocuments = new MerchantDocumentProof();

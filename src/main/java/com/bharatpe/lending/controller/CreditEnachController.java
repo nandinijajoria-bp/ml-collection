@@ -1,5 +1,6 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
@@ -33,7 +33,7 @@ public class CreditEnachController {
 	private String enachServiceToUse;
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute Merchant merchant, @RequestParam(name = "app_version", required = false) String appVersion) {
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "app_version", required = false) String appVersion) {
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
@@ -59,7 +59,7 @@ public class CreditEnachController {
 	}
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute Merchant merchant, @RequestBody ENachSubmitRequestDTO body) {
+	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestBody ENachSubmitRequestDTO body) {
 //		logger.info("Enach Submit request : {}", body);
 //		if (merchant.getId().equals(4340760L)) {
 //			return new ResponseEntity<>(creditENachService.submitEnachForDigio(merchant, body), HttpStatus.OK);
@@ -80,7 +80,7 @@ public class CreditEnachController {
 	}
 
 	@RequestMapping(value="/skip",method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute Merchant merchant){
+	public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute BasicDetailsDto merchant){
 		return new ResponseEntity<>(creditENachService.setEnachSkipStatus(merchant), HttpStatus.OK);
 	}
 

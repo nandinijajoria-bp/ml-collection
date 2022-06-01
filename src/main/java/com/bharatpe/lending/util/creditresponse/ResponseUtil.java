@@ -1,6 +1,7 @@
 package com.bharatpe.lending.util.creditresponse;
 
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.dto.LoanAndCreditCardDetailDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,7 +37,7 @@ public interface ResponseUtil {
 
     public CreditScoreReportDetailDTO getCreditDetailReport(JsonNode beruaeResponse);
 
-    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, Merchant merchant);
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, BasicDetailsDto merchant);
 
     public CreditScoreReportDetailDTO.CreditCardUtilization getCreditCardUtilization(JsonNode beruaeMap);
 

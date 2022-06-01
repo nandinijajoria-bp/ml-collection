@@ -297,7 +297,8 @@ public class CreditApplicationStatusChange {
 				Optional<Merchant> merchantOptional=merchantDao.findById(merchantId);
 				if(merchantOptional.isPresent()) {
 					creditLineService.sendActivationNotification(creditApplication, merchantOptional.get());
-					redisNotificationService.sendPromotionalNotificationForCreditLine(merchantOptional.get(),creditAccount);
+					redisNotificationService.sendPromotionalNotificationForCreditLine(merchantOptional.get().getId(),
+					creditAccount);
 				}
 				return true;
 		}

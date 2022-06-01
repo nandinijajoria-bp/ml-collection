@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.MerchantDetailsDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.UploadImageDTO;
@@ -22,7 +22,7 @@ public class MerchantDetailsController {
     MerchantDetailsService merchantDetailsService;
 
     @RequestMapping(value="/personalDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<MerchantDetailsDTO> updatePersonalDetails(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<MerchantDetailsDTO> requestDTO) {
+    public ResponseEntity<MerchantDetailsDTO> updatePersonalDetails(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<MerchantDetailsDTO> requestDTO) {
         try {
             if (requestDTO.getPayload() == null || requestDTO.getPayload().getApplicationId() == null || requestDTO.getPayload().getPersonalDetails() == null) {
                 logger.info("Invalid request to update merchant personal details");
@@ -36,7 +36,7 @@ public class MerchantDetailsController {
     }
 
     @RequestMapping(value="/shopDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<MerchantDetailsDTO> updateShopDetails(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<MerchantDetailsDTO> requestDTO) {
+    public ResponseEntity<MerchantDetailsDTO> updateShopDetails(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<MerchantDetailsDTO> requestDTO) {
         try {
             if (requestDTO.getPayload() == null || requestDTO.getPayload().getApplicationId() == null || requestDTO.getPayload().getShopDetails() == null) {
                 logger.info("Invalid request to update merchant shop details");
@@ -50,7 +50,7 @@ public class MerchantDetailsController {
     }
 
     @RequestMapping(value="/businessDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<MerchantDetailsDTO> updateBusinessDetails(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<MerchantDetailsDTO> requestDTO) {
+    public ResponseEntity<MerchantDetailsDTO> updateBusinessDetails(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<MerchantDetailsDTO> requestDTO) {
         try {
             if (requestDTO.getPayload() == null || requestDTO.getPayload().getApplicationId() == null || requestDTO.getPayload().getBusinessDetails() == null) {
                 logger.info("Invalid request to update merchant business details");
@@ -64,7 +64,7 @@ public class MerchantDetailsController {
     }
 
     @RequestMapping(value="/uploadImage", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity<UploadImageDTO> uploadImage(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<UploadImageDTO> requestDTO) {
+    public ResponseEntity<UploadImageDTO> uploadImage(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<UploadImageDTO> requestDTO) {
         try {
             if (requestDTO.getPayload() == null || requestDTO.getPayload().getApplicationId() == null || requestDTO.getPayload().getImageData() == null) {
                 logger.info("Invalid request to upload image");
@@ -83,7 +83,7 @@ public class MerchantDetailsController {
     }
 
     @RequestMapping(value="/deleteImage", method = RequestMethod.DELETE, consumes="application/json", produces="application/json")
-    public ResponseEntity<UploadImageDTO> deleteImage(@RequestAttribute Merchant merchant, @RequestBody RequestDTO<UploadImageDTO> requestDTO) {
+    public ResponseEntity<UploadImageDTO> deleteImage(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<UploadImageDTO> requestDTO) {
         try {
             if (requestDTO.getPayload() == null || requestDTO.getPayload().getApplicationId() == null || requestDTO.getPayload().getImageData() == null || requestDTO.getPayload().getImageData().getImageId() == null) {
                 logger.info("Invalid request to delete image");
@@ -102,7 +102,7 @@ public class MerchantDetailsController {
     }
 
    @RequestMapping(value="/merchantDetails", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public ResponseEntity<MerchantDetailsDTO> merchantDetails(@RequestAttribute Merchant merchant, @RequestParam Long applicationId,@RequestParam(required = false)String module) {
+    public ResponseEntity<MerchantDetailsDTO> merchantDetails(@RequestAttribute BasicDetailsDto merchant, @RequestParam Long applicationId,@RequestParam(required = false)String module) {
         try {
             logger.info("Fetching Merchant Details for merchant: {}", merchant.getId());
             return new ResponseEntity<>(merchantDetailsService.getMerchantDetails(applicationId,module), HttpStatus.OK);

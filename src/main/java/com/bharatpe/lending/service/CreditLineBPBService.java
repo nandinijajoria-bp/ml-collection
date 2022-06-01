@@ -7,9 +7,9 @@ import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
-import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.util.CreditUtil;
@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -69,7 +68,7 @@ public class CreditLineBPBService {
 
     private final DecimalFormat df = new DecimalFormat("#.##");
 
-    public CheckBalanceResponseDTO getBalance(Merchant merchant, String client) {
+    public CheckBalanceResponseDTO getBalance(BasicDetailsDto merchant, String client) {
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), CreditConstants.AccountStatus.ACTIVE.name());
         if (creditAccount == null) {
             logger.info("Credit account not found for merchant:{}", merchant.getId());
@@ -113,25 +112,25 @@ public class CreditLineBPBService {
         return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
     }
 
-    public CreditSpendVerifyResponseDTO deductCL(Merchant merchant, CreditDeductRequestDTO requestDTO) {
+    public CreditSpendVerifyResponseDTO deductCL(BasicDetailsDto merchantBasicDetailsDto, CreditDeductRequestDTO requestDTO) {
         if (requestDTO.getRequestId() == null || (!"TL".equals(requestDTO.getLoanType()) && !"CL".equals(requestDTO.getLoanType()))) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid request");
         }
         if ("TL".equals(requestDTO.getLoanType()) && (requestDTO.getTenure() == null || !Arrays.asList(1,3,6).contains(requestDTO.getTenure()))) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid request");
         }
-        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetailsDto.getId(), "ACTIVE");
         if (creditAccount == null) {
             return new CreditSpendVerifyResponseDTO(false, "Credit Account does not exist");
         }
-        LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.findByIdAndMerchantId(requestDTO.getRequestId(),merchant.getId());
+        LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.findByIdAndMerchantId(requestDTO.getRequestId(),merchantBasicDetailsDto.getId());
         if (paymentRequest == null || !"PENDING".equalsIgnoreCase(paymentRequest.getStatus())) {
             return new CreditSpendVerifyResponseDTO(false, "Invalid Payment request_id");
         }
         paymentRequest.setLoanType(requestDTO.getLoanType());
         paymentRequest.setTenure(requestDTO.getTenure());
         paymentRequest = creditLineTransaction.saveTxnRequest(paymentRequest);
-        LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(merchant.getId(), creditAccount.getId());
+        LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(merchantBasicDetailsDto.getId(), creditAccount.getId());
         CreditLineCategories creditLineCategories = creditLineCategoriesDao.findTop1ByCategoryOrderByMaxCreditLimitDesc(creditAccount.getSegment());
         //List<LendingTlDetails> todayLoans = lendingTlDetailsDao.findByMerchantIdAndDateBetween(merchant.getId(), DateTimeUtil.getCurrentDayStartTime(), DateTimeUtil.getEndTimeFromDateTime(new Date()));
         boolean sufficientBalance = "CL".equals(paymentRequest.getLoanType()) ? CreditUtil.isSufficientCLBalance(lendingCaBalanceDetail, paymentRequest.getAmount().intValue(), paymentRequest.getMode(), creditLineCategories)
@@ -139,7 +138,7 @@ public class CreditLineBPBService {
         if (!sufficientBalance) {
             return new CreditSpendVerifyResponseDTO(false, "Insufficient Balance");
         }
-        int expireRequest = lendingClTransactionRequestDao.expireRequest(paymentRequest.getId(), merchant.getId());
+        int expireRequest = lendingClTransactionRequestDao.expireRequest(paymentRequest.getId(), merchantBasicDetailsDto.getId());
         if (expireRequest != 1) {
             return new CreditSpendVerifyResponseDTO(false, "Unable to expire payment request");
         }
@@ -148,11 +147,15 @@ public class CreditLineBPBService {
         creditLineTransaction.debitTxn(creditAccount, paymentRequest, lendingClTransaction);
         creditLineTransaction.updateTxnStatus(lendingClTransaction, CreditConstants.PaymentStatus.SUCCESS);
         if (lendingClTransaction.getType().equalsIgnoreCase("TL")) {
-            creditLineTransaction.createLPS(merchant, lendingClTransaction);
+            creditLineTransaction.createLPS(merchantBasicDetailsDto, lendingClTransaction);
         }
         //send debit notification
         try {
-            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(lendingClTransaction, merchant) : creditLineService.getFixedNotificationMessage(lendingClTransaction, merchant);
+            String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(lendingClTransaction, merchantBasicDetailsDto) : creditLineService.getFixedNotificationMessage(lendingClTransaction, merchantBasicDetailsDto);
+
+            // TODO : remove this and use api
+            Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
+
             creditLineService.sendNotification(message, merchant);
         } catch (Exception e) {
             logger.error("Unable to send debit notification", e);

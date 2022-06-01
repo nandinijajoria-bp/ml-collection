@@ -3,11 +3,11 @@ package com.bharatpe.lending.interceptor;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.TokenVerification;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.Response;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -26,7 +26,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.text.Normalizer;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Component
@@ -48,6 +47,9 @@ public class CommonInterceptor implements HandlerInterceptor {
 
     @Autowired
     TokenVerificationDao tokenVerificationDao;
+
+    @Autowired
+    MerchantService merchantService;
 
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -110,15 +112,16 @@ public class CommonInterceptor implements HandlerInterceptor {
                 String normalized = Normalizer.normalize(token, Normalizer.Form.NFD);
                 token = normalized.replaceAll("[^A-Za-z0-9-]", "");
 
-                List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
+//                List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
+//
+//                if(tokenDetails == null || tokenDetails.isEmpty()) {
+//                    logger.error("No valid session found for the passed token, sending unauthorized response.");
+//                    sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+//                    return false;
+//                }
+// 				Merchant merchant = tokenDetails.get(0).getMerchant();
 
-                if(tokenDetails == null || tokenDetails.isEmpty()) {
-                    logger.error("No valid session found for the passed token, sending unauthorized response.");
-                    sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
-                    return false;
-                }
-
-                Merchant merchant = tokenDetails.get(0).getMerchant();
+                BasicDetailsDto merchant = merchantService.fetchMerchantDetails(token);
                 if(merchant != null) {
                     String ip = request.getHeader("True-Client-IP");
                     if(StringUtils.isEmpty(ip)) {

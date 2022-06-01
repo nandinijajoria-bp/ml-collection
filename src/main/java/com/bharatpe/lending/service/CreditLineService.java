@@ -10,6 +10,7 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
@@ -127,6 +128,9 @@ public class CreditLineService {
 	CreditLineMerchantDao creditLineMerchantDao;
 
 	@Autowired
+	MerchantDao merchantDao;
+
+	@Autowired
 	PushNotificationHandler pushNotificationHandler;
 
 	@Autowired
@@ -152,11 +156,11 @@ public class CreditLineService {
 	@Autowired
 	RedisNotificationService redisNotificationService;
 
-	public ResponseDTO createCreditLineAccount(CreateCreditAccountRequestDto request, Merchant merchant){
+	public ResponseDTO createCreditLineAccount(CreateCreditAccountRequestDto request, BasicDetailsDto merchantBasicDetails){
 
-		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
+		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantBasicDetails.getId());
 		if (creditLineMerchant == null) {
-			logger.error("Merchant:{} not applicable for credit line", merchant.getId());
+			logger.error("Merchant:{} not applicable for credit line", merchantBasicDetails.getId());
 			return new ResponseDTO(false,"Merchant not applicable for credit line", null,null);
 		}
 
@@ -183,7 +187,7 @@ public class CreditLineService {
 
 				logger.info("Fetching segment detail from experian table");
 
-				Experian experian= experianDao.getByMerchantId(merchant.getId());
+				Experian experian= experianDao.getByMerchantId(merchantBasicDetails.getId());
 
 				if(experian!=null && experian.getColor()!=null) {
 
@@ -230,8 +234,10 @@ public class CreditLineService {
 					creditLineMerchant.setCreditAccountId(creditAccount.getId());
 					creditLineMerchantDao.save(creditLineMerchant);
 
+					Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+
 					sendActivationNotification(creditApplication, merchant);
-					redisNotificationService.sendPromotionalNotificationForCreditLine(merchant,creditAccount);
+					redisNotificationService.sendPromotionalNotificationForCreditLine(merchantBasicDetails.getId(),creditAccount);
 					return new ResponseDTO(true,"Successful",null,null);
 				}
 				else {
@@ -269,7 +275,7 @@ public class CreditLineService {
 
 	}
 
-	public CreditSpendResponseDTO getSpendDetails(Merchant merchant, Long requestId) {
+	public CreditSpendResponseDTO getSpendDetails(BasicDetailsDto merchant, Long requestId) {
 		LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.findByIdAndMerchantId(requestId, merchant.getId());
 		if (paymentRequest == null) {
 			return new CreditSpendResponseDTO(false, "Invalid Payment request_id");
@@ -366,7 +372,7 @@ public class CreditLineService {
 		return new CreditSpendResponseDTO.TL(edi, tenure, 2D, 0, amount, interestAmount, repayment, ediCount);
 	}
 
-	public CreditSpendVerifyResponseDTO verifySpend(Merchant merchant, CreditSpendVerifyRequestDTO requestDTO) {
+	public CreditSpendVerifyResponseDTO verifySpend(BasicDetailsDto merchant, CreditSpendVerifyRequestDTO requestDTO) {
 		LendingClTransactionRequest paymentRequest = lendingClTransactionRequestDao.findByIdAndMerchantId(requestDTO.getRequestId(), merchant.getId());
 		if (paymentRequest == null || !"PENDING".equalsIgnoreCase(paymentRequest.getStatus())) {
 			return new CreditSpendVerifyResponseDTO(false, "Invalid Payment request_id");
@@ -442,8 +448,9 @@ public class CreditLineService {
 		return true;
 	}
 
-	private void payout(LendingClTransaction lendingClTransaction, Merchant merchant) {
+	private void payout(LendingClTransaction lendingClTransaction, BasicDetailsDto merchantBasicDetails) {
 		BankTransferResponseDTO bankTransferResponseDTO;
+		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 		if ("prod".equalsIgnoreCase(activeProfile)) {
 			bankTransferResponseDTO = callPayoutAPI(lendingClTransaction);
 		} else {
@@ -463,12 +470,12 @@ public class CreditLineService {
 			} else if (CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				creditLineTransaction.updateTxnStatus(lendingClTransaction, CreditConstants.PaymentStatus.SUCCESS);
 				if (lendingClTransaction.getType().equalsIgnoreCase("TL")) {
-					creditLineTransaction.createLPS(merchant, lendingClTransaction);
+					creditLineTransaction.createLPS(merchantBasicDetails, lendingClTransaction);
 				}
 			}
 			//send debit notification
 			try {
-				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchant) : getFixedNotificationMessage(lendingClTransaction, merchant);
+				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchantBasicDetails) : getFixedNotificationMessage(lendingClTransaction, merchantBasicDetails);
 				sendNotification(message, merchant);
 			} catch (Exception e) {
 				logger.error("Unable to send debit notification", e);
@@ -478,7 +485,7 @@ public class CreditLineService {
 		}
 	}
 
-	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
+	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,BasicDetailsDto merchant) {
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 //		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
@@ -490,7 +497,7 @@ public class CreditLineService {
 				"Available Balance now is Rs. "+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+". Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 	}
 
-	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,Merchant merchant) {
+	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,BasicDetailsDto merchant) {
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
 		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
@@ -580,7 +587,7 @@ public class CreditLineService {
 		return null;
 	}
 
-	public CreditLineRepaymentHistoryResponseDto getRepaymentHistory(Merchant merchant) {
+	public CreditLineRepaymentHistoryResponseDto getRepaymentHistory(BasicDetailsDto merchant) {
 
 		try {
 			logger.info("Fetching repayment history for merchant {}",merchant.getId());
@@ -659,7 +666,7 @@ public class CreditLineService {
 		return new CreditSpendResponseDTO(paymentRequest.getId(), deeplink);
 	}
 
-	public CreditSpendResponseDTO initiateSpend(Merchant merchant, SpendInitiateRequestDTO requestDTO) {
+	public CreditSpendResponseDTO initiateSpend(BasicDetailsDto merchant, SpendInitiateRequestDTO requestDTO) {
 		if (requestDTO.getRequestId() == null || (!"TL".equals(requestDTO.getLoanType()) && !"CL".equals(requestDTO.getLoanType()))) {
 			return new CreditSpendResponseDTO(false, "Invalid request");
 		}
@@ -700,7 +707,7 @@ public class CreditLineService {
 		}
 	}
 
-	public DailySettlementResponseDto fetchDailySettlementDetail(Merchant merchant) {
+	public DailySettlementResponseDto fetchDailySettlementDetail(BasicDetailsDto merchant) {
 		try {
 
 			DailySettlementResponseDto dailySettlementResponseDto=new DailySettlementResponseDto();
@@ -804,7 +811,7 @@ public class CreditLineService {
 		return errorResponse;
 	}
 
-	public CreditLineRepaymentDetailResponseDto getRepaymentDetail(Long transactionId, Merchant merchant) {
+	public CreditLineRepaymentDetailResponseDto getRepaymentDetail(Long transactionId, BasicDetailsDto merchant) {
 		try {
 			logger.info("fetching repayment detail for transaction id {}",transactionId);
 			CreditLineRepaymentDetailResponseDto response=new CreditLineRepaymentDetailResponseDto();
@@ -878,7 +885,7 @@ public class CreditLineService {
 		}
 	}
 
-	public  CreditScoreReportDetailDTO.AverageCreditScore getAverageCreditScore(Merchant merchant, Experian experian){
+	public  CreditScoreReportDetailDTO.AverageCreditScore getAverageCreditScore(BasicDetailsDto merchant, Experian experian){
 		CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
 		CreditScoreReportDetailDTO.AverageCreditScore averageCreditScore = creditScoreReportDetailDTO.new AverageCreditScore();
 		try{
@@ -928,7 +935,7 @@ public class CreditLineService {
 		return null;
 	}
 
-	public CreditScoreReportDetailDTO getReportDetails(Merchant merchant){
+	public CreditScoreReportDetailDTO getReportDetails(BasicDetailsDto merchant){
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
 		JsonNode bureauResponse = parseStringResponse(experian.getResponse());;
 		if (bureauResponse == null) {
@@ -946,7 +953,7 @@ public class CreditLineService {
 		return creditScoreReportDetailDTO;
 	}
 
-	public LoanAndCreditCardDetailDTO getLoanAndCreditCardDetails(Merchant merchant){
+	public LoanAndCreditCardDetailDTO getLoanAndCreditCardDetails(BasicDetailsDto merchant){
 		LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO = new LoanAndCreditCardDetailDTO();
 		Experian experian = experianDao.getByMerchantId(merchant.getId());
 

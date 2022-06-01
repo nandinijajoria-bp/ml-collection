@@ -4,10 +4,10 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.util.LoanUtil;
@@ -1089,7 +1089,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     }
 
 
-    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, Merchant merchant){
+    public LoanAndCreditCardDetailDTO getLoanAndCreditDetail(JsonNode beruaeResponse, BasicDetailsDto merchant){
         try{
             boolean responseCheck = Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES)) && Objects.nonNull(beruaeResponse.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES).get(CrifConstants.RESPONSE));
 

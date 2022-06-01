@@ -1,18 +1,12 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
-import com.bharatpe.lending.dto.IneligibleRequestDTO;
-import com.bharatpe.lending.dto.IneligibleResponseDTO;
-import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.service.IneligibleDetailsService;
 import com.bharatpe.lending.service.NotifyEligibleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -42,7 +36,7 @@ public class IneligibleController {
 //    }
 
     @RequestMapping(value="/notifyEligible", method = RequestMethod.GET, produces="application/json")
-    public Object notifyEligible(@RequestAttribute Merchant merchant, HttpServletResponse response, @RequestParam String type) {
+    public Object notifyEligible(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response, @RequestParam String type) {
 
         Object resp = notifyEligibleService.notifyEligible(merchant, response, type);
 
@@ -51,7 +45,7 @@ public class IneligibleController {
     }
     
     @RequestMapping(value="/ineligibleDetails", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-    public IneligibleAPIResponseDto getIneligibleDetails(@RequestAttribute Merchant merchant) {
+    public IneligibleAPIResponseDto getIneligibleDetails(@RequestAttribute BasicDetailsDto merchant) {
     	return ineligibleDetailsService.getIneligibleDetails(merchant);
     }
 }

@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.CrifResponseDTO;
 import com.bharatpe.lending.service.CrifService;
 import org.slf4j.Logger;
@@ -20,13 +20,13 @@ public class CrifController {
     CrifService crifService;
 
     @GetMapping(value = "/crif", produces = "application/json")
-    public ResponseEntity<CrifResponseDTO> getCrif(@RequestAttribute Merchant merchant, @RequestParam String pancard) {
+    public ResponseEntity<CrifResponseDTO> getCrif(@RequestAttribute BasicDetailsDto merchant, @RequestParam String pancard) {
         logger.info("Get Crif request for merchant:{} and pancard:{}", merchant.getId(), pancard);
         return new ResponseEntity<>(crifService.getCrif(merchant, pancard), HttpStatus.OK);
     }
 
     @GetMapping(value = "/crif/question", produces = "application/json")
-    public ResponseEntity<CrifResponseDTO> crifAnswer(@RequestAttribute Merchant merchant, @RequestParam String answer) {
+    public ResponseEntity<CrifResponseDTO> crifAnswer(@RequestAttribute BasicDetailsDto merchant, @RequestParam String answer) {
         logger.info("Crif answer request for merchant:{} and answer:{}", merchant.getId(), answer);
         return new ResponseEntity<>(crifService.crifAnswer(merchant, answer), HttpStatus.OK);
     }

@@ -5,11 +5,11 @@ import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.dto.CrifResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;
@@ -59,7 +59,7 @@ public class CrifService {
     @Autowired
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
-    public CrifResponseDTO getCrif(Merchant merchant, String pancard) {
+    public CrifResponseDTO getCrif(BasicDetailsDto merchant, String pancard) {
         try {
             Experian experian = experianDao.getByMerchantId(merchant.getId());
             if (experian == null) {
@@ -89,7 +89,7 @@ public class CrifService {
         return new CrifResponseDTO(true, null);
     }
 
-    public CrifResponseDTO crifAnswer(Merchant merchant, String answer) {
+    public CrifResponseDTO crifAnswer(BasicDetailsDto merchant, String answer) {
         try {
             CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
             if (crifRequestResponse == null || crifRequestResponse.getOrderId() == null || crifRequestResponse.getReportId() == null) {
@@ -121,7 +121,7 @@ public class CrifService {
         return new CrifResponseDTO(true, null);
     }
 
-    private Map<String, String> getFirstLastName(Merchant merchant, String pancard) {
+    private Map<String, String> getFirstLastName(BasicDetailsDto merchant, String pancard) {
         MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         String firstName;

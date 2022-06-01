@@ -15,9 +15,7 @@ import java.util.List;
 @Repository
 public interface LendingApplicationDao extends CrudRepository<LendingApplication , Long> {
 	
-	LendingApplication findByIdAndMerchantAndStatus(Long id, Merchant merchant, String status);
-
-	LendingApplication findByIdAndMerchant(Long id, Merchant merchant);
+	LendingApplication findByIdAndMerchantIdAndStatus(Long id, Long merchantId, String status);
 
 	@Query(value = "select * from lending_application where merchant_id= :merchantId and loan_type= :loanType and status!= :status order by id desc limit 1", nativeQuery = true)
 	LendingApplication findByMerchantIdAndLoanTypeAndNotStatus(Long merchantId, String loanType, String status);
@@ -105,4 +103,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	@Query(value="select * from lending_application where merchant_id=:merchantId and created_at>=:createdAt and status != 'deleted' and (loan_disbursal_status not in ('REJECTED','DISBURSED') or loan_disbursal_status is null) order by id desc limit 1", nativeQuery = true)
 	LendingApplication getRepeatLoanApplication(Long merchantId, Date createdAt);
+
+	LendingApplication findTop1ByMerchantIdOrderByIdDesc(Long merchantId);
+
+	LendingApplication findTop1ByMerchantIdAndStatusOrderByIdDesc(Long merchant, String status);
 }

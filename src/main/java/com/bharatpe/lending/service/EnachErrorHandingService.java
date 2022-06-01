@@ -5,6 +5,7 @@ import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -111,7 +112,8 @@ public class EnachErrorHandingService {
         return cpbApplicable;
     }
 
-    public EnachErrorMessageDTO enachErrorResponse(BharatPeEnach bharatPeEnach, Merchant merchant, LendingApplication lendingApplication, Experian experian){
+    public EnachErrorMessageDTO enachErrorResponse(BharatPeEnach bharatPeEnach, Long merchantId,
+                                                   LendingApplication lendingApplication, Experian experian){
         Map<String, String> applicable = enachApplicableMap();
         EnachErrorMessageDTO initiateRetry = initiateRetryPage();
         EnachErrorMessageDTO initiateDebit = initiateDebitPage();
@@ -126,7 +128,7 @@ public class EnachErrorHandingService {
             initiateRetry.setSkipEnach(checkForCpv(lendingApplication, experian, false));
             return initiateRetry;
         }else if(Objects.nonNull(bharatPeEnach.getMessage()) && Objects.nonNull(applicable.get(bharatPeEnach.getMessage().toLowerCase())) && applicable.get(bharatPeEnach.getMessage().toLowerCase()).equals("initiatePopupOrDebit")){
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
             if(Objects.isNull(merchantBankDetail)) {
                 return initiateRetry;
             }
@@ -186,7 +188,7 @@ public class EnachErrorHandingService {
         return "success";
     }
 
-    public String sendForCpvOrRejectOrDebitScreenOnBankSupport(Merchant merchant, ENachSubmitRequestDTO response, LendingApplication lendingApplication){
+    public String sendForCpvOrRejectOrDebitScreenOnBankSupport(BasicDetailsDto merchant, ENachSubmitRequestDTO response, LendingApplication lendingApplication){
         logger.info("check for Application need to reject or start cpv or show debit screen, Application - {}", lendingApplication.getId());
 
         try{
