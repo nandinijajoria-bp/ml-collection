@@ -2,7 +2,7 @@ package com.bharatpe.lending.controller;
 
 
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SendOtpDTO;

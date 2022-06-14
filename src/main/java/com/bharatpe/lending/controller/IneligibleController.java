@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
 import com.bharatpe.lending.service.IneligibleDetailsService;
 import com.bharatpe.lending.service.NotifyEligibleService;

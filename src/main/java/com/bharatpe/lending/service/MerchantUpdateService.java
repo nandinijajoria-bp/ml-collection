@@ -5,7 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.PayloadDTO;
 
 import org.springframework.http.CacheControl;

@@ -14,6 +14,8 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +26,9 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.DocAuthentication;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
@@ -42,9 +41,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class VerifyApplicationKarzaStatusService {
 	private Logger logger = LoggerFactory.getLogger(VerifyApplicationKarzaStatusService.class);
-	
-	@Autowired
-	MerchantDao merchantDao;
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
@@ -66,7 +62,9 @@ public class VerifyApplicationKarzaStatusService {
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
-	
+	@Autowired
+	MerchantService merchantService;
+
 	public Map<String, String> verifyApplicationStatusUsingKarza(HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
@@ -100,7 +98,8 @@ public class VerifyApplicationKarzaStatusService {
 	private Boolean isValidMerchant(Long merchantId) {
 		Boolean response = false;
 		
-		Optional<Merchant> merchant = merchantDao.findById(merchantId);
+//		Optional<Merchant> merchant = merchantDao.findById(merchantId);
+		Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
 		if(merchant.isPresent()) {
 			response = true;
 		}

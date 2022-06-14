@@ -5,7 +5,7 @@ import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPrebookLoans;
 import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.PreBookResponseDTO;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;

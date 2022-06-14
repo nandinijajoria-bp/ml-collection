@@ -1,6 +1,5 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.entity.BpEnachSkip;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;

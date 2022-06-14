@@ -7,7 +7,7 @@ import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LoanSurveyDao;
 import com.bharatpe.lending.common.entity.LoanSurvey;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dto.LoanSurveyHeaderDto;

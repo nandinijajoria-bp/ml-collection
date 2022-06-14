@@ -5,9 +5,11 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.Constants.BPEnachConstant;
+import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.dto.PartnerRetailerDTO;
 import com.bharatpe.lending.common.entity.BpEnachSkip;
 import com.bharatpe.lending.common.enums.BPEnachEnum;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.BPEnachSkipDao;
@@ -22,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.text.SimpleDateFormat;
@@ -70,9 +73,9 @@ public class BPEnachService {
 
     @Autowired
     HmacCalculator hmacCalculator;
-    
+
     @Autowired
-    PartnerRetailersDao partnerRetailerDao;
+    PartnersApiHandler partnersApiHandler;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
@@ -133,11 +136,10 @@ public class BPEnachService {
         BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
         
         if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.DRF.name())) {
-        	Optional<PartnerRetailer> retailer = partnerRetailerDao.findByExternalRetailerId(bpEnach.getReferenceNumber());
+        	PartnerRetailerDTO retailer = partnersApiHandler.getPartnerRetailerByExternalId(bpEnach.getReferenceNumber());
         	
-        	if(retailer.isPresent())
-        		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.get().getToken());
-        	
+        	if(!ObjectUtils.isEmpty(retailer))
+        		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.getToken());
         	
         }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.LENDING.name())) {
 

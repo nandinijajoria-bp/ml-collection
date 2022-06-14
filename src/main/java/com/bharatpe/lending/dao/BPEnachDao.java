@@ -1,6 +1,5 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.entity.BpEnach;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

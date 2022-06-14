@@ -9,7 +9,7 @@ import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
 import com.bharatpe.lending.common.dao.LendingBulkNachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -147,9 +147,9 @@ public class ENachService {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
 
-            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
             if (lendingPennydrop == null) {
-                apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
             }
         }
 
@@ -230,9 +230,9 @@ public class ENachService {
         }
         lendingEnach.setSkip(true);
         bharatPeEnachDao.save(lendingEnach);
-        LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+        LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
         if (lendingPennydrop == null) {
-            apiGatewayService.updateApplicationPriority(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
         }
         return new ResponseDTO(true, null, null, null);
     }

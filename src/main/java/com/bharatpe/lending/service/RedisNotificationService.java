@@ -7,7 +7,7 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.handlers.SmsServiceHandler;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.entity.CreditAccount;
@@ -100,10 +99,10 @@ public class RedisNotificationService {
 			String sms = "Most convenient way to repay is by accepting payments through BharatPe QR. Your EDI will be deducted from the QR settlement amount at the end of the day.\nClick here: bharatpe.in/loanqr\n\n-BharatPe";
 //			smsServiceHandler.sendSMS(new ArrayList<String>(){{add(lendingApplication.getMerchant().getMobile());}}, sms, NotificationProvider.SMS.GUPSHUP);
 			InstantNotificationDto notificationDto = new InstantNotificationDto();
-			notificationDto.setMerchantId(lendingApplication.getMerchant().getId());
+			notificationDto.setMerchantId(lendingApplication.getMerchantId());
 			notificationDto.setMessageCategory("DISBURSAL_INSTRUCTION");
 			notificationDto.setMessage(sms);
-			delayedMessagePublisher.publish("lending_notify", lendingApplication.getMerchant().getId().toString(), notificationDto, "disbursal_instruction_" + lendingApplication.getMerchant().getId(), 15 * 60);
+			delayedMessagePublisher.publish("lending_notify", lendingApplication.getMerchantId().toString(), notificationDto, "disbursal_instruction_" + lendingApplication.getMerchantId(), 15 * 60);
 
 		}
 		catch(Exception e) {
@@ -151,7 +150,7 @@ public class RedisNotificationService {
 //		}
 //	}
 	
-	public void sendEnachNotificationForCreditLine(Merchant merchant, CreditApplication creditApplication) {
+	public void sendEnachNotificationForCreditLine(BasicDetailsDto merchant, CreditApplication creditApplication) {
 		if (true) return;
 		try {
 			logger.info("Sending enach notification got merchant {}",merchant);
@@ -193,7 +192,7 @@ public class RedisNotificationService {
 	public void sendPendingEnachNotification(BasicDetailsDto merchant, LendingApplication lendingApplication) {
 		try {
 			logger.info("Sending pending enach notification for merchant {}",merchant);
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), "ACTIVE");
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
 		    String message = "Register eNACH and get Rs." + lendingApplication.getLoanAmount() + " Loan in your " + merchantBankDetail.getBankName() + " A/c Now!";
 		    InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setApplicationId(lendingApplication.getId());
@@ -207,19 +206,19 @@ public class RedisNotificationService {
 		}
 	}
 
-	public void sendRepaymentNudge(Merchant merchant, Double processingFee) {
+	public void sendRepaymentNudge(Long merchantId, Double processingFee) {
 		try {
-			logger.info("Sending PF repayment nudge for merchant {}", merchant.getId());
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			logger.info("Sending PF repayment nudge for merchant {}", merchantId);
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 			String message = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nSpecial offer on repaying your BharatPe Loan through QR Transactions - Get Processing Fees Charges of Rs." + processingFee + " refunded. Start accepting payments through BharatPe QR and repay your loan easily.";
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
-			notificationDto.setMerchantId(merchant.getId());
+			notificationDto.setMerchantId(merchantId);
 			notificationDto.setMessageCategory("LENDING_PF_NUDGE");
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "pf_nudge_"+merchant.getId().toString(), 5*60);
+			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "pf_nudge_"+merchantId.toString(), 5*60);
 		}
 		catch(Exception e ) {
-			logger.error("Error occured while sending pf nudge for merchant {}", merchant.getId(), e);
+			logger.error("Error occured while sending pf nudge for merchant {}", merchantId, e);
 		}
 	}
 }

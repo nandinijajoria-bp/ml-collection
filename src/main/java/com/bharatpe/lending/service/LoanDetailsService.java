@@ -1,22 +1,23 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -26,12 +27,7 @@ import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.KycDocType;
-import com.bharatpe.lending.enums.KycStatus;
-import com.bharatpe.lending.enums.Reapply;
-import com.bharatpe.lending.handlers.MerchantHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.joda.time.DateTime;
@@ -45,7 +41,6 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -87,8 +82,8 @@ public class LoanDetailsService {
 	@Autowired
 	MerchantStoreDao merchantStoreDao;
 
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 
 	@Autowired
 	ExperianDao experianDao;
@@ -163,7 +158,7 @@ public class LoanDetailsService {
 	LoanPaymentOrderDao loanPaymentOrderDao;
 
 	@Autowired
-	PartnersConfigurationDao partnersConfigurationDao;
+	PartnersApiHandler partnersApiHandler;
 
 	@Autowired
 	LendingCache lendingCache;
@@ -178,7 +173,7 @@ public class LoanDetailsService {
 	NotificationUtil notificationUtil;
 
 	@Autowired
-	MerchantHandler merchantHandler;
+	MerchantSummaryHandler merchantSummaryHandler;
 
 	List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -198,7 +193,7 @@ public class LoanDetailsService {
 				return response;
 			}
 //			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchantBasicDetailsDto.getId());
-			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
 			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
 				throw new MerchantSummaryExceptionHandler(merchantBasicDetailsDto.getId().toString());
 			}
@@ -229,8 +224,8 @@ public class LoanDetailsService {
 				enachSuccess = null;
 			}
 			Experian experian = experianDao.getByMerchantId(merchantBasicDetailsDto.getId());
-			Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
-			List<MerchantStore> stores = merchantStoreDao.findByMerchant(merchant);
+//			Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
+//			List<MerchantStore> stores = merchantStoreDao.findByMerchantId(merchantBasicDetailsDto.getId());
 			Integer pincode = null;
 			LendingCities lendingCity = null;
 			if (requestDTO.getPayload().getPanCard() != null) {
@@ -280,7 +275,7 @@ public class LoanDetailsService {
 				pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
 			}
 
-			if(stores != null && !stores.isEmpty()) {
+			if("ORGANIZED".equalsIgnoreCase(merchantBasicDetailsDto.getCorrectMerchantType())) {
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
@@ -302,11 +297,8 @@ public class LoanDetailsService {
 			LendingPaymentSchedule activeLoan = getActiveLoan(lendingPaymentScheduleList);
 			boolean isActiveLoan = activeLoan != null;
 
-			BigInteger d2RMerchant = partnersConfigurationDao.getPartnerByMerchantId(merchantBasicDetailsDto.getId());
-			if (d2RMerchant == null) {
-				d2RMerchant = partnersConfigurationDao.getVendorByMerchantId(merchantBasicDetailsDto.getId());
-			}
-			if (d2RMerchant != null && !isActiveLoan) {
+			boolean d2RMerchant = partnersApiHandler.isD2RMerchant(merchantBasicDetailsDto.getId());
+			if (d2RMerchant && !isActiveLoan) {
 				logger.info("D2R merchant:{}, rejecting", merchantBasicDetailsDto.getId());
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
@@ -348,7 +340,7 @@ public class LoanDetailsService {
 			} else if(Objects.isNull(panCard)){
 				panCard = requestDTO.getPayload().getPanCard();
 			}
-			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchant);
+			List<LendingApplication> lendingApplicationList = lendingApplicationDao.fetchLatestOpenApplication(merchantBasicDetailsDto.getId());
 
 			LendingApplication lendingApplication = null;
 			if(lendingApplicationList != null && !lendingApplicationList.isEmpty()) {
@@ -359,7 +351,7 @@ public class LoanDetailsService {
 			try {
 				// 4 may to 13may target and 24 april to 3 may tpv (lockdown end date - 3may)
 				if (lendingApplication != null && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK") && "approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
-					LendingPrebookTarget lendingPrebookTarget = lendingPrebookTargetDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+					LendingPrebookTarget lendingPrebookTarget = lendingPrebookTargetDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 					if (lendingPrebookTarget != null && !lendingPrebookTarget.getTargetAchieved()) {
 						// check last 10 days transaction tpv from lockdown end date/approved date
 						DateTime lockdownEndDate = new DateTime(lendingPrebookTarget.getLockdownEndDate()).plusDays(1);
@@ -367,12 +359,12 @@ public class LoanDetailsService {
 						c.setTime(lendingPrebookTarget.getLockdownEndDate());
 						c.add(Calendar.DAY_OF_MONTH, -9);
 						Date startDate = c.getTime();
-						double tpv = ((BigDecimal) paymentTransactionNewDao.getAmount(startDate, lockdownEndDate.toDate(), lendingApplication.getMerchant().getId())).doubleValue();
+						double tpv = ((BigDecimal) paymentTransactionNewDao.getAmount(startDate, lockdownEndDate.toDate(), merchantBasicDetailsDto.getId())).doubleValue();
 						if (tpv < lendingPrebookTarget.getTarget()) {
 							// check last 10 days transaction tpv from today
 							c.setTime(new Date());
 							c.add(Calendar.DAY_OF_MONTH, -9);
-							double currentTpv = ((BigDecimal) paymentTransactionNewDao.getAmount(c.getTime(), new Date(), lendingApplication.getMerchant().getId())).doubleValue();
+							double currentTpv = ((BigDecimal) paymentTransactionNewDao.getAmount(c.getTime(), new Date(), merchantBasicDetailsDto.getId())).doubleValue();
 							if (currentTpv < lendingPrebookTarget.getTarget()) {
 								showTarget = true;
 								targetTpv = lendingPrebookTarget.getTarget() - currentTpv;
@@ -390,7 +382,7 @@ public class LoanDetailsService {
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess, showTarget, targetTpv);
 			List<LoanHistoryDTO> loanHistoryDTOs = orignalHistoryDTOs;
-			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchant, lendingApplication);
+			LoanApplicationDTO loanApplicationDTO = fetchLoanApplication(merchantBasicDetailsDto, lendingApplication);
 			String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
 			if(lendingApplication != null) {
 				BharatPeEnach enachSkipped = bharatPeEnachDao.isSkipped(merchantBasicDetailsDto.getId(), lendingApplication.getId());
@@ -815,33 +807,33 @@ public class LoanDetailsService {
 	}
 
 
-	private LendingBharatswipeOffers getSwipeLoanOffer(Merchant merchant) {
-		LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
-		if(lendingBharatswipeOffers!=null && !isOfferExpired(lendingBharatswipeOffers) && lendingBharatswipeOffers.getTpv()!=null && lendingBharatswipeOffers.getTpv()>0) {
-			return lendingBharatswipeOffers;
-		}
-		return null;
-	}
+//	private LendingBharatswipeOffers getSwipeLoanOffer(Merchant merchant) {
+//		LendingBharatswipeOffers lendingBharatswipeOffers=lendingBharatswipeOffersDao.findByMerchantId(merchant.getId());
+//		if(lendingBharatswipeOffers!=null && !isOfferExpired(lendingBharatswipeOffers) && lendingBharatswipeOffers.getTpv()!=null && lendingBharatswipeOffers.getTpv()>0) {
+//			return lendingBharatswipeOffers;
+//		}
+//		return null;
+//	}
 
-	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian,LendingBharatswipeOffers lendingBharatswipeOffers) {
-		logger.info("Fetching loan details for bharat swipe for merchant {}",merchant);
-		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
-		if(!lendingCategoriesList.isEmpty()) {
-			if(lendingBharatswipeOffers!=null) {
-				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
-				eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
-				for (LendingCategories lendingCategories : lendingCategoriesList) {
-					eligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingBharatswipeOffers.getLoanAmount(), experian.getColor(), "2", "BHARAT_SWIPE", false, false));
-				}
-				if (!eligibilityDTOs.isEmpty()) {
-					eligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-					experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOs.get(0).getAmount().doubleValue(), eligibilityDTOs.get(0).getPrincipleEdiTenure().toString(), "BHARAT_SWIPE");
-				}
-				return eligibilityDTOs;
-			}
-		}
-		return new ArrayList<>();
-	}
+//	private List<LoanEligibilityDTO> fetchSwipeOffer(Merchant merchant,Experian experian,LendingBharatswipeOffers lendingBharatswipeOffers) {
+//		logger.info("Fetching loan details for bharat swipe for merchant {}",merchant);
+//		List<LendingCategories> lendingCategoriesList=lendingCategoryDao.findByBureau("BHARAT_SWIPE");
+//		if(!lendingCategoriesList.isEmpty()) {
+//			if(lendingBharatswipeOffers!=null) {
+//				List<LoanEligibilityDTO> eligibilityDTOs = new ArrayList<>();
+//				eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
+//				for (LendingCategories lendingCategories : lendingCategoriesList) {
+//					eligibilityDTOs.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingBharatswipeOffers.getLoanAmount(), experian.getColor(), "2", "BHARAT_SWIPE", false, false));
+//				}
+//				if (!eligibilityDTOs.isEmpty()) {
+//					eligibilityDTOs.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+//					experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOs.get(0).getAmount().doubleValue(), eligibilityDTOs.get(0).getPrincipleEdiTenure().toString(), "BHARAT_SWIPE");
+//				}
+//				return eligibilityDTOs;
+//			}
+//		}
+//		return new ArrayList<>();
+//	}
 
 	public boolean isRegularLoanInEligible(Experian experian, Double amount){
 		if (experian != null && experian.getPincode() != null && Objects.nonNull(amount) ) {
@@ -855,29 +847,29 @@ public class LoanDetailsService {
 	}
 
 
-	public boolean repeatLoanGlobalCheck(Merchant merchant){
-
-		try {
-			logger.info("Checking repeat loan closure less than 65% for merchant:{}", merchant.getId());
-			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
-			if(Objects.nonNull(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
-				Integer ledger = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
-				if (Objects.nonNull(ledger)) {
-
-					int totalEdis = lendingPaymentSchedule.getEdiCount();
-					int onTimePaymentPercentage = 0;
-					if (totalEdis != 0) {
-						onTimePaymentPercentage = (ledger * 100) / totalEdis;
-
-						return onTimePaymentPercentage <= 65;
-					}
-				}
-			}
-		}catch (Exception ex){
-			logger.error("Error Occurred while checking repeatLoanGlobalCheck for merchantId: {}, Er :{}", merchant.getId(), ex);
-		}
-		return false;
-	}
+//	public boolean repeatLoanGlobalCheck(Merchant merchant){
+//
+//		try {
+//			logger.info("Checking repeat loan closure less than 65% for merchant:{}", merchant.getId());
+//			LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+//			if(Objects.nonNull(lendingPaymentSchedule) && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
+//				Integer ledger = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
+//				if (Objects.nonNull(ledger)) {
+//
+//					int totalEdis = lendingPaymentSchedule.getEdiCount();
+//					int onTimePaymentPercentage = 0;
+//					if (totalEdis != 0) {
+//						onTimePaymentPercentage = (ledger * 100) / totalEdis;
+//
+//						return onTimePaymentPercentage <= 65;
+//					}
+//				}
+//			}
+//		}catch (Exception ex){
+//			logger.error("Error Occurred while checking repeatLoanGlobalCheck for merchantId: {}, Er :{}", merchant.getId(), ex);
+//		}
+//		return false;
+//	}
 
 	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
 		if(offer!=null && offer.getExpiryDate()!=null) {
@@ -1033,7 +1025,7 @@ public class LoanDetailsService {
 		return loanHistoryList;
 	}
 
-	private LoanApplicationDTO fetchLoanApplication(Merchant merchant, LendingApplication application) {
+	private LoanApplicationDTO fetchLoanApplication(BasicDetailsDto merchant, LendingApplication application) {
 		LoanApplicationDTO loanApplicationDTO = new LoanApplicationDTO();
 		if(application != null) {
 			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(application.getCategory());
@@ -1069,9 +1061,9 @@ public class LoanDetailsService {
 		return null;
 	}
 
-	private List<DocumentDTO> fetchDocuments(LendingApplication lendingApplication, Merchant merchant) {
+	private List<DocumentDTO> fetchDocuments(LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		List<DocumentDTO> documents = new ArrayList<>();
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
 		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
 			DocumentDTO document = new DocumentDTO();
 			document.setId(documentsIdProof.getId());
@@ -1139,7 +1131,7 @@ public class LoanDetailsService {
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 
 //			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchantBasicDetails.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetails.getId());
 			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
 				throw new MerchantSummaryExceptionHandler(merchantBasicDetails.getId().toString());
 			}
@@ -1220,9 +1212,9 @@ public class LoanDetailsService {
 			String identifier;
 
 			// todo : remove and use apis to fetch info
-			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
-			String deeplink = notificationUtil.getDeeplink(merchant, "CREDIT_SCORE");
+			String deeplink = notificationUtil.getDeeplink(merchantBasicDetails.getSettlementType(), "CREDIT_SCORE");
 			Map<String, Object> templateParams = new HashMap<>();
 			templateParams.put("pan_name", creditScoreResponseDto.getPanName());
 			NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
@@ -1317,12 +1309,12 @@ public class LoanDetailsService {
 		return new ResponseDTO(Boolean.FALSE, "Something went wrong!");
 	}
 
-	private void sendSms(String messageForSms, Merchant merchant) {
-		List<String> mobiles=new LinkedList<>();
-
-			mobiles.add(merchant.getMobile());
-			smsServiceHandler.sendSMS(mobiles, messageForSms, NotificationProvider.SMS.GUPSHUP);
-	}
+//	private void sendSms(String messageForSms, Merchant merchant) {
+//		List<String> mobiles=new LinkedList<>();
+//
+//			mobiles.add(merchant.getMobile());
+//			smsServiceHandler.sendSMS(mobiles, messageForSms, NotificationProvider.SMS.GUPSHUP);
+//	}
 
 	public CommonResponse getRepaymentHistory(BasicDetailsDto merchant, String lendingPaymentScheduleId) {
 
@@ -1350,26 +1342,26 @@ public class LoanDetailsService {
 		return new CommonResponse(false, "SomeThing Went Wrong", null);
 	}
 
-	public void notifyNTBSMS(Merchant merchant) {
-		try {
-			String redisKey = "SMS_SYNC_" + merchant.getId();
-			Object smsSync = lendingCache.get(redisKey);
-			if (smsSync != null) {
-				logger.info("already pushed sms sync for merchant:{}", merchant.getId());
-				return;
-			}
-			logger.info("Checking NTB SMS after 5 min for merchant:{}", merchant.getId());
-			String hashKey = merchant.getId() + "_" + UUID.randomUUID().toString();
-			delayedMessagePublisher.publish("notify_ntb_sms", merchant.getId().toString(), merchant.getId(), hashKey, 5*60);
-			AddCacheDto addCacheDto = new AddCacheDto();
-			addCacheDto.setKey(redisKey);
-			addCacheDto.setTtl(1);
-			addCacheDto.setValue(true);
-			lendingCache.add(addCacheDto);
-		} catch (Exception e) {
-			logger.error("Exception in NTB SMS Notify for merchant:{}", merchant.getId(), e);
-		}
-	}
+//	public void notifyNTBSMS(Merchant merchant) {
+//		try {
+//			String redisKey = "SMS_SYNC_" + merchant.getId();
+//			Object smsSync = lendingCache.get(redisKey);
+//			if (smsSync != null) {
+//				logger.info("already pushed sms sync for merchant:{}", merchant.getId());
+//				return;
+//			}
+//			logger.info("Checking NTB SMS after 5 min for merchant:{}", merchant.getId());
+//			String hashKey = merchant.getId() + "_" + UUID.randomUUID().toString();
+//			delayedMessagePublisher.publish("notify_ntb_sms", merchant.getId().toString(), merchant.getId(), hashKey, 5*60);
+//			AddCacheDto addCacheDto = new AddCacheDto();
+//			addCacheDto.setKey(redisKey);
+//			addCacheDto.setTtl(1);
+//			addCacheDto.setValue(true);
+//			lendingCache.add(addCacheDto);
+//		} catch (Exception e) {
+//			logger.error("Exception in NTB SMS Notify for merchant:{}", merchant.getId(), e);
+//		}
+//	}
 
 	public SettlementV2ResponseDTO getSettlementsV2(BasicDetailsDto merchant, Long loanId) {
 		LendingPaymentSchedule lendingPaymentSchedule;

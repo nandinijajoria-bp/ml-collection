@@ -1,6 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.BPEnachRawRequestDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;

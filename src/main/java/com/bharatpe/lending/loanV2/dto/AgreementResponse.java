@@ -20,6 +20,7 @@ public class AgreementResponse {
     private Repayment repayment;
     private BankAccountDetails accountDetails;
     private boolean bpClubMember;
+    private boolean clubV2;
 
     @Data
     @ToString

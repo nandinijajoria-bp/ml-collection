@@ -2,7 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.util.List;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

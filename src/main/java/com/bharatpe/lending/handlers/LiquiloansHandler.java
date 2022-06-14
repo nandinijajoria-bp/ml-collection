@@ -124,7 +124,7 @@ public class LiquiloansHandler {
 			logger.info("Request to liquiloans : {}", requestString);
 			
 			LiquiloansDirectDisbursalRawResponse bean = new LiquiloansDirectDisbursalRawResponse();
-			bean.setMerchantId(lendingPaymentSchedule.getMerchant().getId());
+			bean.setMerchantId(lendingPaymentSchedule.getMerchantId());
 			if(lendingPaymentSchedule.getMerchantStoreId() != null) {
 				bean.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
 			}

@@ -6,7 +6,7 @@ import com.bharatpe.common.dao.CpvDocumentsIdProofDao;
 import com.bharatpe.common.dao.LendingCpvDetailsDao;
 import com.bharatpe.common.entities.CpvDocumentsIdProof;
 import com.bharatpe.common.entities.LendingCpvDetails;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ImageDTO;
 import com.bharatpe.lending.dto.MerchantDetailsDTO;
 import com.bharatpe.lending.dto.UploadImageDTO;

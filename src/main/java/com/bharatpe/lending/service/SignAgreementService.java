@@ -4,17 +4,18 @@ package com.bharatpe.lending.service;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.dto.MerchantResponseDTO;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
@@ -22,8 +23,6 @@ import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.handlers.MerchantHandler;
-import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -106,11 +105,11 @@ public class SignAgreementService {
 	@Autowired
 	LendingCache lendingCache;
 
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 
 	@Autowired
-	MerchantHandler merchantHandler;
+	MerchantSummaryHandler merchantSummaryHandler;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -135,14 +134,13 @@ public class SignAgreementService {
 			return finalResponse;
 		}
 
-		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-
+//		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 		Long applicationId =  requestDTO.getPayload().getApplicationId();
 
 		if(applicationId != null && applicationId != 0) {
-			finalResponse = verifyApplicationAndSendOTP(merchant, applicationId, requestDTO.getPayload().getAppSign());
+			finalResponse = verifyApplicationAndSendOTP(merchantBasicDetails, applicationId, requestDTO.getPayload().getAppSign());
 		} else {
-			finalResponse = createNewApplicationAndSendOTP(requestDTO, merchant);
+			finalResponse = createNewApplicationAndSendOTP(requestDTO, merchantBasicDetails);
 		}
 
 		return finalResponse;
@@ -150,7 +148,7 @@ public class SignAgreementService {
 
 
 	
-	private Map<String, Object> verifyApplicationAndSendOTP(Merchant merchant, Long applicationId, String appSign) {
+	private Map<String, Object> verifyApplicationAndSendOTP(BasicDetailsDto merchant, Long applicationId, String appSign) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success", false);
 		response.put("otp_flow", false);
@@ -165,14 +163,14 @@ public class SignAgreementService {
 			}
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
-			KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchant().getId());
+			KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchantId());
 			logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
 			if (kycStatus.getKycStatus().equals(KycStatus.NEW) || kycStatus.getKycStatus().equals(KycStatus.DRAFT)) {
 				logger.info("kyc not done for application:{}", applicationId);
 				return response;
 			}
 		} else {
-			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant, lendingApplication);
+			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
 			List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 			if(documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
 				logger.info("documents not found for application:{}", applicationId);
@@ -186,7 +184,7 @@ public class SignAgreementService {
 	}
 
 	
-	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, Merchant merchant) {
+	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, BasicDetailsDto merchant) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success", false);
 		response.put("otp_flow", false);
@@ -206,7 +204,7 @@ public class SignAgreementService {
 		}
 		
 //		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
-		MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 		if(merchantResponseDTO == null) {
 			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
 			return response;
@@ -282,7 +280,7 @@ public class SignAgreementService {
 		newApplication.setProcessingFee((double)processingFee);
         newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
         newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
-        newApplication.setMerchant(merchant);
+        newApplication.setMerchantId(merchant.getId());
         newApplication.setShopNumber(prevApplication.getShopNumber());
         newApplication.setStreetAddress(prevApplication.getStreetAddress());
         newApplication.setArea(prevApplication.getArea());
@@ -338,15 +336,15 @@ public class SignAgreementService {
 			loanUtil.createApplicationSnapshot(newApplication);
 		}
         LendingApplication finalNewApplication = newApplication;
-        executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchant().getId(), "DEBIT", finalNewApplication.getLoanAmount()));
+        executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
         executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
 		return response;
 	}
 	
-	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, Merchant merchant, MetaDTO meta) {
-		DocKycDetails panDoc = docKycDetailsDao.fetchLatestPanCardDetails(prevApplication.getMerchant().getId(),prevApplication.getId());
-		DocKycDetails poaDoc = docKycDetailsDao.fetchLatestAddressDetails(prevApplication.getMerchant().getId(),prevApplication.getId());
-		DocumentsIdProof selfie = documentsIdProofDao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant,prevApplication,"selfie");
+	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, BasicDetailsDto merchant, MetaDTO meta) {
+		DocKycDetails panDoc = docKycDetailsDao.fetchLatestPanCardDetails(prevApplication.getMerchantId(),prevApplication.getId());
+		DocKycDetails poaDoc = docKycDetailsDao.fetchLatestAddressDetails(prevApplication.getMerchantId(),prevApplication.getId());
+		DocumentsIdProof selfie = documentsIdProofDao.findTop1ByMerchantIdAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant.getId(),prevApplication,"selfie");
 
 		if(panDoc == null){
 			panDoc = docKycDetailsDao.fetchPanMerchantId(merchant.getId());
@@ -358,7 +356,7 @@ public class SignAgreementService {
 
 		if(panDoc != null){
 			DocumentsIdProof panDocument = new DocumentsIdProof();
-			panDocument.setMerchant(merchant);
+			panDocument.setMerchantId(merchant.getId());
 			panDocument.setProofType(panDoc.getDocumentsIdProof().getProofType());
 			panDocument.setProofFrontSide(panDoc.getDocumentsIdProof().getProofFrontSide());
 			panDocument.setProofBackSide(panDoc.getDocumentsIdProof().getProofBackSide());
@@ -384,7 +382,7 @@ public class SignAgreementService {
 
 		if(poaDoc != null){
 			DocumentsIdProof poaDocument = new DocumentsIdProof();
-			poaDocument.setMerchant(merchant);
+			poaDocument.setMerchantId(merchant.getId());
 			poaDocument.setProofType(poaDoc.getDocumentsIdProof().getProofType());
 			poaDocument.setProofFrontSide(poaDoc.getDocumentsIdProof().getProofFrontSide());
 			poaDocument.setProofBackSide(poaDoc.getDocumentsIdProof().getProofBackSide());
@@ -415,7 +413,7 @@ public class SignAgreementService {
 		if(selfie != null){
 			DocumentsIdProof selfieDoc = new DocumentsIdProof();
 			selfieDoc.setLendingApplication(newApplication);
-			selfieDoc.setMerchant(merchant);
+			selfieDoc.setMerchantId(merchant.getId());
 			selfieDoc.setProofType(selfie.getProofType());
 			selfieDoc.setProofFrontSide(selfie.getProofFrontSide());
 			selfieDoc.setProofBackSide(selfie.getProofBackSide());
@@ -443,7 +441,7 @@ public class SignAgreementService {
 			if(ObjectUtils.isEmpty(replicateGst)) {
 				replicateGst = new LendingGstDetail();
 				replicateGst.setApplicationId(newApplication.getId());
-				replicateGst.setMerchantId(newApplication.getMerchant().getId());
+				replicateGst.setMerchantId(newApplication.getMerchantId());
 			}
 			replicateGst.setGst(lendingGstDetail.getGst());
 			replicateGst.setBusinessCategory(lendingGstDetail.getBusinessCategory());
@@ -455,12 +453,12 @@ public class SignAgreementService {
 			lendingGstDao.save(replicateGst);
 		}
 
-		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchant().getId(),prevApplication.getId());
+		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(),prevApplication.getId());
 		if(lendingShopDocuments.size() > 0 && !lendingShopDocuments.isEmpty()){
 			for(LendingShopDocuments shopDocuments : lendingShopDocuments){
 				LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
 				replicateShopDocument.setApplicationId(newApplication.getId());
-				replicateShopDocument.setMerchantId(newApplication.getMerchant().getId());
+				replicateShopDocument.setMerchantId(newApplication.getMerchantId());
 				replicateShopDocument.setIp(shopDocuments.getIp());
 				replicateShopDocument.setProofType(shopDocuments.getProofType());
 				replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
@@ -477,7 +475,7 @@ public class SignAgreementService {
 	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {
 		DocKycDetails docKycDetails = new DocKycDetails();
 		
-		docKycDetails.setMerchant(oldDocKycDetails.getMerchant());
+		docKycDetails.setMerchantId(oldDocKycDetails.getMerchantId());
 		docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
 		docKycDetails.setDocumentsIdProof(documentsIdProof);
 		docKycDetails.setDocType(documentsIdProof.getProofType());
@@ -499,7 +497,7 @@ public class SignAgreementService {
 		docKycDetails.setModule(oldDocKycDetails.getModule());
 		docKycDetails.setMode(oldDocKycDetails.getMode());
 
-		LendingEkyc lendingEkyc = lendingEkycDao.fetchEkycByMerchantId(oldDocKycDetails.getMerchant().getId());
+		LendingEkyc lendingEkyc = lendingEkycDao.fetchEkycByMerchantId(oldDocKycDetails.getMerchantId());
 		if("eaadhar".equalsIgnoreCase(documentsIdProof.getProofType()) && Objects.nonNull(lendingEkyc)) {
 			docKycDetails.setDocNo(lendingEkyc.getMaskedAadhar());
 		}
@@ -515,7 +513,7 @@ public class SignAgreementService {
 		DocAuthentication docAuthentication = new DocAuthentication();
 		docAuthentication.setDocKycDetails(docKycDetails);
 		docAuthentication.setDocumentsIdProof(documentsIdProof);
-		docAuthentication.setMerchant(oldDocAuthentication.getMerchant());
+		docAuthentication.setMerchantId(oldDocAuthentication.getMerchantId());
 		docAuthentication.setDocType(oldDocAuthentication.getDocType());
 		docAuthentication.setStatus(oldDocAuthentication.getStatus());
 		docAuthentication.setDuplicate(oldDocAuthentication.getDuplicate());
@@ -554,30 +552,30 @@ public class SignAgreementService {
 		return finalResponse;
 	}
 
-	private Map<String, Object> sendOTP(Merchant merchant, String appSign) {
-		Map<String, Object> finalResponse = new LinkedHashMap<>();
-
-		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
-			finalResponse.put("success", Boolean.TRUE);
-			finalResponse.put("otp_flow", true);
-			finalResponse.put("uuid", UUID.randomUUID().toString());
-			return finalResponse;
-		}
-
-		finalResponse.put("success",false);
-		finalResponse.put("otp_flow",false);
-
-		if(merchant.getMobile().length() == 12) {
-			String hash = appSign != null ? appSign : "";
-			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
-//			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
-			Map<String, Object> response = bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
-			if(response != null) {
-				finalResponse.put("success", response.get("success"));
-				finalResponse.put("otp_flow",true);
-				finalResponse.put("uuid",response.get("uuid"));
-			}
-		}
-		return finalResponse;
-	}
+//	private Map<String, Object> sendOTP(Merchant merchant, String appSign) {
+//		Map<String, Object> finalResponse = new LinkedHashMap<>();
+//
+//		if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
+//			finalResponse.put("success", Boolean.TRUE);
+//			finalResponse.put("otp_flow", true);
+//			finalResponse.put("uuid", UUID.randomUUID().toString());
+//			return finalResponse;
+//		}
+//
+//		finalResponse.put("success",false);
+//		finalResponse.put("otp_flow",false);
+//
+//		if(merchant.getMobile().length() == 12) {
+//			String hash = appSign != null ? appSign : "";
+//			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
+////			String message = "<#> BharatPe: %code% is your OTP to register yourself on BharatPe Merchant App. BharatPe.com";
+//			Map<String, Object> response = bharatPeOtpHandler.sendOtp(merchant.getMobile(), message);
+//			if(response != null) {
+//				finalResponse.put("success", response.get("success"));
+//				finalResponse.put("otp_flow",true);
+//				finalResponse.put("uuid",response.get("uuid"));
+//			}
+//		}
+//		return finalResponse;
+//	}
 }

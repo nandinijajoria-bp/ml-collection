@@ -4,16 +4,19 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.handlers.MerchantHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -122,11 +125,14 @@ public class LoanUtil {
 			EligibleLoanDao eligibleLoanDao;
 
 	@Autowired
-	MerchantHandler merchantHandler;
+	MerchantSummaryHandler merchantSummaryHandler;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+	@Autowired
+	MerchantService merchantService;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -444,44 +450,49 @@ public class LoanUtil {
 		}
 	}
 
-	public void publishSmsAnalysisData(Merchant merchant) {
-		if (merchant == null) {
-			return;
-		}
-		try {
-			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
-			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
-			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>(){{add(merchantSmsAnalysis);}});
-		} catch (Exception e) {
-			logger.error("Exception in mongo publish merchant_sms_analysis for merchant:{}", merchant.getId(), e);
-		}
-	}
+//	public void publishSmsAnalysisData(Merchant merchant) {
+//		if (merchant == null) {
+//			return;
+//		}
+//		try {
+//			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
+//			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
+//			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>(){{add(merchantSmsAnalysis);}});
+//		} catch (Exception e) {
+//			logger.error("Exception in mongo publish merchant_sms_analysis for merchant:{}", merchant.getId(), e);
+//		}
+//	}
 
-	public boolean checkPennyDrop(Merchant merchant) {
+	public boolean checkPennyDrop(Long merchantId) {
 		try {
-			logger.info("Checking penny drop for merchant:{}", merchant.getId());
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			logger.info("Checking penny drop for merchant:{}", merchantId);
+			Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+			if (ObjectUtils.isEmpty(basicDetailsDto)) {
+				return false;
+			}
+			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 //			Integer settlement = settlementDao.getCountSettlementLast15Days(merchant.getId(), merchantBankDetail.getAccountNumber());
 //			if (settlement > 0) {
 //				logger.info("Penny drop success for merchant:{}", merchant.getId());
 //				return true;
 //			}
+
 			if (ObjectUtils.isEmpty(merchantBankDetail)) {
 				return false;
 			}
-			LendingPennydrop successPennyDrop = lendingPennydropDao.isSuccess(merchant.getId(), merchantBankDetail.getAccountNumber());
+			LendingPennydrop successPennyDrop = lendingPennydropDao.isSuccess(merchantId, merchantBankDetail.getAccountNumber());
 			if (successPennyDrop != null) {
-				logger.info("Penny drop success for merchant:{}", merchant.getId());
+				logger.info("Penny drop success for merchant:{}", merchantId);
 				return true;
 			}
-			LendingPennydrop failedPennyDrop = lendingPennydropDao.isFailed(merchant.getId(), merchantBankDetail.getAccountNumber());
+			LendingPennydrop failedPennyDrop = lendingPennydropDao.isFailed(merchantId, merchantBankDetail.getAccountNumber());
 			if (failedPennyDrop != null) {
-				logger.info("Penny drop failed for merchant:{}", merchant.getId());
+				logger.info("Penny drop failed for merchant:{}", merchantId);
 				return false;
 			}
-			return apiGatewayService.checkPennyDrop(merchantBankDetail, merchant);
+			return apiGatewayService.checkPennyDrop(merchantBankDetail, merchantId, basicDetailsDto.get().getMobile());
 		} catch (Exception e) {
-			logger.error("Exception in penny drop for merchant:{}", merchant.getId(), e);
+			logger.error("Exception in penny drop for merchant:{}", merchantId, e);
 		}
 		return false;
 	}
@@ -496,10 +507,10 @@ public class LoanUtil {
 		return activeLoan != null;
 	}
 
-	public boolean isEnachDone(Merchant merchant) {
+	public boolean isEnachDone(Long merchantId) {
 		boolean enachDone = false;
-		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchantId);
+		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
 		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachDone = true;
 		}
@@ -520,8 +531,8 @@ public class LoanUtil {
 
 	public void createApplicationSnapshot(LendingApplication lendingApplication) {
 		logger.info("Creating snapshots for application:{}", lendingApplication.getId());
-		createMerchantSummarySnapshot(lendingApplication.getMerchant(), lendingApplication);
-		createExperianSnapshot(lendingApplication.getMerchant(), lendingApplication);
+		createMerchantSummarySnapshot(lendingApplication);
+		createExperianSnapshot(lendingApplication);
 		createBBSSnapshot(lendingApplication);
 		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
@@ -529,7 +540,7 @@ public class LoanUtil {
 
     private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
         try {
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchant().getId());
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
             if (lendingRiskVariables != null) {
                 LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = LendingRiskVariablesSnapshot.createObject(lendingRiskVariables);
                 lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
@@ -542,7 +553,7 @@ public class LoanUtil {
 
     public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
 		try {
-			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchant().getId());
+			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchantId());
 			if (merchantScore != null) {
 				MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
 				merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
@@ -555,7 +566,7 @@ public class LoanUtil {
 
 	public void createBBSSnapshot(LendingApplication lendingApplication) {
 		try {
-			LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchant().getId());
+			LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchantId());
 			if (lendingBBS != null) {
 				LendingBBSSnapshot lendingBBSSnapshot = LendingBBSSnapshot.createObject(lendingBBS);
 				lendingBBSSnapshot.setApplicationId(lendingApplication.getId());
@@ -566,9 +577,9 @@ public class LoanUtil {
 		}
 	}
 
-	private void createExperianSnapshot(Merchant merchant,LendingApplication lendingApplication) {
+	private void createExperianSnapshot(LendingApplication lendingApplication) {
 		try {
-			Experian experian = experianDao.getByMerchantId(merchant.getId());
+			Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchantId());
 			if (experian != null) {
 				ExperianSnapshot experianSnapshot = new ExperianSnapshot();
 				experianSnapshot.setMerchantId(experian.getMerchantId());
@@ -599,17 +610,17 @@ public class LoanUtil {
 		}
 	}
 
-	public void createMerchantSummarySnapshot(Merchant merchant, LendingApplication application) {
+	public void createMerchantSummarySnapshot(LendingApplication application) {
 		try {
 //			MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
-			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(application.getMerchantId());
 			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
-				throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+				throw new MerchantSummaryExceptionHandler(application.getMerchantId().toString());
 			}
 			if (merchantResponseDTO != null) {
 				MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
 				snapshot.setApplication(application.getId());
-				snapshot.setMerchant(merchant);
+				snapshot.setMerchantId(application.getMerchantId());
 				snapshot.setLastTransactionDate(merchantResponseDTO.getLastTransactionDate());
 				snapshot.setTotalTxnCount(merchantResponseDTO.getDailyTxnCount());
 				snapshot.setTotalTxnAmount(merchantResponseDTO.getDailyTxnAmount());
@@ -691,7 +702,7 @@ public class LoanUtil {
 		return null;
 	}
 
-	public boolean isDIY(Merchant merchant) {
+	public boolean isDIY(BasicDetailsDto merchant) {
 		return (merchant.getMerchantType() != null && "DIY".equals(merchant.getMerchantType())) || merchant.getReferalCode() == null;
 	}
 
@@ -713,14 +724,14 @@ public class LoanUtil {
 	}
 
 	public boolean cpvRequired(LendingApplication lendingApplication) {
-		Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
+		Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchantId());
 		boolean enachSuccess = "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && "ENACH".equalsIgnoreCase(lendingApplication.getNachType());
 		if(enachSuccess) {
 			if ("BHARAT_SWIPE".equals(lendingApplication.getLoanType()) || "OGL".equals(lendingApplication.getLoanType())) {
 				return false;
 			}
 			boolean isNTC = isNTC(experian);
-			if(!isRepeatLoan(lendingApplication.getMerchant().getId())) {
+			if(!isRepeatLoan(lendingApplication.getMerchantId())) {
 				if(isNTC && lendingApplication.getLoanAmount() <= 50000D) {
 					return false;
 				} else if(!isNTC && lendingApplication.getLoanAmount() <= 100000D) {//etc
@@ -759,7 +770,7 @@ public class LoanUtil {
 	    if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
 	        return 0;
         }
-        LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
+        LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
 	}
@@ -767,7 +778,7 @@ public class LoanUtil {
 	public void publishApplicationEvent(LendingApplication lendingApplication) {
 	    try {
             Map<String,Object> request = new HashMap<String, Object>(){{
-                put("merchantId", lendingApplication.getMerchant().getId());
+                put("merchantId", lendingApplication.getMerchantId());
                 put("applicationId", lendingApplication.getId());
                 put("status", lendingApplication.getStatus());
                 put("disbursalStatus", lendingApplication.getLoanDisbursalStatus());
@@ -786,7 +797,7 @@ public class LoanUtil {
     public void publishDSData(LendingApplication lendingApplication) {
         try {
             logger.info("Publishing DS Data for application:{}", lendingApplication.getId());
-            List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
             String imageFrontLat = null;
             String imageFrontLng = null;
             String proof_front_side = null;
@@ -802,7 +813,7 @@ public class LoanUtil {
                 }
             }
             Map<String, Object> request = new HashMap<>();
-            request.put("merchantId", lendingApplication.getMerchant().getId());
+            request.put("merchantId", lendingApplication.getMerchantId());
             request.put("applicationId", lendingApplication.getId());
             request.put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
             request.put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
@@ -854,6 +865,7 @@ public class LoanUtil {
 				.ediCount(tenureDetail.getEdiCount())
 				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
 				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
 				.build();
 		eligibleLoanDao.saveAndFlush(eligibleLoan);
 		return null;

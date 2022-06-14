@@ -14,6 +14,9 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -158,9 +161,17 @@ public class SupportService {
 
     ExecutorService executorService = Executors.newFixedThreadPool(5);
 
+    @Autowired
+    MerchantService merchantService;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
 
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            return responseDTO;
+        }
+
         try {
             SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
             supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
@@ -310,14 +321,14 @@ public class SupportService {
             loanArrangerFee.setFeeAmount(lendingApplication.getProcessingFee());
             supportLoanResponseDTO.setLoanArrangerFee(loanArrangerFee);
             supportLoanResponseDTO.setLoanApplication(loanApplication);
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(), Status.GeneralStatus.ACTIVE.name());
+            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), Status.GeneralStatus.ACTIVE.name());
             if (!ObjectUtils.isEmpty(merchantBankDetail)) {
                 logger.info("Merchant Bank Details not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setBeneficiaryName(merchantBankDetail.getBeneficiaryName());
                 String bankAccount = merchantBankDetail.getAccountNumber();
                 supportLoanResponseDTO.setBankAccount(new StringBuilder(bankAccount).replace(0, bankAccount.length() - 4, new String(new char[bankAccount.length() - 4]).replace("\0", "X")).toString());
             }
-            supportLoanResponseDTO.setMobile(lendingApplication.getMerchant().getMobile());
+            supportLoanResponseDTO.setMobile(basicDetailsDto.get().getMobile());
             supportLoanResponseDTO.setCity(lendingApplication.getCity());
             supportLoanResponseDTO.setBusinessName(lendingApplication.getBusinessName());
             supportLoanResponseDTO.seteNachDone(ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getNachStatus()) ? Boolean.TRUE : Boolean.FALSE);
@@ -549,13 +560,18 @@ public class SupportService {
             if (Objects.isNull(lendingApplication)) {
                 return;
             }
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                return;
+            }
+
             supportApiResponseDto.setEnachDone("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()));
             supportApiResponseDto.setApplied(Boolean.TRUE);
-            ApiResponse<ApplicationStatusResponseDTO> response = lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), lendingApplication.getMerchant(), false, null);
+            ApiResponse<ApplicationStatusResponseDTO> response = lendingApplicationServiceV2.getApplicationStatus(lendingApplication.getId(), basicDetailsDto.get(), false, null);
             if(Objects.nonNull(response)&&Objects.nonNull(response.getData())) {
                 supportApiResponseDto.setApplicationJourney(response.getData().getApplicationDTOList());
             }
-            LendingAutoDisbursal lendingAutoDisbursal = lendingAutoDisbursalDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+            LendingAutoDisbursal lendingAutoDisbursal = lendingAutoDisbursalDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
             supportApiResponseDto.setProcessingType(ObjectUtils.isEmpty(lendingAutoDisbursal) ? "MANUAL" : "AUTO");
             supportApiResponseDto.setCurrentStage(getApplicationCureentStage(lendingApplication));
             supportApiResponseDto.setProcessingStage(getApplicationProcessingStage(lendingApplication));
@@ -579,10 +595,10 @@ public class SupportService {
                 Integer reapplyDayDiff = 0;
                 String rejectReason = null;
                 if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
-                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL, lendingApplication.getMerchantId());
                     rejectReason = easyLoanUtil.getRejectionMessage(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
                 } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+                    reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
                     rejectReason = easyLoanUtil.getRejectionMessage(lendingApplication.getManualKycReason(), RejectionStage.KYC);
                 } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                     reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
@@ -636,10 +652,10 @@ public class SupportService {
                     supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
                 }
             } else if ("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
-                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
                 supportApiResponseDto.setApplicationStage(ApplicationStage.CLOSED_LOAN.getStage());
                 supportApiResponseDto.setPfRefunded(lendingPayouts != null);
-                supportApiResponseDto.setEligibleForRepeat(getEligibility(lendingPaymentSchedule.getMerchant().getId()));
+                supportApiResponseDto.setEligibleForRepeat(getEligibility(lendingPaymentSchedule.getMerchantId()));
                 supportApiResponseDto.setClosingDate(lendingPaymentSchedule.getClosingDate());
             }
         } catch (Exception ex) {
@@ -813,7 +829,7 @@ public class SupportService {
 
                 SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
 
-                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchant().getId(), lendingPaymentSchedule1.getId());
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchantId(), lendingPaymentSchedule1.getId());
                 if (!ObjectUtils.isEmpty(lendingPayouts)) {
                     loanArrangerFee.setArrangerFeeRefundEligible(true);
                     loanArrangerFee.setArrangerFeeRefunded(true);
@@ -909,7 +925,7 @@ public class SupportService {
                 return responseDTO;
             }
             new Thread(() -> {
-                LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
+                LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchantId(),lendingApplication);
                 logger.info("ldc Virtual Accoint:{}",ldcVirtualAccount);
                 if (flag) {
                     List<LendingBulkDisbursalRawData> lendingBulkDisbursalRawData = lendingBulkDisbursalRawDataDao.findByFileId(fileId);
@@ -924,8 +940,13 @@ public class SupportService {
                         for (LendingBulkDisbursalRawData bulklender : lendingBulkDisbursalRawData) {
                             try {
                                 LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
+                                Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(application.getMerchantId());
+                                if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                                    continue;
+                                }
+
                                 Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
-                                CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchant().getId(), application.getId());
+                                CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchantId(), application.getId());
                                 String ediSchedule = ediScheduleResponse.getData().toString();
                                 String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
                                 String ifscCode = ldcVirtualAccount.getIfsc().toString();
@@ -937,7 +958,7 @@ public class SupportService {
                                 String pancardUrl = addressResult.get("pancardUrl").toString();
                                 String addressproof1 = addressResult.get("addressproof1").toString();
                                 String addressproof2 = addressResult.get("addressproof2").toString();
-                                data.add(new String[]{"AMPLB", "PL", application.getLoanAmount().toString(), application.getTenureInMonths().toString(), application.getExternalLoanId(), application.getProcessingFee().toString(), "0", String.valueOf((application.getInterestRate() * 12 / 100)), "flat", application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment() - application.getLoanAmount())), application.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), application.getMerchant().getMobile(), "Personal", application.getPincode().toString(), application.getShopNumber() + application.getStreetAddress() + application.getArea() + application.getLandmark(), application.getCity(), application.getState(), "permanent", proofType, "communication", "self owned", application.getLandmark(), "ICICI BANK", accountNumber, application.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, apiGatewayService.getLoanAgreement(application.getMerchant().getId(), application.getId()), Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
+                                data.add(new String[]{"AMPLB", "PL", application.getLoanAmount().toString(), application.getTenureInMonths().toString(), application.getExternalLoanId(), application.getProcessingFee().toString(), "0", String.valueOf((application.getInterestRate() * 12 / 100)), "flat", application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment() - application.getLoanAmount())), application.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), basicDetailsDto.get().getMobile(), "Personal", application.getPincode().toString(), application.getShopNumber() + application.getStreetAddress() + application.getArea() + application.getLandmark(), application.getCity(), application.getState(), "permanent", proofType, "communication", "self owned", application.getLandmark(), "ICICI BANK", accountNumber, basicDetailsDto.get().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, apiGatewayService.getLoanAgreement(application.getMerchantId(), application.getId()), Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
                                 bulklender.setStatus("SUCCESS");
                                 lendingBulkDisbursalRawDataDao.save(bulklender);
                             } catch (Exception ex) {
@@ -1043,7 +1064,7 @@ public class SupportService {
 //                }
                 if(!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
                     logger.info("Application Condition Not Match merchantId:{} and applicationId:{}",merchantId,applicationId);
-                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Condition Not Match"});
+                    errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Condition Not Match"});
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;
@@ -1051,7 +1072,7 @@ public class SupportService {
 
 //                if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) && repeatLoan == 0 ){
 //                    logger.info("Application Do not Disburse for  merchantId:{} and applicationId:{}",merchantId,applicationId);
-//                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Application Do not Disburse"});
+//                    errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Application Do not Disburse"});
 //                    readLine = lenderFileReader.readLine();
 //                    latch.countDown();
 //                    continue;
@@ -1060,12 +1081,12 @@ public class SupportService {
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
                 if(lendingPaymentSchedule != null){
                     logger.info("Merchant Have a Active Loan For merchantId:{}",merchantId);
-                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Has Active Loan"});
+                    errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Has Active Loan"});
                     lendingApplication.setStatus("deleted");
                     lendingApplication.setResponseCode("Duplicate Disbursal");
                     lendingApplication.setAgreement(0);
                     lendingApplicationDao.save(lendingApplication);
-                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;
@@ -1073,21 +1094,21 @@ public class SupportService {
                 LendingApplication pendingDisbusal = lendingApplicationDao.findPendingDisbursal(merchantId);
                 if(pendingDisbusal != null){
                     logger.info("Application Already Pending Disbursal For merchantId:{}",merchantId);
-                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Another Application Already Sent For Disbursal"});
+                    errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Another Application Already Sent For Disbursal"});
                     lendingApplication.setStatus("deleted");
                     lendingApplication.setResponseCode("Duplicate Disbursal");
                     lendingApplication.setAgreement(0);
                     lendingApplicationDao.save(lendingApplication);
-                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
                     readLine = lenderFileReader.readLine();
                     latch.countDown();
                     continue;
                 }
-                Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
+                Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchantId());
 //                if(!topupLoans.contains(lendingApplication.getLoanType())){
 //                    if("RED".equalsIgnoreCase(experian.getColor())){
 //                        logger.info("Application CIBIL Is RED merchantId:{} and applicationId:{}",merchantId,applicationId);
-//                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
+//                        errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","CIBIL RED"});
 //                        readLine = lenderFileReader.readLine();
 //                        latch.countDown();
 //                        continue;
@@ -1098,10 +1119,10 @@ public class SupportService {
                     logger.info("CSV Data: {}", csvData);
                     data.add(csvData);
                     if(!"YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())){
-                        errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
+                        errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","POA Details Not Correct"});
                     }
                 } catch (Exception e) {
-                    errorData.add(new String[]{lendingApplication.getMerchant().getId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
+                    errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Some Details Missing!"});
                     logger.error("Exception while writing csv data in lender change for application: {} {} {}", lendingApplication.getId(), e.getMessage(), e);
                 } finally {
                     latch.countDown();
@@ -1150,10 +1171,16 @@ public class SupportService {
     }
 
     private String[] getCsvData(LendingApplication lendingApplication, String lender,Experian experian) throws Exception {
+        String[] data = null;
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            return data;
+        }
+
         List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
-        String shortUrl = getAgreement(lendingApplication,lender);
-        LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchant(),lendingApplication);
-        CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+        String shortUrl = getAgreement(lendingApplication,lender,basicDetailsDto.get());
+        LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchantId(),lendingApplication);
+        CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(lendingApplication.getMerchantId(), lendingApplication.getId());
         String ediSchedule = objectMapper.writeValueAsString(ediScheduleResponse.getData());
         String accountNumber = ldcVirtualAccount.getAccountNumber();
         String ifscCode = ldcVirtualAccount.getIfsc();
@@ -1169,15 +1196,14 @@ public class SupportService {
         if (lendingApplication.getIoPayableDays() != null) {
             ediDays += lendingApplication.getIoPayableDays();
         }
-        String[] data;
         String accType = lender.equals("LDC") ? "INVESTOR_FUNDS" : "NBFC_FUNDS";
         String riskColor = topupLoans.contains(lendingApplication.getLoanType()) ? ExperianConstants.COLOR.LIGHT_GREEN.name() : experian.getColor();
         Double disbursalAmount = topupLoans.contains(lendingApplication.getLoanType()) ? lendingApplication.getLoanAmount() : lendingApplication.getDisbursalAmount();
         String location = topupLoans.contains(lendingApplication.getLoanType()) ? "GREEN" : apiGatewayService.getPincodeArea(experian.getPincode());
         if("MAMTA".equalsIgnoreCase(lender)){
-            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : ""};
+            data = new String[]{"AMPLB", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), lendingApplication.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), basicDetailsDto.get().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, basicDetailsDto.get().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : ""};
         }else{
-            data = new String[]{"HINDON", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), String.valueOf(ediDays), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), lendingApplication.getMerchant().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, lendingApplication.getMerchant().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : ""};
+            data = new String[]{"HINDON", "PL", lendingApplication.getLoanAmount().toString(), lendingApplication.getTenureInMonths().toString(), lendingApplication.getExternalLoanId(), lendingApplication.getProcessingFee().toString(), "0", String.valueOf((lendingApplication.getInterestRate() * 12 / 100)), "flat", String.valueOf(disbursalAmount), String.valueOf((lendingApplication.getRepayment() - lendingApplication.getLoanAmount())), String.valueOf(ediDays), lendingApplication.getEdi().toString(), ediSchedule, riskColor, location, "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), basicDetailsDto.get().getMobile(), "Personal", lendingApplication.getPincode().toString(), lendingApplication.getShopNumber() + lendingApplication.getStreetAddress() + lendingApplication.getArea() + lendingApplication.getLandmark(), lendingApplication.getCity(), lendingApplication.getState(), "permanent", proofType, "communication", "self owned", lendingApplication.getLandmark(), "ICICI BANK", "\'" + accountNumber, basicDetailsDto.get().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, shortUrl, Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : ""};
         }
         lendingApplication.setLender(lender);
         lendingApplication.setAccountType(accType);
@@ -1189,10 +1215,10 @@ public class SupportService {
         return data;
     }
 
-    public String getAgreement(LendingApplication lendingApplication,String lender) throws IOException {
+    public String getAgreement(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) throws IOException {
         Map<String,Object> data = new HashMap<>();
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchant().getId(),"ACTIVE");
-        Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchant().getId());
+        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
+        Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchantId());
         SimpleDateFormat date = new SimpleDateFormat("DD-MMM-YYYY");
         data.put("externalLoanId",lendingApplication.getExternalLoanId());
         data.put("loanAmount",lendingApplication.getLoanAmount());
@@ -1202,7 +1228,7 @@ public class SupportService {
         data.put("edi",lendingApplication.getEdi());
         data.put("processingFee",lendingApplication.getProcessingFee());
         data.put("lender",lendingApplication.getLender());
-        data.put("mobile",lendingApplication.getMerchant().getMobile());
+        data.put("mobile",basicDetailsDto.getMobile());
         data.put("location",lendingApplication.getCity());
         data.put("shopNumber",lendingApplication.getShopNumber());
         data.put("streetAddress",lendingApplication.getStreetAddress());
@@ -1214,7 +1240,7 @@ public class SupportService {
         data.put("email",lendingApplication.getEmail());
         data.put("createdAt",new SimpleDateFormat("dd-MMM-yyyy").format(lendingApplication.getCreatedAt()));
         data.put("agreementAt",new SimpleDateFormat("dd-MMM-yyyy").format(lendingApplication.getAgreementAt()));
-        data.put("merchantName",lendingApplication.getMerchant().getBeneficiaryName());
+        data.put("merchantName",basicDetailsDto.getBeneficiaryName());
         data.put("payableDays",lendingApplication.getPayableDays());
         data.put("businessCategory",lendingApplication.getCategory());
         data.put("browserName",lendingApplication.getLoanAmount());
@@ -1223,16 +1249,16 @@ public class SupportService {
         data.put("accountType",merchantBankDetail.getAccType());
         data.put("ifsc",merchantBankDetail.getIfscCode());
         data.put("bankName",merchantBankDetail.getBankName());
-        data.put("beneficiaryName",lendingApplication.getMerchant().getBeneficiaryName());
+        data.put("beneficiaryName",basicDetailsDto.getBeneficiaryName());
         data.put("repayment",lendingApplication.getRepayment());
         data.put("panNumber",experian.getPancardNumber());
         data.put("lenderName", lendingApplication.getLender());
 
         String html = getAgreementHtml(data,lender);
-        String shortUrl = storeAgreement(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchant().getId() + "_" + lendingApplication.getId() + ".pdf");
+        String shortUrl = storeAgreement(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
 
         String welcomeLetter = getWelcomeLetterHtml(data);
-        String welcomeLetterUrl = storeAgreement(lendingApplication,welcomeLetter,"welcome","Welcome_Letter_"+ lendingApplication.getMerchant().getId() + "_" + lendingApplication.getId() + ".pdf");
+        String welcomeLetterUrl = storeAgreement(lendingApplication,welcomeLetter,"welcome","Welcome_Letter_"+ lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
 
         return shortUrl;
     }
@@ -1249,7 +1275,7 @@ public class SupportService {
         LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(),type);
         if(loanAgreement == null){
             loanAgreement = new LoanAgreement();
-            loanAgreement.setMerchantId(lendingApplication.getMerchant().getId());
+            loanAgreement.setMerchantId(lendingApplication.getMerchantId());
             loanAgreement.setApplicationId(lendingApplication.getId());
         }
         loanAgreement.setType(type);
@@ -1866,9 +1892,14 @@ public class SupportService {
         if(!lendingApplication.isPresent()) {
             return new ResponseDTO(false, "Application not found");
         }
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            return new ResponseDTO(false, "Application not found");
+        }
+
         try {
             logger.info("Creating Loan Agreement for application id : {}",applicationId);
-            getAgreement(lendingApplication.get(), lendingApplication.get().getLender());
+            getAgreement(lendingApplication.get(), lendingApplication.get().getLender(),basicDetailsDto.get());
             return new ResponseDTO(true, "Agreement Created Successfully");
         } catch (Exception e) {
             logger.error("Exception Occured while creating agreement for application id: {}",e);

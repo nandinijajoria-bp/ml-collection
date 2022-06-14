@@ -6,13 +6,12 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import com.bharatpe.common.dao.MerchantDao;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
-import com.bharatpe.lending.handlers.MerchantHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +29,6 @@ import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingCities;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantSummarySnapshot;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
@@ -41,9 +38,6 @@ import com.bharatpe.lending.dto.CreditApplicationResponseDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.util.CreditUtil;
-import com.bharatpe.lending.handlers.GupShupOTPHandler;
-import com.bharatpe.lending.util.CreditUtil;
-import com.bharatpe.lending.util.LoanUtil;
 import org.springframework.util.ObjectUtils;
 
 
@@ -79,8 +73,8 @@ public class CreditApplicationService {
 //	@Autowired
 //	MerchantSummaryDao merchantSummaryDao;
 
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;
@@ -113,7 +107,7 @@ public class CreditApplicationService {
 	ExperianSnapshotDao experianSnapshotDao;
 
 	@Autowired
-	MerchantHandler merchantHandler;
+	MerchantSummaryHandler merchantSummaryHandler;
 	public CreditApplicationResponseDTO createApplication(BasicDetailsDto merchant, RequestDTO<CreditApplicationRequestDTO> requestDTO) {
 
 		CreditApplicationResponseDTO creditApplicationResponse;
@@ -164,7 +158,7 @@ public class CreditApplicationService {
 				}
 			}
 //	 	 MerchantSummary summary =  merchantSummaryDao.getByMerchantId(merchant.getId());
-			MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
 				throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
 			}
@@ -335,10 +329,10 @@ public class CreditApplicationService {
 			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchantBasicDetails.getId());
 
 			// TODO : remove this and use api
-			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
 			snapshot.setApplication(application.getId());
-			snapshot.setMerchant(merchant);
+			snapshot.setMerchantId(merchantBasicDetails.getId());
 			snapshot.setLastTransactionDate(merchantResponseDTO.getLastTransactionDate());
 			snapshot.setTotalTxnCount(merchantResponseDTO.getDailyTxnCount());
 			snapshot.setTotalTxnAmount(merchantResponseDTO.getDailyTxnAmount());
@@ -395,26 +389,26 @@ public class CreditApplicationService {
 		return new ResponseDTO(false, "Unable to send otp", null,uuid);
 	}
 
-	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {
-		List<String> mobiles = new ArrayList<> ();
-		mobiles.add(merchant.getMobile());
-		String message=getNotificationContent(merchant, creditApplication);
-		if(message!=null) {
-			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, message, mobiles, null);
-		}
-	}
+//	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {
+//		List<String> mobiles = new ArrayList<> ();
+//		mobiles.add(merchant.getMobile());
+//		String message=getNotificationContent(merchant, creditApplication);
+//		if(message!=null) {
+//			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
+//			whatsappNotificationService.send(merchant, null, message, mobiles, null);
+//		}
+//	}
 	
-	public String getNotificationContent(Merchant merchant,CreditApplication creditApplication) {
-		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-		if(merchantBankDetail==null) {
-			logger.error("Bank detail not found for merchant {}",merchant.getId());
-			return null;
-		}
-		
-		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
-				"Your Application (ID - "+creditApplication.getExternalLoanId()+") for Rs. " + creditApplication.getAmount().intValue() + "BharatPe Loan Balance has been registered successfully. Application is under review and limit will be activated within 48 hours";
-		
-		return message;
-	}
+//	public String getNotificationContent(Merchant merchant,CreditApplication creditApplication) {
+//		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+//		if(merchantBankDetail==null) {
+//			logger.error("Bank detail not found for merchant {}",merchant.getId());
+//			return null;
+//		}
+//
+//		String message = "Hi  " + merchantBankDetail.getBeneficiaryName() + ",\n\n" +
+//				"Your Application (ID - "+creditApplication.getExternalLoanId()+") for Rs. " + creditApplication.getAmount().intValue() + "BharatPe Loan Balance has been registered successfully. Application is under review and limit will be activated within 48 hours";
+//
+//		return message;
+//	}
 }

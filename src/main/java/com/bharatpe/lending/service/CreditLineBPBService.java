@@ -1,13 +1,12 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -19,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -57,8 +57,8 @@ public class CreditLineBPBService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
     @Autowired
     CreditLineTransaction creditLineTransaction;
@@ -67,6 +67,8 @@ public class CreditLineBPBService {
     private String clDeeplink;
 
     private final DecimalFormat df = new DecimalFormat("#.##");
+    @Autowired
+    MerchantService merchantService;
 
     public CheckBalanceResponseDTO getBalance(BasicDetailsDto merchant, String client) {
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), CreditConstants.AccountStatus.ACTIVE.name());
@@ -154,9 +156,9 @@ public class CreditLineBPBService {
             String message = paymentRequest.getLoanType().equalsIgnoreCase("CL") ? creditLineService.getFlexibileNotificationMessage(lendingClTransaction, merchantBasicDetailsDto) : creditLineService.getFixedNotificationMessage(lendingClTransaction, merchantBasicDetailsDto);
 
             // TODO : remove this and use api
-            Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
+//            Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
 
-            creditLineService.sendNotification(message, merchant);
+            creditLineService.sendNotification(message, merchantBasicDetailsDto);
         } catch (Exception e) {
             logger.error("Unable to send debit notification", e);
         }
@@ -214,6 +216,10 @@ public class CreditLineBPBService {
             return new CreditSpendVerifyResponseDTO(false, "transaction not found");
         }
         LendingClTransaction lendingClTransaction = lendingClTransactionOptional.get();
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(lendingClTransaction.getMerchantId());
+        if (ObjectUtils.isEmpty(merchantOptional)) {
+            return new CreditSpendVerifyResponseDTO(false, "merchant details not found");
+        }
         if ("TL".equalsIgnoreCase(lendingClTransaction.getType()) && requestDTO.getAmount() < lendingClTransaction.getAmount()) {
             return new CreditSpendVerifyResponseDTO(false, "Partial refund not supported for TL");
         }
@@ -225,7 +231,8 @@ public class CreditLineBPBService {
         if (requestDTO.getAmount() > remainingRefund) {
             return new CreditSpendVerifyResponseDTO(false, "Refund amount more than transaction amount");
         }
-        Optional<Merchant> merchantOptional = merchantDao.findById(lendingClTransaction.getMerchantId());
+//        Optional<Merchant> merchantOptional = merchantDao.findById(lendingClTransaction.getMerchantId());
+
         if ("TL".equalsIgnoreCase(lendingClTransaction.getType())) {
             return refundTL(lendingClTransaction, requestDTO.getAmount(), merchantOptional.get());
         } else {
@@ -233,7 +240,7 @@ public class CreditLineBPBService {
         }
     }
 
-    private CreditSpendVerifyResponseDTO refundTL(LendingClTransaction lendingClTransaction, Double amount, Merchant merchant) {
+    private CreditSpendVerifyResponseDTO refundTL(LendingClTransaction lendingClTransaction, Double amount, BasicDetailsDto merchant) {
         LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
         if (lendingTlDetails == null) {
             logger.error("lending tl details not found for transaction:{}", lendingClTransaction.getId());
@@ -260,7 +267,7 @@ public class CreditLineBPBService {
         return new CreditSpendVerifyResponseDTO(true, null);
     }
 
-    private CreditSpendVerifyResponseDTO refundCL(LendingClTransaction lendingClTransaction, Double amount, Merchant merchant) {
+    private CreditSpendVerifyResponseDTO refundCL(LendingClTransaction lendingClTransaction, Double amount, BasicDetailsDto merchant) {
         CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClTransaction.getMerchantId(), "ACTIVE");
         LendingCaBalanceDetail lendingCaBalanceDetail = lendingCaBalanceDetailDao.findByMerchantIdAndCreditAccountId(creditAccount.getMerchantId(), creditAccount.getId());
         double refundAmount = amount;
@@ -300,7 +307,7 @@ public class CreditLineBPBService {
 
     private LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle) {
         LendingLedger lendingLedger = new LendingLedger();
-        lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+        lendingLedger.setMerchantId(lendingPaymentSchedule.getMerchantId());
         if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
             lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
         }

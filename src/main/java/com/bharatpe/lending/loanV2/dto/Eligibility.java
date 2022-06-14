@@ -19,4 +19,5 @@ public class Eligibility {
     private String tenure;
     private String category;
     private String loanType;
+    private Double clubV2Amount;
 }

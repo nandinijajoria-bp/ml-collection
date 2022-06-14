@@ -1,8 +1,7 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.service.APIGatewayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,16 +20,19 @@ public class SdkController {
 
     Logger logger = LoggerFactory.getLogger(SdkController.class);
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
+    @Autowired
+    MerchantService merchantService;
 
     @RequestMapping(value = "/sdkInvoke/{merchantId}", method = RequestMethod.GET, produces = "application/json")
     ResponseEntity<Map<String,Object>> getSdkInvoke(@PathVariable(value = "merchantId") Long merchantId) {
         logger.info("Get SDK Status Api Called for merchant:{}", merchantId);
-        Optional<Merchant> merchant = merchantDao.findById(merchantId);
+//        Optional<Merchant> merchant = merchantDao.findById(merchantId);
+        Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
         Map<String, Object> response = new HashMap<>();
         if(merchant.isPresent()){
             Boolean isInvoke = apiGatewayService.isSdkInvoke(merchant.get());

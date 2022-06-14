@@ -46,7 +46,7 @@ public class LenderMappingService {
                 return;
             }
 
-            Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(lendingApplication.getMerchant().getId());
+            Integer repeatLoan = lendingPaymentScheduleDao.getRepeatLoan(lendingApplication.getMerchantId());
             String loanType = repeatLoan > 0 ? "REPEAT" : "NORMAL";
 //            if (repeatLoan > 0) {
 //                if (true) {
@@ -54,12 +54,12 @@ public class LenderMappingService {
 //                    lendingApplicationDao.save(lendingApplication);
 //                    return;
 //                }
-//                LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(lendingApplication.getMerchant().getId());
+//                LendingPaymentSchedule oldLoan = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(lendingApplication.getMerchantId());
 //                if (!"LDC".equalsIgnoreCase(oldLoan.getNbfc())) {
-//                    logger.info("Repeat loan application Lender Change To LDC merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
+//                    logger.info("Repeat loan application Lender Change To LDC merchant:{} and applicationId:{}", lendingApplication.getMerchantId(), lendingApplication.getId());
 //                    lendingApplication.setLender("LDC");
 //                } else {
-//                    logger.info("Repeat loan application Lender Change To MAMTA merchant:{} and applicationId:{}", lendingApplication.getMerchant().getId(), lendingApplication.getId());
+//                    logger.info("Repeat loan application Lender Change To MAMTA merchant:{} and applicationId:{}", lendingApplication.getMerchantId(), lendingApplication.getId());
 //                    lendingApplication.setLender("MAMTA");
 //                }
 //                lendingApplicationDao.save(lendingApplication);
@@ -77,7 +77,7 @@ public class LenderMappingService {
 
             LendingAuditTrial auditLender = new LendingAuditTrial();
             auditLender.setApplicationId(lendingApplication.getId());
-            auditLender.setMerchantId(lendingApplication.getMerchant().getId());
+            auditLender.setMerchantId(lendingApplication.getMerchantId());
             auditLender.setType("LENDER_SET");
             auditLender.setLoanId("BPL"+lendingApplication.getId());
             auditLender.setOldStatus(lendingApplication.getLender());

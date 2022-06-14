@@ -4,7 +4,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -172,7 +172,7 @@ public class ExperianResponseUtil extends ResponseUtilBase implements ResponseUt
     }
 
     @Override
-    public boolean isDerog(Merchant merchant, boolean isRepeatLoanNoDerog, Experian experian) throws ParseException {
+    public boolean isDerog(BasicDetailsDto merchant, boolean isRepeatLoanNoDerog, Experian experian) throws ParseException {
         Date reportDate = dateFormat.parse(
                 response.get(ExperianConstants.PROFILE_RESPONSE).get("CreditProfileHeader").get("ReportDate").asText());
         if (response.get(ExperianConstants.PROFILE_RESPONSE).get(ExperianConstants.ACCT)

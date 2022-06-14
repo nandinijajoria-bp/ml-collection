@@ -1,8 +1,7 @@
 package com.bharatpe.lending.loanV2.controller;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;

@@ -4,13 +4,17 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.slave.entity.LendingApplicationSlave;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
@@ -21,11 +25,11 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.handlers.MerchantHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.loanV2.dto.LoanAndCreditCardDetailDTO;
+import com.bharatpe.lending.loanV2.dto.*;
+import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.service.FosService;
@@ -39,7 +43,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,7 +54,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LoanDetailsServiceV2 {
 
-    @Autowired(required=false)
+    @Autowired(required = false)
     BureauHandler bureauHandler;
 
     @Autowired
@@ -59,8 +63,8 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LendingCityCreditScoreDao lendingCityCreditScoreDao;
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
     @Autowired
     ExperianDao experianDao;
 
@@ -134,23 +138,29 @@ public class LoanDetailsServiceV2 {
     ObjectMapper objectMapper;
 
     @Autowired
-    MerchantHandler merchantHandler;
+    MerchantSummaryHandler merchantSummaryHandler;
+
+
+    @Value("${club.eligible.loan.cache:true}")
+    Boolean clubEligibleLoanCache;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
+    @Autowired
+    MerchantService merchantService;
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
         try {
-            if(Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
-                if(Objects.nonNull(merchant.getId())) {
+            if (Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
+                if (Objects.nonNull(merchant.getId())) {
                     String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
-                    log.info("deleting cached key of loan details where pan, pin is not null for merchant: {}",merchant.getId());
-                    if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
+                    log.info("deleting cached key of loan details where pan, pin is not null for merchant: {}", merchant.getId());
+                    if (Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
                         lendingCache.delete(loanDetailsCacheKey);
                     }
                     String globalDetailsCacheKey = "LENDING_GLOBAL_DETAILS_" + merchant.getId();
-                    if(Objects.nonNull(lendingCache.get(globalDetailsCacheKey))) {
+                    if (Objects.nonNull(lendingCache.get(globalDetailsCacheKey))) {
                         lendingCache.delete(globalDetailsCacheKey);
                     }
                 } else {
@@ -173,7 +183,7 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
                 return new ApiResponse<>(loanDetailsResponse);
             }
-            if (isOrganizedMerchant(merchant.getId())) {
+            if ("ORGANIZED".equalsIgnoreCase(merchant.getCorrectMerchantType())) {
                 log.info("organized merchant: {}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
             }
@@ -233,7 +243,7 @@ public class LoanDetailsServiceV2 {
                     loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 }
                 boolean isIOS = request != null && request.isIOS();
-                setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian);
+                setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian,merchant);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
                     //if no reapply then dont check eligibility
                     cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
@@ -275,7 +285,7 @@ public class LoanDetailsServiceV2 {
         if (!StringUtils.isEmpty(openApplication.getCkycId()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
             log.info("Checking verified pan for draft application:{}", openApplication.getId());
             try {
-                String pancard = kycHandler.getPanNumber(openApplication.getMerchant().getId());
+                String pancard = kycHandler.getPanNumber(openApplication.getMerchantId());
                 if (pancard != null && experian != null && !experian.getPancardNumber().equalsIgnoreCase(pancard)) {
                     log.info("pancard mismatch for merchant:{}, kyc pancard:{}, experian pancard:{}, rejecting application", experian.getMerchantId(), pancard, experian.getPancardNumber());
                     openApplication.setCkycStatus(KycStatus.REJECTED.name());
@@ -283,7 +293,7 @@ public class LoanDetailsServiceV2 {
                     openApplication.setCkycDate(new Date());
                     openApplication.setStatus(KycStatus.REJECTED.name().toLowerCase());
                     lendingApplicationDao.save(openApplication);
-                    executorService.execute(() -> apiGatewayService.globalLimitTxn(openApplication.getMerchant().getId(), "CREDIT", openApplication.getLoanAmount()));
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(openApplication.getMerchantId(), "CREDIT", openApplication.getLoanAmount()));
                 }
             } catch (Exception e) {
                 log.error("Exception in updateCkycStatus for application:{}", openApplication.getId());
@@ -299,15 +309,15 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setPancard(kycPancard);
             return;
         }
-        MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+        MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
         if (ObjectUtils.isEmpty(merchantResponseDTO)) {
             throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
         }
 //        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
         if (experian == null) {
-            if(Objects.nonNull(merchant.getId())) {
+            if (Objects.nonNull(merchant.getId())) {
                 String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
-                log.info("deleting cached key of loan details in check eligibility flow for merchant: {}",merchant.getId());
+                log.info("deleting cached key of loan details in check eligibility flow for merchant: {}", merchant.getId());
                 lendingCache.delete(loanDetailsCacheKey);
             } else {
                 log.info("merchant id not found in verifyOtp flow");
@@ -353,28 +363,31 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPancard(experian.getPancardNumber());
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
+
         EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchant.getId(), Sort.by(Sort.Direction.DESC, "id"));
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+        Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
+        log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
+        loanDetailsResponse.setClubV2Member(isClubV2);
         Eligibility eligibility = null;
 //        log.info("date window: {}, getCreatedAt after date Window: {} for merchant: {}", dateWindow, eligibleLoan.getCreatedAt().after(dateWindow), merchant.getId());
 //        log.info("check object eligible loan: {} for merchant: {}", !ObjectUtils.isEmpty(eligibleLoan), merchant.getId());
         log.info("eligibility check begins !!! {}", merchant.getId());
-        if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow)) {
+        if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow) && !(isClubV2 && clubEligibleLoanCache)) {
             log.info("Eligible offers exist for merchant:{}", merchant.getId());
             eligibility = createEligibility(merchant.getId());
             if (eligibility != null) {
                 log.info("eligibility is not null for merchant: {}", merchant.getId());
                 loanDetailsResponse.setEligibility(eligibility);
                 return;
-            }
-            else {
-                log.info("eligibility is null for merchant: {}",merchant.getId());
+            } else {
+                log.info("eligibility is null for merchant: {}", merchant.getId());
             }
         } else {
             log.info("after the date window for merchant: {}", merchant.getId());
         }
         MutableBoolean isDerog = new MutableBoolean(false);
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, request.getAppVersion());
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, request.getAppVersion(), isClubV2);
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
@@ -413,7 +426,7 @@ public class LoanDetailsServiceV2 {
                 if (Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getLoanAmount()) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
                 }
-                if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= offerDetail.getLoanAmount()) {
+                if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= (offerDetail.getLoanAmount())) {
                     loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
                 }
             }
@@ -464,16 +477,17 @@ public class LoanDetailsServiceV2 {
         return RejectionReason.LOW_TRANSACTION.getReason();
     }
 
-    private GlobalLimitResponse getEligibility(Merchant merchant, Integer appVersion) {
-        log.info("Checking eligibility for merchant:{}", merchant.getId());
-        try {
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, appVersion);
-            return globalLimitResponse;
-        } catch (Exception e) {
-            log.error("Exception in getEligibility for merchant:{}", merchant.getId(), e);
-        }
-        return null;
-    }
+
+//    private GlobalLimitResponse getEligibility(Merchant merchant, Integer appVersion) {
+//        log.info("Checking eligibility for merchant:{}", merchant.getId());
+//        try {
+//            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, appVersion);
+//            return globalLimitResponse;
+//        } catch (Exception e) {
+//            log.error("Exception in getEligibility for merchant:{}", merchant.getId(), e);
+//        }
+//        return null;
+//    }
 
     private Eligibility createEligibility(Long merchantId) {
         try {
@@ -491,14 +505,16 @@ public class LoanDetailsServiceV2 {
               .ediAmount(eligibleLoan.getEdi())
               .tenure(eligibleLoan.getTenure())
               .category(eligibleLoan.getCategory())
-              .loanType(eligibleLoan.getLoanType()).build();
+              .loanType(eligibleLoan.getLoanType())
+              .clubV2Amount(eligibleLoan.getClubV2Amount())
+              .build();
         } catch (Exception e) {
             log.error("Exception in createEligibility for merchant:{}", merchantId, e);
         }
         return null;
     }
 
-    private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian) {
+    private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian, BasicDetailsDto merchant) {
         try {
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
@@ -506,7 +522,7 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
             if ("approved".equalsIgnoreCase(openApplication.getStatus()) || "pending_verification".equalsIgnoreCase(openApplication.getStatus())) {
-                LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchant().getId());
+                LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchantId());
                 if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() != null && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
                     Date currentRequestTimestamp = dateTimeUtil.getCurrentDate();
                     Date resubmitCreatedAt = lendingResubmitTask.getCreatedAt();
@@ -522,7 +538,7 @@ public class LoanDetailsServiceV2 {
                     applicationDetails.setApplicationStatus("DOWNGRADE");
                 }
             }
-            applicationDetails.setRejectReason(getRejectionReason(openApplication));
+            applicationDetails.setRejectReason(getRejectionReason(openApplication,merchant));
             applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
 //            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
 //                applicationDetails.setSkipEnach(Boolean.TRUE);
@@ -546,10 +562,10 @@ public class LoanDetailsServiceV2 {
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
-            applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchant().getId()));
+            applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchantId()));
             loanDetailsResponse.setLoanApplication(applicationDetails);
         } catch (Exception e) {
-            log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchant().getId(), e);
+            log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchantId(), e);
         }
     }
 
@@ -558,9 +574,9 @@ public class LoanDetailsServiceV2 {
         if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
             Integer reapplyDayDiff = null;
             if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
             } else {
@@ -579,9 +595,9 @@ public class LoanDetailsServiceV2 {
         if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
             Integer reapplyDayDiff = null;
             if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualCibil())) {
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getManualKyc())) {
-                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC);
             } else {
@@ -595,7 +611,7 @@ public class LoanDetailsServiceV2 {
         return reapplyTime;
     }
 
-    private String getRejectionReason(LendingApplication openApplication) {
+    private String getRejectionReason(LendingApplication openApplication, BasicDetailsDto merchant) {
         if (!ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getStatus()))
             return null;
         if (!StringUtils.isEmpty(openApplication.getCkycRejectionReason())) {
@@ -613,20 +629,20 @@ public class LoanDetailsServiceV2 {
         LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(openApplication.getId());
         boolean disbursalCallingRejected = lendingDisbursalStage != null && ("NO".equalsIgnoreCase(lendingDisbursalStage.getReadyStage()) || "NO".equalsIgnoreCase(lendingDisbursalStage.getCallStage()));
         if (disbursalCallingRejected) {
-            return "You were unreachable on " + openApplication.getMerchant().getMobile();
+            return "You were unreachable on " + merchant.getMobile();
         }
         return null;
     }
 
     private EnachErrorMessageDTO getEnachError(LendingApplication openApplication, Experian experian) {
         try {
-            BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+            BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
             if (bharatPeEnach != null) {
-                return enachErrorHandingService.enachErrorResponse(bharatPeEnach, openApplication.getMerchant().getId(),
-                  openApplication, experian);
+                return enachErrorHandingService.enachErrorResponse(bharatPeEnach, openApplication.getMerchantId(),
+                        openApplication, experian);
             }
         } catch (Exception e) {
-            log.error("Exception in getEnachError for merchant:{}", openApplication.getMerchant().getId());
+            log.error("Exception in getEnachError for merchant:{}", openApplication.getMerchantId());
         }
         return null;
     }
@@ -643,7 +659,7 @@ public class LoanDetailsServiceV2 {
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getManualKyc())) {
                 return Reapply.OFFER.name();
             } else if (ApplicationStatus.REJECTED.name().equalsIgnoreCase(openApplication.getCkycStatus())) {
-                KycStatusDTO kycStatusDTO = kycHandler.getKycStatus(openApplication.getMerchant().getId());
+                KycStatusDTO kycStatusDTO = kycHandler.getKycStatus(openApplication.getMerchantId());
                 if (KycStatus.REJECTED.equals(kycStatusDTO.getKycStatus()) && KycDocType.PAN_NO.equals(kycStatusDTO.getKycDocType())) {
                     return Reapply.PAN.name();
                 } else if ("PANCARD MISMATCH".equalsIgnoreCase(openApplication.getCkycRejectionReason())) {
@@ -660,7 +676,7 @@ public class LoanDetailsServiceV2 {
 
     private boolean isShopPhotoRequired(LendingApplication openApplication) {
         if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())) {
-            List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+            List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
             return lendingShopDocumentsList.size() < 2;
         }
         return false;
@@ -676,39 +692,39 @@ public class LoanDetailsServiceV2 {
         if (lendingGstDetail == null) return null;
 
         return ProfessionalDetails.builder()
-          .profession(lendingGstDetail.getEntityType())
-          .gstNumber(lendingGstDetail.getGstNumber())
-          .experience(lendingGstDetail.getExperience())
-          .salary(String.valueOf(lendingGstDetail.getSalary()))
-          .companyName(lendingGstDetail.getCompanyName())
-          .addressType(lendingGstDetail.getAddressType())
-          .shopType(lendingGstDetail.getShopType())
-          .build();
+                .profession(lendingGstDetail.getEntityType())
+                .gstNumber(lendingGstDetail.getGstNumber())
+                .experience(lendingGstDetail.getExperience())
+                .salary(String.valueOf(lendingGstDetail.getSalary()))
+                .companyName(lendingGstDetail.getCompanyName())
+                .addressType(lendingGstDetail.getAddressType())
+                .shopType(lendingGstDetail.getShopType())
+                .build();
     }
 
     private AddressDetails getShopAddress(LendingApplication lendingApplication) {
         return AddressDetails.builder()
-          .pincode(String.valueOf(lendingApplication.getPincode()))
-          .city(lendingApplication.getCity())
-          .state(lendingApplication.getState())
-          .address1(lendingApplication.getShopNumber())
-          .address2(lendingApplication.getStreetAddress())
-          .landmark(lendingApplication.getLandmark()).build();
+                .pincode(String.valueOf(lendingApplication.getPincode()))
+                .city(lendingApplication.getCity())
+                .state(lendingApplication.getState())
+                .address1(lendingApplication.getShopNumber())
+                .address2(lendingApplication.getStreetAddress())
+                .landmark(lendingApplication.getLandmark()).build();
     }
 
     private String getEnachDeeplink(LendingApplication openApplication, String token, boolean isIOS) {
         if (!ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             return null;
         }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchant().getId()) || loanUtil.isEnachDone(openApplication.getMerchant())) {
+        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId())) {
             return null;
         }
-//        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchant().getId(), openApplication.getId());
+//        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
 //        if (bharatPeEnach != null && BooleanUtils.isTrue(bharatPeEnach.getSkip())) {
 //            return null;
 //        }
         if (isIOS) return Deeplink.TECHPROCESS;
-        return apiGatewayService.getEnachProvider(token, openApplication.getMerchant().getId());
+        return apiGatewayService.getEnachProvider(token, openApplication.getMerchantId());
     }
 
     private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
@@ -716,10 +732,10 @@ public class LoanDetailsServiceV2 {
         return creditLineMerchant != null;
     }
 
-    private boolean isOrganizedMerchant(Long merchantId) {
-        List<MerchantStore> stores = merchantStoreDao.findByMerchantId(merchantId);
-        return !stores.isEmpty();
-    }
+//    private boolean isOrganizedMerchant(Long merchantId) {
+//        List<MerchantStore> stores = merchantStoreDao.findByMerchantId(merchantId);
+//        return !stores.isEmpty();
+//    }
 
     public ApiResponse<?> getEnachBanks() {
         List<BankList> enachBanks = loanUtil.getEnachBanks();
@@ -766,11 +782,13 @@ public class LoanDetailsServiceV2 {
         }
         return new ApiResponse<>(false, "Something Went Wrong.");
     }
-    public ApiResponse<LatestLoanDetailResponse> getLatestLoanDetails(Long merchantId){
-        try{
-            Optional<Merchant> merchantDetails = merchantDao.findById(merchantId);
-            if(!merchantDetails.isPresent()) {
-                return new ApiResponse<>(false,"Merchant not found");
+
+    public ApiResponse<LatestLoanDetailResponse> getLatestLoanDetails(Long merchantId) {
+        try {
+//            Optional<Merchant> merchantDetails = merchantDao.findById(merchantId);
+            Optional<BasicDetailsDto> merchantDetails = merchantService.fetchMerchantBasicDetails(merchantId);
+            if (!merchantDetails.isPresent()) {
+                return new ApiResponse<>(false, "Merchant not found");
             }
 
             LendingApplication loanDisbursedApplication =

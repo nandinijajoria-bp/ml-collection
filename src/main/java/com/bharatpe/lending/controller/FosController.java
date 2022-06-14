@@ -1,6 +1,5 @@
 package com.bharatpe.lending.controller;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.FosService;
 import com.bharatpe.lending.service.LendingApplicationService;

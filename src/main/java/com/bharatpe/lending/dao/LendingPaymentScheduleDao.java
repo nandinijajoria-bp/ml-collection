@@ -1,6 +1,5 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.common.entities.Merchant;
 import org.springframework.stereotype.Repository;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;

@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV2.handlers;
 
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.constant.LendingConstants;

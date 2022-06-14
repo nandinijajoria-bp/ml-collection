@@ -11,17 +11,17 @@ import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.Merchant;
-import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
@@ -60,8 +60,8 @@ public class CreditApplicationStatusChange {
 	@Autowired
 	PushNotificationHandler pushNotificationHandler;
 	
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 	
 	@Autowired
 	MerchantFcmTokenDao merchantFcmTokenDao;
@@ -79,7 +79,9 @@ public class CreditApplicationStatusChange {
 	CreditLineService creditLineService;
 	
 	private final DecimalFormat df = new DecimalFormat("#.##");
-	
+	@Autowired
+	MerchantService merchantService;
+
 	public ResponseDTO changeApplicationStatus(CreditApplicationStatusUpdationRequestDto applicationStatus){
 		try {
 			logger.info("updating application status for application id {}",applicationStatus.getApplicationId());
@@ -131,16 +133,17 @@ public class CreditApplicationStatusChange {
 //	}
 	
 	private void sendRejectionNotification(CreditApplication  creditApplication) {
-		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
+//		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
+		Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(creditApplication.getMerchantId());
 		if(merchantOptional!=null && merchantOptional.isPresent()) {
-			Merchant merchant=merchantOptional.get();
+			BasicDetailsDto merchant=merchantOptional.get();
 			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
 			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nAs per your submitted documents and credit history, we are unable to activate BharatPe Loan Balance at this point. Please call at 08882555444 to learn how to improve your eligibility. Transact more on BharatPe QR over next 1 month and then re-apply.";
 			String whatsappMessage="Hi "+merchantBankDetail.getBeneficiaryName()+",\nAs per your submitted documents and credit history, we are unable to activate BharatPe Loan Balance at this point. Please call at 08882555444 to know your eligibility.";
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, whatsappMessage, mobiles, null);
+			whatsappNotificationService.send(merchant.getId(), null, merchant.getBeneficiaryName(), whatsappMessage, mobiles, null);
 		}
 	}
 	
@@ -294,7 +297,8 @@ public class CreditApplicationStatusChange {
 				lendingCaBalanceDetail.setUpdatedAt(new Date());
 				lendingCaBalanceDetailDao.save(lendingCaBalanceDetail);
 				
-				Optional<Merchant> merchantOptional=merchantDao.findById(merchantId);
+//				Optional<Merchant> merchantOptional=merchantDao.findById(merchantId);
+				Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
 				if(merchantOptional.isPresent()) {
 					creditLineService.sendActivationNotification(creditApplication, merchantOptional.get());
 					redisNotificationService.sendPromotionalNotificationForCreditLine(merchantOptional.get().getId(),

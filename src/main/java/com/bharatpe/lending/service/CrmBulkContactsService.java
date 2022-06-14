@@ -1,13 +1,12 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.PhonebookDao;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.entities.Phonebook;
 import com.bharatpe.lending.common.dao.CrmBulkContactsDao;
 import com.bharatpe.lending.common.entity.CrmBulkContacts;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.opencsv.CSVWriter;
@@ -35,8 +34,8 @@ public class CrmBulkContactsService {
     @Autowired
     CrmBulkContactsDao crmBulkContactsDao;
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -55,6 +54,8 @@ public class CrmBulkContactsService {
 
     @Value("${crm.contact.bucket.region}")
     private String contactBucketRegion;
+    @Autowired
+    MerchantService merchantService;
 
     @Async
     public void fetchCrmBulkContacts(InputStream bulkContactFile, Long requestId) throws IOException {
@@ -85,8 +86,9 @@ public class CrmBulkContactsService {
                         readLine = bulkContactFileReader.readLine();
                         continue;
                     }
-                    Merchant merchant = merchantDao.findByMobile(contact);
-                    if (ObjectUtils.isEmpty(merchant)) {
+//                    Merchant merchant = merchantDao.findByMobile(contact);
+                    Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetailsByMobile(contact);
+                    if (ObjectUtils.isEmpty(basicDetailsDto)) {
                         emptyPhoneBookData.add(new String[]{contact, "invalid merchant"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
@@ -97,7 +99,7 @@ public class CrmBulkContactsService {
 //                        readLine = bulkContactFileReader.readLine();
 //                        continue;
 //                    }
-                    Phonebook phonebook = phonebookDao.findTop1ByMerchantIdOrderByContactsCountDesc(merchant.getId());
+                    Phonebook phonebook = phonebookDao.findTop1ByMerchantIdOrderByContactsCountDesc(basicDetailsDto.get().getId());
                     if (ObjectUtils.isEmpty(phonebook)) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
@@ -121,7 +123,7 @@ public class CrmBulkContactsService {
                         continue;
 
                     } else {
-                        String outputPath = mergeContacts(merchant.getId(), contactFileName);
+                        String outputPath = mergeContacts(basicDetailsDto.get().getId(), contactFileName);
                         if (outputPath!=null) {
                             addToZip(contact + "-" + requestId + ".csv", zos,outputPath);
                             count++;

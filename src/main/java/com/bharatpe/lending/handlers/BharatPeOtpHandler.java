@@ -3,7 +3,7 @@ import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

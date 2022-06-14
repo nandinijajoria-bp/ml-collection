@@ -2,11 +2,11 @@ package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -23,6 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 public class HmacForMIDAndInternalClientInterceptor implements HandlerInterceptor {
@@ -31,14 +33,16 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
     @Autowired
     private HmacCalculator hmacCalculator;
 
-    @Autowired
-    private MerchantDao merchantDao;
+//    @Autowired
+//    private MerchantDao merchantDao;
 
     @Autowired
     private InternalClientDao internalClientDao;
 
     @Autowired
     Environment env;
+    @Autowired
+    MerchantService merchantService;
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         logger.info("Pre handle Interceptor of Hmac Interceptor for {}", request);
@@ -62,18 +66,22 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
             	return false;
             }
             
-            Merchant merchant = null;
+//            Merchant merchant = null;
             InternalClient internalClient = null;
-            
+            Optional<BasicDetailsDto> basicDetailsDto = Optional.empty();
+
+            if (!ObjectUtils.isEmpty(mid))
+                basicDetailsDto  = merchantService.fetchMerchantBasicDetailsByMid(mid);
+
             if(StringUtils.isEmpty(clientName)) {
-            	merchant = merchantDao.findByMid(mid);
-            	if (merchant == null || Status.MerchantStatus.INACTIVE.toString().equalsIgnoreCase(merchant.getStatus())) {
+//            	merchant = merchantDao.findByMid(mid);
+            	if (basicDetailsDto == null || Status.MerchantStatus.INACTIVE.toString().equalsIgnoreCase(basicDetailsDto.get().getStatus())) {
             		logger.error("Merchant not found (}", mid);
             		sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
             		return false;
             	}
             	
-            	request.setAttribute("merchant", merchant);
+            	request.setAttribute("merchant", basicDetailsDto.get());
             } else {
             	internalClient = internalClientDao.findByClientName(clientName);
             	if (internalClient == null) {
@@ -83,7 +91,7 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
             	}
             }
             
-            if ((internalClient != null && hmacCalculator.validateClient(payload, internalClient, hmac)) || (internalClient == null && hmacCalculator.validateHmac(payload, merchant, hmac))) {
+            if ((internalClient != null && hmacCalculator.validateClient(payload, internalClient, hmac)) || (internalClient == null && hmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac))) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and mid {}", hmac, mid);
                 return true;
             }

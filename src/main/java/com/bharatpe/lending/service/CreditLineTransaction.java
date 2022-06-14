@@ -1,16 +1,16 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -74,8 +74,8 @@ public class CreditLineTransaction {
     @Autowired
     RedisNotificationService redisNotificationService;
     
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
     @Autowired
     SmsServiceHandler smsServiceHandler;
@@ -85,6 +85,8 @@ public class CreditLineTransaction {
 
     @Autowired
     LendingPullPaymentDao lendingPullPaymentDao;
+    @Autowired
+    MerchantService merchantService;
 
     public LendingClTransaction createDebitTxn(CreditAccount creditAccount, LendingClTransactionRequest paymentRequest) {
         logger.info("Initializing new transaction for account:{}, amount:{}, mode:{}", creditAccount.getId(), paymentRequest.getAmount(), paymentRequest.getMode());
@@ -277,12 +279,12 @@ public class CreditLineTransaction {
     public void createLPS(BasicDetailsDto merchantBasicDetails, LendingClTransaction lendingClTransaction) {
         try {
             LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
-            Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//            Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
             LendingPaymentSchedule lendingPaymentSchedule = new LendingPaymentSchedule();
             logger.info("Populating data into lending_payment_schedule table for merchant: {}", merchantBasicDetails.getId());
             lendingPaymentSchedule.setCreditLoan(true);
             lendingPaymentSchedule.setLoanType("CREDIT_LINE");
-            lendingPaymentSchedule.setMerchant(merchant);
+            lendingPaymentSchedule.setMerchantId(merchantBasicDetails.getId());
             lendingPaymentSchedule.setLoanAmount(lendingTlDetails.getAmount());
             lendingPaymentSchedule.setMobile(merchantBasicDetails.getMobile());
             lendingPaymentSchedule.setEdiAmount(lendingTlDetails.getEdi());
@@ -461,8 +463,10 @@ public class CreditLineTransaction {
     }
     
     private void startPromotionalNotification(CreditAccount creditAccount) {
-    	Optional<Merchant> merchOptional=merchantDao.findById(creditAccount.getMerchantId());
-    	if(merchOptional.isPresent()) {
+//    	Optional<Merchant> merchOptional=merchantDao.findById(creditAccount.getMerchantId());
+        Optional<BasicDetailsDto> merchOptional = merchantService.fetchMerchantBasicDetails(creditAccount.getMerchantId());
+
+        if(merchOptional.isPresent()) {
     		redisNotificationService.sendPromotionalNotificationForCreditLine(merchOptional.get().getId(), creditAccount);
     	}
     }
@@ -509,10 +513,11 @@ public class CreditLineTransaction {
     }
 
     public void sendClosureNotification(LendingPaymentSchedule lendingPaymentSchedule) {
-        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId());
-        Optional<Merchant> merchantOptional=merchantDao.findById(creditAccount.getMerchantId());
+        CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchantId());
+//        Optional<Merchant> merchantOptional=merchantDao.findById(creditAccount.getMerchantId());
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(creditAccount.getMerchantId());
         if(merchantOptional.isPresent()) {
-            Merchant merchant=merchantOptional.get();
+            BasicDetailsDto merchant=merchantOptional.get();
             List<String> mobiles=new LinkedList<>();
             mobiles.add(merchant.getMobile());
             String message="Hi "+merchant.getBeneficiaryName()+",\n" +
@@ -520,7 +525,7 @@ public class CreditLineTransaction {
                     "Your available loans balance is Rs."+creditAccount.getAvailableBalance()+". Spend on Bank transfers, Sending money, Bill Payments and more.\n" +
                     "Click Here: bharatpe.in/creditline for more details.";
             smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-            whatsappNotificationService.send(merchant, null, message, mobiles, null);
+            whatsappNotificationService.send(merchant.getId(), null,merchant.getBeneficiaryName(), message, mobiles, null);
         }
     }
 }

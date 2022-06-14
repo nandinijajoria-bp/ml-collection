@@ -9,6 +9,9 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
 import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -18,10 +21,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -58,6 +63,8 @@ public class RefundService {
     LendingNotificationService lendingNotificationService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
+    @Autowired
+    MerchantService merchantService;
 
     public CommonResponse nachRefund(NachRefundRequest refundRequest) {
         try {
@@ -66,13 +73,18 @@ public class RefundService {
                 logger.info("Loan not found for id:{}", refundRequest.getLoanId());
                 return new CommonResponse(false, "Loan not found");
             }
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingPaymentSchedule.getMerchantId());
+            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                return new CommonResponse(false, "failed to retrieve Merchant details");
+            }
+
             boolean success = false;
             Double refundAmount = 0D;
             if (refundRequest.getAmount() != null) {
                 logger.info("Manual refund amount:{} for loanId:{}", refundRequest.getAmount(), refundRequest.getLoanId());
                 String orderId = "REFUND" + System.currentTimeMillis();
                 refundAmount = refundRequest.getAmount();
-                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "MANUAL_REFUND");
+                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchantId(), "MANUAL_REFUND");
                 LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
                 if (lendingPayoutResponse != null) {
                     success = true;
@@ -88,7 +100,7 @@ public class RefundService {
                 logger.info("Refund paid amount:{} for inactive loan:{}",lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getId());
                 String orderId = "INACTIVE_REFUND" + System.currentTimeMillis();
                 refundAmount = lendingPaymentSchedule.getPaidAmount();
-                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "NACH_REFUND");
+                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchantId(), "NACH_REFUND");
                 LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
                 if (lendingPayoutResponse != null) {
                     success = true;
@@ -108,7 +120,7 @@ public class RefundService {
                 refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
                 Double principle = -1 * lendingPaymentSchedule.getDuePrinciple();
                 Double interest = -1 * lendingPaymentSchedule.getDueInterest();
-                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchant().getId(), "NACH_REFUND");
+                LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, refundAmount, LendingPayoutType.LENDING_NACH_REFUND, lendingPaymentSchedule.getMerchantId(), "NACH_REFUND");
                 LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
                 if (lendingPayoutResponse != null) {
                     success = true;
@@ -130,7 +142,7 @@ public class RefundService {
                 templateParams.put("loan_id",lendingPaymentSchedule.getId());
                 NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
                 notificationPayloadDto.setTemplateIdentifier(identifier);
-                notificationPayloadDto.setMobile(lendingPaymentSchedule.getMerchant().getMobile());
+                notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
                 notificationPayloadDto.setClientName("LENDING");
                 notificationPayloadDto.setTemplateParams(templateParams);
                 lendingNotificationService.notify(notificationPayloadDto);
@@ -155,7 +167,7 @@ public class RefundService {
 
             String refundType = processingFeeRequest.getType();
             if(refundType.equalsIgnoreCase("PROCESSING_FEE")){
-                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchant().getId(),lendingPaymentSchedule.getId());
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),lendingPaymentSchedule.getId());
                 if(lendingPayouts != null){
                     logger.info("Already Processing Fee Refund For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
@@ -163,13 +175,13 @@ public class RefundService {
                 executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule));
 
             }else if(refundType.equalsIgnoreCase("CASHBACK")){
-                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdCashback(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
+                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdCashback(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
                 if(lendingPayouts != null){
                     logger.info("Already Nach Cashback For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
                 }
 
-                BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getLoanApplication().getId());
+                BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getLoanApplication().getId());
                 if (bharatPeEnach != null) {
                     executorService.execute(() -> liquiloansService.initiateEnachCashback(lendingPaymentSchedule));
                 }
@@ -184,7 +196,7 @@ public class RefundService {
 
     public void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
         LendingLedger lendingLedger = new LendingLedger();
-        lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+        lendingLedger.setMerchantId(lendingPaymentSchedule.getMerchantId());
         if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
             lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
         }

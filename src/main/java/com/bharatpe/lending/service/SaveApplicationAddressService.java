@@ -6,15 +6,15 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 
@@ -22,12 +22,14 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 public class SaveApplicationAddressService {
 	private Logger logger = LoggerFactory.getLogger(SaveApplicationAddressService.class);
 	
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
-	
+	@Autowired
+	MerchantService merchantService;
+
 	public Map<String, String> saveApplicationAddress(HttpServletResponse response, CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
 		
@@ -67,7 +69,8 @@ public class SaveApplicationAddressService {
 	private Boolean isValidMerchant(Long merchantId) {
 		Boolean response = false;
 		
-		Optional<Merchant> merchant = merchantDao.findById(merchantId);
+//		Optional<Merchant> merchant = merchantDao.findById(merchantId);
+		Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
 		if(merchant.isPresent()) {
 			response = true;
 		}

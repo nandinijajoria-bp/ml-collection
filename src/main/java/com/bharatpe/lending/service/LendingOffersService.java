@@ -5,7 +5,6 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
@@ -13,7 +12,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.entity.LendingGlobalLimit;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.CoolOffRequestDTO;
@@ -59,8 +58,8 @@ public class LendingOffersService {
 	@Autowired
 	ExperianDao experianDao;
 
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 
 	@Autowired
 	BPEnachDao bpEnachDao;
@@ -148,9 +147,9 @@ public class LendingOffersService {
 			LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchantBasicDetails.getId());
 
 			// TODO : remove this and use api
-			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
-			boolean diy = (merchantBasicDetails.getMerchantType() != null && "DIY".equals(merchantBasicDetails.getMerchantType())) || merchant.getReferalCode() == null;
+			boolean diy = (merchantBasicDetails.getMerchantType() != null && "DIY".equals(merchantBasicDetails.getMerchantType())) || merchantBasicDetails.getReferalCode() == null;
 			if (experian != null || activeLoan != null) {
 				logger.info("Pancard/Active Loan already exist for merchant:{}", merchantBasicDetails.getId());
 				CoolOffResponseDTO responseDTO = new CoolOffResponseDTO(true, false, null, null);

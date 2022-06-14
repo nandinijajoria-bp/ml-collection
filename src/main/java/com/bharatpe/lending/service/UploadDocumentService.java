@@ -4,14 +4,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
@@ -85,8 +84,8 @@ public class UploadDocumentService {
 	@Autowired
 	MongoPublisher mongoPublisher;
 
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 
 	public UploadDocumentResponseDTO uploadDocument(BasicDetailsDto merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -168,11 +167,11 @@ public class UploadDocumentService {
 					lendingShopDocuments = insertShopDocuments(proofType,frontSide,backSide,merchantBasicDetails,lendingApplication,meta);
 				}
 			}else{
-				Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//				Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 				if(isUpdate) {
-					documentsIdProof = updateDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
+					documentsIdProof = updateDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchantBasicDetails, lendingApplication, meta);
 				} else {
-					documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
+					documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, lendingApplication, meta);
 				}
 			}
 
@@ -280,10 +279,10 @@ public class UploadDocumentService {
 	}
 
 	private DocumentsIdProof insertDocumentIdProof(String proofType, String frontSide, String backSide,
-												   int singlePageDocument, Merchant merchant,
+												   int singlePageDocument,
 												   LendingApplication lendingApplication, MetaDTO meta) {
 		DocumentsIdProof documentsIdProof = new DocumentsIdProof();
-		documentsIdProof.setMerchant(merchant);
+		documentsIdProof.setMerchantId(lendingApplication.getMerchantId());
 		documentsIdProof.setLendingApplication(lendingApplication);
 		documentsIdProof.setProofType(proofType);
 		documentsIdProof.setProofFrontSide(frontSide);
@@ -317,7 +316,7 @@ public class UploadDocumentService {
 	}
 	
 	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide,
-												   int singlePageDocument, Merchant merchant,
+												   int singlePageDocument, BasicDetailsDto merchant,
 												   LendingApplication lendingApplication, MetaDTO meta) {
 		if(!"pancard".equalsIgnoreCase(proofType) && !"selfie".equalsIgnoreCase(proofType)){
 			DocumentsIdProof poaDocument=documentsIdProofdao.fetchLatestAddressProof(merchant.getId(), lendingApplication.getId(), "LENDING");
@@ -327,7 +326,7 @@ public class UploadDocumentService {
 			}
 		}
 		
-		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant, lendingApplication, proofType);
+		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantIdAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication, proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);
 			documentsIdProof.setProofBackSide(backSide);
@@ -339,7 +338,7 @@ public class UploadDocumentService {
 			}
 			documentsIdProofdao.save(documentsIdProof);
 		} else {
-			documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchant, lendingApplication, meta);
+			documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, lendingApplication, meta);
 		}
 		return documentsIdProof;
 	}
@@ -362,192 +361,192 @@ public class UploadDocumentService {
 		return lendingShopDocuments;
 	}
 
-	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
-		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("aadharcard") || proofType.equals("votercard") || proofType.equals("passport")) {
-			new Thread(() -> {
-				kycUsingKarzaAPI(proofType, frontSide, documentsIdProof, merchant, lendingApplication);
-				if (singlePageDocument == 0) {
-					kycUsingKarzaAPI(proofType, backSide, documentsIdProof, merchant, lendingApplication);
-				}
-			}).start();
-		}
-	}
+//	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
+//		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("aadharcard") || proofType.equals("votercard") || proofType.equals("passport")) {
+//			new Thread(() -> {
+//				kycUsingKarzaAPI(proofType, frontSide, documentsIdProof, merchant, lendingApplication);
+//				if (singlePageDocument == 0) {
+//					kycUsingKarzaAPI(proofType, backSide, documentsIdProof, merchant, lendingApplication);
+//				}
+//			}).start();
+//		}
+//	}
 	
-	private void kycUsingKarzaAPI(String proofType, String fileName, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
-		try {
-			Instant start = Instant.now();
-			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName, bucket);
-//			String tempPublicURL = "";
-			Instant end = Instant.now();
-			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
-			boolean isDocAuthEntryMade = false;
-			if(!tempPublicURL.isEmpty()) {
-				start = Instant.now();
-				String response = karzaHandler.curlKarzaKycAPI(tempPublicURL);
-				end = Instant.now();
-				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
-				if(!response.isEmpty()) {
-					ObjectMapper mapper = new ObjectMapper();
-	    	        Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
-	    	        Integer status = (Integer) responseMap.get("statusCode");
-					
-					if(status == 101) {
-						DocKycDetails docKycDetails = processAndSaveKycResponse(response, proofType, documentsIdProof, merchant);
-						if(proofType.equals("pancard")) {
-							start = Instant.now();
-							pancardAuthenticationUsingKarzaAPI(responseMap, docKycDetails, documentsIdProof, merchant, lendingApplication);
-							end = Instant.now();
-							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
-							isDocAuthEntryMade = true;
-						}
-					}else {
-						String requestId = (String) responseMap.get("requestId");
-						String failureResponse = (String) responseMap.get("error"); 
-						logger.info("UploadDocumentService karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",documentsIdProof.getId(), failureResponse, requestId);
-					}
-				}else {
-					logger.info("UploadDocumentService karza kyc api failure with blank response for documentId : {}",documentsIdProof.getId());
-				}
-			}else {
-				logger.info("UploadDocumentService blank tempURL from S3 bucket, merchant: {} for key : {}",merchant.getId(), fileName);
-			}
-			
-			// TODO: Need to do entry first and update based on the response update the details
-			if(proofType.equals("pancard") && !isDocAuthEntryMade) {
-				logger.info("Marking blank entries for pancard in DocKycDetails and DocAuthentication for merchant id {}", merchant.getId());
-				DocKycDetails docDetails = createFailedDocKycDetails("pancard", documentsIdProof, merchant);
-				createFailedEntryForPancardDocAuthentication(docDetails, documentsIdProof, merchant, lendingApplication);
-			}
-		} catch (FileNotFoundException e) {
-			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchantId: {},file not found for key : {}",merchant.getId(), fileName);
-		} catch (Exception e) {
-			e.printStackTrace();
-			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchant: {}, message : {}",merchant.getId(), e.getMessage());
-		}
-	}
+//	private void kycUsingKarzaAPI(String proofType, String fileName, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
+//		try {
+//			Instant start = Instant.now();
+//			String tempPublicURL = s3BucketHandler.getTemporaryPublicURL(fileName, bucket);
+////			String tempPublicURL = "";
+//			Instant end = Instant.now();
+//			logger.info("Time Taken by AWS S3 ImageUrl API : {} miliseconds", Duration.between(start, end).toMillis());
+//			boolean isDocAuthEntryMade = false;
+//			if(!tempPublicURL.isEmpty()) {
+//				start = Instant.now();
+//				String response = karzaHandler.curlKarzaKycAPI(tempPublicURL);
+//				end = Instant.now();
+//				logger.info("Time Taken by Karza kyc API : {} miliseconds", Duration.between(start, end).toMillis());
+//				if(!response.isEmpty()) {
+//					ObjectMapper mapper = new ObjectMapper();
+//	    	        Map<String, Object> responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+//	    	        Integer status = (Integer) responseMap.get("statusCode");
+//
+//					if(status == 101) {
+//						DocKycDetails docKycDetails = processAndSaveKycResponse(response, proofType, documentsIdProof, merchant);
+//						if(proofType.equals("pancard")) {
+//							start = Instant.now();
+//							pancardAuthenticationUsingKarzaAPI(responseMap, docKycDetails, documentsIdProof, merchant, lendingApplication);
+//							end = Instant.now();
+//							logger.info("Time Taken by Karza Pan Authentication API : {} miliseconds", Duration.between(start, end).toMillis());
+//							isDocAuthEntryMade = true;
+//						}
+//					}else {
+//						String requestId = (String) responseMap.get("requestId");
+//						String failureResponse = (String) responseMap.get("error");
+//						logger.info("UploadDocumentService karza kyc api failure for documentId : {} and api response : {} and karza requestId : {}",documentsIdProof.getId(), failureResponse, requestId);
+//					}
+//				}else {
+//					logger.info("UploadDocumentService karza kyc api failure with blank response for documentId : {}",documentsIdProof.getId());
+//				}
+//			}else {
+//				logger.info("UploadDocumentService blank tempURL from S3 bucket, merchant: {} for key : {}",merchant.getId(), fileName);
+//			}
+//
+//			// TODO: Need to do entry first and update based on the response update the details
+//			if(proofType.equals("pancard") && !isDocAuthEntryMade) {
+//				logger.info("Marking blank entries for pancard in DocKycDetails and DocAuthentication for merchant id {}", merchant.getId());
+//				DocKycDetails docDetails = createFailedDocKycDetails("pancard", documentsIdProof, merchant);
+//				createFailedEntryForPancardDocAuthentication(docDetails, documentsIdProof, merchant, lendingApplication);
+//			}
+//		} catch (FileNotFoundException e) {
+//			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchantId: {},file not found for key : {}",merchant.getId(), fileName);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchant: {}, message : {}",merchant.getId(), e.getMessage());
+//		}
+//	}
 	
-	private DocKycDetails processAndSaveKycResponse(String responseString, String proofType, DocumentsIdProof documentsIdProof, Merchant merchant) {
-		ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> response = null;
-		try {
-			response = mapper.readValue(responseString, new TypeReference<Map<String, Object>>(){});
-		} catch (JsonParseException e1) {
-			e1.printStackTrace();
-		} catch (JsonMappingException e1) {
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-		List<Map<String, Object>> result = (response != null) ? (List<Map<String, Object>>) response.get("result") : null;
-		
-		if(result != null && result.size() > 0) {
-			String dob = "";
-			String doi = "";
-			DocKycDetails docKycDetails = new DocKycDetails();
-			docKycDetails.setDocumentsIdProof(documentsIdProof);
-			docKycDetails.setMerchant(merchant);
-			docKycDetails.setCreatedAt(new Date());
-			docKycDetails.setUpdatedAt(new Date());
-			docKycDetails.setModule("LENDING");
-			docKycDetails.setStatus("");
-			docKycDetails.setDocType(proofType);
-			docKycDetails.setResponse(responseString);
-			String type	= (String) result.get(0).get("type");
-			Map<String, Map<String, String>> details	= (Map<String, Map<String, String>>) result.get(0).get("details");
-			if(proofType.equals("votercard")) {
-				if(type.equals("Voterid Front")) {
-					docKycDetails.setDocNo(details.get("voterid").get("value"));
-					docKycDetails.setFatherName(details.get("relation").get("value"));
-					docKycDetails.setPersonName(details.get("name").get("value"));
-					dob = details.get("dob").get("value");
-					docKycDetails.setDocSide("FRONT");
-				}else if(type.equals("Voterid Back")) {
-					docKycDetails.setDocNo(details.get("voterid").get("value"));
-					dob = details.get("dob").get("value");
-					docKycDetails.setAddress(details.get("address").get("value"));
-					docKycDetails.setGender(details.get("gender").get("value"));
-					docKycDetails.setPincode(details.get("pin").get("value"));
-					docKycDetails.setCity(details.get("addressSplit").get("city"));
-					docKycDetails.setState(details.get("addressSplit").get("state"));
-					docKycDetails.setDocSide("BACK");
-				}
-			}else if(proofType.equals("pancard")) {
-				docKycDetails.setDocNo(details.get("panNo").get("value"));
-				dob = details.get("date").get("value");
-				docKycDetails.setPersonName(details.get("name").get("value"));
-				doi = details.get("dateOfIssue").get("value");
-				docKycDetails.setFatherName(details.get("father").get("value"));
-			}else if(proofType.equals("passport")) {
-				docKycDetails.setDocNo(details.get("passportNum").get("value"));
-				dob = details.get("dob").get("value");
-				docKycDetails.setPersonName(details.get("givenName").get("value") + " " + details.get("surname").get("value"));
-				doi = details.get("doi").get("value");
-				docKycDetails.setGender(details.get("gender").get("value"));
-				docKycDetails.setCountryCode(details.get("countryCode").get("value"));
-			}else if(proofType.equals("adhaarcard") || proofType.equals("aadharcard")) {
-				if(type.equals("Aadhaar Front Bottom")) {
-					docKycDetails.setDocNo(details.get("aadhaar").get("value"));
-					dob = details.get("dob").get("value");
-					docKycDetails.setPersonName(details.get("name").get("value"));
-					doi = details.get("yob").get("value");
-					docKycDetails.setGender(details.get("gender").get("value"));
-					docKycDetails.setQr(details.get("qr").get("value"));
-					docKycDetails.setFatherName(details.get("father").get("value"));
-					docKycDetails.setDocSide("FRONT");
-				}else if(type.equals("Aadhaar Back")) {
-					docKycDetails.setDocNo(details.get("aadhaar").get("value"));
-					docKycDetails.setQr(details.get("qr").get("value"));
-					docKycDetails.setFatherName(details.get("father").get("value"));
-					docKycDetails.setPincode(details.get("pin").get("value"));
-					docKycDetails.setCity(details.get("addressSplit").get("city"));
-					docKycDetails.setState(details.get("addressSplit").get("state"));
-					docKycDetails.setAddress(details.get("address").get("value"));
-					docKycDetails.setDocSide("BACK");
-				}
-			}
-			Date initDate;
-			try {
-				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-				if(!dob.isEmpty()) {
-					initDate = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
-					docKycDetails.setDob(formatter.format(initDate));
-				}
-				
-				if(!doi.isEmpty()) {
-					initDate = new SimpleDateFormat("dd/MM/yyyy").parse(doi);
-					formatter = new SimpleDateFormat("yyyy-MM-dd");
-					docKycDetails.setDoi(formatter.format(initDate));
-				}
-				
-			} catch (ParseException e) {
-				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
-			}
-			docKycDetailsDao.save(docKycDetails);
-			return docKycDetails;
-		}
-		return null;
-	}
+//	private DocKycDetails processAndSaveKycResponse(String responseString, String proofType, DocumentsIdProof documentsIdProof, Merchant merchant) {
+//		ObjectMapper mapper = new ObjectMapper();
+//        Map<String, Object> response = null;
+//		try {
+//			response = mapper.readValue(responseString, new TypeReference<Map<String, Object>>(){});
+//		} catch (JsonParseException e1) {
+//			e1.printStackTrace();
+//		} catch (JsonMappingException e1) {
+//			e1.printStackTrace();
+//		} catch (IOException e1) {
+//			e1.printStackTrace();
+//		}
+//		List<Map<String, Object>> result = (response != null) ? (List<Map<String, Object>>) response.get("result") : null;
+//
+//		if(result != null && result.size() > 0) {
+//			String dob = "";
+//			String doi = "";
+//			DocKycDetails docKycDetails = new DocKycDetails();
+//			docKycDetails.setDocumentsIdProof(documentsIdProof);
+//			docKycDetails.setMerchantId(documentsIdProof.getMerchantId());
+//			docKycDetails.setCreatedAt(new Date());
+//			docKycDetails.setUpdatedAt(new Date());
+//			docKycDetails.setModule("LENDING");
+//			docKycDetails.setStatus("");
+//			docKycDetails.setDocType(proofType);
+//			docKycDetails.setResponse(responseString);
+//			String type	= (String) result.get(0).get("type");
+//			Map<String, Map<String, String>> details	= (Map<String, Map<String, String>>) result.get(0).get("details");
+//			if(proofType.equals("votercard")) {
+//				if(type.equals("Voterid Front")) {
+//					docKycDetails.setDocNo(details.get("voterid").get("value"));
+//					docKycDetails.setFatherName(details.get("relation").get("value"));
+//					docKycDetails.setPersonName(details.get("name").get("value"));
+//					dob = details.get("dob").get("value");
+//					docKycDetails.setDocSide("FRONT");
+//				}else if(type.equals("Voterid Back")) {
+//					docKycDetails.setDocNo(details.get("voterid").get("value"));
+//					dob = details.get("dob").get("value");
+//					docKycDetails.setAddress(details.get("address").get("value"));
+//					docKycDetails.setGender(details.get("gender").get("value"));
+//					docKycDetails.setPincode(details.get("pin").get("value"));
+//					docKycDetails.setCity(details.get("addressSplit").get("city"));
+//					docKycDetails.setState(details.get("addressSplit").get("state"));
+//					docKycDetails.setDocSide("BACK");
+//				}
+//			}else if(proofType.equals("pancard")) {
+//				docKycDetails.setDocNo(details.get("panNo").get("value"));
+//				dob = details.get("date").get("value");
+//				docKycDetails.setPersonName(details.get("name").get("value"));
+//				doi = details.get("dateOfIssue").get("value");
+//				docKycDetails.setFatherName(details.get("father").get("value"));
+//			}else if(proofType.equals("passport")) {
+//				docKycDetails.setDocNo(details.get("passportNum").get("value"));
+//				dob = details.get("dob").get("value");
+//				docKycDetails.setPersonName(details.get("givenName").get("value") + " " + details.get("surname").get("value"));
+//				doi = details.get("doi").get("value");
+//				docKycDetails.setGender(details.get("gender").get("value"));
+//				docKycDetails.setCountryCode(details.get("countryCode").get("value"));
+//			}else if(proofType.equals("adhaarcard") || proofType.equals("aadharcard")) {
+//				if(type.equals("Aadhaar Front Bottom")) {
+//					docKycDetails.setDocNo(details.get("aadhaar").get("value"));
+//					dob = details.get("dob").get("value");
+//					docKycDetails.setPersonName(details.get("name").get("value"));
+//					doi = details.get("yob").get("value");
+//					docKycDetails.setGender(details.get("gender").get("value"));
+//					docKycDetails.setQr(details.get("qr").get("value"));
+//					docKycDetails.setFatherName(details.get("father").get("value"));
+//					docKycDetails.setDocSide("FRONT");
+//				}else if(type.equals("Aadhaar Back")) {
+//					docKycDetails.setDocNo(details.get("aadhaar").get("value"));
+//					docKycDetails.setQr(details.get("qr").get("value"));
+//					docKycDetails.setFatherName(details.get("father").get("value"));
+//					docKycDetails.setPincode(details.get("pin").get("value"));
+//					docKycDetails.setCity(details.get("addressSplit").get("city"));
+//					docKycDetails.setState(details.get("addressSplit").get("state"));
+//					docKycDetails.setAddress(details.get("address").get("value"));
+//					docKycDetails.setDocSide("BACK");
+//				}
+//			}
+//			Date initDate;
+//			try {
+//				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+//				if(!dob.isEmpty()) {
+//					initDate = new SimpleDateFormat("dd/MM/yyyy").parse(dob);
+//					docKycDetails.setDob(formatter.format(initDate));
+//				}
+//
+//				if(!doi.isEmpty()) {
+//					initDate = new SimpleDateFormat("dd/MM/yyyy").parse(doi);
+//					formatter = new SimpleDateFormat("yyyy-MM-dd");
+//					docKycDetails.setDoi(formatter.format(initDate));
+//				}
+//
+//			} catch (ParseException e) {
+//				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
+//			}
+//			docKycDetailsDao.save(docKycDetails);
+//			return docKycDetails;
+//		}
+//		return null;
+//	}
 	
-	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
-		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
-		
-		if(result != null && result.size() > 0) {
-			Map<String, Map<String, String>> details = (Map<String, Map<String, String>>) result.get(0).get("details");
-			String panNumber = details.get("panNo").get("value");
-			String dob = details.get("date").get("value");
-			String name = details.get("name").get("value");
-			
-			String curlResponse = karzaHandler.curlKarzaPanAuthenticationAPI(panNumber, name, dob);
-			if(!curlResponse.isEmpty()) {
-				processAndSavePanAuthenticationResponse(curlResponse, docKycDetails, documentsIdProof, merchant, lendingApplication);
-			}else {
-				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
-				createFailedEntryForPancardDocAuthentication(docKycDetails, documentsIdProof, merchant, lendingApplication);
-			}
-		}
-	}
+//	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
+//		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+//
+//		if(result != null && result.size() > 0) {
+//			Map<String, Map<String, String>> details = (Map<String, Map<String, String>>) result.get(0).get("details");
+//			String panNumber = details.get("panNo").get("value");
+//			String dob = details.get("date").get("value");
+//			String name = details.get("name").get("value");
+//
+//			String curlResponse = karzaHandler.curlKarzaPanAuthenticationAPI(panNumber, name, dob);
+//			if(!curlResponse.isEmpty()) {
+//				processAndSavePanAuthenticationResponse(curlResponse, docKycDetails, documentsIdProof, lendingApplication);
+//			}else {
+//				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
+//				createFailedEntryForPancardDocAuthentication(docKycDetails, documentsIdProof, merchant, lendingApplication);
+//			}
+//		}
+//	}
 	
-	private void processAndSavePanAuthenticationResponse(String response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
+	private void processAndSavePanAuthenticationResponse(String response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, LendingApplication lendingApplication) {
 		ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> responseMap = null;
 		try {
@@ -563,7 +562,7 @@ public class UploadDocumentService {
 		
 		DocAuthentication docAuthentication = new DocAuthentication();
 		docAuthentication.setDocKycDetails(docKycDetails);
-		docAuthentication.setMerchant(merchant);
+		docAuthentication.setMerchantId(docKycDetails.getMerchantId());
 		docAuthentication.setDocType("pancard");
 		docAuthentication.setFullResponse(response);
 		docAuthentication.setDocumentsIdProof(documentsIdProof);
@@ -593,40 +592,40 @@ public class UploadDocumentService {
 		docAuthenticationDao.save(docAuthentication);
 	}
 	
-	private void createFailedEntryForPancardDocAuthentication(DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
-		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetails(docKycDetails);
-		docAuthentication.setMerchant(merchant);
-		docAuthentication.setDocType("pancard");
-		docAuthentication.setFullResponse("");
-		docAuthentication.setDocumentsIdProof(documentsIdProof);
-		docAuthentication.setCreatedAt(new Date());
-		docAuthentication.setUpdatedAt(new Date());
-		docAuthentication.setDocStatus("FAILED");
-		docAuthentication.setDuplicate("");
-		docAuthentication.setNameMatch("");
-		docAuthentication.setDobMatch("");
-		docAuthentication.setStatus("");
-		docAuthenticationDao.save(docAuthentication);
-	}
+//	private void createFailedEntryForPancardDocAuthentication(DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
+//		DocAuthentication docAuthentication = new DocAuthentication();
+//		docAuthentication.setDocKycDetails(docKycDetails);
+//		docAuthentication.setMerchantId(docKycDetails.getMerchantId());
+//		docAuthentication.setDocType("pancard");
+//		docAuthentication.setFullResponse("");
+//		docAuthentication.setDocumentsIdProof(documentsIdProof);
+//		docAuthentication.setCreatedAt(new Date());
+//		docAuthentication.setUpdatedAt(new Date());
+//		docAuthentication.setDocStatus("FAILED");
+//		docAuthentication.setDuplicate("");
+//		docAuthentication.setNameMatch("");
+//		docAuthentication.setDobMatch("");
+//		docAuthentication.setStatus("");
+//		docAuthenticationDao.save(docAuthentication);
+//	}
 	
-	private DocKycDetails createFailedDocKycDetails(String docType, DocumentsIdProof documentsIdProof, Merchant merchant) {
-		DocKycDetails docKycDetails = new DocKycDetails();
-		docKycDetails.setDocumentsIdProof(documentsIdProof);
-		docKycDetails.setMerchant(merchant);
-		docKycDetails.setCreatedAt(new Date());
-		docKycDetails.setUpdatedAt(new Date());
-		docKycDetails.setModule("LENDING");
-		docKycDetails.setDocSide("FRONT");
-		docKycDetails.setStatus("");
-		docKycDetails.setDocType(docType);
-		docKycDetails.setResponse("");
-		docKycDetails.setDocNo("");
-		docKycDetails.setDob("1970-01-01");
-		docKycDetails.setPersonName("");
-		docKycDetails.setFatherName("");
-		docKycDetailsDao.save(docKycDetails);
-		return docKycDetails;
-	}
+//	private DocKycDetails createFailedDocKycDetails(String docType, DocumentsIdProof documentsIdProof, Merchant merchant) {
+//		DocKycDetails docKycDetails = new DocKycDetails();
+//		docKycDetails.setDocumentsIdProof(documentsIdProof);
+//		docKycDetails.setMerchantId(documentsIdProof.getMerchantId());
+//		docKycDetails.setCreatedAt(new Date());
+//		docKycDetails.setUpdatedAt(new Date());
+//		docKycDetails.setModule("LENDING");
+//		docKycDetails.setDocSide("FRONT");
+//		docKycDetails.setStatus("");
+//		docKycDetails.setDocType(docType);
+//		docKycDetails.setResponse("");
+//		docKycDetails.setDocNo("");
+//		docKycDetails.setDob("1970-01-01");
+//		docKycDetails.setPersonName("");
+//		docKycDetails.setFatherName("");
+//		docKycDetailsDao.save(docKycDetails);
+//		return docKycDetails;
+//	}
 	
 }

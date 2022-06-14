@@ -1,6 +1,6 @@
 package com.bharatpe.lending.loanV2.controller;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.RequestCallbackDto;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -98,6 +98,6 @@ public class LendingApplicationControllerV2 {
     public ResponseEntity<?> evictCache(@RequestAttribute BasicDetailsDto merchant){
         log.info("evicting cache for :{}",merchant.getId());
         lendingApplicationServiceV2.evictCache(merchant.getId());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new ApiResponse<>());
     }
 }

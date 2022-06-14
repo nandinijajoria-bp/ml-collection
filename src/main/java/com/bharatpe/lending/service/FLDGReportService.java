@@ -62,7 +62,7 @@ public class FLDGReportService {
                 Double fldgPrinciple = Double.valueOf(arr[3]);
                 Double fldgInterest = Double.valueOf(arr[4]);
                 if(Objects.nonNull(lendingApplication)) {
-                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
                     if (Objects.nonNull(lendingPaymentSchedule)) {
                         lendingFLDG.setLoanId(lendingPaymentSchedule.getId());
                         lendingFLDG.setFldgAmount(fldgAmount);
@@ -114,7 +114,7 @@ public class FLDGReportService {
                         LendingNbfcRetry lendingNbfcRetry = lendingNbfcRetryDao.findTopByApplicationId(lendingApplication.getId());
                         if(Objects.isNull(lendingNbfcRetry)) {
                             lendingNbfcRetry = new LendingNbfcRetry();
-                            lendingNbfcRetry.setMerchantId(lendingApplication.getMerchant().getId());
+                            lendingNbfcRetry.setMerchantId(lendingApplication.getMerchantId());
                             lendingNbfcRetry.setApplicationId(lendingApplication.getId());
                         } else if("PENDING".equalsIgnoreCase(lendingNbfcRetry.getNbfcStatus())) {
                             logger.info("Nbfc status is pending for applicationId: {}", lendingApplication.getId());

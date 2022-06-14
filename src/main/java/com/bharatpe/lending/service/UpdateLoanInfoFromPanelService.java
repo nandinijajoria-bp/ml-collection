@@ -6,6 +6,9 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -23,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -57,8 +61,8 @@ public class UpdateLoanInfoFromPanelService {
 	@Autowired
 	MerchantUpdateService merchantUpdateService;
 	
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 	
 	@Autowired
 	LoanDetailsDao loanDetailsDao;
@@ -86,6 +90,8 @@ public class UpdateLoanInfoFromPanelService {
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
+	@Autowired
+	MerchantService merchantService;
 
 	public Map<String, String> updateLoanInfoFromPanel(CommonAPIRequest commonAPIRequest) {
 		Map<String, String> finalResponse = new LinkedHashMap<>();
@@ -451,13 +457,16 @@ public class UpdateLoanInfoFromPanelService {
 		Long merchantId = Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString());
 		Long userId = Long.parseLong(commonAPIRequest.getPayload().get("user_id").toString());
 		Map<String, Object> loanDetails = (Map<String, Object>) commonAPIRequest.getPayload().get("loan_details");
-		
-		
-		
+
+		Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+		if (ObjectUtils.isEmpty(basicDetailsDto)) {
+			return;
+		}
+
 		if(loanDetails != null) {
 //			LendingApplication lendingApplication = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
 			LendingApplication lendingApplication = null;
-			Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+//			Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
 			DateFormat df = new SimpleDateFormat("dMMY");
 			String loanId = "BPL" + df.format(lendingApplication.getAgreementAt()) + lendingApplication.getId();
 			
@@ -487,11 +496,11 @@ public class UpdateLoanInfoFromPanelService {
 			
 			if((manualKyc != null && manualKyc.equals("REJECTED")) || (manualCibil != null && manualCibil.equals("REJECTED")) || (physicalVerificationStatus != null && physicalVerificationStatus.equals("REJECTED"))){
 				String message = "We regret to inform you that we are unable to process your application as it does not meet the guidelines for document assessment.";
-				sendSmsAndNotification(merchantOptional.get().getMobile(), merchantId, message);
+				sendSmsAndNotification(basicDetailsDto.get().getMobile(), merchantId, message);
             }else if((manualKyc != null && manualKyc.equals("APPROVED")) && (manualCibil != null && manualCibil.equals("APPROVED")) && (physicalVerificationStatus != null && physicalVerificationStatus.equals("APPROVED"))){
                 if(loanDisbursalStatus != null && loanDisbursalStatus.equalsIgnoreCase("DISBURSED")  && lendingApplication.getStatus().equalsIgnoreCase("approved")){
                     String message = "Congrats " + docKycDetails.getPersonName() + "! Your BharatPe Loan of INR " + lendingApplication.getLoanAmount() + " is approved. The amount will reflect in your bank account within 48 hours.";
-                    sendSmsAndNotification(merchantOptional.get().getMobile(), merchantId, message);
+                    sendSmsAndNotification(basicDetailsDto.get().getMobile(), merchantId, message);
                 }
             }
 			
@@ -501,7 +510,7 @@ public class UpdateLoanInfoFromPanelService {
 			
 			if(lendingApplication.getStatus() != null && lendingApplication.getStatus().equalsIgnoreCase("approved") && lendingApplication.getLoanDisbursalStatus() != null && lendingApplication.getLoanDisbursalStatus().equalsIgnoreCase("DISBURSED")) {
 				saveActiveLoanDetails(applicationId, merchantId, lendingApplication);
-				insertNewLendingPaymentSchedule(applicationId, merchantId, lendingApplication, merchantOptional.get());
+				insertNewLendingPaymentSchedule(applicationId, merchantId, lendingApplication, basicDetailsDto.get());
 				List<PayloadDTO> merchantPayload = new ArrayList<>();
 				merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
 				boolean merchantUpdated = merchantUpdateService.curlMerchantPartialUpdateAPI(merchantId, merchantPayload);
@@ -515,11 +524,11 @@ public class UpdateLoanInfoFromPanelService {
 					String message = "";
 					SettlementSchedule settlementSchedule = settlementScheduleDao.findTop1ByMerchantIdAndStatus(merchantId, "PENDING");
 					if(settlementSchedule != null) {
-						message = "Congrats, your BharatPe loan of Rs."+ lendingApplication.getLoanAmount() +" has been disbursed to your bank a/c. Loan ID - "+ loanId +" . We'll be settling your "+ merchantOptional.get().getSettlementType().toLowerCase() +" Flexi - Plan today & going forward, your transactions will be settled everyday. Once the loan is fully paid, you can restart your Flexi - Plan again. Happy selling!";
+						message = "Congrats, your BharatPe loan of Rs."+ lendingApplication.getLoanAmount() +" has been disbursed to your bank a/c. Loan ID - "+ loanId +" . We'll be settling your "+ basicDetailsDto.get().getSettlementType().toLowerCase() +" Flexi - Plan today & going forward, your transactions will be settled everyday. Once the loan is fully paid, you can restart your Flexi - Plan again. Happy selling!";
 					}else {
 						message = "Congrats! Your BharatPe Loan of INR "+ lendingApplication.getLoanAmount() +" has been disbursed to your bank a/c. Refer to Loan Id "+ loanId +" for future.";
 					}
-					sendSmsAndNotification(merchantOptional.get().getMobile(), merchantId, message);
+					sendSmsAndNotification(basicDetailsDto.get().getMobile(), merchantId, message);
 				}
 			}
 		}	
@@ -613,10 +622,10 @@ public class UpdateLoanInfoFromPanelService {
 		loanDetailsDao.save(loanDetails);
 	}
 	
-	private void insertNewLendingPaymentSchedule(Long applicationId, Long merchantId, LendingApplication lendingApplication, Merchant merchant) {
+	private void insertNewLendingPaymentSchedule(Long applicationId, Long merchantId, LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		LendingPaymentSchedule toInsert = new LendingPaymentSchedule();
 		toInsert.setApplicationId(applicationId);
-		toInsert.setMerchant(merchant);
+		toInsert.setMerchantId(lendingApplication.getMerchantId());
 		toInsert.setLoanAmount(lendingApplication.getLoanAmount());
 		toInsert.setEdiAmount(lendingApplication.getEdi());
 		toInsert.setStartDate(new Date());

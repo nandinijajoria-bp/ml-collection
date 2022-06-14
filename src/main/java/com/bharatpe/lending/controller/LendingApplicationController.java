@@ -4,7 +4,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;

@@ -9,7 +9,7 @@ import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.dto.CrifResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;

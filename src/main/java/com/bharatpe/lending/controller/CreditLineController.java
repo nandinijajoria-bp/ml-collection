@@ -2,7 +2,7 @@ package com.bharatpe.lending.controller;
 
 import javax.servlet.http.HttpServletResponse;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;

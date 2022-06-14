@@ -3,7 +3,6 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.InternalClientDao;
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.enums.NotificationProvider;
@@ -14,7 +13,9 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -106,8 +107,8 @@ public class CreditPaymentService {
     @Value("${upiPayment.statusCheck.endpoint}")
     public String UPI_PAYMENT_STATUS_CHECK_URL;
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
     @Autowired
     LendingEDIScheduleDao lendingEDIScheduleDao;
@@ -126,6 +127,8 @@ public class CreditPaymentService {
     
     @Autowired
     MerchantBankDetailDao merchantBankDetailDao;
+    @Autowired
+    MerchantService merchantService;
 
     public ResponseDTO getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
         List<PaymentDetailDto> paymentDetails = new ArrayList<>();
@@ -304,7 +307,7 @@ public class CreditPaymentService {
 
     public CreditSpendResponseDTO verifyPayment(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, BasicDetailsDto merchantBasicDetailsDto, String token) {
         CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(merchantBasicDetailsDto.getId());
-        Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
+//        Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
         if (creditAccount == null) {
             return new CreditSpendResponseDTO(false, "Credit Account does not exist");
         }
@@ -331,7 +334,7 @@ public class CreditPaymentService {
             }
             if (CreditConstants.PaymentStatus.FAILED.name().equals(paymentStatus) || !transactionId.equals(lendingClTransaction.getId()) || !lendingClTransaction.getAmount().equals(paymentAmount)) {
                 lendingClTransactionDao.updateStatus(CreditConstants.PaymentStatus.FAILED.name(), lendingClTransaction.getId());
-                creditLineService.sendFiledTransNotification(lendingClTransaction, merchant);
+                creditLineService.sendFiledTransNotification(lendingClTransaction, merchantBasicDetailsDto);
             } else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
                 updateBalances(creditAccount, lendingClTransaction);
             }
@@ -344,17 +347,21 @@ public class CreditPaymentService {
     }
     
     public void sendNotification(LendingClTransaction lendingClTransaction){
-        Optional<Merchant> merchant = merchantDao.findById(lendingClTransaction.getMerchantId());
+//        Optional<Merchant> merchant = merchantDao.findById(lendingClTransaction.getMerchantId());
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (ObjectUtils.isEmpty(basicDetailsDto)){
+            return;
+        }
         CreditAccount creditAccount = creditAccountDao.findByMerchantIdForDashBoard(lendingClTransaction.getMerchantId());
-    	String message="Hi "+getBenefecieryName(merchant.get())+",\nRs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment towards outstanding Bharatpe Loan is successful.\n"+
+    	String message="Hi "+getBenefecieryName(basicDetailsDto.get())+",\nRs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" repayment towards outstanding Bharatpe Loan is successful.\n"+
     					"Available Loan Balance now is Rs. " +Double.valueOf(df.format(creditAccount.getAvailableBalance())) +"\n.Click Here:: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
     	List<String> mobiles=new LinkedList<>();
-    	mobiles.add(merchant.get().getMobile());
+    	mobiles.add(basicDetailsDto.get().getMobile());
     	smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant.get(), null, message+" for more details.", mobiles, null);
+		whatsappNotificationService.send(basicDetailsDto.get().getId(), null, basicDetailsDto.get().getBeneficiaryName(), message+" for more details.", mobiles, null);
     }
     
-    public String getBenefecieryName(Merchant merchant) {
+    public String getBenefecieryName(BasicDetailsDto merchant) {
     	
     	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
     	if(merchantBankDetail!=null) {
@@ -658,7 +665,7 @@ public class CreditPaymentService {
     
     public LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Date date, String txnType, Double amount, Double principle, Double interest, Double otherCharges, Double penalty, String description, String adjustmentMode) {
         LendingLedger lendingLedger = new LendingLedger();
-        lendingLedger.setMerchant(lendingPaymentSchedule.getMerchant());
+        lendingLedger.setMerchantId(lendingPaymentSchedule.getMerchantId());
         if(lendingPaymentSchedule.getMerchantStoreId() != null && lendingPaymentSchedule.getMerchantStoreId() > 0){
             lendingLedger.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
         }
@@ -981,16 +988,18 @@ public class CreditPaymentService {
     }
     
     private void sendFiledNotification(LendingClTransaction lendingClTransaction) {
-    	Optional<Merchant> merchantOptional=merchantDao.findById(lendingClTransaction.getMerchantId());
+//    	Optional<Merchant> merchantOptional=merchantDao.findById(lendingClTransaction.getMerchantId());
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
     	if(merchantOptional.isPresent()) {
     		creditLineService.sendFiledTransNotification(lendingClTransaction, merchantOptional.get());
     	}
     }
 
     private String getSecret() {
-        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+//        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
         if (merchantOptional.isPresent()) {
-            Merchant merchant = merchantOptional.get();
+            BasicDetailsDto merchant = merchantOptional.get();
             if (secret == null) {
                 secret = aesEncryption.decrypt(merchant.getSecret());
             }
@@ -999,9 +1008,11 @@ public class CreditPaymentService {
     }
 
     private String getMid() {
-        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+//        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
+
         if (merchantOptional.isPresent()) {
-            Merchant merchant = merchantOptional.get();
+            BasicDetailsDto merchant = merchantOptional.get();
             if (mid == null) {
                 mid = merchant.getMid();
             }

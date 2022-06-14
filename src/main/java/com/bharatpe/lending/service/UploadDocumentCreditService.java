@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -486,102 +486,102 @@ public class UploadDocumentCreditService {
 		return null;
 	}
 	
-	private Boolean pancardAuthenticationUsingSignzyAPI(String responseString, MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
- 
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode rootNode=null;
-		try {
-			rootNode = mapper.readTree(responseString);
-		} catch (JsonParseException e1) {
-			e1.printStackTrace();
-		} catch (JsonMappingException e1) {
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-		 
-		JsonNode response = (rootNode != null) ? rootNode.path("response") : null;
-		JsonNode result=response.path("result");
-		 
-		if(result != null ) {
-			String panNumber =result.path("number").textValue();
-			 
-			String name=result.path("name").textValue();
-			 
-			String dob =  result.path("dob").textValue();
-			 
-			  String accessTokenSnoop = rootNode.path("accessToken").textValue();
-		       String itemId = rootNode.path("itemId").textValue();
-		    if(panNumber.equals("")||name.equals("")||dob.equals("")||accessTokenSnoop.equals("")||itemId.equals(""))
-		    	return false;
-		   
-		    Map<String,String> res= signzyHandler.curlSignzyPanAuthenticationAPI(panNumber, name, dob,itemId,accessTokenSnoop);
-			
-		    String curlResponse=res.get("response");
-		    String request=res.get("request");
-		    
-		    if(!curlResponse.isEmpty()) {
-				processAndSavePanAuthenticationResponse(curlResponse,request, merchantDocumentProofOcr, merchantDocumentProof, merchant, creditApplication);
-			}else {
-				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
-				createFailedEntryForPancardDocAuthentication(curlResponse,request,merchantDocumentProofOcr, merchantDocumentProof, merchant, creditApplication);
-			}
-			return true;
-		}
-		return false;
-	}
+//	private Boolean pancardAuthenticationUsingSignzyAPI(String responseString, MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
+//
+//		ObjectMapper mapper = new ObjectMapper();
+//		JsonNode rootNode=null;
+//		try {
+//			rootNode = mapper.readTree(responseString);
+//		} catch (JsonParseException e1) {
+//			e1.printStackTrace();
+//		} catch (JsonMappingException e1) {
+//			e1.printStackTrace();
+//		} catch (IOException e1) {
+//			e1.printStackTrace();
+//		}
+//
+//		JsonNode response = (rootNode != null) ? rootNode.path("response") : null;
+//		JsonNode result=response.path("result");
+//
+//		if(result != null ) {
+//			String panNumber =result.path("number").textValue();
+//
+//			String name=result.path("name").textValue();
+//
+//			String dob =  result.path("dob").textValue();
+//
+//			  String accessTokenSnoop = rootNode.path("accessToken").textValue();
+//		       String itemId = rootNode.path("itemId").textValue();
+//		    if(panNumber.equals("")||name.equals("")||dob.equals("")||accessTokenSnoop.equals("")||itemId.equals(""))
+//		    	return false;
+//
+//		    Map<String,String> res= signzyHandler.curlSignzyPanAuthenticationAPI(panNumber, name, dob,itemId,accessTokenSnoop);
+//
+//		    String curlResponse=res.get("response");
+//		    String request=res.get("request");
+//
+//		    if(!curlResponse.isEmpty()) {
+//				processAndSavePanAuthenticationResponse(curlResponse,request, merchantDocumentProofOcr, merchantDocumentProof, merchant, creditApplication);
+//			}else {
+//				logger.info("UploadDocumentService karza pan authentication api failure with blank response for panNumber : {}, dob : {}, name : {}",panNumber, dob, name);
+//				createFailedEntryForPancardDocAuthentication(curlResponse,request,merchantDocumentProofOcr, merchantDocumentProof, merchant, creditApplication);
+//			}
+//			return true;
+//		}
+//		return false;
+//	}
 	
-	private void processAndSavePanAuthenticationResponse(String responseString,String request, MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode rootNode=null;
-		try {
-			rootNode = mapper.readTree(responseString);
-		} catch (JsonParseException e1) {
-			e1.printStackTrace();
-		} catch (JsonMappingException e1) {
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-
-		JsonNode response = (rootNode != null) ? rootNode.path("response") : null;
-		JsonNode result=response.path("result");
-		
-		MerchantDocumentProofRequest merchantDocumentProofRequest  = new MerchantDocumentProofRequest();
-		 
-		merchantDocumentProofRequest.setMerchantId(merchant.getId());
-        merchantDocumentProofRequest.setDocumentId(merchantDocumentProof.getId());
-		merchantDocumentProofRequest.setProvider("SIGNZY");
-		merchantDocumentProofRequest.setRequestType("VALIDATION");
-		merchantDocumentProofRequest.setResponse(responseString);
-		merchantDocumentProofRequest.setRequest(request);
-		if(result.path("verified").asBoolean())
-		{
-			merchantDocumentProofRequest.setStatus("SUCCESS");
-			//merchantDocumentProofRequest.setResponse(result.path("message").textValue());
-		}
-		else
-		{
-			merchantDocumentProofRequest.setStatus("FAILED");
-			//merchantDocumentProofRequest.setResponse(result.path("message").textValue());
-		}
-		
-		 
-		merchantDocumentProofRequestDao.save(merchantDocumentProofRequest);
-	}
+//	private void processAndSavePanAuthenticationResponse(String responseString,String request, MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
+//		ObjectMapper mapper = new ObjectMapper();
+//		JsonNode rootNode=null;
+//		try {
+//			rootNode = mapper.readTree(responseString);
+//		} catch (JsonParseException e1) {
+//			e1.printStackTrace();
+//		} catch (JsonMappingException e1) {
+//			e1.printStackTrace();
+//		} catch (IOException e1) {
+//			e1.printStackTrace();
+//		}
+//
+//		JsonNode response = (rootNode != null) ? rootNode.path("response") : null;
+//		JsonNode result=response.path("result");
+//
+//		MerchantDocumentProofRequest merchantDocumentProofRequest  = new MerchantDocumentProofRequest();
+//
+//		merchantDocumentProofRequest.setMerchantId(merchant.getId());
+//        merchantDocumentProofRequest.setDocumentId(merchantDocumentProof.getId());
+//		merchantDocumentProofRequest.setProvider("SIGNZY");
+//		merchantDocumentProofRequest.setRequestType("VALIDATION");
+//		merchantDocumentProofRequest.setResponse(responseString);
+//		merchantDocumentProofRequest.setRequest(request);
+//		if(result.path("verified").asBoolean())
+//		{
+//			merchantDocumentProofRequest.setStatus("SUCCESS");
+//			//merchantDocumentProofRequest.setResponse(result.path("message").textValue());
+//		}
+//		else
+//		{
+//			merchantDocumentProofRequest.setStatus("FAILED");
+//			//merchantDocumentProofRequest.setResponse(result.path("message").textValue());
+//		}
+//
+//
+//		merchantDocumentProofRequestDao.save(merchantDocumentProofRequest);
+//	}
 	
-	private void createFailedEntryForPancardDocAuthentication(String curlResponse,String request,MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant,CreditApplication creditApplication) {
-		MerchantDocumentProofRequest merchantDocumentProofRequest  = new MerchantDocumentProofRequest();
-		 
-		merchantDocumentProofRequest.setMerchantId(merchant.getId());
-		merchantDocumentProofRequest.setRequestType("VALIDATION");
-		merchantDocumentProofRequest.setResponse(curlResponse);
-		merchantDocumentProofRequest.setDocumentId(merchantDocumentProof.getId());
-		merchantDocumentProofRequest.setStatus("FAILED");
-		merchantDocumentProofRequest.setRequest(request);
-		merchantDocumentProofRequest.setProvider("SIGNZY");
-		merchantDocumentProofRequestDao.save(merchantDocumentProofRequest);
-	}
+//	private void createFailedEntryForPancardDocAuthentication(String curlResponse,String request,MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant,CreditApplication creditApplication) {
+//		MerchantDocumentProofRequest merchantDocumentProofRequest  = new MerchantDocumentProofRequest();
+//
+//		merchantDocumentProofRequest.setMerchantId(merchant.getId());
+//		merchantDocumentProofRequest.setRequestType("VALIDATION");
+//		merchantDocumentProofRequest.setResponse(curlResponse);
+//		merchantDocumentProofRequest.setDocumentId(merchantDocumentProof.getId());
+//		merchantDocumentProofRequest.setStatus("FAILED");
+//		merchantDocumentProofRequest.setRequest(request);
+//		merchantDocumentProofRequest.setProvider("SIGNZY");
+//		merchantDocumentProofRequestDao.save(merchantDocumentProofRequest);
+//	}
 	
 	private MerchantDocumentProofOcr  createFailedDocKycDetails(String docType,  MerchantDocumentProof merchantDocumentProof, BasicDetailsDto merchant) {
 		MerchantDocumentProofOcr merchantDocumentProofOcr = new MerchantDocumentProofOcr();

@@ -12,7 +12,7 @@ import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 import org.json.XML;
@@ -22,12 +22,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.MerchantDao;
 import com.bharatpe.common.dao.MerchantFcmTokenDao;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.dao.CreditApplicationAddressDao;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationTransitionDao;
@@ -62,8 +60,8 @@ public class CreditLineKycService {
 
 	@Autowired
 	LendingManualKycDao lendingManualKycDao;
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 	@Autowired
 	CreditApplicationAddressDao creditApplicationAddressDao;
 	@Autowired
@@ -216,9 +214,9 @@ public class CreditLineKycService {
 		map.put("message", "address same");
 
 		// TODO : remove this and use api
-		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-		sendNotification(merchant,creditApplication);
-		redisNotificationService.sendEnachNotificationForCreditLine(merchant, creditApplication);
+//		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+		sendNotification(merchantBasicDetails,creditApplication);
+		redisNotificationService.sendEnachNotificationForCreditLine(merchantBasicDetails, creditApplication);
 
 		if ((merchantBasicDetails.getId().equals(1141505L) || merchantBasicDetails.getId().equals(3612680L)) && creditApplication.getAmount() <= 50000)
 			verifyOTPService.sendDetailsForKycVerification(merchantBasicDetails.getId(),creditApplication.getId(),true);
@@ -309,9 +307,9 @@ public class CreditLineKycService {
 				MerchantDocumentProof merchantDocumentProof = insertInMerchantDocumentProof(merchantBasicDetails, lendingEkyc, applicationId);
 				insertInMerchantDocumentProofOcr(merchantBasicDetails, lendingEkyc, applicationId, merchantDocumentProof);
 			} else {
-				Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-				DocumentsIdProof documentIdProof = insertIntoDocumentIdProof(merchant, lendingEkyc, lendingApplication);
-				insertIntoDocKycDetails(merchant, lendingEkyc, lendingApplication, documentIdProof);
+//				Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+				DocumentsIdProof documentIdProof = insertIntoDocumentIdProof(merchantBasicDetails, lendingEkyc, lendingApplication);
+				insertIntoDocKycDetails(merchantBasicDetails, lendingEkyc, lendingApplication, documentIdProof);
 			}
 		}
 		map.put("success", true);
@@ -416,13 +414,13 @@ public class CreditLineKycService {
 		 
 	}
 
-	public void sendNotification(Merchant merchant, CreditApplication creditApplication) {
+	public void sendNotification(BasicDetailsDto merchant, CreditApplication creditApplication) {
 		List<String> mobiles = new ArrayList<>();
 		mobiles.add(merchant.getMobile());
 		String message=getNotificationContent(merchant.getId(), creditApplication);
 		if(message!=null) {
 			smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-			whatsappNotificationService.send(merchant, null, message, mobiles, null);
+			whatsappNotificationService.send(merchant.getId(), null,merchant.getBeneficiaryName(), message, mobiles, null);
 			
 			MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());			
 			if(merchantFcmToken != null) {
@@ -445,7 +443,7 @@ public class CreditLineKycService {
 		return message;
 	}
 	
-	private DocumentsIdProof insertIntoDocumentIdProof(Merchant merchant, LendingEkyc lendingEkyc,LendingApplication lendingApplication) {
+	private DocumentsIdProof insertIntoDocumentIdProof(BasicDetailsDto merchant, LendingEkyc lendingEkyc,LendingApplication lendingApplication) {
 
 		DocumentsIdProof documentsProof = documentsIdProofDao.fetchLatestAddressProof(merchant.getId(),lendingApplication.getId(),"LENDING");
 		if(documentsProof != null){
@@ -453,7 +451,7 @@ public class CreditLineKycService {
 			documentsIdProofDao.save(documentsProof);
 		}
 		DocumentsIdProof documentsIdProof=new DocumentsIdProof();
-		documentsIdProof.setMerchant(merchant);
+		documentsIdProof.setMerchantId(lendingApplication.getMerchantId());
 		documentsIdProof.setProofType("eAadhar");
 		documentsIdProof.setStatus("APPROVED");
 		documentsIdProof.setLendingApplication(lendingApplication);
@@ -468,10 +466,10 @@ public class CreditLineKycService {
 		
 	}
 	
-	private void insertIntoDocKycDetails(Merchant merchant,LendingEkyc lendingEkyc,LendingApplication lendingApplication,DocumentsIdProof documentIdProof) {
+	private void insertIntoDocKycDetails(BasicDetailsDto merchant,LendingEkyc lendingEkyc,LendingApplication lendingApplication,DocumentsIdProof documentIdProof) {
 		
 		DocKycDetails docKycDetails=new DocKycDetails();
-		docKycDetails.setMerchant(merchant);
+		docKycDetails.setMerchantId(lendingApplication.getMerchantId());
 		docKycDetails.setDocType("eAadhar");
 		docKycDetails.setAddress(lendingEkyc.getAddress());
 		docKycDetails.setCity(lendingEkyc.getCity());

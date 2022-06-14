@@ -11,7 +11,9 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
@@ -74,8 +76,8 @@ public class APIGatewayService {
     @Autowired
     AesEncryption aesEncryption;
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
@@ -112,6 +114,9 @@ public class APIGatewayService {
 
     @Value("${club.url}")
     public String BHARATPE_CLUB_URL;
+
+    @Value("${club.url.v2}")
+    public String BHARATPE_CLUB_URL_V2;
 
     private static String SECRET;
     private static String MID;
@@ -179,6 +184,9 @@ public class APIGatewayService {
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
     private static String clientSecret;
+
+    @Autowired
+    MerchantService merchantService;
 
     @PostConstruct
     public void init() {
@@ -275,9 +283,10 @@ public class APIGatewayService {
     }
 
     private String getSecret() {
-        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+//        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
         if (merchantOptional.isPresent()) {
-            Merchant merchant = merchantOptional.get();
+            BasicDetailsDto merchant = merchantOptional.get();
             if (SECRET == null) {
                 SECRET = aesEncryption.decrypt(merchant.getSecret());
             }
@@ -286,9 +295,10 @@ public class APIGatewayService {
     }
 
     private String getMid() {
-        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+//        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
         if (merchantOptional.isPresent()) {
-            Merchant merchant = merchantOptional.get();
+            BasicDetailsDto merchant = merchantOptional.get();
             if (MID == null) {
                 MID = merchant.getMid();
             }
@@ -1244,16 +1254,18 @@ public class APIGatewayService {
     }
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId)  {
-        return getGlobalLimit(merchantId, null, null);
+        Boolean clubV2 = checkClubV2(merchantId);
+        return getGlobalLimit(merchantId, null, null, clubV2);
     }
 
     //    @Async
-    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion) {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2) {
         logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
             put("source", source);
             put("appVersion", appVersion);
+            put("clubV2", clubV2);
         }};
         StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
         if (!ObjectUtils.isEmpty(source)) {
@@ -1261,6 +1273,9 @@ public class APIGatewayService {
         }
         if (!ObjectUtils.isEmpty(appVersion)) {
             queryParams.append("&appVersion=").append(appVersion);
+        }
+        if (!ObjectUtils.isEmpty(clubV2)) {
+            queryParams.append("&clubV2=").append(clubV2);
         }
         String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
         String payload = hmacCalculator.getObjectPayload(requestParams);
@@ -1293,7 +1308,8 @@ public class APIGatewayService {
     }
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
-        return getGlobalLimit(merchantId, source, null);
+        Boolean clubV2 = checkClubV2(merchantId);
+        return getGlobalLimit(merchantId, source, null, clubV2);
     }
 
     public void globalLimitTxn(Long merchantId, String mode, Double amount) {
@@ -1330,59 +1346,59 @@ public class APIGatewayService {
         }
     }
 
-    public Map<String, Object> riskByPspApp(Merchant merchant) {
-        Map<String, Object> data = new HashMap<>();
-
-        try {
-            Map<String, Object> body = new HashMap<>();
-            body.put("merchant_id", merchant.getId());
-            body.put("limit", 1);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-
-            List<String> responseBody = restTemplate.postForObject(MONGET_API + "?collection_name=merchant_psp_dump", request, List.class);
-
-            if (Objects.isNull(responseBody) || responseBody.isEmpty()) {
-                data.put("status", false);
-                return data;
-            }
-            JsonNode responseData = mapper.readTree(responseBody.get(0));
-
-
-            HashSet<String> pspSet = new HashSet<String>();
-
-            if (Objects.nonNull(responseData.get("app_details"))) {
-                for (JsonNode response : responseData.get("app_details")) {
-                    if (Objects.nonNull(response.get("appName"))) {
-                        pspSet.add(response.get("appName").asText());
-                    } else if (Objects.nonNull(response.get("app_name"))) {
-                        pspSet.add(response.get("app_name").asText());
-                    }
-                }
-            }
-
-            if (pspSet.contains("BharatPe FOS")) {
-                data.put("status", true);
-                data.put("reason", ExperianConstants.FOS_APP);
-                return data;
-            }
-            pspSet.retainAll(LendingConstants.OTHER_LENDING_APPS);
-
-            if (pspSet.size() >= 10) {
-                data.put("status", true);
-                data.put("reason", ExperianConstants.MULTIPLE_PSP_APPS);
-                return data;
-            }
-        } catch (Exception ex) {
-            logger.error("Error occurred while fetching psp apps Error:", ex);
-            data.put("status", false);
-        }
-        data.put("status", false);
-
-        return data;
-    }
+//    public Map<String, Object> riskByPspApp(Merchant merchant) {
+//        Map<String, Object> data = new HashMap<>();
+//
+//        try {
+//            Map<String, Object> body = new HashMap<>();
+//            body.put("merchant_id", merchant.getId());
+//            body.put("limit", 1);
+//
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//
+//            List<String> responseBody = restTemplate.postForObject(MONGET_API + "?collection_name=merchant_psp_dump", request, List.class);
+//
+//            if (Objects.isNull(responseBody) || responseBody.isEmpty()) {
+//                data.put("status", false);
+//                return data;
+//            }
+//            JsonNode responseData = mapper.readTree(responseBody.get(0));
+//
+//
+//            HashSet<String> pspSet = new HashSet<String>();
+//
+//            if (Objects.nonNull(responseData.get("app_details"))) {
+//                for (JsonNode response : responseData.get("app_details")) {
+//                    if (Objects.nonNull(response.get("appName"))) {
+//                        pspSet.add(response.get("appName").asText());
+//                    } else if (Objects.nonNull(response.get("app_name"))) {
+//                        pspSet.add(response.get("app_name").asText());
+//                    }
+//                }
+//            }
+//
+//            if (pspSet.contains("BharatPe FOS")) {
+//                data.put("status", true);
+//                data.put("reason", ExperianConstants.FOS_APP);
+//                return data;
+//            }
+//            pspSet.retainAll(LendingConstants.OTHER_LENDING_APPS);
+//
+//            if (pspSet.size() >= 10) {
+//                data.put("status", true);
+//                data.put("reason", ExperianConstants.MULTIPLE_PSP_APPS);
+//                return data;
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Error occurred while fetching psp apps Error:", ex);
+//            data.put("status", false);
+//        }
+//        data.put("status", false);
+//
+//        return data;
+//    }
 
     public void updateApplicationPriority(Long merchantId, Long applicationId) {
         logger.info("Updating application priority for merchant:{} and application:{}", merchantId, applicationId);
@@ -1401,7 +1417,7 @@ public class APIGatewayService {
         int retryCount = 0;
         while (retryCount < 3) {
             try {
-                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority/v2", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
                 });
                 logger.info("Application priority response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
@@ -1436,10 +1452,13 @@ public class APIGatewayService {
 
             ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
             });
+
             logger.info("processing fee redemption eligibility response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                 JsonNode response = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
-                if (Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile")) && response.get("data").get("eligibile").asBoolean()) {
+                if (Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile"))
+                        && response.get("data").get("eligibile").asBoolean() && Objects.nonNull(response.get("data").get("club_id"))
+                        && response.get("data").get("club_id").asText().equalsIgnoreCase("1")) {
                     if (Objects.isNull(response.get("data").get("rewards"))) {
                         return true;
                     }
@@ -1462,12 +1481,46 @@ public class APIGatewayService {
         return false;
     }
 
+    public Boolean checkClubV2(Long merchantId) {
+        try {
+            logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
+            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(merchantId);
+            if(ObjectUtils.isEmpty(tokenVerification)) {
+                return false;
+            }
+            String token = tokenVerification.getAccessToken();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("clientName", CLIENT);
+            headers.set("token", token);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+
+            logger.info("checking for clubV2 request:{} for merchant:{}", request, merchantId);
+            ResponseEntity<ClubV2DTO> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL_V2, HttpMethod.POST, request, ClubV2DTO.class);
+            logger.info("clubV2 eligibility response:{} for merchant:{}", responseEntity, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
+                ClubV2DTO clubV2DTO = responseEntity.getBody();
+                logger.info("clubV2DTO: {}",clubV2DTO);
+                if(Objects.nonNull(clubV2DTO.getData())) {
+                    if(clubV2DTO.getData().isEligibile() && clubV2DTO.getData().getClub_id() > 1) {
+                        return true;
+                    }
+                }
+
+            }
+        } catch (Exception ex) {
+            logger.error("Error occurred while checking processing fee redemption eligibility", ex);
+        }
+
+        return false;
+    }
+
     public boolean sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan) {
         if ("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
-            logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchant().getId());
-            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(activeLoan.getMerchant().getId());
+            logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchantId());
+            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(activeLoan.getMerchantId());
             if (tokenVerification == null) {
-                logger.info("Token not found for merchant:{}", activeLoan.getMerchant().getId());
+                logger.info("Token not found for merchant:{}", activeLoan.getMerchantId());
                 return false;
             }
             try {
@@ -1475,38 +1528,42 @@ public class APIGatewayService {
                 body.putIfAbsent("meta", new HashMap<>());
                 body.putIfAbsent("payload", new HashMap<String, Object>() {
                 });
-                logger.info("Calling loan details api from Lending for merchant: {}", activeLoan.getMerchant().getId());
+                logger.info("Calling loan details api from Lending for merchant: {}", activeLoan.getMerchantId());
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.set("token", tokenVerification.getAccessToken());
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
                 ResponseEntity<LoanDetailsResponseDTO> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("loan.details.url")), HttpMethod.POST, request, LoanDetailsResponseDTO.class);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getDetails() != null && responseEntity.getBody().getDetails().isEligible() && responseEntity.getBody().getDetails().getEligibility() != null && !responseEntity.getBody().getDetails().getEligibility().isEmpty()) {
-                    logger.info("Eligibility found from Lending for merchant:{}", activeLoan.getMerchant().getId());
-                    sendComm(activeLoan.getMerchant().getId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getInterestRate());
+                    logger.info("Eligibility found from Lending for merchant:{}", activeLoan.getMerchantId());
+                    sendComm(activeLoan.getMerchantId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getInterestRate());
                     return true;
                 }
             } catch (Exception e) {
-                logger.error("Unable to call loan details api for merchant:{}", activeLoan.getMerchant().getId(), e);
+                logger.error("Unable to call loan details api for merchant:{}", activeLoan.getMerchantId(), e);
             }
         }
         return false;
     }
 
     private void sendComm(Long merchantId, Integer amount, Double interestRate) {
-        Merchant merchant = merchantDao.getById(merchantId);
+//        Merchant merchant = merchantDao.getById(merchantId);
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            return;
+        }
 
         String identifier = "LENDING_PAYMENT_3_PUSH";
         Map<String, Object> templateParams = new HashMap<>();
         templateParams.put("loan_amount", amount);
         templateParams.put("interest_rate", interestRate);
-        String deeplink = notificationUtil.getDeeplink(merchant, "LOAN_DASHBOARD");
+        String deeplink = notificationUtil.getDeeplink(basicDetailsDto.get().getSettlementType(), "LOAN_DASHBOARD");
         NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
         notificationPayloadDto.setTemplateIdentifier(identifier);
         notificationPayloadDto.setPushTitle("The loan is closed successfully");
         notificationPayloadDto.setPushDeepLink(deeplink);
         notificationPayloadDto.setTemplateIdentifier(identifier);
-        notificationPayloadDto.setMobile(merchant.getMobile());
+        notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
         notificationPayloadDto.setClientName("LENDING");
         notificationPayloadDto.setTemplateParams(templateParams);
         lendingNotificationService.notify(notificationPayloadDto);
@@ -1548,9 +1605,9 @@ public class APIGatewayService {
         return null;
     }
 
-    public LdcVirtualAccount createDisbursalVPA(Merchant merchant, LendingApplication lendingApplication) {
+    public LdcVirtualAccount createDisbursalVPA(Long merchantId, LendingApplication lendingApplication) {
         logger.info("Coming In Create Virtual Account");
-        LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(merchant.getId());
+        LdcVirtualAccount ldcVirtualAccount = ldcVirtualAccountDao.findByMerchantId(merchantId);
         if (ldcVirtualAccount != null) {
             return ldcVirtualAccount;
         }
@@ -1579,7 +1636,7 @@ public class APIGatewayService {
             }
             if (response != null) {
                 if (response.getStatus() != null && "OK".equalsIgnoreCase(response.getStatus())) {
-                    return ldcVirtualAccountDao.save(new LdcVirtualAccount(merchant.getId(), lendingApplication.getId(), response.getAccountNumber(), response.getIfsc(), "LENDING"));
+                    return ldcVirtualAccountDao.save(new LdcVirtualAccount(merchantId, lendingApplication.getId(), response.getAccountNumber(), response.getIfsc(), "LENDING"));
                 }
             }
         } catch (Exception ex) {
@@ -1696,11 +1753,15 @@ public class APIGatewayService {
 
     public Map getKycDetails(LendingApplication lendingApplication) {
         Map result = new HashMap();
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            return result;
+        }
         try {
             if (ObjectUtils.isEmpty(lendingApplication.getCkycId())) {
                 String dob = null;
-                DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
-                DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchantId(), lendingApplication.getId());
+                DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (panDetail == null) {
                     panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
                 }
@@ -1737,11 +1798,11 @@ public class APIGatewayService {
                 } catch (Exception ex) {
                     logger.info("Fetching Document From Bucket", ex);
                 }
-                LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchant().getId(), lendingApplication.getId());
+                LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (Objects.nonNull(lendingEkyc)) {
                     result.put("ekyc_response", lendingEkyc.getResponse());
                 }
-                result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : panDetail.getDocumentsIdProof().getLendingApplication().getMerchant().getBeneficiaryName());
+                result.put("person_name", panDetail.getPersonName() != null ? panDetail.getPersonName() : basicDetailsDto.get().getBeneficiaryName());
                 result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : poaDetail.getDob());
                 result.put("proof_type", poaDetail.getDocType());
                 result.put("gender", poaDetail.getGender() != null && poaDetail.getGender() != "" ? poaDetail.getGender() : "Male");
@@ -1749,7 +1810,7 @@ public class APIGatewayService {
                 result.put("addressproof1", addressProof1);
                 result.put("addressproof2", addressProof2);
             } else {
-                List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchant().getId());
+                List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchantId());
                 for (KycDoc kycDoc : kycDocs) {
                     if (KycDocType.POA.equals(kycDoc.getDocType())) {
                         result.put("proof_type", kycDoc.getSubDocType());
@@ -1760,7 +1821,7 @@ public class APIGatewayService {
                     }
                     if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
                         result.put("pancardUrl", kycDoc.getDocFrontImageUrl());
-                        result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? lendingApplication.getMerchant().getBeneficiaryName() : kycDoc.getName());
+                        result.put("person_name", ObjectUtils.isEmpty(kycDoc.getName()) ? basicDetailsDto.get().getBeneficiaryName() : kycDoc.getName());
                         if (Objects.nonNull(kycDoc.getDob())) {
                             String dob = kycDoc.getDob();
                             Date dateOfBirth = null;
@@ -1931,38 +1992,38 @@ public class APIGatewayService {
         }
     }
 
-    public JsonNode getMerchantSmsAnalysisData(Merchant merchant) {
+    public JsonNode getMerchantSmsAnalysisData(BasicDetailsDto basicDetailsDto) {
         try {
-            logger.info("Getting SMS analysis data for merchant:{}", merchant.getId());
+            logger.info("Getting SMS analysis data for merchant:{}", basicDetailsDto.getId());
             Map<String, Object> body = new HashMap<>();
-            body.put("identifier", merchant.getMid());
+            body.put("identifier", basicDetailsDto.getMid());
             body.put("limit", 1);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            logger.info("Monget sms analysis request:{} for merchant:{}", request, merchant.getId());
+            logger.info("Monget sms analysis request:{} for merchant:{}", request, basicDetailsDto.getId());
             ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_sms_analysis", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>() {
             });
-            logger.info("Monget sms analysis response:{} for merchant:{}", responseBody, merchant.getId());
+            logger.info("Monget sms analysis response:{} for merchant:{}", responseBody, basicDetailsDto.getId());
             if (responseBody.getBody() == null || responseBody.getBody().isEmpty()) {
-                logger.info("SMS analysis data not found for merchant:{}", merchant.getId());
+                logger.info("SMS analysis data not found for merchant:{}", basicDetailsDto.getId());
                 return null;
             }
             return mapper.readTree(responseBody.getBody().get(0));
         } catch (Exception ex) {
-            logger.error("Error occurred while fetching sms analysis data for merchant:{}", merchant.getId(), ex);
+            logger.error("Error occurred while fetching sms analysis data for merchant:{}", basicDetailsDto.getId(), ex);
         }
         return null;
     }
 
-    public boolean checkPennyDrop(MerchantBankDetail merchantBankDetail, Merchant merchant) {
+    public boolean checkPennyDrop(MerchantBankDetail merchantBankDetail, Long merchantId, String mobile) {
         boolean success = false;
         try {
-            logger.info("Calling penny drop api for merchantId:{}", merchant.getId());
+            logger.info("Calling penny drop api for merchantId:{}", merchantId);
             Map<String, String> requestParams = new HashMap<String, String>() {{
                 put("accountNo", merchantBankDetail.getAccountNumber());
                 put("ifsc", merchantBankDetail.getIfscCode());
-                put("mobile", merchant.getMobile());
+                put("mobile", mobile);
             }};
             String url = "http://payout-java.bharatpe.in/pennyDrop/v3";
             String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getInternalSecret());
@@ -1971,24 +2032,24 @@ public class APIGatewayService {
             headers.set("hash", hash);
             headers.set("clientName", CLIENT);
             HttpEntity<Map<String, String>> request = new HttpEntity<>(requestParams, headers);
-            logger.info("Penny drop request: {} for merchant:{} ", mapper.writeValueAsString(request), merchant.getId());
+            logger.info("Penny drop request: {} for merchant:{} ", mapper.writeValueAsString(request), merchantId);
             ResponseEntity<PennyDropResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PennyDropResponse.class);
-            logger.info("Penny Drop Response:{} for merchant:{}", responseEntity, merchant.getId());
+            logger.info("Penny Drop Response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && "100".equals(responseEntity.getBody().getResponseCode()) && "OK".equals(responseEntity.getBody().getStatus())) {
-                logger.info("Penny drop success for merchant:{}", merchant.getId());
+                logger.info("Penny drop success for merchant:{}", merchantId);
                 success = true;
             } else {
-                logger.info("Penny drop failed for merchant:{}", merchant.getId());
+                logger.info("Penny drop failed for merchant:{}", merchantId);
             }
             LendingPennydrop lendingPennydrop = new LendingPennydrop();
             lendingPennydrop.setAccountNumber(merchantBankDetail.getAccountNumber());
-            lendingPennydrop.setMerchantId(merchantBankDetail.getMerchant().getId());
+            lendingPennydrop.setMerchantId(merchantBankDetail.getMerchantId());
             lendingPennydrop.setIfscCode(merchantBankDetail.getIfscCode());
             lendingPennydrop.setRetryCount(1L);
             lendingPennydrop.setStatus(success ? "SUCCESS" : "FAILED");
             lendingPennydropDao.save(lendingPennydrop);
         } catch (Exception e) {
-            logger.info("Bank Penny Drop Exception for merchant:{}", merchant.getId(), e);
+            logger.info("Bank Penny Drop Exception for merchant:{}", merchantId, e);
         }
         return success;
     }
@@ -2035,28 +2096,28 @@ public class APIGatewayService {
         return beneficiaryName;
     }
 
-    public Boolean isSdkInvoke(Merchant merchant) {
-        try {
-            logger.info("Getting variable SMS data for merchant:{}", merchant.getId());
-            Map<String, Object> body = new HashMap<>();
-            body.put("identifier", merchant.getMid());
-            body.put("limit", 1);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            logger.info("Monget variable sms request:{} for merchant:{}", request, merchant.getId());
-            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_variable_sms_data", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>() {
-            });
-            logger.info("Monget variable sms response:{} for merchant:{}", responseBody, merchant.getId());
-            if (responseBody.getBody() == null || responseBody.getBody().isEmpty()) {
-                logger.info("Variable SMS analysis data not found for merchant:{}", merchant.getId());
-                return true;
-            }
-        } catch (Exception ex) {
-            logger.error("Error occurred while fetching variable sms data for merchant:{}", merchant.getId(), ex);
-        }
-        return false;
-    }
+//    public Boolean isSdkInvoke(Merchant merchant) {
+//        try {
+//            logger.info("Getting variable SMS data for merchant:{}", merchant.getId());
+//            Map<String, Object> body = new HashMap<>();
+//            body.put("identifier", merchant.getMid());
+//            body.put("limit", 1);
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            logger.info("Monget variable sms request:{} for merchant:{}", request, merchant.getId());
+//            ResponseEntity<List<String>> responseBody = restTemplate.exchange(env.getProperty("monget.generic.url") + "?collection_name=merchant_variable_sms_data", HttpMethod.POST, request, new ParameterizedTypeReference<List<String>>() {
+//            });
+//            logger.info("Monget variable sms response:{} for merchant:{}", responseBody, merchant.getId());
+//            if (responseBody.getBody() == null || responseBody.getBody().isEmpty()) {
+//                logger.info("Variable SMS analysis data not found for merchant:{}", merchant.getId());
+//                return true;
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Error occurred while fetching variable sms data for merchant:{}", merchant.getId(), ex);
+//        }
+//        return false;
+//    }
 
     public Boolean isSdkInvoke(BasicDetailsDto merchant) {
         try {

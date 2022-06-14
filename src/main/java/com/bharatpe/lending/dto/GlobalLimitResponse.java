@@ -34,6 +34,7 @@ public class GlobalLimitResponse {
         String riskGroup;
         Double limit;
         String loanType;
+        Boolean isClubV2Member;
     }
 
     @lombok.Data
@@ -49,5 +50,6 @@ public class GlobalLimitResponse {
         private Integer tenure;
         private Integer ediCount;
         private Double processingFee;
+        private Double clubV2Amount;
     }
 }

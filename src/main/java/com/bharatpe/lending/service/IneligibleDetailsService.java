@@ -2,18 +2,17 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.enums.RejectionStage;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto;
-import com.bharatpe.lending.dto.IneligibleRequestDTO;
 import com.bharatpe.lending.dto.IneligibleResponseDTO;
 import com.bharatpe.lending.dto.IneligibleAPIResponseDto.Banner;
 
-import com.bharatpe.lending.dto.MerchantResponseDTO;
-import com.bharatpe.lending.handlers.MerchantHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -37,8 +36,8 @@ public class IneligibleDetailsService {
     @Autowired
     private MerchantLoanRequestDoa merchantLoanRequestDoa;
 
-    @Autowired
-    private MerchantDao merchantDao;
+//    @Autowired
+//    private MerchantDao merchantDao;
 
     @Autowired
     MerchantLoanRequestAuditTrailDoa merchantLoanRequestAuditTrailDoa;
@@ -65,40 +64,40 @@ public class IneligibleDetailsService {
     EasyLoanUtil easyLoanUtil;
 
     @Autowired
-    MerchantHandler merchantHandler;
+    MerchantSummaryHandler merchantSummaryHandler;
 
-    public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
-        logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
-//        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
-        MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
-        if (ObjectUtils.isEmpty(merchantResponseDTO)) {
-            throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
-        }
-        int previousLoanCount = (merchantResponseDTO.getTotalLoansCount() != null) ? merchantResponseDTO.getTotalLoansCount() : 0;
-        IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
-        MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
-        ScoreCategoryMaster scoreCategoryMaster = null;
-        if (merchant.getBusinessCategory() != null && !merchant.getBusinessCategory().trim().equalsIgnoreCase("")) {
-            scoreCategoryMaster = scoreCategoryMasterDao.getByCategory(merchant.getBusinessCategory());
-        }
-        if (scoreCategoryMaster == null) {
-            Object[] objects = scoreCategoryMasterDao.getCategoryAverage();
-            scoreCategoryMaster = new ScoreCategoryMaster();
-            scoreCategoryMaster.setTxnCount((double)objects[0]);
-            scoreCategoryMaster.setAvgDailyTpv((double)objects[1]);
-        }
-        if (ineligibleRequestDTO != null && ineligibleRequestDTO.getPanCard() != null && !ineligibleRequestDTO.getPanCard().trim().equalsIgnoreCase("")) {
-            logger.info("New Ineligible Loan request with panCard : {} and merchantId : {}", ineligibleRequestDTO.getPanCard(), merchant.getId());
-            merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
-            merchantLoanRequest = calculateTarget(merchantResponseDTO, merchant.getId(), ineligibleRequestDTO.getPanCard(), scoreCategoryMaster);
-            MerchantLoanRequestAuditTrail merchantLoanRequestAuditTrail = MerchantLoanRequestAuditTrail.createObject(merchantLoanRequest);
-            merchantLoanRequestAuditTrailDoa.save(merchantLoanRequestAuditTrail);
-        }
-        if (merchantLoanRequest != null) {
-            calculateIneligibleLoanDetails(merchantResponseDTO, merchantLoanRequest, ineligibleResponseDTO);
-        }
-        return ineligibleResponseDTO;
-    }
+//    public IneligibleResponseDTO fetchIneligibleLoanDetails(Merchant merchant, IneligibleRequestDTO ineligibleRequestDTO) {
+//        logger.debug("Fetching Ineligible Loan Details for merchantId : {}", merchant.getId());
+////        MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
+//        MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
+//        if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+//            throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+//        }
+//        int previousLoanCount = (merchantResponseDTO.getTotalLoansCount() != null) ? merchantResponseDTO.getTotalLoansCount() : 0;
+//        IneligibleResponseDTO ineligibleResponseDTO = new IneligibleResponseDTO(previousLoanCount);
+//        MerchantLoanRequest merchantLoanRequest = merchantLoanRequestDoa.getMerchantLoanRequest(merchant.getId());
+//        ScoreCategoryMaster scoreCategoryMaster = null;
+//        if (merchant.getBusinessCategory() != null && !merchant.getBusinessCategory().trim().equalsIgnoreCase("")) {
+//            scoreCategoryMaster = scoreCategoryMasterDao.getByCategory(merchant.getBusinessCategory());
+//        }
+//        if (scoreCategoryMaster == null) {
+//            Object[] objects = scoreCategoryMasterDao.getCategoryAverage();
+//            scoreCategoryMaster = new ScoreCategoryMaster();
+//            scoreCategoryMaster.setTxnCount((double)objects[0]);
+//            scoreCategoryMaster.setAvgDailyTpv((double)objects[1]);
+//        }
+//        if (ineligibleRequestDTO != null && ineligibleRequestDTO.getPanCard() != null && !ineligibleRequestDTO.getPanCard().trim().equalsIgnoreCase("")) {
+//            logger.info("New Ineligible Loan request with panCard : {} and merchantId : {}", ineligibleRequestDTO.getPanCard(), merchant.getId());
+//            merchantLoanRequestDoa.deleteByMerchantId(merchant.getId());
+//            merchantLoanRequest = calculateTarget(merchantResponseDTO, merchant.getId(), ineligibleRequestDTO.getPanCard(), scoreCategoryMaster);
+//            MerchantLoanRequestAuditTrail merchantLoanRequestAuditTrail = MerchantLoanRequestAuditTrail.createObject(merchantLoanRequest);
+//            merchantLoanRequestAuditTrailDoa.save(merchantLoanRequestAuditTrail);
+//        }
+//        if (merchantLoanRequest != null) {
+//            calculateIneligibleLoanDetails(merchantResponseDTO, merchantLoanRequest, ineligibleResponseDTO);
+//        }
+//        return ineligibleResponseDTO;
+//    }
 
     private void calculateIneligibleLoanDetails(MerchantResponseDTO merchantResponseDTO, MerchantLoanRequest merchantLoanRequest, IneligibleResponseDTO ineligibleResponseDTO) {
         Map<String, Object> transactionCountDetails = new HashMap<>();
@@ -156,7 +155,7 @@ public class IneligibleDetailsService {
     public IneligibleAPIResponseDto getIneligibleDetails(BasicDetailsDto merchant) {
     	try {
 //            MerchantSummary merchantSummary=merchantSummaryDao.getByMerchantId(merchant.getId());
-            MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchant.getId());
+            MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
 
@@ -176,7 +175,7 @@ public class IneligibleDetailsService {
             Experian experian=experianDao.getByMerchantId(merchant.getId());
 
             if (Objects.nonNull(experian) && experian.getRejected() && Objects.nonNull(experian.getRejectedDate())) {
-                Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN);
+                Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN, merchant.getId());
                 if(Objects.nonNull(reapplyDayDiff)) {
                     Long reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
                     reapplyTime = reapplyTime > 0 ? reapplyTime : 0;

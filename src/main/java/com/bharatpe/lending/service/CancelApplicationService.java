@@ -4,7 +4,7 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 
@@ -48,7 +48,7 @@ public class CancelApplicationService {
 		lendingApplication.setStatus("deleted");
 		lendingApplication.setResponseCode(reason);
 		lendingApplicationDao.save(lendingApplication);
-		executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
 
 		logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();

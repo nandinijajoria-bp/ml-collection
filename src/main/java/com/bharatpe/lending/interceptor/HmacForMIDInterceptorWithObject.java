@@ -2,10 +2,10 @@ package com.bharatpe.lending.interceptor;
 
 import com.amazonaws.HttpMethod;
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.MerchantDao;
-import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.util.StringUtils;
@@ -20,6 +20,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
@@ -29,8 +30,10 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
     @Autowired
     HmacCalculator hmacCalculator;
 
+//    @Autowired
+//    MerchantDao merchantDao;
     @Autowired
-    MerchantDao merchantDao;
+    MerchantService merchantService;
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         logger.info("Pre handle Interceptor of Hmac Interceptor for {}", request);
@@ -53,16 +56,17 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
                 return false;
             }
 
-            Merchant merchant = merchantDao.findByMid(mid);
-            if (merchant == null || Status.MerchantStatus.INACTIVE.toString().equalsIgnoreCase(merchant.getStatus())) {
+//            Merchant merchant = merchantDao.findByMid(mid);
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetailsByMid(mid);
+            if (basicDetailsDto == null || Status.MerchantStatus.INACTIVE.toString().equalsIgnoreCase(basicDetailsDto.get().getStatus())) {
                 logger.error("Merchant not found (}", mid);
                 sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
                 return false;
             }
 
-            request.setAttribute("merchant", merchant);
+            request.setAttribute("merchant", basicDetailsDto.get());
 
-            if (hmacCalculator.validateHmac(payload, merchant, hmac)) {
+            if (hmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac)) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and mid {}", hmac, mid);
                 return true;
             }

@@ -5,7 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;

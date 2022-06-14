@@ -156,7 +156,7 @@ public class UploadDocumentUtil {
                     JsonNode summaryNode=resultNode.get("summary");
                     if(summaryNode!=null) {
                         DocKycDetails docKycDetails=new DocKycDetails();
-                        docKycDetails.setMerchant(documentsIdProof.getMerchant());
+                        docKycDetails.setMerchantId(documentsIdProof.getMerchantId());
                         docKycDetails.setDocType(proofType);
                         docKycDetails.setDob((resultNode.has("dob") && !resultNode.get("dob").isNull())? StringUtils.substring(resultNode.get("dob").asText(), 0, 12):null);
                         docKycDetails.setDocumentsIdProof(documentsIdProof);
@@ -208,7 +208,7 @@ public class UploadDocumentUtil {
                     }
                     Map<String,String> identityDetails = apiGatewayService.signzyIdentityDetails("individualPan", merchantId, "LENDING", "LENDING", images);
 //
-                    String response=apiGatewayService.getOcrResponse(documentsIdProof.getMerchant().getId(), identityDetails,"OCR",applicationId);
+                    String response=apiGatewayService.getOcrResponse(documentsIdProof.getMerchantId(), identityDetails,"OCR",applicationId);
                     docKyc = processOcrResponse(response, documentsIdProof);
                     if(Objects.nonNull(docKyc) && Objects.nonNull(docKyc.getPersonName())){
                         String authorization=signzyApiDetails.get("accessToken");

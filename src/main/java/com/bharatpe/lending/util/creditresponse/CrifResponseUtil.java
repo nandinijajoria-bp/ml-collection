@@ -4,7 +4,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.CrifConstants;
@@ -233,7 +233,7 @@ public class CrifResponseUtil extends ResponseUtilBase implements ResponseUtil {
     }
 
     @Override
-    public boolean isDerog(Merchant merchant, boolean isRepeatLoanNoDerog, Experian experian) throws ParseException {
+    public boolean isDerog(BasicDetailsDto merchant, boolean isRepeatLoanNoDerog, Experian experian) throws ParseException {
         Date reportDate = getReportDate();
         JsonNode responses = response.get(CrifConstants.REPORT_HEADER).get(CrifConstants.RESPONSES);
         responses = responses != null ? responses.get(CrifConstants.RESPONSE) : null;

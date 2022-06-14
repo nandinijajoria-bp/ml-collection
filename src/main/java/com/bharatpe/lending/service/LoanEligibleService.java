@@ -6,19 +6,22 @@ import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
+import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.handlers.MerchantHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -128,8 +131,8 @@ public class LoanEligibleService {
     @Autowired
     MerchantBankDetailDao merchantBankDetailDao;
 
-    @Autowired
-    MerchantDao merchantDao;
+//    @Autowired
+//    MerchantDao merchantDao;
 
 //    @Autowired
 //    MerchantSummaryDao merchantSummaryDao;
@@ -153,25 +156,27 @@ public class LoanEligibleService {
     DateTimeUtil dateTimeUtil;
 
     @Autowired
-    MerchantHandler merchantHandler;
+    MerchantSummaryHandler merchantSummaryHandler;
 
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
+    @Autowired
+    MerchantService merchantService;
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
 
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount,
-          Sort.by(Sort.Direction.DESC, "id"));
+                Sort.by(Sort.Direction.DESC, "id"));
         logger.info("Eligible loan offers : {} , {}", merchantId, eligibleLoans);
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
 
         if (ObjectUtils.isEmpty(eligibleLoans) || (!ObjectUtils.isEmpty(eligibleLoans.get(0)) && !eligibleLoans.get(0).getCreatedAt().after(dateWindow))) {
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             if (queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
-              !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) {
+                    !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) {
                 responseDTO.setSuccess(false);
                 responseDTO.setMessage("Invalid Loan Amount");
                 return responseDTO;
@@ -179,7 +184,7 @@ public class LoanEligibleService {
             //        eligibleLoanDao.deleteCustomOffers(merchantId);
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
             eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount,
-              Sort.by(Sort.Direction.DESC, "id"));
+                    Sort.by(Sort.Direction.DESC, "id"));
         }
 
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
@@ -194,7 +199,7 @@ public class LoanEligibleService {
     }
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
-      EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO) {
+            EligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO) {
         EligibleLendingOffersResponseDTO.TenureDetails tenureDetails = responseDTO.new TenureDetails();
         tenureDetails.setTenure(eligibleLoan.getTenure());
         tenureDetails.setCategory(eligibleLoan.getCategory());
@@ -243,7 +248,7 @@ public class LoanEligibleService {
             prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantBasicDetails.getId(), false);
         }
 
-        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
         int loanCount = (prevLoans == null || prevLoans.isEmpty()) ? 0 : prevLoans.size();
         boolean repeatedLoan = loanCount > 0;
@@ -253,11 +258,11 @@ public class LoanEligibleService {
         }
         boolean isEligibleForConstruct2And3 = false;
 //        boolean isEligibleForConstruct2And3 = isEligibleForConstruct2And3(merchantSummary, prevLoans);
-        boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
+        boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans, merchantBasicDetails.getId());
         LendingApplication lendingApplication = null;
         if (isRepeatLoanNoDerog && prevLoans != null) {
             lendingApplication = lendingApplicationDao.findByIdAndMerchantId(prevLoans.get(0).getApplicationId(),
-              merchantBasicDetails.getId());
+                    merchantBasicDetails.getId());
         }
         int previousLoanDays = (prevLoans != null && !prevLoans.isEmpty()) ? prevLoans.get(prevLoans.size() - 1).getEdiCount() : 0;
         if (experian.getReason() == null || !experian.getReason().equalsIgnoreCase("ZOMATO_ETC")) {
@@ -335,7 +340,7 @@ public class LoanEligibleService {
             }
             if (responseUtil.isValid(experian.getPancardNumber(), merchantBasicDetails.getMobile())) {
                 try {
-                    if (!exemptMerchant.contains(merchantBasicDetails.getId()) && responseUtil.isDerog(merchant, isRepeatLoanNoDerog, experian)) {
+                    if (!exemptMerchant.contains(merchantBasicDetails.getId()) && responseUtil.isDerog(merchantBasicDetails, isRepeatLoanNoDerog, experian)) {
                         return new ArrayList<>();
                     }
                 } catch (Exception e) {
@@ -343,7 +348,7 @@ public class LoanEligibleService {
                     logger.error("Exception---", e);
                 }
                 //base checks
-                if (!exemptMerchant.contains(merchantBasicDetails.getId()) && !baseChecks(isZomato, merchant, merchantResponseDTO, experian, lendingType, prevLoans, bpScore, yellowPincode, false, bankCode)) {
+                if (!exemptMerchant.contains(merchantBasicDetails.getId()) && !baseChecks(isZomato, merchantBasicDetails, merchantResponseDTO, experian, lendingType, prevLoans, bpScore, yellowPincode, false, bankCode)) {
                     logger.info("Base Checks Failed, so rejecting merchant: {}", merchantBasicDetails.getId());
                     return new ArrayList<>();
                 }
@@ -364,48 +369,50 @@ public class LoanEligibleService {
         logger.info("Experian Report not found for merchant: {}, Calculate NTC...", merchantBasicDetails.getId());
         //calculate NTC....
         //base checks
-        if (!exemptMerchant.contains(merchantBasicDetails.getId()) && !baseChecks(isZomato, merchant, merchantResponseDTO, experian, lendingType, prevLoans, bpScore, yellowPincode, true, bankCode)) {
+        if (!exemptMerchant.contains(merchantBasicDetails.getId()) && !baseChecks(isZomato, merchantBasicDetails, merchantResponseDTO, experian, lendingType, prevLoans, bpScore, yellowPincode, true, bankCode)) {
             logger.info("Base Checks Failed, so rejecting merchant: {}", merchantBasicDetails.getId());
             return new ArrayList<>();
         }
         return calculateNTC(bpScore, merchantBasicDetails.getId(), repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
     }
 
-    private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard, boolean skip) {
-        if (true) return false;
-        ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
-        CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-        if (experianDetails == null || pancard != null || (LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
-            logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
-            experian.setNoExperian(true);
-            return true;
-        } else if (!skip && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
-            logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
-            experian.setNoExperian(true);
-            String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[", "").replaceAll("\\]", "").split(",");
-            List<String> maskedMobiles = new ArrayList<>();
-            Collections.addAll(maskedMobiles, mobiles);
-            experian.setMaskedMobiles(maskedMobiles);
-            return true;
-        } else if (crifRequestResponse != null && crifRequestResponse.getApiName().equalsIgnoreCase("STAGE2") && crifRequestResponse.getResponse() != null) {
-            try {
-                JsonNode crifResponse = objectMapper.readTree(crifRequestResponse.getResponse());
-                if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
-                    logger.info("Crif not found for merchant: {}, going to Crif question", merchant.getId());
-                    experian.setNoExperian(true);
-                    return true;
-                }
-            } catch (Exception e) {
-                logger.error("Exception while parsing crif response", e);
-            }
-        }
-        return false;
-    }
+//    private boolean goToExperianV2(Experian experian, Merchant merchant, String pancard, boolean skip) {
+//        if (true) return false;
+//        ExperianDetails experianDetails = experianDetailsDao.findByMerchantId(merchant.getId());
+//        CrifRequestResponse crifRequestResponse = crifRequestResponseDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+//        if (experianDetails == null || pancard != null || (LoanUtil.getDateDiffInDays(experianDetails.getCreatedAt(), new Date()) > 45)) {
+//            logger.info("Experian not found for merchant: {}, going to ExperianV2", merchant.getId());
+//            experian.setNoExperian(true);
+//            return true;
+//        } else if (!skip && experianDetails.getMaskedMobile() != null && !experianDetails.getOtpVerified()) {
+//            logger.info("Experian not found for merchant: {}, going to ExperianV2 masked mobile", merchant.getId());
+//            experian.setNoExperian(true);
+//            String[] mobiles = experianDetails.getMaskedMobile().replaceAll("\\[", "").replaceAll("\\]", "").split(",");
+//            List<String> maskedMobiles = new ArrayList<>();
+//            Collections.addAll(maskedMobiles, mobiles);
+//            experian.setMaskedMobiles(maskedMobiles);
+//            return true;
+//        } else if (crifRequestResponse != null && crifRequestResponse.getApiName().equalsIgnoreCase("STAGE2") && crifRequestResponse.getResponse() != null) {
+//            try {
+//                JsonNode crifResponse = objectMapper.readTree(crifRequestResponse.getResponse());
+//                if (crifResponse != null && crifResponse.get("status") != null && crifResponse.get("status").asText().equals("S11")) {
+//                    logger.info("Crif not found for merchant: {}, going to Crif question", merchant.getId());
+//                    experian.setNoExperian(true);
+//                    return true;
+//                }
+//            } catch (Exception e) {
+//                logger.error("Exception while parsing crif response", e);
+//            }
+//        }
+//        return false;
+//    }
 
     public ApplicationDerogResponseDTO processDerogSince(Long merchantId, Long applicationId, int daysDiffToCheck) {
         ApplicationDerogResponseDTO responseDTO = new ApplicationDerogResponseDTO();
         Date reportDate = null;
-        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+//        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
+
+        Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
         if (!merchantOptional.isPresent()) {
             logger.info("Merchant not found for merchantId: {}", merchantId);
             responseDTO.setMessage("Merchant not found");
@@ -413,7 +420,7 @@ public class LoanEligibleService {
             responseDTO.setSuccess(false);
             return responseDTO;
         }
-        Merchant merchant = merchantOptional.get();
+        BasicDetailsDto merchant = merchantOptional.get();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
         if (lendingApplication == null) {
             logger.info("Application not found for applicationId: {}", applicationId);
@@ -445,7 +452,7 @@ public class LoanEligibleService {
                 return responseDTO;
             }
 //            MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchantId);
-            MerchantResponseDTO merchantResponseDTO = merchantHandler.getMerchantSummary(merchantId);
+            MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantId);
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchantId.toString());
             }
@@ -456,7 +463,7 @@ public class LoanEligibleService {
                 experian.setBureau(LendingConstants.BUREAU_TYPES.EXPERIAN.name());
             }
             List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, false);
-            boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans);
+            boolean isRepeatLoanNoDerog = isRepeatLoanNoDerog(prevLoans,merchantId);
             creditBureauResponseUtil = getCreditBureauResponse(experian);
             if (!creditBureauResponseUtil.isValid(experian.getPancardNumber(), merchant.getMobile())) {
                 responseDTO.setMessage("Unable to fetch experian data, please retry!");
@@ -472,7 +479,7 @@ public class LoanEligibleService {
                 lendingApplication.setManualCibilReason("EXPERIAN DEROG FAILED");
                 lendingApplication.setCibilApprovedDate(new Date());
                 lendingApplicationDao.save(lendingApplication);
-                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT", lendingApplication.getLoanAmount()));
+                executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantId, "CREDIT", lendingApplication.getLoanAmount()));
                 responseDTO.setManualCibil("REJECTED");
                 responseDTO.setManualCibilReason("EXPERIAN DEROG FAILED");
                 responseDTO.setMessage("Application Derof Failed");
@@ -503,7 +510,7 @@ public class LoanEligibleService {
         return experianResponse;
     }
 
-    private boolean isDerogApplication(ResponseUtil responseUtil, Merchant merchant, Experian experian, boolean isRepeatLoanNoDerog) {
+    private boolean isDerogApplication(ResponseUtil responseUtil, BasicDetailsDto merchant, Experian experian, boolean isRepeatLoanNoDerog) {
         try {
             if (!exemptMerchant.contains(merchant.getId()) && responseUtil.isDerog(merchant, isRepeatLoanNoDerog, experian)) {
                 return true;
@@ -525,7 +532,7 @@ public class LoanEligibleService {
         }
     }
 
-    private boolean checkOverdue(List<LendingPaymentSchedule> prevLoans) {
+    private boolean checkOverdue(List<LendingPaymentSchedule> prevLoans, Long merchantId) {
         try {
             if (prevLoans == null || prevLoans.isEmpty()) {
                 return false;
@@ -543,7 +550,7 @@ public class LoanEligibleService {
     public boolean checkFraud(MerchantResponseDTO merchantResponseDTO) {
         int selfTxnCount = (merchantResponseDTO != null && merchantResponseDTO.getSelfTxnCount1Mon() != null) ? merchantResponseDTO.getSelfTxnCount1Mon() : 0;
         return (merchantResponseDTO != null && merchantResponseDTO.getUniqueCustomer1mon() != null && (merchantResponseDTO.getUniqueCustomer1mon() - selfTxnCount) < 15)
-          || (merchantResponseDTO != null && merchantResponseDTO.getFraudCustomer() != null);
+                || (merchantResponseDTO != null && merchantResponseDTO.getFraudCustomer() != null);
     }
 
     private LendingPancard fetchNameFromLiquiloans(String pancardNumber, Long merchantId) {
@@ -857,6 +864,11 @@ public class LoanEligibleService {
     }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            return null;
+        }
+
         LendingPaymentSchedule previousLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "CLOSED");
         Experian experian = experianDao.getByMerchantId(merchantId);
         boolean cpvCity = false;
@@ -865,7 +877,8 @@ public class LoanEligibleService {
             cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
         }
         boolean isNTC = isNTC(experian);
-        Merchant merchant = merchantDao.findById(merchantId).get();
+//        Merchant merchant = merchantDao.findById(merchantId).get();
+
         double bureauScore = experian != null && experian.getExperianScore() != null ? experian.getExperianScore() : 0;
         Double percentage = lendingCategories.getMultiplier();
         double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : lendingCategories.getInterestRate();
@@ -911,14 +924,14 @@ public class LoanEligibleService {
                 maxAmount = 50000;
             }
             prevLoanAmount = Math.min(roundUp(prevLoanAmount), maxAmount);
-            if (prevLoanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
+            if (prevLoanAmount > 35000 && isNTC && basicDetailsDto.get().getBussinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(basicDetailsDto.get().getBussinessCategory())) {
                 prevLoanAmount = 35000 + ((prevLoanAmount - 35000) / 2);
             }
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(prevLoanAmount);
             breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, loanType);
         } else {
-            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays, lendingCategories, isNTC, merchant, previousLoan);
+            breakup = getBreakup(tenure, construct, type, avgTpv, percentage, interest, maxAmount, ioTenure, ioPayableDays, lendingCategories, isNTC, basicDetailsDto.get(), previousLoan);
         }
         if (!isZomato) {
             if (color != null && color.equalsIgnoreCase("AMBER") && breakup.getLoanAmount() < 20000 && !"NTB".equalsIgnoreCase(loanType) && !"OGL".equalsIgnoreCase(loanType) && !"BHARAT_SWIPE".equalsIgnoreCase(loanType)) {
@@ -936,7 +949,7 @@ public class LoanEligibleService {
         return createLoanEligibilityDTO(breakup, payableConverter, lendingCategories, loanType);
     }
 
-    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories, boolean isNTC, Merchant merchant, LendingPaymentSchedule previousLoan) {
+    private LoanCalculationUtil.LoanBreakupDetail getBreakup(int tenureMonth, String construct, String type, double avgTpv, double percentage, double interest, int maxAmount, int ioTenure, int ioPayableDays, LendingCategories categories, boolean isNTC, BasicDetailsDto merchant, LendingPaymentSchedule previousLoan) {
         int tenure = tenureMonth - ioTenure;
         int ediDays, disbursementAmount, ioInterestAmount, principleEdiTenure, repayment;
         double loanAmount, edi, totalInterestAmount, ioEdi;
@@ -944,7 +957,7 @@ public class LoanEligibleService {
         edi = (avgTpv * percentage);
         repayment = (int) Math.round(ediDays * edi);
         loanAmount = Math.min(roundUp(repayment / (1 + (interest / 100) * tenure)), maxAmount);// round down
-        if (loanAmount > 35000 && isNTC && merchant.getBusinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBusinessCategory())) {
+        if (loanAmount > 35000 && isNTC && merchant.getBussinessCategory() != null && LendingConstants.FOOD_BEVERAGES.contains(merchant.getBussinessCategory())) {
             loanAmount = 35000 + ((loanAmount - 35000) / 2);
         }
         if (previousLoan != null && loanAmount > previousLoan.getLoanAmount() && loanAmount > 2.5 * previousLoan.getLoanAmount()) {
@@ -960,7 +973,7 @@ public class LoanEligibleService {
         principleEdiTenure = tenure;
 
         return new LoanCalculationUtil.LoanBreakupDetail(construct, (int) edi, (int) ioEdi, processingFee, ioInterestAmount, (int) totalInterestAmount, (int) totalInterestAmount,
-          ioTenure, principleEdiTenure, repayment, disbursementAmount, type, (int) loanAmount, interest);
+                ioTenure, principleEdiTenure, repayment, disbursementAmount, type, (int) loanAmount, interest);
     }
 
     private double roundUp(double loanAmount) {
@@ -1031,7 +1044,7 @@ public class LoanEligibleService {
         }
     }
 
-    public boolean isRepeatLoanNoDerog(List<LendingPaymentSchedule> prevLoans) {
+    public boolean isRepeatLoanNoDerog(List<LendingPaymentSchedule> prevLoans, Long merchantId) {
         try {
             if (prevLoans == null || prevLoans.isEmpty()) {
                 return false;
@@ -1062,8 +1075,8 @@ public class LoanEligibleService {
         if (lendingPaymentSchedule == null) {
             return 0;
         }
-        LendingLedger lastEDI = lendingLedgerDao.findLastEDIDueEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
-        LendingLedger lastPayment = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchant().getId(), lendingPaymentSchedule.getId());
+        LendingLedger lastEDI = lendingLedgerDao.findLastEDIDueEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+        LendingLedger lastPayment = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
         if (lastEDI == null || lastPayment == null) {
             return 0;
         }
@@ -1284,7 +1297,7 @@ public class LoanEligibleService {
         return ntcCategories.contains(experian.getCategory());
     }
 
-    private boolean baseChecks(boolean isZomato, Merchant merchant, MerchantResponseDTO merchantResponseDTO, Experian experian, String lendingType, List<LendingPaymentSchedule> prevLoans, double bpScore, boolean yellowPincode, boolean isNTC, String bankCode) {
+    private boolean baseChecks(boolean isZomato, BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO, Experian experian, String lendingType, List<LendingPaymentSchedule> prevLoans, double bpScore, boolean yellowPincode, boolean isNTC, String bankCode) {
         if (yellowPincode) {
             if (bankCode == null) {
                 logger.info("Non enachable bank code, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
@@ -1302,7 +1315,7 @@ public class LoanEligibleService {
                 experianDao.save(experian);
                 return false;
             }
-            if (merchant.getBusinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBusinessCategory())) {
+            if (merchant.getBussinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBussinessCategory())) {
                 logger.info("F&B category, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
                 experian.setCategory("1N");
                 experian.setColor(ExperianConstants.COLOR.RED.name());
@@ -1319,7 +1332,7 @@ public class LoanEligibleService {
             experianDao.save(experian);
             return false;
         }
-        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkOverdue(prevLoans)) {
+        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkOverdue(prevLoans, merchantResponseDTO.getMerchantId())) {
             logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
             experian.setCategory("1N");
             experian.setColor(ExperianConstants.COLOR.RED.name());

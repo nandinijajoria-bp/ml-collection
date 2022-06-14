@@ -10,7 +10,7 @@ import com.bharatpe.common.utils.AesEncryption;
 import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
@@ -127,8 +127,8 @@ public class CreditLineService {
 	@Autowired
 	CreditLineMerchantDao creditLineMerchantDao;
 
-	@Autowired
-	MerchantDao merchantDao;
+//	@Autowired
+//	MerchantDao merchantDao;
 
 	@Autowired
 	PushNotificationHandler pushNotificationHandler;
@@ -234,9 +234,9 @@ public class CreditLineService {
 					creditLineMerchant.setCreditAccountId(creditAccount.getId());
 					creditLineMerchantDao.save(creditLineMerchant);
 
-					Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//					Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
-					sendActivationNotification(creditApplication, merchant);
+					sendActivationNotification(creditApplication, merchantBasicDetails);
 					redisNotificationService.sendPromotionalNotificationForCreditLine(merchantBasicDetails.getId(),creditAccount);
 					return new ResponseDTO(true,"Successful",null,null);
 				}
@@ -262,12 +262,12 @@ public class CreditLineService {
 		}
 	}
 
-	public void sendActivationNotification(CreditApplication  creditApplication,Merchant merchant) {
+	public void sendActivationNotification(CreditApplication  creditApplication,BasicDetailsDto merchant) {
 		List<String> mobiles = new ArrayList<> ();
 		mobiles.add(merchant.getMobile());
 		String message="Hi "+merchant.getBeneficiaryName()+"!\n"+"Congratulations ! Your BharatPe Loan Balance of Rs. "+creditApplication.getAmount()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
 		smsServiceHandler.sendSMS(mobiles, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
+		whatsappNotificationService.send(merchant.getId(), null, merchant.getBeneficiaryName(), message+"Click Here : "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.", mobiles, null);
 		MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
 		if(merchantFcmToken != null) {
 			pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=credit-line");
@@ -450,7 +450,7 @@ public class CreditLineService {
 
 	private void payout(LendingClTransaction lendingClTransaction, BasicDetailsDto merchantBasicDetails) {
 		BankTransferResponseDTO bankTransferResponseDTO;
-		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//		Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 		if ("prod".equalsIgnoreCase(activeProfile)) {
 			bankTransferResponseDTO = callPayoutAPI(lendingClTransaction);
 		} else {
@@ -465,7 +465,7 @@ public class CreditLineService {
 			creditLineTransaction.saveTxn(lendingClTransaction);
 			if(CreditConstants.PaymentStatus.FAILED.name().equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				creditLineTransaction.rollbackTxn(lendingClTransaction);
-				sendFiledTransNotification(lendingClTransaction,merchant);
+				sendFiledTransNotification(lendingClTransaction,merchantBasicDetails);
 				return;
 			} else if (CreditConstants.PaymentStatus.SUCCESS.name().equalsIgnoreCase(bankTransferResponseDTO.getPaymentStatus())) {
 				creditLineTransaction.updateTxnStatus(lendingClTransaction, CreditConstants.PaymentStatus.SUCCESS);
@@ -476,7 +476,7 @@ public class CreditLineService {
 			//send debit notification
 			try {
 				String message = lendingClTransaction.getType().equalsIgnoreCase("CL") ? getFlexibileNotificationMessage(lendingClTransaction, merchantBasicDetails) : getFixedNotificationMessage(lendingClTransaction, merchantBasicDetails);
-				sendNotification(message, merchant);
+				sendNotification(message, merchantBasicDetails);
 			} catch (Exception e) {
 				logger.error("Unable to send debit notification", e);
 			}
@@ -514,21 +514,21 @@ public class CreditLineService {
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK;
 
 	}
-	public void sendNotification(String message, Merchant merchant) {
+	public void sendNotification(String message, BasicDetailsDto merchant) {
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message+" for more details.", mobiles, null);
+		whatsappNotificationService.send(merchant.getId(), null, merchant.getBeneficiaryName(), message+" for more details.", mobiles, null);
 	}
 
-	public void sendFiledTransNotification(LendingClTransaction lendingClTransaction, Merchant merchant) {
+	public void sendFiledTransNotification(LendingClTransaction lendingClTransaction, BasicDetailsDto merchant) {
 		String message="Hi "+merchant.getBeneficiaryName()+",\n" +
 				"Your Loans Balance transaction of Rs."+lendingClTransaction.getAmount()+" has Failed. Please try again after some time.\n" +
 				"Click Here: "+CreditConstants.MESSAGE_NOTIFICATION_LINK+" for more details.";
 		List<String> mobiles=new LinkedList<>();
 		mobiles.add(merchant.getMobile());
 		smsServiceHandler.sendSMS(mobiles, message, NotificationProvider.SMS.GUPSHUP);
-		whatsappNotificationService.send(merchant, null, message, mobiles, null);
+		whatsappNotificationService.send(merchant.getId(), null, merchant.getBeneficiaryName(), message, mobiles, null);
 	}
 
 	@SuppressWarnings("unchecked, rawtypes")

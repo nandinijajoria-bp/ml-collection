@@ -1,7 +1,7 @@
 package com.bharatpe.lending.util.creditresponse;
 
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.dto.LoanAndCreditCardDetailDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,7 +21,7 @@ public interface ResponseUtil {
 
     public boolean isValid(String panCard, String phoneNumber);
 
-    public boolean isDerog(Merchant merchant, boolean isRepeatLoanNoDerog, Experian experian) throws ParseException;
+    public boolean isDerog(BasicDetailsDto merchant, boolean isRepeatLoanNoDerog, Experian experian) throws ParseException;
 
     public String getEmail();
 

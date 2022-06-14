@@ -5,7 +5,7 @@ import java.util.List;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,7 +63,7 @@ public class VerifyDocService {
 	public boolean isUsingOthersPancard(Long merchantId, String proofNo) {
 		List<DocKycDetails> docOcrList=docKycDetailsDao.findByDocTypeAndDocNo("pancard", proofNo);
 		for(DocKycDetails docOcr:docOcrList) {
-			if(!docOcr.getMerchant().getId().equals(merchantId)) {
+			if(!docOcr.getMerchantId().equals(merchantId)) {
 				logger.info("merchant:{} using others pancard", merchantId);
 				return true;
 			}

@@ -5,7 +5,7 @@ import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.entity.BharatPeEnach;
-import com.bharatpe.lending.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -179,7 +179,7 @@ public class EnachErrorHandingService {
                 lendingApplication.setManualKycReason("eNACH Failure");
 
                 lendingApplicationDao.save(lendingApplication);
-                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
+                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
             }
         }catch (Exception ex){
             logger.error("Error Occurred in sendForCpvOrReject, Error - {}", ex);
@@ -207,7 +207,7 @@ public class EnachErrorHandingService {
                 lendingApplication.setManualKycReason("eNACH Failure");
 
                 lendingApplicationDao.save(lendingApplication);
-                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchant().getId(), "CREDIT",lendingApplication.getLoanAmount()));
+                executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
             }
         }catch (Exception ex){
             logger.error("Error Occurred in sendForCpvOrRejectOrDebitScreenOnBankSupport, Error - {}", ex);
