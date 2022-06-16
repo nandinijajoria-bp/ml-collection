@@ -98,6 +98,6 @@ public class LendingApplicationControllerV2 {
     public ResponseEntity<?> evictCache(@RequestAttribute BasicDetailsDto merchant){
         log.info("evicting cache for :{}",merchant.getId());
         lendingApplicationServiceV2.evictCache(merchant.getId());
-        return ResponseEntity.ok(new ApiResponse<>());
+        return ResponseEntity.ok(new ApiResponse<>(null));
     }
 }
