@@ -1,10 +1,10 @@
 package com.bharatpe.lending.util;
 
 import com.amazonaws.util.IOUtils;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.entities.DocKycDetails;
-import com.bharatpe.common.entities.DocumentsIdProof;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.SignzyCredentialDaoSlave;
@@ -49,7 +49,7 @@ public class UploadDocumentUtil {
     ObjectMapper objectMapper;
 
     @Autowired
-    DocKycDetailsDao docKycDetailsDao;
+    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
     @Autowired
     SignzyCredentialDaoSlave signzyCredentialDaoSlave;
@@ -61,7 +61,7 @@ public class UploadDocumentUtil {
     MerchantService merchantService;
 
     @Autowired
-    DocumentsIdProofDao documentsIdProofDao;
+    DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -145,7 +145,7 @@ public class UploadDocumentUtil {
         return null;
     }
 
-    public DocKycDetails insertPanOcrDetailsInDocKycDetails(String response, DocumentsIdProof documentsIdProof, String proofType) {
+    public DocKycDetailsMaster insertPanOcrDetailsInDocKycDetails(String response, DocumentsIdProofMaster documentsIdProof, String proofType) {
         try {
             logger.info("Storing pancard ocr detail {}",response);
             JsonNode responseNode=objectMapper.readTree(response);
@@ -154,7 +154,7 @@ public class UploadDocumentUtil {
                 if(resultNode!=null) {
                     JsonNode summaryNode=resultNode.get("summary");
                     if(summaryNode!=null) {
-                        DocKycDetails docKycDetails=new DocKycDetails();
+                        DocKycDetailsMaster docKycDetails=new DocKycDetailsMaster();
                         docKycDetails.setMerchantId(documentsIdProof.getMerchantId());
                         docKycDetails.setDocType(proofType);
                         docKycDetails.setDob((resultNode.has("dob") && !resultNode.get("dob").isNull())? StringUtils.substring(resultNode.get("dob").asText(), 0, 12):null);
@@ -167,7 +167,7 @@ public class UploadDocumentUtil {
                         docKycDetails.setDocSide("FRONT");
                         docKycDetails.setDocNo((summaryNode.has("number") && !summaryNode.get("number").isNull())?summaryNode.get("number").asText():null);
                         docKycDetails.setFatherName((summaryNode.has("guardianName") && !summaryNode.get("guardianName").isNull())? StringUtils.substring(summaryNode.get("guardianName").asText(), 0, 30):null);
-                        docKycDetailsDao.save(docKycDetails);
+                        docKycDetailsDaoMaster.save(docKycDetails);
                         return docKycDetails;
                     }
                 }
@@ -179,17 +179,17 @@ public class UploadDocumentUtil {
         return null;
     }
 
-    public DocKycDetails processOcrResponse(String response, DocumentsIdProof documentsIdProof) {
+    public DocKycDetailsMaster processOcrResponse(String response, DocumentsIdProofMaster documentsIdProof) {
         if(response!=null) {
             logger.info("Inserting proof details for proof type {}",documentsIdProof.getProofType());
-            DocKycDetails docKycDetails=insertPanOcrDetailsInDocKycDetails(response, documentsIdProof, "pancard");
+            DocKycDetailsMaster docKycDetails=insertPanOcrDetailsInDocKycDetails(response, documentsIdProof, "pancard");
             return docKycDetails;
         }
         return null;
     }
 
-    public DocKycDetails doOcrForPan(DocumentsIdProof documentsIdProof, Map<String,String> signzyApiDetails, String proofType, Long merchantId, Long applicationId) {
-        DocKycDetails docKyc=null;
+    public DocKycDetailsMaster doOcrForPan(DocumentsIdProofMaster documentsIdProof, Map<String,String> signzyApiDetails, String proofType, Long merchantId, Long applicationId) {
+        DocKycDetailsMaster docKyc=null;
         try {
             if(documentsIdProof.getProofType().equalsIgnoreCase("pancard") || documentsIdProof.getProofType().equalsIgnoreCase("votercard")  || documentsIdProof.getProofType().equalsIgnoreCase("passport")  || documentsIdProof.getProofType().equalsIgnoreCase("adhaarcard") || documentsIdProof.getProofType().equalsIgnoreCase("driving_license")) {
                 String frontImageUrl=getUrl(documentsIdProof.getProofFrontSide());
@@ -228,7 +228,7 @@ public class UploadDocumentUtil {
 
                         }
                         documentsIdProof.setPanNamePercentage(getMatchPercentage.toString());
-                        documentsIdProofDao.save(documentsIdProof);
+                        documentsIdProofDaoMaster.save(documentsIdProof);
                     }
                 }
             }

@@ -3,9 +3,11 @@ package com.bharatpe.lending.service;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
@@ -33,7 +35,7 @@ public class ImageURLService {
 	Logger logger = LoggerFactory.getLogger(ImageURLService.class);
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingShopDocumentsDao lendingShopDocumentsDao;
@@ -57,7 +59,7 @@ public class ImageURLService {
 	RedisNotificationService redisNotificationService;
 
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
 	@Autowired
 	MerchantService merchantService;
@@ -120,9 +122,9 @@ public class ImageURLService {
 
 	public Map<String, String> getBanificaryAndPanName(BasicDetailsDto merchant, LendingApplication lendingApplication){
 		Map<String, String> result = new HashMap<>();
-		DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchant.getId(), lendingApplication.getId(), "pancard");
+		DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(merchant.getId(), lendingApplication.getId(), "pancard");
 		if(Objects.nonNull(documentsIdProof) && Objects.nonNull(documentsIdProof.getPanNameMatch()) && !documentsIdProof.getPanNameMatch().isEmpty() && documentsIdProof.getPanNameMatch().equals("NO")){
-			DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestPanCardDetails(merchant.getId(), lendingApplication.getId());
+			DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.fetchLatestPanCardDetails(merchant.getId(), lendingApplication.getId());
 
 			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
 			BankDetailsDto merchantBankDetail = null;
@@ -150,9 +152,9 @@ public class ImageURLService {
 		boolean pancard = false;
 		boolean poa = false;
 
-		List<DocumentsIdProof> documentsIdProofList =
-		documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
-		for (DocumentsIdProof documentsIdProof : documentsIdProofList) {
+		List<DocumentsIdProofMaster> documentsIdProofList =
+		documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
+		for (DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("selfie")) {
 				selfie = true;
 			} else if (documentsIdProof.getProofType().equalsIgnoreCase("pancard")) {
@@ -167,7 +169,7 @@ public class ImageURLService {
 	public Boolean isEkycDone(BasicDetailsDto merchant, Long applicationId) {
 		try{
 			LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
-			DocumentsIdProof ekycDoc = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(merchant.getId(), applicationId, "eAadhar");
+			DocumentsIdProofMaster ekycDoc = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(merchant.getId(), applicationId, "eAadhar");
 			return lendingEkyc != null && ekycDoc != null;
 		}
 		catch(Exception e) {
@@ -178,10 +180,10 @@ public class ImageURLService {
 	
 	public List<Map<String, Object>> fetchImageUrl(BasicDetailsDto merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
+		List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
 		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 		String shopDocType = ObjectUtils.isEmpty(commonAPIRequest.getPayload().get("shop_doc_type")) ? null : commonAPIRequest.getPayload().get("shop_doc_type").toString();
-		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
+		for(DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
 				continue;
 			}

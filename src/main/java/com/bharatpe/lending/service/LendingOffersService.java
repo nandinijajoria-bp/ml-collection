@@ -2,11 +2,11 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.entity.LendingGlobalLimit;
@@ -68,10 +68,10 @@ public class LendingOffersService {
 	LendingEkycDao lendingEkycDao;
 
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
 	@Autowired
 	DelayedMessagePublisher delayedMessagePublisher;
@@ -195,8 +195,8 @@ public class LendingOffersService {
 		lendingApplicationDao.deleteByMerchantId(merchant.getId());
 		bpEnachDao.deleteByMerchantId(merchant.getId());
 		lendingEkycDao.deleteByMerchantId(merchant.getId());
-		documentsIdProofDao.deleteByMerchantId(merchant.getId());
-		docKycDetailsDao.deleteByMerchantId(merchant.getId());
+		documentsIdProofDaoMaster.deleteByMerchantId(merchant.getId());
+		docKycDetailsDaoMaster.deleteByMerchantId(merchant.getId());
 		LendingGlobalLimit lendingGlobalLimit = lendingGlobalLimitDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 		if (lendingGlobalLimit != null) {
 			lendingGlobalLimit.setAvailableLimit(lendingGlobalLimit.getGlobalLimit());

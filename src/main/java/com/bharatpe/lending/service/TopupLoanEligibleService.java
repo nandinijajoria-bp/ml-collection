@@ -4,6 +4,8 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -59,7 +61,7 @@ public class TopupLoanEligibleService {
 //    MerchantDao merchantDao;
 
     @Autowired
-    DocKycDetailsDao docKycDetailsDao;
+    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
     @Autowired
     LoanEligibleService loanEligibleService;
@@ -145,7 +147,7 @@ public class TopupLoanEligibleService {
             return new ArrayList<>();
         }
         if (experian == null) {
-            DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestPanCardDetails(merchant.getId(), activeLoan.getApplicationId());
+            DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.fetchLatestPanCardDetails(merchant.getId(), activeLoan.getApplicationId());
             if (docKycDetails != null && docKycDetails.getDocNo() != null) {
                 logger.info("fetching experian for merchant:{} and pancard:{}", merchant.getId(), docKycDetails.getDocNo());
                 try {

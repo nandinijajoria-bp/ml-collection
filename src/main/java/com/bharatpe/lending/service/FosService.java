@@ -6,6 +6,8 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
@@ -85,7 +87,7 @@ public class FosService {
 //    DocumentsIdProofDao documentsIdProofDao;
 
     @Autowired
-    DocKycDetailsDao docKycDetailsDao;
+    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
     @Autowired
     MerchantInferredLocationDaoSlave merchantInferredLocationDaoSlave;
@@ -599,7 +601,7 @@ public class FosService {
     public Object getDocumentIdProofAddress(LendingApplication lendingApplication) {
         try {
 
-            DocKycDetails docKycDetails = docKycDetailsDao.getAadharAddress(lendingApplication.getId());
+            DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.getAadharAddress(lendingApplication.getId());
             logger.error("check for getDocumentIdProofAddress :{}", docKycDetails);
             if (Objects.nonNull(docKycDetails)) {
                 Map<String, Object> docAddress = new HashMap<>();

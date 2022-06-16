@@ -10,6 +10,8 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
@@ -97,9 +99,6 @@ public class VerifyOTPService {
     LendingCitiesDao lendingCitiesDao;
 
     @Autowired
-    DocumentsIdProofDao documentsIdProofdao;
-
-    @Autowired
     SignAgreementService signAgreementService;
 
     @Autowired
@@ -124,7 +123,7 @@ public class VerifyOTPService {
     KycHandler kycHandler;
 
     @Autowired
-    DocumentsIdProofDao documentsIdProofDao;
+    DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
@@ -264,7 +263,7 @@ public class VerifyOTPService {
             }
         }
         if (!topupLoans.contains(lendingApplication.getLoanType()) && StringUtils.isEmpty(lendingApplication.getCkycId())) {
-            List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndLendingApplication(merchantBasicDetailsDto.getId(), lendingApplication);
+            List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchantBasicDetailsDto.getId(), lendingApplication.getId());
             List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), lendingApplication.getId());
             if (documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
                 logger.error("documents not found for application:{}", lendingApplication.getId());

@@ -4,24 +4,24 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
 @Service
 public class SaveAddressProofDetailsService {
 	
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingEkycDao lendingEkycDao;
@@ -33,7 +33,7 @@ public class SaveAddressProofDetailsService {
 		Long merchantId =  Long.parseLong(commonAPIRequest.getPayload().get("merchant_id").toString());
 		Map<String, String> addressProofDetails = (Map<String, String>)commonAPIRequest.getPayload().get("address_proof_details");
 		
-		DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestAddressDetails(merchantId, applicationId);
+		DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.fetchLatestAddressDetails(merchantId, applicationId);
 		
 		saveAddressProofDetails(docKycDetails, addressProofDetails, applicationId, merchantId);
 		
@@ -43,8 +43,8 @@ public class SaveAddressProofDetailsService {
 		return finalResponse;
 	}
 	
-	private void saveAddressProofDetails(DocKycDetails docKycDetails, Map<String, String> addressProofDetails, Long applicationId, Long merchantId) {
-		DocKycDetails toSave = new DocKycDetails();
+	private void saveAddressProofDetails(DocKycDetailsMaster docKycDetails, Map<String, String> addressProofDetails, Long applicationId, Long merchantId) {
+		DocKycDetailsMaster toSave = new DocKycDetailsMaster();
 		if(docKycDetails != null) {
 			toSave.setId(docKycDetails.getId());
 //			toSave.setDocId(docKycDetails.getDocId());
@@ -55,7 +55,7 @@ public class SaveAddressProofDetailsService {
 			toSave.setResponse(docKycDetails.getResponse());
 			toSave.setStatus(docKycDetails.getStatus());
 		}else {
-			Long docId = documentsIdProofDao.fetchLatestAddressProofDocId(merchantId, applicationId, "LENDING");
+			Long docId = documentsIdProofDaoMaster.fetchLatestAddressProofDocId(merchantId, applicationId, "LENDING");
 //			toSave.setDocId(docId);
 		}
 //		toSave.setMerchantId(merchantId);
@@ -89,6 +89,6 @@ public class SaveAddressProofDetailsService {
 		if(addressProofDetails.get("date_of_issue") != null && !addressProofDetails.get("date_of_issue").isEmpty()) {
 			toSave.setDoi(addressProofDetails.get("date_of_issue"));
 		}
-		docKycDetailsDao.save(toSave);
+		docKycDetailsDaoMaster.save(toSave);
 	}
 }

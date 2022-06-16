@@ -427,6 +427,7 @@ public class CreditLineKycService {
 //			}
 //		}
 //	}
+
 //
 //	public String getNotificationContent(Long merchantId,CreditApplication creditApplication) {
 //		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
