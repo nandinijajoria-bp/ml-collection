@@ -25,6 +25,8 @@ import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.MerchantScoreException;
+import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -138,6 +140,9 @@ public class LoanUtil {
 
 	@Autowired
 	MerchantService merchantService;
+
+	@Autowired
+	MerchantScoreHandler merchantScoreHandler;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -545,7 +550,7 @@ public class LoanUtil {
 		createMerchantSummarySnapshot(lendingApplication);
 		createExperianSnapshot(lendingApplication);
 		createBBSSnapshot(lendingApplication);
-//		createMerchantScoreSnapshot(lendingApplication);
+		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
 	}
 
@@ -562,18 +567,35 @@ public class LoanUtil {
         }
     }
 
-//    public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
-//		try {
+    public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+		try {
 //			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchantId());
-//			if (merchantScore != null) {
-//				MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
-//				merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
-//				merchantScoreSnapshotDao.save(merchantScoreSnapshot);
-//			}
-//		} catch (Exception e) {
-//			logger.error("Exception in createMerchantScoreSnapshot for application:{}", lendingApplication.getId(), e);
-//		}
-//	}
+			final MerchantScoreResponseDto merchantScoreResponseDto = merchantScoreHandler.getMerchantScore(lendingApplication.getMerchantId());
+			if (ObjectUtils.isEmpty(merchantScoreResponseDto)) {
+				throw new MerchantScoreException(lendingApplication.getMerchantId().toString());
+			}
+			MerchantScoreSnapshot merchantScoreSnapshot = new MerchantScoreSnapshot();
+			merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
+			merchantScoreSnapshot.setMerchant_id(lendingApplication.getMerchantId());
+			merchantScoreSnapshot.setMerchant_store_id(merchantScoreResponseDto.getMerchantStoreId());
+			merchantScoreSnapshot.setBusiness_category(merchantScoreResponseDto.getBusinessCategory());
+			merchantScoreSnapshot.setVintage(merchantScoreResponseDto.getVintage());
+			merchantScoreSnapshot.setVintage_score(merchantScoreResponseDto.getVintageScore());
+			merchantScoreSnapshot.setDaily_tpv(merchantScoreResponseDto.getDailyTpv());
+			merchantScoreSnapshot.setDaily_tpv_score(merchantScoreResponseDto.getDailyTpvScore());
+			merchantScoreSnapshot.setTpv_3_month(merchantScoreResponseDto.getTpv3Month());
+			merchantScoreSnapshot.setTpv_3_month_score(merchantScoreResponseDto.getTpv3MonthScore());
+			merchantScoreSnapshot.setActive_days(merchantScoreResponseDto.getActiveDays());
+			merchantScoreSnapshot.setActive_days_score(merchantScoreResponseDto.getActiveDaysScore());
+			merchantScoreSnapshot.setUnique_customer(merchantScoreResponseDto.getUniqueCustomer());
+			merchantScoreSnapshot.setUnique_customer_score(merchantScoreResponseDto.getUniqueCustomerScore());
+			merchantScoreSnapshot.setTrajectory_score(merchantScoreResponseDto.getTrajectoryScore());
+			merchantScoreSnapshot.setFinalScore(merchantScoreResponseDto.getFinalScore());
+			merchantScoreSnapshotDao.save(merchantScoreSnapshot);
+		} catch (Exception e) {
+			logger.error("Exception in createMerchantScoreSnapshot for application:{}", lendingApplication.getId(), e);
+		}
+	}
 
 	public void createBBSSnapshot(LendingApplication lendingApplication) {
 		try {
