@@ -9,11 +9,12 @@ import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
-import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -83,7 +84,7 @@ public class LoanDetailsService {
 	LendingCategoryDao lendingCategoryDao;
 
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingPancardDao lendingPancardDao;
@@ -1080,8 +1081,8 @@ public class LoanDetailsService {
 
 	private List<DocumentDTO> fetchDocuments(LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		List<DocumentDTO> documents = new ArrayList<>();
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
-		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
+		List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
+		for(DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
 			DocumentDTO document = new DocumentDTO();
 			document.setId(documentsIdProof.getId());
 			document.setProofType(documentsIdProof.getProofType());

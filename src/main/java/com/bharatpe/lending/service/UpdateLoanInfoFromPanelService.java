@@ -6,6 +6,10 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -42,10 +46,10 @@ public class UpdateLoanInfoFromPanelService {
 	Logger logger = LoggerFactory.getLogger(UpdateLoanInfoFromPanelService.class);
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 	
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 	
 	@Autowired
 	DocAuthenticationDao docAuthenticationDao;
@@ -132,9 +136,9 @@ public class UpdateLoanInfoFromPanelService {
 						karzaVerification(docType, frontSide, backSide, singlePageDoc, docId, merchantId, applicationId);
 					}
 					
-					Optional<DocumentsIdProof> documentsIdProofOptional = documentsIdProofDao.findById(docId);
+					Optional<DocumentsIdProofMaster> documentsIdProofOptional = documentsIdProofDaoMaster.findById(docId);
 					if(documentsIdProofOptional.isPresent()) {
-						DocumentsIdProof documentsIdProofToSave = documentsIdProofOptional.get();
+						DocumentsIdProofMaster documentsIdProofToSave = documentsIdProofOptional.get();
 						documentsIdProofToSave.setStatus("pending_verification");
 						if(!frontSide.isEmpty()) {
 							documentsIdProofToSave.setProofFrontSide(frontSide);
@@ -142,7 +146,7 @@ public class UpdateLoanInfoFromPanelService {
 						if(!backSide.isEmpty()) {
 							documentsIdProofToSave.setProofBackSide(backSide);
 						}
-						documentsIdProofDao.save(documentsIdProofToSave);
+						documentsIdProofDaoMaster.save(documentsIdProofToSave);
 					}
 				}
 			}
@@ -176,7 +180,7 @@ public class UpdateLoanInfoFromPanelService {
 //		DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdAndApplicationIdAndProofType(merchantId, applicationId, docType);
 		DocumentsIdProof documentsIdProof = null;
 		if(documentsIdProof == null || documentsIdProof.getId() == null) {
-			DocumentsIdProof documentToSave = new DocumentsIdProof();
+			DocumentsIdProofMaster documentToSave = new DocumentsIdProofMaster();
 //			documentToSave.setMerchantId(merchantId);
 //			documentToSave.setApplicationId(applicationId);
 			documentToSave.setProofType(docType);
@@ -189,7 +193,7 @@ public class UpdateLoanInfoFromPanelService {
 				documentToSave.setSinglePage(0);
 				documentToSave.setProofFrontSide(backSide);
 			}
-			documentsIdProofDao.save(documentToSave);
+			documentsIdProofDaoMaster.save(documentToSave);
 			docId = documentToSave.getId();
 		}else {
 			docId = documentsIdProof.getId();
@@ -255,18 +259,18 @@ public class UpdateLoanInfoFromPanelService {
 	private void saveKarzaKycFailedResponse (String proofType, Long docId, String response, Long merchantId) {
 		Long docKycId = null;
 //		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, proofType, docId);
-		DocKycDetails docKycDetails =null;
+		DocKycDetailsMaster docKycDetails =null;
 		if(docKycDetails != null) {
 			docKycDetails.setResponse(response);
-			docKycDetailsDao.save(docKycDetails);
+			docKycDetailsDaoMaster.save(docKycDetails);
 			docKycId = docKycDetails.getId();
 		}else {
-			DocKycDetails docKycToSave = new DocKycDetails();
+			DocKycDetailsMaster docKycToSave = new DocKycDetailsMaster();
 //			docKycToSave.setMerchantId(merchantId);
 //			docKycToSave.setDocId(docId);
 			docKycToSave.setDocType(proofType);
 			docKycToSave.setResponse(response);
-			docKycDetailsDao.save(docKycToSave);
+			docKycDetailsDaoMaster.save(docKycToSave);
 			docKycId = docKycToSave.getId();
 		}
 		if(proofType.equalsIgnoreCase("pancard")) {
@@ -300,7 +304,7 @@ public class UpdateLoanInfoFromPanelService {
 		if(result != null && result.size() > 0) {
 			String dob = "";
 			String doi = "";
-			DocKycDetails docKycDetails = new DocKycDetails();
+			DocKycDetailsMaster docKycDetails = new DocKycDetailsMaster();
 //			docKycDetails.setDocId(documentId);
 //			docKycDetails.setMerchantId(merchantId);
 			docKycDetails.setCreatedAt(new Date());
@@ -380,7 +384,7 @@ public class UpdateLoanInfoFromPanelService {
 				e.printStackTrace();
 				logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
 			}
-			docKycDetailsDao.save(docKycDetails);
+			docKycDetailsDaoMaster.save(docKycDetails);
 			docKycDetailsInsertId = docKycDetails.getId();
 		}
 		return docKycDetailsInsertId;
@@ -502,7 +506,7 @@ public class UpdateLoanInfoFromPanelService {
                 }
             }
 			
-			documentsIdProofDao.updateStatus(merchantId, applicationId, status);
+			documentsIdProofDaoMaster.updateStatus(merchantId, applicationId, status);
 			
 //			lendingApplication = lendingApplicationDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
 			

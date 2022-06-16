@@ -14,6 +14,10 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
@@ -24,11 +28,7 @@ import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.dao.DocAuthenticationDao;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.entities.DocAuthentication;
-import com.bharatpe.common.entities.DocKycDetails;
-import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
@@ -46,13 +46,13 @@ public class VerifyApplicationKarzaStatusService {
 	LendingApplicationDao lendingApplicationDao;
 	
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 	
 	@Autowired
 	DocAuthenticationDao docAuthenticationDao;
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 	
 	@Autowired
 	S3BucketHandler s3BucketHandler;
@@ -121,7 +121,7 @@ public class VerifyApplicationKarzaStatusService {
 	private Map<String, String> verifyApplicationStatusUsingKarza(Long merchantId, Long applicationId, Long docId) {
 		Map<String, String> response = new LinkedHashMap<>();
 		
-		List<Object[]> docDetails = docKycDetailsDao.findPancardDetails(merchantId, applicationId, docId);
+		List<Object[]> docDetails = docKycDetailsDaoMaster.findPancardDetails(merchantId, applicationId, docId);
 		if(docDetails.size() > 0) {
 			response = validatePancardUsingKarzaAndSaveDetails(docDetails, applicationId);
 		}else {
@@ -226,7 +226,7 @@ public class VerifyApplicationKarzaStatusService {
 	private String getPanCardKycDetails(Long docId, Long merchantId, Long applicationId) {
 		String docStatus = null;
 		
-		Optional<DocumentsIdProof> documentsIdProof = documentsIdProofDao.findById(docId);
+		Optional<DocumentsIdProofMaster> documentsIdProof = documentsIdProofDaoMaster.findById(docId);
 		if(documentsIdProof.isPresent()) {
 			String fileName = documentsIdProof.get().getProofFrontSide();
 			String docType = documentsIdProof.get().getProofType();
@@ -292,18 +292,18 @@ public class VerifyApplicationKarzaStatusService {
 		Long docKycId = null;
 		
 //		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, docType, docId);
-		DocKycDetails docKycDetails = null;
+		DocKycDetailsMaster docKycDetails = null;
 		if(docKycDetails == null) {
-			DocKycDetails kycDetailsToSave = new DocKycDetails();
+			DocKycDetailsMaster kycDetailsToSave = new DocKycDetailsMaster();
 //			kycDetailsToSave.setMerchantId(merchantId);
 //			kycDetailsToSave.setDocId(docId);
 			kycDetailsToSave.setDocType(docType);
 			kycDetailsToSave.setResponse(response);
-			docKycDetailsDao.save(kycDetailsToSave);
+			docKycDetailsDaoMaster.save(kycDetailsToSave);
 			docKycId = kycDetailsToSave.getId();
 		}else {
 			docKycDetails.setResponse(response);
-			docKycDetailsDao.save(docKycDetails);
+			docKycDetailsDaoMaster.save(docKycDetails);
 			docKycId = docKycDetails.getId();
 		}
 		
@@ -328,7 +328,7 @@ public class VerifyApplicationKarzaStatusService {
 		
 		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 		Map<String, Map<String, String>> details = (Map<String, Map<String, String>>) result.get(0).get("details");
-		DocKycDetails docKycDetails = null;
+		DocKycDetailsMaster docKycDetails = null;
 //		DocKycDetails docKycDetails = docKycDetailsDao.findTop1ByMerchantIdAndDocTypeAndDocId(merchantId, "pancard", docId);
 		docKycDetails.setDocNo(details.get("panNo").get("value"));
 		dob = details.get("date").get("value");
@@ -357,7 +357,7 @@ public class VerifyApplicationKarzaStatusService {
 			e.printStackTrace();
 			logger.info("UploadDocumentService exception while parsing date, message : {}",e.getMessage());
 		}
-		docKycDetailsDao.save(docKycDetails);
+		docKycDetailsDaoMaster.save(docKycDetails);
 		
 		Long docKycId = docKycDetails.getId();
 		String docStatus = verifyPanCardDetails(docKycId, docId, merchantId, applicationId);
@@ -367,7 +367,7 @@ public class VerifyApplicationKarzaStatusService {
 	
 	private String verifyPanCardDetails(Long docKycId, Long docId, Long merchantId, Long applicationId) {
 		String docStatus = null;
-		Optional<DocKycDetails> docKycDetailsOptional = docKycDetailsDao.findById(docKycId);
+		Optional<DocKycDetailsMaster> docKycDetailsOptional = docKycDetailsDaoMaster.findById(docKycId);
 		if(docKycDetailsOptional.isPresent()) {
 			SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 			String dob = docKycDetailsOptional.get().getDob();

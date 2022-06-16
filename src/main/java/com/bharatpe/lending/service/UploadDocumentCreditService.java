@@ -8,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
@@ -35,6 +34,7 @@ import org.springframework.util.StringUtils;
 //import com.fasterxml.jackson.databind.JsonNode;
 //import com.fasterxml.jackson.databind.ObjectMapper;
 
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,6 +44,8 @@ import java.util.Iterator;
 
 public class UploadDocumentCreditService {
 //	Logger logger = LoggerFactory.getLogger(UploadDocumentService.class);
+
+//	private Boolean pancardAuthenticationUsingSignzyAPI(String responseString, MerchantDocumentProofOcr merchantDocumentProofOcr, MerchantDocumentProof merchantDocumentProof, Merchant merchant, CreditApplication creditApplication) {
 //
 //	@Autowired
 //	MerchantDocumentProofDao merchantDocumentProofDao;

@@ -1,13 +1,13 @@
 package com.bharatpe.lending.handlers;
 
-import com.bharatpe.common.entities.LendingBankDisburse;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.bpnewmaster.entity.LendingBankDisburse;
 import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.dao.LendingBankDisburseDao;
+import com.bharatpe.lending.common.bpnewmaster.dao.LendingBankDisburseDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
