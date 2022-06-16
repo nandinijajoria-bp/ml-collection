@@ -1,11 +1,11 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.*;
-import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.PayloadDTO;
 
 import org.springframework.http.CacheControl;
@@ -33,13 +33,13 @@ public class MerchantUpdateService {
 	Logger logger = LoggerFactory.getLogger(MerchantUpdateService.class);
 
 	@Autowired
-	private HmacCalculator hmacCalculator;
+	private LendingHmacCalculator lendingHmacCalculator;
 
 	@Autowired
-	AesEncryption aesEncryption;
+	AesEncryptionUtil aesEncryptionUtil;
 
 	@Autowired
-	InternalClientDao internalClientDao;
+	InternalClientDaoSlave internalClientDaoSlave;
 
 	@Autowired
 	RestTemplate restTemplate;
@@ -72,8 +72,8 @@ public class MerchantUpdateService {
 			headers.setCacheControl(CacheControl.noCache());
 			headers.set("client-Name", "LENDING");
 
-			String hash = hmacCalculator.calculateHMACHexEncoded(
-					hmacCalculator.getObjectPayloadList((List<Map<String, Object>>) paramMap.get("payload")),
+			String hash = lendingHmacCalculator.calculateHMACHexEncoded(
+					lendingHmacCalculator.getObjectPayloadList((List<Map<String, Object>>) paramMap.get("payload")),
 					getSecret("LENDING", "ACTIVE"));
 			logger.info("generated hash value is : {}", hash);
 			headers.set("merchantId", merchantId.toString());
@@ -114,9 +114,9 @@ public class MerchantUpdateService {
 
 	private String getSecret(String clientName, String status) {
 		if(StringUtils.isEmpty(this.clientSecret)) {
-			InternalClient client = internalClientDao.findByClientNameAndStatus(clientName, status);
+			InternalClientSlave client = internalClientDaoSlave.findByClientNameAndStatus(clientName, status);
 			if (client != null) {
-				this.clientSecret = aesEncryption.decrypt(client.getSecret());
+				this.clientSecret = aesEncryptionUtil.decrypt(client.getSecret());
 			}
 		}
 		return this.clientSecret;

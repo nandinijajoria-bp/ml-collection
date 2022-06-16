@@ -3,13 +3,12 @@ package com.bharatpe.lending.util;
 import com.amazonaws.util.IOUtils;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.DocKycDetails;
 import com.bharatpe.common.entities.DocumentsIdProof;
-import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.lending.common.dao.SignzyCredentialDao;
-import com.bharatpe.lending.common.entity.LendingAutoKyc;
-import com.bharatpe.lending.common.entity.SignzyCredential;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.SignzyCredentialDaoSlave;
+import com.bharatpe.lending.common.slave.entity.SignzyCredentialSlave;
 import com.bharatpe.lending.controller.LendingApplicationController;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -53,13 +52,13 @@ public class UploadDocumentUtil {
     DocKycDetailsDao docKycDetailsDao;
 
     @Autowired
-    SignzyCredentialDao signzyCredentialDao;
+    SignzyCredentialDaoSlave signzyCredentialDaoSlave;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    MerchantService merchantService;
 
     @Autowired
     DocumentsIdProofDao documentsIdProofDao;
@@ -68,7 +67,7 @@ public class UploadDocumentUtil {
     APIGatewayService apiGatewayService;
 
     public Map<String,String> getDetailsOfSignzyApi(){
-        SignzyCredential signzyCredential = signzyCredentialDao.findByModule("LENDING");
+        SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModule("LENDING");
         if (signzyCredential == null) {
             logger.info("Signzy credentials not found for Lending");
             return null;
@@ -214,7 +213,10 @@ public class UploadDocumentUtil {
                         String authorization=signzyApiDetails.get("accessToken");
                         String patronId=signzyApiDetails.get("patronId");
 
-                        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+                        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+                        BankDetailsDto merchantBankDetail = null;
+                        if (bankDetailsDtoOptional.isPresent())
+                            merchantBankDetail = bankDetailsDtoOptional.get();
                         String benificiaryName =  merchantBankDetail!= null ? (merchantBankDetail.getBeneficiaryName()!= null ? merchantBankDetail.getBeneficiaryName() : "") : "";
 
                         Double getMatchPercentage = apiGatewayService.getNameMatchPercentage(authorization, patronId, benificiaryName, docKyc.getPersonName(), merchantId, applicationId);

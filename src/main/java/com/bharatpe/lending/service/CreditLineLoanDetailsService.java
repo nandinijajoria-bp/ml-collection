@@ -9,9 +9,16 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.AvailableLoanDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.entity.AvailableLoanSlave;
+import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -42,13 +49,10 @@ public class CreditLineLoanDetailsService {
 //	MerchantSummaryDao merchantSummeryDao;
 
     @Autowired
-    MerchantStoreDao merchantStoreDao;
-
-    @Autowired
     LendingCitiesDao lendingCitiesDao;
 
     @Autowired
-    PincodeCityStateMappingDao pincodeCityStateMappingDao;
+    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     LendingClosedAuditDao lendingClosedAuditDao;
@@ -61,9 +65,6 @@ public class CreditLineLoanDetailsService {
 
     @Autowired
     ENachService eNachService;
-
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
 
     @Value("${enach.provider}")
     private String enachServiceToUse;
@@ -80,10 +81,7 @@ public class CreditLineLoanDetailsService {
     Logger logger = LoggerFactory.getLogger(CreditLineLoanDetailsService.class);
 
     @Autowired
-    PaymentTransactionNewDao paymentTransactionNewDao;
-
-    @Autowired
-    AvailableLoanDao availableLoanDao;
+    AvailableLoanDaoSlave availableLoanDaoSlave;
 
     @Autowired
     CreditApplicationTransitionDao creditApplicationTransitionDao;
@@ -92,7 +90,7 @@ public class CreditLineLoanDetailsService {
     CreditApplicationAddressDao creditApplicationAddressDao;
 
     @Autowired
-    MerchantDocumentProofDao merchantDocumentProofDao;
+    MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
 
     @Autowired
     CreditLineCategoriesDao creditLineCategoriesDao;
@@ -239,7 +237,11 @@ public class CreditLineLoanDetailsService {
         try {
 
             logger.info("Fetching merchant bank details for merchant {}", merchant.getId());
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
 
 
             if (experian != null) {
@@ -532,8 +534,10 @@ public class CreditLineLoanDetailsService {
 //				return response;
 //			}
 
-            logger.info("Fetching bank details for merchant {}", merchant.getId());
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
 
             if (merchantBankDetail == null) {
 
@@ -546,9 +550,9 @@ public class CreditLineLoanDetailsService {
             String bankCode;
 
             if (requestDTO.getMeta().getAppVersion() != null && !requestDTO.getMeta().getAppVersion().equalsIgnoreCase("undefined") && Integer.parseInt(requestDTO.getMeta().getAppVersion()) >= 238) {
-                bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+                bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "BOTH");
             } else {
-                bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+                bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "NET");
             }
 
             LendingClEnach enachSuccess = lendingClEnachDao.findSuccessEnach(merchant.getId());
@@ -698,7 +702,7 @@ public class CreditLineLoanDetailsService {
 
             if (pincode != null && lendingCity == null) {
 
-                PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+                PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
                 lendingClosedAuditDao.save(new LendingClosedAudit(merchant.getId(), panCard, pincode, "OGL"));
 
                 response.getDetails().setEligible(false);
@@ -788,8 +792,8 @@ public class CreditLineLoanDetailsService {
             logger.info("Fetching documents for merchant {}", merchant.getId());
             List<DocumentDTO> documents = new ArrayList<>();
 
-            List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
-            for (MerchantDocumentProof merchantIdProof : documentsIdProofList) {
+            List<MerchantDocumentProofSlave> documentsIdProofList = merchantDocumentProofDaoSlave.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
+            for (MerchantDocumentProofSlave merchantIdProof : documentsIdProofList) {
                 DocumentDTO document = new DocumentDTO();
                 document.setId(merchantIdProof.getId());
                 document.setProofType(merchantIdProof.getProofType());
@@ -806,12 +810,12 @@ public class CreditLineLoanDetailsService {
 
         List<LoanEligibilityDTO> availableLoanDTOList = new ArrayList<>();
 
-        List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");
+        List<AvailableLoanSlave> availableLoanList = availableLoanDaoSlave.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_3");
         ;
 
         if (availableLoanList == null || availableLoanList.isEmpty()) {
 
-            availableLoanList = availableLoanDao.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_1");
+            availableLoanList = availableLoanDaoSlave.findByMerchantIdAndTypeAndLoanConstructOrderByAmountDesc(merchant.getId(), loanType, "CONSTRUCT_1");
         }
 
         if (availableLoanList == null || availableLoanList.isEmpty()) {
@@ -820,7 +824,7 @@ public class CreditLineLoanDetailsService {
         }
 
         List<LendingCategories> lendingCategoriesList = lendingCategoryDao.findByStatus(GeneralStatus.ACTIVE.toString());
-        for (AvailableLoan availableLoan : availableLoanList) {
+        for (AvailableLoanSlave availableLoan : availableLoanList) {
             LendingCategories lendingCategoryDetail = fetchCategoryDetails(lendingCategoriesList, availableLoan.getCategory());
             if (lendingCategoryDetail != null) {
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();

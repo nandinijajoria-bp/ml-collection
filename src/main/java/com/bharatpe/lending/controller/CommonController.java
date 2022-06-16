@@ -2,10 +2,10 @@ package com.bharatpe.lending.controller;
 
 import javax.servlet.http.HttpServletResponse;
 
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.service.MerchantLoansService;
 import com.bharatpe.lending.service.PaymentService;
@@ -21,7 +21,6 @@ import com.bharatpe.lending.service.PincodeVerificationServices;
 import com.bharatpe.lending.service.TopupLoanEligibleService;
 
 import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequestMapping("lending/common/*")
@@ -37,13 +36,13 @@ public class CommonController {
 	PincodeVerificationServices pincodeVerify;
 
 	@Autowired
-	InternalClientDao internalClientDao;
+	InternalClientDaoSlave internalClientDaoSlave;
 
 	@Autowired
-	HmacCalculator hmacCalculator;
+	LendingHmacCalculator lendingHmacCalculator;
 
 	@Autowired
-	AesEncryption aesEncryption;
+	AesEncryptionUtil aesEncryptionUtil;
 
 	@Autowired
 	MerchantLoansService merchantLoansService;
@@ -68,10 +67,10 @@ public class CommonController {
 
 	@RequestMapping(value="/hash", method=RequestMethod.POST)
 	public ResponseEntity<String> generateHash(@RequestBody Map<String, Object> requestMap, @RequestHeader(name = "clientName") String clientName){
-		InternalClient internalClient = internalClientDao.findByClientName(clientName);
+		InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(clientName);
 		if (internalClient != null) {
-			logger.info("lending secret:{}", aesEncryption.decrypt(internalClient.getSecret()));
-			String hash = hmacCalculator.calculateHmac(hmacCalculator.getNestedPayload(requestMap), aesEncryption.decrypt(internalClient.getSecret()));
+			logger.info("lending secret:{}", aesEncryptionUtil.decrypt(internalClient.getSecret()));
+			String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getNestedPayload(requestMap), aesEncryptionUtil.decrypt(internalClient.getSecret()));
 			return new ResponseEntity<>(hash, HttpStatus.OK);
 		}
 		return null;

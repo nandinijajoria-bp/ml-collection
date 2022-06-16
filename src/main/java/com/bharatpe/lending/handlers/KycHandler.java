@@ -1,10 +1,10 @@
 package com.bharatpe.lending.handlers;
 
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.enums.KycDocStatus;
@@ -25,7 +25,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -38,13 +37,13 @@ public class KycHandler {
     RestTemplate restTemplate;
 
     @Autowired
-    InternalClientDao internalClientDao;
+    InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
     Environment env;
@@ -59,8 +58,8 @@ public class KycHandler {
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     private HttpHeaders getApiHeaders(Map<String, Object> requestBody) {
-        String payload = hmacCalculator.getObjectPayload(requestBody);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set(LendingConstants.HEADER_CLIENT_NAME, CLIENT);
@@ -70,9 +69,9 @@ public class KycHandler {
 
     private String getInternalSecret() {
         if(StringUtils.isEmpty(clientSecret)) {
-            InternalClient client = internalClientDao.findByClientName(CLIENT);
+            InternalClientSlave client = internalClientDaoSlave.findByClientName(CLIENT);
             if (client != null) {
-                clientSecret = aesEncryption.decrypt(client.getSecret());
+                clientSecret = aesEncryptionUtil.decrypt(client.getSecret());
             }
         }
         return clientSecret;

@@ -4,15 +4,15 @@ import java.util.*;
 
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.entities.MerchantFcmToken;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 import org.json.XML;
@@ -79,7 +79,7 @@ public class CreditLineKycService {
 	WhatsappNotificationService whatsappNotificationService;
 
 	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
+	MerchantService merchantService;
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
@@ -430,7 +430,10 @@ public class CreditLineKycService {
 	}
 
 	public String getNotificationContent(Long merchantId,CreditApplication creditApplication) {
-		MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		if(merchantBankDetail==null) {
 			return null;
 		}

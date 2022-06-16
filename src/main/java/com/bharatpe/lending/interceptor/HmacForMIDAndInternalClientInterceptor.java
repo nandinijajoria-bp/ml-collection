@@ -1,12 +1,12 @@
 package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -31,13 +31,13 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
     Logger logger = LoggerFactory.getLogger(HmacForMIDAndInternalClientInterceptor.class);
 
     @Autowired
-    private HmacCalculator hmacCalculator;
+    private LendingHmacCalculator lendingHmacCalculator;
 
 //    @Autowired
 //    private MerchantDao merchantDao;
 
     @Autowired
-    private InternalClientDao internalClientDao;
+    private InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
     Environment env;
@@ -67,7 +67,7 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
             }
             
 //            Merchant merchant = null;
-            InternalClient internalClient = null;
+            InternalClientSlave internalClient = null;
             Optional<BasicDetailsDto> basicDetailsDto = Optional.empty();
 
             if (!ObjectUtils.isEmpty(mid))
@@ -83,7 +83,7 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
             	
             	request.setAttribute("merchant", basicDetailsDto.get());
             } else {
-            	internalClient = internalClientDao.findByClientName(clientName);
+            	internalClient = internalClientDaoSlave.findByClientName(clientName);
             	if (internalClient == null) {
             		logger.error("Client not found {}", clientName);
             		sendFailureResponse(response, ResponseCode.CLIENT_NOT_FOUND);
@@ -91,7 +91,7 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
             	}
             }
             
-            if ((internalClient != null && hmacCalculator.validateClient(payload, internalClient, hmac)) || (internalClient == null && hmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac))) {
+            if ((internalClient != null && lendingHmacCalculator.validateExternalGateway(payload, internalClient.getSecret(), hmac)) || (internalClient == null && lendingHmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac))) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and mid {}", hmac, mid);
                 return true;
             }
@@ -124,7 +124,7 @@ public class HmacForMIDAndInternalClientInterceptor implements HandlerIntercepto
             }
         }
         if (paramMap != null && !paramMap.isEmpty())
-            return hmacCalculator.getPayload(paramMap);
+            return lendingHmacCalculator.getPayload(paramMap);
 
         return null;
     }

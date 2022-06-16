@@ -67,9 +67,6 @@ public class SignAgreementService {
 	LendingAuditTrialDao lendingAuditTrialDao;
 	
 	@Autowired
-	DocAuthenticationDao docAuthenticationDao;
-	
-	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
 	
 	@Autowired
@@ -508,22 +505,22 @@ public class SignAgreementService {
 		docKycDetailsDao.save(docKycDetails);
 		return docKycDetails;
 	}
-	
-	private void insertIntoDocAuthentication(DocAuthentication oldDocAuthentication, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof) {
-		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetails(docKycDetails);
-		docAuthentication.setDocumentsIdProof(documentsIdProof);
-		docAuthentication.setMerchantId(oldDocAuthentication.getMerchantId());
-		docAuthentication.setDocType(oldDocAuthentication.getDocType());
-		docAuthentication.setStatus(oldDocAuthentication.getStatus());
-		docAuthentication.setDuplicate(oldDocAuthentication.getDuplicate());
-		docAuthentication.setNameMatch(oldDocAuthentication.getNameMatch());
-		docAuthentication.setDobMatch(oldDocAuthentication.getDobMatch());
-		docAuthentication.setFullResponse(oldDocAuthentication.getFullResponse());
-		docAuthentication.setDocStatus(oldDocAuthentication.getDocStatus());
-		
-		docAuthenticationDao.save(docAuthentication);
-	}
+//
+//	private void insertIntoDocAuthentication(DocAuthentication oldDocAuthentication, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof) {
+//		DocAuthentication docAuthentication = new DocAuthentication();
+//		docAuthentication.setDocKycDetails(docKycDetails);
+//		docAuthentication.setDocumentsIdProof(documentsIdProof);
+//		docAuthentication.setMerchantId(oldDocAuthentication.getMerchantId());
+//		docAuthentication.setDocType(oldDocAuthentication.getDocType());
+//		docAuthentication.setStatus(oldDocAuthentication.getStatus());
+//		docAuthentication.setDuplicate(oldDocAuthentication.getDuplicate());
+//		docAuthentication.setNameMatch(oldDocAuthentication.getNameMatch());
+//		docAuthentication.setDobMatch(oldDocAuthentication.getDobMatch());
+//		docAuthentication.setFullResponse(oldDocAuthentication.getFullResponse());
+//		docAuthentication.setDocStatus(oldDocAuthentication.getDocStatus());
+//
+//		docAuthenticationDao.save(docAuthentication);
+//	}
 
 	private Map<String, Object> sendOTP(BasicDetailsDto merchant, String appSign) {
 		Map<String, Object> finalResponse = new LinkedHashMap<>();

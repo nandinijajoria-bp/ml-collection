@@ -1,6 +1,8 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -14,13 +16,11 @@ import org.springframework.web.client.RestTemplate;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.dao.LendingPancardDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantSummaryLendingDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingNachBank;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.CreditApplicationNachDao;
 import com.bharatpe.lending.common.dao.LendingClEnachDao;
@@ -42,6 +42,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -50,17 +51,12 @@ import org.slf4j.LoggerFactory;
 @Service
 public class CreditENachService {
 
-	
-
-
     private Logger logger = LoggerFactory.getLogger(ENachService.class);
 
     @Autowired
     CreditApplicationDao creditApplicationDao;
     @Autowired
     CreditApplicationNachDao creditApplicationNachDao;
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
 
     @Autowired
     LendingClEnachDao lendingClEnachDao;
@@ -95,6 +91,9 @@ public class CreditENachService {
     @Autowired
     BPEnachService bpEnachService;
 
+    @Autowired
+    MerchantService merchantService;
+
     ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     // fetch loan detail by merchant IFSC [pending verification state]
@@ -112,7 +111,10 @@ public class CreditENachService {
             logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
             return responseDTO;
         }
-        MerchantBankDetail  merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail= null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         if(merchantBankDetail == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Active Bank not found");
@@ -121,9 +123,9 @@ public class CreditENachService {
         }
         String bankCode;
         if (appVersion != null && Integer.parseInt(appVersion) >= 238) {
-            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "BOTH");
+            bankCode = fetchBankCode(merchantBankDetail.getIfsc().substring(0,4), "BOTH");
         } else {
-            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0,4), "NET");
+            bankCode = fetchBankCode(merchantBankDetail.getIfsc().substring(0,4), "NET");
         }
         if(bankCode == null) {
             responseDTO.setResponse(false);
@@ -141,7 +143,7 @@ public class CreditENachService {
          lendingClEnach.setmId(merchant.getMid());
          lendingClEnach.setSkip(false);
         lendingClEnach = lendingClEnachDao.save(lendingClEnach);
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingClEnach.getId(),lendingClEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, creditApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data(lendingClEnach.getId(),lendingClEnach.getId(), bankCode, LOAN_AMOUNT, mandateDate, creditApplication.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfsc(), merchant.getMid()));
         return responseDTO;
     }
 
@@ -249,7 +251,10 @@ public class CreditENachService {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private Map createNachRegReq(LendingClEnach lendingClEnach) {
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingClEnach.getMerchantId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingClEnach.getMerchantId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         Map request = new HashMap();
         request.put("merchantId", lendingClEnach.getMerchantId());
         request.put("referenceNumber", lendingClEnach.getmId());
@@ -332,7 +337,10 @@ public class CreditENachService {
     	}
     	
     	logger.info("Fetching the bank details for the merchant {}",merchant.getId());
-    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
     	if(merchantBankDetail==null){
     		logger.error("Error occured fetching bank detils for merchant {}",merchant.getId());
     		enachInitiationResponseDto.setResponse(false);
@@ -340,7 +348,7 @@ public class CreditENachService {
             logger.error("Unable to find bank detail for Merchant - {}", merchant.getId());
             return enachInitiationResponseDto;
     	}
-    	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfscCode());
+    	digioEnach.getMandate_data().setDestination_bank_id(merchantBankDetail.getIfsc());
     	digioEnach.getMandate_data().setDestination_bank_name(merchantBankDetail.getBankName());
     	digioEnach.getMandate_data().setCustomer_account_number(merchantBankDetail.getAccountNumber());
 

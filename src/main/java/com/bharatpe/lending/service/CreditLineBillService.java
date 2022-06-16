@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +62,7 @@ public class CreditLineBillService {
 	private String bucket;
 
 	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
+	MerchantService merchantService;
 	
 	Logger logger=LoggerFactory.getLogger(CreditLineBillService.class);
 	
@@ -172,7 +172,10 @@ public class CreditLineBillService {
 	public BillDetailResponseDto fetchBillDetail(BasicDetailsDto merchant,Long id) {
 		
 		try {
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
 			logger.info("Fetching bill details for bill {}",id);
 			CreditAccount creditAccount=null;
 			BillDetailResponseDto response=new BillDetailResponseDto();

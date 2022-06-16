@@ -2,6 +2,7 @@ package com.bharatpe.lending.dto;
 
 import com.bharatpe.common.entities.BankList;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import lombok.Data;
 
 import javax.persistence.criteria.CriteriaBuilder;
@@ -48,5 +49,5 @@ public class SupportApiResponseDto {
 
     //additional Params
     List<LendingPaymentSchedule> closedLoans;
-    List<BankList> nachableBanks;
+    List<BankListSlave> nachableBanks;
 }

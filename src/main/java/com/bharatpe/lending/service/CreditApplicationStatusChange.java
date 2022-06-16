@@ -7,11 +7,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
@@ -30,6 +30,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dto.CreditApplicationStatusUpdationRequestDto;
 import com.bharatpe.lending.dto.ResponseDTO;
+import org.springframework.util.ObjectUtils;
 
 @Service
 public class CreditApplicationStatusChange {
@@ -68,9 +69,6 @@ public class CreditApplicationStatusChange {
 	
 	@Autowired
 	CreditLineCategoriesDao creditLineCategoriesDao;
-
-	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
@@ -134,10 +132,10 @@ public class CreditApplicationStatusChange {
 	
 	private void sendRejectionNotification(CreditApplication  creditApplication) {
 //		Optional<Merchant> merchantOptional=merchantDao.findById(creditApplication.getMerchantId());
-		Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(creditApplication.getMerchantId());
-		if(merchantOptional!=null && merchantOptional.isPresent()) {
-			BasicDetailsDto merchant=merchantOptional.get();
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(creditApplication.getMerchantId());
+		if(ObjectUtils.isEmpty(merchantDetailsDto) && ObjectUtils.isEmpty(merchantDetailsDto.getMerchantDetail())) {
+			BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
+			BankDetailsDto merchantBankDetail = merchantDetailsDto.getBankDetail();
 			List<String> mobiles = new ArrayList<> ();
 			mobiles.add(merchant.getMobile());
 			String message="Hi "+merchantBankDetail.getBeneficiaryName()+",\nAs per your submitted documents and credit history, we are unable to activate BharatPe Loan Balance at this point. Please call at 08882555444 to learn how to improve your eligibility. Transact more on BharatPe QR over next 1 month and then re-apply.";

@@ -1,11 +1,8 @@
 package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.ExternalGatewayDao;
-import com.bharatpe.common.entities.ExternalGateway;
-import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,7 +19,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 public class LiquiloanInterceptor implements HandlerInterceptor {
@@ -30,13 +26,13 @@ public class LiquiloanInterceptor implements HandlerInterceptor {
     Logger logger = LoggerFactory.getLogger(LiquiloanInterceptor.class);
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
     @Autowired
     ObjectMapper objectMapper;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Value("${liquiloan.secret}")
     private String secretKey;
@@ -56,7 +52,7 @@ public class LiquiloanInterceptor implements HandlerInterceptor {
                 return false;
             }
             String checksumString = getChecksumString(request, isSettlementApi);
-            String checksum = hmacCalculator.calculateHMACHexEncoded(checksumString, secretKey);
+            String checksum = lendingHmacCalculator.calculateHMACHexEncoded(checksumString, secretKey);
             if (validateChecksum(request, checksum)) {
                 return true;
             } else {

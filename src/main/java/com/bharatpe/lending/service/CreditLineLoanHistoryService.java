@@ -7,13 +7,14 @@ import java.util.List;
 import java.util.Optional;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.IfscDao;
 import com.bharatpe.common.entities.Ifsc;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -54,7 +55,7 @@ public class CreditLineLoanHistoryService {
 	LendingTlDetailsDao lendingTlDetailsDao;
 	
 	@Autowired
-	IfscDao ifscDao;
+	IfscDaoSlave ifscDaoSlave;
 	
 	@Autowired
 	CreditDayEndBalanceDao creditDayEndBalanceDao;
@@ -450,7 +451,7 @@ public class CreditLineLoanHistoryService {
 	public Narration getLoanDetailForBankTransfer(LendingClTransaction lendingClTransaction) {
 		try {
 			Narration detail=new Narration();
-			Ifsc bank=ifscDao.findTop1ByIfscOrderByIdDesc(lendingClTransaction.getIfscCode());
+			IfscSlave bank=ifscDaoSlave.findTop1ByIfscOrderByIdDesc(lendingClTransaction.getIfscCode());
 			if(bank==null) {
 				logger.warn("No bank found for the ifsc",lendingClTransaction.getIfscCode());
 				return null;

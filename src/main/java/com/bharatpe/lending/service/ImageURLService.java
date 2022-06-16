@@ -5,8 +5,6 @@ import java.util.*;
 
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.PhonebookDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -14,7 +12,11 @@ import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
+import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,16 +51,16 @@ public class ImageURLService {
 	LendingResubmitTaskDao lendingResubmitTaskDao;
 
 	@Autowired
-	PhonebookDao phonebookDao;
+	PhonebookDaoSlave phonebookDaoSlave;
 
 	@Autowired
 	RedisNotificationService redisNotificationService;
 
 	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
+	DocKycDetailsDao docKycDetailsDao;
 
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	MerchantService merchantService;
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
@@ -96,7 +98,7 @@ public class ImageURLService {
 		}
 		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
 		if (finalCall) {
-			Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+			Optional<PhonebookSlave> phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 			if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
 				logger.info("Contacts not synced for merchant:{}", merchant.getId());
 				result.put("success", false);
@@ -122,7 +124,11 @@ public class ImageURLService {
 		if(Objects.nonNull(documentsIdProof) && Objects.nonNull(documentsIdProof.getPanNameMatch()) && !documentsIdProof.getPanNameMatch().isEmpty() && documentsIdProof.getPanNameMatch().equals("NO")){
 			DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestPanCardDetails(merchant.getId(), lendingApplication.getId());
 
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
+
 			String benificiaryName =  merchantBankDetail!= null ? (merchantBankDetail.getBeneficiaryName()!= null ? merchantBankDetail.getBeneficiaryName() : "") : "";
 			String nameInPan = docKycDetails != null && Objects.nonNull(docKycDetails.getPersonName()) ? docKycDetails.getPersonName() : "";
 

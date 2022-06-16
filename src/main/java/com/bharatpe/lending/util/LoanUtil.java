@@ -9,12 +9,20 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
+import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BankListSlave;
+import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
+import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
+import com.bharatpe.lending.common.slave.entity.IfscSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dao.BPEnachDao;
-import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -47,13 +55,10 @@ public class LoanUtil {
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
 	@Autowired
-	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+	PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
 	@Autowired
 	LendingApplicationPriorityDao lendingApplicationPriorityDao;
-
-	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
 
 	@Autowired
 	LendingPennydropDao lendingPennydropDao;
@@ -65,7 +70,7 @@ public class LoanUtil {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@Autowired
-	BPEnachDao bpEnachDao;
+	BPEnachDaoSlave bpEnachDaoSlave;
 
 	@Autowired
 	LendingPincodesDao lendingPincodesDao;
@@ -88,23 +93,23 @@ public class LoanUtil {
 	@Autowired
 	LendingBBSSnapshotDao lendingBBSSnapshotDao;
 
-	@Autowired
-	MerchantScoreDao merchantScoreDao;
+//	@Autowired
+//	MerchantScoreDao merchantScoreDao;
 
 	@Autowired
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
 
 	@Autowired
-	IfscDao ifscDao;
+	IfscDaoSlave ifscDaoSlave;
 
 	@Autowired
-	BankListDao bankListDao;
+	BankListDaoSlave bankListDaoSlave;
 
 	@Autowired
 	LendingNachBankDao lendingNachBankDao;
 
 	@Autowired
-	BharatPeEnachDao bharatPeEnachDao;
+	BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
 	@Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
@@ -382,7 +387,7 @@ public class LoanUtil {
 		if (pincode == null) {
 			return false;
 		}
-		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+		PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
 		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
 	}
 
@@ -470,8 +475,11 @@ public class LoanUtil {
 			if (ObjectUtils.isEmpty(basicDetailsDto)) {
 				return false;
 			}
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-//			Integer settlement = settlementDao.getCountSettlementLast15Days(merchant.getId(), merchantBankDetail.getAccountNumber());
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
+			//			Integer settlement = settlementDao.getCountSettlementLast15Days(merchant.getId(), merchantBankDetail.getAccountNumber());
 //			if (settlement > 0) {
 //				logger.info("Penny drop success for merchant:{}", merchant.getId());
 //				return true;
@@ -509,8 +517,11 @@ public class LoanUtil {
 
 	public boolean isEnachDone(Long merchantId) {
 		boolean enachDone = false;
-		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchantId);
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		BpEnachSlave enachSuccess = bpEnachDaoSlave.findSuccessEnach(merchantId);
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			enachDone = true;
 		}
@@ -519,7 +530,7 @@ public class LoanUtil {
 
 	public boolean isOGL(Integer pincode) {
 		if (pincode == null) return false;
-		PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+		PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
 		if (pincodeCityStateMapping == null) return true;
 		LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
 		return lendingPincodes == null || lendingPincodes.getColor().equals(PincodeColor.RED);
@@ -534,7 +545,7 @@ public class LoanUtil {
 		createMerchantSummarySnapshot(lendingApplication);
 		createExperianSnapshot(lendingApplication);
 		createBBSSnapshot(lendingApplication);
-		createMerchantScoreSnapshot(lendingApplication);
+//		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
 	}
 
@@ -551,18 +562,18 @@ public class LoanUtil {
         }
     }
 
-    public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
-		try {
-			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchantId());
-			if (merchantScore != null) {
-				MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
-				merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
-				merchantScoreSnapshotDao.save(merchantScoreSnapshot);
-			}
-		} catch (Exception e) {
-			logger.error("Exception in createMerchantScoreSnapshot for application:{}", lendingApplication.getId(), e);
-		}
-	}
+//    public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+//		try {
+//			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchantId());
+//			if (merchantScore != null) {
+//				MerchantScoreSnapshot merchantScoreSnapshot = MerchantScoreSnapshot.createObject(merchantScore);
+//				merchantScoreSnapshot.setApplication_id(lendingApplication.getId());
+//				merchantScoreSnapshotDao.save(merchantScoreSnapshot);
+//			}
+//		} catch (Exception e) {
+//			logger.error("Exception in createMerchantScoreSnapshot for application:{}", lendingApplication.getId(), e);
+//		}
+//	}
 
 	public void createBBSSnapshot(LendingApplication lendingApplication) {
 		try {
@@ -650,17 +661,20 @@ public class LoanUtil {
 	public BankAccountDetails getAccountDetails(Long merchantId) {
 		logger.info("Getting bank account details for merchant:{}", merchantId);
 		try {
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
 			if (merchantBankDetail == null) return null;
-			Ifsc ifsc = ifscDao.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfscCode());
+			IfscSlave ifsc = ifscDaoSlave.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfsc());
 			if (ifsc != null) {
-				BankList bankList = bankListDao.findByBankCode(ifsc.getBankCode());
+				BankListSlave bankList = bankListDaoSlave.findByBankCode(ifsc.getBankCode());
 				return BankAccountDetails.builder()
 						.beneficiaryName(merchantBankDetail.getBeneficiaryName())
 						.bankName(ifsc.getBank())
 						.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4))
 						.branchName(ifsc.getBranch())
-						.ifsc(merchantBankDetail.getIfscCode())
+						.ifsc(merchantBankDetail.getIfsc())
 						.bankLogo(bankList != null ? bankList.getImageUrl() : null).build();
 			}
 		} catch (Exception e) {
@@ -670,12 +684,18 @@ public class LoanUtil {
 	}
 
 	public boolean isBankAccLinked(Long merchantId) {
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		return merchantBankDetail != null;
 	}
 
 	public String getBeneficiaryName(Long merchantId) {
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		return merchantBankDetail != null ? merchantBankDetail.getBeneficiaryName() : null;
 	}
 
@@ -684,18 +704,12 @@ public class LoanUtil {
 		return !prevLoans.isEmpty();
 	}
 
-	public BpEnach getSuccessNach(BasicDetailsDto merchant) {
-		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchant.getId());
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
-			return enachSuccess;
-		}
-		return null;
-	}
-
-	public BpEnach getSuccessNach(Long merchantId) {
-		BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchantId);
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+	public BpEnachSlave getSuccessNach(Long merchantId) {
+		BpEnachSlave enachSuccess = bpEnachDaoSlave.findSuccessEnach(merchantId);
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
 			return enachSuccess;
 		}
@@ -712,14 +726,17 @@ public class LoanUtil {
 	}
 
 	public boolean isEnachBank(Long merchantId) {
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		if (merchantBankDetail == null) return true;
-		LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfscCode().substring(0, 4));
+		LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4));
 		return lendingNachBank != null;
 	}
 
 	public boolean isNachSkipped(Long merchantId, Long applicationId) {
-		BharatPeEnach bharatPeEnach =  bharatPeEnachDao.isSkipped(merchantId, applicationId);
+		BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSkipped(merchantId, applicationId);
 		return bharatPeEnach != null;
 	}
 
@@ -750,8 +767,8 @@ public class LoanUtil {
 		return ntcCategories.contains(experian.getCategory());
 	}
 
-	public List<BankList> getEnachBanks() {
-		return bankListDao.findNachBankList();
+	public List<BankListSlave> getEnachBanks() {
+		return bankListDaoSlave.findNachBankList();
 	}
 
 	public static Date loanRejectionDate(LendingApplication lendingApplication) {

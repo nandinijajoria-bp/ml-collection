@@ -12,10 +12,20 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
+import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantInferredLocationDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BankListSlave;
+import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
+import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
+import com.bharatpe.lending.common.slave.entity.IfscSlave;
+import com.bharatpe.lending.common.slave.entity.MerchantInferredLocationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
@@ -45,6 +55,9 @@ public class FosService {
     BharatPeEnachDao bharatPeEnachDao;
 
     @Autowired
+    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
+
+    @Autowired
     ExperianDao experianDao;
 
     @Autowired
@@ -54,16 +67,13 @@ public class FosService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
     LendingCpvDetailsDao lendingCpvDetailsDao;
 
     @Autowired
-    IfscDao ifscDao;
+    IfscDaoSlave ifscDaoSlave;
 
     @Autowired
-    BankListDao bankListDao;
+    BankListDaoSlave bankListDaoSlave;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -71,14 +81,14 @@ public class FosService {
     @Autowired
     LendingPennydropDao lendingPennydropDao;
 
-    @Autowired
-    DocumentsIdProofDao documentsIdProofDao;
+//    @Autowired
+//    DocumentsIdProofDao documentsIdProofDao;
 
     @Autowired
     DocKycDetailsDao docKycDetailsDao;
 
     @Autowired
-    MerchantInferredLocationDao merchantInferredLocationDao;
+    MerchantInferredLocationDaoSlave merchantInferredLocationDaoSlave;
 
 //    @Autowired
 //    MerchantDao merchantDao;
@@ -90,7 +100,7 @@ public class FosService {
     LoanAttributionDao loanAttributionDao;
 
     @Autowired
-    BPEnachDao bpEnachDao;
+    BPEnachDaoSlave bpEnachDaoSlave;
 
     @Autowired
     LoanUtil loanUtil;
@@ -118,9 +128,6 @@ public class FosService {
 
     @Autowired
     PartnersApiHandler partnersApiHandler;
-
-    @Autowired
-    MerchantStoreDao merchantStoreDao;
 
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
@@ -251,198 +258,198 @@ public class FosService {
         }
     }
 
-    public ResponseDTO fosnewLoan(Long merchantId) {
-        ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
-        Map<String, Object> data = new HashMap<>();
-        Map<String, Object> loanData = new HashMap<>();
-        Map<String, Object> details = new HashMap<>();
-        try {
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-            if (lendingPaymentSchedule != null) {
-                loanData.put("activeLoan", Boolean.TRUE);
-                loanData.put("eligible", Boolean.FALSE);
-                loanData.put("color", "#ED6A5B");
-                loanData.put("header", "Loan Already Active");
-                loanData.put("message", "Merchant Already have an Active Loan.");
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.FALSE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-            Experian experian = experianDao.getByMerchantId(merchantId);
-            if (experian == null) {
-                loanData.put("experian", Boolean.FALSE);
-                loanData.put("eligible", Boolean.FALSE);
-                loanData.put("color", "#EAA003");
-                loanData.put("header", "Merchant Not Eligible");
-                loanData.put("message", "Please Ask Merchant to Enter PAN/PIN");
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.TRUE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-            if (experian.getBpScore() != null && experian.getBpScore() < 2D) {
-                loanData.put("experian", Boolean.TRUE);
-                loanData.put("eligible", Boolean.FALSE);
-                loanData.put("color", "#EAA003");
-                loanData.put("header", "Merchant Not Eligible");
-                loanData.put("message", "Task Not Enable");
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.FALSE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-            String reason = experian.getReason();
-            if ("ENACH".equalsIgnoreCase(reason)) {
-                reason = "Merchant Bank A/C does Not Allow Enach.";
-            } else if ("OGL".equalsIgnoreCase(reason)) {
-                reason = "Entered PIN Code is not Serviceable right now";
-            } else {
-                reason = "Keep Transacting With BharatPe To Become Eligible";
-            }
-            if (experian.getRejected() || experian.getReason() != null) {
-                loanData.put("experian", Boolean.TRUE);
-                loanData.put("eligible", Boolean.FALSE);
-                loanData.put("color", "#ED6A5B");
-                loanData.put("header", "Merchant Not Eligible");
-                loanData.put("message", reason);
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.FALSE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
-            if ((eligibleLoan == null && lendingApplication == null) || !isFosTaskEnabled) {
-                loanData.put("eligible", Boolean.FALSE);
-                loanData.put("color", "#ED6A5B");
-                loanData.put("header", "Merchant Not Eligible");
-                loanData.put("message", "Merchant Not Eligible For Loan.");
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.FALSE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-            if (eligibleLoan != null && !LoanType.SMALL_TICKET.name().equals(eligibleLoan.getLoanType()) && lendingApplication == null) {
-                loanData.put("eligible", Boolean.TRUE);
-                loanData.put("applicationPending", Boolean.FALSE);
-                loanData.put("color", "#02A758");
-                loanData.put("header", "Merchant is Eligible For Loan.");
-                loanData.put("message", "Please Apply Loan On BharatPe Merchant App.");
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.TRUE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-            if (lendingApplication != null && !LoanType.SMALL_TICKET.name().equals(lendingApplication.getLoanType())) {
-                MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-                logger.info("Merchant bank Detais", merchantBankDetail);
-                if ("draft".equals(lendingApplication.getStatus())) {
-                    loanData.put("applicationPending", Boolean.TRUE);
-                    loanData.put("eligible", Boolean.TRUE);
-                    loanData.put("loan_applied", Boolean.TRUE);
-                    loanData.put("color", "#EAA003");
-                    loanData.put("header", "Application is in Draft State.");
-                    loanData.put("message", "Please Complete Application.");
-                    data.put("loan_data", loanData);
-                    data.put("task_enable", Boolean.TRUE);
-                    responseDTO.setData(data);
-                    return responseDTO;
-                }
-                Ifsc ifsc = ifscDao.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfscCode());
-                BankList bankList = bankListDao.findByBankCode(merchantBankDetail.getBankCode());
-                details.put("external_loan_id", lendingApplication.getExternalLoanId());
-                details.put("loan_amount", lendingApplication.getLoanAmount());
-                details.put("beneficiary_name", lendingApplication.getMerchantId());
-                details.put("account_type", merchantBankDetail.getAccType());
-                details.put("bank_name", merchantBankDetail.getBankName());
-                details.put("account_number", merchantBankDetail.getAccountNumber());
-                details.put("ifsc_code", merchantBankDetail.getIfscCode());
-                details.put("application_id", lendingApplication.getId());
-                details.put("branch", ifsc != null ? ifsc.getBranch() : " ");
-                details.put("bank_logo", bankList != null ? bankList.getImageUrl() : " ");
-                data.put("details", details);
-                if ("approved".equals(lendingApplication.getStatus())) {
-                    loanData.put("applicationPending", Boolean.FALSE);
-                    loanData.put("eligible", Boolean.TRUE);
-                    loanData.put("loan_applied", Boolean.TRUE);
-                    loanData.put("color", "#02A758");
-                    loanData.put("header", "Merchant Application is in approved state.");
-                    loanData.put("message", "It will take 7-10 days for disbursal process.");
-                    data.put("loan_data", loanData);
-                    data.put("task_enable", Boolean.FALSE);
-                    responseDTO.setData(data);
-                    return responseDTO;
-                }
-                if ("pending_verification".equals(lendingApplication.getStatus())) {
-                    loanData.put("applicationPending", Boolean.FALSE);
-                    loanData.put("limited_cpv_required", Boolean.FALSE);
-                    loanData.put("eligible", Boolean.TRUE);
-                    loanData.put("header", "Loan applied Succesfully");
-                    loanData.put("color", "#02A758");
-                    loanData.put("message", "Merchant Loan Application Is in Pending Verification State.");
-                    data.put("task_enable", Boolean.FALSE);
-                    loanData.put("agreement_at", lendingApplication.getAgreementAt().toString());
-//                    if("REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount()>50000){
-//                        loanData.put("nachStatus","NotRequired");
-//                        loanData.put("header","Loan applied Succesfully");
-//                        loanData.put("loan_applied",Boolean.TRUE);
-//                        loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
-//                        data.put("task_enable",Boolean.FALSE);
-//                    }else{
-                    if (!"APPROVED".equals(lendingApplication.getNachStatus()) && !"NOT_STARTED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
-                        BharatPeEnach bharatPeEnachSkipped = bharatPeEnachDao.isSkipped(merchantId, lendingApplication.getId());
-                        Long bharatPeEnach = bharatPeEnachDao.isFailed(merchantId, lendingApplication.getId());
-                        BharatPeEnach bharatPeEnachFailed = bharatPeEnachDao.findSpecificError(merchantId, lendingApplication.getId());
-                        if (bharatPeEnachSkipped == null && bharatPeEnach != null) {
-                            if (bharatPeEnach > 2 || bharatPeEnachFailed != null) {
-                                loanData.put("limited_cpv_required", Boolean.TRUE);
-                            }
-                        } else if (bharatPeEnachSkipped != null) {
-                            loanData.put("limited_cpv_required", Boolean.TRUE);
-                        }
-                        loanData.put("nachStatus", "Pending");
-                        loanData.put("color", "#EAA003");
-                        loanData.put("header", "Ask User To Complete eNACH");
-                        loanData.put("loan_applied", Boolean.FALSE);
-                        loanData.put("message", "Go To Loan Section On BharatPe Merchant App To  Start eNACH.");
-                        data.put("task_enable", Boolean.TRUE);
-                    } else {
-                        loanData.put("loan_applied", Boolean.TRUE);
-                        loanData.put("nachStatus", lendingApplication.getNachStatus().toLowerCase());
-                    }
+//    public ResponseDTO fosnewLoan(Long merchantId) {
+//        ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
+//        Map<String, Object> data = new HashMap<>();
+//        Map<String, Object> loanData = new HashMap<>();
+//        Map<String, Object> details = new HashMap<>();
+//        try {
+//            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+//            if (lendingPaymentSchedule != null) {
+//                loanData.put("activeLoan", Boolean.TRUE);
+//                loanData.put("eligible", Boolean.FALSE);
+//                loanData.put("color", "#ED6A5B");
+//                loanData.put("header", "Loan Already Active");
+//                loanData.put("message", "Merchant Already have an Active Loan.");
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.FALSE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//            Experian experian = experianDao.getByMerchantId(merchantId);
+//            if (experian == null) {
+//                loanData.put("experian", Boolean.FALSE);
+//                loanData.put("eligible", Boolean.FALSE);
+//                loanData.put("color", "#EAA003");
+//                loanData.put("header", "Merchant Not Eligible");
+//                loanData.put("message", "Please Ask Merchant to Enter PAN/PIN");
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.TRUE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//            if (experian.getBpScore() != null && experian.getBpScore() < 2D) {
+//                loanData.put("experian", Boolean.TRUE);
+//                loanData.put("eligible", Boolean.FALSE);
+//                loanData.put("color", "#EAA003");
+//                loanData.put("header", "Merchant Not Eligible");
+//                loanData.put("message", "Task Not Enable");
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.FALSE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//            String reason = experian.getReason();
+//            if ("ENACH".equalsIgnoreCase(reason)) {
+//                reason = "Merchant Bank A/C does Not Allow Enach.";
+//            } else if ("OGL".equalsIgnoreCase(reason)) {
+//                reason = "Entered PIN Code is not Serviceable right now";
+//            } else {
+//                reason = "Keep Transacting With BharatPe To Become Eligible";
+//            }
+//            if (experian.getRejected() || experian.getReason() != null) {
+//                loanData.put("experian", Boolean.TRUE);
+//                loanData.put("eligible", Boolean.FALSE);
+//                loanData.put("color", "#ED6A5B");
+//                loanData.put("header", "Merchant Not Eligible");
+//                loanData.put("message", reason);
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.FALSE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+//            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+//            if ((eligibleLoan == null && lendingApplication == null) || !isFosTaskEnabled) {
+//                loanData.put("eligible", Boolean.FALSE);
+//                loanData.put("color", "#ED6A5B");
+//                loanData.put("header", "Merchant Not Eligible");
+//                loanData.put("message", "Merchant Not Eligible For Loan.");
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.FALSE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//            if (eligibleLoan != null && !LoanType.SMALL_TICKET.name().equals(eligibleLoan.getLoanType()) && lendingApplication == null) {
+//                loanData.put("eligible", Boolean.TRUE);
+//                loanData.put("applicationPending", Boolean.FALSE);
+//                loanData.put("color", "#02A758");
+//                loanData.put("header", "Merchant is Eligible For Loan.");
+//                loanData.put("message", "Please Apply Loan On BharatPe Merchant App.");
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.TRUE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//            if (lendingApplication != null && !LoanType.SMALL_TICKET.name().equals(lendingApplication.getLoanType())) {
+//                MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+//                logger.info("Merchant bank Detais", merchantBankDetail);
+//                if ("draft".equals(lendingApplication.getStatus())) {
+//                    loanData.put("applicationPending", Boolean.TRUE);
+//                    loanData.put("eligible", Boolean.TRUE);
+//                    loanData.put("loan_applied", Boolean.TRUE);
+//                    loanData.put("color", "#EAA003");
+//                    loanData.put("header", "Application is in Draft State.");
+//                    loanData.put("message", "Please Complete Application.");
+//                    data.put("loan_data", loanData);
+//                    data.put("task_enable", Boolean.TRUE);
+//                    responseDTO.setData(data);
+//                    return responseDTO;
+//                }
+//                IfscSlave ifsc = ifscDaoSlave.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfscCode());
+//                BankListSlave bankList = bankListDaoSlave.findByBankCode(merchantBankDetail.getBankCode());
+//                details.put("external_loan_id", lendingApplication.getExternalLoanId());
+//                details.put("loan_amount", lendingApplication.getLoanAmount());
+//                details.put("beneficiary_name", lendingApplication.getMerchantId());
+//                details.put("account_type", merchantBankDetail.getAccType());
+//                details.put("bank_name", merchantBankDetail.getBankName());
+//                details.put("account_number", merchantBankDetail.getAccountNumber());
+//                details.put("ifsc_code", merchantBankDetail.getIfscCode());
+//                details.put("application_id", lendingApplication.getId());
+//                details.put("branch", ifsc != null ? ifsc.getBranch() : " ");
+//                details.put("bank_logo", bankList != null ? bankList.getImageUrl() : " ");
+//                data.put("details", details);
+//                if ("approved".equals(lendingApplication.getStatus())) {
+//                    loanData.put("applicationPending", Boolean.FALSE);
+//                    loanData.put("eligible", Boolean.TRUE);
+//                    loanData.put("loan_applied", Boolean.TRUE);
+//                    loanData.put("color", "#02A758");
+//                    loanData.put("header", "Merchant Application is in approved state.");
+//                    loanData.put("message", "It will take 7-10 days for disbursal process.");
+//                    data.put("loan_data", loanData);
+//                    data.put("task_enable", Boolean.FALSE);
+//                    responseDTO.setData(data);
+//                    return responseDTO;
+//                }
+//                if ("pending_verification".equals(lendingApplication.getStatus())) {
+//                    loanData.put("applicationPending", Boolean.FALSE);
+//                    loanData.put("limited_cpv_required", Boolean.FALSE);
+//                    loanData.put("eligible", Boolean.TRUE);
+//                    loanData.put("header", "Loan applied Succesfully");
+//                    loanData.put("color", "#02A758");
+//                    loanData.put("message", "Merchant Loan Application Is in Pending Verification State.");
+//                    data.put("task_enable", Boolean.FALSE);
+//                    loanData.put("agreement_at", lendingApplication.getAgreementAt().toString());
+////                    if("REGULAR".equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount()>50000){
+////                        loanData.put("nachStatus","NotRequired");
+////                        loanData.put("header","Loan applied Succesfully");
+////                        loanData.put("loan_applied",Boolean.TRUE);
+////                        loanData.put("message","Merchant Loan Application Is in Pending Verification State.");
+////                        data.put("task_enable",Boolean.FALSE);
+////                    }else{
+//                    if (!"APPROVED".equals(lendingApplication.getNachStatus()) && !"NOT_STARTED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+//                        BharatPeEnachSlave bharatPeEnachSkipped = bharatPeEnachDaoSlave.isSkipped(merchantId, lendingApplication.getId());
+//                        Long bharatPeEnach = bharatPeEnachDaoSlave.isFailed(merchantId, lendingApplication.getId());
+//                        BharatPeEnachSlave bharatPeEnachFailed = bharatPeEnachDaoSlave.findSpecificError(merchantId, lendingApplication.getId());
+//                        if (bharatPeEnachSkipped == null && bharatPeEnach != null) {
+//                            if (bharatPeEnach > 2 || bharatPeEnachFailed != null) {
+//                                loanData.put("limited_cpv_required", Boolean.TRUE);
+//                            }
+//                        } else if (bharatPeEnachSkipped != null) {
+//                            loanData.put("limited_cpv_required", Boolean.TRUE);
+//                        }
+//                        loanData.put("nachStatus", "Pending");
+//                        loanData.put("color", "#EAA003");
+//                        loanData.put("header", "Ask User To Complete eNACH");
+//                        loanData.put("loan_applied", Boolean.FALSE);
+//                        loanData.put("message", "Go To Loan Section On BharatPe Merchant App To  Start eNACH.");
+//                        data.put("task_enable", Boolean.TRUE);
+//                    } else {
+//                        loanData.put("loan_applied", Boolean.TRUE);
+//                        loanData.put("nachStatus", lendingApplication.getNachStatus().toLowerCase());
 //                    }
-                    data.put("loan_data", loanData);
-                    responseDTO.setData(data);
-                    return responseDTO;
-                } else {
-                    loanData.put("applicationPending", Boolean.FALSE);
-                    loanData.put("header", "Merchant Loan Application Is in Rejected State.");
-                    loanData.put("color", "#565652");
-                    loanData.put("message", "Loan has been Rejected, Please apply again through app");
-                    loanData.put("loan_applied", Boolean.FALSE);
-                    loanData.put("eligible", Boolean.TRUE);
-                    loanData.put("applicationRejected", Boolean.TRUE);
-                    data.put("loan_data", loanData);
-                    data.put("task_enable", Boolean.TRUE);
-                    responseDTO.setData(data);
-                    return responseDTO;
-                }
-            } else {
-                loanData.put("eligible", Boolean.FALSE);
-                loanData.put("color", "#ED6A5B");
-                loanData.put("header", "Merchant Not Eligible");
-                loanData.put("message", "Merchant Not Eligible For Loan.");
-                data.put("loan_data", loanData);
-                data.put("task_enable", Boolean.FALSE);
-                responseDTO.setData(data);
-                return responseDTO;
-            }
-        } catch (Exception ex) {
-            logger.error("Error Fos Loan Details API", ex);
-            return responseDTO;
-        }
-    }
+////                    }
+//                    data.put("loan_data", loanData);
+//                    responseDTO.setData(data);
+//                    return responseDTO;
+//                } else {
+//                    loanData.put("applicationPending", Boolean.FALSE);
+//                    loanData.put("header", "Merchant Loan Application Is in Rejected State.");
+//                    loanData.put("color", "#565652");
+//                    loanData.put("message", "Loan has been Rejected, Please apply again through app");
+//                    loanData.put("loan_applied", Boolean.FALSE);
+//                    loanData.put("eligible", Boolean.TRUE);
+//                    loanData.put("applicationRejected", Boolean.TRUE);
+//                    data.put("loan_data", loanData);
+//                    data.put("task_enable", Boolean.TRUE);
+//                    responseDTO.setData(data);
+//                    return responseDTO;
+//                }
+//            } else {
+//                loanData.put("eligible", Boolean.FALSE);
+//                loanData.put("color", "#ED6A5B");
+//                loanData.put("header", "Merchant Not Eligible");
+//                loanData.put("message", "Merchant Not Eligible For Loan.");
+//                data.put("loan_data", loanData);
+//                data.put("task_enable", Boolean.FALSE);
+//                responseDTO.setData(data);
+//                return responseDTO;
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Error Fos Loan Details API", ex);
+//            return responseDTO;
+//        }
+//    }
 
     public ResponseDTO fosUpdate(Map<String, Object> requestDTO) {
         ResponseDTO responseDTO = new ResponseDTO();
@@ -484,10 +491,16 @@ public class FosService {
                 }
                 bharatPeEnachDao.save(bharatPeEnach);
             }
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+            BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
             if (merchantBankDetail != null) {
-                merchantBankDetail.setAccType(accType);
-                merchantBankDetailDao.save(merchantBankDetail);
+                final boolean updated = merchantService.updateDetails(merchantId, Constants.MerchantUtil.Operation.SET, Constants.MerchantUtil.PartialUpdateKey.MerchantBankKeys.ACCOUNT_TYPE, accType);
+                logger.info("Fos Update API merchant bank accounttype update : {}", updated);
+                if (!updated){
+                    responseDTO.setMessage("Something Went Wrong while updating accounttype!");
+                    responseDTO.setSuccess(Boolean.FALSE);
+                    return responseDTO;
+                }
             }
             LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByMerchantIdAndApplicationIdAndAgentId(merchantId, applicationId, cpvAgentId);
             if (lendingCpvDetails != null) {
@@ -608,7 +621,7 @@ public class FosService {
 
     public Object getMerchantInferredAddress(LendingApplication lendingApplication) {
         try {
-            MerchantInferredLocation merchantInferredLocation = merchantInferredLocationDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
+            MerchantInferredLocationSlave merchantInferredLocation = merchantInferredLocationDaoSlave.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
 
             if (Objects.nonNull(merchantInferredLocation)) {
                 Map<String, Object> lendingAddress = new HashMap<>();
@@ -833,9 +846,10 @@ public class FosService {
                 }
             }
             // non nachable bank check
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+            BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
             if (Objects.nonNull(merchantBankDetail)) {
-                LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfscCode().substring(0, 4));
+                LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4));
                 if (Objects.isNull(lendingNachBank)) {
                     logger.info("merchant {} has a non nachable bank", merchantId);
                     return computeEligibilityParams("ineligible", null, merchantId);
@@ -1011,7 +1025,7 @@ public class FosService {
                 return responseDTO;
             }
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(basicDetailsDto.get().getId());
-            BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchantId);
+            BpEnachSlave bpEnach = bpEnachDaoSlave.findSuccessEnach(merchantId);
             if (ObjectUtils.isEmpty(lendingApplication) ||
                     ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) || lendingApplication.getAgreementAt().after(taskEndTimeStamp))) &&

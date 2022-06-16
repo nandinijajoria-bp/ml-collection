@@ -11,6 +11,10 @@ import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.MerchantDocumentProofRequest;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.AvailableLoanDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
+import com.bharatpe.lending.common.slave.entity.AvailableLoanSlave;
+import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -49,6 +53,9 @@ public class CreditSignAgreementService {
     @Autowired
     CreditApplicationAddressDao creditApplicationAddressDao;
     @Autowired
+    MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
+
+    @Autowired
     MerchantDocumentProofDao merchantDocumentProofDao;
 
 //	@Autowired
@@ -58,7 +65,7 @@ public class CreditSignAgreementService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    AvailableLoanDao availableLoanDao;
+    AvailableLoanDaoSlave availableLoanDaoSlave;
 
     @Autowired
     LendingCategoryDao lendingCategoryDao;
@@ -126,7 +133,7 @@ public class CreditSignAgreementService {
             return response;
         }
 
-        List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
+        List<MerchantDocumentProofSlave> documentsIdProofList = merchantDocumentProofDaoSlave.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
         if (documentsIdProofList == null || documentsIdProofList.size() == 0) {
             return response;
         }
@@ -214,15 +221,15 @@ public class CreditSignAgreementService {
             newApplication.setAmount(eligibleLoan.getAmount());
             newApplication.setLoanType(eligibleLoan.getLoanType());
         } else {
-            List<AvailableLoan> availableLoanList = availableLoanDao.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantResponseDTO.getLoanType());
-            AvailableLoan selectedAvailableLoan = null;
+            List<AvailableLoanSlave> availableLoanList = availableLoanDaoSlave.findByMerchantIdAndTypeOrderByAmountDesc(merchant.getId(), merchantResponseDTO.getLoanType());
+            AvailableLoanSlave selectedAvailableLoan = null;
 
             if (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getStatus()))) {
                 logger.info("Last loan not closed for merchant ID {}", merchant.getId());
                 return response;
             }
 
-            for (AvailableLoan current : availableLoanList) {
+            for (AvailableLoanSlave current : availableLoanList) {
                 if (current.getCategory().equals(selectedCategory)) {
                     selectedAvailableLoan = current;
                     break;
@@ -289,8 +296,8 @@ public class CreditSignAgreementService {
 
     private void replicateDocumentsForNewApplication(CreditApplication prevApplication,
                                                      CreditApplication newApplication, BasicDetailsDto merchant, MetaDTO meta) {
-        List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), prevApplication.getId(), "LENDING");
-        for (MerchantDocumentProof documentsIdProof : documentsIdProofList) {
+        List<MerchantDocumentProofSlave> documentsIdProofList = merchantDocumentProofDaoSlave.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), prevApplication.getId(), "LENDING");
+        for (MerchantDocumentProofSlave documentsIdProof : documentsIdProofList) {
             MerchantDocumentProof toSaveDocuments = new MerchantDocumentProof();
             toSaveDocuments.setMerchantId(merchant.getId());
             toSaveDocuments.setProofType(documentsIdProof.getProofType());

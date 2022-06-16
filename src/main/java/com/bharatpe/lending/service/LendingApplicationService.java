@@ -6,17 +6,22 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.entity.MerchantDocumentProof;
-import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
 import com.bharatpe.lending.common.slave.dao.ExperianDaoSlave;
 import com.bharatpe.lending.common.slave.dao.LendingApplicationDaoSlave;
-import com.bharatpe.lending.common.slave.dao.MerchantBankDetailDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
+import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -41,7 +46,6 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.File;
-import java.math.BigInteger;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -93,12 +97,6 @@ public class LendingApplicationService {
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
-    MerchantBankDetailDaoSlave merchantBankDetailDaoSlave;
-
-    @Autowired
     LendingRedCitiesDao lendingRedCitiesDao;
 
     @Autowired
@@ -111,7 +109,7 @@ public class LendingApplicationService {
     KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
-    PincodeCityStateMappingDao pincodeCityStateMappingDao;
+    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     SignAgreementService signAgreementService;
@@ -120,7 +118,7 @@ public class LendingApplicationService {
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     @Autowired
-    BPEnachDao bpEnachDao;
+    BPEnachDaoSlave bpEnachDaoSlave;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -129,7 +127,7 @@ public class LendingApplicationService {
     DocumentsIdProofDao documentsIdProofDao;
 
     @Autowired
-    MerchantDocumentProofDao merchantDocumentProofDao;
+    MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
 
     @Value("${aws.s3.bucket.kyc.documents}")
     String kycBucket;
@@ -141,19 +139,16 @@ public class LendingApplicationService {
     S3BucketHandler s3BucketHandler;
 
     @Autowired
-    BharatPeEnachDao bharatPeEnachDao;
-
-    @Autowired
     BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
     @Autowired
     ENachService eNachService;
 
     @Autowired
-    BharatSwipeAccountDao bharatSwipeAccountDao;
+    BharatSwipeAccountDaoSlave bharatSwipeAccountDaoSlave;
 
     @Autowired
-    OrderStickerDao orderStickerDao;
+    OrderStickerDaoSlave orderStickerDaoSlave;
 
     @Autowired
     LendingApplicationPriorityDao lendingApplicationPriorityDao;
@@ -168,7 +163,7 @@ public class LendingApplicationService {
     PartnersApiHandler partnersApiHandler;
 
     @Autowired
-    MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+    MerchantDocumentProofOcrDaoSlave merchantDocumentProofOcrDaoSlave;
 
     @Autowired
     LenderMappingService lenderMappingService;
@@ -310,7 +305,7 @@ public class LendingApplicationService {
                 lendingApplicationRequestDTO.setBusinessName(merchantInfoDTO.getData().get(0).getMerchantDetail().getBussinessName());
             }
             if (experian != null && experian.getPincode() != null) {
-                PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+                PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
                 if (pincodeCityStateMapping != null) {
                     lendingApplicationRequestDTO.setPincode(pincodeCityStateMapping.getPincode().longValue());
                     lendingApplicationRequestDTO.setCity(pincodeCityStateMapping.getCity());
@@ -361,12 +356,12 @@ public class LendingApplicationService {
     }
 
     public void replicateDocumentsForNewApplication(LendingApplication newApplication, BasicDetailsDto merchantBasicDetails, MetaDTO meta) {
-        MerchantDocumentProof selfie = merchantDocumentProofDao.findVerifiedProofType(merchantBasicDetails.getId(), "selfie");
-        MerchantDocumentProof pancard = merchantDocumentProofDao.findVerifiedProofType(merchantBasicDetails.getId(), "pancard");
-        MerchantDocumentProof poa = merchantDocumentProofDao.findVerifiedPOA(merchantBasicDetails.getId());
+        MerchantDocumentProofSlave selfie = merchantDocumentProofDaoSlave.findVerifiedProofType(merchantBasicDetails.getId(), "selfie");
+        MerchantDocumentProofSlave pancard = merchantDocumentProofDaoSlave.findVerifiedProofType(merchantBasicDetails.getId(), "pancard");
+        MerchantDocumentProofSlave poa = merchantDocumentProofDaoSlave.findVerifiedPOA(merchantBasicDetails.getId());
         DocumentsIdProof eAadhar = documentsIdProofDao.findLatestEadhar(merchantBasicDetails.getId());
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-        List<MerchantDocumentProof> merchantDocumentProofs = new ArrayList<MerchantDocumentProof>() {{
+        List<MerchantDocumentProofSlave> merchantDocumentProofs = new ArrayList<MerchantDocumentProofSlave>() {{
             add(selfie);
             add(pancard);
         }};
@@ -374,7 +369,7 @@ public class LendingApplicationService {
             merchantDocumentProofs.add(poa);
         }
         merchantDocumentProofs.removeAll(Collections.singleton(null));
-        for (MerchantDocumentProof documentsIdProof : merchantDocumentProofs) {
+        for (MerchantDocumentProofSlave documentsIdProof : merchantDocumentProofs) {
             try {
                 String frontUrl = documentsIdProof.getProofFrontSide();
                 String backUrl = documentsIdProof.getProofBackSide();
@@ -412,7 +407,7 @@ public class LendingApplicationService {
                 if (toSaveDocuments.getProofType().equalsIgnoreCase("e_aadhaar")) {
                     toSaveDocuments.setProofType("eAadhar");
                     toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
-                    List<MerchantDocumentProofOcr> merchantDocumentProofOcrs = merchantDocumentProofOcrDao.findByDocumentId(documentsIdProof.getId());
+                    List<MerchantDocumentProofOcrSlave> merchantDocumentProofOcrs = merchantDocumentProofOcrDaoSlave.findByDocumentId(documentsIdProof.getId());
                     if (!merchantDocumentProofOcrs.isEmpty()) {
                         insertIntoDocKycDetails(merchantDocumentProofOcrs.get(0), toSaveDocuments);
                     }
@@ -488,7 +483,7 @@ public class LendingApplicationService {
         return docKycDetails;
     }
 
-    private DocKycDetails insertIntoDocKycDetails(MerchantDocumentProofOcr merchantDocumentProofOcr, DocumentsIdProof documentsIdProof) {
+    private DocKycDetails insertIntoDocKycDetails(MerchantDocumentProofOcrSlave merchantDocumentProofOcr, DocumentsIdProof documentsIdProof) {
         DocKycDetails docKycDetails = new DocKycDetails();
         docKycDetails.setMerchantId(documentsIdProof.getMerchantId());
         docKycDetails.setDocumentsIdProof(documentsIdProof);
@@ -614,7 +609,7 @@ public class LendingApplicationService {
         newApplication.setArea(prevLoan.getArea());
         newApplication.setLandmark(prevLoan.getLandmark());
         if (experian != null && experian.getPincode() != null) {
-            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
             if (pincodeCityStateMapping != null) {
                 newApplication.setPincode(pincodeCityStateMapping.getPincode().longValue());
                 newApplication.setCity(pincodeCityStateMapping.getCity());
@@ -755,7 +750,7 @@ public class LendingApplicationService {
 
     public boolean checkLoanRequestPinCodeForLoanEligibilty(int pinCode) {
         try {
-            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pinCode);
+            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pinCode);
             if (pincodeCityStateMapping == null) return false;
             LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pinCode);
             return lendingPincodes != null && !lendingPincodes.getColor().equals(PincodeColor.RED);
@@ -791,7 +786,7 @@ public class LendingApplicationService {
             applicationId = 0L;
         }
         String html = populateHtml(merchant, applicationId, category, lender);
-        BharatSwipeAccount bharatSwipeAccount = bharatSwipeAccountDao.findByMerchantId(merchant.getId());
+        BharatSwipeAccountSlave bharatSwipeAccount = bharatSwipeAccountDaoSlave.findByMerchantId(merchant.getId());
         tnc.setSwipe(bharatSwipeAccount != null);
         if (html == null) {
             tnc.setSuccess(false);
@@ -821,8 +816,12 @@ public class LendingApplicationService {
 
     public Map<String, Object> getDetails(BasicDetailsDto basicDetailsDto, Long applicationId, String category, String lender) {
         Map<String, Object> data = new HashMap<>();
-        MerchantBankDetail merchantBankDetail =
-                merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(basicDetailsDto.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(basicDetailsDto.getId());
+        BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
+        if (ObjectUtils.isEmpty(merchantBankDetail)) {
+            logger.error("merchantBankDetails not found for merchantId {}", basicDetailsDto.getId());
+            return null;
+        }
         Experian experian = experianDao.getByMerchantId(basicDetailsDto.getId());
 //        Merchant merchant = merchantDao.getById(basicDetailsDto.getId());
         try {
@@ -865,8 +864,8 @@ public class LendingApplicationService {
                 data.put("browserName", lendingApplication.getLoanAmount());
                 data.put("ipAddress", lendingApplication.getIp());
                 data.put("accountNumber", merchantBankDetail.getAccountNumber());
-                data.put("accountType", merchantBankDetail.getAccType());
-                data.put("ifsc", merchantBankDetail.getIfscCode());
+                data.put("accountType", merchantBankDetail.getAccountType());
+                data.put("ifsc", merchantBankDetail.getIfsc());
                 data.put("bankName", merchantBankDetail.getBankName());
                 data.put("beneficiaryName", basicDetailsDto.getBeneficiaryName());
                 data.put("repayment", lendingApplication.getRepayment());
@@ -917,8 +916,8 @@ public class LendingApplicationService {
                 data.put("payableDays", ediCount);
                 data.put("businessCategory", basicDetailsDto.getBussinessCategory());
                 data.put("accountNumber", merchantBankDetail.getAccountNumber());
-                data.put("accountType", merchantBankDetail.getAccType());
-                data.put("ifsc", merchantBankDetail.getIfscCode());
+                data.put("accountType", merchantBankDetail.getAccountType());
+                data.put("ifsc", merchantBankDetail.getIfsc());
                 data.put("bankName", merchantBankDetail.getBankName());
                 data.put("beneficiaryName", basicDetailsDto.getBeneficiaryName());
                 data.put("panNumber", experian.getPancardNumber());
@@ -1752,12 +1751,14 @@ public class LendingApplicationService {
             loanData.put("message", "");
             loanData.put("eligible", Boolean.FALSE);
 
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
-            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId, Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+
+            if (ObjectUtils.isEmpty(merchantDetailsDto)) {
                 responseDTO.setMessage("Merchant not found");
                 responseDTO.setSuccess(false);
                 return responseDTO;
             }
+            BasicDetailsDto basicDetailsDto = merchantDetailsDto.getMerchantDetail();
             LendingPaymentScheduleSlave lendingPaymentScheduleSlave =
                     lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
 
@@ -1787,9 +1788,8 @@ public class LendingApplicationService {
 
             LendingApplicationSlave lendingApplicationSlave = lendingApplicationDaoSlave.findBymerchantId(merchantId);
             if (Objects.nonNull(lendingApplicationSlave) && !"rejected".equalsIgnoreCase(lendingApplicationSlave.getStatus()) && !"SMALL_TICKET".equalsIgnoreCase(lendingApplicationSlave.getLoanType())) {
-                MerchantBankDetailSlave merchantBankDetailSlave =
-                        merchantBankDetailDaoSlave.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
-                logger.info("Merchant bank Detais", merchantBankDetailSlave);
+                BankDetailsDto bankDetail = merchantDetailsDto.getBankDetail();
+                logger.info("Merchant bank Detais", bankDetail);
                 if ("draft".equals(lendingApplicationSlave.getStatus())) {
                     loanData.put("applicationPending", Boolean.TRUE);
                     loanData.put("loan_applied", Boolean.TRUE);
@@ -1812,10 +1812,10 @@ public class LendingApplicationService {
                     data.put("loan_data", loanData);
                     details.put("external_loan_id", lendingApplicationSlave.getExternalLoanId());
                     details.put("loan_amount", lendingApplicationSlave.getLoanAmount());
-                    details.put("beneficiary_name", basicDetailsDto.get().getBeneficiaryName());
-                    details.put("bank_name", merchantBankDetailSlave.getBankName());
-                    details.put("account_number", merchantBankDetailSlave.getAccountNumber());
-                    details.put("ifsc_code", merchantBankDetailSlave.getIfscCode());
+                    details.put("beneficiary_name", basicDetailsDto.getBeneficiaryName());
+                    details.put("bank_name", bankDetail.getBankName());
+                    details.put("account_number", bankDetail.getAccountNumber());
+                    details.put("ifsc_code", bankDetail.getIfsc());
                     details.put("application_id", lendingApplicationSlave.getId());
                     data.put("details", details);
                     data.put("task_enable", Boolean.FALSE);
@@ -1853,10 +1853,10 @@ public class LendingApplicationService {
                     data.put("loan_data", loanData);
                     details.put("external_loan_id", lendingApplicationSlave.getExternalLoanId());
                     details.put("loan_amount", lendingApplicationSlave.getLoanAmount());
-                    details.put("beneficiary_name", basicDetailsDto.get().getBeneficiaryName());
-                    details.put("bank_name", merchantBankDetailSlave.getBankName());
-                    details.put("account_number", merchantBankDetailSlave.getAccountNumber());
-                    details.put("ifsc_code", merchantBankDetailSlave.getIfscCode());
+                    details.put("beneficiary_name", basicDetailsDto.getBeneficiaryName());
+                    details.put("bank_name", bankDetail.getBankName());
+                    details.put("account_number", bankDetail.getAccountNumber());
+                    details.put("ifsc_code", bankDetail.getIfsc());
                     details.put("application_id", lendingApplicationSlave.getId());
                     data.put("details", details);
                     responseDTO.setData(data);
@@ -1916,8 +1916,11 @@ public class LendingApplicationService {
             return new ResponseDTO(Boolean.FALSE, "Application not found");
         }
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(application_id);
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetails.getId(), "ACTIVE");
-        String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetails.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
+        String bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "BOTH");
         ResponseDTO responseDTO = new ResponseDTO(Boolean.TRUE, "");
         ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
         if (!lendingApplication.isPresent()) {
@@ -1928,11 +1931,11 @@ public class LendingApplicationService {
         }
         applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId()));
         LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.get().getCategory());
-        BpEnach successEnach = bpEnachDao.findSuccessEnach(merchantBasicDetails.getId());
+        BpEnachSlave successEnach = bpEnachDaoSlave.findSuccessEnach(merchantBasicDetails.getId());
         if (successEnach != null && successEnach.getAccountNumber() != null && !successEnach.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
             successEnach = null;
         }
-        OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchantBasicDetails.getId());
+        OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetails.getId());
         LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
         MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetails.getId());
         if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -2011,7 +2014,7 @@ public class LendingApplicationService {
             applicationDTO.add(applicationDTO2);
         }
         boolean enachMandatory = true;
-        BharatPeEnach enachSkipped = bharatPeEnachDao.isSkipped(merchantBasicDetails.getId(), lendingApplication.get().getId());
+        BharatPeEnachSlave enachSkipped = bharatPeEnachDaoSlave.isSkipped(merchantBasicDetails.getId(), lendingApplication.get().getId());
         if (successEnach != null) {
             enachMandatory = false;
         } else if (lendingApplication.get().getAgreementAt() != null && "REGULAR".equals(lendingApplication.get().getLoanType()) && lendingApplication.get().getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.get().getAgreementAt(), new Date()) > 3) {
@@ -2164,7 +2167,7 @@ public class LendingApplicationService {
         return isFirstLoan(merchant.getId()) && "NTB".equals(loanType);
     }
 
-    public boolean canSkipCpv(Long merchantId, Double amount, String loanType, BpEnach lendingEnach) {
+    public boolean canSkipCpv(Long merchantId, Double amount, String loanType, BpEnachSlave lendingEnach) {
 
         if (lendingEnach != null && lendingEnach.getInternalNachType().equalsIgnoreCase("ENACH")) {
             if ("BHARAT_SWIPE".equals(loanType) || "OGL".equals(loanType)) {

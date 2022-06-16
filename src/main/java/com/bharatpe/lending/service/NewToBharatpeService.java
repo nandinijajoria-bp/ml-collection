@@ -2,33 +2,17 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.PaymentTransactionNewDao;
-import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingBBSAuditDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.LendingBBS;
-import com.bharatpe.lending.common.entity.LendingBBSAudit;
-import com.bharatpe.lending.common.entity.LendingMerchantDropoff;
-import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dto.LoanEligibilityDTO;
-import com.bharatpe.lending.util.LoanUtil;
-import com.bharatpe.lending.util.creditresponse.ResponseUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.io.IOException;
 import java.text.DecimalFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
 
 @Service
 public class NewToBharatpeService {
@@ -52,9 +36,6 @@ public class NewToBharatpeService {
 
     @Autowired
 	EligibleLoanDao eligibleLoanDao;
-
-    @Autowired
-	PaymentTransactionNewDao paymentTransactionNewDao;
 
     @Autowired
 	LendingApplicationDao lendingApplicationDao;

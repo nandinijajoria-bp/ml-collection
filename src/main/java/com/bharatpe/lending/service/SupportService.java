@@ -4,7 +4,6 @@ import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.EmailHandler;
@@ -14,9 +13,13 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
+import com.bharatpe.lending.common.slave.dao.LendingPayoutsDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BankListSlave;
+import com.bharatpe.lending.common.slave.entity.LendingPayoutsSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -68,9 +71,6 @@ public class SupportService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    BharatPeEnachDao bharatPeEnachDao;
-
-    @Autowired
     ExperianDao experianDao;
 
     @Autowired
@@ -84,9 +84,6 @@ public class SupportService {
 
     @Autowired
     LendingEkycDao lendingEkycDao;
-
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
@@ -116,7 +113,7 @@ public class SupportService {
     LoanAgreementDao loanAgreementDao;
 
     @Autowired
-    LendingPayoutsDao lendingPayoutsDao;
+    LendingPayoutsDaoSlave lendingPayoutsDaoSlave;
 
     @Autowired
     LendingBulkDisbursalDao lendingBulkDisbursalDao;
@@ -134,7 +131,7 @@ public class SupportService {
     LoanDpdDao loanDpdDao;
 
     @Autowired
-    BankListDao bankListDao;
+    BankListDaoSlave bankListDaoSlave;
 
     @Autowired
     MerchantLoansService merchantLoansService;
@@ -181,7 +178,7 @@ public class SupportService {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
-            List<BankList> nachableBanks = bankListDao.findNachBankList();
+            List<BankListSlave> nachableBanks = bankListDaoSlave.findNachBankList();
 
             SupportApiResponseDto supportApiResponseDto = new SupportApiResponseDto();
             supportApiResponseDto.setMerchantId(merchantId);
@@ -321,7 +318,10 @@ public class SupportService {
             loanArrangerFee.setFeeAmount(lendingApplication.getProcessingFee());
             supportLoanResponseDTO.setLoanArrangerFee(loanArrangerFee);
             supportLoanResponseDTO.setLoanApplication(loanApplication);
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), Status.GeneralStatus.ACTIVE.name());
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
             if (!ObjectUtils.isEmpty(merchantBankDetail)) {
                 logger.info("Merchant Bank Details not found for merchantId: {}", merchantId);
                 supportLoanResponseDTO.setBeneficiaryName(merchantBankDetail.getBeneficiaryName());
@@ -652,7 +652,7 @@ public class SupportService {
                     supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
                 }
             } else if ("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
-                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+                LendingPayoutsSlave lendingPayouts = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
                 supportApiResponseDto.setApplicationStage(ApplicationStage.CLOSED_LOAN.getStage());
                 supportApiResponseDto.setPfRefunded(lendingPayouts != null);
                 supportApiResponseDto.setEligibleForRepeat(getEligibility(lendingPaymentSchedule.getMerchantId()));
@@ -829,7 +829,7 @@ public class SupportService {
 
                 SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
 
-                LendingPayouts lendingPayouts = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchantId(), lendingPaymentSchedule1.getId());
+                LendingPayoutsSlave lendingPayouts = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchantId(), lendingPaymentSchedule1.getId());
                 if (!ObjectUtils.isEmpty(lendingPayouts)) {
                     loanArrangerFee.setArrangerFeeRefundEligible(true);
                     loanArrangerFee.setArrangerFeeRefunded(true);
@@ -908,88 +908,88 @@ public class SupportService {
         loanArrangerFee.setArrangerFeeRefundEligible(Boolean.FALSE);
     }
 
-    public SupportResponseDTO bulkLenderchange(Long merchantId, Long applicationId, Long fileId, Boolean flag, String lender) {
-        logger.info("Lender Change For Merchant Id:{}, and ApplicationId:{}", merchantId, applicationId);
-        SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
-        try {
-            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())) {
-                responseDTO.setSuccess(false);
-                responseDTO.setMessage("Not Match Condition");
-                return responseDTO;
-            }
-            Optional<LendingBulkDisbursal> lendingBulkDisbursal=lendingBulkDisbursalDao.findById(fileId);
-            if(!lendingBulkDisbursal.isPresent() || lendingBulkDisbursal.get().getProceed()){
-                responseDTO.setSuccess(false);
-                responseDTO.setMessage("Already Proceed");
-                return responseDTO;
-            }
-            new Thread(() -> {
-                LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchantId(),lendingApplication);
-                logger.info("ldc Virtual Accoint:{}",ldcVirtualAccount);
-                if (flag) {
-                    List<LendingBulkDisbursalRawData> lendingBulkDisbursalRawData = lendingBulkDisbursalRawDataDao.findByFileId(fileId);
-                    File file = new File("/tmp/"+fileId+"_nbfc_details.csv");
-                    try{
-                        FileWriter outputfile = new FileWriter(file);
-                        CSVWriter writer = new CSVWriter(outputfile);
-                        List<String[]> data = new ArrayList<String[]>();
-                        logger.info("MAMTA Lender Change:{}",lender);
-                        String[] header = { "partner_tag", "loan_type", "Loan_amount","tenure","partner_loan_id","fee_amount","gst_amount","interest_rate","interest_type","partner_computed_disbursement_amount","partner_computed_interest_amount","no_of_EDI","EDI_amount","EDI_schedule","customer_risk_segment","customer_location_category","existing_BP_merchant","customer_type_NTC","any_written_off_loan_in_last_two_years","income_to_debt_ratio","recommendation_from_BP","date_of_birth","consumer_name","gender","email","pan_number","mobile_number","loan_purpose","pincode","address","city","address_state","address_type","address_proof_type","type","stay_type","landmark","customer_bank_name","bank_account_number","customer_bank_account_name","ifsc_code","address_proof_1","address_proof_2","pan_card","loan_agreement","eKycResponse" };
-                        data.add(header);
-                        for (LendingBulkDisbursalRawData bulklender : lendingBulkDisbursalRawData) {
-                            try {
-                                LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
-                                Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(application.getMerchantId());
-                                if (ObjectUtils.isEmpty(basicDetailsDto)) {
-                                    continue;
-                                }
-
-                                Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
-                                CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchantId(), application.getId());
-                                String ediSchedule = ediScheduleResponse.getData().toString();
-                                String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
-                                String ifscCode = ldcVirtualAccount.getIfsc().toString();
-                                Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
-                                String gender = addressResult.get("gender").toString();
-                                String dob = addressResult.get("dob").toString();
-                                String proofType = addressResult.get("proof_type").toString();
-                                String personName = addressResult.get("person_name").toString();
-                                String pancardUrl = addressResult.get("pancardUrl").toString();
-                                String addressproof1 = addressResult.get("addressproof1").toString();
-                                String addressproof2 = addressResult.get("addressproof2").toString();
-                                data.add(new String[]{"AMPLB", "PL", application.getLoanAmount().toString(), application.getTenureInMonths().toString(), application.getExternalLoanId(), application.getProcessingFee().toString(), "0", String.valueOf((application.getInterestRate() * 12 / 100)), "flat", application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment() - application.getLoanAmount())), application.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), basicDetailsDto.get().getMobile(), "Personal", application.getPincode().toString(), application.getShopNumber() + application.getStreetAddress() + application.getArea() + application.getLandmark(), application.getCity(), application.getState(), "permanent", proofType, "communication", "self owned", application.getLandmark(), "ICICI BANK", accountNumber, basicDetailsDto.get().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, apiGatewayService.getLoanAgreement(application.getMerchantId(), application.getId()), Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
-                                bulklender.setStatus("SUCCESS");
-                                lendingBulkDisbursalRawDataDao.save(bulklender);
-                            } catch (Exception ex) {
-                                logger.error("Exception Occured while bulk lender change for application id: {}",lendingApplication.getId());
-                            }
-
-                        }
-                        writer.writeAll(data);
-                        writer.close();
-                        byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
-                        emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com");
-                        }}, "Automated Nbfc Report", "MAMTA Nbfc Details Report"+new Date(), bytes, "nbfc_details", "text/csv");
-                        s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
-
-                        if(lendingBulkDisbursal.isPresent()){
-                            lendingBulkDisbursal.get().setReturnFileName(fileId+"_nbfc_details.csv");
-                            lendingBulkDisbursal.get().setProceed(Boolean.TRUE);
-                            lendingBulkDisbursalDao.save(lendingBulkDisbursal.get());
-                        }
-                    }catch(Exception ex){
-                        logger.info("Exception In generating CSV :{}",ex);
-                    }
-                }
-            }).start();
-        } catch (Exception ex) {
-            logger.info("Exception In Bulk Lender Change :{}", ex);
-            SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
-            responseDTO.setData(supportLoanResponseDTO);
-        }
-        return responseDTO;
-    }
+//    public SupportResponseDTO bulkLenderchange(Long merchantId, Long applicationId, Long fileId, Boolean flag, String lender) {
+//        logger.info("Lender Change For Merchant Id:{}, and ApplicationId:{}", merchantId, applicationId);
+//        SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
+//        try {
+//            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+//            if (!"approved".equalsIgnoreCase(lendingApplication.getStatus()) || lendingApplication.getDisburseTimestamp() != null || "YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())) {
+//                responseDTO.setSuccess(false);
+//                responseDTO.setMessage("Not Match Condition");
+//                return responseDTO;
+//            }
+//            Optional<LendingBulkDisbursal> lendingBulkDisbursal=lendingBulkDisbursalDao.findById(fileId);
+//            if(!lendingBulkDisbursal.isPresent() || lendingBulkDisbursal.get().getProceed()){
+//                responseDTO.setSuccess(false);
+//                responseDTO.setMessage("Already Proceed");
+//                return responseDTO;
+//            }
+//            new Thread(() -> {
+//                LdcVirtualAccount ldcVirtualAccount= apiGatewayService.createDisbursalVPA(lendingApplication.getMerchantId(),lendingApplication);
+//                logger.info("ldc Virtual Accoint:{}",ldcVirtualAccount);
+//                if (flag) {
+//                    List<LendingBulkDisbursalRawData> lendingBulkDisbursalRawData = lendingBulkDisbursalRawDataDao.findByFileId(fileId);
+//                    File file = new File("/tmp/"+fileId+"_nbfc_details.csv");
+//                    try{
+//                        FileWriter outputfile = new FileWriter(file);
+//                        CSVWriter writer = new CSVWriter(outputfile);
+//                        List<String[]> data = new ArrayList<String[]>();
+//                        logger.info("MAMTA Lender Change:{}",lender);
+//                        String[] header = { "partner_tag", "loan_type", "Loan_amount","tenure","partner_loan_id","fee_amount","gst_amount","interest_rate","interest_type","partner_computed_disbursement_amount","partner_computed_interest_amount","no_of_EDI","EDI_amount","EDI_schedule","customer_risk_segment","customer_location_category","existing_BP_merchant","customer_type_NTC","any_written_off_loan_in_last_two_years","income_to_debt_ratio","recommendation_from_BP","date_of_birth","consumer_name","gender","email","pan_number","mobile_number","loan_purpose","pincode","address","city","address_state","address_type","address_proof_type","type","stay_type","landmark","customer_bank_name","bank_account_number","customer_bank_account_name","ifsc_code","address_proof_1","address_proof_2","pan_card","loan_agreement","eKycResponse" };
+//                        data.add(header);
+//                        for (LendingBulkDisbursalRawData bulklender : lendingBulkDisbursalRawData) {
+//                            try {
+//                                LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(bulklender.getApplicationId(), bulklender.getMerchantId());
+//                                Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(application.getMerchantId());
+//                                if (ObjectUtils.isEmpty(basicDetailsDto)) {
+//                                    continue;
+//                                }
+//
+//                                Experian experian = experianDao.getByMerchantId(bulklender.getMerchantId());
+//                                CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiSchedule(application.getMerchantId(), application.getId());
+//                                String ediSchedule = ediScheduleResponse.getData().toString();
+//                                String accountNumber = ldcVirtualAccount.getAccountNumber().toString();
+//                                String ifscCode = ldcVirtualAccount.getIfsc().toString();
+//                                Map addressResult = apiGatewayService.getKycDetails(lendingApplication);
+//                                String gender = addressResult.get("gender").toString();
+//                                String dob = addressResult.get("dob").toString();
+//                                String proofType = addressResult.get("proof_type").toString();
+//                                String personName = addressResult.get("person_name").toString();
+//                                String pancardUrl = addressResult.get("pancardUrl").toString();
+//                                String addressproof1 = addressResult.get("addressproof1").toString();
+//                                String addressproof2 = addressResult.get("addressproof2").toString();
+//                                data.add(new String[]{"AMPLB", "PL", application.getLoanAmount().toString(), application.getTenureInMonths().toString(), application.getExternalLoanId(), application.getProcessingFee().toString(), "0", String.valueOf((application.getInterestRate() * 12 / 100)), "flat", application.getDisbursalAmount().toString(), String.valueOf((application.getRepayment() - application.getLoanAmount())), application.getPayableDays().toString(), lendingApplication.getEdi().toString(), ediSchedule, experian.getColor(), apiGatewayService.getPincodeArea(experian.getPincode()), "Y", apiGatewayService.findNtc(experian), "N", "Y", "Recommended", dob, personName, gender, " ", experian.getPancardNumber(), basicDetailsDto.get().getMobile(), "Personal", application.getPincode().toString(), application.getShopNumber() + application.getStreetAddress() + application.getArea() + application.getLandmark(), application.getCity(), application.getState(), "permanent", proofType, "communication", "self owned", application.getLandmark(), "ICICI BANK", accountNumber, basicDetailsDto.get().getBeneficiaryName(), ifscCode, addressproof1, addressproof2, pancardUrl, apiGatewayService.getLoanAgreement(application.getMerchantId(), application.getId()), Objects.nonNull(addressResult.get("ekyc_response")) ? addressResult.get("ekyc_response").toString() : null});
+//                                bulklender.setStatus("SUCCESS");
+//                                lendingBulkDisbursalRawDataDao.save(bulklender);
+//                            } catch (Exception ex) {
+//                                logger.error("Exception Occured while bulk lender change for application id: {}",lendingApplication.getId());
+//                            }
+//
+//                        }
+//                        writer.writeAll(data);
+//                        writer.close();
+//                        byte[] bytes = Files.readAllBytes(Paths.get("/tmp/"+fileId+"_nbfc_details.csv"));
+//                        emailHandler.sendEmailWithAttachement(new ArrayList<String>() {{add("rohit.dhola@bharatpe.com");
+//                        }}, "Automated Nbfc Report", "MAMTA Nbfc Details Report"+new Date(), bytes, "nbfc_details", "text/csv");
+//                        s3BucketHandler.uploadFileToS3(file,"crm-exporter",fileId+"_nbfc_details.csv");
+//
+//                        if(lendingBulkDisbursal.isPresent()){
+//                            lendingBulkDisbursal.get().setReturnFileName(fileId+"_nbfc_details.csv");
+//                            lendingBulkDisbursal.get().setProceed(Boolean.TRUE);
+//                            lendingBulkDisbursalDao.save(lendingBulkDisbursal.get());
+//                        }
+//                    }catch(Exception ex){
+//                        logger.info("Exception In generating CSV :{}",ex);
+//                    }
+//                }
+//            }).start();
+//        } catch (Exception ex) {
+//            logger.info("Exception In Bulk Lender Change :{}", ex);
+//            SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
+//            responseDTO.setData(supportLoanResponseDTO);
+//        }
+//        return responseDTO;
+//    }
 
     public SupportResponseDTO changeLender(String lender,Long fileId,Integer lines) {
         Optional<LendingBulkDisbursal> lendingBulkDisbursal=lendingBulkDisbursalDao.findById(fileId);
@@ -1217,7 +1217,8 @@ public class SupportService {
 
     public String getAgreement(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) throws IOException {
         Map<String,Object> data = new HashMap<>();
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(basicDetailsDto.getId());
+        BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
         Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchantId());
         SimpleDateFormat date = new SimpleDateFormat("DD-MMM-YYYY");
         data.put("externalLoanId",lendingApplication.getExternalLoanId());
@@ -1246,8 +1247,8 @@ public class SupportService {
         data.put("browserName",lendingApplication.getLoanAmount());
         data.put("ipAddress",lendingApplication.getIp());
         data.put("accountNumber",merchantBankDetail.getAccountNumber());
-        data.put("accountType",merchantBankDetail.getAccType());
-        data.put("ifsc",merchantBankDetail.getIfscCode());
+        data.put("accountType",merchantBankDetail.getAccountType());
+        data.put("ifsc",merchantBankDetail.getIfsc());
         data.put("bankName",merchantBankDetail.getBankName());
         data.put("beneficiaryName",basicDetailsDto.getBeneficiaryName());
         data.put("repayment",lendingApplication.getRepayment());

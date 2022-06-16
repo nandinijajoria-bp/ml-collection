@@ -1,11 +1,11 @@
 package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.Response;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,16 +29,16 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
     Logger logger = LoggerFactory.getLogger(InternalClientHmacInterceptor.class);
 
     @Autowired
-    private HmacCalculator hmacCalculator;
+    private LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
-    private InternalClientDao internalClientDao;
+    private InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
     Environment env;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -53,7 +53,7 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
                 return false;
             }
 
-            InternalClient internalClient = internalClientDao.findByClientName(clientName);
+            InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(clientName);
             if(internalClient == null) {
                 logger.error("Client not found {}", clientName);
                 sendFailureResponse(response, ResponseCode.CLIENT_NOT_FOUND);
@@ -67,10 +67,10 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
                 sendFailureResponse(response, ResponseCode.INVALID_DATA);
                 return false;
             }
-            logger.info("secret key:{}", aesEncryption.decrypt(internalClient.getSecret()));
-            String hash = hmacCalculator.calculateHmac(payload, aesEncryption.decrypt(internalClient.getSecret()));
+            logger.info("secret key:{}", aesEncryptionUtil.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(payload, aesEncryptionUtil.decrypt(internalClient.getSecret()));
             logger.info("hash:{}", hash);
-            if(hmacCalculator.validateClient(payload, internalClient, hmac)) {
+            if(lendingHmacCalculator.validateExternalGateway(payload, internalClient.getSecret(), hmac)) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and client {}", hmac, clientName);
                 return true;
             }
@@ -108,7 +108,7 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
             }
         }
         if(paramMap != null && !paramMap.isEmpty())
-            return hmacCalculator.getPayload(paramMap);
+            return lendingHmacCalculator.getPayload(paramMap);
 
         return null;
     }

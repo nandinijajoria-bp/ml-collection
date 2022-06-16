@@ -4,19 +4,26 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.handlers.EmailHandler;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.entity.CrifRequestResponse;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
+import com.bharatpe.lending.common.slave.dao.ExternalGatewayDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BharatSwipeAccountSlave;
+import com.bharatpe.lending.common.slave.entity.ExternalGatewaySlave;
+import com.bharatpe.lending.common.slave.entity.PaymentTransactionNewSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -96,13 +103,13 @@ public class LoanEligibleService {
     LendingPancardDao lendingPancardDao;
 
     @Autowired
-    ExternalGatewayDao externalGatewayDao;
+    ExternalGatewayDaoSlave externalGatewayDaoSlave;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
@@ -117,7 +124,7 @@ public class LoanEligibleService {
     EligibleLoanAuditDao eligibleLoanAuditDao;
 
     @Autowired
-    PaymentTransactionNewDao paymentTransactionNewDao;
+    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
 
     @Autowired
     ExperianService experianService;
@@ -127,9 +134,6 @@ public class LoanEligibleService {
 
     @Autowired
     APIGatewayService apiGatewayService;
-
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
 
 //    @Autowired
 //    MerchantDao merchantDao;
@@ -144,10 +148,10 @@ public class LoanEligibleService {
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     @Autowired
-    PincodeCityStateMappingDao pincodeCityStateMappingDao;
+    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
-    BharatSwipeAccountDao bharatSwipeAccountDao;
+    BharatSwipeAccountDaoSlave bharatSwipeAccountDaoSlave;
 
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
@@ -230,7 +234,7 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    public List<LoanEligibilityDTO> getNewLoanDetails(BasicDetailsDto merchantBasicDetails, Experian experian, MerchantResponseDTO merchantResponseDTO, MerchantBankDetail merchantBankDetail, boolean skip, String pancard, boolean isZomato, String lendingType, boolean yellowPincode, String bankCode) {
+    public List<LoanEligibilityDTO> getNewLoanDetails(BasicDetailsDto merchantBasicDetails, Experian experian, MerchantResponseDTO merchantResponseDTO, BankDetailsDto merchantBankDetail, boolean skip, String pancard, boolean isZomato, String lendingType, boolean yellowPincode, String bankCode) {
         Double bpScore = (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D;
         double selfTpv = (merchantResponseDTO != null && merchantResponseDTO.getSelfTxnValue1Mon() != null) ? merchantResponseDTO.getSelfTxnValue1Mon() : 0d;
         double tpvLast30Days = (merchantResponseDTO != null && merchantResponseDTO.getTpv1Mon() != null) ? merchantResponseDTO.getTpv1Mon() - selfTpv : 0D;
@@ -443,7 +447,10 @@ public class LoanEligibleService {
             reportDate = creditBureauResponseUtil.getReportDate();
         }
         if (reportDate == null || LoanUtil.getDateDiffInDays(reportDate, new Date()) >= daysDiffToCheck) {
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
             if (merchantBankDetail == null) {
                 logger.info("MerchantBankDetail not found for merchantId: {}", merchantId);
                 responseDTO.setMessage("Experian not found");
@@ -495,7 +502,7 @@ public class LoanEligibleService {
         return responseDTO;
     }
 
-    private JsonNode getLatestExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, int maxExperianRetryCount) {
+    private JsonNode getLatestExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, BankDetailsDto merchantBankDetail, int maxExperianRetryCount) {
         int retryCount = 0;
         JsonNode experianResponse = null;
         while (retryCount < maxExperianRetryCount) {
@@ -558,12 +565,12 @@ public class LoanEligibleService {
         String name = null;
         String apiResponse = null;
         try {
-            ExternalGateway externalGateway = externalGatewayDao.findByGatewayNameAndTypeAndStatus("LIQUILOANS", null, "ACTIVE");
+            ExternalGatewaySlave externalGateway = externalGatewayDaoSlave.findByGatewayNameAndTypeAndStatus("LIQUILOANS", null, "ACTIVE");
             if (externalGateway != null) {
                 Map<String, String> requestParams = new HashMap<>();
                 Date currentTime = new Date();
                 String payload = pancardNumber + "||" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(currentTime);
-                String checksum = hmacCalculator.calculateHMACHexEncoded(payload, aesEncryption.decrypt(externalGateway.getSecret()));
+                String checksum = lendingHmacCalculator.calculateHMACHexEncoded(payload, aesEncryptionUtil.decrypt(externalGateway.getSecret()));
                 logger.info("Liquiloans Checksum:{} for payload: {} for merchant:{}, PAN: {}", checksum, payload, merchantId, pancardNumber);
                 requestParams.put("MID", externalGateway.getMbid());
                 requestParams.put("Pan", pancardNumber);
@@ -873,7 +880,7 @@ public class LoanEligibleService {
         Experian experian = experianDao.getByMerchantId(merchantId);
         boolean cpvCity = false;
         if (experian != null && experian.getPincode() != null) {
-            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
             cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
         }
         boolean isNTC = isNTC(experian);
@@ -1180,7 +1187,7 @@ public class LoanEligibleService {
     }
 
 
-    public JsonNode fetchExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, MerchantBankDetail merchantBankDetail, boolean callRefreshApi) {
+    public JsonNode fetchExperianDetails(String contact, Experian experian, Long merchantId, Double bpScore, BankDetailsDto merchantBankDetail, boolean callRefreshApi) {
         JsonNode refreshResponse = null;
         if (experian.getHitId() != null && callRefreshApi) {
             refreshResponse = apiGatewayService.experianRefreshApi(merchantId, experian.getHitId());
@@ -1362,8 +1369,8 @@ public class LoanEligibleService {
             }
         }
         if (!isZomato) {
-            PaymentTransactionNew firstTransaction = paymentTransactionNewDao.getFirstTransaction(merchant.getId());
-            BharatSwipeAccount bharatSwipeAccount = bharatSwipeAccountDao.findByMerchantId(merchant.getId());
+            PaymentTransactionNewSlave firstTransaction = paymentTransactionNewDaoSlave.getFirstTransaction(merchant.getId());
+            BharatSwipeAccountSlave bharatSwipeAccount = bharatSwipeAccountDaoSlave.findByMerchantId(merchant.getId());
             int vintageDays = bharatSwipeAccount != null ? 30 : 60;
             if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < vintageDays) {
                 logger.info("Vintage less than 60 days, so rejecting merchant: {}", merchant.getId());

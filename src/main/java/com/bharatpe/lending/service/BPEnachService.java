@@ -2,14 +2,22 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.Constants.BPEnachConstant;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dto.PartnerRetailerDTO;
 import com.bharatpe.lending.common.entity.BpEnachSkip;
 import com.bharatpe.lending.common.enums.BPEnachEnum;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
+import com.bharatpe.lending.common.slave.entity.IfscSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.dao.BPEnachSkipDao;
@@ -37,17 +45,19 @@ import java.util.Optional;
 public class BPEnachService {
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    MerchantService merchantService;
 
     @Autowired
     BPEnachDao bpEnachDao;
+
+    @Autowired
+    BPEnachDaoSlave bpEnachDaoSlave;
 
     @Autowired
     LendingNachBankDao lendingNachBankDao;
 
     @Autowired
     BPEnachSkipDao bpEnachSkipDao;
-
 
     @Value("${enach.digio.authorization}")
     String authorization;
@@ -60,22 +70,22 @@ public class BPEnachService {
 
 
     @Autowired
-    IfscDao ifscDao;
+    IfscDaoSlave ifscDaoSlave;
 
     @Value("${bpnach.register.endpoint}")
     public String BPNACH_REGISTER_URL;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
     @Autowired
-    InternalClientDao internalClientDao;
-
-    @Autowired
-    HmacCalculator hmacCalculator;
+    InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
     PartnersApiHandler partnersApiHandler;
+   
+  @Autowired
+    LendingHmacCalculator lendingHmacCalculator;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
@@ -89,18 +99,20 @@ public class BPEnachService {
         Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
         final double LOAN_AMOUNT = nachAmount;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-        if (merchantBankDetail == null) {
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        if (!bankDetailsDtoOptional.isPresent()) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Active Bank not found");
             logger.error("No Bank detail found for Merchant - {}", merchant.getId());
             return responseDTO;
         }
+        BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.get();
+
         String bankCode;
         if (appVersion != null && Integer.parseInt(appVersion) >= 238) {
-            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+            bankCode = fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "BOTH");
         } else {
-            bankCode = fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+            bankCode = fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "NET");
         }
         if (bankCode == null) {
             responseDTO.setResponse(false);
@@ -108,7 +120,7 @@ public class BPEnachService {
             logger.info("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
-        String bankBranch = getBranchName(merchantBankDetail.getIfscCode());
+        String bankBranch = getBranchName(merchantBankDetail.getIfsc());
         if (bankBranch == null || StringUtils.isEmpty(bankBranch)) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Bank Branch not found for Enach");
@@ -117,14 +129,14 @@ public class BPEnachService {
         }
 
         BpEnach bpEnach = new BpEnach(merchant.getId(), referenceNumber, clientName, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
-                merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfscCode(), merchantBankDetail.getAccType(),
+                merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfsc(), merchantBankDetail.getAccountType(),
                 BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString(), bankBranch
         );
         if (ownerId != null) {
             bpEnach.setOwnerId(Long.parseLong(ownerId));
         }
         bpEnach = bpEnachDao.save(bpEnach);
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data(bpEnach.getId(), bpEnach.getId(), bankCode, LOAN_AMOUNT, sdf.format(mandateDate), bpEnach.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfscCode(), merchant.getMid()));
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data(bpEnach.getId(), bpEnach.getId(), bankCode, LOAN_AMOUNT, sdf.format(mandateDate), bpEnach.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfsc(), merchant.getMid()));
         return responseDTO;
     }
 
@@ -190,7 +202,7 @@ public class BPEnachService {
 
 
     public ResponseDTO setEnachSkipStatus(BasicDetailsDto merchant, String referenceNumber) {
-        BpEnach bpEnach = bpEnachDao.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
+        BpEnachSlave bpEnach = bpEnachDaoSlave.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
         if (bpEnachSkip == null) {
             return new ResponseDTO(false, "Loan Application not found", null,null);
@@ -208,7 +220,7 @@ public class BPEnachService {
 
     public String getBranchName(String ifscCode) {
         String branch = null;
-        Ifsc ifsc = ifscDao.findTop1ByIfscOrderByIdDesc(ifscCode);
+        IfscSlave ifsc = ifscDaoSlave.findTop1ByIfscOrderByIdDesc(ifscCode);
         if (ifsc != null) {
             branch = ifsc.getBranch();
         }
@@ -218,7 +230,7 @@ public class BPEnachService {
     public void registerNach(Map requestParams, Long merchantId, String clientName) {
         logger.info("Registering Nach for merchant:{}", merchantId);
         try {
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret(clientName));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret(clientName));
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
@@ -239,9 +251,9 @@ public class BPEnachService {
     }
 
     private String getSecret(String clientName) {
-        InternalClient client = internalClientDao.findByClientName(clientName);
+        InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);
         if (client != null) {
-            return aesEncryption.decrypt(client.getSecret());
+            return aesEncryptionUtil.decrypt(client.getSecret());
         }
         return "";
     }

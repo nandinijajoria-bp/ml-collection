@@ -22,7 +22,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -51,8 +50,8 @@ public class UploadDocumentService {
 	@Autowired
 	DocKycDetailsDao docKycDetailsDao;
 	
-	@Autowired
-	DocAuthenticationDao docAuthenticationDao;
+//	@Autowired
+//	DocAuthenticationDao docAuthenticationDao;
 	
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
@@ -546,51 +545,51 @@ public class UploadDocumentService {
 //		}
 //	}
 	
-	private void processAndSavePanAuthenticationResponse(String response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, LendingApplication lendingApplication) {
-		ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> responseMap = null;
-		try {
-			responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
-		} catch (JsonParseException e) {
-			e.printStackTrace();
-		} catch (JsonMappingException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
-		
-		DocAuthentication docAuthentication = new DocAuthentication();
-		docAuthentication.setDocKycDetails(docKycDetails);
-		docAuthentication.setMerchantId(docKycDetails.getMerchantId());
-		docAuthentication.setDocType("pancard");
-		docAuthentication.setFullResponse(response);
-		docAuthentication.setDocumentsIdProof(documentsIdProof);
-		docAuthentication.setCreatedAt(new Date());
-		docAuthentication.setUpdatedAt(new Date());
-		
-		if(status.equals("101")) {
-			Map<String, String> result = (Map<String, String>) responseMap.get("result");
-			docAuthentication.setDocStatus(result.get("status"));
-			docAuthentication.setDuplicate(String.valueOf(result.get("duplicate")));
-			docAuthentication.setNameMatch(String.valueOf(result.get("nameMatch")));
-			docAuthentication.setDobMatch(String.valueOf(result.get("dobMatch")));
-			if(String.valueOf(result.get("duplicate")).equals("false") && String.valueOf(result.get("nameMatch")).equals("true") && String.valueOf(result.get("dobMatch")).equals("true") ) {
-				docAuthentication.setStatus("ACCEPTED");
-//				lendingApplicationDao.updateApplicationManualKyc("APPROVED", lendingApplication.getId());
-			}else {
-				docAuthentication.setStatus("REJECTED");
-			}
-			
-		}else {
-			docAuthentication.setDocStatus("FAILED");
-			docAuthentication.setDuplicate("");
-			docAuthentication.setNameMatch("");
-			docAuthentication.setDobMatch("");
-			docAuthentication.setStatus("");
-		}
-		docAuthenticationDao.save(docAuthentication);
-	}
+//	private void processAndSavePanAuthenticationResponse(String response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, LendingApplication lendingApplication) {
+//		ObjectMapper mapper = new ObjectMapper();
+//        Map<String, Object> responseMap = null;
+//		try {
+//			responseMap = mapper.readValue(response, new TypeReference<Map<String, Object>>(){});
+//		} catch (JsonParseException e) {
+//			e.printStackTrace();
+//		} catch (JsonMappingException e) {
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		String status = (responseMap != null) ? (String) responseMap.get("status-code") : "";
+//
+//		DocAuthentication docAuthentication = new DocAuthentication();
+//		docAuthentication.setDocKycDetails(docKycDetails);
+//		docAuthentication.setMerchantId(docKycDetails.getMerchantId());
+//		docAuthentication.setDocType("pancard");
+//		docAuthentication.setFullResponse(response);
+//		docAuthentication.setDocumentsIdProof(documentsIdProof);
+//		docAuthentication.setCreatedAt(new Date());
+//		docAuthentication.setUpdatedAt(new Date());
+//
+//		if(status.equals("101")) {
+//			Map<String, String> result = (Map<String, String>) responseMap.get("result");
+//			docAuthentication.setDocStatus(result.get("status"));
+//			docAuthentication.setDuplicate(String.valueOf(result.get("duplicate")));
+//			docAuthentication.setNameMatch(String.valueOf(result.get("nameMatch")));
+//			docAuthentication.setDobMatch(String.valueOf(result.get("dobMatch")));
+//			if(String.valueOf(result.get("duplicate")).equals("false") && String.valueOf(result.get("nameMatch")).equals("true") && String.valueOf(result.get("dobMatch")).equals("true") ) {
+//				docAuthentication.setStatus("ACCEPTED");
+////				lendingApplicationDao.updateApplicationManualKyc("APPROVED", lendingApplication.getId());
+//			}else {
+//				docAuthentication.setStatus("REJECTED");
+//			}
+//
+//		}else {
+//			docAuthentication.setDocStatus("FAILED");
+//			docAuthentication.setDuplicate("");
+//			docAuthentication.setNameMatch("");
+//			docAuthentication.setDobMatch("");
+//			docAuthentication.setStatus("");
+//		}
+//		docAuthenticationDao.save(docAuthentication);
+//	}
 	
 //	private void createFailedEntryForPancardDocAuthentication(DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 //		DocAuthentication docAuthentication = new DocAuthentication();

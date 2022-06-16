@@ -6,6 +6,12 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.BharatSwipeTerminalDaoSlave;
+import com.bharatpe.lending.common.slave.dao.FPAccountDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BharatSwipeTerminalSlave;
+import com.bharatpe.lending.common.slave.entity.FPAccountSlave;
+import com.bharatpe.lending.common.slave.entity.PaymentTransactionNewSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -46,19 +52,16 @@ public class IneligibleDetailsService {
     ScoreCategoryMasterDao scoreCategoryMasterDao;
     
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-    
-    @Autowired
-    PaymentTransactionNewDao paymentTransactionNewDao;
+    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
     
     @Autowired
     ExperianDao experianDao;
 
     @Autowired
-    BharatSwipeTerminalDao bharatSwipeTerminalDao;
+    BharatSwipeTerminalDaoSlave bharatSwipeTerminalDaoSlave;
 
     @Autowired
-    FPAccountDao fpAccountDao;
+    FPAccountDaoSlave fpAccountDaoSlave;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -142,15 +145,15 @@ public class IneligibleDetailsService {
         ineligibleResponseDTO.setPanCard(merchantLoanRequest.getPancardNumber());
     }
 
-    private MerchantLoanRequest calculateTarget(MerchantResponseDTO merchantResponseDTO, Long merchantId, String panCard, ScoreCategoryMaster scoreCategoryMaster) {
-        int currentTxnCount = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnCount() != null) ? merchantResponseDTO.getDailyTxnCount() : 0;
-        double currentTxnValue = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnAmount() != null) ? merchantResponseDTO.getDailyTxnAmount() : 0;
-        logger.info("Calculating target for ineligible loan---");
-        double totalTxnRequired = 2 * scoreCategoryMaster.getTxnCount();
-        double totalAmountRequired = 2 * scoreCategoryMaster.getAvgDailyTpv();
-        logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", currentTxnCount, currentTxnValue, totalAmountRequired, totalTxnRequired);
-        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, 0,  currentTxnCount, currentTxnValue, (int)totalTxnRequired, totalAmountRequired, panCard));
-    }
+//    private MerchantLoanRequest calculateTarget(MerchantResponseDTO merchantResponseDTO, Long merchantId, String panCard, ScoreCategoryMaster scoreCategoryMaster) {
+//        int currentTxnCount = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnCount() != null) ? merchantResponseDTO.getDailyTxnCount() : 0;
+//        double currentTxnValue = (merchantResponseDTO != null && merchantResponseDTO.getDailyTxnAmount() != null) ? merchantResponseDTO.getDailyTxnAmount() : 0;
+//        logger.info("Calculating target for ineligible loan---");
+//        double totalTxnRequired = 2 * scoreCategoryMaster.getTxnCount();
+//        double totalAmountRequired = 2 * scoreCategoryMaster.getAvgDailyTpv();
+//        logger.info("Current transaction count : {}, Current transaction amount: {}, Transaction amount required: {}, Transaction Count required: {}", currentTxnCount, currentTxnValue, totalAmountRequired, totalTxnRequired);
+//        return merchantLoanRequestDoa.save(new MerchantLoanRequest(merchantId, 0,  currentTxnCount, currentTxnValue, (int)totalTxnRequired, totalAmountRequired, panCard));
+//    }
     
     public IneligibleAPIResponseDto getIneligibleDetails(BasicDetailsDto merchant) {
     	try {
@@ -209,12 +212,12 @@ public class IneligibleDetailsService {
     }
 
     private Boolean isMerchantBharatSwipeEnabled(Long merchantId){
-        BharatSwipeTerminal bharatSwipeTerminal = bharatSwipeTerminalDao.findFirstByMerchantIdAndDeviceSerialNotNull(merchantId);
+        BharatSwipeTerminalSlave bharatSwipeTerminal = bharatSwipeTerminalDaoSlave.findFirstByMerchantIdAndDeviceSerialNotNull(merchantId);
         return bharatSwipeTerminal != null;
     }
     
     private Boolean isMerchantFPAccountEnabled(Long merchantId){
-        FPAccount fpAccount = fpAccountDao.findByMerchantIdAndKYCStatusNotNull(merchantId);
+        FPAccountSlave fpAccount = fpAccountDaoSlave.findByMerchantIdAndKYCStatusNotNull(merchantId);
         return fpAccount != null;
     }
     
@@ -238,7 +241,7 @@ public class IneligibleDetailsService {
     
     private Map<String,Integer> getTransactionDetailsFromPaymentTable(BasicDetailsDto merchant){
     	Map<String,Integer> transactionMap=new HashMap<>();
-    	Object[] transactionDetail = (Object[])paymentTransactionNewDao.getAmountAndCountByMerchant(merchant.getId());
+    	Object[] transactionDetail = (Object[])paymentTransactionNewDaoSlave.getAmountAndCountByMerchant(merchant.getId());
         BigDecimal transactionAmount = (BigDecimal) transactionDetail[0];
     	BigInteger count = (BigInteger) transactionDetail[1];
     	transactionMap.put("count", count == null ? 0 : count.intValue());
@@ -248,7 +251,7 @@ public class IneligibleDetailsService {
     
     private Date getMerchantOnboardDate(BasicDetailsDto merchant) {
     	try {
-    		PaymentTransactionNew firstTransaction=paymentTransactionNewDao.getFirstTransaction(merchant.getId());
+    		PaymentTransactionNewSlave firstTransaction=paymentTransactionNewDaoSlave.getFirstTransaction(merchant.getId());
     		if(firstTransaction!=null) {
     			return firstTransaction.getCreatedAt();
     		}

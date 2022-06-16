@@ -1,22 +1,23 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.InternalClientDao;
+
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Gateway;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
@@ -63,13 +64,13 @@ public class CreditPaymentService {
     LendingClLedgerDao lendingClLedgerDao;
 
     @Autowired
-    InternalClientDao internalClientDao;
+    InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
     @Autowired
     LendingClPaymentDao lendingClPaymentDao;
@@ -125,8 +126,6 @@ public class CreditPaymentService {
     
     private final DecimalFormat df = new DecimalFormat("#.##");
     
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
     @Autowired
     MerchantService merchantService;
 
@@ -362,9 +361,13 @@ public class CreditPaymentService {
     }
     
     public String getBenefecieryName(BasicDetailsDto merchant) {
-    	
-    	MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-    	if(merchantBankDetail!=null) {
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = null;
+
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
+
+        if(merchantBankDetail!=null) {
     		return merchantBankDetail.getBeneficiaryName();
     	}
     	return "";
@@ -389,10 +392,10 @@ public class CreditPaymentService {
 
     private Map<String, Object> sendOTP(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, String token) {
         Map<String, Object> result = new HashMap<>();
-        InternalClient internalClient = internalClientDao.findByClientName("CREDIT_LINE");
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName("CREDIT_LINE");
         try {
             Map requestParams = generateSendMoneyVerify(requestDTO);
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
             UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.BP_BALANCE_RESEND_OTP_URL).build();
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -684,10 +687,10 @@ public class CreditPaymentService {
 
     private Map<String, Object> initiateTxn(RequestDTO<CreditPaymentRequestDTO> requestDTO, Long txnId, String token, String beneficiaryName, String paymentSource) {
         Map<String, Object> result = new HashMap<>();
-        InternalClient internalClient = internalClientDao.findByClientName("CREDIT_LINE");
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName("CREDIT_LINE");
         try {
             Map requestParams = generateBPBRequest(requestDTO, txnId, beneficiaryName, paymentSource);
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
             UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.BP_BALANCE_CREATE_TXN_URL).build();
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -809,10 +812,10 @@ public class CreditPaymentService {
 
     private Map<String, Object> verifyTxn(RequestDTO<CreditSpendVerifyRequestDTO> requestDTO, String token) {
         Map<String, Object> result = new HashMap<>();
-        InternalClient internalClient = internalClientDao.findByClientName("CREDIT_LINE");
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName("CREDIT_LINE");
         try {
             Map requestParams = generateSendMoneyVerify(requestDTO);
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
             UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(PAYMENT_HOST + CreditConstants.BP_BALANCE_CONFIRM_TXN_URL).build();
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -873,7 +876,7 @@ public class CreditPaymentService {
             if(vpa!=null) {
                 requestParams.put("payerVpa", vpa);
             }
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -1001,7 +1004,7 @@ public class CreditPaymentService {
         if (merchantOptional.isPresent()) {
             BasicDetailsDto merchant = merchantOptional.get();
             if (secret == null) {
-                secret = aesEncryption.decrypt(merchant.getSecret());
+                secret = aesEncryptionUtil.decrypt(merchant.getSecret());
             }
         }
         return secret;
@@ -1041,7 +1044,7 @@ public class CreditPaymentService {
             requestParams.put("mid", getMid());
             //requestParams.put("txnId", lendingClPayment.getVpa());
         
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -1109,7 +1112,7 @@ public class CreditPaymentService {
             requestParams.put("orderId", lendingClPayment.getClTransactionId());
             requestParams.put("txnId", lendingClPayment.getVpa());
         
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

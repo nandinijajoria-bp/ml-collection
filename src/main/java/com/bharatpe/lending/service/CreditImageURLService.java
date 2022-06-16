@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
+import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +20,6 @@ import org.springframework.util.StringUtils;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.dao.CreditApplicationDao;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
-import com.bharatpe.lending.common.dao.MerchantDocumentProofDao;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.MerchantDocumentProof;
@@ -30,7 +31,7 @@ public class CreditImageURLService {
 Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 	
 	@Autowired
-	MerchantDocumentProofDao merchantDocumentProofDao;
+	MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
 
 	@Autowired
 	CreditApplicationDao creditApplicationDao;
@@ -77,8 +78,8 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 		boolean selfie = false;
 		boolean pancard = false;
 		boolean poa = false;
-		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
-		for (MerchantDocumentProof merchantDocumentProof : documentsIdProofList) {
+		List<MerchantDocumentProofSlave> documentsIdProofList = merchantDocumentProofDaoSlave.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
+		for (MerchantDocumentProofSlave merchantDocumentProof : documentsIdProofList) {
 			if (merchantDocumentProof.getProofType().equalsIgnoreCase("selfie")) {
 				selfie = true;
 			} else if (merchantDocumentProof.getProofType().equalsIgnoreCase("pancard")) {
@@ -106,9 +107,9 @@ Logger logger = LoggerFactory.getLogger(CreditImageURLService.class);
 	
 	public List<Map<String, Object>> fetchImageUrl(BasicDetailsDto merchant,CreditApplication creditApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
-		List<MerchantDocumentProof> documentsIdProofList = merchantDocumentProofDao.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
+		List<MerchantDocumentProofSlave> documentsIdProofList = merchantDocumentProofDaoSlave.findByMerchantIdAndOwnerIdAndOwnerType(merchant.getId(), creditApplication.getId(), "LENDING");
 
-		for(MerchantDocumentProof documentsIdProof : documentsIdProofList) {
+		for(MerchantDocumentProofSlave documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
 				continue;
 			}

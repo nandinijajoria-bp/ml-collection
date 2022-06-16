@@ -11,6 +11,8 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.AvailableLoanDaoSlave;
+import com.bharatpe.lending.common.slave.entity.AvailableLoanSlave;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import org.slf4j.Logger;
@@ -19,18 +21,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.AvailableLoanDao;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
-import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingCities;
 import com.bharatpe.common.entities.MerchantSummarySnapshot;
-import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.dto.CreditApplicationRequestDTO;
@@ -59,7 +57,7 @@ public class CreditApplicationService {
 	CreditApplicationAddressDao creditApplicationAddressDao;
 
 	@Autowired
-	AvailableLoanDao availableLoanDao;
+	AvailableLoanDaoSlave availableLoanDaoSlave;
 	
 	@Autowired
 	ExperianDao experianDao;
@@ -93,9 +91,6 @@ public class CreditApplicationService {
   
 	@Autowired
 	WhatsappNotificationService whatsappNotificationService;
-	
-	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
 	
 	@Autowired
 	RedisNotificationService redisNotificationService;
@@ -139,7 +134,7 @@ public class CreditApplicationService {
 		}
 		else {
 			List<EligibleLoan> eligibleLoans = new ArrayList<>();
-			List<AvailableLoan> availableLoan = new ArrayList<>();
+			List<AvailableLoanSlave> availableLoan = new ArrayList<>();
 			if (EXPERIAN_ENABLED) {
 				eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, creditApplicationRequest.getCategory());
 				if(eligibleLoans == null || eligibleLoans.isEmpty()) {
@@ -149,7 +144,7 @@ public class CreditApplicationService {
 					return creditApplicationResponse;
 				}
 			} else {
-				availableLoan = availableLoanDao.findByMerchantIdAndCategory(merchantId, creditApplicationRequest.getCategory());
+				availableLoan = availableLoanDaoSlave.findByMerchantIdAndCategory(merchantId, creditApplicationRequest.getCategory());
 				if(availableLoan == null || availableLoan.isEmpty()) {
 					logger.info("No loan available for Merchant {} and category {}", merchantId, creditApplicationRequest.getCategory());
 					creditApplicationResponse = new CreditApplicationResponseDTO();
@@ -271,7 +266,7 @@ public class CreditApplicationService {
 		return loanId;
 	}
 	
-	private CreditApplication createApplication(BasicDetailsDto merchant, AvailableLoan availableLoan, CreditApplicationRequestDTO creditApplicationRequest) {
+	private CreditApplication createApplication(BasicDetailsDto merchant, AvailableLoanSlave availableLoan, CreditApplicationRequestDTO creditApplicationRequest) {
 		CreditApplication creditApplication = new CreditApplication();
 		//LendingCategories lendingCategory = lendingCategoryDao.findByCategory(availableLoan.getCategory()).get(0);
 	   
@@ -326,7 +321,7 @@ public class CreditApplicationService {
  	public void createMerchantSummarySnapshot(BasicDetailsDto merchantBasicDetails, CreditApplication application, MerchantResponseDTO merchantResponseDTO) {
 		try {
 			MerchantSummarySnapshot snapshot = new MerchantSummarySnapshot();
-			List<Object[]> data = availableLoanDao.getMaxEligibilityDataForMerchant(merchantBasicDetails.getId());
+			List<Object[]> data = availableLoanDaoSlave.getMaxEligibilityDataForMerchant(merchantBasicDetails.getId());
 
 			// TODO : remove this and use api
 //			Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());

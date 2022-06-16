@@ -1,11 +1,9 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.common.enums.LoyaltyTransactionType;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
@@ -13,21 +11,23 @@ import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingInterestWaiverDao;
-import com.bharatpe.lending.common.dao.LendingPayoutsDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentAuditDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingInterestWaiver;
-import com.bharatpe.lending.common.entity.LendingPayouts;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.LendingPrepaymentAudit;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.LendingPayoutsDaoSlave;
+import com.bharatpe.lending.common.slave.entity.LendingPayoutsSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -61,6 +61,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -90,16 +91,13 @@ public class PaymentService {
 	APIGatewayService apiGatewayService;
 
 	@Autowired
-	LendingPayoutsDao lendingPayoutsDao;
+	LendingPayoutsDaoSlave lendingPayoutsDaoSlave;
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
 	
 	@Autowired
 	LoyaltyService loyaltyService;
-	
-	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
 
 //	@Autowired
 //	MerchantDao merchantDao;
@@ -289,7 +287,10 @@ public class PaymentService {
 			if (request.getPayload().getType() != null && request.getPayload().getType().equals(CreditConstants.PaymentMode.BT)) {
 				LendingVirtualAccount lendingVirtualAccount = apiGatewayService.createLendingVAN(merchantBasicDetails.getId(), activeLoan.getId());
 				if (lendingVirtualAccount != null) {
-					MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetails.getId(), "ACTIVE");
+					final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetails.getId());
+					BankDetailsDto merchantBankDetail = null;
+					if (bankDetailsDtoOptional.isPresent())
+						merchantBankDetail = bankDetailsDtoOptional.get();
 					InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(null, null, null, null, null, null, lendingVirtualAccount.getAccountNumber(), lendingVirtualAccount.getIfsc(), merchantBankDetail.getBeneficiaryName());
 					return new InitiatePaymentResponseDTO(data);
 				}
@@ -974,8 +975,10 @@ public class PaymentService {
 				lendingPaymentSchedule.setDueInterest(lendingPaymentSchedule.getDueInterest() + interest);
 				lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() + principle);
 				lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-				MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),"ACTIVE");
-
+				final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingPaymentSchedule.getMerchantId());
+				BankDetailsDto merchantBankDetail = null;
+				if (bankDetailsDtoOptional.isPresent())
+					merchantBankDetail = bankDetailsDtoOptional.get();
 				String identifier = "LENDING_REFUND_2_SMS";
 				Map<String,Object> templateParams = new HashMap<>();
 				templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
@@ -1014,11 +1017,13 @@ public class PaymentService {
 
 	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule) {
 		try {
-			LendingPayouts checkRefunded = lendingPayoutsDao.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),lendingPaymentSchedule.getId());
+			LendingPayoutsSlave checkRefunded = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),lendingPaymentSchedule.getId());
 			if(checkRefunded != null){
 				return;
 			}
-  			Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingPaymentSchedule.getMerchantId());
+			MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+			BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+			BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
 			if (ObjectUtils.isEmpty(basicDetailsDto)) {
 				return;
 			}
@@ -1037,8 +1042,6 @@ public class PaymentService {
 					LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "PF_CASHBACK");
 					LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
 					if (lendingPayoutResponse != null) {
-						MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),"ACTIVE");
-
 						String identifier = "LENDING_ARRANGER_REFUND_2_SMS";
 						Map<String,Object> templateParams = new HashMap<>();
 						templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
@@ -1047,12 +1050,12 @@ public class PaymentService {
 
 						NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
 						notificationPayloadDto.setTemplateIdentifier(identifier);
-						notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
+						notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
 						notificationPayloadDto.setClientName("LENDING");
 						notificationPayloadDto.setTemplateParams(templateParams);
 						lendingNotificationService.notify(notificationPayloadDto);
 						identifier = "LENDING_ARRANGER_FEE_REFUND_PUSH";
-						String deeplink = notificationUtil.getDeeplink(basicDetailsDto.get().getSettlementType(),"LOAN_DASHBOARD");
+						String deeplink = notificationUtil.getDeeplink(basicDetailsDto.getSettlementType(),"LOAN_DASHBOARD");
 						notificationPayloadDto.setPushDeepLink(deeplink);
 						notificationPayloadDto.setPushTitle("Arranger Fee refund!");
 						notificationPayloadDto.setTemplateIdentifier(identifier);
@@ -1261,12 +1264,12 @@ public class PaymentService {
 		Optional<LendingPaymentSchedule> optionalLps = lendingPaymentScheduleDao.findById(loanId);
 		LoanRefundsResponseDTO loanRefundsResponseDTO = new LoanRefundsResponseDTO();
 		if(optionalLps .isPresent()) {
-			List<LendingPayouts> lendingPayoutsList = lendingPayoutsDao.findByOwnerIdAndTypeAndStatus(loanId,"REFUND");
+			List<LendingPayoutsSlave> lendingPayoutsList = lendingPayoutsDaoSlave.findByOwnerIdAndTypeAndStatus(loanId,"REFUND");
 			logger.info("number of refunds: {} for loanId: {}",loanId,lendingPayoutsList.size());
 
 			List<LoanRefundsResponseDTO.Refund> loanRefundList = new ArrayList<>();
 
-			for(LendingPayouts lendingPayouts : lendingPayoutsList) {
+			for(LendingPayoutsSlave lendingPayouts : lendingPayoutsList) {
 				LoanRefundsResponseDTO.Refund loanRefund = new LoanRefundsResponseDTO.Refund(loanId,lendingPayouts.getAmount(),lendingPayouts.getCreatedAt(),lendingPayouts.getPaymentType());
 				loanRefundList.add(loanRefund);
 			}

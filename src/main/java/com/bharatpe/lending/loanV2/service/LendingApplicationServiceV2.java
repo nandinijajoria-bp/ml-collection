@@ -13,6 +13,9 @@ import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
 import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
+import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
@@ -82,7 +85,7 @@ public class LendingApplicationServiceV2 {
     LendingAuditTrialDao lendingAuditTrialDao;
 
     @Autowired
-    OrderStickerDao orderStickerDao;
+    OrderStickerDaoSlave orderStickerDaoSlave;
 
     @Autowired
     LendingDisbursalStageDao lendingDisbursalStageDao;
@@ -532,8 +535,8 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            BpEnach successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId());
-            OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchantBasicDetailsDto.getId());
+            BpEnachSlave successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId());
+            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchantBasicDetailsDto.getId().toString());
@@ -825,8 +828,8 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(basicDetailsDto.get().getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            BpEnach successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId());
-            OrderSticker orderSticker = orderStickerDao.findByMerchantId(basicDetailsDto.get().getId());
+            BpEnachSlave successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId());
+            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(basicDetailsDto.get().getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(basicDetailsDto.get().getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(basicDetailsDto.get().getId().toString());

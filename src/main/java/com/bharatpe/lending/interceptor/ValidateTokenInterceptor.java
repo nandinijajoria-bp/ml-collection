@@ -17,16 +17,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.common.constants.ResponseCode;
 
 @Component
 public class ValidateTokenInterceptor implements HandlerInterceptor {
 
 	Logger logger = LoggerFactory.getLogger(ValidateTokenInterceptor.class);
-	
-	@Autowired
-	private TokenVerificationDao tokenVerificationDao;
 	
 	@Autowired
 	Environment env;

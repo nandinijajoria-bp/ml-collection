@@ -1,12 +1,12 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.PhonebookDao;
-import com.bharatpe.common.entities.Phonebook;
 import com.bharatpe.lending.common.dao.CrmBulkContactsDao;
 import com.bharatpe.lending.common.entity.CrmBulkContacts;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
+import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.opencsv.CSVWriter;
@@ -41,7 +41,7 @@ public class CrmBulkContactsService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    PhonebookDao phonebookDao;
+    PhonebookDaoSlave phonebookDaoSlave;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
@@ -99,7 +99,7 @@ public class CrmBulkContactsService {
 //                        readLine = bulkContactFileReader.readLine();
 //                        continue;
 //                    }
-                    Phonebook phonebook = phonebookDao.findTop1ByMerchantIdOrderByContactsCountDesc(basicDetailsDto.get().getId());
+                    PhonebookSlave phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByContactsCountDesc(basicDetailsDto.get().getId());
                     if (ObjectUtils.isEmpty(phonebook)) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
@@ -170,9 +170,9 @@ public class CrmBulkContactsService {
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
             mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
             Pageable pageable = PageRequest.of(0, 10);
-            List<Phonebook> phonebookList = phonebookDao.getPhonebookByMerchantIdOrderByContactsCountDesc(merchantId, pageable);
+            List<PhonebookSlave> phonebookList = phonebookDaoSlave.getPhonebookByMerchantIdOrderByContactsCountDesc(merchantId, pageable);
             int contactCount = 0;
-            for (Phonebook phonebook : phonebookList) {
+            for (PhonebookSlave phonebook : phonebookList) {
                 String phoneBookS3Url = phonebook.getS3URL();
                 InputStream contactDataFileInputStream = s3BucketHandler.getObject(phoneBookS3Url.substring(phoneBookS3Url.lastIndexOf("/") + 1), bucketName, contactBucketRegion);
                 BufferedReader contactFile = new BufferedReader(new InputStreamReader(contactDataFileInputStream));

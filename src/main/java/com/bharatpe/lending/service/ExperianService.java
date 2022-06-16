@@ -5,7 +5,9 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.entity.ExperianRawResponse;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ExperianDetailsDTO;
@@ -32,6 +34,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ExperianService {
@@ -51,9 +54,6 @@ public class ExperianService {
     LoanEligibleService loanEligibleService;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
     RestTemplate restTemplate;
 
     @Autowired
@@ -71,12 +71,18 @@ public class ExperianService {
     @Autowired
     ExperianRawResponseDao experianRawResponseDao;
 
+    @Autowired
+    MerchantService merchantService;
+
     public ResponseDTO updateDetails(ExperianDetailsDTO experianDetailsDTO, Long merchantId, String contact) {
         Experian experian = experianDao.getByMerchantId(merchantId);
         if (!validateRequest(experianDetailsDTO) || experian == null) {
             return new ResponseDTO(false, "Invalid request", null,null);
         }
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
         String firstName;
         String lastName;

@@ -2,16 +2,20 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.LendingNachBankDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BharatPeEnachDao;
 import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
 import com.bharatpe.lending.common.dao.LendingBulkNachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
+import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.constant.ErrorMessages;
-import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -29,6 +33,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -53,7 +58,7 @@ public class ENachService {
     BharatPeEnachDao bharatPeEnachDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
     @Autowired
     EnachErrorHandingService enachErrorHandingService;
@@ -62,7 +67,7 @@ public class ENachService {
     LendingPennydropDao lendingPennydropDao;
 
     @Autowired
-    BPEnachDao bpEnachDao;
+    BPEnachDaoSlave bpEnachDaoSlave;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
@@ -79,6 +84,9 @@ public class ENachService {
     @Autowired
     LendingCache lendingCache;
 
+    @Autowired
+    MerchantService merchantService;
+
     ExecutorService executorService = Executors.newFixedThreadPool(50);
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider){
@@ -91,8 +99,11 @@ public class ENachService {
             return responseDTO;
         }
         if (provider != null && !"DIGIO".equalsIgnoreCase(provider)) {
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-            if (fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH") == null) {
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
+            if (fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "BOTH") == null) {
                 responseDTO.setResponse(false);
                 responseDTO.setMessage("Bank not supported for enach");
                 logger.error("Bank not supported for enach for Merchant - {}", merchant.getId());
@@ -112,7 +123,7 @@ public class ENachService {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
-        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         LendingApplication lendingApplication =
           lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
         if (bharatPeEnach == null) {
@@ -244,7 +255,7 @@ public class ENachService {
     }
 
     public CommonResponse cancelEnach(BasicDetailsDto merchant) {
-        BpEnach bpEnach = bpEnachDao.findSuccessEnach(merchant.getId());
+        BpEnachSlave bpEnach = bpEnachDaoSlave.findSuccessEnach(merchant.getId());
         if (bpEnach == null) {
             logger.info("Enach not found for merchant:{}", merchant.getId());
         } else {

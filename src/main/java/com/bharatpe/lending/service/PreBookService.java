@@ -1,16 +1,18 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingPrebookLoansDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPrebookLoans;
-import com.bharatpe.common.entities.MerchantBankDetail;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.PreBookResponseDTO;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 public class PreBookService {
@@ -22,10 +24,10 @@ public class PreBookService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    BharatPeOtpHandler bharatPeOtpHandler;
 
     @Autowired
-    BharatPeOtpHandler bharatPeOtpHandler;
+    MerchantService merchantService;
 
     private final String DEEP_LINK = "bharatpe://dynamic?key=loan";
 
@@ -43,7 +45,10 @@ public class PreBookService {
             preBookResponseDTO.setDeepLink(DEEP_LINK);
             return preBookResponseDTO;
         }
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         if (merchantBankDetail == null) {
             return new PreBookResponseDTO(false, "Merchant Bank Details not found");
         }

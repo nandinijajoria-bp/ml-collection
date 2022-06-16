@@ -5,12 +5,14 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
 import com.bharatpe.lending.common.slave.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.slave.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -76,9 +78,6 @@ public class MerchantLoansService {
     LoanUtil loanUtil;
 
     @Autowired
-    BPEnachDao bpEnachDao;
-
-    @Autowired
     LoanPaymentOrderDao loanPaymentOrderDao;
 
     @Autowired
@@ -91,7 +90,7 @@ public class MerchantLoansService {
     LendingIoHalfTopupDao lendingIoHalfTopupDao;
 
     @Autowired
-    PhonebookDao phonebookDao;
+    PhonebookDaoSlave phonebookDaoSlave;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
@@ -253,7 +252,7 @@ public class MerchantLoansService {
                 return false;
             }
 
-            Optional<Phonebook> phonebook = phonebookDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchantId());
+            Optional<PhonebookSlave> phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchantId());
             if (!phonebook.isPresent()) {
                 return true;
             }

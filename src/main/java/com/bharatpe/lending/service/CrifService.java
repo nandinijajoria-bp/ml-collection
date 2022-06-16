@@ -2,14 +2,14 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.entity.CrifRequestResponse;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.CrifConstants;
 import com.bharatpe.lending.dto.CrifResponseDTO;
 import com.bharatpe.lending.util.LoanUtil;
@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class CrifService {
@@ -39,7 +40,7 @@ public class CrifService {
     LendingPancardDao lendingPancardDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    MerchantService merchantService;
 
     @Autowired
     LoanEligibleService loanEligibleService;
@@ -122,7 +123,10 @@ public class CrifService {
     }
 
     private Map<String, String> getFirstLastName(BasicDetailsDto merchant, String pancard) {
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
         String firstName;
         String lastName;

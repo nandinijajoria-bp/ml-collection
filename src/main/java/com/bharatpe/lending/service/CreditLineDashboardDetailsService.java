@@ -1,17 +1,18 @@
 package com.bharatpe.lending.service;
 
 import java.util.List;
+import java.util.Optional;
 
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.util.CreditUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bharatpe.common.dao.MerchantBankDetailDao;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.MerchantBankDetail;
 import com.bharatpe.lending.common.dao.CreditAccountBillDao;
 import com.bharatpe.lending.common.dao.CreditAccountDao;
 import com.bharatpe.lending.common.dao.LendingClTransactionDao;
@@ -33,9 +34,6 @@ public class CreditLineDashboardDetailsService {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 	
 	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
-	
-	@Autowired
 	LendingClTransactionDao lendingClTransactionDao;
 	
 	@Autowired
@@ -46,6 +44,9 @@ public class CreditLineDashboardDetailsService {
 
 	@Autowired
 	CreditUtil creditUtil;
+
+	@Autowired
+	MerchantService merchantService;
 	
 	Logger logger=LoggerFactory.getLogger(CreditLineDashboardDetailsService.class); 
 	
@@ -192,8 +193,11 @@ public class CreditLineDashboardDetailsService {
 		try {
 			
 			 logger.info("Getting merchant bank details for merchant id {}",merchant.getId());
-			 
-			 MerchantBankDetail merchantBankDetail=merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
 			 
 			 if(merchantBankDetail==null){
 				 

@@ -8,6 +8,7 @@ import com.bharatpe.common.entities.AvailableLoan;
 import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.utils.CurrencyUtils;
+import com.bharatpe.lending.common.slave.entity.AvailableLoanSlave;
 import com.bharatpe.lending.dto.LabelDTO;
 
 public class LoanCalculationUtil {
@@ -75,7 +76,70 @@ public class LoanCalculationUtil {
 		
 	
 	}
-	
+
+	public static LoanBreakupDetail getLoanBreakup(AvailableLoanSlave availableLoan, LendingCategories category, String loanType) {
+
+		LoanBreakupDetail breakup = new LoanBreakupDetail();
+		double interest = "TOPUP".equalsIgnoreCase(loanType) ? 1.75 : category.getInterestRate();
+
+		Integer edi, ioEdi, processingFee, ioInterestAmount, interestAmount, totalInterestAmount, ioOrFreeEdiTenure, principleEdiTenure, repayment, disbursementAmount;
+		Double effectiveInterestRate = null;
+
+		if("CONSTRUCT_2".equals(category.getLoanConstruct())) {
+			processingFee = getProcessingFee(availableLoan.getAmount(), category);
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
+			repayment = (int) Math.round(category.getPayableDays() * edi);
+			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
+			ioOrFreeEdiTenure = 1;
+			ioEdi = ioInterestAmount = 0;
+			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
+		} else if("CONSTRUCT_3".equals(category.getLoanConstruct())) {
+			ioOrFreeEdiTenure = category.getIoTenureMonths().intValue();
+			processingFee = getProcessingFee(availableLoan.getAmount(), category);
+			ioEdi = (int) Math.ceil(availableLoan.getAmount() * (interest / 100) * category.getIoTenureMonths() / category.getIoPayableDays());
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * (category.getTenureMonths() - ioOrFreeEdiTenure)))) / category.getPayableDays());
+			repayment = (int) Math.round((category.getPayableDays() * edi) + (category.getIoPayableDays() * ioEdi));
+			ioInterestAmount = category.getIoPayableDays() * ioEdi;
+			interestAmount = repayment - ioInterestAmount - availableLoan.getAmount().intValue();
+			totalInterestAmount = ioInterestAmount + interestAmount;
+			principleEdiTenure = category.getTenureMonths().intValue() - ioOrFreeEdiTenure;
+		} else {
+			processingFee = getProcessingFee(availableLoan.getAmount(), category);
+			edi = (int) Math.ceil(((availableLoan.getAmount() + (availableLoan.getAmount() * (interest / 100) * category.getTenureMonths()))) / category.getPayableDays());
+			repayment = (int) Math.round(category.getPayableDays() * edi);
+			totalInterestAmount = interestAmount = repayment - availableLoan.getAmount().intValue();
+			ioOrFreeEdiTenure = 0;
+			principleEdiTenure = category.getTenureMonths().intValue();
+			ioEdi = ioInterestAmount = 0;
+		}
+
+		effectiveInterestRate = ((repayment - availableLoan.getAmount())) / (availableLoan.getAmount() * category.getTenureMonths()) * 100;
+		disbursementAmount = availableLoan.getAmount().intValue() - processingFee;
+
+		breakup.setConstruct(category.getLoanConstruct());
+		breakup.setEdi(edi);
+		breakup.setIoEdi(ioEdi);
+		breakup.setProcessingFee(processingFee);
+		breakup.setIoInterestAmount(ioInterestAmount);
+		breakup.setInterestAmount(totalInterestAmount);
+		breakup.setTotalInterestAmount(totalInterestAmount);
+		breakup.setIoOrFreeEdiTenure(ioOrFreeEdiTenure);
+		breakup.setPrincipleEdiTenure(principleEdiTenure);
+		breakup.setRepayment(repayment);
+		breakup.setEffectiveInterestRate(Double.valueOf(df.format(effectiveInterestRate)));
+		breakup.setDisbursementAmount(disbursementAmount);
+		breakup.setType(getType(category.getLoanConstruct()));
+		breakup.setLoanAmount(availableLoan.getAmount().intValue());
+		breakup.setEdiDays(category.getPayableDays());
+		breakup.setIoEdiDays(category.getIoPayableDays());
+		breakup.setCategory(category.getCategory());
+		breakup.setInterestRate(category.getInterestRate());
+		return breakup;
+
+
+	}
+
+
 	public static int getProcessingFee(Double loanAmount, LendingCategories category) {
 		if(category!=null && category.getProcessingFeeType()!=null) {
 			return category.getProcessingFeeType().equalsIgnoreCase("PERCENTAGE")?(int)Math.ceil(loanAmount * Double.parseDouble(category.getProcessingFee())):Integer.parseInt(category.getProcessingFee());

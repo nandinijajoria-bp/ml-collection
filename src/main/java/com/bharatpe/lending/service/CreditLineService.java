@@ -6,15 +6,24 @@ import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
+import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BankListSlave;
+import com.bharatpe.lending.common.slave.entity.IfscSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.CreditConstants;
-import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
@@ -71,7 +80,7 @@ public class CreditLineService {
 	LendingClLedgerDao lendingClLedgerDao;
 
 	@Autowired
-	IfscDao ifscDao;
+	IfscDaoSlave ifscDaoSlave;
 
 	@Autowired
 	LendingTlDetailsDao lendingTlDetailsDao;
@@ -83,25 +92,22 @@ public class CreditLineService {
 	LendingClTransactionRequestDao lendingClTransactionRequestDao;
 
 	@Autowired
-	MerchantBankDetailDao merchantBankDetailDao;
-
-	@Autowired
 	CreditDayEndBalanceDao creditDayEndBalanceDao;
 
 	@Autowired
-	BankListDao bankListDao;
+	BankListDaoSlave bankListDaoSlave;
 
 	@Autowired
 	LendingDeeplinkDao lendingDeeplinkDao;
 
 	@Autowired
-	HmacCalculator hmacCalculator;
+	LendingHmacCalculator lendingHmacCalculator;
 
 	@Autowired
-	InternalClientDao internalClientDao;
+	InternalClientDaoSlave internalClientDaoSlave;
 
 	@Autowired
-	AesEncryption aesEncryption;
+	AesEncryptionUtil aesEncryptionUtil;
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -140,13 +146,16 @@ public class CreditLineService {
 	CreditLineTransaction creditLineTransaction;
 
 	@Autowired
-	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+	PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
 	@Autowired
 	LendingCityCreditScoreDao lendingCityCreditScoreDao;
 
 	@Autowired
 	EasyLoanUtil easyLoanUtil;
+
+	@Autowired
+	MerchantService merchantService;
 
 	@Value("${cl.deeplink}")
 	private String clDeeplink;
@@ -312,10 +321,13 @@ public class CreditLineService {
 		}
 		creditSpendResponseDTO.setClient(paymentRequest.getMode());
 		if(paymentRequest.getMode().equalsIgnoreCase("BANK_TRANSFER")) {
-			MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-			List<Ifsc> ifscList = ifscDao.findByIfsc(merchantBankDetail.getIfscCode());
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
+			List<IfscSlave> ifscList = ifscDaoSlave.findByIfsc(merchantBankDetail.getIfsc());
 			if (!ifscList.isEmpty()) {
-				BankList bankList = bankListDao.findByBankCode(ifscList.get(0).getBankCode());
+				BankListSlave bankList = bankListDaoSlave.findByBankCode(ifscList.get(0).getBankCode());
 				String narrationHeading = "Money will be transferred to the following Bank A/c:";
 				String narration1 = "Mr " + merchantBankDetail.getBeneficiaryName();
 				String narration2 = "XX-" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4) + " (" + ifscList.get(0).getBank() + ")";
@@ -423,9 +435,9 @@ public class CreditLineService {
 		responseDTO.setNarrationHeading("Transferred to the following Bank A/c:");
 		responseDTO.setDeeplink("bharatpe://dynamic?key=cl");
 		if (lendingClTransaction.getOrderId() != null && lendingClTransaction.getIfscCode() != null) {
-			List<Ifsc> ifscList = ifscDao.findByIfsc(lendingClTransaction.getIfscCode());
+			List<IfscSlave> ifscList = ifscDaoSlave.findByIfsc(lendingClTransaction.getIfscCode());
 			if (!ifscList.isEmpty()) {
-				BankList bankList = bankListDao.findByBankCode(ifscList.get(0).getBankCode());
+				BankListSlave bankList = bankListDaoSlave.findByBankCode(ifscList.get(0).getBankCode());
 				responseDTO.setNarration1("Mr " + lendingClTransaction.getBeneficiaryName());
 				responseDTO.setNarration2("XX-" + lendingClTransaction.getAccountNumber().substring(lendingClTransaction.getAccountNumber().length()-4) + " (" + ifscList.get(0).getBank() + ")");
 				responseDTO.setNarration3("Branch - " + ifscList.get(0).getBranch());
@@ -486,7 +498,10 @@ public class CreditLineService {
 	}
 
 	public String getFlexibileNotificationMessage(LendingClTransaction lendingClTransaction,BasicDetailsDto merchant) {
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 //		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 //				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" +
@@ -500,8 +515,10 @@ public class CreditLineService {
 	public String getFixedNotificationMessage(LendingClTransaction lendingClTransaction,BasicDetailsDto merchant) {
 		CreditAccount creditAccount = creditAccountDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
 		LendingTlDetails lendingTlDetails = lendingTlDetailsDao.findByLendingClTransaction(lendingClTransaction);
-		MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(),"ACTIVE");
-
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
 //		return "Hi "+merchantBankDetail.getBeneficiaryName()+",\n" +
 //				"Rs."+Double.valueOf(df.format(lendingClTransaction.getAmount()))+" Loan used for "+CreditConstants.SpendModeFrontEndFormat.getOrDefault(lendingClTransaction.getSubType(), lendingClTransaction.getSubType())+" successfully on BharatPe.\n" +
 //				"Your Available Loan Balance is Rs."+Double.valueOf(df.format(creditAccount.getAvailableBalance()))+
@@ -534,7 +551,7 @@ public class CreditLineService {
 	@SuppressWarnings("unchecked, rawtypes")
 	private BankTransferResponseDTO callPayoutAPI(LendingClTransaction lendingClTransaction) {
 		try {
-			InternalClient internalClient = internalClientDao.findByClientNameAndStatus("LENDING", "ACTIVE");
+			InternalClientSlave internalClient = internalClientDaoSlave.findByClientNameAndStatus("LENDING", "ACTIVE");
 			Map requestParams = new HashMap<>();
 			requestParams.put("merchantId", lendingClTransaction.getMerchantId());
 			if (lendingClTransaction.getMerchantStoreId() != null) {
@@ -543,7 +560,7 @@ public class CreditLineService {
 			requestParams.put("amount", lendingClTransaction.getAmount());
 			requestParams.put("orderId", lendingClTransaction.getId());
 			requestParams.put("loanType", "CL".equalsIgnoreCase(lendingClTransaction.getType()) ? "FLEXIBLE" : "FIXED");
-			String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+			String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
 			UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(CreditConstants.PAYOUT_URL).build();
 			HttpHeaders headers = new HttpHeaders();
 			headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -889,7 +906,7 @@ public class CreditLineService {
 		CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
 		CreditScoreReportDetailDTO.AverageCreditScore averageCreditScore = creditScoreReportDetailDTO.new AverageCreditScore();
 		try{
-			PincodeCityStateMapping pincodeCityState = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+			PincodeCityStateMappingSlave pincodeCityState = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
 			if(Objects.nonNull(pincodeCityState) && Objects.nonNull(experian.getExperianScore())) {
 
 				Double averageCountryScore = lendingCityCreditScoreDao.getAverageCreditScoreForCountry();

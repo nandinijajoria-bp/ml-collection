@@ -9,18 +9,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.bharatpe.lending.common.dao.SignzyCredentialDao;
-import com.bharatpe.lending.common.entity.SignzyCredential;
+import com.bharatpe.lending.common.slave.dao.SignzyCredentialDaoSlave;
+import com.bharatpe.lending.common.slave.entity.SignzyCredentialSlave;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import com.bharatpe.lending.constant.CreditConstants;
@@ -56,7 +53,7 @@ public class SignzyHandler {
 	public String SIGNZY_URL;
 
 	@Autowired
-	SignzyCredentialDao signzyCredentialDao;
+	SignzyCredentialDaoSlave signzyCredentialDaoSlave;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -68,7 +65,7 @@ public class SignzyHandler {
 
 	public Map<String,String>  curlSignzyKycAPI(String frontURL,String backURL,String proofType, Long merchantId) throws IOException {
 		populate();
-		SignzyCredential signzyCredential = signzyCredentialDao.findByModule(MODULE);
+		SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModule(MODULE);
 		if (signzyCredential == null) {
 			logger.info("Signzy credentials not found for Lending");
 			return new HashMap<>();

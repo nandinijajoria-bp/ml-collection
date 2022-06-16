@@ -1,11 +1,13 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingNachBankDao;
-import com.bharatpe.common.dao.MerchantBankDetailDao;
-import com.bharatpe.common.dao.PincodeCityStateMappingDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.entity.BharatPeEnach;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -22,6 +24,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,13 +40,13 @@ public class EnachErrorHandingService {
     LendingNachBankDao lendingNachBankDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
-    PincodeCityStateMappingDao pincodeCityStateMappingDao;
+    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    MerchantService merchantService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -112,7 +115,7 @@ public class EnachErrorHandingService {
         return cpbApplicable;
     }
 
-    public EnachErrorMessageDTO enachErrorResponse(BharatPeEnach bharatPeEnach, Long merchantId,
+    public EnachErrorMessageDTO enachErrorResponse(BharatPeEnachSlave bharatPeEnach, Long merchantId,
                                                    LendingApplication lendingApplication, Experian experian){
         Map<String, String> applicable = enachApplicableMap();
         EnachErrorMessageDTO initiateRetry = initiateRetryPage();
@@ -128,11 +131,14 @@ public class EnachErrorHandingService {
             initiateRetry.setSkipEnach(checkForCpv(lendingApplication, experian, false));
             return initiateRetry;
         }else if(Objects.nonNull(bharatPeEnach.getMessage()) && Objects.nonNull(applicable.get(bharatPeEnach.getMessage().toLowerCase())) && applicable.get(bharatPeEnach.getMessage().toLowerCase()).equals("initiatePopupOrDebit")){
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
             if(Objects.isNull(merchantBankDetail)) {
                 return initiateRetry;
             }
-            String ifsc = merchantBankDetail.getIfscCode().substring(0, 4);
+            String ifsc = merchantBankDetail.getIfsc().substring(0, 4);
             LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndModeIs(ifsc, "BOTH");
 
             if(Objects.nonNull(lendingNachBank)){
@@ -152,7 +158,7 @@ public class EnachErrorHandingService {
     public Boolean checkForCpv(LendingApplication lendingApplication, Experian experian, Boolean skipNow){
 
         if (experian != null && experian.getPincode() != null) {
-            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(experian.getPincode());
+            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
             Boolean cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
 
             return cpvCity && lendingApplication.getLoanAmount() >= 50000 && (LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3 || skipNow);
@@ -192,12 +198,15 @@ public class EnachErrorHandingService {
         logger.info("check for Application need to reject or start cpv or show debit screen, Application - {}", lendingApplication.getId());
 
         try{
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+            BankDetailsDto merchantBankDetail = null;
+            if (bankDetailsDtoOptional.isPresent())
+                merchantBankDetail = bankDetailsDtoOptional.get();
             if(Objects.isNull(merchantBankDetail)) {
                 return null;
             }
 
-            String ifsc = merchantBankDetail.getIfscCode().substring(0, 4);
+            String ifsc = merchantBankDetail.getIfsc().substring(0, 4);
             LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndModeIs(ifsc, "BOTH");
             if(Objects.isNull(lendingNachBank) && lendingApplication.getLoanAmount() < 50000){
                 lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());

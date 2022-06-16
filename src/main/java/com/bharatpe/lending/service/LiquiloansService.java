@@ -4,19 +4,27 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
-import com.bharatpe.lending.common.entity.MerchantDocumentProofOcr;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
+import com.bharatpe.lending.common.slave.entity.IfscSlave;
+import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofOcrSlave;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
@@ -62,7 +70,7 @@ public class LiquiloansService {
     private final Logger logger = LoggerFactory.getLogger(LiquiloansService.class);
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
     RestTemplate restTemplate;
@@ -95,9 +103,6 @@ public class LiquiloansService {
     S3BucketHandler s3BucketHandler;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
     WhatsappNotificationService whatsappNotificationService;
 
     @Value("${aws.s3.loan.agreement.bucket}")
@@ -116,10 +121,10 @@ public class LiquiloansService {
     CreditApplicationDao creditApplicationDao;
 
     @Autowired
-    MerchantDocumentProofOcrDao merchantDocumentProofOcrDao;
+    MerchantDocumentProofOcrDaoSlave merchantDocumentProofOcrDaoSlave;
 
     @Autowired
-    IfscDao ifscDao;
+    IfscDaoSlave ifscDaoSlave;
 
 //    @Autowired
 //	MerchantSummaryDao merchantSummaryDao;
@@ -135,9 +140,6 @@ public class LiquiloansService {
 
     @Autowired
     LendingTlDetailsDao lendingTlDetailsDao;
-
-    @Autowired
-    MerchantStoreDao merchantStoreDao;
 
     @Autowired
     MerchantUpdateService merchantUpdateService;
@@ -161,7 +163,7 @@ public class LiquiloansService {
     LenderVirtualAccountDao lenderVirtualAccountDao;
 
     @Autowired
-    BharatPeEnachDao bharatPeEnachDao;
+    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
     @Autowired
     LendingNotificationService lendingNotificationService;
@@ -412,7 +414,7 @@ public class LiquiloansService {
         if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
             executorService.execute(() -> createGSTInvoice(finalLendingApplication));
         }
-        BharatPeEnach bharatPeEnach = bharatPeEnachDao.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
+        BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
         if (bharatPeEnach != null) {
             executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
         }
@@ -504,18 +506,21 @@ public class LiquiloansService {
         LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "NACH_CASHBACK");
         LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
         if (lendingPayoutResponse != null) {
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getMerchantId(), "ACTIVE");
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingPaymentSchedule.getMerchantId());
-            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+
+            MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+            BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
+
+            if (ObjectUtils.isEmpty(basicDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDTO)) {
                 return;
             }
             String identifier = "LENDING_CASHBACK_PUSH";
-            String deeplink = notificationUtil.getDeeplink(basicDetailsDto.get().getSettlementType(), "LOAN_DASHBOARD");
+            String deeplink = notificationUtil.getDeeplink(basicDetailsDto.getSettlementType(), "LOAN_DASHBOARD");
             Map<String, Object> templateParams = new HashMap<>();
             templateParams.put("beneficiary_name", getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
             NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
             notificationPayloadDto.setTemplateIdentifier(identifier);
-            notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
+            notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
             notificationPayloadDto.setClientName("LENDING");
             notificationPayloadDto.setPushTitle("₹ 100 deposited in your bank!");
             notificationPayloadDto.setPushDeepLink(deeplink);
@@ -597,9 +602,10 @@ public class LiquiloansService {
             String sms2 = null;
             String shortUrl = "";
             LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), "agreement");
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingPaymentSchedule.getMerchantId());
-            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+            BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
+            if (ObjectUtils.isEmpty(basicDetailsDto) ) {
                 return;
             }
 //            Merchant merchant = lendingApplication.getMerchant();
@@ -627,7 +633,7 @@ public class LiquiloansService {
             templateParams.put("shortUrl", shortUrl);
             NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
             notificationPayloadDto.setTemplateIdentifier(identifier);
-            notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
+            notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
             notificationPayloadDto.setClientName("LENDING");
             notificationPayloadDto.setTemplateParams(templateParams);
             lendingNotificationService.notify(notificationPayloadDto);
@@ -651,7 +657,7 @@ public class LiquiloansService {
 
             notificationPayloadDto = new NotificationPayloadDto();
             notificationPayloadDto.setTemplateIdentifier(identifier);
-            notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
+            notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
             notificationPayloadDto.setClientName("LENDING");
             notificationPayloadDto.setTemplateParams(templateParams);
 
@@ -661,7 +667,7 @@ public class LiquiloansService {
             }
 
             List<String> mobiles = new ArrayList<>();
-            mobiles.add(basicDetailsDto.get().getMobile());
+            mobiles.add(basicDetailsDto.getMobile());
 //			whatsappNotificationService.send(merchant, null, sms1, mobiles, null);
             if (!loanTypes.contains(lendingApplication.getLoanType())
               && lendingApplication.getProcessingFee() != null && lendingApplication.getProcessingFee() > 0) {
@@ -672,7 +678,7 @@ public class LiquiloansService {
                 templateParams.put("processing_fee", lendingApplication.getProcessingFee());
                 notificationPayloadDto = new NotificationPayloadDto();
                 notificationPayloadDto.setTemplateIdentifier(identifier);
-                notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
+                notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
                 notificationPayloadDto.setClientName("LENDING");
                 notificationPayloadDto.setTemplateParams(templateParams);
                 lendingNotificationService.notify(notificationPayloadDto);
@@ -811,14 +817,15 @@ public class LiquiloansService {
     @SuppressWarnings(value = "unchecked")
     public void createLead(LendingPaymentSchedule lendingPaymentSchedule, LendingTlDetails lendingTlDetails) {
         try {
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingPaymentSchedule.getMerchantId());
+            MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+            BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
             if (ObjectUtils.isEmpty(basicDetailsDto)) {
                 return;
             }
             CreditApplication creditApplication = creditApplicationDao.findTop1ByMerchantIdOrderByIdDesc(lendingTlDetails.getMerchantId());
-            List<MerchantDocumentProofOcr> documents = merchantDocumentProofOcrDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingTlDetails.getMerchantId(), "ACTIVE");
-            List<Ifsc> ifscList = ifscDao.findByIfsc(merchantBankDetail.getIfscCode());
+            List<MerchantDocumentProofOcrSlave> documents = merchantDocumentProofOcrDaoSlave.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
+            List<IfscSlave> ifscList = ifscDaoSlave.findByIfsc(merchantBankDetail.getIfsc());
 //			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(lendingTlDetails.getMerchantId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(lendingTlDetails.getMerchantId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -826,10 +833,10 @@ public class LiquiloansService {
             }
             Experian experian = experianDao.getByMerchantId(lendingTlDetails.getMerchantId());
             CreditApplicationAddress creditApplicationAddress = creditApplicationAddressDao.findByMerchantIdAndApplicationId(creditApplication.getMerchantId(), creditApplication.getId());
-            MerchantDocumentProofOcr pancard = null;
-            MerchantDocumentProofOcr poa = null;
+            MerchantDocumentProofOcrSlave pancard = null;
+            MerchantDocumentProofOcrSlave poa = null;
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            for (MerchantDocumentProofOcr document : documents) {
+            for (MerchantDocumentProofOcrSlave document : documents) {
                 if ("pancard".equalsIgnoreCase(document.getProofType())) {
                     pancard = document;
                 } else {
@@ -872,7 +879,7 @@ public class LiquiloansService {
                 personalDetails.put("dob", "");
             }
             personalDetails.put("email", "lending@bharatpe.in");
-            personalDetails.put("contact_number", basicDetailsDto.get().getMobile().substring(2));
+            personalDetails.put("contact_number", basicDetailsDto.getMobile().substring(2));
             personalDetails.put("aadhaar_number", poa.getProofNumber());
             request.put("personal_details", personalDetails);
             Map<String, Object> addressDetails = new LinkedHashMap<>();
@@ -884,14 +891,14 @@ public class LiquiloansService {
             Map<String, Object> bankingDetails = new LinkedHashMap<>();
             bankingDetails.put("bank_name", ifscList.get(0).getBank());
             bankingDetails.put("branch_name", ifscList.get(0).getBranch());
-            bankingDetails.put("ifsc", merchantBankDetail.getIfscCode());
+            bankingDetails.put("ifsc", merchantBankDetail.getIfsc());
             bankingDetails.put("account_number", merchantBankDetail.getAccountNumber());
             bankingDetails.put("account_holder_name", merchantBankDetail.getBeneficiaryName().trim());
             bankingDetails.put("account_type", "Saving");
             request.put("banking_details", bankingDetails);
             Map<String, Object> incomeDetails = new LinkedHashMap<>();
             incomeDetails.put("occupation", "SelfEmployed");
-            incomeDetails.put("name_of_company", basicDetailsDto.get().getBussinessName().trim());
+            incomeDetails.put("name_of_company", basicDetailsDto.getBussinessName().trim());
             incomeDetails.put("monthly_income", merchantResponseDTO.getTpv1Mon().toString());
             request.put("income_details", incomeDetails);
             Map<String, Object> kycDetails = new LinkedHashMap<>();
@@ -906,7 +913,7 @@ public class LiquiloansService {
             Map<String, Object> udf2 = new LinkedHashMap<>();
             udf2.put("type_of_poa", poa.getProofType());
             udf2.put("poa_number", poa.getProofNumber());
-            udf2.put("shop_category", basicDetailsDto.get().getBussinessCategory());
+            udf2.put("shop_category", basicDetailsDto.getBussinessCategory());
             String businessAddress = creditApplicationAddress.getShopNumber() + " " + creditApplicationAddress.getStreetAddress() + " " + creditApplicationAddress.getArea() + " " + creditApplicationAddress.getCity() + " " + creditApplicationAddress.getState();
             udf2.put("business_address", businessAddress.replace("/", " "));
             request.put("UDF2", udf2);
@@ -927,7 +934,7 @@ public class LiquiloansService {
             try {
                 String checksumString = getChecksumString(request) + getSecretKey();
                 logger.info("Checksum String is {}", checksumString);
-                request.put("Checksum", hmacCalculator.calculateHMACHexEncoded(checksumString, getSecretKey()));
+                request.put("Checksum", lendingHmacCalculator.calculateHMACHexEncoded(checksumString, getSecretKey()));
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.setCacheControl(CacheControl.noCache());

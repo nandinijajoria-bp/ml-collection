@@ -19,12 +19,15 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.entity.CreditApplicationAddress;
 import com.bharatpe.lending.common.entity.CreditApplicationNach;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.dao.BankListDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.OglLoansDao;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -57,7 +60,7 @@ public class CreditVerifyOTPService {
     LendingAuditTrialDao lendingAuditTrialDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    MerchantService merchantService;
 
     @Autowired
     MerchantFcmTokenDao merchantFcmTokenDao;
@@ -75,10 +78,7 @@ public class CreditVerifyOTPService {
     WhatsappNotificationService whatsappNotificationService;
 
     @Autowired
-    BankListDao bankListDao;
-
-    @Autowired
-    OglLoansDao oglLoansDao;
+    BankListDaoSlave bankListDaoSlave;
 
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
@@ -93,7 +93,7 @@ public class CreditVerifyOTPService {
     LendingCategoryDao lendingCategoryDao;
 
     @Autowired
-    PaymentTransactionNewDao paymentTransactionNewDao;
+    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
 
     @Autowired
     LendingPrebookLoansDao lendingPrebookLoansDao;
@@ -205,11 +205,14 @@ public class CreditVerifyOTPService {
         lendingAuditTrialDao.save(lendingAuditTrial);
 
         String bankCode = null;
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetails.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetails.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         if (merchantBankDetail != null && meta.getAppVersion() != null && Integer.parseInt(meta.getAppVersion()) >= 238) {
-            bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "BOTH");
+            bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "BOTH");
         } else if (merchantBankDetail != null) {
-            bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfscCode().substring(0, 4), "NET");
+            bankCode = eNachService.fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "NET");
         }
         if (ExperianConstants.LOCKDOWN && bankCode != null && merchantBasicDetails.getBussinessCategory() != null && creditApplication.getAmount() > 100000D && creditApplication.getLoanType() != null && creditApplication.getLoanType().equalsIgnoreCase("PREBOOK")) {
             preBookExecutor.submit(() -> checkPreBook(merchantBasicDetails, creditApplication));
@@ -246,7 +249,7 @@ public class CreditVerifyOTPService {
             c.setTime(creditApplication.getAgreementAt());
             c.add(Calendar.DATE, -9);
             Date startDate = c.getTime();
-            List<Object[]> transactions = paymentTransactionNewDao.getCountForPreBook(merchant.getId(), startDate, creditApplication.getAgreementAt());
+            List<Object[]> transactions = paymentTransactionNewDaoSlave.getCountForPreBook(merchant.getId(), startDate, creditApplication.getAgreementAt());
             if (transactions != null && transactions.size() >= 8) {
                 Double previousLoanAmount = creditApplication.getAmount();
                 AvailableLoan availableLoan = new AvailableLoan();
@@ -265,7 +268,10 @@ public class CreditVerifyOTPService {
 
     private void sendNotification(BasicDetailsDto merchant, CreditApplication creditApplication) {
 
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         if (merchantBankDetail == null) {
             return;
         }
@@ -301,24 +307,24 @@ public class CreditVerifyOTPService {
         }
     }
 
-    private boolean isPaymentBank(Long merchantId, MerchantBankDetail merchantBankDetail) {
+    private boolean isPaymentBank(Long merchantId, BankDetailsDto merchantBankDetail) {
         try {
             if (merchantBankDetail == null) {
                 logger.error("No merchnat bank detail found for merchant id {}", merchantId);
                 return true;
             }
 
-            if (StringUtils.isEmpty(merchantBankDetail.getIfscCode())) {
-                logger.error("IFSC is empty for merchant bank detail id {} and merchant ID {}", merchantBankDetail.getId(), merchantId);
+            if (StringUtils.isEmpty(merchantBankDetail.getIfsc())) {
+                logger.error("IFSC is empty for merchant bank account Number {} and merchant ID {}", merchantBankDetail.getAccountNumber(), merchantId);
                 return true;
             }
 
-            List<BankList> nonPaymentBankList = bankListDao.fetchNonPaymentBankList(merchantBankDetail.getIfscCode().substring(0, 4));
+            List<BankListSlave> nonPaymentBankList = bankListDaoSlave.fetchNonPaymentBankList(merchantBankDetail.getIfsc().substring(0, 4));
 
             if (nonPaymentBankList == null || nonPaymentBankList.size() == 0) {
                 return false;
             } else {
-                logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfscCode());
+                logger.info("IFSC {} is of Payment bank, returning true", merchantBankDetail.getIfsc());
                 return true;
             }
         } catch (Exception ex) {

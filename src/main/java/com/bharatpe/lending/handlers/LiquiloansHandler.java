@@ -3,10 +3,10 @@ package com.bharatpe.lending.handlers;
 import com.bharatpe.common.entities.LendingBankDisburse;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.LendingBankDisburseDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,7 +36,7 @@ public class LiquiloansHandler {
     RestTemplate restTemplate;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+	LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
 	LendingBankDisburseDao lendingBankDisburseDao;
@@ -113,7 +113,7 @@ public class LiquiloansHandler {
 			String checksumString = getChecksumString(request) + getSecretKey();
 			
 			logger.info("Checksum String is {}", checksumString);
-			request.put("Checksum", hmacCalculator.calculateHMACHexEncoded(checksumString, getSecretKey()));
+			request.put("Checksum", lendingHmacCalculator.calculateHMACHexEncoded(checksumString, getSecretKey()));
 			
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);

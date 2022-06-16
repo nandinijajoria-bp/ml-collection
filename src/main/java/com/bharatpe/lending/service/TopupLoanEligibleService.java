@@ -5,7 +5,10 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status.LendingStatus;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -52,9 +55,6 @@ public class TopupLoanEligibleService {
 //	@Autowired
 //	MerchantSummaryDao merchantSummaryDao;
 
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
 //    @Autowired
 //    MerchantDao merchantDao;
 
@@ -90,25 +90,26 @@ public class TopupLoanEligibleService {
 //                logger.error("No merchant found with merchant id {}", merchantId);
 //                return;
 //            }
-            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
+            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId, Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
             if (ObjectUtils.isEmpty(merchant)) {
                 return;
             }
 //    		 MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.get().getId());
-            MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.get().getId());
+            MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
-                throw new MerchantSummaryExceptionHandler(merchant.get().getId().toString());
+                throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
             }
-            Experian experian = experianDao.getByMerchantId(merchant.get().getId());
-            MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.get().getId(), "ACTIVE");
-            List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.get().getId(), false);
-            fetchTopupLoans(merchant.get(), experian, merchantResponseDTO, merchantBankDetail, lendingPaymentScheduleList, null);
+            Experian experian = experianDao.getByMerchantId(merchant.getId());
+            BankDetailsDto merchantBankDetail = merchantDetailsDto.getBankDetail();
+            List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchant.getId(), false);
+            fetchTopupLoans(merchant, experian, merchantResponseDTO, merchantBankDetail, lendingPaymentScheduleList, null);
         } catch (Exception ex) {
             logger.error("Exception while generating new loans for merchant with ID {}, Exception is {}", merchantId, ex);
         }
     }
 
-    public List<LoanEligibilityDTO> fetchTopupLoans(BasicDetailsDto merchant, Experian experian, MerchantResponseDTO merchantResponseDTO, MerchantBankDetail merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) throws ParseException {
+    public List<LoanEligibilityDTO> fetchTopupLoans(BasicDetailsDto merchant, Experian experian, MerchantResponseDTO merchantResponseDTO, BankDetailsDto merchantBankDetail, List<LendingPaymentSchedule> lendingPaymentScheduleList, String bankCode) throws ParseException {
         logger.info("fetching topup loan for merchant:{}", merchant.getId());
         if (true) {
             logger.info("topup loan closed");

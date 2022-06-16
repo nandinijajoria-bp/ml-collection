@@ -1,15 +1,9 @@
 package com.bharatpe.lending.loanV2.handlers;
 
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

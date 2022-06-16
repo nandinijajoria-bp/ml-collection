@@ -5,7 +5,6 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.DocKycDetailsDao;
 import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.dao.OrderStickerDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.dao.*;
@@ -13,6 +12,8 @@ import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.entity.LendingGlobalLimit;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
+import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.CoolOffRequestDTO;
@@ -53,7 +54,7 @@ public class LendingOffersService {
 	LendingCoolOffDao lendingCoolOffDao;
 
 	@Autowired
-	OrderStickerDao orderStickerDao;
+	OrderStickerDaoSlave orderStickerDaoSlave;
 
 	@Autowired
 	ExperianDao experianDao;
@@ -156,7 +157,7 @@ public class LendingOffersService {
 				return new CommonResponse(true, "success", responseDTO);
 			}
 			LendingCoolOff lendingCoolOff = lendingCoolOffDao.findByMerchantId(merchantBasicDetails.getId());
-			OrderSticker orderSticker = orderStickerDao.findByMerchantId(merchantBasicDetails.getId());
+			OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetails.getId());
 			boolean showOrderQr = (orderSticker == null && diy);
 			if (lendingCoolOff != null) {
 				logger.info("lending_cool_off entry already exist for merchant:{}", merchantBasicDetails.getId());

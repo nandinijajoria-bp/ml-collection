@@ -3,9 +3,9 @@ package com.bharatpe.lending.interceptor;
 import com.amazonaws.HttpMethod;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.util.StringUtils;
@@ -28,7 +28,7 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
     Logger logger = LoggerFactory.getLogger(HmacForMIDInterceptorWithObject.class);
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
 //    @Autowired
 //    MerchantDao merchantDao;
@@ -66,7 +66,7 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
 
             request.setAttribute("merchant", basicDetailsDto.get());
 
-            if (hmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac)) {
+            if (lendingHmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac)) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and mid {}", hmac, mid);
                 return true;
             }
@@ -99,7 +99,7 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
             }
         }
         if (paramMap != null && !paramMap.isEmpty())
-            return hmacCalculator.getObjectPayload(paramMap);
+            return lendingHmacCalculator.getObjectPayload(paramMap);
 
         return null;
     }

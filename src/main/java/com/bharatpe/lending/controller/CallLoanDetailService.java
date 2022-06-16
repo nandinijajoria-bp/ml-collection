@@ -5,10 +5,16 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.EcollectTransactionDaoSlave;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.dao.MerchantStaticVpaDaoSlave;
+import com.bharatpe.lending.common.slave.entity.EcollectTransactionSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.slave.entity.MerchantStaticVpaSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.ExperianDummyDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.service.LoanDetailsService;
@@ -65,13 +71,7 @@ public class CallLoanDetailService {
     LoanEligibleService loanEligibleService;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
     SmsServiceHandler smsServiceHandler;
-
-    @Autowired
-    PhonebookDao phonebookDao;
 
     @Autowired
     PushNotificationHandler pushNotificationHandler;
@@ -83,25 +83,25 @@ public class CallLoanDetailService {
     WhatsappNotificationService whatsappNotificationService;
 
     @Autowired
-    MerchantStaticVpaDao merchantStaticVpaDao;
+    MerchantStaticVpaDaoSlave merchantStaticVpaDaoSlave;
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
     @Autowired
-    InternalClientDao internalClientDao;
+    InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
     RestTemplate restTemplate;
 
     @Autowired
-    EcollectTransactionDao ecollectTransactionDao;
+    EcollectTransactionDaoSlave ecollectTransactionDaoSlave;
 
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
@@ -140,7 +140,7 @@ public class CallLoanDetailService {
         try {
 //			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
 //			List<LendingApplication> lendingApplicationList = lendingApplicationDao.getApplications();
-            EcollectTransaction ecollectTransaction = ecollectTransactionDao.findById(ecollectTxnId).get();
+            EcollectTransactionSlave ecollectTransaction = ecollectTransactionDaoSlave.findById(ecollectTxnId).get();
 //			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
 //				if (internalMerchants.contains(merchantId.longValue())) {
 //					continue;
@@ -167,7 +167,7 @@ public class CallLoanDetailService {
         }
     }
 
-    private void pushToKafka(EcollectTransaction ecollectTransaction) {
+    private void pushToKafka(EcollectTransactionSlave ecollectTransaction) {
         logger.info("Sending ecollect to account:{} and amount:{}", ecollectTransaction.getVirtualAccountNumber(), ecollectTransaction.getAmount());
         Map<String, String> data = new HashMap<>();
         data.put("transaction_id", ecollectTransaction.getId().toString());
@@ -177,26 +177,26 @@ public class CallLoanDetailService {
         kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchantId().toString(), data);
     }
 
-    private void sendPush(Experian experian) {
-//		Optional<Merchant> merchantOptional = merchantDao.findById(experian.getMerchantId());
-//		Merchant merchant = merchantOptional.get();
-        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(experian.getMerchantId());
-        if (ObjectUtils.isEmpty(basicDetailsDto)) {
-            return;
-        }
-        BasicDetailsDto merchant = basicDetailsDto.get();
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
-        logger.info("Sending loan survey to merchant:{}", merchant.getId());
-        String message = "We saw that you haven't completed your loan application of Rs." + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.";
-        MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
-        if (merchantFcmToken != null) {
-            pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=survey-merchant-lending");
-        }
-        String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better. Click here:https://bharatpe.in/Uy9AX";
-        whatsappNotificationService.send(merchant.getId(), null, merchant.getBeneficiaryName(), whatsapp, new ArrayList<String>() {{
-            add(merchant.getMobile());
-        }}, null);
-    }
+//    private void sendPush(Experian experian) {
+////		Optional<Merchant> merchantOptional = merchantDao.findById(experian.getMerchantId());
+////		Merchant merchant = merchantOptional.get();
+//        MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(experian.getMerchantId());
+//        if (ObjectUtils.isEmpty(merchantDetailsDto) && ObjectUtils.isEmpty(merchantDetailsDto.getMerchantDetail())) {
+//            return;
+//        }
+//        BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
+//        BankDetailsDto merchantBankDetail = merchantDetailsDto.getBankDetail();
+//        logger.info("Sending loan survey to merchant:{}", merchant.getId());
+//        String message = "We saw that you haven't completed your loan application of Rs." + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better.";
+//        MerchantFcmToken merchantFcmToken = merchantFcmTokenDao.getByMerchantId(merchant.getId());
+//        if (merchantFcmToken != null) {
+//            pushNotificationHandler.sendPushNotification(merchantFcmToken.getFcmToken(), merchantFcmToken.getPlatform(), message, "dynamic?key=survey-merchant-lending");
+//        }
+//        String whatsapp = "Dear " + merchantBankDetail.getBeneficiaryName() + ",\nWe saw that you haven't completed your loan application of Rs " + experian.getEligibleAmount() + ". Please fill this survey form to let us know what we can do to serve you better. Click here:https://bharatpe.in/Uy9AX";
+//        whatsappNotificationService.send(merchant.getId(), null, merchant.getBeneficiaryName(), whatsapp, new ArrayList<String>() {{
+//            add(merchant.getMobile());
+//        }}, null);
+//    }
 
     public void orderQrCode(LendingApplication lendingApplication) {
         try {
@@ -205,7 +205,7 @@ public class CallLoanDetailService {
             if (ObjectUtils.isEmpty(basicDetailsDto)) {
                 return;
             }
-            List<MerchantStaticVpa> merchantStaticVpaList = merchantStaticVpaDao.findAllByMerchant(lendingApplication.getMerchantId());
+            List<MerchantStaticVpaSlave> merchantStaticVpaList = merchantStaticVpaDaoSlave.findAllByMerchant(lendingApplication.getMerchantId());
             LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
             //Send only to DIY merchants and green pincodes
             if (!merchantStaticVpaList.isEmpty() && lendingCities != null && (basicDetailsDto.get().getReferalCode() == null || basicDetailsDto.get().getReferalCode().trim().equals(""))) {
@@ -233,7 +233,7 @@ public class CallLoanDetailService {
                 }};
                 String payload = getObjectPayload(body, details);
                 logger.info("Order QR payload:{}", payload);
-                String hash = hmacCalculator.calculateHMACHexEncoded(payload, getSecret());
+                String hash = lendingHmacCalculator.calculateHMACHexEncoded(payload, getSecret());
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 headers.set("Hash", hash);
@@ -300,9 +300,9 @@ public class CallLoanDetailService {
     }
 
     private String getSecret() {
-        InternalClient client = internalClientDao.findByClientName("LENDING");
+        InternalClientSlave client = internalClientDaoSlave.findByClientName("LENDING");
         if (client != null) {
-            return aesEncryption.decrypt(client.getSecret());
+            return aesEncryptionUtil.decrypt(client.getSecret());
         }
         return null;
     }

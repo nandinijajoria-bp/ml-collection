@@ -1,10 +1,10 @@
 package com.bharatpe.lending.handlers;
-import com.bharatpe.common.dao.InternalClientDao;
-import com.bharatpe.common.entities.InternalClient;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +23,12 @@ public class BharatPeOtpHandler{
     @Autowired
     Environment env;
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
-    InternalClientDao internalClientDao;
+    InternalClientDaoSlave internalClientDaoSlave;
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
     @Autowired
     RestTemplate restTemplate;
     private final String CLIENT = "LENDING";
@@ -39,9 +39,9 @@ public class BharatPeOtpHandler{
 
     private String getInternalSecret() {
         if(org.springframework.util.StringUtils.isEmpty(clientSecret)) {
-            InternalClient client = internalClientDao.findByClientName(CLIENT);
+            InternalClientSlave client = internalClientDaoSlave.findByClientName(CLIENT);
             if (client != null) {
-                clientSecret = aesEncryption.decrypt(client.getSecret());
+                clientSecret = aesEncryptionUtil.decrypt(client.getSecret());
             }
         }
         return clientSecret;
@@ -57,9 +57,9 @@ public class BharatPeOtpHandler{
             put("smsTemplate", message);
 
         }};
-        String payload = hmacCalculator.getObjectPayload(requestBody);
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
         logger.info("Payload: {}", payload);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Hash", hash);
@@ -98,9 +98,9 @@ public class BharatPeOtpHandler{
             put("otp", otp);
 
         }};
-        String payload = hmacCalculator.getObjectPayload(requestBody);
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
         logger.info("Payload: {}", payload);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Hash", hash);

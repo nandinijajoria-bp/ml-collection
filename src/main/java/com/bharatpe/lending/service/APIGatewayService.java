@@ -2,22 +2,29 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.utils.AesEncryption;
-import com.bharatpe.common.utils.HmacCalculator;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.FpWithdrawStatusCheckDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.dao.SignzyCredentialDaoSlave;
+import com.bharatpe.lending.common.slave.dao.TokenVerificationDaoSlave;
+import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
+import com.bharatpe.lending.common.slave.entity.SignzyCredentialSlave;
+import com.bharatpe.lending.common.slave.entity.TokenVerificationSlave;
+import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
-import com.bharatpe.lending.dao.TokenVerificationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.KycDocType;
@@ -71,10 +78,10 @@ public class APIGatewayService {
     String PG_URL;
 
     @Autowired
-    HmacCalculator hmacCalculator;
+    LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
-    AesEncryption aesEncryption;
+    AesEncryptionUtil aesEncryptionUtil;
 
 //    @Autowired
 //    MerchantDao merchantDao;
@@ -89,7 +96,7 @@ public class APIGatewayService {
     LendingPancardDao lendingPancardDao;
 
     @Autowired
-    PincodeCityStateMappingDao pincodeCityStateMappingDao;
+    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     LendingRedCitiesDao lendingRedCitiesDao;
@@ -98,7 +105,7 @@ public class APIGatewayService {
     LendingCitiesDao lendingCitiesDao;
 
     @Autowired
-    SignzyCredentialDao signzyCredentialDao;
+    SignzyCredentialDaoSlave signzyCredentialDaoSlave;
 
     @Autowired
     ExperianDao experianDao;
@@ -140,7 +147,7 @@ public class APIGatewayService {
     CrifRequestResponseDao crifRequestResponseDao;
 
     @Autowired
-    InternalClientDao internalClientDao;
+    InternalClientDaoSlave internalClientDaoSlave;
 
     @Autowired
     LendingVirtualAccountDao lendingVirtualAccountDao;
@@ -149,13 +156,10 @@ public class APIGatewayService {
     ExperianService experianService;
 
     @Autowired
-    BharatPeEnachDao bharatPeEnachDao;
+    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
     @Autowired
-    TokenVerificationDao tokenVerificationDao;
-
-    @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
+    TokenVerificationDaoSlave tokenVerificationDaoSlave;
 
     @Autowired
     LendingPennydropDao lendingPennydropDao;
@@ -209,7 +213,7 @@ public class APIGatewayService {
             if (vpa != null) {
                 requestParams.put("payerVpa", vpa);
             }
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -242,7 +246,7 @@ public class APIGatewayService {
     public PgCreateTransactionResponseDTO createPgTransaction(Long merchantId, PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO) {
         PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO = new PgCreateTransactionResponseDTO();
         logger.info("In Create pg transaction for merchnat id {}", merchantId);
-        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         try {
             Map requestParams = new HashMap<>();
             requestParams.put("orderId", pgCreateTransactionRequestDTO.getOrderId());
@@ -253,7 +257,7 @@ public class APIGatewayService {
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
             requestParams.put("allowedModes", pgCreateTransactionRequestDTO.getAllowedModes());
 
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
@@ -288,7 +292,7 @@ public class APIGatewayService {
         if (merchantOptional.isPresent()) {
             BasicDetailsDto merchant = merchantOptional.get();
             if (SECRET == null) {
-                SECRET = aesEncryption.decrypt(merchant.getSecret());
+                SECRET = aesEncryptionUtil.decrypt(merchant.getSecret());
             }
         }
         return SECRET;
@@ -309,7 +313,7 @@ public class APIGatewayService {
     public Map<String, String> signzyIdentityDetails(String proofType, Long merchantId, String signzyModule, String signzyPurpose, List<String> images) {
         logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
         try {
-            SignzyCredential signzyCredential = signzyCredentialDao.findByModuleAndPurpose(signzyModule, signzyPurpose);
+            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModuleAndPurpose(signzyModule, signzyPurpose);
             if (signzyCredential == null) {
                 logger.info("signzy credentials not found");
                 return null;
@@ -420,7 +424,7 @@ public class APIGatewayService {
     public JsonNode signzyPanFetchV2(String pancard, Long merchantId, String signzyModule, String signzyPurpose) {
         logger.info("Calling Signzy pan fetch v2 Api for merchant:{} and pancard:{}", merchantId, pancard);
         try {
-            SignzyCredential signzyCredential = signzyCredentialDao.findByModuleAndPurpose(signzyModule, signzyPurpose);
+            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModuleAndPurpose(signzyModule, signzyPurpose);
             if (signzyCredential == null) {
                 logger.info("signzy credentials not found");
                 return null;
@@ -685,10 +689,10 @@ public class APIGatewayService {
 
     public Map<String, Object> initiateTxn(MetaDTO meta, SimInfo simInfo, Double amount, String appHash, String orderId, String token, String beneficiaryName, String paymentSource) {
         Map<String, Object> result = new HashMap<>();
-        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         try {
             Map<String, Object> requestParams = generateBPBRequest(meta, simInfo, amount, appHash, orderId, beneficiaryName, paymentSource);
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
             UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.BP_BALANCE_CREATE_TXN_URL).build();
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -781,7 +785,7 @@ public class APIGatewayService {
         try {
             Map<String, String> requestParams = new HashMap<>();
             requestParams.put("type", "LOAN_PREPAYMENT");
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
@@ -814,10 +818,10 @@ public class APIGatewayService {
 
     public Map<String, Object> sendOTP(RequestDTO<PaymentResendOTP> requestDTO, String token) {
         Map<String, Object> result = new HashMap<>();
-        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         try {
             Map<String, Object> requestParams = generateSendMoneyVerify(requestDTO);
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
             UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.BP_BALANCE_RESEND_OTP_URL).build();
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -886,10 +890,10 @@ public class APIGatewayService {
 
     public Map<String, Object> verifyTxn(RequestDTO<PaymentResendOTP> requestDTO, String token) {
         Map<String, Object> result = new HashMap<>();
-        InternalClient internalClient = internalClientDao.findByClientName(CLIENT);
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         try {
             Map<String, Object> requestParams = generateSendMoneyVerify(requestDTO);
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestParams), aesEncryption.decrypt(internalClient.getSecret()));
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestParams), aesEncryptionUtil.decrypt(internalClient.getSecret()));
             UriComponents requestUrl = UriComponentsBuilder.fromHttpUrl(env.getProperty("payment.service.host") + CreditConstants.BP_BALANCE_CONFIRM_TXN_URL).build();
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -937,7 +941,7 @@ public class APIGatewayService {
     public void signZyPanGst(Long merchantId) {
         logger.info("Calling Signzy For GST Number:{}", merchantId);
         try {
-            SignzyCredential signzyCredential = signzyCredentialDao.findByModule("GST");
+            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModule("GST");
             if (signzyCredential == null) {
                 logger.info("signzy credentials not found");
                 return;
@@ -949,7 +953,7 @@ public class APIGatewayService {
                 return;
             }
             Integer pincode = experian.getPincode();
-            PincodeCityStateMapping pincodeCityStateMapping = pincodeCityStateMappingDao.findByPincode(pincode);
+            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
             Map<String, Object> body = new HashMap<>();
             Map<String, Object> essentials = new HashMap<>();
             body.put("task", "panSearch");
@@ -990,7 +994,7 @@ public class APIGatewayService {
 
     public String getEnachProvider(String token, Long merchantId) {
         logger.info("Fetching enach provider for merchant:{}", merchantId);
-        Long digioFailedCount = bharatPeEnachDao.isDigioFailed(merchantId);
+        Long digioFailedCount = bharatPeEnachDaoSlave.isDigioFailed(merchantId);
         if (digioFailedCount != null && digioFailedCount >= LendingConstants.DIGIO_FAILED_LIMIT) {
             return "bharatpe://enachtp";
         }
@@ -998,7 +1002,7 @@ public class APIGatewayService {
             return "bharatpe://enachdigio";
         }
         if (ObjectUtils.isEmpty(token)) {
-            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(merchantId);
+            TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(merchantId);
             if(ObjectUtils.isEmpty(tokenVerification)) {
                 return null;
             }
@@ -1141,8 +1145,8 @@ public class APIGatewayService {
             put("scopes", "address");
             put("merchantids", String.valueOf(merchantId));
         }};
-        String payload = hmacCalculator.getPayload(requestParams);
-        String hash = hmacCalculator.calculateHMACHexEncoded(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHMACHexEncoded(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Hash", hash);
@@ -1168,9 +1172,9 @@ public class APIGatewayService {
 
     private String getInternalSecret() {
         if (org.springframework.util.StringUtils.isEmpty(clientSecret)) {
-            InternalClient client = internalClientDao.findByClientName(CLIENT);
+            InternalClientSlave client = internalClientDaoSlave.findByClientName(CLIENT);
             if (client != null) {
-                clientSecret = aesEncryption.decrypt(client.getSecret());
+                clientSecret = aesEncryptionUtil.decrypt(client.getSecret());
             }
         }
         return clientSecret;
@@ -1278,8 +1282,8 @@ public class APIGatewayService {
             queryParams.append("&clubV2=").append(clubV2);
         }
         String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
-        String payload = hmacCalculator.getObjectPayload(requestParams);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
@@ -1319,8 +1323,8 @@ public class APIGatewayService {
             put("amount", amount);
             put("mode", mode);
         }};
-        String payload = hmacCalculator.getObjectPayload(requestBody);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
@@ -1406,8 +1410,8 @@ public class APIGatewayService {
             put("merchant_id", merchantId);
             put("application_id", applicationId);
         }};
-        String payload = hmacCalculator.getObjectPayload(requestBody);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
@@ -1440,8 +1444,8 @@ public class APIGatewayService {
             Map<String, Object> requestParams = new HashMap<String, Object>() {{
                 put("merchant_id", merchantId);
             }};
-            String payload = hmacCalculator.getObjectPayload(requestParams);
-            String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("clientName", CLIENT);
@@ -1484,7 +1488,7 @@ public class APIGatewayService {
     public Boolean checkClubV2(Long merchantId) {
         try {
             logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
-            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(merchantId);
+            TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(merchantId);
             if(ObjectUtils.isEmpty(tokenVerification)) {
                 return false;
             }
@@ -1518,7 +1522,7 @@ public class APIGatewayService {
     public boolean sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan) {
         if ("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
             logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchantId());
-            TokenVerification tokenVerification = tokenVerificationDao.findByMerchantId(activeLoan.getMerchantId());
+            TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(activeLoan.getMerchantId());
             if (tokenVerification == null) {
                 logger.info("Token not found for merchant:{}", activeLoan.getMerchantId());
                 return false;
@@ -1581,8 +1585,8 @@ public class APIGatewayService {
             put("merchant_store_id", lendingPayoutRequest.getMerchantStoreId());
             put("message", lendingPayoutRequest.getMessage());
         }};
-        String payload = hmacCalculator.getObjectPayload(requestBody);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
@@ -1614,7 +1618,7 @@ public class APIGatewayService {
         try {
             Map requestParams = new HashMap<>();
             requestParams.put("type", "LOAN_DISBURSAL");
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
@@ -1689,7 +1693,10 @@ public class APIGatewayService {
     }
 
     public Map<String, String> getFirstLastName(Long merchantId, String pancard) {
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
         String firstName;
         String lastName;
@@ -1903,7 +1910,7 @@ public class APIGatewayService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-            headers.set(SupportConstants.HASH, hmacCalculator.calculateHmac(hmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
+            headers.set(SupportConstants.HASH, lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
             headers.set(SupportConstants.CLIENT_NAME, CLIENT);
 
             HttpEntity<Object> entity = new HttpEntity<>(requestBody, headers);
@@ -1928,8 +1935,8 @@ public class APIGatewayService {
                 put("application_id", lendingApplication.getId());
                 put("lender_name", lendingApplication.getLender());
             }};
-            String payload = hmacCalculator.getObjectPayload(requestParams);
-            String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
 
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
@@ -1970,8 +1977,8 @@ public class APIGatewayService {
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchant_id", merchantId);
         }};
-        String payload = hmacCalculator.getObjectPayload(requestParams);
-        String hash = hmacCalculator.calculateHmac(payload, getInternalSecret());
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
@@ -2016,17 +2023,17 @@ public class APIGatewayService {
         return null;
     }
 
-    public boolean checkPennyDrop(MerchantBankDetail merchantBankDetail, Long merchantId, String mobile) {
+    public boolean checkPennyDrop(BankDetailsDto merchantBankDetail, Long merchantId, String mobile) {
         boolean success = false;
         try {
             logger.info("Calling penny drop api for merchantId:{}", merchantId);
             Map<String, String> requestParams = new HashMap<String, String>() {{
                 put("accountNo", merchantBankDetail.getAccountNumber());
-                put("ifsc", merchantBankDetail.getIfscCode());
+                put("ifsc", merchantBankDetail.getIfsc());
                 put("mobile", mobile);
             }};
             String url = "http://payout-java.bharatpe.in/pennyDrop/v3";
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestParams), getInternalSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getInternalSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("hash", hash);
@@ -2043,8 +2050,8 @@ public class APIGatewayService {
             }
             LendingPennydrop lendingPennydrop = new LendingPennydrop();
             lendingPennydrop.setAccountNumber(merchantBankDetail.getAccountNumber());
-            lendingPennydrop.setMerchantId(merchantBankDetail.getMerchantId());
-            lendingPennydrop.setIfscCode(merchantBankDetail.getIfscCode());
+            lendingPennydrop.setMerchantId(merchantId);
+            lendingPennydrop.setIfscCode(merchantBankDetail.getIfsc());
             lendingPennydrop.setRetryCount(1L);
             lendingPennydrop.setStatus(success ? "SUCCESS" : "FAILED");
             lendingPennydropDao.save(lendingPennydrop);
@@ -2060,7 +2067,7 @@ public class APIGatewayService {
             Map<String, String> requestBody = new HashMap<String, String>() {{
                 put("orderId", orderId);
             }};
-            String hash = hmacCalculator.calculateHmac(hmacCalculator.getPayload(requestBody), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestBody), getSecret());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
@@ -2200,8 +2207,8 @@ public class APIGatewayService {
     public String getHmacBase64(Map<String, Object> requestBody) {
         String hmac = "";
         try {
-            String payload = hmacCalculator.getNestedPayload(requestBody);
-            hmac = hmacCalculator.calculateHmac(payload, getInternalSecret());
+            String payload = lendingHmacCalculator.getNestedPayload(requestBody);
+            hmac = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         } catch (Exception e) {
             logger.error("Exception occurred while generating hmac", e);
         }

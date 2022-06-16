@@ -1,10 +1,10 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.PincodeCityStateMappingDao;
-import com.bharatpe.common.entities.PincodeCityStateMapping;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.dto.PincodeVerifyDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ public class PincodeVerificationServices {
 	Logger logger = LoggerFactory.getLogger(PincodeVerificationServices.class);	
 
 	@Autowired
-	PincodeCityStateMappingDao pincodeCityStateMappingDao;
+	PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
 	@Autowired
     LendingPincodesDao lendingPincodesDao;
@@ -49,7 +49,7 @@ public class PincodeVerificationServices {
 		pincodeVerify.setEligible(false);
 		try {
 			logger.info("Fetching city details from table pincode_citystate_mapping for the pincode {}", pincode);
-			PincodeCityStateMapping cityDetails = pincodeCityStateMappingDao.findByPincode(pincode);
+			PincodeCityStateMappingSlave cityDetails = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
 			if (cityDetails == null) {
 				logger.info("No entry found for the pincode {}", pincode);
 				return pincodeVerify;

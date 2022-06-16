@@ -18,7 +18,12 @@ import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
+import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
+import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -60,16 +65,10 @@ public class VerifyOTPService {
     LendingAuditTrialDao lendingAuditTrialDao;
 
     @Autowired
-    MerchantBankDetailDao merchantBankDetailDao;
-
-    @Autowired
     SmsServiceHandler smsServiceHandler;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
-
-    @Autowired
-    BankListDao bankListDao;
 
     @Autowired
     MerchantSummaryLendingDao merchantSummaryLendingDao;
@@ -84,7 +83,7 @@ public class VerifyOTPService {
     LendingCategoryDao lendingCategoryDao;
 
     @Autowired
-    PaymentTransactionNewDao paymentTransactionNewDao;
+    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
 
     @Autowired
     LendingPrebookLoansDao lendingPrebookLoansDao;
@@ -113,7 +112,7 @@ public class VerifyOTPService {
     KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
-    BPEnachDao bpEnachDao;
+    BPEnachDaoSlave bpEnachDaoSlave;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -150,6 +149,9 @@ public class VerifyOTPService {
 
     @Autowired
     MerchantSummaryHandler merchantSummaryHandler;
+
+    @Autowired
+    MerchantService merchantService;
 
     @Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
     String kafkaTopicPostChecks;
@@ -276,8 +278,11 @@ public class VerifyOTPService {
             lendingApplication.setProcessingFee(0D);
         }
 
-        BpEnach enachSuccess = bpEnachDao.findSuccessEnach(merchantBasicDetailsDto.getId());
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantBasicDetailsDto.getId(), "ACTIVE");
+        BpEnachSlave enachSuccess = bpEnachDaoSlave.findSuccessEnach(merchantBasicDetailsDto.getId());
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetailsDto.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         if (enachSuccess != null && merchantBankDetail != null && enachSuccess.getAccountNumber() != null && !enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
             enachSuccess = null;
         }
@@ -529,51 +534,54 @@ public class VerifyOTPService {
 //        }
 //    }
 
-    private void checkPreBook(BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication) {
-        LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchantBasicDetails.getId());
-        if (lendingPrebookLoans != null) {
-            logger.info("Prebook loan already exists for merchant: {}", merchantBasicDetails.getId());
-            notificationExecutor.submit(() -> sendNotification(merchantBasicDetails, lendingApplication));
-            return;
-        }
-        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchantBasicDetails.getId());
-//		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchantBasicDetails.getId());
-        MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetails.getId());
-        if (ObjectUtils.isEmpty(merchantResponseDTO)) {
-            throw new MerchantSummaryExceptionHandler(merchantBasicDetails.getId().toString());
-        }
-        LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-        List<String> preBookCategories = Arrays.asList("Grocery", "Medical", "Dairy");
-        List<String> etcCategories = Arrays.asList("S1LG", "S1DG", "S2LG", "S2DG");
-        List<String> cities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi");
-//        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-        if (preBookCategories.contains(merchantBasicDetails.getBussinessCategory()) && merchantSummaryLending != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2") && merchantResponseDTO.getBpScore() > 10 && lendingCategories.getMasterCategory() != null && etcCategories.contains(lendingCategories.getMasterCategory()) && cities.contains(lendingApplication.getCity())) {
-            Calendar c = Calendar.getInstance();
-            c.setTime(lendingApplication.getAgreementAt());
-            c.add(Calendar.DATE, -9);
-            Date startDate = c.getTime();
-            List<Object[]> transactions = paymentTransactionNewDao.getCountForPreBook(merchantBasicDetails.getId(), startDate, lendingApplication.getAgreementAt());
-            if (transactions != null && transactions.size() >= 8) {
-                Double previousLoanAmount = lendingApplication.getLoanAmount();
-                AvailableLoan availableLoan = new AvailableLoan();
-                availableLoan.setAmount(100000D);
-                LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, null);
-                lendingApplication.setEdi(Double.valueOf(breakup.getEdi()));
-                lendingApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
-                lendingApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
-                lendingApplication.setDisbursalAmount((double) breakup.getLoanAmount());
-                lendingApplication.setLoanAmount((double) breakup.getLoanAmount());
-                lendingApplicationDao.save(lendingApplication);
-                lendingPrebookLoansDao.save(new LendingPrebookLoans(merchantBasicDetails.getId(), lendingApplication.getId(), previousLoanAmount));
-                logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchantBasicDetails.getId(), lendingApplication.getId());
-            }
-        }
-        notificationExecutor.submit(() -> sendNotification(merchantBasicDetails, lendingApplication));
-    }
+//    private void checkPreBook(BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication) {
+//        LendingPrebookLoans lendingPrebookLoans = lendingPrebookLoansDao.findByMerchantId(merchantBasicDetails.getId());
+//        if (lendingPrebookLoans != null) {
+//            logger.info("Prebook loan already exists for merchant: {}", merchantBasicDetails.getId());
+//            notificationExecutor.submit(() -> sendNotification(merchantBasicDetails, lendingApplication));
+//            return;
+//        }
+//        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchantBasicDetails.getId());
+////		MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchantBasicDetails.getId());
+//        MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetails.getId());
+//        if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+//            throw new MerchantSummaryExceptionHandler(merchantBasicDetails.getId().toString());
+//        }
+//        LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
+//        List<String> preBookCategories = Arrays.asList("Grocery", "Medical", "Dairy");
+//        List<String> etcCategories = Arrays.asList("S1LG", "S1DG", "S2LG", "S2DG");
+//        List<String> cities = Arrays.asList("Bangalore", "Hyderabad", "Pune", "Delhi");
+////        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
+//        if (preBookCategories.contains(merchantBasicDetails.getBussinessCategory()) && merchantSummaryLending != null && merchantSummaryLending.getSegment().equalsIgnoreCase("2") && merchantResponseDTO.getBpScore() > 10 && lendingCategories.getMasterCategory() != null && etcCategories.contains(lendingCategories.getMasterCategory()) && cities.contains(lendingApplication.getCity())) {
+//            Calendar c = Calendar.getInstance();
+//            c.setTime(lendingApplication.getAgreementAt());
+//            c.add(Calendar.DATE, -9);
+//            Date startDate = c.getTime();
+//            List<Object[]> transactions = paymentTransactionNewDaoSlave.getCountForPreBook(merchantBasicDetails.getId(), startDate, lendingApplication.getAgreementAt());
+//            if (transactions != null && transactions.size() >= 8) {
+//                Double previousLoanAmount = lendingApplication.getLoanAmount();
+//                AvailableLoan availableLoan = new AvailableLoan();
+//                availableLoan.setAmount(100000D);
+//                LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategories, null);
+//                lendingApplication.setEdi(Double.valueOf(breakup.getEdi()));
+//                lendingApplication.setIoEdi(Double.valueOf(breakup.getIoEdi()));
+//                lendingApplication.setRepayment(Double.valueOf(breakup.getRepayment()));
+//                lendingApplication.setDisbursalAmount((double) breakup.getLoanAmount());
+//                lendingApplication.setLoanAmount((double) breakup.getLoanAmount());
+//                lendingApplicationDao.save(lendingApplication);
+//                lendingPrebookLoansDao.save(new LendingPrebookLoans(merchantBasicDetails.getId(), lendingApplication.getId(), previousLoanAmount));
+//                logger.info("Updated loan amount to 100000 for merchant: {} with applicationId: {}", merchantBasicDetails.getId(), lendingApplication.getId());
+//            }
+//        }
+//        notificationExecutor.submit(() -> sendNotification(merchantBasicDetails, lendingApplication));
+//    }
 
     private void sendNotification(BasicDetailsDto merchant, LendingApplication lendingApplication) {
 
-        MerchantBankDetail merchantBankDetail = merchantBankDetailDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId(), "ACTIVE");
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = null;
+        if (bankDetailsDtoOptional.isPresent())
+            merchantBankDetail = bankDetailsDtoOptional.get();
         if (merchantBankDetail == null) {
             return;
         }
