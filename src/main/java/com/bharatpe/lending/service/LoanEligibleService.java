@@ -179,8 +179,9 @@ public class LoanEligibleService {
 
         if (ObjectUtils.isEmpty(eligibleLoans) || (!ObjectUtils.isEmpty(eligibleLoans.get(0)) && !eligibleLoans.get(0).getCreatedAt().after(dateWindow))) {
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
-            if (queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
-                    !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) {
+            if ((queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
+                    !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) || (Objects.nonNull(globalLimitResponse)
+              && Objects.nonNull(globalLimitResponse.getData()) && ObjectUtils.isEmpty(globalLimitResponse.getData().getOfferDetails()))) {
                 responseDTO.setSuccess(false);
                 responseDTO.setMessage("Invalid Loan Amount");
                 return responseDTO;
