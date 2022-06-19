@@ -8,7 +8,6 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.CreditLineMerchant;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.entity.LendingGlobalLimit;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -46,9 +45,9 @@ public class LendingOffersService {
 
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
-
-	@Autowired
-	CreditLineMerchantDao creditLineMerchantDao;
+//
+//	@Autowired
+//	CreditLineMerchantDao creditLineMerchantDao;
 
 	@Autowired
 	LendingCoolOffDao lendingCoolOffDao;
@@ -87,8 +86,8 @@ public class LendingOffersService {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
 		LendingBharatswipeOffers lendingOffer = lendingBharatswipeOffersDao.findByMerchantId(merchantId);
 		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
-		if (creditLineMerchant != null || lendingOffer == null || lendingOffer.getTpv() == null || lendingOffer.getTpv() <= 0D || isOfferExpired(lendingOffer)) {
+//		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
+		if (lendingOffer == null || lendingOffer.getTpv() == null || lendingOffer.getTpv() <= 0D || isOfferExpired(lendingOffer)) {
 			responseDTO.setSuccess(false);
 			responseDTO.setMessage("No Offer found");
 			return responseDTO;

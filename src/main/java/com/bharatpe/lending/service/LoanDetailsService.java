@@ -142,8 +142,8 @@ public class LoanDetailsService {
 	@Autowired
 	RedisNotificationService redisNotificationService;
 
-	@Autowired
-	CreditLineMerchantDao creditLineMerchantDao;
+//	@Autowired
+//	CreditLineMerchantDao creditLineMerchantDao;
 
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
@@ -201,12 +201,12 @@ public class LoanDetailsService {
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
-			if(isMerchantFromCreditLine(merchantBasicDetailsDto)) {
-				response.setDeeplink("bharatpe://dynamic?key=credit-line");
-				response.setSuccess(true);
-				response.setMessage("Credit line merchant");
-				return response;
-			}
+//			if(isMerchantFromCreditLine(merchantBasicDetailsDto)) {
+//				response.setDeeplink("bharatpe://dynamic?key=credit-line");
+//				response.setSuccess(true);
+//				response.setMessage("Credit line merchant");
+//				return response;
+//			}
 //			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchantBasicDetailsDto.getId());
 			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
 			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -1121,10 +1121,10 @@ public class LoanDetailsService {
 		return settlementResponseDTO;
 	}
 
-	public boolean isMerchantFromCreditLine(BasicDetailsDto merchant) {
-		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
-		return creditLineMerchant != null;
-	}
+//	public boolean isMerchantFromCreditLine(BasicDetailsDto merchant) {
+//		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
+//		return creditLineMerchant != null;
+//	}
 
 
 	public ResponseDTO creditScore(BasicDetailsDto merchantBasicDetails,RequestDTO<CreditScoreRequestDto> requestDTO,String clientIp) {

@@ -1,7 +1,7 @@
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.dao.LendingTlDetailsDao;
+//import com.bharatpe.lending.common.dao.LendingTlDetailsDao;
 import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
@@ -38,8 +38,8 @@ public class LiquiloanController {
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-	@Autowired
-	LendingTlDetailsDao lendingTlDetailsDao;
+//	@Autowired
+//	LendingTlDetailsDao lendingTlDetailsDao;
 	
 	@RequestMapping(value = "approveLoan", method =RequestMethod.POST)
 	public ResponseEntity<ResponseDTO> checkLoanStatus(@RequestBody LiquiloanCallbackRequestDTO callbackRequestDto){

@@ -73,8 +73,8 @@ public class LoanDetailsServiceV2 {
     @Autowired
     ExperianDao experianDao;
 
-    @Autowired
-    CreditLineMerchantDao creditLineMerchantDao;
+//    @Autowired
+//    CreditLineMerchantDao creditLineMerchantDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -180,11 +180,11 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(loanDetailsResponse);
             }
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
-            if (isCreditLineMerchant(merchant)) {
-                log.info("credit line merchant: {}", merchant.getId());
-                loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
-                return new ApiResponse<>(loanDetailsResponse);
-            }
+//            if (isCreditLineMerchant(merchant)) {
+//                log.info("credit line merchant: {}", merchant.getId());
+//                loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
+//                return new ApiResponse<>(loanDetailsResponse);
+//            }
             if ("ORGANIZED".equalsIgnoreCase(merchant.getCorrectMerchantType())) {
                 log.info("organized merchant: {}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
@@ -729,10 +729,10 @@ public class LoanDetailsServiceV2 {
         return apiGatewayService.getEnachProvider(token, openApplication.getMerchantId());
     }
 
-    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
-        CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
-        return creditLineMerchant != null;
-    }
+//    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
+//        CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
+//        return creditLineMerchant != null;
+//    }
 
 //    private boolean isOrganizedMerchant(Long merchantId) {
 //        List<MerchantStore> stores = merchantStoreDao.findByMerchantId(merchantId);
