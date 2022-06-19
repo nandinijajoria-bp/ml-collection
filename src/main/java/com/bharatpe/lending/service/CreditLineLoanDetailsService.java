@@ -842,7 +842,7 @@ public class CreditLineLoanDetailsService {
 //                loanEligibilityDTO.setConstruct(availableLoan.getLoanConstruct());
 //                //loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //                loanEligibilityDTO.setType(breakup.getType());
-                loanEligibilityDTO.setOptionEnable(true);
+//                loanEligibilityDTO.setOptionEnable(true);
 
 //                availableLoanDTOList.add(loanEligibilityDTO);
 //            } else {
