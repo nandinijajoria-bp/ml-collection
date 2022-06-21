@@ -187,9 +187,9 @@ public class LoanEligibleService {
                 return responseDTO;
             }
             //        eligibleLoanDao.deleteCustomOffers(merchantId);
-            if (Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getGlobalLimit())) {
-                queryAmount = globalLimitResponse.getData().getGlobalLimit();
-            }
+//            if (Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getGlobalLimit())) {
+//                queryAmount = globalLimitResponse.getData().getGlobalLimit();
+//            }
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
             eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount,
                     Sort.by(Sort.Direction.DESC, "id"));

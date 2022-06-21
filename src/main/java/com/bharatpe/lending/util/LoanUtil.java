@@ -658,7 +658,7 @@ public class LoanUtil {
 				snapshot.setTotalTxnCount(merchantResponseDTO.getDailyTxnCount());
 				snapshot.setTotalTxnAmount(merchantResponseDTO.getDailyTxnAmount());
 				snapshot.setCategory(merchantResponseDTO.getCategory());
-				snapshot.setAvgTpv(merchantResponseDTO.getAvgTpv());
+				snapshot.setAvgTpv(merchantResponseDTO.getAverageTpv());
 				snapshot.setAdjustedTpv(merchantResponseDTO.getAdjustedTpv());
 				snapshot.setLoanType(merchantResponseDTO.getLoanType());
 				snapshot.setTpv1Mon(merchantResponseDTO.getTpv1Mon());
