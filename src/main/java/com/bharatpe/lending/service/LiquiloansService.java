@@ -481,8 +481,9 @@ public class LiquiloansService {
                 Map<String, Object> body = new HashMap<>();
                 body.put("merchant_id", lendingApplication.getMerchantId());
                 body.put("ref_txn_id", lendingApplication.getId());
-                body.put("clubAmount", clubAmount);
-                body.put("narration", "Club V2 Member");
+                body.put("amount", clubAmount);
+                body.put("narration", "Extra Loan Amount");
+                body.put("source_module", "LOAN");
 
                 kafkaTemplate.send(TOPIC, body);
             }

@@ -487,10 +487,10 @@ public class FosService {
             BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
             if (bharatPeEnach != null && !bharatPeEnach.getSuccess()) {
                 bharatPeEnach.setSkip(Boolean.TRUE);
-                LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchantId(), lendingApplication.getId());
-                if (lendingPennydrop == null) {
-                    apiGatewayService.updateApplicationPriority(lendingApplication.getMerchantId(), lendingApplication.getId());
-                }
+//                LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchantId(), lendingApplication.getId());
+//                if (lendingPennydrop == null) {
+//                    apiGatewayService.updateApplicationPriority(lendingApplication.getMerchantId(), lendingApplication.getId());
+//                }
                 bharatPeEnachDao.save(bharatPeEnach);
             }
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
