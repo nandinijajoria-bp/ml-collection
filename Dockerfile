@@ -3,7 +3,7 @@ LABEL name="ravi ranjan"
 
 WORKDIR /app
 COPY pom.xml .
-COPY settings.xml
+COPY settings.xml .
 RUN mvn -T 1C clean dependency:go-offline
 COPY . .
 RUN mvn clean -s settings.xml -T 1C package -Dmaven.test.skip=true #TODO: remove skiptest
