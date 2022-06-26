@@ -4,9 +4,9 @@ LABEL name="ravi ranjan"
 WORKDIR /app
 COPY pom.xml .
 COPY settings.xml .
-RUN mvn clean dependency:go-offline
+RUN mvn -T 1C clean dependency:go-offline
 COPY . .
-RUN mvn clean -s settings.xml install -Dmaven.test.skip=true
+RUN mvn -T 1C clean package -Dmaven.test.skip=true #TODO: remove skiptest
 
 
 FROM openjdk:8
@@ -16,3 +16,4 @@ COPY --from=java-build /app/newrelic.yml /app/newrelic.yml
 RUN mkdir -p /data/bbps-recon/
 RUN wget https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/infra/newrelic.jar
 ENTRYPOINT ["java","-javaagent:newrelic.jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
+#ENTRYPOINT ["java","-jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}", "/app/app.jar"]
