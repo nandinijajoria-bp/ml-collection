@@ -122,9 +122,10 @@
 		<id>maven-group</id>
 		<name>maven-group</name>
 		<url>https://nexus.bharatpe.in/repository/maven-group/</url>
-		<snapshots>
-							<enabled>false</enabled>
-					</snapshots>
+		<layout>default</layout>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
 	</repository>
 	<repository>
 		<id>com.bharatpe-snapshot</id>
