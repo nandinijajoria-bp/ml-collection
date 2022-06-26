@@ -90,18 +90,7 @@
         </dependency>
 
     </dependencies>
-		<distributionManagement>
-			<snapshotRepository>
-				<id>nexus-snapshots</id>
-				<name>maven Snapshot Repository</name>
-				<url>https://nexus.bharatpe.in/repository/maven-snapshots/</url>
-			</snapshotRepository>
-			<repository>
-				<id>nexus-releases</id>
-				<name>maven Snapshot Repository</name>
-				<url>https://nexus.bharatpe.in/repository/maven-releases/</url>
-				</repository>
-		</distributionManagement>
+
 <build>
         <extensions>
             <extension>
@@ -123,7 +112,7 @@
 		<name>maven-group</name>
 		<url>https://nexus.bharatpe.in/repository/maven-group/</url>
 		<snapshots>
-							<enabled>false</enabled>
+							<enabled>true</enabled>
 					</snapshots>
 	</repository>
 	<repository>

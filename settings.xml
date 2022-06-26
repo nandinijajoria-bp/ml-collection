@@ -5,15 +5,23 @@
 
   <servers>
     <server>
-      <id>nexus-snapshots</id>
+      <id>maven-snapshots</id>
       <username>build</username>
       <password>tFomga3HJMH62l(F6C^ETj3I</password>
     </server>
     <server>
-      <id>nexus-releases</id>
+      <id>maven-releases</id>
       <username>build</username>
       <password>tFomga3HJMH62l(F6C^ETj3I</password>
     </server>
   </servers>
+    <mirrors>
+      <mirror>
+        <id>central</id>
+        <name>central</name>
+        <url>https://nexus.bharatpe.in/repository/maven-group/</url>
+        <mirrorOf>*</mirrorOf>
+      </mirror>
+    </mirrors>
 
 </settings>
