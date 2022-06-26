@@ -8,7 +8,6 @@ RUN mvn -T 1C clean dependency:go-offline
 COPY . .
 RUN mvn -T 1C clean package -Dmaven.test.skip=true #TODO: remove skiptest
 
-
 FROM openjdk:8
 COPY --from=java-build /app/target/*.jar /app/app.jar
 COPY --from=java-build /app/newrelic.yml /
