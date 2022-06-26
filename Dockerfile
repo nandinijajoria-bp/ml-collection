@@ -6,7 +6,7 @@ COPY pom.xml .
 COPY settings.xml .
 RUN mvn clean dependency:go-offline
 COPY . .
-RUN mvn clean -s settings.xml install -Dmaven.test.skip=true #TODO: remove skiptest
+RUN mvn clean -s settings.xml install -Dmaven.test.skip=true
 
 
 FROM openjdk:8
