@@ -4,9 +4,9 @@ LABEL name="ravi ranjan"
 WORKDIR /app
 COPY pom.xml .
 COPY settings.xml .
-RUN mvn clean dependency:go-offline
+RUN mvn -T 1C clean -s settings.xml dependency:go-offline
 COPY . .
-RUN mvn clean package -Dmaven.test.skip=true #TODO: remove skiptest
+RUN mvn -T 1C clean -s settings.xml install -Dmaven.test.skip -DskipTests #TODO: remove skiptest
 
 
 FROM openjdk:8
