@@ -1030,7 +1030,7 @@ public class PaymentService {
 			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null
 					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null
 					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D
-					&& apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId())) {
+					&& (apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId()) || lendingPaymentSchedule.getClosingDate().before(new Date(1654021800)))) {
 			
 				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
 				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
