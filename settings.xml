@@ -2,26 +2,19 @@
 <settings xmlns="http://maven.apache.org/SETTINGS/1.1.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.1.0 http://maven.apache.org/xsd/settings-1.1.0.xsd">
-
-  <servers>
-    <server>
-      <id>maven-snapshots</id>
-      <username>build</username>
-      <password>tFomga3HJMH62l(F6C^ETj3I</password>
-    </server>
-    <server>
-      <id>maven-releases</id>
-      <username>build</username>
-      <password>tFomga3HJMH62l(F6C^ETj3I</password>
-    </server>
-  </servers>
-    <mirrors>
-      <mirror>
-        <id>central</id>
-        <name>central</name>
-        <url>https://nexus.bharatpe.in/repository/maven-group/</url>
+  <mirrors>
+    <mirror>
+      <id>central</id>
+      <name>central</name>
+      <url>http://nexus.internal-bp.com/repository/maven-group/</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+    <mirror>
+        <id>maven-default-http-blocker</id>
         <mirrorOf>*</mirrorOf>
-      </mirror>
-    </mirrors>
+        <name></name>
+        <url>http://nexus.internal-bp.com/repository/maven-group/</url>
+    </mirror>
+  </mirrors>
 
 </settings>
