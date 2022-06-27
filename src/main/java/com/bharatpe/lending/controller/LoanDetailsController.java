@@ -205,4 +205,14 @@ public class LoanDetailsController {
 			return new ResponseEntity<>(new SettlementV2ResponseDTO(false, "Something went wrong"), HttpStatus.OK);
 		}
 	}
+
+	@RequestMapping(value="/document_details", method = RequestMethod.GET, consumes="application/json", produces="application/json")
+	public ResponseEntity<DocumentDetailsDto> documentDetails(@RequestParam(name = "application_id") Long application_id) {
+		try {
+			return new ResponseEntity<>(loanDetailsService.documentDetails(application_id), HttpStatus.OK);
+		} catch (Exception e) {
+			logger.error("Exception in settlement---", e);
+			return null;
+		}
+	}
 }
