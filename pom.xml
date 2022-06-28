@@ -6,7 +6,6 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>lending</name>
-	<url>http://maven.apache.org</url>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
@@ -91,18 +90,7 @@
         </dependency>
 
     </dependencies>
-	  <distributionManagement>
-    <repository>
-      <id>aws-release</id>
-      <name>AWS Release Repository</name>
-      <url>s3://maven-repo.bharatpe.in/release</url>
-    </repository>
-    <snapshotRepository>
-      <id>aws-snapshot</id>
-      <name>AWS Snapshot Repository</name>
-      <url>s3://maven-repo.bharatpe.in/snapshot</url>
-    </snapshotRepository>
-  </distributionManagement>
+
 <build>
         <extensions>
             <extension>
@@ -118,25 +106,24 @@
             </plugin>
         </plugins>
 </build>
-  <repositories>
-       <repository>
-         <id>central</id>
-         <name>Central Repository</name>
-         <url>https://repo.maven.apache.org/maven2</url>
-         <layout>default</layout>
-         <snapshots>
-           <enabled>false</enabled>
-         </snapshots>
-       </repository>
-        <repository>
-            <id>com.bharatpe-snapshot</id>
-            <name>snapshot</name>
-            <url>s3://maven-repo.bharatpe.in/snapshot</url>
-        </repository>
-        <repository>
-            <id>com.bharatpe-release</id>
-            <name>release</name>
-            <url>s3://maven-repo.bharatpe.in/release</url>
-        </repository>
-    </repositories>
+<repositories>
+	<repository>
+		<id>maven-group</id>
+		<name>maven-group</name>
+		<url>https://nexus.bharatpe.in/repository/maven-group/</url>
+		<snapshots>
+							<enabled>true</enabled>
+					</snapshots>
+	</repository>
+	<repository>
+		<id>com.bharatpe-snapshot</id>
+		<name>snapshot</name>
+		<url>https://nexus.bharatpe.in/repository/maven-snapshots/</url>
+	</repository>
+	<repository>
+		<id>com.bharatpe-release</id>
+		<name>release</name>
+		<url>https://nexus.bharatpe.in/repository/maven-releases/</url>
+	</repository>
+</repositories>
 </project>
