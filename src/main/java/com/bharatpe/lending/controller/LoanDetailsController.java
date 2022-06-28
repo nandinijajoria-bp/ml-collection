@@ -212,7 +212,7 @@ public class LoanDetailsController {
 			return new ResponseEntity<>(loanDetailsService.documentDetails(application_id), HttpStatus.OK);
 		} catch (Exception e) {
 			logger.error("Exception in settlement---", e);
-			return null;
+			return new ResponseEntity<>(new DocumentDetailsDto(false, "Something went wrong", null), HttpStatus.OK);
 		}
 	}
 }

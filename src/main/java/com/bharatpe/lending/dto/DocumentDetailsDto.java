@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
@@ -11,7 +12,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class DocumentDetailsDto {
-    String agreementUrl;
-    String sanctionUrl;
-    String nocUrl;
+    private Boolean success;
+    private String message;
+    private Data data;
+
+    @lombok.Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Data {
+        String agreementUrl;
+        String sanctionUrl;
+        String nocUrl;
+    }
 }
