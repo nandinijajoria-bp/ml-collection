@@ -475,13 +475,14 @@ public class LiquiloansService {
         }
         if (apiGatewayService.checkClubV2(lendingApplication.getMerchantId())) {
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            Double clubAmount = lendingRiskVariablesSnapshot.getClubV2Amount();
-            if (clubAmount > 0) {
-                logger.info("redeeming club offer for merchant:{} and amount:{}", lendingApplication.getMerchantId(), clubAmount);
+            Double actualLoanAmount = lendingRiskVariablesSnapshot.getFinalOffer() - lendingRiskVariablesSnapshot.getClubV2Amount();
+            Double clubAvailAmount = lendingApplication.getLoanAmount() - actualLoanAmount;
+            if (clubAvailAmount > 0) {
+                logger.info("redeeming club offer for merchant:{} and amount:{}", lendingApplication.getMerchantId(), clubAvailAmount);
                 Map<String, Object> body = new HashMap<>();
                 body.put("merchant_id", lendingApplication.getMerchantId());
                 body.put("ref_txn_id", lendingApplication.getId());
-                body.put("amount", clubAmount);
+                body.put("amount", clubAvailAmount);
                 body.put("narration", "Extra Loan Amount");
                 body.put("source_module", "LOAN");
 
