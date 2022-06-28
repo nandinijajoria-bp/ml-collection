@@ -1462,6 +1462,7 @@ public class LoanDetailsService {
 		data.setAgreementUrl(shortUrl);
 		data.setNocUrl(nocUrl);
 		data.setSanctionUrl(null);
+		documentDetailsDto.setData(data);
 		return documentDetailsDto;
 	}
 }
