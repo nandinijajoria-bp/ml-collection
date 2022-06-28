@@ -1446,7 +1446,8 @@ public class LoanDetailsService {
 		documentDetailsDto.setMessage("Fetched Document details");
 		documentDetailsDto.setSuccess(true);
 		DocumentDetailsDto.Data data = new DocumentDetailsDto.Data();
-		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId, "agreement");
+		Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(applicationId);
+		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingPaymentSchedule.get().getApplicationId(), "agreement");
 		String shortUrl = "";
 		if (loanAgreement != null) {
 			String fileName = loanAgreement.getAgreementName();
@@ -1456,8 +1457,8 @@ public class LoanDetailsService {
 				e.printStackTrace();
 			}
 		}
-		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
-		String nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
+//		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
+		String nocUrl = supportService.getNocUrl(lendingPaymentSchedule.get());
 
 		data.setAgreementUrl(shortUrl);
 		data.setNocUrl(nocUrl);
