@@ -60,4 +60,6 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	Optional<LendingPaymentSchedule> findLatestClosedLoan(Long merchantId);
 
 	LendingPaymentSchedule findTop1ByMerchantIdOrderByIdDesc(Long merchantId);
+
+	LendingPaymentSchedule findByApplicationId(Long applicationId);
 }

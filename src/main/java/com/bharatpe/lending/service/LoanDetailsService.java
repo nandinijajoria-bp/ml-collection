@@ -41,6 +41,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 //import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
+import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -56,6 +57,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -195,7 +197,17 @@ public class LoanDetailsService {
 
 	@Autowired
     LendingPincodesDao lendingPincodesDao;
+
+	@Autowired
+	LoanAgreementDao loanAgreementDao;
+
+	@Autowired
+	LiquiloansService liquiloansService;
+
+	@Autowired
+	SupportService supportService;
 //	@Transactional
+
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -1427,5 +1439,30 @@ public class LoanDetailsService {
 		lendingGstDao.save(lendingGstDetail);
 
 		return new CommonResponse(lendingGstDetail);
+	}
+
+	public DocumentDetailsDto documentDetails(LendingPaymentSchedule lendingPaymentSchedule) {
+		DocumentDetailsDto documentDetailsDto = new DocumentDetailsDto();
+		documentDetailsDto.setMessage("Fetched Document details");
+		documentDetailsDto.setSuccess(true);
+		DocumentDetailsDto.Data data = new DocumentDetailsDto.Data();
+		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingPaymentSchedule.getApplicationId(), "agreement");
+		String shortUrl = "";
+		if (loanAgreement != null) {
+			String fileName = loanAgreement.getAgreementName();
+			try {
+				shortUrl = liquiloansService.getShorturl(fileName, loanAgreement);
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+		}
+//		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
+		String nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
+
+		data.setAgreementUrl(shortUrl);
+		data.setNocUrl(nocUrl);
+		data.setSanctionUrl(null);
+		documentDetailsDto.setData(data);
+		return documentDetailsDto;
 	}
 }
