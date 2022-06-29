@@ -1,7 +1,9 @@
 package com.bharatpe.lending.controller;
 
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.*;
 
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("lending")
@@ -50,6 +53,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	MerchantUpdateService merchantUpdateService;
+
+	@Autowired
+	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody(required = false) RequestDTO<IneligibleRequestDTO> requestDTO, @RequestHeader("token") String token) {
@@ -207,9 +213,13 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/document_details", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<DocumentDetailsDto> documentDetails(@RequestParam(name = "application_id") Long application_id) {
+	public ResponseEntity<DocumentDetailsDto> documentDetails(@RequestParam(name = "application_id") Long loanId) {
 		try {
-			return new ResponseEntity<>(loanDetailsService.documentDetails(application_id), HttpStatus.OK);
+			Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId);
+			if (!lendingPaymentSchedule.isPresent()) {
+				return new ResponseEntity<>(new DocumentDetailsDto(false, "No payment schedule found for this loan_id", null), HttpStatus.OK);
+			}
+			return new ResponseEntity<>(loanDetailsService.documentDetails(lendingPaymentSchedule.get()), HttpStatus.OK);
 		} catch (Exception e) {
 			logger.error("Exception in settlement---", e);
 			return new ResponseEntity<>(new DocumentDetailsDto(false, "Something went wrong", null), HttpStatus.OK);
