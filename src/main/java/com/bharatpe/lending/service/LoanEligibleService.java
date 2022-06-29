@@ -179,6 +179,7 @@ public class LoanEligibleService {
 
         if (ObjectUtils.isEmpty(eligibleLoans) || (!ObjectUtils.isEmpty(eligibleLoans.get(0)) && !eligibleLoans.get(0).getCreatedAt().after(dateWindow))) {
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+            //Todo if global response is null: return
             if ((queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
                     !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) || (Objects.nonNull(globalLimitResponse)
               && Objects.nonNull(globalLimitResponse.getData()) && ObjectUtils.isEmpty(globalLimitResponse.getData().getOfferDetails()))) {
@@ -187,9 +188,10 @@ public class LoanEligibleService {
                 return responseDTO;
             }
             //        eligibleLoanDao.deleteCustomOffers(merchantId);
-//            if (Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getGlobalLimit())) {
-//                queryAmount = globalLimitResponse.getData().getGlobalLimit();
-//            }
+            if (Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getGlobalLimit())) {
+                logger.info("query amount: {}, global calculated offer: {}", queryAmount, globalLimitResponse.getData().getGlobalLimit());
+                queryAmount = queryAmount > globalLimitResponse.getData().getGlobalLimit() ? globalLimitResponse.getData().getGlobalLimit() : queryAmount;
+            }
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
             eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount,
                     Sort.by(Sort.Direction.DESC, "id"));
