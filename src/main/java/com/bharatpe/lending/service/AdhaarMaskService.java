@@ -1,9 +1,9 @@
 package com.bharatpe.lending.service;
 
 import com.amazonaws.util.IOUtils;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
-import com.bharatpe.common.entities.DocumentsIdProof;
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.AdhaarMaskRequest;
 import com.bharatpe.lending.dto.CommonResponse;
@@ -36,7 +36,7 @@ public class AdhaarMaskService {
     APIGatewayService apiGatewayService;
 
     @Autowired
-    DocumentsIdProofDao documentsIdProofDao;
+    DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -56,7 +56,7 @@ public class AdhaarMaskService {
             if (lendingApplication == null) {
                 return new CommonResponse(false, "Application not found");
             }
-            DocumentsIdProof documentsIdProof = documentsIdProofDao.findByMerchantIdApplicationIdAndProofType(requestDTO.getMerchantId(), lendingApplication.getId(), "adhaarcard");
+            DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(requestDTO.getMerchantId(), lendingApplication.getId(), "adhaarcard");
             if (documentsIdProof != null && documentsIdProof.getProofFrontSide() != null) {
                 logger.info("Masking adhaar for application:{}", lendingApplication.getId());
                 String frontUrl = getImageUrl(documentsIdProof.getProofFrontSide());
@@ -98,9 +98,9 @@ public class AdhaarMaskService {
         return objectMapper.readTree(adhaarMaskResponse);
     }
 
-    private void updateAdhaarImage(JsonNode result, DocumentsIdProof documentsIdProof, Long merchantId, boolean isBackImage) {
+    private void updateAdhaarImage(JsonNode result, DocumentsIdProofMaster documentsIdProof, Long merchantId, boolean isBackImage) {
         if (result.hasNonNull("response") && result.get("response").hasNonNull("result") && result.get("response").get("result").hasNonNull("maskedImages") && result.get("response").get("result").get("isMasked") != null && result.get("response").get("result").get("isMasked").textValue().equalsIgnoreCase("yes")) {
-            logger.info("Updating masked adhaar image for application:{}", documentsIdProof.getLendingApplication().getId());
+            logger.info("Updating masked adhaar image for application:{}", documentsIdProof.getLendingApplicationId());
             try {
                 String url = result.get("response").get("result").get("maskedImages").get(0).textValue();
                 String fileName = merchantId + "_" + UUID.randomUUID().toString() + ".jpeg";
@@ -112,7 +112,7 @@ public class AdhaarMaskService {
                 } else {
                     documentsIdProof.setProofFrontSide(fileName);
                 }
-                documentsIdProofDao.save(documentsIdProof);
+                documentsIdProofDaoMaster.save(documentsIdProof);
             } catch (Exception e) {
                 logger.error("Exception while updating adhaar image", e);
             }

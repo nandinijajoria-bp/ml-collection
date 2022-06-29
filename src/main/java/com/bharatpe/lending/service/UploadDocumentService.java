@@ -6,6 +6,8 @@ import java.util.*;
 
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
@@ -22,8 +24,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-import com.bharatpe.common.dao.DocKycDetailsDao;
-import com.bharatpe.common.dao.DocumentsIdProofDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -42,13 +42,10 @@ public class UploadDocumentService {
 	Logger logger = LoggerFactory.getLogger(UploadDocumentService.class);
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofdao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingShopDocumentsDao lendingShopDocumentsDao;
-	
-	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
 	
 //	@Autowired
 //	DocAuthenticationDao docAuthenticationDao;
@@ -114,8 +111,8 @@ public class UploadDocumentService {
 		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
-		List<DocumentsIdProof> documentsIdProofList =
-		documentsIdProofdao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
+		List<DocumentsIdProofMaster> documentsIdProofList =
+		documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
 		List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
 		Boolean isUpdateDocument = false;
 		Boolean isUpdateMoreDocument = false;
@@ -157,7 +154,7 @@ public class UploadDocumentService {
 			String frontSide = proofSides.get("frontSide");
 			String backSide = proofSides.get("backSide");
 
-			DocumentsIdProof documentsIdProof = null;
+			DocumentsIdProofMaster documentsIdProof = null;
 			LendingShopDocuments lendingShopDocuments = null;
 			if("shop-front".equalsIgnoreCase(proofType) || "shop-stock".equalsIgnoreCase(proofType) || "shop-qr".equalsIgnoreCase(proofType)){
 				if(isUpdateMoreDocument){
@@ -237,7 +234,7 @@ public class UploadDocumentService {
 		lendingShopDocumentsDao.save(lendingShopDocuments);
 	}
 
-	public void sinzyCorrectPanCheck(DocumentsIdProof documentsIdProof ,String proofType, BasicDetailsDto merchant, Long applicationId){
+	public void sinzyCorrectPanCheck(DocumentsIdProofMaster documentsIdProof ,String proofType, BasicDetailsDto merchant, Long applicationId){
 
 		if(proofType.equals("pancard")){
 			new Thread(() -> {
@@ -277,12 +274,12 @@ public class UploadDocumentService {
 		return base64EncodedString;
 	}
 
-	private DocumentsIdProof insertDocumentIdProof(String proofType, String frontSide, String backSide,
+	private DocumentsIdProofMaster insertDocumentIdProof(String proofType, String frontSide, String backSide,
 												   int singlePageDocument,
 												   LendingApplication lendingApplication, MetaDTO meta) {
-		DocumentsIdProof documentsIdProof = new DocumentsIdProof();
+		DocumentsIdProofMaster documentsIdProof = new DocumentsIdProofMaster();
 		documentsIdProof.setMerchantId(lendingApplication.getMerchantId());
-		documentsIdProof.setLendingApplication(lendingApplication);
+		documentsIdProof.setLendingApplicationId(lendingApplication.getId());
 		documentsIdProof.setProofType(proofType);
 		documentsIdProof.setProofFrontSide(frontSide);
 		documentsIdProof.setProofBackSide(backSide);
@@ -293,7 +290,7 @@ public class UploadDocumentService {
 			documentsIdProof.setLongitude(meta.getLongitude());
 			documentsIdProof.setIp(meta.getIp());
 		}
-		documentsIdProofdao.save(documentsIdProof);
+		documentsIdProofDaoMaster.save(documentsIdProof);
 		return documentsIdProof;
 	}
 
@@ -314,18 +311,18 @@ public class UploadDocumentService {
 		return lendingShopDocuments;
 	}
 	
-	private DocumentsIdProof updateDocumentIdProof(String proofType, String frontSide, String backSide,
+	private DocumentsIdProofMaster updateDocumentIdProof(String proofType, String frontSide, String backSide,
 												   int singlePageDocument, BasicDetailsDto merchant,
 												   LendingApplication lendingApplication, MetaDTO meta) {
 		if(!"pancard".equalsIgnoreCase(proofType) && !"selfie".equalsIgnoreCase(proofType)){
-			DocumentsIdProof poaDocument=documentsIdProofdao.fetchLatestAddressProof(merchant.getId(), lendingApplication.getId(), "LENDING");
+			DocumentsIdProofMaster poaDocument=documentsIdProofDaoMaster.fetchLatestAddressProof(merchant.getId(), lendingApplication.getId(), "LENDING");
 			if(poaDocument != null && !poaDocument.getProofType().equalsIgnoreCase(proofType)){
 				poaDocument.setDeletedAt(new Date());
-				documentsIdProofdao.save(poaDocument);
+				documentsIdProofDaoMaster.save(poaDocument);
 			}
 		}
 		
-		DocumentsIdProof documentsIdProof = documentsIdProofdao.findTop1ByMerchantIdAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication, proofType);
+		DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findTop1ByMerchantIdAndLendingApplicationIdAndProofTypeAndDeletedAtIsNullOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);
 			documentsIdProof.setProofBackSide(backSide);
@@ -335,7 +332,7 @@ public class UploadDocumentService {
 				documentsIdProof.setLongitude(meta.getLongitude());
 				documentsIdProof.setIp(meta.getIp());
 			}
-			documentsIdProofdao.save(documentsIdProof);
+			documentsIdProofDaoMaster.save(documentsIdProof);
 		} else {
 			documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, lendingApplication, meta);
 		}

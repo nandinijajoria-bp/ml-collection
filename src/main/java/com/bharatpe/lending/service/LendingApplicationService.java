@@ -4,10 +4,17 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.query.entity.ExperianSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -16,8 +23,8 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
-import com.bharatpe.lending.common.slave.dao.ExperianDaoSlave;
-import com.bharatpe.lending.common.slave.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.ExperianDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
 import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
@@ -31,7 +38,7 @@ import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
-import com.bharatpe.lending.slave.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -124,7 +131,7 @@ public class LendingApplicationService {
     APIGatewayService apiGatewayService;
 
     @Autowired
-    DocumentsIdProofDao documentsIdProofDao;
+    DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
     @Autowired
     MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
@@ -157,7 +164,7 @@ public class LendingApplicationService {
     LoanUtil loanUtil;
 
     @Autowired
-    DocKycDetailsDao docKycDetailsDao;
+    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
     @Autowired
     PartnersApiHandler partnersApiHandler;
@@ -359,7 +366,7 @@ public class LendingApplicationService {
         MerchantDocumentProofSlave selfie = merchantDocumentProofDaoSlave.findVerifiedProofType(merchantBasicDetails.getId(), "selfie");
         MerchantDocumentProofSlave pancard = merchantDocumentProofDaoSlave.findVerifiedProofType(merchantBasicDetails.getId(), "pancard");
         MerchantDocumentProofSlave poa = merchantDocumentProofDaoSlave.findVerifiedPOA(merchantBasicDetails.getId());
-        DocumentsIdProof eAadhar = documentsIdProofDao.findLatestEadhar(merchantBasicDetails.getId());
+        DocumentsIdProofMaster eAadhar = documentsIdProofDaoMaster.findLatestEadhar(merchantBasicDetails.getId());
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
         List<MerchantDocumentProofSlave> merchantDocumentProofs = new ArrayList<MerchantDocumentProofSlave>() {{
             add(selfie);
@@ -379,12 +386,12 @@ public class LendingApplicationService {
                         backUrl = uploadDocumentInLending(backUrl, merchantBasicDetails.getId(), kycBucket);
                     }
                 }
-                DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
+                DocumentsIdProofMaster toSaveDocuments = new DocumentsIdProofMaster();
                 toSaveDocuments.setMerchantId(merchantBasicDetails.getId());
                 toSaveDocuments.setProofType(documentsIdProof.getProofType());
                 toSaveDocuments.setProofFrontSide(frontUrl);
                 toSaveDocuments.setProofBackSide(backUrl);
-                toSaveDocuments.setLendingApplication(newApplication);
+                toSaveDocuments.setLendingApplicationId(newApplication.getId());
                 toSaveDocuments.setStatus("pending_verification");
                 toSaveDocuments.setAccesstoken(documentsIdProof.getAccesstoken());
                 toSaveDocuments.setFaceMatch(documentsIdProof.getFaceMatch());
@@ -403,10 +410,10 @@ public class LendingApplicationService {
                 if (!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
                     toSaveDocuments.setLongitude(meta.getLongitude());
                 toSaveDocuments.setIp(meta.getIp());
-                toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
+                toSaveDocuments = documentsIdProofDaoMaster.save(toSaveDocuments);
                 if (toSaveDocuments.getProofType().equalsIgnoreCase("e_aadhaar")) {
                     toSaveDocuments.setProofType("eAadhar");
-                    toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
+                    toSaveDocuments = documentsIdProofDaoMaster.save(toSaveDocuments);
                     List<MerchantDocumentProofOcrSlave> merchantDocumentProofOcrs = merchantDocumentProofOcrDaoSlave.findByDocumentId(documentsIdProof.getId());
                     if (!merchantDocumentProofOcrs.isEmpty()) {
                         insertIntoDocKycDetails(merchantDocumentProofOcrs.get(0), toSaveDocuments);
@@ -417,12 +424,12 @@ public class LendingApplicationService {
             }
         }
         if (eAadhar != null) {
-            DocumentsIdProof toSaveDocuments = new DocumentsIdProof();
+            DocumentsIdProofMaster toSaveDocuments = new DocumentsIdProofMaster();
             toSaveDocuments.setMerchantId(merchantBasicDetails.getId());
             toSaveDocuments.setProofType(eAadhar.getProofType());
             toSaveDocuments.setProofFrontSide(eAadhar.getProofFrontSide());
             toSaveDocuments.setProofBackSide(eAadhar.getProofBackSide());
-            toSaveDocuments.setLendingApplication(newApplication);
+            toSaveDocuments.setLendingApplicationId(newApplication.getId());
             toSaveDocuments.setStatus("pending_verification");
             toSaveDocuments.setAccesstoken(eAadhar.getAccesstoken());
             toSaveDocuments.setFaceMatch(eAadhar.getFaceMatch());
@@ -441,16 +448,16 @@ public class LendingApplicationService {
             if (!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
                 toSaveDocuments.setLongitude(meta.getLongitude());
             toSaveDocuments.setIp(meta.getIp());
-            toSaveDocuments = documentsIdProofDao.save(toSaveDocuments);
-            DocKycDetails docKycDetails = docKycDetailsDao.fetchLatestEAdharDetails(merchantBasicDetails.getId());
+            toSaveDocuments = documentsIdProofDaoMaster.save(toSaveDocuments);
+            DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.fetchLatestEAdharDetails(merchantBasicDetails.getId());
             if (docKycDetails != null) {
                 insertIntoDocKycDetails(docKycDetails, toSaveDocuments);
             }
         }
     }
 
-    private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {
-        DocKycDetails docKycDetails = new DocKycDetails();
+    private DocKycDetailsMaster insertIntoDocKycDetails(DocKycDetailsMaster oldDocKycDetails, DocumentsIdProofMaster documentsIdProof) {
+        DocKycDetailsMaster docKycDetails = new DocKycDetailsMaster();
 
         docKycDetails.setMerchantId(oldDocKycDetails.getMerchantId());
         docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
@@ -479,12 +486,12 @@ public class LendingApplicationService {
             docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
         }
 
-        docKycDetailsDao.save(docKycDetails);
+        docKycDetailsDaoMaster.save(docKycDetails);
         return docKycDetails;
     }
 
-    private DocKycDetails insertIntoDocKycDetails(MerchantDocumentProofOcrSlave merchantDocumentProofOcr, DocumentsIdProof documentsIdProof) {
-        DocKycDetails docKycDetails = new DocKycDetails();
+    private DocKycDetailsMaster insertIntoDocKycDetails(MerchantDocumentProofOcrSlave merchantDocumentProofOcr, DocumentsIdProofMaster documentsIdProof) {
+        DocKycDetailsMaster docKycDetails = new DocKycDetailsMaster();
         docKycDetails.setMerchantId(documentsIdProof.getMerchantId());
         docKycDetails.setDocumentsIdProof(documentsIdProof);
         docKycDetails.setDocType(documentsIdProof.getProofType());
@@ -505,7 +512,7 @@ public class LendingApplicationService {
             docKycDetails.setDocNo(lendingEkyc.getMaskedAadhar());
         }
 
-        docKycDetailsDao.save(docKycDetails);
+        docKycDetailsDaoMaster.save(docKycDetails);
         return docKycDetails;
     }
 

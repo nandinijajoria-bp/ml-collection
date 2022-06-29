@@ -100,8 +100,8 @@ public class SupportService {
     @Autowired
     LendingApplicationPriorityDao lendingApplicationPriorityDao;
 
-    @Autowired
-    CreditLineMerchantDao creditLineMerchantDao;
+//    @Autowired
+//    CreditLineMerchantDao creditLineMerchantDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -172,7 +172,7 @@ public class SupportService {
         try {
             SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
             supportLoanResponseDTO.setCreditLineAccount(Boolean.FALSE);
-            CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
+//            CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
 //            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             Experian experian = experianDao.getByMerchantId(merchantId);
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
@@ -201,13 +201,13 @@ public class SupportService {
             }
             supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
             responseDTO.setData(supportLoanResponseDTO);
-            if (!ObjectUtils.isEmpty(creditLineMerchant)) {
-                supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_CREDIT_LINE);
-                supportLoanResponseDTO.setCreditLineAccount(Boolean.TRUE);
-                responseDTO.setData(supportLoanResponseDTO);
-                logger.info("CreditLine merchant found for merchantId: {}", merchantId);
-                return responseDTO;
-            }
+//            if (!ObjectUtils.isEmpty(creditLineMerchant)) {
+//                supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_CREDIT_LINE);
+//                supportLoanResponseDTO.setCreditLineAccount(Boolean.TRUE);
+//                responseDTO.setData(supportLoanResponseDTO);
+//                logger.info("CreditLine merchant found for merchantId: {}", merchantId);
+//                return responseDTO;
+//            }
             supportLoanResponseDTO.setMerchantId(merchantId);
             supportLoanResponseDTO.setActiveLoan(Boolean.FALSE);
             supportLoanResponseDTO.setApplied(Boolean.FALSE);

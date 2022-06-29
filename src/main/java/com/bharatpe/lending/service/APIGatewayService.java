@@ -3,6 +3,8 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
@@ -114,7 +116,7 @@ public class APIGatewayService {
     S3BucketHandler s3BucketHandler;
 
     @Autowired
-    DocKycDetailsDao docKycDetailsDao;
+    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
@@ -1767,13 +1769,13 @@ public class APIGatewayService {
         try {
             if (ObjectUtils.isEmpty(lendingApplication.getCkycId())) {
                 String dob = null;
-                DocKycDetails panDetail = docKycDetailsDao.fetchLatestPanCardDetails(lendingApplication.getMerchantId(), lendingApplication.getId());
-                DocKycDetails poaDetail = docKycDetailsDao.fetchLatestBackAddressDetails(lendingApplication.getMerchantId(), lendingApplication.getId());
+                DocKycDetailsMaster panDetail = docKycDetailsDaoMaster.fetchLatestPanCardDetails(lendingApplication.getMerchantId(), lendingApplication.getId());
+                DocKycDetailsMaster poaDetail = docKycDetailsDaoMaster.fetchLatestBackAddressDetails(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (panDetail == null) {
-                    panDetail = docKycDetailsDao.fetchPanMerchantId(merchantId);
+                    panDetail = docKycDetailsDaoMaster.fetchPanMerchantId(merchantId);
                 }
                 if (poaDetail == null) {
-                    poaDetail = docKycDetailsDao.fetchPoaMerchantId(merchantId);
+                    poaDetail = docKycDetailsDaoMaster.fetchPoaMerchantId(merchantId);
                 }
                 Date dateOfBirth = null;
                 dob = Objects.nonNull(panDetail) ? panDetail.getDob() : null;

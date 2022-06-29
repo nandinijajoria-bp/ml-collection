@@ -9,11 +9,12 @@ import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
-import com.bharatpe.lending.common.entity.MerchantDocumentProof;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -22,14 +23,14 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.LendingPartnerOffersDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
-import com.bharatpe.lending.common.slave.entity.LendingPartnerOffersSlave;
+import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
 import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
@@ -83,7 +84,7 @@ public class LoanDetailsService {
 	LendingCategoryDao lendingCategoryDao;
 
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingPancardDao lendingPancardDao;
@@ -142,8 +143,8 @@ public class LoanDetailsService {
 	@Autowired
 	RedisNotificationService redisNotificationService;
 
-	@Autowired
-	CreditLineMerchantDao creditLineMerchantDao;
+//	@Autowired
+//	CreditLineMerchantDao creditLineMerchantDao;
 
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
@@ -201,12 +202,12 @@ public class LoanDetailsService {
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
-			if(isMerchantFromCreditLine(merchantBasicDetailsDto)) {
-				response.setDeeplink("bharatpe://dynamic?key=credit-line");
-				response.setSuccess(true);
-				response.setMessage("Credit line merchant");
-				return response;
-			}
+//			if(isMerchantFromCreditLine(merchantBasicDetailsDto)) {
+//				response.setDeeplink("bharatpe://dynamic?key=credit-line");
+//				response.setSuccess(true);
+//				response.setMessage("Credit line merchant");
+//				return response;
+//			}
 //			MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchantBasicDetailsDto.getId());
 			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
 			if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -1080,8 +1081,8 @@ public class LoanDetailsService {
 
 	private List<DocumentDTO> fetchDocuments(LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		List<DocumentDTO> documents = new ArrayList<>();
-		List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
-		for(DocumentsIdProof documentsIdProof : documentsIdProofList) {
+		List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
+		for(DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
 			DocumentDTO document = new DocumentDTO();
 			document.setId(documentsIdProof.getId());
 			document.setProofType(documentsIdProof.getProofType());
@@ -1121,10 +1122,10 @@ public class LoanDetailsService {
 		return settlementResponseDTO;
 	}
 
-	public boolean isMerchantFromCreditLine(BasicDetailsDto merchant) {
-		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
-		return creditLineMerchant != null;
-	}
+//	public boolean isMerchantFromCreditLine(BasicDetailsDto merchant) {
+//		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
+//		return creditLineMerchant != null;
+//	}
 
 
 	public ResponseDTO creditScore(BasicDetailsDto merchantBasicDetails,RequestDTO<CreditScoreRequestDto> requestDTO,String clientIp) {

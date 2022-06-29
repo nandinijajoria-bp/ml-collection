@@ -1,19 +1,16 @@
 FROM maven:3-openjdk-8 AS java-build
 LABEL name="ravi ranjan"
 
-WORKDIR /app 
+WORKDIR /app
 COPY pom.xml .
-RUN mvn clean dependency:go-offline
+COPY settings.xml .
+RUN mvn -T 1C -s settings.xml dependency:resolve -Dmaven.test.skip=true
 COPY . .
-RUN mvn clean package -Dmaven.test.skip=true #TODO: remove skiptest
-
+RUN mvn clean -s settings.xml -T 1C package -Dmaven.test.skip=true #TODO: remove skiptest
 
 FROM openjdk:8
 COPY --from=java-build /app/target/*.jar /app/app.jar
 COPY --from=java-build /app/newrelic.yml /
 COPY --from=java-build /app/newrelic.yml /app/newrelic.yml
-RUN mkdir -p /data/bbps-recon/
-RUN wget https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/infra/apm-agent.jar
 RUN wget https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/infra/newrelic.jar
 ENTRYPOINT ["java","-javaagent:newrelic.jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
-#ENTRYPOINT ["java","-jar","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}", "/app/app.jar"]

@@ -5,6 +5,10 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
@@ -46,7 +50,7 @@ public class SignAgreementService {
 	LendingApplicationDao lendingApplicationDao;
 	
 	@Autowired
-	DocumentsIdProofDao documentsIdProofDao;
+	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingShopDocumentsDao lendingShopDocumentsDao;
@@ -67,7 +71,7 @@ public class SignAgreementService {
 	LendingAuditTrialDao lendingAuditTrialDao;
 	
 	@Autowired
-	DocKycDetailsDao docKycDetailsDao;
+	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 	
 	@Autowired
 	BharatPeOtpHandler bharatPeOtpHandler;
@@ -167,7 +171,7 @@ public class SignAgreementService {
 				return response;
 			}
 		} else {
-			List<DocumentsIdProof> documentsIdProofList = documentsIdProofDao.findByMerchantIdAndLendingApplication(merchant.getId(), lendingApplication);
+			List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
 			List<LendingShopDocuments> shopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
 			if(documentsIdProofList == null || documentsIdProofList.size() == 0 || shopDocuments.isEmpty()) {
 				logger.info("documents not found for application:{}", applicationId);
@@ -339,25 +343,25 @@ public class SignAgreementService {
 	}
 	
 	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, BasicDetailsDto merchant, MetaDTO meta) {
-		DocKycDetails panDoc = docKycDetailsDao.fetchLatestPanCardDetails(prevApplication.getMerchantId(),prevApplication.getId());
-		DocKycDetails poaDoc = docKycDetailsDao.fetchLatestAddressDetails(prevApplication.getMerchantId(),prevApplication.getId());
-		DocumentsIdProof selfie = documentsIdProofDao.findTop1ByMerchantIdAndLendingApplicationAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant.getId(),prevApplication,"selfie");
+		DocKycDetailsMaster panDoc = docKycDetailsDaoMaster.fetchLatestPanCardDetails(prevApplication.getMerchantId(),prevApplication.getId());
+		DocKycDetailsMaster poaDoc = docKycDetailsDaoMaster.fetchLatestAddressDetails(prevApplication.getMerchantId(),prevApplication.getId());
+		DocumentsIdProofMaster selfie = documentsIdProofDaoMaster.findTop1ByMerchantIdAndLendingApplicationIdAndProofTypeAndDeletedAtIsNullOrderByIdDesc(merchant.getId(),prevApplication.getId(),"selfie");
 
 		if(panDoc == null){
-			panDoc = docKycDetailsDao.fetchPanMerchantId(merchant.getId());
+			panDoc = docKycDetailsDaoMaster.fetchPanMerchantId(merchant.getId());
 		}
 
 		if(poaDoc == null){
-			poaDoc = docKycDetailsDao.fetchPoaMerchantId(merchant.getId());
+			poaDoc = docKycDetailsDaoMaster.fetchPoaMerchantId(merchant.getId());
 		}
 
 		if(panDoc != null){
-			DocumentsIdProof panDocument = new DocumentsIdProof();
+			DocumentsIdProofMaster panDocument = new DocumentsIdProofMaster();
 			panDocument.setMerchantId(merchant.getId());
 			panDocument.setProofType(panDoc.getDocumentsIdProof().getProofType());
 			panDocument.setProofFrontSide(panDoc.getDocumentsIdProof().getProofFrontSide());
 			panDocument.setProofBackSide(panDoc.getDocumentsIdProof().getProofBackSide());
-			panDocument.setLendingApplication(newApplication);
+			panDocument.setLendingApplicationId(newApplication.getId());
 			panDocument.setIdentityId(panDoc.getDocumentsIdProof().getIdentityId());
 			panDocument.setAccesstoken(panDoc.getDocumentsIdProof().getAccesstoken());
 			panDocument.setFaceMatch(panDoc.getDocumentsIdProof().getFaceMatch());
@@ -372,18 +376,18 @@ public class SignAgreementService {
 			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
 				panDocument.setLongitude(meta.getLongitude());
 			panDocument.setIp(meta.getIp());
-			documentsIdProofDao.save(panDocument);
+			documentsIdProofDaoMaster.save(panDocument);
 
-			DocKycDetails panKyc = insertIntoDocKycDetails(panDoc, panDocument);
+			DocKycDetailsMaster panKyc = insertIntoDocKycDetails(panDoc, panDocument);
 		}
 
 		if(poaDoc != null){
-			DocumentsIdProof poaDocument = new DocumentsIdProof();
+			DocumentsIdProofMaster poaDocument = new DocumentsIdProofMaster();
 			poaDocument.setMerchantId(merchant.getId());
 			poaDocument.setProofType(poaDoc.getDocumentsIdProof().getProofType());
 			poaDocument.setProofFrontSide(poaDoc.getDocumentsIdProof().getProofFrontSide());
 			poaDocument.setProofBackSide(poaDoc.getDocumentsIdProof().getProofBackSide());
-			poaDocument.setLendingApplication(newApplication);
+			poaDocument.setLendingApplicationId(newApplication.getId());
 			poaDocument.setIdentityId(poaDoc.getDocumentsIdProof().getIdentityId());
 			poaDocument.setAccesstoken(poaDoc.getDocumentsIdProof().getAccesstoken());
 			poaDocument.setFaceMatch(poaDoc.getDocumentsIdProof().getFaceMatch());
@@ -398,23 +402,22 @@ public class SignAgreementService {
 			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
 				poaDocument.setLongitude(meta.getLongitude());
 			poaDocument.setIp(meta.getIp());
-			documentsIdProofDao.save(poaDocument);
+			documentsIdProofDaoMaster.save(poaDocument);
 
-			List<DocKycDetails> poaList = docKycDetailsDao.findByDocumentsIdProof(poaDoc.getDocumentsIdProof());
+			List<DocKycDetailsMaster> poaList = docKycDetailsDaoMaster.findByDocumentsIdProof(poaDoc.getDocumentsIdProof());
 
-			for(DocKycDetails poa :poaList) {
-				DocKycDetails poaKyc = insertIntoDocKycDetails(poa, poaDocument);
+			for(DocKycDetailsMaster poa :poaList) {
+				DocKycDetailsMaster poaKyc = insertIntoDocKycDetails(poa, poaDocument);
 			}
 		}
 
 		if(selfie != null){
-			DocumentsIdProof selfieDoc = new DocumentsIdProof();
-			selfieDoc.setLendingApplication(newApplication);
+			DocumentsIdProofMaster selfieDoc = new DocumentsIdProofMaster();
+			selfieDoc.setLendingApplicationId(newApplication.getId());
 			selfieDoc.setMerchantId(merchant.getId());
 			selfieDoc.setProofType(selfie.getProofType());
 			selfieDoc.setProofFrontSide(selfie.getProofFrontSide());
 			selfieDoc.setProofBackSide(selfie.getProofBackSide());
-			selfieDoc.setLendingApplication(newApplication);
 			selfieDoc.setIdentityId(selfie.getIdentityId());
 			selfieDoc.setAccesstoken(selfie.getAccesstoken());
 			selfieDoc.setFaceMatch(selfie.getFaceMatch());
@@ -429,7 +432,7 @@ public class SignAgreementService {
 			if(!StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().trim().equalsIgnoreCase("undefined"))
 				selfieDoc.setLongitude(meta.getLongitude());
 			selfieDoc.setIp(meta.getIp());
-			documentsIdProofDao.save(selfieDoc);
+			documentsIdProofDaoMaster.save(selfieDoc);
 		}
 
 		LendingGstDetail lendingGstDetail =lendingGstDao.findByApplicationId(prevApplication.getId());
@@ -469,8 +472,8 @@ public class SignAgreementService {
 
 	}
 	
-	private DocKycDetails insertIntoDocKycDetails(DocKycDetails oldDocKycDetails, DocumentsIdProof documentsIdProof) {
-		DocKycDetails docKycDetails = new DocKycDetails();
+	private DocKycDetailsMaster insertIntoDocKycDetails(DocKycDetailsMaster oldDocKycDetails, DocumentsIdProofMaster documentsIdProof) {
+		DocKycDetailsMaster docKycDetails = new DocKycDetailsMaster();
 		
 		docKycDetails.setMerchantId(oldDocKycDetails.getMerchantId());
 		docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
@@ -502,7 +505,7 @@ public class SignAgreementService {
 			docKycDetails.setDocNo(oldDocKycDetails.getDocNo());
 		}
 
-		docKycDetailsDao.save(docKycDetails);
+		docKycDetailsDaoMaster.save(docKycDetails);
 		return docKycDetails;
 	}
 //

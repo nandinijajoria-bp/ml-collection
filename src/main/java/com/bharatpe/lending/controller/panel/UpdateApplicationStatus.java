@@ -8,18 +8,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bharatpe.lending.dto.CreditApplicationStatusUpdationRequestDto;
 import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.service.CreditApplicationStatusChange;
 
 @RestController
 @RequestMapping("lending/credit_line")
 public class UpdateApplicationStatus {
 	
-	@Autowired
-	CreditApplicationStatusChange creditApplicationStatusChange;
+//	@Autowired
+//	CreditApplicationStatusChange creditApplicationStatusChange;
 	
-	@RequestMapping(value = "/application_status_update",method = RequestMethod.POST)
-	public ResponseDTO updateApplicationStatus(@RequestBody CreditApplicationStatusUpdationRequestDto applicationStatus){
-		
-		return creditApplicationStatusChange.changeApplicationStatus(applicationStatus);
-	}
+//	@RequestMapping(value = "/application_status_update",method = RequestMethod.POST)
+//	public ResponseDTO updateApplicationStatus(@RequestBody CreditApplicationStatusUpdationRequestDto applicationStatus){
+//
+//		return creditApplicationStatusChange.changeApplicationStatus(applicationStatus);
+//	}
 }

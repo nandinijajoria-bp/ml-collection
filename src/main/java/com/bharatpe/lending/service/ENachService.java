@@ -158,10 +158,10 @@ public class ENachService {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
 
-            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
-            if (lendingPennydrop == null) {
-                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
-            }
+//            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
+//            if (lendingPennydrop == null) {
+//                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
+//            }
         }
 
         apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider());
@@ -241,10 +241,10 @@ public class ENachService {
         }
         lendingEnach.setSkip(true);
         bharatPeEnachDao.save(lendingEnach);
-        LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
-        if (lendingPennydrop == null) {
-            apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
-        }
+//        LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
+//        if (lendingPennydrop == null) {
+//            apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
+//        }
         return new ResponseDTO(true, null, null, null);
     }
 

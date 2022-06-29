@@ -12,13 +12,12 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
-import com.bharatpe.lending.common.slave.entity.LendingApplicationSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -73,8 +72,8 @@ public class LoanDetailsServiceV2 {
     @Autowired
     ExperianDao experianDao;
 
-    @Autowired
-    CreditLineMerchantDao creditLineMerchantDao;
+//    @Autowired
+//    CreditLineMerchantDao creditLineMerchantDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -180,11 +179,11 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(loanDetailsResponse);
             }
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
-            if (isCreditLineMerchant(merchant)) {
-                log.info("credit line merchant: {}", merchant.getId());
-                loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
-                return new ApiResponse<>(loanDetailsResponse);
-            }
+//            if (isCreditLineMerchant(merchant)) {
+//                log.info("credit line merchant: {}", merchant.getId());
+//                loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
+//                return new ApiResponse<>(loanDetailsResponse);
+//            }
             if ("ORGANIZED".equalsIgnoreCase(merchant.getCorrectMerchantType())) {
                 log.info("organized merchant: {}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
@@ -729,10 +728,10 @@ public class LoanDetailsServiceV2 {
         return apiGatewayService.getEnachProvider(token, openApplication.getMerchantId());
     }
 
-    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
-        CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
-        return creditLineMerchant != null;
-    }
+//    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
+//        CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());
+//        return creditLineMerchant != null;
+//    }
 
 //    private boolean isOrganizedMerchant(Long merchantId) {
 //        List<MerchantStore> stores = merchantStoreDao.findByMerchantId(merchantId);

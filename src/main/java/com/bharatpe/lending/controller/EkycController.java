@@ -22,35 +22,35 @@ import com.bharatpe.lending.service.CreditLineKycService;
 @RequestMapping("lending/credit_line/ekyc")
 public class EkycController {
 
-	
-	@Autowired
-	CreditLineKycService creditLineKycService;
-	
-	@RequestMapping(value = "/initiate", method = RequestMethod.GET)
-	public Object initiateEkyc(@RequestAttribute BasicDetailsDto merchant) {
-	 
-		return creditLineKycService.eKycInitiate(merchant);
-		 
-	}
-	
-	@RequestMapping(value = "/submit", method = RequestMethod.POST)
-	public Object submitEkyc(@RequestAttribute BasicDetailsDto merchant,@RequestBody RequestDTO<EKycRequestDTO> requestDTO) {
-	 
-		return creditLineKycService.eKycSubmit(merchant,requestDTO);
-		 
-	}
-	@RequestMapping(value = "/fetch_address", method = RequestMethod.GET)
-	public CreditLineKycResponseDto fetchAddress(@RequestAttribute BasicDetailsDto merchant) {
-		
-		return creditLineKycService.fetchAddress(merchant);
-		
-	}
-	
-	
-		@RequestMapping(value = "/verify_address", method = RequestMethod.POST)
-	public Object verifyAddress(@RequestAttribute BasicDetailsDto merchant,@RequestBody RequestDTO<EkycManualRequestDTO> requestDTO) {
-		
-		return creditLineKycService.verifyAddress(merchant,requestDTO);
-		 
-	}
+//
+//	@Autowired
+//	CreditLineKycService creditLineKycService;
+//
+//	@RequestMapping(value = "/initiate", method = RequestMethod.GET)
+//	public Object initiateEkyc(@RequestAttribute BasicDetailsDto merchant) {
+//
+//		return creditLineKycService.eKycInitiate(merchant);
+//
+//	}
+//
+//	@RequestMapping(value = "/submit", method = RequestMethod.POST)
+//	public Object submitEkyc(@RequestAttribute BasicDetailsDto merchant,@RequestBody RequestDTO<EKycRequestDTO> requestDTO) {
+//
+//		return creditLineKycService.eKycSubmit(merchant,requestDTO);
+//
+//	}
+//	@RequestMapping(value = "/fetch_address", method = RequestMethod.GET)
+//	public CreditLineKycResponseDto fetchAddress(@RequestAttribute BasicDetailsDto merchant) {
+//
+//		return creditLineKycService.fetchAddress(merchant);
+//
+//	}
+//
+//
+//		@RequestMapping(value = "/verify_address", method = RequestMethod.POST)
+//	public Object verifyAddress(@RequestAttribute BasicDetailsDto merchant,@RequestBody RequestDTO<EkycManualRequestDTO> requestDTO) {
+//
+//		return creditLineKycService.verifyAddress(merchant,requestDTO);
+//
+//	}
 }
