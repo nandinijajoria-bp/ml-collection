@@ -28,12 +28,14 @@ import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
+import com.bharatpe.lending.common.slave.dao.SettlementDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
 import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
+import com.bharatpe.lending.common.slave.entity.SettlementSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -138,6 +140,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
+
+	@Autowired
+	SettlementDaoSlave settlementDaoSlave;
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
@@ -1119,8 +1124,11 @@ public class LoanDetailsService {
 		for (LendingLedger lendingLedger : lendingLedgers) {
 			if (lendingLedger.getAmount() > 0 && (lendingLedger.getAdjustmentMode() == null || !"TOPUP".equalsIgnoreCase(lendingLedger.getAdjustmentMode()))) {
 				String mode = LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "QR Txns.");
-				if (lendingLedger.getSettlement() != null && lendingLedger.getSettlement().getSettlementMode() != null && "BHARATSWIPE".equalsIgnoreCase(lendingLedger.getSettlement().getSettlementMode())) {
-					mode = "Swipe Txns.";
+				if (!ObjectUtils.isEmpty(lendingLedger.getSettlementId())) {
+					final Optional<SettlementSlave> settlementSlave = settlementDaoSlave.findById(lendingLedger.getSettlementId());
+					if (settlementSlave.isPresent() && settlementSlave.get().getSettlementMode() != null && "BHARATSWIPE".equalsIgnoreCase(settlementSlave.get().getSettlementMode())) {
+						mode = "Swipe Txns.";
+					}
 				}
 				settlementList.add(new SettlementResponseDTO.Settlement(dateFormat.format(lendingLedger.getDate()), lendingLedger.getAmount(), mode));
 			}

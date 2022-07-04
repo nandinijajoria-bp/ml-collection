@@ -6,11 +6,7 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.slave.dao.BharatSwipeTerminalDaoSlave;
-import com.bharatpe.lending.common.slave.dao.FPAccountDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BharatSwipeTerminalSlave;
-import com.bharatpe.lending.common.slave.entity.FPAccountSlave;
 import com.bharatpe.lending.common.slave.entity.PaymentTransactionNewSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -56,12 +52,12 @@ public class IneligibleDetailsService {
     
     @Autowired
     ExperianDao experianDao;
-
-    @Autowired
-    BharatSwipeTerminalDaoSlave bharatSwipeTerminalDaoSlave;
-
-    @Autowired
-    FPAccountDaoSlave fpAccountDaoSlave;
+//
+//    @Autowired
+//    BharatSwipeTerminalDaoSlave bharatSwipeTerminalDaoSlave;
+//
+//    @Autowired
+//    FPAccountDaoSlave fpAccountDaoSlave;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -188,21 +184,22 @@ public class IneligibleDetailsService {
             }
             if(experian!=null && experian.getReason() != null && experian.getReason().equalsIgnoreCase(ExperianConstants.ENACH)) {
                 response.setEnach(LendingConstants.ENACH_BANK_MESSAGE, LendingConstants.BANK_CHANGE_DEEPLINK);
-            } else {
-                if (Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId()))) {
-                    Banner banner = response.new Banner();
-                    banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
-                    banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
-                    response.addBanner(banner);
-                }
-
-                if (Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId()))) {
-                    Banner banner = response.new Banner();
-                    banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
-                    banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
-                    response.addBanner(banner);
-                }
             }
+//            else {
+//                if (Boolean.FALSE.equals(isMerchantFPAccountEnabled(merchant.getId()))) {
+//                    Banner banner = response.new Banner();
+//                    banner.setDeepLink(LendingConstants.FPACCOUNT_NEWUSER_DEEPLINK);
+//                    banner.setImg(LendingConstants.FPACCOUNT_NEWUSER_IMG);
+//                    response.addBanner(banner);
+//                }
+//
+//                if (Boolean.FALSE.equals(isMerchantBharatSwipeEnabled(merchant.getId()))) {
+//                    Banner banner = response.new Banner();
+//                    banner.setDeepLink(LendingConstants.BHARATSWIPE_NEWUSER_DEEPLINK);
+//                    banner.setImg(LendingConstants.BHARATSWIPE_NEWUSER_IMG);
+//                    response.addBanner(banner);
+//                }
+//            }
             return response;
     	}
     	catch(Exception e) {
@@ -211,15 +208,15 @@ public class IneligibleDetailsService {
     	}
     }
 
-    private Boolean isMerchantBharatSwipeEnabled(Long merchantId){
-        BharatSwipeTerminalSlave bharatSwipeTerminal = bharatSwipeTerminalDaoSlave.findFirstByMerchantIdAndDeviceSerialNotNull(merchantId);
-        return bharatSwipeTerminal != null;
-    }
+//    private Boolean isMerchantBharatSwipeEnabled(Long merchantId){
+//        BharatSwipeTerminalSlave bharatSwipeTerminal = bharatSwipeTerminalDaoSlave.findFirstByMerchantIdAndDeviceSerialNotNull(merchantId);
+//        return bharatSwipeTerminal != null;
+//    }
     
-    private Boolean isMerchantFPAccountEnabled(Long merchantId){
-        FPAccountSlave fpAccount = fpAccountDaoSlave.findByMerchantIdAndKYCStatusNotNull(merchantId);
-        return fpAccount != null;
-    }
+//    private Boolean isMerchantFPAccountEnabled(Long merchantId){
+//        FPAccountSlave fpAccount = fpAccountDaoSlave.findByMerchantIdAndKYCStatusNotNull(merchantId);
+//        return fpAccount != null;
+//    }
     
     private Map<String,Integer> getTransactionDetails(BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO){
     	try {
