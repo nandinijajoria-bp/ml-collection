@@ -86,7 +86,7 @@ public class LendingPullPaymentServiceImpl implements ILendingPullPaymentService
             lendingPullPayment.setDueAmount(updateLendingPullPaymentDto.getDueAmount());
         }
 
-        lendingPullPaymentDao.save(lendingPullPayment);
+        lendingPullPaymentDao.saveAndFlush(lendingPullPayment);
 
         return LendingPullPaymentResponseDTO.from(lendingPullPayment);
     }

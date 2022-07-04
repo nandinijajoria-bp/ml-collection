@@ -7,12 +7,14 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
@@ -239,4 +241,24 @@ public class LendingApplicationController {
 		logger.info("repayment History Response: {}", response);
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
+
+	@RequestMapping(value="/application", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<?> getLendingApplication(@RequestParam(name = "applicationId") Long applicationId) {
+		logger.info("getLendingApplication request with applicationId : {}", applicationId);
+
+		if (ObjectUtils.isEmpty(applicationId)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields applicationId not sent"),
+			HttpStatus.BAD_REQUEST);
+		}
+
+		final LendingApplicationDTO lendingApplicationDTO = lendingApplicationService.getLendingApplication(applicationId);
+
+		if (ObjectUtils.isEmpty(lendingApplicationDTO)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Lending application not found"),
+			HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(new ApiResponse<>(lendingApplicationDTO), HttpStatus.OK);
+	}
+
 }

@@ -2,15 +2,13 @@ package com.bharatpe.lending.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
-public class UpdateLendingPullPaymentDto {
+public class UpdateExperianRequestDTO {
     private Long id;
-    private Double dueAmount;
-    private Double deductedAmount;
+    private String pancardNumber;
+    private Integer pincode;
 }

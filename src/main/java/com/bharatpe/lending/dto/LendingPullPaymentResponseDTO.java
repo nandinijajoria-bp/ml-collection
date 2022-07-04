@@ -1,9 +1,8 @@
 package com.bharatpe.lending.dto;
 
 import com.bharatpe.lending.common.entity.LendingPullPayment;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.util.ObjectUtils;
@@ -13,7 +12,7 @@ import java.util.Date;
 @Data
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class LendingPullPaymentResponseDTO {
 
     private Long id;

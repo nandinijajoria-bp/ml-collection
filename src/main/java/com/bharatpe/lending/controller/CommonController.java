@@ -7,6 +7,12 @@ import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.CommonResponse;
+import com.bharatpe.lending.dto.LendingCitiesResponseDTO;
+import com.bharatpe.lending.dto.LendingPancardResponseDTO;
+import com.bharatpe.lending.dto.LendingPincodesResponseDTO;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.service.ILendingCitiesService;
+import com.bharatpe.lending.service.ILendingPancardService;
 import com.bharatpe.lending.service.MerchantLoansService;
 import com.bharatpe.lending.service.PaymentService;
 import org.slf4j.Logger;
@@ -14,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.lending.dto.PincodeVerifyDTO;
@@ -50,6 +57,13 @@ public class CommonController {
 	@Autowired
 	PaymentService paymentService;
 
+	@Autowired
+	ILendingCitiesService iLendingCitiesService;
+
+	@Autowired
+	ILendingPancardService iLendingPancardService;
+
+
 	@RequestMapping(value="/generateTopupLoan", method = RequestMethod.GET, consumes="application/json", produces="application/json")
 	public ResponseEntity initiateEnach(@RequestParam(name = "mid") Long merchantId) {
 		try {
@@ -79,5 +93,65 @@ public class CommonController {
 	@RequestMapping(value="/merchant", method=RequestMethod.GET)
 	public ResponseEntity<CommonResponse> checkMerchant(@RequestParam(name = "mobile", required = false) String mobile, @RequestParam(name = "pancard", required = false) String pancard){
 		return ResponseEntity.ok(merchantLoansService.checkMerchant(mobile, pancard));
+	}
+
+	@RequestMapping(value = "/lending_cities/active", method = RequestMethod.GET)
+	public ResponseEntity<?> getActiveLendingCity(@RequestParam(name = "pincode") Integer pincode) {
+		logger.info("getActiveLendingCity request with pincode : {} ", pincode);
+
+		if (ObjectUtils.isEmpty(pincode) ) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields pincode not sent"),
+			HttpStatus.BAD_REQUEST);
+		}
+
+		final LendingCitiesResponseDTO lendingCitiesResponseDTO = iLendingCitiesService.findActiveCityByPincode(pincode);
+
+		if (ObjectUtils.isEmpty(lendingCitiesResponseDTO)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Lending city not found"),
+			HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(new ApiResponse<>(lendingCitiesResponseDTO), HttpStatus.OK);
+
+	}
+
+	@RequestMapping(value = "/lending_pincode", method = RequestMethod.GET)
+	public ResponseEntity<?> getLendingPincodeDetails(@RequestParam(name = "pincode") Integer pincode) {
+		logger.info("getLendingPincodeDetails request with pincode : {} ", pincode);
+
+		if (ObjectUtils.isEmpty(pincode) ) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields pincode not sent"),
+			HttpStatus.BAD_REQUEST);
+		}
+
+		final LendingPincodesResponseDTO lendingPincodesResponseDTO = iLendingCitiesService.findByPincode(pincode);
+
+		if (ObjectUtils.isEmpty(lendingPincodesResponseDTO)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Lending pincode details not found"),
+			HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(new ApiResponse<>(lendingPincodesResponseDTO), HttpStatus.OK);
+
+	}
+
+
+	@RequestMapping(value = "/lending_pancard", method = RequestMethod.GET)
+	public ResponseEntity<?> getLendingPancard(@RequestParam(name = "merchantId") Long merchantId) {
+		logger.info("getLendingPancard request with merchantId : {} ", merchantId);
+
+		if (ObjectUtils.isEmpty(merchantId) ) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields merchantId not sent"),
+			HttpStatus.BAD_REQUEST);
+		}
+
+		final LendingPancardResponseDTO lendingPancardResponseDTO = iLendingPancardService.findByMerchantId(merchantId);
+
+		if (ObjectUtils.isEmpty(lendingPancardResponseDTO)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Lending pancard not found"),
+			HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(new ApiResponse<>(lendingPancardResponseDTO), HttpStatus.OK);
 	}
 }

@@ -2272,4 +2272,17 @@ public class LendingApplicationService {
             return responseDTO;
         }
     }
+
+    public LendingApplicationDTO getLendingApplication(Long applicationId) {
+        logger.info("getLendingApplication for applicationId : {} ", applicationId);
+
+        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
+
+        if (!lendingApplicationOptional.isPresent())
+            return null;
+
+        LendingApplication lendingApplication = lendingApplicationOptional.get();
+
+        return LendingApplicationDTO.from(lendingApplication);
+    }
 }
