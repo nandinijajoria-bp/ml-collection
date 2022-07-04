@@ -1862,7 +1862,8 @@ public class SupportService {
                     "</tbody>\n" +
                     "</table>\n" +
                     "<p style=\"text-align: left;\"><br /><strong>Date:&nbsp;" + data.get("createdAt") + "   &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;Place:&nbsp;"+data.get("city")+"</strong></p>";
-        }else if("HINDON".equalsIgnoreCase(lender) || "LDC".equalsIgnoreCase(lender) || "LIQUILOANS_P2P".equalsIgnoreCase(lender) || "LIQUILOANS_NBFC".equalsIgnoreCase(lender)){
+        }else if("HINDON".equalsIgnoreCase(lender) || "LDC".equalsIgnoreCase(lender) || "LIQUILOANS_P2P".equalsIgnoreCase(lender)
+                || "LIQUILOANS_NBFC".equalsIgnoreCase(lender) || "LIQUILOANS_P2P_OF".equalsIgnoreCase(lender)){
             try {
                 String filePath = "/templates/" + lender + ".html";
                 InputStream inputStream = this.getClass().getResourceAsStream(filePath);
