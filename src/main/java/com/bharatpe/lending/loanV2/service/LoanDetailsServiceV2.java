@@ -540,7 +540,11 @@ public class LoanDetailsServiceV2 {
                 }
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication,merchant));
-            applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
+            applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchantId()));
+
+            if (applicationDetails.getEnachBank()) {
+                applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
+            }
 //            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
 //                applicationDetails.setSkipEnach(Boolean.TRUE);
 //            }
@@ -563,7 +567,6 @@ public class LoanDetailsServiceV2 {
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
-            applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchantId()));
             loanDetailsResponse.setLoanApplication(applicationDetails);
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchantId(), e);
