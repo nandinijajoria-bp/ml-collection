@@ -9,7 +9,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.EcollectTransactionDaoSlave;
 import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.dao.MerchantStaticVpaDaoSlave;
 import com.bharatpe.lending.common.slave.entity.EcollectTransactionSlave;
 import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantStaticVpaSlave;
@@ -81,9 +80,6 @@ public class CallLoanDetailService {
 
     @Autowired
     WhatsappNotificationService whatsappNotificationService;
-
-    @Autowired
-    MerchantStaticVpaDaoSlave merchantStaticVpaDaoSlave;
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;
@@ -198,69 +194,69 @@ public class CallLoanDetailService {
 //        }}, null);
 //    }
 
-    public void orderQrCode(LendingApplication lendingApplication) {
-        try {
-            logger.info("Order QR code for merchant {}", lendingApplication.getMerchantId());
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-            if (ObjectUtils.isEmpty(basicDetailsDto)) {
-                return;
-            }
-            List<MerchantStaticVpaSlave> merchantStaticVpaList = merchantStaticVpaDaoSlave.findAllByMerchant(lendingApplication.getMerchantId());
-            LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
-            //Send only to DIY merchants and green pincodes
-            if (!merchantStaticVpaList.isEmpty() && lendingCities != null && (basicDetailsDto.get().getReferalCode() == null || basicDetailsDto.get().getReferalCode().trim().equals(""))) {
-                Map<String, String> details = getDetailsToSendQrCodeForLending(lendingApplication, basicDetailsDto.get());
-                String vpa = merchantStaticVpaList.get(0).getFullVpa();
-                logger.info("Calling API to order QR");
-                Map<String, Object> body = new HashMap<String, Object>() {{
-                    put("mobile", basicDetailsDto.get().getMobile());
-                    put("vpa", vpa);
-                    put("businessname", basicDetailsDto.get().getBussinessName());
-                    put("remark", "NTB");
-                    put("OrderQRAddress", new HashMap<String, Object>() {{
-                        put("shopAddress", details.get("shopAddress"));
-                        put("pincode", details.get("pincode"));
-                        put("state", details.get("state"));
-                        put("city", details.get("city"));
-                        put("address", details.get("address"));
-                        put("landmark", details.get("landmark"));
-                        put("latitude", details.get("latitude"));
-                        put("shop_latitude", details.get("shop_latitude"));
-                        put("shop_longitude", details.get("shop_longitude"));
-                        put("longitude", details.get("longitude"));
-                        put("alternateMobile", details.get("alternateMobile"));
-                    }});
-                }};
-                String payload = getObjectPayload(body, details);
-                logger.info("Order QR payload:{}", payload);
-                String hash = lendingHmacCalculator.calculateHMACHexEncoded(payload, getSecret());
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("Hash", hash);
-                headers.set("client-Name", "LENDING");
-                headers.set("merchantId", lendingApplication.getMerchantId().toString());
-                headers.set("mobileNumber", basicDetailsDto.get().getMobile());
-                HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-                String URL = "https://api-merchant.bharatpe.in/merchant/v2/createOrderQR";
-                logger.info("Order QR URL {} request {}", URL, request);
-                int retryCount = 0;
-                while (retryCount < 3) {
-                    try {
-                        ResponseEntity<String> responseBody = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
-                        logger.info("Order QR response {}", responseBody);
-                        break;
-                    } catch (Exception e) {
-                        logger.error("Error occured while ordering for QR ", e);
-                    }
-                    retryCount++;
-                }
-
-            }
-
-        } catch (Exception e) {
-            logger.error("Error occured while ordering QR code", e);
-        }
-    }
+//    public void orderQrCode(LendingApplication lendingApplication) {
+//        try {
+//            logger.info("Order QR code for merchant {}", lendingApplication.getMerchantId());
+//            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+//            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+//                return;
+//            }
+//            List<MerchantStaticVpaSlave> merchantStaticVpaList = merchantStaticVpaDaoSlave.findAllByMerchant(lendingApplication.getMerchantId());
+//            LendingCities lendingCities = lendingCitiesDao.findActiveCityByPincode(lendingApplication.getPincode().intValue());
+//            //Send only to DIY merchants and green pincodes
+//            if (!merchantStaticVpaList.isEmpty() && lendingCities != null && (basicDetailsDto.get().getReferalCode() == null || basicDetailsDto.get().getReferalCode().trim().equals(""))) {
+//                Map<String, String> details = getDetailsToSendQrCodeForLending(lendingApplication, basicDetailsDto.get());
+//                String vpa = merchantStaticVpaList.get(0).getFullVpa();
+//                logger.info("Calling API to order QR");
+//                Map<String, Object> body = new HashMap<String, Object>() {{
+//                    put("mobile", basicDetailsDto.get().getMobile());
+//                    put("vpa", vpa);
+//                    put("businessname", basicDetailsDto.get().getBussinessName());
+//                    put("remark", "NTB");
+//                    put("OrderQRAddress", new HashMap<String, Object>() {{
+//                        put("shopAddress", details.get("shopAddress"));
+//                        put("pincode", details.get("pincode"));
+//                        put("state", details.get("state"));
+//                        put("city", details.get("city"));
+//                        put("address", details.get("address"));
+//                        put("landmark", details.get("landmark"));
+//                        put("latitude", details.get("latitude"));
+//                        put("shop_latitude", details.get("shop_latitude"));
+//                        put("shop_longitude", details.get("shop_longitude"));
+//                        put("longitude", details.get("longitude"));
+//                        put("alternateMobile", details.get("alternateMobile"));
+//                    }});
+//                }};
+//                String payload = getObjectPayload(body, details);
+//                logger.info("Order QR payload:{}", payload);
+//                String hash = lendingHmacCalculator.calculateHMACHexEncoded(payload, getSecret());
+//                HttpHeaders headers = new HttpHeaders();
+//                headers.setContentType(MediaType.APPLICATION_JSON);
+//                headers.set("Hash", hash);
+//                headers.set("client-Name", "LENDING");
+//                headers.set("merchantId", lendingApplication.getMerchantId().toString());
+//                headers.set("mobileNumber", basicDetailsDto.get().getMobile());
+//                HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//                String URL = "https://api-merchant.bharatpe.in/merchant/v2/createOrderQR";
+//                logger.info("Order QR URL {} request {}", URL, request);
+//                int retryCount = 0;
+//                while (retryCount < 3) {
+//                    try {
+//                        ResponseEntity<String> responseBody = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+//                        logger.info("Order QR response {}", responseBody);
+//                        break;
+//                    } catch (Exception e) {
+//                        logger.error("Error occured while ordering for QR ", e);
+//                    }
+//                    retryCount++;
+//                }
+//
+//            }
+//
+//        } catch (Exception e) {
+//            logger.error("Error occured while ordering QR code", e);
+//        }
+//    }
 
     public Map<String, String> getDetailsToSendQrCodeForLending(LendingApplication lendingApplication, BasicDetailsDto basicDetailsDto) {
         return new HashMap<String, String>() {{
