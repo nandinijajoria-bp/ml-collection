@@ -152,15 +152,15 @@ public class LendingApplicationServiceV2 {
         if (initiateKycRequest.getApplicationId() != null) {
             docTypes.add(KycDocType.AADHAAR);
         }
-        String ckycId = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes);
-        if (ckycId != null) {
+        Map<String,String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes);
+        if (ckycResponseObj.containsKey("ckycId")) {
             if (initiateKycRequest.getApplicationId() != null) {
-                lendingApplicationDao.updateKycId(initiateKycRequest.getApplicationId(), ckycId, merchant.getId());
+                lendingApplicationDao.updateKycId(initiateKycRequest.getApplicationId(), ckycResponseObj.get("ckycId"), merchant.getId());
             }
             return new ApiResponse<>(env.getProperty("kyc.deeplink"));
         }
         log.info("Unable to initiate kyc for merchant:{}", merchant.getId());
-        return new ApiResponse<>(false, "Something went wrong");
+        return new ApiResponse<>(false, ckycResponseObj.get("message"));
     }
 
     public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {

@@ -133,8 +133,9 @@ public class KycHandler {
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
 
-    public String initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes) {
+    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes) {
         log.info("Initiate kyc for merchant:{}", merchantId);
+        Map<String, String> responseObj = new HashMap<>();
         try {
             List<Map<String, String>> documents = new ArrayList<>();
             for (KycDocType docType : docTypes) {
@@ -154,15 +155,21 @@ public class KycHandler {
             log.info("Initiate Kyc API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
             log.info("Initiate Kyc response : {} for merchant:{}", responseEntity, merchantId);
+
             if (Objects.nonNull(responseEntity.getBody())) {
                 JsonNode jsonNode =  mapper.readTree(responseEntity.getBody());
-                if (jsonNode != null && jsonNode.has("requestorId"))
-                    return jsonNode.get("requestorId").asText();
+                if (jsonNode != null) {
+                    if (jsonNode.has("requestorId")) {
+                        responseObj.put("ckycId", jsonNode.get("requestorId").asText());
+                    }
+                    responseObj.put("message", jsonNode.get("message").asText());
+                }
             }
         } catch (Exception e) {
+            responseObj.put("message", "Error initiating KYC");
             log.error("Exception in initiateKyc for merchant:{}", merchantId, e);
         }
-        return null;
+        return responseObj;
     }
 
     public String getPanNumber(Long merchantId) {
