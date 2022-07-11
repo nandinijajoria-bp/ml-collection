@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
@@ -57,6 +58,9 @@ public class LendingOffersService {
 
 	@Autowired
 	ExperianDao experianDao;
+
+	@Autowired
+	LendingPancardDao lendingPancardDao;
 
 //	@Autowired
 //	MerchantDao merchantDao;
@@ -191,6 +195,7 @@ public class LendingOffersService {
 	}
 
 	public void makeMeFresh(BasicDetailsDto merchant) {
+		lendingPancardDao.deleteByMerchantId(merchant.getId());
 		experianDao.deleteByMerchantId(merchant.getId());
 		lendingApplicationDao.deleteByMerchantId(merchant.getId());
 		bpEnachDao.deleteByMerchantId(merchant.getId());

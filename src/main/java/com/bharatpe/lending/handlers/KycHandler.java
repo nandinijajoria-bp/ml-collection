@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.common.util.RestUtils;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.enums.KycDocStatus;
@@ -50,6 +51,9 @@ public class KycHandler {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    RestUtils restUtils;
 
     private static final String CLIENT = "LENDING";
 
@@ -192,6 +196,29 @@ public class KycHandler {
             }
         } catch (Exception e) {
             log.error("Exception in getPanNumber for merchant:{}", merchantId, e);
+        }
+        return null;
+    }
+
+    public String getPanName(String panNumber, Long merchantId) throws Exception {
+        HashMap<String, String> data;
+        String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_NAME;
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("panNumber", panNumber);
+        payload.put("customerId", merchantId);
+        payload.put("identifier", merchantId);
+        payload.put("userType", "MERCHANT");
+        String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(payload), getInternalSecret());;
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        headers.put("clientName", CLIENT);
+        headers.put("hash", hash);
+
+        Map<String, Object> res = restUtils.postForObject(url, headers, payload, Map.class, RestUtils.ExceptionLevel.INFO);
+        log.info("res {}", res.get("data"));
+        if ((boolean) res.get("status")) {
+            data = (HashMap<String, String>) res.get("data");
+            return data.get("name");
         }
         return null;
     }

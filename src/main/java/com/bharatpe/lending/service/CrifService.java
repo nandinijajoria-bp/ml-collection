@@ -131,7 +131,7 @@ public class CrifService {
         String firstName;
         String lastName;
         if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
-            lendingPancard = loanEligibleService.fetchNameFromSignzy(pancard, merchant.getId());
+            lendingPancard = loanEligibleService.fetchPanName(pancard, merchant.getId());
         }
         if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
             firstName = loanEligibleService.getFirstName(lendingPancard.getName());

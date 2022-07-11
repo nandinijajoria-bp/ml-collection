@@ -29,6 +29,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -168,6 +169,9 @@ public class LoanEligibleService {
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    KycHandler kycHandler;
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
@@ -636,21 +640,19 @@ public class LoanEligibleService {
         return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, apiResponse));
     }
 
-    public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
+    public LendingPancard fetchPanName(String pancardNumber, Long merchantId) {
         logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
         try {
-            JsonNode responseNode = apiGatewayService.signzyPanFetchV2(pancardNumber, merchantId, "PAN", "PAN");
-            if (responseNode != null && responseNode.get("result") != null && responseNode.get("result").get("name") != null) {
-                String name = responseNode.get("result").get("name").asText();
+            String name = kycHandler.getPanName(pancardNumber, merchantId);
+            if (!ObjectUtils.isEmpty(name)) {
                 logger.info("Name:{} found in pancard:{} for merchant:{}", name, pancardNumber, merchantId);
                 LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
                 if (lendingPancard != null) {
                     lendingPancard.setName(name);
-                    lendingPancard.setResponse(responseNode.toString());
                     lendingPancard.setPancardNumber(pancardNumber);
                     return lendingPancardDao.save(lendingPancard);
                 }
-                return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, responseNode.toString()));
+                return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name));
             }
         } catch (Exception e) {
             logger.error("Exception in fetchNameFromSignzy for merchant:{}", merchantId, e);
@@ -1204,7 +1206,7 @@ public class LoanEligibleService {
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
         if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber())) {// get data from signzy
             try {
-                lendingPancard = fetchNameFromSignzy(experian.getPancardNumber(), merchantId);
+                lendingPancard = fetchPanName(experian.getPancardNumber(), merchantId);
             } catch (Exception e) {
                 logger.error("Exception in Signzy pan fetch API---", e);
             }

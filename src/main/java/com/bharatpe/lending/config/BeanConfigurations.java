@@ -2,7 +2,11 @@ package com.bharatpe.lending.config;
 
 
 
+import com.bharatpe.lending.util.MapperUtil;
+import com.bharatpe.lending.util.RestUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +17,7 @@ import java.time.Duration;
 
 @Component
 public class BeanConfigurations {
-
+    
     @Bean
     MeterRegistryCustomizer<MeterRegistry> metricsCommonTags() {
         return registry -> registry.config().commonTags("application", "Lending");
