@@ -13,6 +13,17 @@ public class ApplicationStatusResponseDTO {
 
     private HeaderDTO header;
 
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
+    @JsonProperty(value = "rejection_reason")
+    private String rejectionReason;
+
 //    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     public static class HeaderDTO{
         private String title;
