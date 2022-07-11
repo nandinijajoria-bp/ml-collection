@@ -181,9 +181,9 @@ public class RefundService {
                 }
 
                 BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSuccess(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getLoanApplication().getId());
-                if (bharatPeEnach != null) {
-                    executorService.execute(() -> liquiloansService.initiateEnachCashback(lendingPaymentSchedule));
-                }
+//                if (bharatPeEnach != null) {
+//                    executorService.execute(() -> liquiloansService.initiateEnachCashback(lendingPaymentSchedule));
+//                }
             }
             return new CommonResponse(true, "Loan refund success for loanId:" + lendingPaymentSchedule.getId());
 
