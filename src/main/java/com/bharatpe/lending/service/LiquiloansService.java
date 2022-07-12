@@ -19,7 +19,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.IfscSlave;
@@ -122,9 +121,6 @@ public class LiquiloansService {
 
     @Autowired
     MerchantDocumentProofOcrDaoSlave merchantDocumentProofOcrDaoSlave;
-
-    @Autowired
-    IfscDaoSlave ifscDaoSlave;
 
 //    @Autowired
 //	MerchantSummaryDao merchantSummaryDao;

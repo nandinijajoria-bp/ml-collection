@@ -6,7 +6,6 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
 import com.bharatpe.lending.common.slave.entity.PaymentTransactionNewSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -46,9 +45,6 @@ public class IneligibleDetailsService {
 
     @Autowired
     ScoreCategoryMasterDao scoreCategoryMasterDao;
-    
-    @Autowired
-    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
     
     @Autowired
     ExperianDao experianDao;
@@ -160,7 +156,7 @@ public class IneligibleDetailsService {
 
             }
             IneligibleAPIResponseDto response=new IneligibleAPIResponseDto();
-    		Date onboardDate=getMerchantOnboardDate(merchant);
+    		Date onboardDate=getMerchantOnboardDate(merchant, merchantResponseDTO);
             Map<String, Integer> transactionDetail=getTransactionDetails(merchant, merchantResponseDTO);
     		response.setRegistrationDate(onboardDate);
     		if (transactionDetail != null) {
@@ -226,9 +222,9 @@ public class IneligibleDetailsService {
     			transactionDetails.put("amount", merchantResponseDTO.getDailyTxnAmount().intValue());
     			return transactionDetails;
     		}
-    		else {
-    			return getTransactionDetailsFromPaymentTable(merchant);
-    		}
+//    		else {
+//    			return getTransactionDetailsFromPaymentTable(merchant);
+//    		}
     	}
     	catch(Exception e) {
     		logger.error("Error occured while fetching transaction details",e);
@@ -236,21 +232,20 @@ public class IneligibleDetailsService {
     	return null;
     }
     
-    private Map<String,Integer> getTransactionDetailsFromPaymentTable(BasicDetailsDto merchant){
-    	Map<String,Integer> transactionMap=new HashMap<>();
-    	Object[] transactionDetail = (Object[])paymentTransactionNewDaoSlave.getAmountAndCountByMerchant(merchant.getId());
-        BigDecimal transactionAmount = (BigDecimal) transactionDetail[0];
-    	BigInteger count = (BigInteger) transactionDetail[1];
-    	transactionMap.put("count", count == null ? 0 : count.intValue());
-    	transactionMap.put("amount", transactionAmount == null ? 0 : transactionAmount.intValue());
-    	return transactionMap;
-    }
+//    private Map<String,Integer> getTransactionDetailsFromPaymentTable(BasicDetailsDto merchant){
+//    	Map<String,Integer> transactionMap=new HashMap<>();
+//    	Object[] transactionDetail = (Object[])paymentTransactionNewDaoSlave.getAmountAndCountByMerchant(merchant.getId());
+//        BigDecimal transactionAmount = (BigDecimal) transactionDetail[0];
+//    	BigInteger count = (BigInteger) transactionDetail[1];
+//    	transactionMap.put("count", count == null ? 0 : count.intValue());
+//    	transactionMap.put("amount", transactionAmount == null ? 0 : transactionAmount.intValue());
+//    	return transactionMap;
+//    }
     
-    private Date getMerchantOnboardDate(BasicDetailsDto merchant) {
+    private Date getMerchantOnboardDate(BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO) {
     	try {
-    		PaymentTransactionNewSlave firstTransaction=paymentTransactionNewDaoSlave.getFirstTransaction(merchant.getId());
-    		if(firstTransaction!=null) {
-    			return firstTransaction.getCreatedAt();
+    		if(merchantResponseDTO!=null) {
+    			return merchantResponseDTO.getFirstTransactionDate();
     		}
     		else {
     			return merchant.getCreatedAt();

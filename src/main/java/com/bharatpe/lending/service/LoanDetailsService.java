@@ -25,10 +25,8 @@ import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
-import com.bharatpe.lending.common.slave.dao.SettlementDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
@@ -130,9 +128,6 @@ public class LoanDetailsService {
 	LendingPrebookTargetDao lendingPrebookTargetDao;
 
 	@Autowired
-	PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
-
-	@Autowired
 	LendingPartnerOffersDaoSlave lendingPartnerOffersDaoSlave;
 
 	@Autowired
@@ -140,9 +135,6 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
-
-	@Autowired
-	SettlementDaoSlave settlementDaoSlave;
 
 	@Autowired
 	LendingRedCitiesDao lendingRedCitiesDao;
@@ -383,37 +375,37 @@ public class LoanDetailsService {
 			}
 			boolean showTarget = false;
 			double targetTpv = 0d;
-			try {
-				// 4 may to 13may target and 24 april to 3 may tpv (lockdown end date - 3may)
-				if (lendingApplication != null && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK") && "approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
-					LendingPrebookTarget lendingPrebookTarget = lendingPrebookTargetDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), lendingApplication.getId());
-					if (lendingPrebookTarget != null && !lendingPrebookTarget.getTargetAchieved()) {
-						// check last 10 days transaction tpv from lockdown end date/approved date
-						DateTime lockdownEndDate = new DateTime(lendingPrebookTarget.getLockdownEndDate()).plusDays(1);
-						Calendar c = Calendar.getInstance();
-						c.setTime(lendingPrebookTarget.getLockdownEndDate());
-						c.add(Calendar.DAY_OF_MONTH, -9);
-						Date startDate = c.getTime();
-						double tpv = ((BigDecimal) paymentTransactionNewDaoSlave.getAmount(startDate, lockdownEndDate.toDate(), merchantBasicDetailsDto.getId())).doubleValue();
-						if (tpv < lendingPrebookTarget.getTarget()) {
-							// check last 10 days transaction tpv from today
-							c.setTime(new Date());
-							c.add(Calendar.DAY_OF_MONTH, -9);
-							double currentTpv = ((BigDecimal) paymentTransactionNewDaoSlave.getAmount(c.getTime(), new Date(), merchantBasicDetailsDto.getId())).doubleValue();
-							if (currentTpv < lendingPrebookTarget.getTarget()) {
-								showTarget = true;
-								targetTpv = lendingPrebookTarget.getTarget() - currentTpv;
-							}
-						}
-						if (!showTarget) {
-							lendingPrebookTargetDao.updateTargetAchieved(lendingPrebookTarget.getMerchantId(), new Date());
-						}
-					}
-				}
-			} catch (Exception e) {
-				logger.error("Exception while calculating prebook target for merchant: {}", merchantBasicDetailsDto.getId());
-				logger.error("Exception---", e);
-			}
+//			try {
+//				// 4 may to 13may target and 24 april to 3 may tpv (lockdown end date - 3may)
+//				if (lendingApplication != null && lendingApplication.getLoanType() != null && lendingApplication.getLoanType().equalsIgnoreCase("PREBOOK") && "approved".equals(lendingApplication.getStatus()) && !"disbursed".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+//					LendingPrebookTarget lendingPrebookTarget = lendingPrebookTargetDao.findByMerchantIdAndApplicationId(merchantBasicDetailsDto.getId(), lendingApplication.getId());
+//					if (lendingPrebookTarget != null && !lendingPrebookTarget.getTargetAchieved()) {
+//						// check last 10 days transaction tpv from lockdown end date/approved date
+//						DateTime lockdownEndDate = new DateTime(lendingPrebookTarget.getLockdownEndDate()).plusDays(1);
+//						Calendar c = Calendar.getInstance();
+//						c.setTime(lendingPrebookTarget.getLockdownEndDate());
+//						c.add(Calendar.DAY_OF_MONTH, -9);
+//						Date startDate = c.getTime();
+//						double tpv = ((BigDecimal) paymentTransactionNewDaoSlave.getAmount(startDate, lockdownEndDate.toDate(), merchantBasicDetailsDto.getId())).doubleValue();
+//						if (tpv < lendingPrebookTarget.getTarget()) {
+//							// check last 10 days transaction tpv from today
+//							c.setTime(new Date());
+//							c.add(Calendar.DAY_OF_MONTH, -9);
+//							double currentTpv = ((BigDecimal) paymentTransactionNewDaoSlave.getAmount(c.getTime(), new Date(), merchantBasicDetailsDto.getId())).doubleValue();
+//							if (currentTpv < lendingPrebookTarget.getTarget()) {
+//								showTarget = true;
+//								targetTpv = lendingPrebookTarget.getTarget() - currentTpv;
+//							}
+//						}
+//						if (!showTarget) {
+//							lendingPrebookTargetDao.updateTargetAchieved(lendingPrebookTarget.getMerchantId(), new Date());
+//						}
+//					}
+//				}
+//			} catch (Exception e) {
+//				logger.error("Exception while calculating prebook target for merchant: {}", merchantBasicDetailsDto.getId());
+//				logger.error("Exception---", e);
+//			}
 			List<LoanEligibilityDTO> loanEligibilityDTOs = new ArrayList<>();
 			List<LoanHistoryDTO> orignalHistoryDTOs = fetchLoanHistory(lendingApplication, lendingPaymentScheduleList, activeLoan, repeatLoan, enachSuccess, showTarget, targetTpv);
 			List<LoanHistoryDTO> loanHistoryDTOs = orignalHistoryDTOs;
@@ -1124,12 +1116,12 @@ public class LoanDetailsService {
 		for (LendingLedger lendingLedger : lendingLedgers) {
 			if (lendingLedger.getAmount() > 0 && (lendingLedger.getAdjustmentMode() == null || !"TOPUP".equalsIgnoreCase(lendingLedger.getAdjustmentMode()))) {
 				String mode = LoanUtil.settlementMode.getOrDefault(lendingLedger.getAdjustmentMode(), "QR Txns.");
-				if (!ObjectUtils.isEmpty(lendingLedger.getSettlementId())) {
-					final Optional<SettlementSlave> settlementSlave = settlementDaoSlave.findById(lendingLedger.getSettlementId());
-					if (settlementSlave.isPresent() && settlementSlave.get().getSettlementMode() != null && "BHARATSWIPE".equalsIgnoreCase(settlementSlave.get().getSettlementMode())) {
-						mode = "Swipe Txns.";
-					}
-				}
+//				if (!ObjectUtils.isEmpty(lendingLedger.getSettlementId())) {
+//					final Optional<SettlementSlave> settlementSlave = settlementDaoSlave.findById(lendingLedger.getSettlementId());
+//					if (settlementSlave.isPresent() && settlementSlave.get().getSettlementMode() != null && "BHARATSWIPE".equalsIgnoreCase(settlementSlave.get().getSettlementMode())) {
+//						mode = "Swipe Txns.";
+//					}
+//				}
 				settlementList.add(new SettlementResponseDTO.Settlement(dateFormat.format(lendingLedger.getDate()), lendingLedger.getAmount(), mode));
 			}
 		}

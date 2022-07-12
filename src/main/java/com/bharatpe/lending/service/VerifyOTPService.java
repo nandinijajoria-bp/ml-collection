@@ -24,7 +24,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
@@ -83,9 +82,6 @@ public class VerifyOTPService {
 
     @Autowired
     LendingCategoryDao lendingCategoryDao;
-
-    @Autowired
-    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
 
     @Autowired
     LendingPrebookLoansDao lendingPrebookLoansDao;

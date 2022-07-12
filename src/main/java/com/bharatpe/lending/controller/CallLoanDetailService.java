@@ -74,9 +74,9 @@ public class CallLoanDetailService {
 
     @Autowired
     PushNotificationHandler pushNotificationHandler;
-
-    @Autowired
-    MerchantFcmTokenDao merchantFcmTokenDao;
+//
+//    @Autowired
+//    MerchantFcmTokenDao merchantFcmTokenDao;
 
     @Autowired
     WhatsappNotificationService whatsappNotificationService;

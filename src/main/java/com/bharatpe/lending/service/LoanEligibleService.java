@@ -15,7 +15,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
 import com.bharatpe.lending.common.slave.dao.ExternalGatewayDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PaymentTransactionNewDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatSwipeAccountSlave;
 import com.bharatpe.lending.common.slave.entity.ExternalGatewaySlave;
@@ -123,9 +122,6 @@ public class LoanEligibleService {
 
     @Autowired
     EligibleLoanAuditDao eligibleLoanAuditDao;
-
-    @Autowired
-    PaymentTransactionNewDaoSlave paymentTransactionNewDaoSlave;
 
     @Autowired
     ExperianService experianService;
@@ -1312,85 +1308,85 @@ public class LoanEligibleService {
         return ntcCategories.contains(experian.getCategory());
     }
 
-    private boolean baseChecks(boolean isZomato, BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO, Experian experian, String lendingType, List<LendingPaymentSchedule> prevLoans, double bpScore, boolean yellowPincode, boolean isNTC, String bankCode) {
-        if (yellowPincode) {
-            if (bankCode == null) {
-                logger.info("Non enachable bank code, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.ENACH);
-                experianDao.save(experian);
-                return false;
-            }
-            if ((isNTC && merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null && merchantResponseDTO.getBpScore() < 15) || (!isNTC && merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null && merchantResponseDTO.getBpScore() < 13)) {
-                logger.info("Low bp score, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-                experianDao.save(experian);
-                return false;
-            }
-            if (merchant.getBussinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBussinessCategory())) {
-                logger.info("F&B category, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.BUSINESS_CATEGORY);
-                experianDao.save(experian);
-                return false;
-            }
-        }
-        if (!isZomato && checkFraud(merchantResponseDTO)) {
-            logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
-            experian.setCategory("1N");
-            experian.setColor(ExperianConstants.COLOR.RED.name());
-            experian.setReason(ExperianConstants.FRAUD);
-            experianDao.save(experian);
-            return false;
-        }
-        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkOverdue(prevLoans, merchantResponseDTO.getMerchantId())) {
-            logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
-            experian.setCategory("1N");
-            experian.setColor(ExperianConstants.COLOR.RED.name());
-            experian.setReason(ExperianConstants.OVERDUE);
-            experian.setRejected(true);
-            experian.setRejectedDate(new Date());
-            experianDao.save(experian);
-            return false;
-        }
-        if (lendingType.equalsIgnoreCase("CREDITLINE")) {
-            if (bpScore <= 12D) {
-                logger.info("BP Score less than 12, so rejecting merchant: {}", merchant.getId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-                experianDao.save(experian);
-                return false;
-            }
-        } else {
-            if (!isZomato && !yellowPincode && bpScore < 9D) {
-                logger.info("BP Score less than 9, so rejecting merchant: {}", merchant.getId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.LOW_BP_SCORE);
-                experianDao.save(experian);
-                return false;
-            }
-        }
-        if (!isZomato) {
-            PaymentTransactionNewSlave firstTransaction = paymentTransactionNewDaoSlave.getFirstTransaction(merchant.getId());
-            BharatSwipeAccountSlave bharatSwipeAccount = bharatSwipeAccountDaoSlave.findByMerchantId(merchant.getId());
-            int vintageDays = bharatSwipeAccount != null ? 30 : 60;
-            if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < vintageDays) {
-                logger.info("Vintage less than 60 days, so rejecting merchant: {}", merchant.getId());
-                experian.setCategory("1N");
-                experian.setColor(ExperianConstants.COLOR.RED.name());
-                experian.setReason(ExperianConstants.VINTAGE);
-                experianDao.save(experian);
-                return false;
-            }
-        }
-        return true;
-    }
+//    private boolean baseChecks(boolean isZomato, BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO, Experian experian, String lendingType, List<LendingPaymentSchedule> prevLoans, double bpScore, boolean yellowPincode, boolean isNTC, String bankCode) {
+//        if (yellowPincode) {
+//            if (bankCode == null) {
+//                logger.info("Non enachable bank code, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+//                experian.setCategory("1N");
+//                experian.setColor(ExperianConstants.COLOR.RED.name());
+//                experian.setReason(ExperianConstants.ENACH);
+//                experianDao.save(experian);
+//                return false;
+//            }
+//            if ((isNTC && merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null && merchantResponseDTO.getBpScore() < 15) || (!isNTC && merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null && merchantResponseDTO.getBpScore() < 13)) {
+//                logger.info("Low bp score, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+//                experian.setCategory("1N");
+//                experian.setColor(ExperianConstants.COLOR.RED.name());
+//                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+//                experianDao.save(experian);
+//                return false;
+//            }
+//            if (merchant.getBussinessCategory() == null || "Food_and_Drink".equalsIgnoreCase(merchant.getBussinessCategory())) {
+//                logger.info("F&B category, so rejecting ogl loan for merchant: {}", experian.getMerchantId());
+//                experian.setCategory("1N");
+//                experian.setColor(ExperianConstants.COLOR.RED.name());
+//                experian.setReason(ExperianConstants.BUSINESS_CATEGORY);
+//                experianDao.save(experian);
+//                return false;
+//            }
+//        }
+//        if (!isZomato && checkFraud(merchantResponseDTO)) {
+//            logger.info("Fraud Merchant, so rejecting merchant: {}", merchant.getId());
+//            experian.setCategory("1N");
+//            experian.setColor(ExperianConstants.COLOR.RED.name());
+//            experian.setReason(ExperianConstants.FRAUD);
+//            experianDao.save(experian);
+//            return false;
+//        }
+//        if (!isZomato && !exemptMerchant.contains(merchant.getId()) && checkOverdue(prevLoans, merchantResponseDTO.getMerchantId())) {
+//            logger.info("Overdue Merchant, so rejecting merchant: {}", merchant.getId());
+//            experian.setCategory("1N");
+//            experian.setColor(ExperianConstants.COLOR.RED.name());
+//            experian.setReason(ExperianConstants.OVERDUE);
+//            experian.setRejected(true);
+//            experian.setRejectedDate(new Date());
+//            experianDao.save(experian);
+//            return false;
+//        }
+//        if (lendingType.equalsIgnoreCase("CREDITLINE")) {
+//            if (bpScore <= 12D) {
+//                logger.info("BP Score less than 12, so rejecting merchant: {}", merchant.getId());
+//                experian.setCategory("1N");
+//                experian.setColor(ExperianConstants.COLOR.RED.name());
+//                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+//                experianDao.save(experian);
+//                return false;
+//            }
+//        } else {
+//            if (!isZomato && !yellowPincode && bpScore < 9D) {
+//                logger.info("BP Score less than 9, so rejecting merchant: {}", merchant.getId());
+//                experian.setCategory("1N");
+//                experian.setColor(ExperianConstants.COLOR.RED.name());
+//                experian.setReason(ExperianConstants.LOW_BP_SCORE);
+//                experianDao.save(experian);
+//                return false;
+//            }
+//        }
+//        if (!isZomato) {
+//            PaymentTransactionNewSlave firstTransaction = paymentTransactionNewDaoSlave.getFirstTransaction(merchant.getId());
+//            BharatSwipeAccountSlave bharatSwipeAccount = bharatSwipeAccountDaoSlave.findByMerchantId(merchant.getId());
+//            int vintageDays = bharatSwipeAccount != null ? 30 : 60;
+//            if (firstTransaction == null || LoanUtil.getDateDiffInDays(firstTransaction.getCreatedAt(), new Date()) < vintageDays) {
+//                logger.info("Vintage less than 60 days, so rejecting merchant: {}", merchant.getId());
+//                experian.setCategory("1N");
+//                experian.setColor(ExperianConstants.COLOR.RED.name());
+//                experian.setReason(ExperianConstants.VINTAGE);
+//                experianDao.save(experian);
+//                return false;
+//            }
+//        }
+//        return true;
+//    }
 
     public ResponseUtil getCreditBureauResponse(Experian experian) {
         JsonNode bureauResponse = null;

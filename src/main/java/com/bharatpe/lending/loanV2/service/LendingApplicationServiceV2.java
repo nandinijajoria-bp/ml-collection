@@ -13,7 +13,6 @@ import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
 import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -84,8 +83,8 @@ public class LendingApplicationServiceV2 {
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
 
-    @Autowired
-    OrderStickerDaoSlave orderStickerDaoSlave;
+//    @Autowired
+//    OrderStickerDaoSlave orderStickerDaoSlave;
 
     @Autowired
     LendingDisbursalStageDao lendingDisbursalStageDao;
@@ -536,7 +535,7 @@ public class LendingApplicationServiceV2 {
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
             BpEnachSlave successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId());
-            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());
+//            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchantBasicDetailsDto.getId().toString());
@@ -547,7 +546,7 @@ public class LendingApplicationServiceV2 {
 //            Merchant merchant = merchantDao.getById(merchantBasicDetailsDto.getId());
 
             boolean diy = loanUtil.isDIY(merchantBasicDetailsDto);
-            boolean showOrderQr = (orderSticker == null && diy);
+            boolean showOrderQr = false;
             boolean isLowPriority = loanUtil.isLowPriority(lendingApplication.getId());
             int tat = easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) ? 4 : loanUtil.getApplicationTAT(lendingApplication.getId());
             List<ApplicationDTO> applicationDTO = new ArrayList<>();
@@ -829,14 +828,14 @@ public class LendingApplicationServiceV2 {
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(basicDetailsDto.get().getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
             BpEnachSlave successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId());
-            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(basicDetailsDto.get().getId());
+//            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(basicDetailsDto.get().getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(basicDetailsDto.get().getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(basicDetailsDto.get().getId().toString());
             }
 //            MerchantSummary merchantSummary = merchantSummaryDao.getByMerchantId(merchant.getId());
             boolean diy = loanUtil.isDIY(basicDetailsDto.get());
-            boolean showOrderQr = (orderSticker == null && diy);
+            boolean showOrderQr = false;
             boolean isLowPriority = loanUtil.isLowPriority(lendingApplication.getId());
             int tat = easyLoanUtil.isDummyMerchant(basicDetailsDto.get().getId()) ? 4 : loanUtil.getApplicationTAT(lendingApplication.getId());
             List<ApplicationDTO> applicationDTO = new ArrayList<>();

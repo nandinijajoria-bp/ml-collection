@@ -27,7 +27,6 @@ import com.bharatpe.lending.common.query.dao.ExperianDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
-import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;

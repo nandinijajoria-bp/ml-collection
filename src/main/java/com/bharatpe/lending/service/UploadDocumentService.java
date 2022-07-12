@@ -16,7 +16,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.util.UploadDocumentUtil;
+//import com.bharatpe.lending.util.UploadDocumentUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,8 +68,8 @@ public class UploadDocumentService {
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 
-	@Autowired
-	UploadDocumentUtil uploadDocumentUtil;
+//	@Autowired
+//	UploadDocumentUtil uploadDocumentUtil;
 
 	@Autowired
 	APIGatewayService apiGatewayService;

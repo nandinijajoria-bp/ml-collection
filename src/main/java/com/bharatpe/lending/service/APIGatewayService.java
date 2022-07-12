@@ -109,8 +109,8 @@ public class APIGatewayService {
     @Autowired
     LendingCitiesDao lendingCitiesDao;
 
-    @Autowired
-    SignzyCredentialDaoSlave signzyCredentialDaoSlave;
+//    @Autowired
+//    SignzyCredentialDaoSlave signzyCredentialDaoSlave;
 
     @Autowired
     ExperianDao experianDao;
