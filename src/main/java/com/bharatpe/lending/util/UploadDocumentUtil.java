@@ -188,54 +188,54 @@ public class UploadDocumentUtil {
         return null;
     }
 
-    public DocKycDetailsMaster doOcrForPan(DocumentsIdProofMaster documentsIdProof, Map<String,String> signzyApiDetails, String proofType, Long merchantId, Long applicationId) {
-        DocKycDetailsMaster docKyc=null;
-        try {
-            if(documentsIdProof.getProofType().equalsIgnoreCase("pancard") || documentsIdProof.getProofType().equalsIgnoreCase("votercard")  || documentsIdProof.getProofType().equalsIgnoreCase("passport")  || documentsIdProof.getProofType().equalsIgnoreCase("adhaarcard") || documentsIdProof.getProofType().equalsIgnoreCase("driving_license")) {
-                String frontImageUrl=getUrl(documentsIdProof.getProofFrontSide());
-                String backImageUrl=null;
-                if(frontImageUrl!=null) {
-                    List<String> images;
-                    if(documentsIdProof.getProofBackSide()!=null && !documentsIdProof.getProofBackSide().isEmpty()) {
-                        backImageUrl=getUrl(documentsIdProof.getProofBackSide());
-                    }
-                    if(backImageUrl!=null) {
-                        images =  Arrays.asList(frontImageUrl,backImageUrl);
-                    }
-                    else {
-                        images =  Collections.singletonList(frontImageUrl);
-                    }
-                    Map<String,String> identityDetails = apiGatewayService.signzyIdentityDetails("individualPan", merchantId, "LENDING", "LENDING", images);
+//    public DocKycDetailsMaster doOcrForPan(DocumentsIdProofMaster documentsIdProof, Map<String,String> signzyApiDetails, String proofType, Long merchantId, Long applicationId) {
+//        DocKycDetailsMaster docKyc=null;
+//        try {
+//            if(documentsIdProof.getProofType().equalsIgnoreCase("pancard") || documentsIdProof.getProofType().equalsIgnoreCase("votercard")  || documentsIdProof.getProofType().equalsIgnoreCase("passport")  || documentsIdProof.getProofType().equalsIgnoreCase("adhaarcard") || documentsIdProof.getProofType().equalsIgnoreCase("driving_license")) {
+//                String frontImageUrl=getUrl(documentsIdProof.getProofFrontSide());
+//                String backImageUrl=null;
+//                if(frontImageUrl!=null) {
+//                    List<String> images;
+//                    if(documentsIdProof.getProofBackSide()!=null && !documentsIdProof.getProofBackSide().isEmpty()) {
+//                        backImageUrl=getUrl(documentsIdProof.getProofBackSide());
+//                    }
+//                    if(backImageUrl!=null) {
+//                        images =  Arrays.asList(frontImageUrl,backImageUrl);
+//                    }
+//                    else {
+//                        images =  Collections.singletonList(frontImageUrl);
+//                    }
+//                    Map<String,String> identityDetails = apiGatewayService.signzyIdentityDetails("individualPan", merchantId, "LENDING", "LENDING", images);
+////
+//                    String response=apiGatewayService.getOcrResponse(documentsIdProof.getMerchantId(), identityDetails,"OCR",applicationId);
+//                    docKyc = processOcrResponse(response, documentsIdProof);
+//                    if(Objects.nonNull(docKyc) && Objects.nonNull(docKyc.getPersonName())){
+//                        String authorization=signzyApiDetails.get("accessToken");
+//                        String patronId=signzyApiDetails.get("patronId");
 //
-                    String response=apiGatewayService.getOcrResponse(documentsIdProof.getMerchantId(), identityDetails,"OCR",applicationId);
-                    docKyc = processOcrResponse(response, documentsIdProof);
-                    if(Objects.nonNull(docKyc) && Objects.nonNull(docKyc.getPersonName())){
-                        String authorization=signzyApiDetails.get("accessToken");
-                        String patronId=signzyApiDetails.get("patronId");
-
-                        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
-                        BankDetailsDto merchantBankDetail = null;
-                        if (bankDetailsDtoOptional.isPresent())
-                            merchantBankDetail = bankDetailsDtoOptional.get();
-                        String benificiaryName =  merchantBankDetail!= null ? (merchantBankDetail.getBeneficiaryName()!= null ? merchantBankDetail.getBeneficiaryName() : "") : "";
-
-                        Double getMatchPercentage = apiGatewayService.getNameMatchPercentage(authorization, patronId, benificiaryName, docKyc.getPersonName(), merchantId, applicationId);
-
-                        if(getMatchPercentage >= 0.5D){
-                            documentsIdProof.setPanNameMatch("YES");
-                        }else{
-                            documentsIdProof.setPanNameMatch("NO");
-
-                        }
-                        documentsIdProof.setPanNamePercentage(getMatchPercentage.toString());
-                        documentsIdProofDaoMaster.save(documentsIdProof);
-                    }
-                }
-            }
-        }
-        catch(Exception e) {
-            logger.error("Error occured while doing ocr",e);
-        }
-        return docKyc;
-    }
+//                        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+//                        BankDetailsDto merchantBankDetail = null;
+//                        if (bankDetailsDtoOptional.isPresent())
+//                            merchantBankDetail = bankDetailsDtoOptional.get();
+//                        String benificiaryName =  merchantBankDetail!= null ? (merchantBankDetail.getBeneficiaryName()!= null ? merchantBankDetail.getBeneficiaryName() : "") : "";
+//
+//                        Double getMatchPercentage = apiGatewayService.getNameMatchPercentage(authorization, patronId, benificiaryName, docKyc.getPersonName(), merchantId, applicationId);
+//
+//                        if(getMatchPercentage >= 0.5D){
+//                            documentsIdProof.setPanNameMatch("YES");
+//                        }else{
+//                            documentsIdProof.setPanNameMatch("NO");
+//
+//                        }
+//                        documentsIdProof.setPanNamePercentage(getMatchPercentage.toString());
+//                        documentsIdProofDaoMaster.save(documentsIdProof);
+//                    }
+//                }
+//            }
+//        }
+//        catch(Exception e) {
+//            logger.error("Error occured while doing ocr",e);
+//        }
+//        return docKyc;
+//    }
 }
