@@ -411,9 +411,9 @@ public class LiquiloansService {
             executorService.execute(() -> createGSTInvoice(finalLendingApplication));
         }
         BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
-        if (bharatPeEnach != null) {
-            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
-        }
+//        if (bharatPeEnach != null) {
+//            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
+//        }
         executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchantId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
         executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
         if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
