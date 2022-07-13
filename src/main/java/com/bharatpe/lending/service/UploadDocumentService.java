@@ -16,7 +16,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.util.UploadDocumentUtil;
+//import com.bharatpe.lending.util.UploadDocumentUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,8 +68,8 @@ public class UploadDocumentService {
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 
-	@Autowired
-	UploadDocumentUtil uploadDocumentUtil;
+//	@Autowired
+//	UploadDocumentUtil uploadDocumentUtil;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -218,7 +218,7 @@ public class UploadDocumentService {
 				}
 				lendingShopDocumentsAuditList.add(new LendingShopDocumentsAudit(lendingShopDocuments,resubmitRequest));
 			}
-			sinzyCorrectPanCheck(documentsIdProof, proofType, merchantBasicDetails, lendingApplication.getId());
+//			sinzyCorrectPanCheck(documentsIdProof, proofType, merchantBasicDetails, lendingApplication.getId());
 			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
 		if (lendingShopDocumentsAuditList.size() > 0) {
@@ -234,17 +234,17 @@ public class UploadDocumentService {
 		lendingShopDocumentsDao.save(lendingShopDocuments);
 	}
 
-	public void sinzyCorrectPanCheck(DocumentsIdProofMaster documentsIdProof ,String proofType, BasicDetailsDto merchant, Long applicationId){
-
-		if(proofType.equals("pancard")){
-			new Thread(() -> {
-				Map<String,String> signzyApiDetails= uploadDocumentUtil.getDetailsOfSignzyApi();
-				if(Objects.nonNull(signzyApiDetails)){
-					uploadDocumentUtil.doOcrForPan(documentsIdProof, signzyApiDetails,proofType, merchant.getId(), applicationId);
-				}
-			}).start();
-		}
-	}
+//	public void sinzyCorrectPanCheck(DocumentsIdProofMaster documentsIdProof ,String proofType, BasicDetailsDto merchant, Long applicationId){
+//
+//		if(proofType.equals("pancard")){
+//			new Thread(() -> {
+//				Map<String,String> signzyApiDetails= uploadDocumentUtil.getDetailsOfSignzyApi();
+//				if(Objects.nonNull(signzyApiDetails)){
+//					uploadDocumentUtil.doOcrForPan(documentsIdProof, signzyApiDetails,proofType, merchant.getId(), applicationId);
+//				}
+//			}).start();
+//		}
+//	}
 
 	private Map<String, String> processAndUploadProof(List<String> proof, BasicDetailsDto merchant) {
 		Map<String, String> proofSides = new LinkedHashMap<>();

@@ -1,30 +1,28 @@
 package com.bharatpe.lending.service;
 
-import java.util.List;
-
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.VerifyPanCardDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-
-import com.bharatpe.common.entities.LendingPancard;
-import com.bharatpe.lending.dto.VerifyPanCardDto;
+import java.util.List;
 
 @Service
 public class VerifyDocService {
 
 	Logger logger=LoggerFactory.getLogger(VerifyDocService.class);
-	
+
 	@Autowired
 	LoanEligibleService loanEligibleService;
-	
+
 	@Autowired
 	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
@@ -33,7 +31,7 @@ public class VerifyDocService {
 
 	@Autowired
 	ExperianDao experianDao;
-	
+
 	public VerifyPanCardDto verifyPanCard(BasicDetailsDto merchant, String  panCard) {
 		try {
 			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
@@ -43,7 +41,7 @@ public class VerifyDocService {
 				return new VerifyPanCardDto(true,"PAN already exists, Please enter a different PAN Number",false);
 			}
 			if(lendingPancard == null || (lendingPancard.getPancardNumber()!=null && !lendingPancard.getPancardNumber().equalsIgnoreCase(panCard))||(lendingPancard.getPancardNumber()==null || lendingPancard.getPancardNumber().isEmpty())) {
-				lendingPancard=loanEligibleService.fetchNameFromSignzy(panCard,merchant.getId());
+				lendingPancard=loanEligibleService.fetchPanName(panCard,merchant.getId());
 			}
 			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty()) {
 				if(!isUsingOthersPancard(merchant.getId(),panCard)) {
@@ -60,7 +58,7 @@ public class VerifyDocService {
 			return new VerifyPanCardDto(true, "", true);
 		}
 	}
-	
+
 	public boolean isUsingOthersPancard(Long merchantId, String proofNo) {
 		List<DocKycDetailsMaster> docOcrList=docKycDetailsDaoMaster.findByDocTypeAndDocNo("pancard", proofNo);
 		for(DocKycDetailsMaster docOcr:docOcrList) {

@@ -388,13 +388,13 @@ public class LoanUtil {
 		return String.format("%03d", number);
 	}
 
-	public boolean isCpvCity(Integer pincode) {
-		if (pincode == null) {
-			return false;
-		}
-		PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
-		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
-	}
+//	public boolean isCpvCity(Integer pincode) {
+//		if (pincode == null) {
+//			return false;
+//		}
+//		PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
+//		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
+//	}
 
 	public int getApplicationTAT(Long applicationId) {
 		int tat = -1;

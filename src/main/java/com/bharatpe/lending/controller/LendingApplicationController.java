@@ -197,10 +197,10 @@ public class LendingApplicationController {
 		return new ResponseEntity<>(lendingApplicationService.applicationStatus(merchant, requestDTO, clientIp, token), HttpStatus.OK);
 	}
 
-	@RequestMapping(value="/adhaar_mask", method= RequestMethod.POST,produces = "application/json")
-	public ResponseEntity<CommonResponse> maskAdhaar(@RequestBody AdhaarMaskRequest requestDTO){
-		return new ResponseEntity<>(adhaarMaskService.maskAdhaar(requestDTO), HttpStatus.OK);
-	}
+//	@RequestMapping(value="/adhaar_mask", method= RequestMethod.POST,produces = "application/json")
+//	public ResponseEntity<CommonResponse> maskAdhaar(@RequestBody AdhaarMaskRequest requestDTO){
+//		return new ResponseEntity<>(adhaarMaskService.maskAdhaar(requestDTO), HttpStatus.OK);
+//	}
 
 	@GetMapping(value="/edi_schedule", produces = "application/json")
 	public ResponseEntity<CommonResponse> getEdiSchedule(@RequestParam Long merchantId, @RequestParam Long applicationId){

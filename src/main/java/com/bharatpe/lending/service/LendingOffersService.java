@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
@@ -11,8 +12,8 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingCoolOff;
 import com.bharatpe.lending.common.entity.LendingGlobalLimit;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
-import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
+//import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
+//import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
 import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.CoolOffRequestDTO;
@@ -51,12 +52,15 @@ public class LendingOffersService {
 
 	@Autowired
 	LendingCoolOffDao lendingCoolOffDao;
-
-	@Autowired
-	OrderStickerDaoSlave orderStickerDaoSlave;
+//
+//	@Autowired
+//	OrderStickerDaoSlave orderStickerDaoSlave;
 
 	@Autowired
 	ExperianDao experianDao;
+
+	@Autowired
+	LendingPancardDao lendingPancardDao;
 
 //	@Autowired
 //	MerchantDao merchantDao;
@@ -156,8 +160,8 @@ public class LendingOffersService {
 				return new CommonResponse(true, "success", responseDTO);
 			}
 			LendingCoolOff lendingCoolOff = lendingCoolOffDao.findByMerchantId(merchantBasicDetails.getId());
-			OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetails.getId());
-			boolean showOrderQr = (orderSticker == null && diy);
+//			OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetails.getId());
+			boolean showOrderQr = false;
 			if (lendingCoolOff != null) {
 				logger.info("lending_cool_off entry already exist for merchant:{}", merchantBasicDetails.getId());
 				if (!diy && !lendingCoolOff.isEligible()) {
@@ -191,6 +195,7 @@ public class LendingOffersService {
 	}
 
 	public void makeMeFresh(BasicDetailsDto merchant) {
+		lendingPancardDao.deleteByMerchantId(merchant.getId());
 		experianDao.deleteByMerchantId(merchant.getId());
 		lendingApplicationDao.deleteByMerchantId(merchant.getId());
 		bpEnachDao.deleteByMerchantId(merchant.getId());

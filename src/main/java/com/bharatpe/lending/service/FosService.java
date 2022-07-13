@@ -21,7 +21,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
+//import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantInferredLocationDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
@@ -71,8 +71,8 @@ public class FosService {
     @Autowired
     LendingCpvDetailsDao lendingCpvDetailsDao;
 
-    @Autowired
-    IfscDaoSlave ifscDaoSlave;
+//    @Autowired
+//    IfscDaoSlave ifscDaoSlave;
 
     @Autowired
     BankListDaoSlave bankListDaoSlave;

@@ -1,7 +1,13 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.*;
-import com.bharatpe.common.entities.*;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingCitiesDao;
+import com.bharatpe.common.dao.LendingPancardDao;
+import com.bharatpe.common.dao.LendingRedCitiesDao;
+import com.bharatpe.common.entities.Experian;
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPancard;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
@@ -13,18 +19,15 @@ import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
-import com.bharatpe.lending.common.slave.dao.SignzyCredentialDaoSlave;
-import com.bharatpe.lending.common.slave.dao.TokenVerificationDaoSlave;
+import com.bharatpe.lending.common.slave.dao.*;
 import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
-import com.bharatpe.lending.common.slave.entity.SignzyCredentialSlave;
 import com.bharatpe.lending.common.slave.entity.TokenVerificationSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.constant.*;
+import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dto.*;
@@ -34,11 +37,9 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
@@ -54,7 +55,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
-import org.springframework.web.client.*;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -106,8 +109,8 @@ public class APIGatewayService {
     @Autowired
     LendingCitiesDao lendingCitiesDao;
 
-    @Autowired
-    SignzyCredentialDaoSlave signzyCredentialDaoSlave;
+//    @Autowired
+//    SignzyCredentialDaoSlave signzyCredentialDaoSlave;
 
     @Autowired
     ExperianDao experianDao;
@@ -117,6 +120,9 @@ public class APIGatewayService {
 
     @Autowired
     DocKycDetailsDaoMaster docKycDetailsDaoMaster;
+
+    @Autowired
+    LoanEligibleService loanEligibleService;
 
     @Value("${signzy.url}")
     public String SIGNZY_URL;
@@ -139,8 +145,8 @@ public class APIGatewayService {
     @Autowired
     RestTemplate restTemplate;
 
-    @Autowired
-    SignzyRequestResponseDao signzyRequestResponseDao;
+//    @Autowired
+//    SignzyRequestResponseDao signzyRequestResponseDao;
 
     @Autowired
     Environment env;
@@ -312,309 +318,309 @@ public class APIGatewayService {
         return MID;
     }
 
-    public Map<String, String> signzyIdentityDetails(String proofType, Long merchantId, String signzyModule, String signzyPurpose, List<String> images) {
-        logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
-        try {
-            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModuleAndPurpose(signzyModule, signzyPurpose);
-            if (signzyCredential == null) {
-                logger.info("signzy credentials not found");
-                return null;
-            }
-            Map<String, Object> body = new HashMap<>();
-            body.put("type", proofType);
-            body.put("email", "admin@signzy.com");
-            body.put("callbackUrl", "https://your-domain.com/your-callback-system");
-            body.put("images", images);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", signzyCredential.getAccessId());
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/identities";
-            logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
-            String response = null;
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    response = restTemplate.postForObject(URL, request, String.class);
-                    logger.info("Signzy identity response {}", response);
-                    if (response != null) {
-                        JsonNode jsonNode = mapper.readTree(response);
-                        if (jsonNode != null && jsonNode.has("id") && jsonNode.has("accessToken")) {
-                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
-                            Map<String, String> identityDetail = new HashMap<>();
-                            identityDetail.put("itemId", jsonNode.get("id").asText());
-                            identityDetail.put("accessToken", jsonNode.get("accessToken").asText());
-                            identityDetail.put("module", signzyCredential.getModule());
-                            return identityDetail;
-                        } else {
-                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
-                        }
-                    }
-                    break;
-                } catch (Exception e) {
-                    logger.info("Error occurred while fetching identity details", e);
-                    insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
-                }
-                retryCount++;
-            }
-        } catch (Exception e) {
-            logger.error("Exception in Signzy Identity flow Api", e);
-        }
-        return null;
-    }
+//    public Map<String, String> signzyIdentityDetails(String proofType, Long merchantId, String signzyModule, String signzyPurpose, List<String> images) {
+//        logger.info("Calling Signzy Identity flow Api for proof:{}", proofType);
+//        try {
+//            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModuleAndPurpose(signzyModule, signzyPurpose);
+//            if (signzyCredential == null) {
+//                logger.info("signzy credentials not found");
+//                return null;
+//            }
+//            Map<String, Object> body = new HashMap<>();
+//            body.put("type", proofType);
+//            body.put("email", "admin@signzy.com");
+//            body.put("callbackUrl", "https://your-domain.com/your-callback-system");
+//            body.put("images", images);
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            headers.set("Authorization", signzyCredential.getAccessId());
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/identities";
+//            logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
+//            String response = null;
+//            int retryCount = 0;
+//            while (retryCount < 3) {
+//                try {
+//                    response = restTemplate.postForObject(URL, request, String.class);
+//                    logger.info("Signzy identity response {}", response);
+//                    if (response != null) {
+//                        JsonNode jsonNode = mapper.readTree(response);
+//                        if (jsonNode != null && jsonNode.has("id") && jsonNode.has("accessToken")) {
+//                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+//                            Map<String, String> identityDetail = new HashMap<>();
+//                            identityDetail.put("itemId", jsonNode.get("id").asText());
+//                            identityDetail.put("accessToken", jsonNode.get("accessToken").asText());
+//                            identityDetail.put("module", signzyCredential.getModule());
+//                            return identityDetail;
+//                        } else {
+//                            insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+//                        }
+//                    }
+//                    break;
+//                } catch (Exception e) {
+//                    logger.info("Error occurred while fetching identity details", e);
+//                    insertIntoSignzyReqRes(merchantId, null, "IDENTITY", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+//                }
+//                retryCount++;
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in Signzy Identity flow Api", e);
+//        }
+//        return null;
+//    }
 
-    public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId, String module) {
-        logger.info("Calling Signzy Pan Fetch Api for pancard:{}", pancard);
-        try {
-            Map<String, Object> body = new HashMap<String, Object>() {{
-                put("service", "Identity");
-                put("itemId", itemId);
-                put("task", "verification");
-                put("accessToken", accessToken);
-                put("essentials", new HashMap<String, String>() {{
-                    put("number", pancard);
-                    put("name", "test");
-                }});
-            }};
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
-            logger.info("Signzy Pan Fetch URL {} request {}", URL, request);
-            int retryCount = 0;
-            String response = null;
-            while (retryCount < 3) {
-                try {
-                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
-                    logger.info("Response for Signzy Pan Fetch: {}", responseEntity);
-                    if (responseEntity.getBody() != null) {
-                        response = responseEntity.getBody();
-                        if (responseEntity.getStatusCode().is2xxSuccessful()) {
-                            insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
-                        } else {
-                            insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
-                        }
-                    }
-                    break;
-                } catch (HttpStatusCodeException e) {
-                    logger.info("Error occurred while calling pan fetch api", e);
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
-                    if (e.getRawStatusCode() == 404 || e.getRawStatusCode() == 400) {
-                        break;
-                    } else if (retryCount == 2) {
-                        //to allow merchant to proceed if there's error from Experian end;
-                        response = "ERROR_OCCURRED";
-                    }
-                    retryCount++;
-                } catch (Exception e) {
-                    logger.info("Error occurred while calling pan fetch api", e);
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
-                    if (retryCount == 2) {
-                        //to allow merchant to proceed if there's error from Experian end;
-                        response = "ERROR_OCCURRED";
-                    }
-                    retryCount++;
-                }
-            }
-            return response;
-        } catch (Exception e) {
-            logger.error("Exception in Signzy Pan Fetch Api", e);
-        }
-        return null;
-    }
+//    public String signzyPanFetch(String itemId, String accessToken, String pancard, Long merchantId, String module) {
+//        logger.info("Calling Signzy Pan Fetch Api for pancard:{}", pancard);
+//        try {
+//            Map<String, Object> body = new HashMap<String, Object>() {{
+//                put("service", "Identity");
+//                put("itemId", itemId);
+//                put("task", "verification");
+//                put("accessToken", accessToken);
+//                put("essentials", new HashMap<String, String>() {{
+//                    put("number", pancard);
+//                    put("name", "test");
+//                }});
+//            }};
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
+//            logger.info("Signzy Pan Fetch URL {} request {}", URL, request);
+//            int retryCount = 0;
+//            String response = null;
+//            while (retryCount < 3) {
+//                try {
+//                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+//                    logger.info("Response for Signzy Pan Fetch: {}", responseEntity);
+//                    if (responseEntity.getBody() != null) {
+//                        response = responseEntity.getBody();
+//                        if (responseEntity.getStatusCode().is2xxSuccessful()) {
+//                            insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
+//                        } else {
+//                            insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
+//                        }
+//                    }
+//                    break;
+//                } catch (HttpStatusCodeException e) {
+//                    logger.info("Error occurred while calling pan fetch api", e);
+//                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
+//                    if (e.getRawStatusCode() == 404 || e.getRawStatusCode() == 400) {
+//                        break;
+//                    } else if (retryCount == 2) {
+//                        //to allow merchant to proceed if there's error from Experian end;
+//                        response = "ERROR_OCCURRED";
+//                    }
+//                    retryCount++;
+//                } catch (Exception e) {
+//                    logger.info("Error occurred while calling pan fetch api", e);
+//                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH", "FAILED", mapper.writeValueAsString(request), response, module);
+//                    if (retryCount == 2) {
+//                        //to allow merchant to proceed if there's error from Experian end;
+//                        response = "ERROR_OCCURRED";
+//                    }
+//                    retryCount++;
+//                }
+//            }
+//            return response;
+//        } catch (Exception e) {
+//            logger.error("Exception in Signzy Pan Fetch Api", e);
+//        }
+//        return null;
+//    }
 
-    public JsonNode signzyPanFetchV2(String pancard, Long merchantId, String signzyModule, String signzyPurpose) {
-        logger.info("Calling Signzy pan fetch v2 Api for merchant:{} and pancard:{}", merchantId, pancard);
-        try {
-            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModuleAndPurpose(signzyModule, signzyPurpose);
-            if (signzyCredential == null) {
-                logger.info("signzy credentials not found");
-                return null;
-            }
-            Map<String, Object> body = new HashMap<>();
-            body.put("task", "fetch");
-            body.put("essentials", new HashMap<String, String>() {{
-                put("number", pancard);
-            }});
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", signzyCredential.getAccessId());
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/panv2";
-            logger.info("Signzy pan fetch v2 url:{} and request:{} for merchant:{}", URL, request, merchantId);
-            try {
-                Long a = DateTime.now().getMillis();
-                ResponseEntity<String> response = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
-                Long b = DateTime.now().getMillis();
-                logger.info("Signzy API response time---{}ms", (b - a));
-                logger.info("Signzy pan fetch v2 response:{} for merchant:{}", response, merchantId);
-                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "SUCCESS", mapper.writeValueAsString(request), response.getBody(), signzyModule);
-                    return mapper.readTree(response.getBody());
-                } else {
-                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), response.getBody(), signzyModule);
-                }
-            } catch (Exception e) {
-                logger.info("Error occurred while calling signzy pan fetch v2 for merchant:{}", merchantId, e);
-                insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), null, signzyModule);
-            }
-        } catch (Exception e) {
-            logger.error("Exception in Signzy pan fetch v2 for merchant:{}", merchantId, e);
-        }
-        return null;
-    }
+//    public JsonNode signzyPanFetchV2(String pancard, Long merchantId, String signzyModule, String signzyPurpose) {
+//        logger.info("Calling Signzy pan fetch v2 Api for merchant:{} and pancard:{}", merchantId, pancard);
+//        try {
+//            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModuleAndPurpose(signzyModule, signzyPurpose);
+//            if (signzyCredential == null) {
+//                logger.info("signzy credentials not found");
+//                return null;
+//            }
+//            Map<String, Object> body = new HashMap<>();
+//            body.put("task", "fetch");
+//            body.put("essentials", new HashMap<String, String>() {{
+//                put("number", pancard);
+//            }});
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            headers.set("Authorization", signzyCredential.getAccessId());
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/panv2";
+//            logger.info("Signzy pan fetch v2 url:{} and request:{} for merchant:{}", URL, request, merchantId);
+//            try {
+//                Long a = DateTime.now().getMillis();
+//                ResponseEntity<String> response = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+//                Long b = DateTime.now().getMillis();
+//                logger.info("Signzy API response time---{}ms", (b - a));
+//                logger.info("Signzy pan fetch v2 response:{} for merchant:{}", response, merchantId);
+//                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+//                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "SUCCESS", mapper.writeValueAsString(request), response.getBody(), signzyModule);
+//                    return mapper.readTree(response.getBody());
+//                } else {
+//                    insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), response.getBody(), signzyModule);
+//                }
+//            } catch (Exception e) {
+//                logger.info("Error occurred while calling signzy pan fetch v2 for merchant:{}", merchantId, e);
+//                insertIntoSignzyReqRes(merchantId, null, "PAN_FETCH_V2", "FAILED", mapper.writeValueAsString(request), null, signzyModule);
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in Signzy pan fetch v2 for merchant:{}", merchantId, e);
+//        }
+//        return null;
+//    }
 
-    public String getOcrResponse(Long merchantId, Map<String, String> identityDetails, String ocrType, Long applicationId) {
-        String response = null;
-        String itemId = identityDetails.get("itemId");
-        String accessToken = identityDetails.get("accessToken");
-        if (itemId != null && accessToken != null && !itemId.isEmpty() && !accessToken.isEmpty()) {
-            Map<String, Object> body = new HashMap<String, Object>() {{
-                put("service", "Identity");
-                put("itemId", itemId);
-                put("task", "autoRecognition");
-                put("accessToken", accessToken);
-                put("essentials", new HashMap<>());
-            }};
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-//	        headers.set("Authorization", authorization);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
-            logger.info("Signzy OCR URL {} request {}", URL, request);
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    response = restTemplate.postForObject(URL, request, String.class);
-                    logger.info("Response for pancard authentication {}", response);
-                    insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "SUCCESS", mapper.writeValueAsString(request), response, "LENDING");
+//    public String getOcrResponse(Long merchantId, Map<String, String> identityDetails, String ocrType, Long applicationId) {
+//        String response = null;
+//        String itemId = identityDetails.get("itemId");
+//        String accessToken = identityDetails.get("accessToken");
+//        if (itemId != null && accessToken != null && !itemId.isEmpty() && !accessToken.isEmpty()) {
+//            Map<String, Object> body = new HashMap<String, Object>() {{
+//                put("service", "Identity");
+//                put("itemId", itemId);
+//                put("task", "autoRecognition");
+//                put("accessToken", accessToken);
+//                put("essentials", new HashMap<>());
+//            }};
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+////	        headers.set("Authorization", authorization);
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
+//            logger.info("Signzy OCR URL {} request {}", URL, request);
+//            int retryCount = 0;
+//            while (retryCount < 3) {
+//                try {
+//                    response = restTemplate.postForObject(URL, request, String.class);
+//                    logger.info("Response for pancard authentication {}", response);
+//                    insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "SUCCESS", mapper.writeValueAsString(request), response, "LENDING");
+//
+//                    break;
+//                } catch (Exception e) {
+//                    logger.error("Error occured while doing ocr", e);
+//                    try {
+//                        insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "FAILED", mapper.writeValueAsString(request), response, "LENDING");
+//                    } catch (JsonProcessingException e1) {
+//                        e1.printStackTrace();
+//                    }
+//                    retryCount++;
+//                }
+//            }
+//        }
+//        return response;
+//    }
 
-                    break;
-                } catch (Exception e) {
-                    logger.error("Error occured while doing ocr", e);
-                    try {
-                        insertIntoSignzyReqRes(merchantId, applicationId, ocrType, "FAILED", mapper.writeValueAsString(request), response, "LENDING");
-                    } catch (JsonProcessingException e1) {
-                        e1.printStackTrace();
-                    }
-                    retryCount++;
-                }
-            }
-        }
-        return response;
-    }
+//    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId, String apiName, String status, String request, String response, String module) {
+//        try {
+//            SignzyRequestResponse signzyRequestResponse = new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response, module);
+//            signzyRequestResponseDao.save(signzyRequestResponse);
+//        } catch (Exception e) {
+//            logger.error("Error occured while inserting into signzy req res table ", e);
+//        }
+//    }
 
-    public void insertIntoSignzyReqRes(Long merchantId, Long applicationId, String apiName, String status, String request, String response, String module) {
-        try {
-            SignzyRequestResponse signzyRequestResponse = new SignzyRequestResponse(merchantId, applicationId, StringUtils.substring(apiName, 0, 20), status, request, response, module);
-            signzyRequestResponseDao.save(signzyRequestResponse);
-        } catch (Exception e) {
-            logger.error("Error occured while inserting into signzy req res table ", e);
-        }
-    }
+//    public JsonNode crifStage1(String firstName, String lastName, String pancard, String mobile, Long merchantId) {
+//        try {
+//            logger.info("Calling CRIF stage1 api for merchant:{} with pancard:{}", merchantId, pancard);
+//            String accessCode = generateAccessCode();
+//            String orderId = LoanUtil.getRandomNumberString() + merchantId;
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.TEXT_PLAIN);
+//            headers.set("orderId", orderId);
+//            headers.set("accessCode", accessCode);
+//            headers.set("appID", env.getProperty("crif.appId"));
+//            headers.set("merchantID", env.getProperty("crif.customerId"));
+//            String body = firstName + "||" + lastName + "|||||" + mobile + "|||||" + pancard + "|||||||||||||||||||||||" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|Y|";
+//            HttpEntity<String> request = new HttpEntity<>(body, headers);
+//            logger.info("CRIF stage1 request:{}", request);
+//            CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, firstName, lastName, pancard, mobile, orderId, accessCode, null, "STAGE1", null, mapper.writeValueAsString(request), null);
+//            crifRequestResponseDao.save(crifRequestResponse);
+//            int retryCount = 0;
+//            ResponseEntity<String> response = null;
+//            while (retryCount < 2) {
+//                try {
+//                    response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage1.url")), HttpMethod.POST, request, String.class);
+//                    logger.info("CRIF stage1 response:{}", response);
+//                    break;
+//                } catch (ResourceAccessException e) {
+//                    logger.info("Crif Stage1 api timeout for merchant:{}", merchantId, e);
+//                }
+//                retryCount++;
+//            }
+//            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
+//                JsonNode jsonNode = mapper.readTree(response.getBody());
+//                crifRequestResponse.setReportId(jsonNode.get("reportId") != null ? jsonNode.get("reportId").asText() : null);
+//                crifRequestResponse.setResponse(response.getBody());
+//                crifRequestResponse.setStatus("SUCCESS");
+//                crifRequestResponseDao.save(crifRequestResponse);
+//                return jsonNode;
+//            } else {
+//                crifRequestResponse.setStatus("FAILED");
+//                crifRequestResponseDao.save(crifRequestResponse);
+//                return null;
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in crif stage1 api", e);
+//            return null;
+//        }
+//    }
+//
+//    public JsonNode crifStage2(Long merchantId, String orderId, String reportId, String redirectUrl, boolean stage3, String userAns) {
+//        try {
+//            String stage = stage3 ? "stage3" : "stage2";
+//            logger.info("Calling CRIF " + stage + " api for merchant:{} with orderId:{}", merchantId, orderId);
+//            String accessCode = generateAccessCode();
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.TEXT_PLAIN);
+//            if (!stage3) {
+//                headers.set("requestType", "Authorization");
+//            }
+//            headers.set("accessCode", accessCode);
+//            headers.set("appID", env.getProperty("crif.appId"));
+//            headers.set("merchantID", env.getProperty("crif.customerId"));
+//            headers.set("orderId", orderId);
+//            headers.set("reportId", reportId);
+//            String body = orderId + "|" + reportId + "|" + accessCode + "|" + "https://cir.crifhighmark.com/Inquiry/B2B/secureService.action" + "|N|N|N|" + userAns;
+//            HttpEntity<String> request = new HttpEntity<>(body, headers);
+//            logger.info("CRIF " + stage + " request:{}", request);
+//            CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, null, null, null, null, orderId, accessCode, reportId, stage3 ? "STAGE3" : "STAGE2", null, mapper.writeValueAsString(request), null);
+//            crifRequestResponseDao.save(crifRequestResponse);
+//            int retryCount = 0;
+//            ResponseEntity<String> response = null;
+//            while (retryCount < 2) {
+//                try {
+//                    response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage2.url")), HttpMethod.POST, request, String.class);
+//                    logger.info("CRIF " + stage + " response:{}", response.getBody());
+//                    break;
+//                } catch (ResourceAccessException e) {
+//                    logger.info("CRIF " + stage + " api timeout for merchant:{}", merchantId, e);
+//                }
+//                retryCount++;
+//            }
+//            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
+//                crifRequestResponse.setStatus("SUCCESS");
+//                crifRequestResponse.setResponse(response.getBody());
+//                crifRequestResponseDao.save(crifRequestResponse);
+//                if (stage3) {
+//                    JSONObject jsonObject = XML.toJSONObject(response.getBody());
+//                    return mapper.readTree(jsonObject.toString());
+//                }
+//                return mapper.readTree(response.getBody());
+//            } else {
+//                crifRequestResponse.setStatus("FAILED");
+//                crifRequestResponseDao.save(crifRequestResponse);
+//                return null;
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in crif stage2 api", e);
+//            return null;
+//        }
+//    }
 
-    public JsonNode crifStage1(String firstName, String lastName, String pancard, String mobile, Long merchantId) {
-        try {
-            logger.info("Calling CRIF stage1 api for merchant:{} with pancard:{}", merchantId, pancard);
-            String accessCode = generateAccessCode();
-            String orderId = LoanUtil.getRandomNumberString() + merchantId;
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.TEXT_PLAIN);
-            headers.set("orderId", orderId);
-            headers.set("accessCode", accessCode);
-            headers.set("appID", env.getProperty("crif.appId"));
-            headers.set("merchantID", env.getProperty("crif.customerId"));
-            String body = firstName + "||" + lastName + "|||||" + mobile + "|||||" + pancard + "|||||||||||||||||||||||" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|Y|";
-            HttpEntity<String> request = new HttpEntity<>(body, headers);
-            logger.info("CRIF stage1 request:{}", request);
-            CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, firstName, lastName, pancard, mobile, orderId, accessCode, null, "STAGE1", null, mapper.writeValueAsString(request), null);
-            crifRequestResponseDao.save(crifRequestResponse);
-            int retryCount = 0;
-            ResponseEntity<String> response = null;
-            while (retryCount < 2) {
-                try {
-                    response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage1.url")), HttpMethod.POST, request, String.class);
-                    logger.info("CRIF stage1 response:{}", response);
-                    break;
-                } catch (ResourceAccessException e) {
-                    logger.info("Crif Stage1 api timeout for merchant:{}", merchantId, e);
-                }
-                retryCount++;
-            }
-            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
-                JsonNode jsonNode = mapper.readTree(response.getBody());
-                crifRequestResponse.setReportId(jsonNode.get("reportId") != null ? jsonNode.get("reportId").asText() : null);
-                crifRequestResponse.setResponse(response.getBody());
-                crifRequestResponse.setStatus("SUCCESS");
-                crifRequestResponseDao.save(crifRequestResponse);
-                return jsonNode;
-            } else {
-                crifRequestResponse.setStatus("FAILED");
-                crifRequestResponseDao.save(crifRequestResponse);
-                return null;
-            }
-        } catch (Exception e) {
-            logger.error("Exception in crif stage1 api", e);
-            return null;
-        }
-    }
-
-    public JsonNode crifStage2(Long merchantId, String orderId, String reportId, String redirectUrl, boolean stage3, String userAns) {
-        try {
-            String stage = stage3 ? "stage3" : "stage2";
-            logger.info("Calling CRIF " + stage + " api for merchant:{} with orderId:{}", merchantId, orderId);
-            String accessCode = generateAccessCode();
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.TEXT_PLAIN);
-            if (!stage3) {
-                headers.set("requestType", "Authorization");
-            }
-            headers.set("accessCode", accessCode);
-            headers.set("appID", env.getProperty("crif.appId"));
-            headers.set("merchantID", env.getProperty("crif.customerId"));
-            headers.set("orderId", orderId);
-            headers.set("reportId", reportId);
-            String body = orderId + "|" + reportId + "|" + accessCode + "|" + "https://cir.crifhighmark.com/Inquiry/B2B/secureService.action" + "|N|N|N|" + userAns;
-            HttpEntity<String> request = new HttpEntity<>(body, headers);
-            logger.info("CRIF " + stage + " request:{}", request);
-            CrifRequestResponse crifRequestResponse = new CrifRequestResponse(merchantId, null, null, null, null, orderId, accessCode, reportId, stage3 ? "STAGE3" : "STAGE2", null, mapper.writeValueAsString(request), null);
-            crifRequestResponseDao.save(crifRequestResponse);
-            int retryCount = 0;
-            ResponseEntity<String> response = null;
-            while (retryCount < 2) {
-                try {
-                    response = restTemplate.exchange(Objects.requireNonNull(env.getProperty("crif.stage2.url")), HttpMethod.POST, request, String.class);
-                    logger.info("CRIF " + stage + " response:{}", response.getBody());
-                    break;
-                } catch (ResourceAccessException e) {
-                    logger.info("CRIF " + stage + " api timeout for merchant:{}", merchantId, e);
-                }
-                retryCount++;
-            }
-            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
-                crifRequestResponse.setStatus("SUCCESS");
-                crifRequestResponse.setResponse(response.getBody());
-                crifRequestResponseDao.save(crifRequestResponse);
-                if (stage3) {
-                    JSONObject jsonObject = XML.toJSONObject(response.getBody());
-                    return mapper.readTree(jsonObject.toString());
-                }
-                return mapper.readTree(response.getBody());
-            } else {
-                crifRequestResponse.setStatus("FAILED");
-                crifRequestResponseDao.save(crifRequestResponse);
-                return null;
-            }
-        } catch (Exception e) {
-            logger.error("Exception in crif stage2 api", e);
-            return null;
-        }
-    }
-
-    private String generateAccessCode() {
-        String value = env.getProperty("crif.userId") + "|" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|" + env.getProperty("crif.password") + "|" + new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date());
-        return Base64.getEncoder().encodeToString(value.getBytes());
-    }
+//    private String generateAccessCode() {
+//        String value = env.getProperty("crif.userId") + "|" + env.getProperty("crif.customerId") + "|BBC_CONSUMER_SCORE#85#2.0|" + env.getProperty("crif.password") + "|" + new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date());
+//        return Base64.getEncoder().encodeToString(value.getBytes());
+//    }
 
     public List<PaymentDetailDto> getPaymentModes(RequestDTO<CreditSpendRequestDTO> requestDTO, String token) {
         List<PaymentDetailDto> paymentDetails = new ArrayList<>();
@@ -665,22 +671,22 @@ public class APIGatewayService {
         List<PaymentDetailDto> paymentDetails = new ArrayList<>();
         try {
             String content = "[\n" + "{\n" + "\"name\": \"Pay Using UPI\",\n"
-                    + "                       \"type\": \"UPI\",\n"
-                    + "                       \"fund_source\": \"UPI\",\n"
-                    + "                       \"balance\": null,\n"
-                    + "                       \"amount_limit\": 100000.0,\n"
-                    + "                       \"description\": null,\n"
-                    + "                       \"offers\": null,\n"
-                    + "                       \"auth_type\": null,\n"
-                    + "                       \"psps\": [\n"
-                    + "                \"com.google.android.apps.nbu.paisa.user\",\n" + "\"net.one97.paytm\",\n" + "\"in.org.npci.upiapp\",\n"
-                    + "                \"com.csam.icici.bank.imobile\",\n" + "\"com.mobikwik_new\",\n"
-                    + "                \"com.myairtelapp\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
-                    + "                     \"auth_required\": false,\n"
-                    + "                     \"default\": false,\n"
-                    + "                     \"enable\": true,\n"
-                    + "                     \"initiate_sb\": false,\n"
-                    + "                     \"sb_link\": null\n" + "}\n" + "]";
+              + "                       \"type\": \"UPI\",\n"
+              + "                       \"fund_source\": \"UPI\",\n"
+              + "                       \"balance\": null,\n"
+              + "                       \"amount_limit\": 100000.0,\n"
+              + "                       \"description\": null,\n"
+              + "                       \"offers\": null,\n"
+              + "                       \"auth_type\": null,\n"
+              + "                       \"psps\": [\n"
+              + "                \"com.google.android.apps.nbu.paisa.user\",\n" + "\"net.one97.paytm\",\n" + "\"in.org.npci.upiapp\",\n"
+              + "                \"com.csam.icici.bank.imobile\",\n" + "\"com.mobikwik_new\",\n"
+              + "                \"com.myairtelapp\",\n" + "\"com.olacabs.customer\"\n" + "],\n"
+              + "                     \"auth_required\": false,\n"
+              + "                     \"default\": false,\n"
+              + "                     \"enable\": true,\n"
+              + "                     \"initiate_sb\": false,\n"
+              + "                     \"sb_link\": null\n" + "}\n" + "]";
             paymentDetails = mapper.readValue(content, new TypeReference<List<PaymentDetailDto>>() {
             });
         } catch (Exception e) {
@@ -940,59 +946,59 @@ public class APIGatewayService {
         return result;
     }
 
-    public void signZyPanGst(Long merchantId) {
-        logger.info("Calling Signzy For GST Number:{}", merchantId);
-        try {
-            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModule("GST");
-            if (signzyCredential == null) {
-                logger.info("signzy credentials not found");
-                return;
-            }
-            Experian experian = experianDao.getByMerchantId(merchantId);
-            LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
-            if (lendingPancard != null && lendingPancard.getGstNumber() != null && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber())) {
-                logger.info("Already pulled gst for this pancard");
-                return;
-            }
-            Integer pincode = experian.getPincode();
-            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
-            Map<String, Object> body = new HashMap<>();
-            Map<String, Object> essentials = new HashMap<>();
-            body.put("task", "panSearch");
-            essentials.put("panNumber", experian.getPancardNumber());
-            essentials.put("state", pincodeCityStateMapping != null ? pincodeCityStateMapping.getState() : "");
-            essentials.put("email", "");
-            body.put("essentials", essentials);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", signzyCredential.getAccessId());
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/gstns";
-            logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
-            String response = null;
-            try {
-                response = restTemplate.postForObject(URL, request, String.class);
-                logger.info("Signzy Pan To Gst {}", response);
-                insertIntoSignzyReqRes(merchantId, null, "GST", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
-                if (response != null) {
-                    JsonNode jsonNode = mapper.readTree(response);
-                    if (jsonNode != null && jsonNode.get("result") != null && jsonNode.get("result").get("gstin") != null) {
-                        if (lendingPancard == null) {
-                            lendingPancard = new LendingPancard();
-                            lendingPancard.setMerchantId(merchantId);
-                        }
-                        lendingPancard.setGstNumber(jsonNode.get("result").get("gstin").asText());
-                        lendingPancardDao.save(lendingPancard);
-                    }
-                }
-            } catch (Exception e) {
-                logger.info("Error occurred while fetching gst details", e);
-                insertIntoSignzyReqRes(merchantId, null, "GST", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
-            }
-        } catch (Exception e) {
-            logger.error("Exception in Signzy GST flow Api", e);
-        }
-    }
+//    public void signZyPanGst(Long merchantId) {
+//        logger.info("Calling Signzy For GST Number:{}", merchantId);
+//        try {
+//            SignzyCredentialSlave signzyCredential = signzyCredentialDaoSlave.findByModule("GST");
+//            if (signzyCredential == null) {
+//                logger.info("signzy credentials not found");
+//                return;
+//            }
+//            Experian experian = experianDao.getByMerchantId(merchantId);
+//            LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+//            if (lendingPancard != null && lendingPancard.getGstNumber() != null && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(experian.getPancardNumber())) {
+//                logger.info("Already pulled gst for this pancard");
+//                return;
+//            }
+//            Integer pincode = experian.getPincode();
+//            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
+//            Map<String, Object> body = new HashMap<>();
+//            Map<String, Object> essentials = new HashMap<>();
+//            body.put("task", "panSearch");
+//            essentials.put("panNumber", experian.getPancardNumber());
+//            essentials.put("state", pincodeCityStateMapping != null ? pincodeCityStateMapping.getState() : "");
+//            essentials.put("email", "");
+//            body.put("essentials", essentials);
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            headers.set("Authorization", signzyCredential.getAccessId());
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            String URL = SIGNZY_URL + CreditConstants.SIGNZY_IDENTITY_URL + "/" + signzyCredential.getUserId() + "/gstns";
+//            logger.info("Request body to get signzy identity credentials URL {} request {}", URL, request);
+//            String response = null;
+//            try {
+//                response = restTemplate.postForObject(URL, request, String.class);
+//                logger.info("Signzy Pan To Gst {}", response);
+//                insertIntoSignzyReqRes(merchantId, null, "GST", "SUCCESS", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+//                if (response != null) {
+//                    JsonNode jsonNode = mapper.readTree(response);
+//                    if (jsonNode != null && jsonNode.get("result") != null && jsonNode.get("result").get("gstin") != null) {
+//                        if (lendingPancard == null) {
+//                            lendingPancard = new LendingPancard();
+//                            lendingPancard.setMerchantId(merchantId);
+//                        }
+//                        lendingPancard.setGstNumber(jsonNode.get("result").get("gstin").asText());
+//                        lendingPancardDao.save(lendingPancard);
+//                    }
+//                }
+//            } catch (Exception e) {
+//                logger.info("Error occurred while fetching gst details", e);
+//                insertIntoSignzyReqRes(merchantId, null, "GST", "FAILED", mapper.writeValueAsString(request), response, signzyCredential.getModule());
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in Signzy GST flow Api", e);
+//        }
+//    }
 
     public String getEnachProvider(String token, Long merchantId) {
         logger.info("Fetching enach provider for merchant:{}", merchantId);
@@ -1005,7 +1011,7 @@ public class APIGatewayService {
         }
         if (ObjectUtils.isEmpty(token)) {
             TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(merchantId);
-            if(ObjectUtils.isEmpty(tokenVerification)) {
+            if (ObjectUtils.isEmpty(tokenVerification)) {
                 return null;
             }
             token = tokenVerification.getAccessToken();
@@ -1028,45 +1034,45 @@ public class APIGatewayService {
         return null;
     }
 
-    public String signzySnoop(String itemId, String accessToken, String task, Long merchantId, String module, HashMap<String, String> essentials) {
-        logger.info("Calling Signzy Snoop Api for itemId:{} and task:{}", itemId, task);
-        try {
-            Map<String, Object> body = new HashMap<String, Object>() {{
-                put("service", "Identity");
-                put("itemId", itemId);
-                put("task", task);
-                put("accessToken", accessToken);
-                put("essentials", essentials);
-            }};
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
-            logger.info("Signzy Snoop URL:{} and request:{}", URL, request);
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
-                    logger.info("Response for Signzy Snoop: {}", responseEntity);
-                    if (responseEntity.getStatusCode().is2xxSuccessful()) {
-                        insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
-                        return responseEntity.getBody();
-                    } else {
-                        insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "FAILED", mapper.writeValueAsString(request), responseEntity.getBody(), module);
-                    }
-                    break;
-                } catch (Exception e) {
-                    logger.info("Error occurred while calling signzy snoop api", e);
-                    insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "FAILED", mapper.writeValueAsString(request), e.getMessage(), module);
-                    retryCount++;
-                }
-            }
-            return null;
-        } catch (Exception e) {
-            logger.error("Exception in Signzy Snoop Api", e);
-        }
-        return null;
-    }
+//    public String signzySnoop(String itemId, String accessToken, String task, Long merchantId, String module, HashMap<String, String> essentials) {
+//        logger.info("Calling Signzy Snoop Api for itemId:{} and task:{}", itemId, task);
+//        try {
+//            Map<String, Object> body = new HashMap<String, Object>() {{
+//                put("service", "Identity");
+//                put("itemId", itemId);
+//                put("task", task);
+//                put("accessToken", accessToken);
+//                put("essentials", essentials);
+//            }};
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//            String URL = SIGNZY_URL + CreditConstants.SIGNZY_SNOOP_URL;
+//            logger.info("Signzy Snoop URL:{} and request:{}", URL, request);
+//            int retryCount = 0;
+//            while (retryCount < 3) {
+//                try {
+//                    ResponseEntity<String> responseEntity = restTemplate.exchange(URL, HttpMethod.POST, request, String.class);
+//                    logger.info("Response for Signzy Snoop: {}", responseEntity);
+//                    if (responseEntity.getStatusCode().is2xxSuccessful()) {
+//                        insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "SUCCESS", mapper.writeValueAsString(request), responseEntity.getBody(), module);
+//                        return responseEntity.getBody();
+//                    } else {
+//                        insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "FAILED", mapper.writeValueAsString(request), responseEntity.getBody(), module);
+//                    }
+//                    break;
+//                } catch (Exception e) {
+//                    logger.info("Error occurred while calling signzy snoop api", e);
+//                    insertIntoSignzyReqRes(merchantId, null, task.toUpperCase(), "FAILED", mapper.writeValueAsString(request), e.getMessage(), module);
+//                    retryCount++;
+//                }
+//            }
+//            return null;
+//        } catch (Exception e) {
+//            logger.error("Exception in Signzy Snoop Api", e);
+//        }
+//        return null;
+//    }
 
     public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
         logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
@@ -1208,58 +1214,58 @@ public class APIGatewayService {
         }
     }
 
-    public Double getNameMatchPercentage(String authorization, String patronId, String name1, String name2, Long merchantId, Long applicationId) {
-        if (name1 == null || name1.isEmpty() || name2 == null || name2.isEmpty()) {
-            return 0D;
-        }
-        String response = null;
-        Map<String, Object> body = new HashMap<>();
-        body.put("task", "nameMatch");
-        body.put("essentials", new HashMap<String, Object>() {{
-            put("nameBlock", new HashMap<String, String>() {{
-                put("name1", name1);
-                put("name2", name2);
-            }});
-        }});
+//    public Double getNameMatchPercentage(String authorization, String patronId, String name1, String name2, Long merchantId, Long applicationId) {
+//        if (name1 == null || name1.isEmpty() || name2 == null || name2.isEmpty()) {
+//            return 0D;
+//        }
+//        String response = null;
+//        Map<String, Object> body = new HashMap<>();
+//        body.put("task", "nameMatch");
+//        body.put("essentials", new HashMap<String, Object>() {{
+//            put("nameBlock", new HashMap<String, String>() {{
+//                put("name1", name1);
+//                put("name2", name2);
+//            }});
+//        }});
+//
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.set("Authorization", authorization);
+//        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+//        String URL = SIGNZY_URL + CreditConstants.SIGNZY_NAME_MATCH_URL + patronId + "/matchers";
+//        int retryCount = 0;
+//        while (retryCount < 3) {
+//            try {
+//                logger.info("Name match URL {} request {}", URL, mapper.writeValueAsString(request));
+//                response = restTemplate.postForObject(URL, request, String.class);
+//                logger.info("Name match response : {}", response);
+//                JsonNode jsonNode = mapper.readTree(response);
+//                if (jsonNode.has("result") && !jsonNode.get("result").isNull()) {
+//                    JsonNode result = jsonNode.get("result");
+//                    if (result.has("name1_vs_name2_matchScore") && !result.get("name1_vs_name2_matchScore").isNull()) {
+//                        insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
+//                        return result.get("name1_vs_name2_matchScore").asDouble();
+//                    } else if (result.has("name2_vs_name1_matchScore") && !result.get("name2_vs_name1_matchScore").isNull()) {
+//                        insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
+//                        return result.get("name2_vs_name1_matchScore").asDouble();
+//                    }
+//                    break;
+//                }
+//            } catch (Exception e) {
+//                try {
+//                    insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
+//                } catch (JsonProcessingException e1) {
+//                    // TODO Auto-generated catch block
+//                    e1.printStackTrace();
+//                }
+//                logger.error("Error occured while matching names", e);
+//            }
+//            retryCount++;
+//        }
+//        return 0D;
+//    }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", authorization);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        String URL = SIGNZY_URL + CreditConstants.SIGNZY_NAME_MATCH_URL + patronId + "/matchers";
-        int retryCount = 0;
-        while (retryCount < 3) {
-            try {
-                logger.info("Name match URL {} request {}", URL, mapper.writeValueAsString(request));
-                response = restTemplate.postForObject(URL, request, String.class);
-                logger.info("Name match response : {}", response);
-                JsonNode jsonNode = mapper.readTree(response);
-                if (jsonNode.has("result") && !jsonNode.get("result").isNull()) {
-                    JsonNode result = jsonNode.get("result");
-                    if (result.has("name1_vs_name2_matchScore") && !result.get("name1_vs_name2_matchScore").isNull()) {
-                        insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
-                        return result.get("name1_vs_name2_matchScore").asDouble();
-                    } else if (result.has("name2_vs_name1_matchScore") && !result.get("name2_vs_name1_matchScore").isNull()) {
-                        insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
-                        return result.get("name2_vs_name1_matchScore").asDouble();
-                    }
-                    break;
-                }
-            } catch (Exception e) {
-                try {
-                    insertIntoSignzyReqRes(merchantId, applicationId, "NAME_MATCH", "SUCCESS", mapper.writeValueAsString(request), response, "lending");
-                } catch (JsonProcessingException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
-                }
-                logger.error("Error occured while matching names", e);
-            }
-            retryCount++;
-        }
-        return 0D;
-    }
-
-    public GlobalLimitResponse getGlobalLimit(Long merchantId)  {
+    public GlobalLimitResponse getGlobalLimit(Long merchantId) {
         Boolean clubV2 = checkClubV2(merchantId);
         return getGlobalLimit(merchantId, null, null, clubV2);
     }
@@ -1301,11 +1307,9 @@ public class APIGatewayService {
                     return responseEntity.getBody();
                 }
                 break;
-            }
-            catch (ResourceAccessException ex) {
+            } catch (ResourceAccessException ex) {
                 logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 logger.error("Error occurred while getting global limit for merchant:{} {} {}", merchantId, e.getMessage(), e);
             }
             retryCount++;
@@ -1406,38 +1410,38 @@ public class APIGatewayService {
 //        return data;
 //    }
 
-    public void updateApplicationPriority(Long merchantId, Long applicationId) {
-        logger.info("Updating application priority for merchant:{} and application:{}", merchantId, applicationId);
-        Map<String, Object> requestBody = new HashMap<String, Object>() {{
-            put("merchant_id", merchantId);
-            put("application_id", applicationId);
-        }};
-        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
-        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("hash", hash);
-        headers.set("clientName", CLIENT);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-        logger.info("Application priority request:{} for merchant:{}", request, merchantId);
-        int retryCount = 0;
-        while (retryCount < 3) {
-            try {
-                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority/v2", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
-                });
-                logger.info("Application priority response:{} for merchant:{}", responseEntity, merchantId);
-                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
-                    logger.info("Application priority success for merchant:{}", merchantId);
-                } else {
-                    logger.info("Application priority failed for merchant:{}", merchantId);
-                }
-                break;
-            } catch (Exception e) {
-                logger.error("Error occurred while Application priority", e);
-            }
-            retryCount++;
-        }
-    }
+//    public void updateApplicationPriority(Long merchantId, Long applicationId) {
+//        logger.info("Updating application priority for merchant:{} and application:{}", merchantId, applicationId);
+//        Map<String, Object> requestBody = new HashMap<String, Object>() {{
+//            put("merchant_id", merchantId);
+//            put("application_id", applicationId);
+//        }};
+//        String payload = lendingHmacCalculator.getObjectPayload(requestBody);
+//        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.set("hash", hash);
+//        headers.set("clientName", CLIENT);
+//        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+//        logger.info("Application priority request:{} for merchant:{}", request, merchantId);
+//        int retryCount = 0;
+//        while (retryCount < 3) {
+//            try {
+//                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/application_priority/v2", HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
+//                });
+//                logger.info("Application priority response:{} for merchant:{}", responseEntity, merchantId);
+//                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
+//                    logger.info("Application priority success for merchant:{}", merchantId);
+//                } else {
+//                    logger.info("Application priority failed for merchant:{}", merchantId);
+//                }
+//                break;
+//            } catch (Exception e) {
+//                logger.error("Error occurred while Application priority", e);
+//            }
+//            retryCount++;
+//        }
+//    }
 
     public Boolean eligibleForProcessingFee(Long merchantId) {
 
@@ -1463,8 +1467,8 @@ public class APIGatewayService {
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                 JsonNode response = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
                 if (Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile"))
-                        && response.get("data").get("eligibile").asBoolean() && Objects.nonNull(response.get("data").get("club_id"))
-                        && response.get("data").get("club_id").asText().equalsIgnoreCase("1")) {
+                  && response.get("data").get("eligibile").asBoolean() && Objects.nonNull(response.get("data").get("club_id"))
+                  && response.get("data").get("club_id").asText().equalsIgnoreCase("1")) {
                     if (Objects.isNull(response.get("data").get("rewards"))) {
                         return true;
                     }
@@ -1491,7 +1495,7 @@ public class APIGatewayService {
         try {
             logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
             TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(merchantId);
-            if(ObjectUtils.isEmpty(tokenVerification)) {
+            if (ObjectUtils.isEmpty(tokenVerification)) {
                 return false;
             }
             String token = tokenVerification.getAccessToken();
@@ -1506,9 +1510,9 @@ public class APIGatewayService {
             logger.info("clubV2 eligibility response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
                 ClubV2DTO clubV2DTO = responseEntity.getBody();
-                logger.info("clubV2DTO: {}",clubV2DTO);
-                if(Objects.nonNull(clubV2DTO.getData())) {
-                    if(clubV2DTO.getData().isEligibile() && clubV2DTO.getData().getClub_id() > 1) {
+                logger.info("clubV2DTO: {}", clubV2DTO);
+                if (Objects.nonNull(clubV2DTO.getData())) {
+                    if (clubV2DTO.getData().isEligibile() && clubV2DTO.getData().getClub_id() > 1) {
                         return true;
                     }
                 }
@@ -1651,36 +1655,36 @@ public class APIGatewayService {
         return ldcVirtualAccount;
     }
 
-    public JsonNode fetchCrifResponse(BasicDetailsDto merchant, Experian experian) {
-        try {
-            logger.info("Fetching Crif for merchant:{}", merchant.getId());
-            Map<String, String> merchantName = getFirstLastName(merchant.getId(), experian.getPancardNumber());
-            String firstName = merchantName.get("first");
-            String lastName = merchantName.get("last");
-            String contact = merchant.getMobile().substring(2);
-            JsonNode stage1Response = crifStage1(firstName, lastName, experian.getPancardNumber(), contact, merchant.getId());
-            if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
-                logger.info("Crif stage1 success for merchant:{}", merchant.getId());
-                JsonNode stage2Response = crifStage2(merchant.getId(), stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), null, false, "");
-                if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
-                    logger.info("Crif stage2 success for merchant:{}", merchant.getId());
-                    JsonNode stage3Response = crifStage2(merchant.getId(), stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), null, true, "");
-                    if (stage3Response != null) {
-                        logger.info("Crif stage3 success for merchant:{}", merchant.getId());
-                        if (isValidReport(experian.getPancardNumber(), contact, stage3Response)) {
-                            logger.info("Found crif report for merchant:{}", merchant.getId());
-                            return stage3Response;
-                        } else {
-                            logger.info("Invalid crif report for merchant:{}", merchant.getId());
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Exception while fetching crif for merchant:{}", merchant.getId(), e);
-        }
-        return null;
-    }
+//    public JsonNode fetchCrifResponse(BasicDetailsDto merchant, Experian experian) {
+//        try {
+//            logger.info("Fetching Crif for merchant:{}", merchant.getId());
+//            Map<String, String> merchantName = getFirstLastName(merchant.getId(), experian.getPancardNumber());
+//            String firstName = merchantName.get("first");
+//            String lastName = merchantName.get("last");
+//            String contact = merchant.getMobile().substring(2);
+//            JsonNode stage1Response = crifStage1(firstName, lastName, experian.getPancardNumber(), contact, merchant.getId());
+//            if (stage1Response != null && stage1Response.get("status") != null && stage1Response.get("status").asText().equals("S06")) {
+//                logger.info("Crif stage1 success for merchant:{}", merchant.getId());
+//                JsonNode stage2Response = crifStage2(merchant.getId(), stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), null, false, "");
+//                if (stage2Response != null && stage2Response.get("status") != null && (stage2Response.get("status").asText().equals("S10") || stage2Response.get("status").asText().equals("S01"))) {
+//                    logger.info("Crif stage2 success for merchant:{}", merchant.getId());
+//                    JsonNode stage3Response = crifStage2(merchant.getId(), stage1Response.get("orderId").asText(), stage1Response.get("reportId").asText(), null, true, "");
+//                    if (stage3Response != null) {
+//                        logger.info("Crif stage3 success for merchant:{}", merchant.getId());
+//                        if (isValidReport(experian.getPancardNumber(), contact, stage3Response)) {
+//                            logger.info("Found crif report for merchant:{}", merchant.getId());
+//                            return stage3Response;
+//                        } else {
+//                            logger.info("Invalid crif report for merchant:{}", merchant.getId());
+//                        }
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception while fetching crif for merchant:{}", merchant.getId(), e);
+//        }
+//        return null;
+//    }
 
     public String getLoanAgreement(Long merchantId, Long applicationId) {
         try {
@@ -1703,7 +1707,11 @@ public class APIGatewayService {
         String firstName;
         String lastName;
         if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
-            lendingPancard = fetchNameFromSignzy(pancard, merchantId);
+            try {
+                lendingPancard = loanEligibleService.fetchPanName(pancard, merchantId);
+            } catch (Exception e) {
+                logger.error("Error getting pan name details from kyc for merchant : {}, pancard : {}, {}, {}", merchantId, pancard, e.getMessage(), e);
+            }
         }
         if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
             firstName = LoanUtil.getFirstName(lendingPancard.getName());
@@ -1718,35 +1726,35 @@ public class APIGatewayService {
         }};
     }
 
-    public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
-        logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
-        try {
-            Map<String, String> identityDetail = signzyIdentityDetails("individualPan", merchantId, "PAN", "PAN", new ArrayList<>());
-            if (identityDetail != null) {
-                String response = signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId, identityDetail.get("module"));
-                if (response != null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
-                    return new LendingPancard(merchantId, pancardNumber, "NAME", null);
-                } else if (response != null) {
-                    JsonNode responseNode = mapper.readTree(response);
-                    if (responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("upstreamName") != null) {
-                        String name = responseNode.get("response").get("result").get("upstreamName").asText();
-                        logger.info("Name:{} found in pancard:{}", name, pancardNumber);
-                        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
-                        if (lendingPancard != null) {
-                            lendingPancard.setName(name);
-                            lendingPancard.setResponse(response);
-                            lendingPancard.setPancardNumber(pancardNumber);
-                            return lendingPancardDao.save(lendingPancard);
-                        }
-                        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Exception in Signzy Pan Fetch Api", e);
-        }
-        return null;
-    }
+//    public LendingPancard fetchNameFromSignzy(String pancardNumber, Long merchantId) {
+//        logger.info("Calling Pan Fetch Api for merchant:{}", merchantId);
+//        try {
+//            Map<String, String> identityDetail = signzyIdentityDetails("individualPan", merchantId, "PAN", "PAN", new ArrayList<>());
+//            if (identityDetail != null) {
+//                String response = signzyPanFetch(identityDetail.get("itemId"), identityDetail.get("accessToken"), pancardNumber, merchantId, identityDetail.get("module"));
+//                if (response != null && response.equalsIgnoreCase("ERROR_OCCURRED")) {
+//                    return new LendingPancard(merchantId, pancardNumber, "NAME", null);
+//                } else if (response != null) {
+//                    JsonNode responseNode = mapper.readTree(response);
+//                    if (responseNode != null && responseNode.has("response") && !responseNode.get("response").isNull() && responseNode.get("response").has("result") && !responseNode.get("response").get("result").isNull() && responseNode.get("response").get("result").get("upstreamName") != null) {
+//                        String name = responseNode.get("response").get("result").get("upstreamName").asText();
+//                        logger.info("Name:{} found in pancard:{}", name, pancardNumber);
+//                        LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+//                        if (lendingPancard != null) {
+//                            lendingPancard.setName(name);
+//                            lendingPancard.setResponse(response);
+//                            lendingPancard.setPancardNumber(pancardNumber);
+//                            return lendingPancardDao.save(lendingPancard);
+//                        }
+//                        return lendingPancardDao.save(new LendingPancard(merchantId, pancardNumber, name, response));
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in Signzy Pan Fetch Api", e);
+//        }
+//        return null;
+//    }
 
     public String getPincodeArea(Integer pincode) {
         LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
@@ -1856,41 +1864,41 @@ public class APIGatewayService {
         return result;
     }
 
-    private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
-        boolean checkPan = false;
-        boolean checkPhone = false;
-        if (response != null) {
-            JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
-                    .get(CrifConstants.PERSONAL_VARIATIONS);
-            if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
-                return false;
-            }
-            if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
-                    || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
-                return false;
-            }
-            if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
-                    || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
-                return false;
-            }
-            List<JsonNode> panVariations = LoanUtil
-                    .jsonNodeArrayUtil(personalData.get(CrifConstants.PAN_VARIATIONS).get(CrifConstants.VARIATION));
-            List<JsonNode> phoneVariations = LoanUtil
-                    .jsonNodeArrayUtil(personalData.get(CrifConstants.PHONE_VARIATIONS).get(CrifConstants.VARIATION));
-            if (phoneNumber.length() > 10) {
-                phoneNumber = phoneNumber.substring(2);// remove 91
-            }
-            for (JsonNode pan : panVariations) {
-                checkPan = pan.get("VALUE").asText().equalsIgnoreCase(panCard);
-                if (checkPan) break;
-            }
-            for (JsonNode phone : phoneVariations) {
-                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber) || phone.get("VALUE").asText().equalsIgnoreCase("91" + phoneNumber);
-                if (checkPhone) break;
-            }
-        }
-        return checkPan && checkPhone;
-    }
+//    private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
+//        boolean checkPan = false;
+//        boolean checkPhone = false;
+//        if (response != null) {
+//            JsonNode personalData = response.get(CrifConstants.REPORT_HEADER)
+//              .get(CrifConstants.PERSONAL_VARIATIONS);
+//            if (personalData == null || personalData.toString().equalsIgnoreCase("\"\"")) {
+//                return false;
+//            }
+//            if (personalData.get(CrifConstants.PAN_VARIATIONS) == null
+//              || personalData.get(CrifConstants.PAN_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
+//                return false;
+//            }
+//            if (personalData.get(CrifConstants.PHONE_VARIATIONS) == null
+//              || personalData.get(CrifConstants.PHONE_VARIATIONS).toString().equalsIgnoreCase("\"\"")) {
+//                return false;
+//            }
+//            List<JsonNode> panVariations = LoanUtil
+//              .jsonNodeArrayUtil(personalData.get(CrifConstants.PAN_VARIATIONS).get(CrifConstants.VARIATION));
+//            List<JsonNode> phoneVariations = LoanUtil
+//              .jsonNodeArrayUtil(personalData.get(CrifConstants.PHONE_VARIATIONS).get(CrifConstants.VARIATION));
+//            if (phoneNumber.length() > 10) {
+//                phoneNumber = phoneNumber.substring(2);// remove 91
+//            }
+//            for (JsonNode pan : panVariations) {
+//                checkPan = pan.get("VALUE").asText().equalsIgnoreCase(panCard);
+//                if (checkPan) break;
+//            }
+//            for (JsonNode phone : phoneVariations) {
+//                checkPhone = phone.get("VALUE").asText().equalsIgnoreCase(phoneNumber) || phone.get("VALUE").asText().equalsIgnoreCase("91" + phoneNumber);
+//                if (checkPhone) break;
+//            }
+//        }
+//        return checkPan && checkPhone;
+//    }
 
     public ResponseEntity<Object> fosAttribution(Long merchantId, String taskName, String status) {
         try {
@@ -1931,48 +1939,48 @@ public class APIGatewayService {
 
     }
 
-    public Boolean ldcDisburse(LendingApplication lendingApplication) {
-        try {
-            Map<String, Object> requestParams = new HashMap<String, Object>() {{
-                put("application_id", lendingApplication.getId());
-                put("lender_name", lendingApplication.getLender());
-            }};
-            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
-            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-            headers.set("Hash", hash);
-            headers.set("Client-Name", CLIENT);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
-            logger.info("Ldc Service Request :{}", request);
-            ResponseEntity<String> response = null;
-            try {
-                response = restTemplate.postForEntity(NBFC_URL, request, String.class);
-                logger.info("Nbfc Service Response :{}", response);
-            } catch (HttpClientErrorException | HttpServerErrorException ex) {
-                logger.error("Exception In Calling NBFC Service:{}", ex.getResponseBodyAsString());
-                return Boolean.FALSE;
-            }
-            logger.info("Ldc Service Response :{}", response);
-            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
-                JsonNode jsonNode = mapper.readTree(response.getBody());
-                if (jsonNode.get("data") != null && jsonNode.get("data").get("loan_id") != null) {
-                    lendingApplication.setSendToNbfc("YES");
-                    lendingApplication.setNbfcSendDate(new Date());
-                    lendingApplication.setDisbursalPartner("BHARATPE");
-                    lendingApplication.setNbfcId(jsonNode.get("data").get("loan_id").textValue());
-                    lendingApplication.setLoanDisbursalStatus("PENDING");
-                    lendingApplicationDao.save(lendingApplication);
-                    return Boolean.TRUE;
-                }
-            }
-        } catch (Exception ex) {
-            logger.error("Exception In Creating Loan Agreement :{}", ex);
-        }
-        return Boolean.FALSE;
-    }
+//    public Boolean ldcDisburse(LendingApplication lendingApplication) {
+//        try {
+//            Map<String, Object> requestParams = new HashMap<String, Object>() {{
+//                put("application_id", lendingApplication.getId());
+//                put("lender_name", lendingApplication.getLender());
+//            }};
+//            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+//            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+//
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+//            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+//            headers.set("Hash", hash);
+//            headers.set("Client-Name", CLIENT);
+//            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
+//            logger.info("Ldc Service Request :{}", request);
+//            ResponseEntity<String> response = null;
+//            try {
+//                response = restTemplate.postForEntity(NBFC_URL, request, String.class);
+//                logger.info("Nbfc Service Response :{}", response);
+//            } catch (HttpClientErrorException | HttpServerErrorException ex) {
+//                logger.error("Exception In Calling NBFC Service:{}", ex.getResponseBodyAsString());
+//                return Boolean.FALSE;
+//            }
+//            logger.info("Ldc Service Response :{}", response);
+//            if (response != null && response.getStatusCode().equals(HttpStatus.OK) && response.getBody() != null) {
+//                JsonNode jsonNode = mapper.readTree(response.getBody());
+//                if (jsonNode.get("data") != null && jsonNode.get("data").get("loan_id") != null) {
+//                    lendingApplication.setSendToNbfc("YES");
+//                    lendingApplication.setNbfcSendDate(new Date());
+//                    lendingApplication.setDisbursalPartner("BHARATPE");
+//                    lendingApplication.setNbfcId(jsonNode.get("data").get("loan_id").textValue());
+//                    lendingApplication.setLoanDisbursalStatus("PENDING");
+//                    lendingApplicationDao.save(lendingApplication);
+//                    return Boolean.TRUE;
+//                }
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Exception In Creating Loan Agreement :{}", ex);
+//        }
+//        return Boolean.FALSE;
+//    }
 
     public void cancelEnach(Long merchantId) {
         logger.info("Cancel enach for merchant:{}", merchantId);
@@ -2098,12 +2106,12 @@ public class APIGatewayService {
         return null;
     }
 
-    private String getBeneficiaryName(String beneficiaryName) {
-        if (beneficiaryName.length() > 25) {
-            beneficiaryName = beneficiaryName.substring(0, 25);
-        }
-        return beneficiaryName;
-    }
+//    private String getBeneficiaryName(String beneficiaryName) {
+//        if (beneficiaryName.length() > 25) {
+//            beneficiaryName = beneficiaryName.substring(0, 25);
+//        }
+//        return beneficiaryName;
+//    }
 
 //    public Boolean isSdkInvoke(Merchant merchant) {
 //        try {
@@ -2217,12 +2225,12 @@ public class APIGatewayService {
         return hmac;
     }
 
-    public String getShortUrl(String url)  {
+    public String getShortUrl(String url) {
         try {
-            String shortApiUrl = "https://bharatpe.in/yourls-api.php?signature=a872b1348e&action=shorturl&format=json&keyword=&url="+ URLEncoder.encode(url,"UTF-8");
-            JsonNode response = restTemplate.getForObject(shortApiUrl,JsonNode.class);
+            String shortApiUrl = "https://bharatpe.in/yourls-api.php?signature=a872b1348e&action=shorturl&format=json&keyword=&url=" + URLEncoder.encode(url, "UTF-8");
+            JsonNode response = restTemplate.getForObject(shortApiUrl, JsonNode.class);
             logger.info("ShortUrl Api Response : {}", response);
-            if(Objects.nonNull(response) && "success".equalsIgnoreCase(response.get("status").asText())) {
+            if (Objects.nonNull(response) && "success".equalsIgnoreCase(response.get("status").asText())) {
                 return response.get("shorturl").asText();
             }
         } catch (Exception e) {
@@ -2280,12 +2288,12 @@ public class APIGatewayService {
             Map<String, Object> body = new HashMap<>();
             Map<String, Object> requestBodyParams = new HashMap<>();
             String address = "";
-            address += !ObjectUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1(): "";
-            address += !ObjectUtils.isEmpty(addressDetails.getAddress2()) ? ", " + addressDetails.getAddress2(): "";
-            address += !ObjectUtils.isEmpty(addressDetails.getLandmark()) ? ", " +addressDetails.getLandmark(): "";
+            address += !ObjectUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1() : "";
+            address += !ObjectUtils.isEmpty(addressDetails.getAddress2()) ? ", " + addressDetails.getAddress2() : "";
+            address += !ObjectUtils.isEmpty(addressDetails.getLandmark()) ? ", " + addressDetails.getLandmark() : "";
             requestBodyParams.put("address", address);
             requestBodyParams.put("pincode", addressDetails.getPincode());
-            requestBodyParams.put("city",addressDetails.getCity());
+            requestBodyParams.put("city", addressDetails.getCity());
             requestBodyParams.put("state", addressDetails.getState());
             body.put("data", requestBodyParams);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
@@ -2303,7 +2311,7 @@ public class APIGatewayService {
                 }
                 retryCount++;
             }
-            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody()) ) {
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
                 AddressValidationDto addressValidationDto = responseEntity.getBody();
                 return addressValidationDto;
             } else {

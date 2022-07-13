@@ -19,7 +19,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.IfscSlave;
@@ -122,9 +121,6 @@ public class LiquiloansService {
 
     @Autowired
     MerchantDocumentProofOcrDaoSlave merchantDocumentProofOcrDaoSlave;
-
-    @Autowired
-    IfscDaoSlave ifscDaoSlave;
 
 //    @Autowired
 //	MerchantSummaryDao merchantSummaryDao;
@@ -501,35 +497,35 @@ public class LiquiloansService {
         }
     }
 
-//    public void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
-//        logger.info("Enach success on loanId:{}, processing Rs.100 cashback for merchant:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId());
-//        Double cashbackAmount = 100D;
-//        String orderId = "NACH_CASHBACK" + System.currentTimeMillis();
-//        LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "NACH_CASHBACK");
-//        LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
-//        if (lendingPayoutResponse != null) {
-//
-//            MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
-//            BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
-//            BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
-//
-//            if (ObjectUtils.isEmpty(basicDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDTO)) {
-//                return;
-//            }
-//            String identifier = "LENDING_CASHBACK_PUSH";
-//            String deeplink = notificationUtil.getDeeplink(basicDetailsDto.getSettlementType(), "LOAN_DASHBOARD");
-//            Map<String, Object> templateParams = new HashMap<>();
-//            templateParams.put("beneficiary_name", getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
-//            NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
-//            notificationPayloadDto.setTemplateIdentifier(identifier);
-//            notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
-//            notificationPayloadDto.setClientName("LENDING");
-//            notificationPayloadDto.setPushTitle("₹ 100 deposited in your bank!");
-//            notificationPayloadDto.setPushDeepLink(deeplink);
-//            notificationPayloadDto.setTemplateParams(templateParams);
-//            lendingNotificationService.notify(notificationPayloadDto);
-//        }
-//    }
+    public void initiateEnachCashback(LendingPaymentSchedule lendingPaymentSchedule) {
+        logger.info("Enach success on loanId:{}, processing Rs.100 cashback for merchant:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId());
+        Double cashbackAmount = 100D;
+        String orderId = "NACH_CASHBACK" + System.currentTimeMillis();
+        LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "NACH_CASHBACK");
+        LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
+        if (lendingPayoutResponse != null) {
+
+            MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+            BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
+
+            if (ObjectUtils.isEmpty(basicDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDTO)) {
+                return;
+            }
+            String identifier = "LENDING_CASHBACK_PUSH";
+            String deeplink = notificationUtil.getDeeplink(basicDetailsDto.getSettlementType(), "LOAN_DASHBOARD");
+            Map<String, Object> templateParams = new HashMap<>();
+            templateParams.put("beneficiary_name", getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
+            NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+            notificationPayloadDto.setTemplateIdentifier(identifier);
+            notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
+            notificationPayloadDto.setClientName("LENDING");
+            notificationPayloadDto.setPushTitle("₹ 100 deposited in your bank!");
+            notificationPayloadDto.setPushDeepLink(deeplink);
+            notificationPayloadDto.setTemplateParams(templateParams);
+            lendingNotificationService.notify(notificationPayloadDto);
+        }
+    }
 
     private void createGSTInvoice(LendingApplication lendingApplication) {
         try {

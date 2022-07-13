@@ -50,53 +50,53 @@ public class AdhaarMaskService {
     @Value("${aws.s3.bucket}")
     String imageBucket;
 
-    public CommonResponse maskAdhaar(AdhaarMaskRequest requestDTO) {
-        try {
-            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), requestDTO.getMerchantId());
-            if (lendingApplication == null) {
-                return new CommonResponse(false, "Application not found");
-            }
-            DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(requestDTO.getMerchantId(), lendingApplication.getId(), "adhaarcard");
-            if (documentsIdProof != null && documentsIdProof.getProofFrontSide() != null) {
-                logger.info("Masking adhaar for application:{}", lendingApplication.getId());
-                String frontUrl = getImageUrl(documentsIdProof.getProofFrontSide());
-                String backUrl = getImageUrl(documentsIdProof.getProofBackSide());
-                JsonNode frontImageResponse = getAdhaarMaskResponse(requestDTO.getMerchantId(), frontUrl);
-                JsonNode backImageResponse = getAdhaarMaskResponse(requestDTO.getMerchantId(), backUrl);
-                if (frontImageResponse != null) {
-                    updateAdhaarImage(frontImageResponse, documentsIdProof, requestDTO.getMerchantId(), false);
-                }
-                if (backImageResponse != null) {
-                    updateAdhaarImage(backImageResponse, documentsIdProof, requestDTO.getMerchantId(), true);
-                }
-                return new CommonResponse(true, "success");
-            } else {
-                return new CommonResponse(false, "Adhaarcard not found for this application");
-            }
-        } catch (Exception e) {
-            logger.error("Exception while masking adhaar", e);
-            return new CommonResponse(false, "Something went wrong");
-        }
-    }
+//    public CommonResponse maskAdhaar(AdhaarMaskRequest requestDTO) {
+//        try {
+//            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), requestDTO.getMerchantId());
+//            if (lendingApplication == null) {
+//                return new CommonResponse(false, "Application not found");
+//            }
+//            DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(requestDTO.getMerchantId(), lendingApplication.getId(), "adhaarcard");
+//            if (documentsIdProof != null && documentsIdProof.getProofFrontSide() != null) {
+//                logger.info("Masking adhaar for application:{}", lendingApplication.getId());
+//                String frontUrl = getImageUrl(documentsIdProof.getProofFrontSide());
+//                String backUrl = getImageUrl(documentsIdProof.getProofBackSide());
+//                JsonNode frontImageResponse = getAdhaarMaskResponse(requestDTO.getMerchantId(), frontUrl);
+//                JsonNode backImageResponse = getAdhaarMaskResponse(requestDTO.getMerchantId(), backUrl);
+//                if (frontImageResponse != null) {
+//                    updateAdhaarImage(frontImageResponse, documentsIdProof, requestDTO.getMerchantId(), false);
+//                }
+//                if (backImageResponse != null) {
+//                    updateAdhaarImage(backImageResponse, documentsIdProof, requestDTO.getMerchantId(), true);
+//                }
+//                return new CommonResponse(true, "success");
+//            } else {
+//                return new CommonResponse(false, "Adhaarcard not found for this application");
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception while masking adhaar", e);
+//            return new CommonResponse(false, "Something went wrong");
+//        }
+//    }
 
-    private JsonNode getAdhaarMaskResponse(Long merchantId, String url) throws IOException {
-        Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("aadhaar", merchantId, "KYC", "AADHAR_MASK", new ArrayList<String>() {{
-            add(url);
-        }});
-        if (identityDetail == null) {
-            logger.info("Failed to get signzy identity details for merchant:{}", merchantId);
-            return null;
-        }
-        String adhaarMaskResponse = apiGatewayService.signzySnoop(identityDetail.get("itemId"), identityDetail.get("accessToken"), "aadhaarMasker", merchantId, identityDetail.get("module"),
-                new HashMap<String, String>(){{
-                    put("url", url);
-                }});
-        if (adhaarMaskResponse == null) {
-            logger.info("Failed to mask adhaar image for merchant:{}", merchantId);
-            return null;
-        }
-        return objectMapper.readTree(adhaarMaskResponse);
-    }
+//    private JsonNode getAdhaarMaskResponse(Long merchantId, String url) throws IOException {
+//        Map<String, String> identityDetail = apiGatewayService.signzyIdentityDetails("aadhaar", merchantId, "KYC", "AADHAR_MASK", new ArrayList<String>() {{
+//            add(url);
+//        }});
+//        if (identityDetail == null) {
+//            logger.info("Failed to get signzy identity details for merchant:{}", merchantId);
+//            return null;
+//        }
+//        String adhaarMaskResponse = apiGatewayService.signzySnoop(identityDetail.get("itemId"), identityDetail.get("accessToken"), "aadhaarMasker", merchantId, identityDetail.get("module"),
+//                new HashMap<String, String>(){{
+//                    put("url", url);
+//                }});
+//        if (adhaarMaskResponse == null) {
+//            logger.info("Failed to mask adhaar image for merchant:{}", merchantId);
+//            return null;
+//        }
+//        return objectMapper.readTree(adhaarMaskResponse);
+//    }
 
     private void updateAdhaarImage(JsonNode result, DocumentsIdProofMaster documentsIdProof, Long merchantId, boolean isBackImage) {
         if (result.hasNonNull("response") && result.get("response").hasNonNull("result") && result.get("response").get("result").hasNonNull("maskedImages") && result.get("response").get("result").get("isMasked") != null && result.get("response").get("result").get("isMasked").textValue().equalsIgnoreCase("yes")) {
