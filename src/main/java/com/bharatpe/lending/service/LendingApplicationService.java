@@ -153,8 +153,8 @@ public class LendingApplicationService {
     @Autowired
     BharatSwipeAccountDaoSlave bharatSwipeAccountDaoSlave;
 
-    @Autowired
-    OrderStickerDaoSlave orderStickerDaoSlave;
+//    @Autowired
+//    OrderStickerDaoSlave orderStickerDaoSlave;
 
     @Autowired
     LendingApplicationPriorityDao lendingApplicationPriorityDao;
@@ -1941,7 +1941,7 @@ public class LendingApplicationService {
         if (successEnach != null && successEnach.getAccountNumber() != null && !successEnach.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
             successEnach = null;
         }
-        OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetails.getId());
+//        OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetails.getId());
         LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.get().getId());
         MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetails.getId());
         if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -1953,7 +1953,7 @@ public class LendingApplicationService {
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
         boolean diy = (merchantBasicDetails.getMerchantType() != null && "DIY".equals(merchantBasicDetails.getMerchantType())) || merchantBasicDetails.getReferalCode() == null;
-        boolean showOrderQr = (orderSticker == null && diy);
+        boolean showOrderQr = false;
         boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
         int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
         boolean covid = isCovidEffectedLoan(lendingApplication.get().getPincode(), merchantBasicDetails, lendingApplication.get().getLoanType());
