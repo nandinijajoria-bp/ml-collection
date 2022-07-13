@@ -1,8 +1,8 @@
 package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.lending.common.slave.dao.ExternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.entity.ExternalClientSlave;
+import com.bharatpe.lending.common.query.dao.ExternalClientDaoSlave;
+import com.bharatpe.lending.common.query.entity.ExternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.fasterxml.jackson.core.type.TypeReference;

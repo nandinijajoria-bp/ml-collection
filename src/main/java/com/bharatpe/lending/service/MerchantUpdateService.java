@@ -2,8 +2,8 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.PayloadDTO;

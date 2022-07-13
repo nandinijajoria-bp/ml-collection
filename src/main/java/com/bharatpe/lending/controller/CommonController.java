@@ -2,8 +2,8 @@ package com.bharatpe.lending.controller;
 
 import javax.servlet.http.HttpServletResponse;
 
-import com.bharatpe.lending.common.slave.dao.InternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.entity.InternalClientSlave;
+import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.CommonResponse;
