@@ -8,7 +8,9 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.Constants.SupportApiConstants;
+import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
@@ -17,9 +19,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
-import com.bharatpe.lending.common.slave.dao.LendingPayoutsDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
-import com.bharatpe.lending.common.slave.entity.LendingPayoutsSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -113,7 +113,7 @@ public class SupportService {
     LoanAgreementDao loanAgreementDao;
 
     @Autowired
-    LendingPayoutsDaoSlave lendingPayoutsDaoSlave;
+    LendingPayoutsHandler lendingPayoutsHandler;
 
     @Autowired
     LendingBulkDisbursalDao lendingBulkDisbursalDao;
@@ -652,7 +652,8 @@ public class SupportService {
                     supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
                 }
             } else if ("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
-                LendingPayoutsSlave lendingPayouts = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+                LendingPayoutResponseDTO lendingPayouts = lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule.getMerchantId(),
+                  lendingPaymentSchedule.getId(), "PF_CASHBACK");
                 supportApiResponseDto.setApplicationStage(ApplicationStage.CLOSED_LOAN.getStage());
                 supportApiResponseDto.setPfRefunded(lendingPayouts != null);
                 supportApiResponseDto.setEligibleForRepeat(getEligibility(lendingPaymentSchedule.getMerchantId()));
@@ -829,7 +830,9 @@ public class SupportService {
 
                 SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
 
-                LendingPayoutsSlave lendingPayouts = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule1.getMerchantId(), lendingPaymentSchedule1.getId());
+                LendingPayoutResponseDTO lendingPayouts =
+                  lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule1.getMerchantId(),
+                    lendingPaymentSchedule1.getId(), "PF_CASHBACK");
                 if (!ObjectUtils.isEmpty(lendingPayouts)) {
                     loanArrangerFee.setArrangerFeeRefundEligible(true);
                     loanArrangerFee.setArrangerFeeRefunded(true);

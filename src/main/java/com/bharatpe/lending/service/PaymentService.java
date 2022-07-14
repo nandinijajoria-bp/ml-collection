@@ -9,11 +9,14 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingInterestWaiverDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentAuditDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
+import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingAdjustedEDISchedule;
 import com.bharatpe.lending.common.entity.LendingInterestWaiver;
@@ -26,8 +29,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.LendingPayoutsDaoSlave;
-import com.bharatpe.lending.common.slave.entity.LendingPayoutsSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -91,7 +92,7 @@ public class PaymentService {
 	APIGatewayService apiGatewayService;
 
 	@Autowired
-	LendingPayoutsDaoSlave lendingPayoutsDaoSlave;
+	LendingPayoutsHandler lendingPayoutsHandler;
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
@@ -1018,7 +1019,8 @@ public class PaymentService {
 	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule) {
 		try {
 			logger.info("enter refund processing fee for merchant: {}", lendingPaymentSchedule.getMerchantId());
-			LendingPayoutsSlave checkRefunded = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),lendingPaymentSchedule.getId());
+			LendingPayoutResponseDTO checkRefunded = lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule.getMerchantId(),
+			lendingPaymentSchedule.getId(), "PF_CASHBACK");
 			if(checkRefunded != null){
 				return;
 			}
@@ -1265,12 +1267,12 @@ public class PaymentService {
 		Optional<LendingPaymentSchedule> optionalLps = lendingPaymentScheduleDao.findById(loanId);
 		LoanRefundsResponseDTO loanRefundsResponseDTO = new LoanRefundsResponseDTO();
 		if(optionalLps .isPresent()) {
-			List<LendingPayoutsSlave> lendingPayoutsList = lendingPayoutsDaoSlave.findByOwnerIdAndTypeAndStatus(loanId,"REFUND");
+			List<LendingPayoutResponseDTO> lendingPayoutsList = lendingPayoutsHandler.findByOwnerIdAndTypeAndCreatedAtGTE(loanId,"REFUND", "2021-08-09");
 			logger.info("number of refunds: {} for loanId: {}",loanId,lendingPayoutsList.size());
 
 			List<LoanRefundsResponseDTO.Refund> loanRefundList = new ArrayList<>();
 
-			for(LendingPayoutsSlave lendingPayouts : lendingPayoutsList) {
+			for(LendingPayoutResponseDTO lendingPayouts : lendingPayoutsList) {
 				LoanRefundsResponseDTO.Refund loanRefund = new LoanRefundsResponseDTO.Refund(loanId,lendingPayouts.getAmount(),lendingPayouts.getCreatedAt(),lendingPayouts.getPaymentType());
 				loanRefundList.add(loanRefund);
 			}

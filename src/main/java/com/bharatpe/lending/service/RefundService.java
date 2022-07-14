@@ -3,14 +3,14 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
+import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.LendingPayoutsDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
-import com.bharatpe.lending.common.slave.entity.LendingPayoutsSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -41,7 +41,7 @@ public class RefundService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    LendingPayoutsDaoSlave lendingPayoutsDaoSlave;
+    LendingPayoutsHandler lendingPayoutsHandler;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
@@ -166,7 +166,9 @@ public class RefundService {
 
             String refundType = processingFeeRequest.getType();
             if(refundType.equalsIgnoreCase("PROCESSING_FEE")){
-                LendingPayoutsSlave lendingPayouts = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLikeOrderByIdDesc(lendingPaymentSchedule.getMerchantId(),lendingPaymentSchedule.getId());
+                LendingPayoutResponseDTO lendingPayouts =
+                  lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule.getMerchantId(),
+                    lendingPaymentSchedule.getId(), "PF_CASHBACK");
                 if(lendingPayouts != null){
                     logger.info("Already Processing Fee Refund For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
@@ -174,7 +176,8 @@ public class RefundService {
                 executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule));
 
             }else if(refundType.equalsIgnoreCase("CASHBACK")){
-                LendingPayoutsSlave lendingPayouts = lendingPayoutsDaoSlave.findTopByMerchantIdAndOwnerIdCashback(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+                LendingPayoutResponseDTO lendingPayouts = lendingPayoutsHandler.findByMerchantIdAndOwnerIdForNachCashBack(lendingPaymentSchedule.getMerchantId(),
+                  lendingPaymentSchedule.getId());
                 if(lendingPayouts != null){
                     logger.info("Already Nach Cashback For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
