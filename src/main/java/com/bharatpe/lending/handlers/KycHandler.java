@@ -166,7 +166,8 @@ public class KycHandler {
                     if (jsonNode.has("requestorId")) {
                         responseObj.put("ckycId", jsonNode.get("requestorId").asText());
                     }
-                    responseObj.put("message", jsonNode.get("message").asText());
+                    if (jsonNode.has("message"))
+                        responseObj.put("message", jsonNode.get("message").asText());
                 }
             }
         } catch (Exception e) {
