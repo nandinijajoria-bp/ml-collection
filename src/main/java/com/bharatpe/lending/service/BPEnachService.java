@@ -99,6 +99,8 @@ public class BPEnachService {
 
         final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
 
+        enachInitiateRequestDTO.setClientName(clientName);
+
         return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
     }
 
