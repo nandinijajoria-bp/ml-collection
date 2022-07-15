@@ -153,7 +153,7 @@ public class ENachService {
 //            }
         }
 
-        apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider());
+        apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
 
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);

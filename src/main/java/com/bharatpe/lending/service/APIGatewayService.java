@@ -1102,14 +1102,14 @@ public class APIGatewayService {
         return null;
     }
 
-    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider) {
+    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider, String clientName) {
         logger.info("Enach submit request:{} for merchant:{}", requestDTO, merchantId);
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
         headers.setContentType(MediaType.APPLICATION_JSON);
         Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
-            put("client_name", "LENDING");
+            put("client_name", clientName);
             put("identifier", requestDTO.getIdentifier());
             put("mandate_id", requestDTO.getMandateId());
             put("enach_provider", requestDTO.getProvider() != null ? requestDTO.getProvider() : provider);

@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -21,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
@@ -99,13 +101,15 @@ public class BPEnachService {
 
         final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
 
+        enachInitiateRequestDTO.setClientName(clientName);
+
         return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
     }
 
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token) {
-//        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-//        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
 //        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
 //        BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
 //
@@ -131,7 +135,17 @@ public class BPEnachService {
 //                    + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
 //        }
 
-        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider);
+
+        final MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(),
+          "INPROCESS");
+
+        if (ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)){
+                responseDTO.setResponse(false);
+                responseDTO.setMessage("Enach not initiated");
+                return responseDTO;
+        }
+
+        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, merchantNachDetailsResponseDTO.getPlatform());
     }
 
 
