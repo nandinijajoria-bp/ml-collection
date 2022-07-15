@@ -35,6 +35,7 @@ public class BPEnachController {
 
     @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
     public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute BasicDetailsDto merchant,
+                                                                     @RequestHeader("token") String token,
                                                                      @RequestParam(name = "app_version", required = false) String appVersion,
                                                                      @RequestParam(name = "platform", required = true) String module,
                                                                      @RequestParam(name = "loan_amount", required = true) String amount,
@@ -46,9 +47,6 @@ public class BPEnachController {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setResponse(false);
 
-        BPEnachRawRequest bpEnachRawRequest = new BPEnachRawRequest(merchant.getId(), "INITIATE");
-        bpEnachRawRequest.setRequest(httpServletRequest.getQueryString());
-        bpEnachRawRequest = bpEnachRawRequestDao.save(bpEnachRawRequest);
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse;
         try {
             Double loanAmount = Double.parseDouble(amount);
@@ -57,38 +55,25 @@ public class BPEnachController {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
             } else {
-                finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant,
+                finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, token,
                     appVersion, module, loanAmount, type, referenceNumber, ownerId, clientName),
                     HttpStatus.OK);
             }
-//            disabled for now
-//            if (enachServiceToUse.equals("techprocess")) {
-//                return new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, appVersion, module, loanAmount), HttpStatus.OK);
-//            } else {
-//                return new ResponseEntity<>(BPEnachService.enachInititateForDigio(merchant), HttpStatus.OK);
-//            }
         } catch (Exception e) {
             logger.error("Exception while initiating enach", e);
             responseDTO.setMessage("Something went wrong");
             finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
         }
-        bpEnachRawRequest.setResponse(String.valueOf(finalResponse.getBody()));
-        bpEnachRawRequest.setStatus(String.valueOf(finalResponse.getStatusCodeValue()));
-        bpEnachRawRequestDao.save(bpEnachRawRequest);
         return finalResponse;
     }
 
 
     @RequestMapping(value = "/submit", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestBody ENachSubmitRequestDTO body) {
+    public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestBody ENachSubmitRequestDTO body) {
         logger.info("Enach Submit request : {}", body);
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse;
-        BPEnachRawRequest bpEnachRawRequest = new BPEnachRawRequest(merchant.getId(), "SUBMIT");
-        bpEnachRawRequest.setRequest(body.toString());
-        bpEnachRawRequest.setReferenceNumber(String.valueOf(body.getApplicationId()));
-        bpEnachRawRequest = bpEnachRawRequestDao.save(bpEnachRawRequest);
         if (enachServiceToUse.equals("techprocess")) {
-            finalResponse = new ResponseEntity<>(bpEnachService.submitEnach(merchant, body), HttpStatus.OK);
+            finalResponse = new ResponseEntity<>(bpEnachService.submitEnach(merchant, body, token), HttpStatus.OK);
         }
         //disabled for now
 //        else if(enachServiceToUse.equals("digio")){
@@ -101,15 +86,12 @@ public class BPEnachController {
             responseDTO.setMessage("Wrong enach serive provider");
             finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
         }
-        bpEnachRawRequest.setResponse(String.valueOf(finalResponse.getBody()));
-        bpEnachRawRequest.setStatus(String.valueOf(finalResponse.getStatusCodeValue()));
-        bpEnachRawRequestDao.save(bpEnachRawRequest);
         return finalResponse;
     }
-
-    @RequestMapping(value = "/skip", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
-        return new ResponseEntity<>(bpEnachService.setEnachSkipStatus(merchant, referenceNumber), HttpStatus.OK);
-    }
+//
+//    @RequestMapping(value = "/skip", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+//    public ResponseEntity<ResponseDTO> skipEnach(@RequestAttribute BasicDetailsDto merchant, @RequestParam(name = "reference_number", required = true) String referenceNumber) {
+//        return new ResponseEntity<>(bpEnachService.setEnachSkipStatus(merchant, referenceNumber), HttpStatus.OK);
+//    }
 
 }

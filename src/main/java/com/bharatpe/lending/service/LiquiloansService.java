@@ -5,8 +5,10 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
@@ -18,9 +20,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofOcrSlave;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
@@ -159,7 +159,7 @@ public class LiquiloansService {
     LenderVirtualAccountDao lenderVirtualAccountDao;
 
     @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     LendingNotificationService lendingNotificationService;
@@ -410,7 +410,7 @@ public class LiquiloansService {
         if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
             executorService.execute(() -> createGSTInvoice(finalLendingApplication));
         }
-        BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
+        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
 //        if (bharatPeEnach != null) {
 //            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
 //        }

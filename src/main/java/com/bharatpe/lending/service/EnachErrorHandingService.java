@@ -1,12 +1,13 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -37,7 +38,7 @@ public class EnachErrorHandingService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    LendingNachBankDao lendingNachBankDao;
+    EnachHandler enachHandler;
 
     @Autowired
     PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
@@ -115,7 +116,7 @@ public class EnachErrorHandingService {
         return cpbApplicable;
     }
 
-    public EnachErrorMessageDTO enachErrorResponse(BharatPeEnachSlave bharatPeEnach, Long merchantId,
+    public EnachErrorMessageDTO enachErrorResponse(BharatPeEnachResponseDTO bharatPeEnach, Long merchantId,
                                                    LendingApplication lendingApplication, Experian experian){
         Map<String, String> applicable = enachApplicableMap();
         EnachErrorMessageDTO initiateRetry = initiateRetryPage();
@@ -139,7 +140,7 @@ public class EnachErrorHandingService {
                 return initiateRetry;
             }
             String ifsc = merchantBankDetail.getIfsc().substring(0, 4);
-            LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndModeIs(ifsc, "BOTH");
+            LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfscAndMode(ifsc, "BOTH");
 
             if(Objects.nonNull(lendingNachBank)){
                 initiateDebit.setSkipEnach(checkForCpv(lendingApplication, experian, false));
@@ -207,7 +208,7 @@ public class EnachErrorHandingService {
             }
 
             String ifsc = merchantBankDetail.getIfsc().substring(0, 4);
-            LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndModeIs(ifsc, "BOTH");
+            LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfscAndMode(ifsc, "BOTH");
             if(Objects.isNull(lendingNachBank) && lendingApplication.getLoanAmount() < 50000){
                 lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
                 lendingApplication.setResponseCode(response.getStatusMessage());

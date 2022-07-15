@@ -4,11 +4,15 @@ package com.bharatpe.lending.service;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
@@ -18,15 +22,9 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 //import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantInferredLocationDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BankListSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
-import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
-import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantInferredLocationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -54,10 +52,7 @@ public class FosService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    BharatPeEnachDao bharatPeEnachDao;
-
-    @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     ExperianDao experianDao;
@@ -102,9 +97,6 @@ public class FosService {
     LoanAttributionDao loanAttributionDao;
 
     @Autowired
-    BPEnachDaoSlave bpEnachDaoSlave;
-
-    @Autowired
     LoanUtil loanUtil;
 
     @Value("${fos.task.enabled:false}")
@@ -121,9 +113,6 @@ public class FosService {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
-
-    @Autowired
-    LendingNachBankDao lendingNachBankDao;
 
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -484,14 +473,14 @@ public class FosService {
 
                 apiGatewayService.fosAttribution(lendingApplication.getMerchantId(), "NTB_LOAN_V2", "CLOSED");
             }
-            BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+            BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchantId, applicationId);
             if (bharatPeEnach != null && !bharatPeEnach.getSuccess()) {
                 bharatPeEnach.setSkip(Boolean.TRUE);
 //                LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(lendingApplication.getMerchantId(), lendingApplication.getId());
 //                if (lendingPennydrop == null) {
 //                    apiGatewayService.updateApplicationPriority(lendingApplication.getMerchantId(), lendingApplication.getId());
 //                }
-                bharatPeEnachDao.save(bharatPeEnach);
+               enachHandler.skipNach(applicationId, merchantId);
             }
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
             BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
@@ -851,7 +840,7 @@ public class FosService {
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
             BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
             if (Objects.nonNull(merchantBankDetail)) {
-                LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4));
+                LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
                 if (Objects.isNull(lendingNachBank)) {
                     logger.info("merchant {} has a non nachable bank", merchantId);
                     return computeEligibilityParams("ineligible", null, merchantId);
@@ -1027,7 +1016,7 @@ public class FosService {
                 return responseDTO;
             }
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(basicDetailsDto.get().getId());
-            BpEnachSlave bpEnach = bpEnachDaoSlave.findSuccessEnach(merchantId);
+            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId);
             if (ObjectUtils.isEmpty(lendingApplication) ||
                     ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) || lendingApplication.getAgreementAt().after(taskEndTimeStamp))) &&

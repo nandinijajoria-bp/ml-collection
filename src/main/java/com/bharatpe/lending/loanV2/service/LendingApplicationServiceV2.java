@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.AddLeadRequestNimbusDto;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
@@ -534,7 +535,7 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            BpEnachSlave successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId());
+            MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId());
 //            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -827,7 +828,7 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(basicDetailsDto.get().getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            BpEnachSlave successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId());
+            MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId());
 //            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(basicDetailsDto.get().getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(basicDetailsDto.get().getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {

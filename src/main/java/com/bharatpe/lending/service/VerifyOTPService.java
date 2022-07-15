@@ -9,22 +9,21 @@ import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
-import com.bharatpe.lending.common.entity.BpEnach;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -107,7 +106,7 @@ public class VerifyOTPService {
     KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
-    BPEnachDaoSlave bpEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -273,7 +272,7 @@ public class VerifyOTPService {
             lendingApplication.setProcessingFee(0D);
         }
 
-        BpEnachSlave enachSuccess = bpEnachDaoSlave.findSuccessEnach(merchantBasicDetailsDto.getId());
+        MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantBasicDetailsDto.getId());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetailsDto.getId());
         BankDetailsDto merchantBankDetail = null;
         if (bankDetailsDtoOptional.isPresent())

@@ -9,6 +9,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
@@ -165,7 +166,7 @@ public class APIGatewayService {
     ExperianService experianService;
 
     @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     TokenVerificationDaoSlave tokenVerificationDaoSlave;
@@ -1003,7 +1004,7 @@ public class APIGatewayService {
 
     public String getEnachProvider(String token, Long merchantId) {
         logger.info("Fetching enach provider for merchant:{}", merchantId);
-        Long digioFailedCount = bharatPeEnachDaoSlave.isDigioFailed(merchantId);
+        Long digioFailedCount = enachHandler.isDigioFailed(merchantId);
         if (digioFailedCount != null && digioFailedCount >= LendingConstants.DIGIO_FAILED_LIMIT) {
             return "bharatpe://enachtp";
         }
@@ -1101,7 +1102,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public void submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider) {
+    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider) {
         logger.info("Enach submit request:{} for merchant:{}", requestDTO, merchantId);
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
@@ -1120,11 +1121,15 @@ public class APIGatewayService {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
             logger.info("Enach submit request:{} for merchant:{}", request, merchantId);
-            ResponseEntity<String> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL, HttpMethod.POST, request, String.class);
+            ResponseEntity<ENachIntitiationResponseDTO> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL,
+              HttpMethod.POST, request, ENachIntitiationResponseDTO.class);
+
             logger.info("Submit enach response:{} for merchant:{}", response.getBody(), merchantId);
+            return response.getBody();
         } catch (Exception e) {
             logger.info("Exception in enach submit for merchant:{}", merchantId, e);
         }
+        return null;
     }
 
     public String getTemporarySignzyURL(String base64File) {

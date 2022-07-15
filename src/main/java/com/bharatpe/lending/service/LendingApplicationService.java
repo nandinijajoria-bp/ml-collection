@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
@@ -9,6 +10,8 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
@@ -20,8 +23,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
 import com.bharatpe.lending.common.query.dao.ExperianDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
@@ -124,7 +125,7 @@ public class LendingApplicationService {
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
 
     @Autowired
-    BPEnachDaoSlave bpEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -143,9 +144,6 @@ public class LendingApplicationService {
 
     @Autowired
     S3BucketHandler s3BucketHandler;
-
-    @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
     @Autowired
     ENachService eNachService;
@@ -1838,9 +1836,9 @@ public class LendingApplicationService {
                     data.put("task_enable", Boolean.FALSE);
                     loanData.put("agreement_at", lendingApplicationSlave.getAgreementAt().toString());
                     if (!"APPROVED".equals(lendingApplicationSlave.getNachStatus())) {
-                        BharatPeEnachSlave bharatPeEnachSkipped = bharatPeEnachDaoSlave.isSkipped(merchantId,
+                        BharatPeEnachResponseDTO bharatPeEnachSkipped = enachHandler.isSkipped(merchantId,
                                 lendingApplicationSlave.getId());
-                        Long bharatPeEnach = bharatPeEnachDaoSlave.isFailed(merchantId, lendingApplicationSlave.getId());
+                        Long bharatPeEnach = enachHandler.isFailed(merchantId, lendingApplicationSlave.getId());
                         if (bharatPeEnachSkipped == null && bharatPeEnach != null) {
                             if (bharatPeEnach > 2) {
                                 loanData.put("limited_cpv_required", Boolean.TRUE);
@@ -1937,7 +1935,7 @@ public class LendingApplicationService {
         }
         applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId()));
         LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.get().getCategory());
-        BpEnachSlave successEnach = bpEnachDaoSlave.findSuccessEnach(merchantBasicDetails.getId());
+        MerchantNachDetailsResponseDTO successEnach = enachHandler.findSuccessEnach(merchantBasicDetails.getId());
         if (successEnach != null && successEnach.getAccountNumber() != null && !successEnach.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
             successEnach = null;
         }
@@ -2020,7 +2018,7 @@ public class LendingApplicationService {
             applicationDTO.add(applicationDTO2);
         }
         boolean enachMandatory = true;
-        BharatPeEnachSlave enachSkipped = bharatPeEnachDaoSlave.isSkipped(merchantBasicDetails.getId(), lendingApplication.get().getId());
+        BharatPeEnachResponseDTO enachSkipped = enachHandler.isSkipped(merchantBasicDetails.getId(), lendingApplication.get().getId());
         if (successEnach != null) {
             enachMandatory = false;
         } else if (lendingApplication.get().getAgreementAt() != null && "REGULAR".equals(lendingApplication.get().getLoanType()) && lendingApplication.get().getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.get().getAgreementAt(), new Date()) > 3) {
@@ -2173,7 +2171,7 @@ public class LendingApplicationService {
         return isFirstLoan(merchant.getId()) && "NTB".equals(loanType);
     }
 
-    public boolean canSkipCpv(Long merchantId, Double amount, String loanType, BpEnachSlave lendingEnach) {
+    public boolean canSkipCpv(Long merchantId, Double amount, String loanType, MerchantNachDetailsResponseDTO lendingEnach) {
 
         if (lendingEnach != null && lendingEnach.getInternalNachType().equalsIgnoreCase("ENACH")) {
             if ("BHARAT_SWIPE".equals(loanType) || "OGL".equals(loanType)) {

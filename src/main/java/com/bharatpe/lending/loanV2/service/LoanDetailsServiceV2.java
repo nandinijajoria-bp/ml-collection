@@ -5,18 +5,18 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -103,7 +103,7 @@ public class LoanDetailsServiceV2 {
     LendingShopDocumentsDao lendingShopDocumentsDao;
 
     @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     EnachErrorHandingService enachErrorHandingService;
@@ -640,7 +640,7 @@ public class LoanDetailsServiceV2 {
 
     private EnachErrorMessageDTO getEnachError(LendingApplication openApplication, Experian experian) {
         try {
-            BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
+            BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
             if (bharatPeEnach != null) {
                 return enachErrorHandingService.enachErrorResponse(bharatPeEnach, openApplication.getMerchantId(),
                         openApplication, experian);

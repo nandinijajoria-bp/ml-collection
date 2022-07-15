@@ -2,42 +2,27 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.Constants.BPEnachConstant;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
-import com.bharatpe.lending.common.dto.PartnerRetailerDTO;
-import com.bharatpe.lending.common.entity.BpEnachSkip;
-import com.bharatpe.lending.common.enums.BPEnachEnum;
+import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
-import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.dao.BPEnachDao;
-import com.bharatpe.lending.common.entity.BpEnach;
-import com.bharatpe.lending.dao.BPEnachSkipDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.dto.EnachInitiateRequestDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -48,16 +33,7 @@ public class BPEnachService {
     MerchantService merchantService;
 
     @Autowired
-    BPEnachDao bpEnachDao;
-
-    @Autowired
-    BPEnachDaoSlave bpEnachDaoSlave;
-
-    @Autowired
-    LendingNachBankDao lendingNachBankDao;
-
-    @Autowired
-    BPEnachSkipDao bpEnachSkipDao;
+    EnachHandler enachHandler;
 
     @Value("${enach.digio.authorization}")
     String authorization;
@@ -67,10 +43,6 @@ public class BPEnachService {
 
     @Autowired
     ObjectMapper objectMapper;
-
-
-    @Autowired
-    IfscDaoSlave ifscDaoSlave;
 
     @Value("${bpnach.register.endpoint}")
     public String BPNACH_REGISTER_URL;
@@ -84,19 +56,23 @@ public class BPEnachService {
     @Autowired
     PartnersApiHandler partnersApiHandler;
    
-  @Autowired
+    @Autowired
     LendingHmacCalculator lendingHmacCalculator;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
+
+    @Value("${enach.provider}")
+    String enachProvider;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
     private static String drfDeepLinkStr = "drf-onboard";
 
-    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String appVersion,
+    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token ,String appVersion,
                                                      String module, Double nachAmount,
                                                      String type, String referenceNumber,
                                                      String ownerId, String clientName) {
-        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
-        Date mandateDate = new Date(new Date().getTime() + (1000 * 60 * 60 * 24));
         final double LOAN_AMOUNT = nachAmount;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
@@ -120,135 +96,99 @@ public class BPEnachService {
             logger.info("Merchant Bank not supported for Enach - {}", merchant);
             return responseDTO;
         }
-        String bankBranch = getBranchName(merchantBankDetail.getIfsc());
-        if (bankBranch == null || StringUtils.isEmpty(bankBranch)) {
-            responseDTO.setResponse(false);
-            responseDTO.setMessage("Bank Branch not found for Enach");
-            logger.info("Merchant Bank Br`anch not found for Enach - {}", merchant);
-            return responseDTO;
-        }
 
-        BpEnach bpEnach = new BpEnach(merchant.getId(), referenceNumber, clientName, merchant.getBeneficiaryName(), merchant.getBeneficiaryName(), Long.parseLong(bankCode),
-                merchantBankDetail.getBankName(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getIfsc(), merchantBankDetail.getAccountType(),
-                BPEnachConstant.NACH_LENDER, BPEnachConstant.INTERNAL_NACH_TYPE, BPEnachConstant.NACH_MODE, LOAN_AMOUNT, mandateDate, BPEnachEnum.applicationStatus.INPROCESS.toString(), bankBranch
-        );
-        if (ownerId != null) {
-            bpEnach.setOwnerId(Long.parseLong(ownerId));
-        }
-        bpEnach = bpEnachDao.save(bpEnach);
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data(bpEnach.getId(), bpEnach.getId(), bankCode, LOAN_AMOUNT, sdf.format(mandateDate), bpEnach.getId(), merchantBankDetail.getAccountNumber(), merchantBankDetail.getBeneficiaryName(), merchantBankDetail.getIfsc(), merchant.getMid()));
-        return responseDTO;
+        final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
+
+        return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
     }
 
 
-    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO) {
-        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
-        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
-        BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
-        
-        if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.DRF.name())) {
-        	PartnerRetailerDTO retailer = partnersApiHandler.getPartnerRetailerByExternalId(bpEnach.getReferenceNumber());
-        	
-        	if(!ObjectUtils.isEmpty(retailer))
-        		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.getToken());
-        	
-        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.LENDING.name())) {
+    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token) {
+//        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+//        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+//        BpEnach bpEnach = bpEnachDao.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(), BPEnachEnum.applicationStatus.INPROCESS.toString());
+//        BPEnachEnum.enachDeepLink bpEnachEnum = BPEnachEnum.enachDeepLink.valueOf(bpEnach.getPlatform().toUpperCase());
+//
+//        if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.DRF.name())) {
+//        	PartnerRetailerDTO retailer = partnersApiHandler.getPartnerRetailerByExternalId(bpEnach.getReferenceNumber());
+//
+//        	if(!ObjectUtils.isEmpty(retailer))
+//        		responseDTO.getData().setDeep_link("bharatpe://dynamic?key="+drfDeepLinkStr+"&wid="+retailer.getToken());
+//
+//        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.LENDING.name())) {
+//
+//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.LOAN.name()
+//                + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
+//
+//        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && requestDTO.getNewApp()){
+//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card-v2&pageRoute=enach");
+//        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && !requestDTO.getNewApp()){
+//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card");
+//        } else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.GOLD_LOAN.name())){
+//            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=gold-loan-lead");
+//        } else{
+//                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.RETAILER_FINANCE.name().toLowerCase()
+//                    + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
+//        }
 
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.LOAN.name()
-                + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
-
-        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && requestDTO.getNewApp()){
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card-v2&pageRoute=enach");
-        }else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.CREDITCARD.name()) && !requestDTO.getNewApp()){
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=bharatpe-card");
-        } else if(bpEnach.getPlatform().toUpperCase().equals(BPEnachEnum.enachDeepLink.GOLD_LOAN.name())){
-            responseDTO.getData().setDeep_link("bharatpe://dynamic?key=gold-loan-lead");
-        } else{
-                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=" + BPEnachEnum.enachDeepLink.RETAILER_FINANCE.name().toLowerCase()
-                    + "&&wroute=status&&platform=" + bpEnach.getPlatform().toUpperCase());
-        }
-
-        
-        
-
-        if (bpEnach == null) {
-            responseDTO.setResponse(false);
-            responseDTO.setMessage("Enach not initiated");
-            return responseDTO;
-        }
-        bpEnach.setIdentifier(requestDTO.getIdentifier());
-        bpEnach.setMandateId(requestDTO.getMandateId());
-        bpEnach.setResponse(requestDTO.getResponse());
-        bpEnach.setBankMessage(requestDTO.getStatusMessage());
-
-        if (requestDTO.getStatus()) {
-            bpEnach.setStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
-            bpEnach.setNachStatus(BPEnachEnum.applicationStatus.APPROVED.toString());
-        } else {
-            responseDTO.setMessage("Enach rejected");
-            bpEnach.setStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
-            bpEnach.setNachStatus(BPEnachEnum.applicationStatus.REJECTED.toString());
-        }
-        bpEnachDao.save(bpEnach);
-        return responseDTO;
+        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider);
     }
 
 
     public String fetchBankCode(String ifscCode, String mode) {
-        LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode);
+        LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(ifscCode);
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
 
 
-    public ResponseDTO setEnachSkipStatus(BasicDetailsDto merchant, String referenceNumber) {
-        BpEnachSlave bpEnach = bpEnachDaoSlave.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
-        BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
-        if (bpEnachSkip == null) {
-            return new ResponseDTO(false, "Loan Application not found", null,null);
-        }
+//    public ResponseDTO setEnachSkipStatus(BasicDetailsDto merchant, String referenceNumber) {
+//        BpEnachSlave bpEnach = bpEnachDaoSlave.findTop1ByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
+//        BpEnachSkip bpEnachSkip = bpEnachSkipDao.findByMerchantIdAndReferenceNumber(merchant.getId(), referenceNumber);
+//        if (bpEnachSkip == null) {
+//            return new ResponseDTO(false, "Loan Application not found", null,null);
+//        }
+//
+//        bpEnachSkip.setSkip(true);
+//        bpEnachSkip.setMerchantId(merchant.getId());
+//        bpEnachSkip.setMerchantStoreId(bpEnach.getMerchantStoreId());
+//        bpEnachSkip.setReferenceNumber(referenceNumber);
+//        bpEnachSkipDao.save(bpEnachSkip);
+//        return new ResponseDTO(true, null, null,null);
+//
+//    }
 
-        bpEnachSkip.setSkip(true);
-        bpEnachSkip.setMerchantId(merchant.getId());
-        bpEnachSkip.setMerchantStoreId(bpEnach.getMerchantStoreId());
-        bpEnachSkip.setReferenceNumber(referenceNumber);
-        bpEnachSkipDao.save(bpEnachSkip);
-        return new ResponseDTO(true, null, null,null);
 
-    }
+//    public String getBranchName(String ifscCode) {
+//        String branch = null;
+//        IfscSlave ifsc = ifscDaoSlave.findTop1ByIfscOrderByIdDesc(ifscCode);
+//        if (ifsc != null) {
+//            branch = ifsc.getBranch();
+//        }
+//        return branch;
+//    }
 
-
-    public String getBranchName(String ifscCode) {
-        String branch = null;
-        IfscSlave ifsc = ifscDaoSlave.findTop1ByIfscOrderByIdDesc(ifscCode);
-        if (ifsc != null) {
-            branch = ifsc.getBranch();
-        }
-        return branch;
-    }
-
-    public void registerNach(Map requestParams, Long merchantId, String clientName) {
-        logger.info("Registering Nach for merchant:{}", merchantId);
-        try {
-            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret(clientName));
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setCacheControl(CacheControl.noCache());
-            headers.set("hash", hash);
-            headers.set("clientName", clientName);
-
-            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
-            logger.info("URL: {} request: {} ", BPNACH_REGISTER_URL, objectMapper.writeValueAsString(request));
-            ResponseEntity<Object> response = restTemplate.exchange(BPNACH_REGISTER_URL, HttpMethod.POST, request, Object.class);
-            if (response.getStatusCode().equals(HttpStatus.OK) && "200".equalsIgnoreCase((objectMapper.convertValue(response.getBody(), Map.class)).get("statusCode").toString())) {
-                logger.info("Nach register successful for merchant:{}", merchantId);
-            } else {
-                logger.info("Nach register Failed for merchant:{}", merchantId);
-            }
-        } catch (Exception e) {
-            logger.error("Exception in nach register api---", e);
-        }
-    }
+//    public void registerNach(Map requestParams, Long merchantId, String clientName) {
+//        logger.info("Registering Nach for merchant:{}", merchantId);
+//        try {
+//            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret(clientName));
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            headers.setCacheControl(CacheControl.noCache());
+//            headers.set("hash", hash);
+//            headers.set("clientName", clientName);
+//
+//            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+//            logger.info("URL: {} request: {} ", BPNACH_REGISTER_URL, objectMapper.writeValueAsString(request));
+//            ResponseEntity<Object> response = restTemplate.exchange(BPNACH_REGISTER_URL, HttpMethod.POST, request, Object.class);
+//            if (response.getStatusCode().equals(HttpStatus.OK) && "200".equalsIgnoreCase((objectMapper.convertValue(response.getBody(), Map.class)).get("statusCode").toString())) {
+//                logger.info("Nach register successful for merchant:{}", merchantId);
+//            } else {
+//                logger.info("Nach register Failed for merchant:{}", merchantId);
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception in nach register api---", e);
+//        }
+//    }
 
     private String getSecret(String clientName) {
         InternalClientSlave client = internalClientDaoSlave.findByClientName(clientName);

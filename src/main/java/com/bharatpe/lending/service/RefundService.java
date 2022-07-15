@@ -3,14 +3,14 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.handlers.SmsServiceHandler;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -50,7 +50,7 @@ public class RefundService {
     PaymentService paymentService;
 
     @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     SmsServiceHandler smsServiceHandler;
@@ -183,7 +183,7 @@ public class RefundService {
                     return new CommonResponse(false, "Refund Already Done");
                 }
 
-                BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSuccess(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getLoanApplication().getId());
+                BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSuccess(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getLoanApplication().getId());
 //                if (bharatPeEnach != null) {
 //                    executorService.execute(() -> liquiloansService.initiateEnachCashback(lendingPaymentSchedule));
 //                }

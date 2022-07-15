@@ -4,23 +4,21 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
 import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
-import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
-import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -72,7 +70,7 @@ public class LoanUtil {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@Autowired
-	BPEnachDaoSlave bpEnachDaoSlave;
+	EnachHandler enachHandler;
 
 	@Autowired
 	LendingPincodesDao lendingPincodesDao;
@@ -102,16 +100,7 @@ public class LoanUtil {
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
 
 	@Autowired
-	IfscDaoSlave ifscDaoSlave;
-
-	@Autowired
 	BankListDaoSlave bankListDaoSlave;
-
-	@Autowired
-	LendingNachBankDao lendingNachBankDao;
-
-	@Autowired
-	BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
 
 	@Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
@@ -522,7 +511,7 @@ public class LoanUtil {
 
 	public boolean isEnachDone(Long merchantId) {
 		boolean enachDone = false;
-		BpEnachSlave enachSuccess = bpEnachDaoSlave.findSuccessEnach(merchantId);
+		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId);
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
 		if (bankDetailsDtoOptional.isPresent())
@@ -688,17 +677,16 @@ public class LoanUtil {
 			if (bankDetailsDtoOptional.isPresent())
 				merchantBankDetail = bankDetailsDtoOptional.get();
 			if (merchantBankDetail == null) return null;
-			IfscSlave ifsc = ifscDaoSlave.findTop1ByIfscOrderByIdDesc(merchantBankDetail.getIfsc());
-			if (ifsc != null) {
-				BankListSlave bankList = bankListDaoSlave.findByBankCode(ifsc.getBankCode());
+
+			BankListSlave bankList = bankListDaoSlave.findByBankCode(merchantBankDetail.getBankCode());
 				return BankAccountDetails.builder()
 						.beneficiaryName(merchantBankDetail.getBeneficiaryName())
-						.bankName(ifsc.getBank())
+						.bankName(merchantBankDetail.getBankName())
 						.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4))
-						.branchName(ifsc.getBranch())
+						.branchName("")
 						.ifsc(merchantBankDetail.getIfsc())
 						.bankLogo(bankList != null ? bankList.getImageUrl() : null).build();
-			}
+
 		} catch (Exception e) {
 			logger.error("Exception in getAccountDetails for merchant:{}", merchantId);
 		}
@@ -726,8 +714,8 @@ public class LoanUtil {
 		return !prevLoans.isEmpty();
 	}
 
-	public BpEnachSlave getSuccessNach(Long merchantId) {
-		BpEnachSlave enachSuccess = bpEnachDaoSlave.findSuccessEnach(merchantId);
+	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId) {
+		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId);
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
 		if (bankDetailsDtoOptional.isPresent())
@@ -753,12 +741,12 @@ public class LoanUtil {
 		if (bankDetailsDtoOptional.isPresent())
 			merchantBankDetail = bankDetailsDtoOptional.get();
 		if (merchantBankDetail == null) return true;
-		LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(merchantBankDetail.getIfsc().substring(0, 4));
+		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
 		return lendingNachBank != null;
 	}
 
 	public boolean isNachSkipped(Long merchantId, Long applicationId) {
-		BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.isSkipped(merchantId, applicationId);
+		BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSkipped(merchantId, applicationId);
 		return bharatPeEnach != null;
 	}
 

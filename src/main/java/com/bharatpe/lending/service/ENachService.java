@@ -1,20 +1,18 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.LendingNachBankDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.dao.BharatPeEnachDao;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
 import com.bharatpe.lending.common.dao.LendingBulkNachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BPEnachDaoSlave;
-import com.bharatpe.lending.common.slave.dao.BharatPeEnachDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BharatPeEnachSlave;
-import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.*;
@@ -44,9 +42,6 @@ public class ENachService {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
-
-    @Autowired
-    LendingNachBankDao lendingNachBankDao;
     
     @Autowired
     VerifyOTPService verifyOTPService;
@@ -55,19 +50,13 @@ public class ENachService {
     APIGatewayService apiGatewayService;
 
     @Autowired
-    BharatPeEnachDao bharatPeEnachDao;
-
-    @Autowired
-    BharatPeEnachDaoSlave bharatPeEnachDaoSlave;
-
-    @Autowired
     EnachErrorHandingService enachErrorHandingService;
 
     @Autowired
     LendingPennydropDao lendingPennydropDao;
 
     @Autowired
-    BPEnachDaoSlave bpEnachDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
@@ -123,7 +112,7 @@ public class ENachService {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
-        BharatPeEnachSlave bharatPeEnach = bharatPeEnachDaoSlave.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         LendingApplication lendingApplication =
           lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
         if (bharatPeEnach == null) {
@@ -232,30 +221,22 @@ public class ENachService {
         if (lendingApplication == null) {
             return new ResponseDTO(false, "Loan Application not found", null,null);
         }
-        BharatPeEnach lendingEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-        if(lendingEnach == null) {
-            lendingEnach = new BharatPeEnach();
-            lendingEnach.setApplicationId(lendingApplication.getId());
-            lendingEnach.setMerchantId(merchant.getId());
-            lendingEnach.setSuccess(false);
-        }
-        lendingEnach.setSkip(true);
-        bharatPeEnachDao.save(lendingEnach);
+        final boolean skipNach = enachHandler.skipNach(lendingApplication.getId(), merchant.getId());
 //        LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //        if (lendingPennydrop == null) {
 //            apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
 //        }
-        return new ResponseDTO(true, null, null, null);
+        return new ResponseDTO(skipNach, null, null, null);
     }
 
     // check if bank is supported or not
     public String fetchBankCode(String ifscCode, String mode){
-        LendingNachBank lendingNachBank = lendingNachBankDao.findByIfscAndMode(ifscCode);
+        LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(ifscCode);
         return lendingNachBank != null ? lendingNachBank.getBankCode() : null;
     }
 
     public CommonResponse cancelEnach(BasicDetailsDto merchant) {
-        BpEnachSlave bpEnach = bpEnachDaoSlave.findSuccessEnach(merchant.getId());
+        MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchant.getId());
         if (bpEnach == null) {
             logger.info("Enach not found for merchant:{}", merchant.getId());
         } else {
