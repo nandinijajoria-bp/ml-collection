@@ -1033,7 +1033,7 @@ public class PaymentService {
 			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null
 					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null
 					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D
-					&& (apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId()) || lendingPaymentSchedule.getStartDate().before(new Date(1654108200000L)))) {
+					&& (apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId()))) {
 				logger.info("refund processing fee before 1st june or club member for merchant: {}", lendingPaymentSchedule.getMerchantId());
 				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
 				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
