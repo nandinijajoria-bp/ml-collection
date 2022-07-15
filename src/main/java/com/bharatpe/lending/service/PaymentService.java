@@ -1267,18 +1267,22 @@ public class PaymentService {
 		Optional<LendingPaymentSchedule> optionalLps = lendingPaymentScheduleDao.findById(loanId);
 		LoanRefundsResponseDTO loanRefundsResponseDTO = new LoanRefundsResponseDTO();
 		if(optionalLps .isPresent()) {
-			List<LendingPayoutResponseDTO> lendingPayoutsList = lendingPayoutsHandler.findByOwnerIdAndTypeAndCreatedAtGTE(loanId,"REFUND", "2021-08-09");
-			logger.info("number of refunds: {} for loanId: {}",loanId,lendingPayoutsList.size());
+			List<LendingPayoutResponseDTO> lendingPayoutsList = lendingPayoutsHandler.findByOwnerIdAndTypeAndCreatedAtGTE(loanId, "REFUND", "2021-08-09");
 
-			List<LoanRefundsResponseDTO.Refund> loanRefundList = new ArrayList<>();
+			if (Objects.nonNull(lendingPayoutsList)) {
+				logger.info("number of refunds: {} for loanId: {}", loanId, lendingPayoutsList.size());
 
-			for(LendingPayoutResponseDTO lendingPayouts : lendingPayoutsList) {
-				LoanRefundsResponseDTO.Refund loanRefund = new LoanRefundsResponseDTO.Refund(loanId,lendingPayouts.getAmount(),lendingPayouts.getCreatedAt(),lendingPayouts.getPaymentType());
-				loanRefundList.add(loanRefund);
+				List<LoanRefundsResponseDTO.Refund> loanRefundList = new ArrayList<>();
+
+				for (LendingPayoutResponseDTO lendingPayouts : lendingPayoutsList) {
+					LoanRefundsResponseDTO.Refund loanRefund = new LoanRefundsResponseDTO.Refund(loanId, lendingPayouts.getAmount(),
+					lendingPayouts.getCreatedAt(), lendingPayouts.getPaymentType());
+					loanRefundList.add(loanRefund);
+				}
+
+				loanRefundsResponseDTO.setRefundList(loanRefundList);
+				loanRefundsResponseDTO.setSuccess(true);
 			}
-
-			loanRefundsResponseDTO.setRefundList(loanRefundList);
-			loanRefundsResponseDTO.setSuccess(true);
 			return loanRefundsResponseDTO;
 		}
 		loanRefundsResponseDTO.setMessage("No loan found with id:" + loanId);
