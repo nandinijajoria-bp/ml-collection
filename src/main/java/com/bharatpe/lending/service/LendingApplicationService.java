@@ -217,6 +217,7 @@ public class LendingApplicationService {
                 return lendingApplicationResponse;
             }
             lendingApplication = updateApplication(lendingApplication, lendingApplicationRequest);
+            lendingApplication.setMerchantName(merchantBasicDetailsDto.getBeneficiaryName());
             createGstDetail(merchantBasicDetailsDto, lendingApplicationRequest);
             lendingApplicationDao.save(lendingApplication);
         } else {

@@ -276,6 +276,7 @@ public class LendingApplicationServiceV2 {
 
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
+        lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
