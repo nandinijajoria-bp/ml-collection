@@ -72,7 +72,7 @@ public class BPEnachController {
     public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestBody ENachSubmitRequestDTO body) {
         logger.info("Enach Submit request : {}", body);
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse;
-        if (enachServiceToUse.equals("techprocess")) {
+        if (enachServiceToUse.equals("TECHPROCESS")) {
             finalResponse = new ResponseEntity<>(bpEnachService.submitEnach(merchant, body, token), HttpStatus.OK);
         }
         //disabled for now
