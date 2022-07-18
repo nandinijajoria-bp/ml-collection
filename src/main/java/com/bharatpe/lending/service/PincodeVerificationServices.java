@@ -3,8 +3,8 @@ package com.bharatpe.lending.service;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.enums.PincodeColor;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.PincodeVerifyDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,10 +14,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class PincodeVerificationServices {
 
-	Logger logger = LoggerFactory.getLogger(PincodeVerificationServices.class);	
+	Logger logger = LoggerFactory.getLogger(PincodeVerificationServices.class);
 
 	@Autowired
-	PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
+	MerchantService merchantService;
 
 	@Autowired
     LendingPincodesDao lendingPincodesDao;
@@ -49,7 +49,7 @@ public class PincodeVerificationServices {
 		pincodeVerify.setEligible(false);
 		try {
 			logger.info("Fetching city details from table pincode_citystate_mapping for the pincode {}", pincode);
-			PincodeCityStateMappingSlave cityDetails = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
+			PincodeCityStateMappingDTO cityDetails = merchantService.findByPincode(pincode);
 			if (cityDetails == null) {
 				logger.info("No entry found for the pincode {}", pincode);
 				return pincodeVerify;

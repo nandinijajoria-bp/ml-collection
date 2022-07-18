@@ -22,13 +22,13 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
 import com.bharatpe.lending.common.query.dao.ExperianDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofOcrDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -116,9 +116,6 @@ public class LendingApplicationService {
 
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
-    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     SignAgreementService signAgreementService;
@@ -312,7 +309,7 @@ public class LendingApplicationService {
                 lendingApplicationRequestDTO.setBusinessName(merchantInfoDTO.getData().get(0).getMerchantDetail().getBussinessName());
             }
             if (experian != null && experian.getPincode() != null) {
-                PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
+                PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(experian.getPincode());
                 if (pincodeCityStateMapping != null) {
                     lendingApplicationRequestDTO.setPincode(pincodeCityStateMapping.getPincode().longValue());
                     lendingApplicationRequestDTO.setCity(pincodeCityStateMapping.getCity());
@@ -616,7 +613,7 @@ public class LendingApplicationService {
         newApplication.setArea(prevLoan.getArea());
         newApplication.setLandmark(prevLoan.getLandmark());
         if (experian != null && experian.getPincode() != null) {
-            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
+            PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(experian.getPincode());
             if (pincodeCityStateMapping != null) {
                 newApplication.setPincode(pincodeCityStateMapping.getPincode().longValue());
                 newApplication.setCity(pincodeCityStateMapping.getCity());
@@ -757,7 +754,7 @@ public class LendingApplicationService {
 
     public boolean checkLoanRequestPinCodeForLoanEligibilty(int pinCode) {
         try {
-            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pinCode);
+            PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(pinCode);
             if (pincodeCityStateMapping == null) return false;
             LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pinCode);
             return lendingPincodes != null && !lendingPincodes.getColor().equals(PincodeColor.RED);

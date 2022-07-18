@@ -15,11 +15,10 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
@@ -54,8 +53,6 @@ public class LoanUtil {
 	@Autowired
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
-	@Autowired
-	PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
 	@Autowired
 	LendingApplicationPriorityDao lendingApplicationPriorityDao;
@@ -524,7 +521,7 @@ public class LoanUtil {
 
 	public boolean isOGL(Integer pincode) {
 		if (pincode == null) return false;
-		PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
+		PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(pincode);
 		if (pincodeCityStateMapping == null) return true;
 		LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pincode);
 		return lendingPincodes == null || lendingPincodes.getColor().equals(PincodeColor.RED);

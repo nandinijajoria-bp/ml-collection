@@ -23,15 +23,14 @@ import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
 import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.common.slave.entity.SettlementSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -116,9 +115,6 @@ public class LoanDetailsService {
 
 	@Autowired
 	ENachService eNachService;
-
-	@Autowired
-	PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
 	@Autowired
 	LendingClosedAuditDao lendingClosedAuditDao;
@@ -238,7 +234,7 @@ public class LoanDetailsService {
 			String rejectReason = null;
 			String panCard = null;
 			String tempClosed = null;
-			PincodeCityStateMappingSlave pincodeCityStateMapping = null;
+			PincodeCityStateMappingDTO pincodeCityStateMapping = null;
 			MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantBasicDetailsDto.getId());
 			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetailsDto.getId());
 			BankDetailsDto merchantBankDetail = null;
@@ -296,7 +292,7 @@ public class LoanDetailsService {
 
 			if (pincode != null) {
 				lendingCity = lendingCitiesDao.findActiveCityByPincode(pincode);
-				pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(pincode);
+				pincodeCityStateMapping = merchantService.findByPincode(pincode);
 			}
 
 			if("ORGANIZED".equalsIgnoreCase(merchantBasicDetailsDto.getCorrectMerchantType())) {
@@ -859,16 +855,16 @@ public class LoanDetailsService {
 //		return new ArrayList<>();
 //	}
 
-	public boolean isRegularLoanInEligible(Experian experian, Double amount){
-		if (experian != null && experian.getPincode() != null && Objects.nonNull(amount) ) {
-			PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
-			Boolean cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
-
-			return !cpvCity || amount < 50000;
-		}
-
-		return false;
-	}
+//	public boolean isRegularLoanInEligible(Experian experian, Double amount){
+//		if (experian != null && experian.getPincode() != null && Objects.nonNull(amount) ) {
+//			PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
+//			Boolean cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
+//
+//			return !cpvCity || amount < 50000;
+//		}
+//
+//		return false;
+//	}
 
 
 //	public boolean repeatLoanGlobalCheck(Merchant merchant){

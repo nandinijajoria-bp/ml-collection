@@ -103,9 +103,6 @@ public class APIGatewayService {
     LendingPancardDao lendingPancardDao;
 
     @Autowired
-    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
-
-    @Autowired
     LendingRedCitiesDao lendingRedCitiesDao;
 
     @Autowired

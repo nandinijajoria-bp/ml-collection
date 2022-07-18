@@ -6,9 +6,8 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -39,9 +38,6 @@ public class EnachErrorHandingService {
 
     @Autowired
     EnachHandler enachHandler;
-
-    @Autowired
-    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -159,7 +155,7 @@ public class EnachErrorHandingService {
     public Boolean checkForCpv(LendingApplication lendingApplication, Experian experian, Boolean skipNow){
 
         if (experian != null && experian.getPincode() != null) {
-            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
+            PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(experian.getPincode());
             Boolean cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
 
             return cpvCity && lendingApplication.getLoanAmount() >= 50000 && (LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3 || skipNow);

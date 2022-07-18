@@ -11,12 +11,10 @@ import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
 import com.bharatpe.lending.common.query.dao.ExternalGatewayDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.query.entity.ExternalGatewaySlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
@@ -139,12 +137,6 @@ public class LoanEligibleService {
 
     @Autowired
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
-
-    @Autowired
-    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
-
-    @Autowired
-    BharatSwipeAccountDaoSlave bharatSwipeAccountDaoSlave;
 
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
@@ -880,7 +872,7 @@ public class LoanEligibleService {
         Experian experian = experianDao.getByMerchantId(merchantId);
         boolean cpvCity = false;
         if (experian != null && experian.getPincode() != null) {
-            PincodeCityStateMappingSlave pincodeCityStateMapping = pincodeCityStateMappingDaoSlave.findByPincode(experian.getPincode());
+            PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(experian.getPincode());
             cpvCity = (pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity()));
         }
         boolean isNTC = isNTC(experian);

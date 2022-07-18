@@ -14,11 +14,10 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.PincodeCityStateMappingDaoSlave;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
-import com.bharatpe.lending.common.slave.entity.PincodeCityStateMappingSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
@@ -60,9 +59,6 @@ public class LoanDetailsServiceV2 {
 
     @Autowired(required = false)
     BureauHandler bureauHandler;
-
-    @Autowired
-    PincodeCityStateMappingDaoSlave pincodeCityStateMappingDaoSlave;
 
     @Autowired
     LendingCityCreditScoreDao lendingCityCreditScoreDao;
@@ -847,7 +843,7 @@ public class LoanDetailsServiceV2 {
         CreditScoreReportDetailDTO creditScoreReportDetailDTO = new CreditScoreReportDetailDTO();
         CreditScoreReportDetailDTO.AverageCreditScore averageCreditScore = new CreditScoreReportDetailDTO.AverageCreditScore();
         try {
-            PincodeCityStateMappingSlave pincodeCityState = pincodeCityStateMappingDaoSlave.findByPincode(pin_code);
+            PincodeCityStateMappingDTO pincodeCityState = merchantService.findByPincode(pin_code);
             log.info("pincodecitystate:{}", pincodeCityState);
             if (Objects.nonNull(pincodeCityState) && Objects.nonNull(bureau.getVariables().getBureauScore())) {
 
