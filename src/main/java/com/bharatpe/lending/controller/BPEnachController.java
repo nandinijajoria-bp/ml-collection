@@ -51,7 +51,7 @@ public class BPEnachController {
         try {
             Double loanAmount = Double.parseDouble(amount);
             //logger.error(enachServiceToUse);
-            if (enachServiceToUse == null || (!enachServiceToUse.equals("digio") && !enachServiceToUse.equals("techprocess"))) {
+            if (enachServiceToUse == null || (!enachServiceToUse.equals("DIGIO") && !enachServiceToUse.equals("TECHPROCESS"))) {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
             } else {
