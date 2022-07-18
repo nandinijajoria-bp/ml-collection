@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -136,16 +137,16 @@ public class BPEnachService {
 //        }
 
 
-        final MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByIdAndMerchantIdAndStatus(requestDTO.getApplicationId(), merchant.getId(),
-          "INPROCESS");
+        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
 
-        if (ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)){
+
+        if (ObjectUtils.isEmpty(bharatPeEnach)){
                 responseDTO.setResponse(false);
                 responseDTO.setMessage("Enach not initiated");
                 return responseDTO;
         }
 
-        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, merchantNachDetailsResponseDTO.getPlatform());
+        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, bharatPeEnach.getClientName());
     }
 
 
