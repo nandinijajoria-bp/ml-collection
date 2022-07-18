@@ -137,7 +137,7 @@ public class BPEnachService {
 //        }
 
 
-        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationIdV2(merchant.getId(), requestDTO.getApplicationId());
 
 
         if (ObjectUtils.isEmpty(bharatPeEnach)){
