@@ -245,7 +245,8 @@ public class IneligibleDetailsService {
     private Date getMerchantOnboardDate(BasicDetailsDto merchant, MerchantResponseDTO merchantResponseDTO) {
     	try {
     		if(merchantResponseDTO!=null) {
-    			return merchantResponseDTO.getFirstTransactionDate();
+                if (ObjectUtils.isEmpty(merchantResponseDTO.getFirstTransactionDate()))
+                    return merchantResponseDTO.getFirstTransactionDate();
     		}
     		else {
     			return merchant.getCreatedAt();
