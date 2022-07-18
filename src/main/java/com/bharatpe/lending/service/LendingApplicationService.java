@@ -60,6 +60,8 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2.getDateInFormat;
+
 @Service
 public class LendingApplicationService {
     private final Logger logger = LoggerFactory.getLogger(LendingApplicationService.class);
@@ -1999,8 +2001,8 @@ public class LendingApplicationService {
             applicationDTO2.setText("eNACH Done");
             applicationDTO2.setButtonContextDTO(null);
             ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
-            dateDTO.setDay(successEnach.getCreatedAt().toString());
-            dateDTO.setTime(successEnach.getCreatedAt().toString());
+            dateDTO.setDay(getDateInFormat(successEnach.getCreatedAt()));
+            dateDTO.setTime(getDateInFormat(successEnach.getCreatedAt()));
             applicationDTO2.setDateDTO(dateDTO);
             applicationDTO.add(applicationDTO2);
         } else if ("pending_verification".equalsIgnoreCase(lendingApplication.get().getStatus()) && bankCode != null) {

@@ -43,6 +43,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -602,8 +603,8 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
-                dateDTO.setDay(successEnach.getCreatedAt().toString());
-                dateDTO.setTime(successEnach.getCreatedAt().toString());
+                dateDTO.setDay(getDateInFormat(successEnach.getCreatedAt()));
+                dateDTO.setTime(getDateInFormat(successEnach.getCreatedAt()));
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchantBasicDetailsDto.getId())) {
@@ -891,8 +892,8 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
-                dateDTO.setDay(successEnach.getCreatedAt().toString());
-                dateDTO.setTime(successEnach.getCreatedAt().toString());
+                dateDTO.setDay(getDateInFormat(successEnach.getCreatedAt()));
+                dateDTO.setTime(getDateInFormat(successEnach.getCreatedAt()));
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(basicDetailsDto.get().getId())) {
@@ -1340,5 +1341,11 @@ public class LendingApplicationServiceV2 {
         } else {
             log.info("no key exists!");
         }
+    }
+
+    public static String getDateInFormat(Date date) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S"); // Set your date format
+        String currentData = sdf.format(date);
+        return currentData;
     }
 }
