@@ -51,7 +51,7 @@ public class BPEnachController {
         try {
             Double loanAmount = Double.parseDouble(amount);
             //logger.error(enachServiceToUse);
-            if (enachServiceToUse == null || (!enachServiceToUse.equals("digio") && !enachServiceToUse.equals("techprocess"))) {
+            if (enachServiceToUse == null || (!enachServiceToUse.equals("DIGIO") && !enachServiceToUse.equals("TECHPROCESS"))) {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
             } else {
@@ -72,7 +72,7 @@ public class BPEnachController {
     public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestBody ENachSubmitRequestDTO body) {
         logger.info("Enach Submit request : {}", body);
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse;
-        if (enachServiceToUse.equals("techprocess")) {
+        if (enachServiceToUse.equals("TECHPROCESS")) {
             finalResponse = new ResponseEntity<>(bpEnachService.submitEnach(merchant, body, token), HttpStatus.OK);
         }
         //disabled for now
