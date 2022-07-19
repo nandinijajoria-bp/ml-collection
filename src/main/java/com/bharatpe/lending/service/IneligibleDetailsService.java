@@ -43,8 +43,8 @@ public class IneligibleDetailsService {
     @Autowired
     MerchantLoanRequestAuditTrailDoa merchantLoanRequestAuditTrailDoa;
 
-    @Autowired
-    ScoreCategoryMasterDao scoreCategoryMasterDao;
+//    @Autowired
+//    ScoreCategoryMasterDao scoreCategoryMasterDao;
     
     @Autowired
     ExperianDao experianDao;

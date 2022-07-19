@@ -5,7 +5,6 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
@@ -64,14 +63,14 @@ public class VerifyOTPService {
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
 
-    @Autowired
-    SmsServiceHandler smsServiceHandler;
+//    @Autowired
+//    SmsServiceHandler smsServiceHandler;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
 
-    @Autowired
-    MerchantSummaryLendingDao merchantSummaryLendingDao;
+//    @Autowired
+//    MerchantSummaryLendingDao merchantSummaryLendingDao;
 
 //	@Autowired
 //	MerchantSummaryDao merchantSummaryDao;

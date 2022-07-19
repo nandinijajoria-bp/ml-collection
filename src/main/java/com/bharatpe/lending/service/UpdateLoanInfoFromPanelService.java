@@ -1,48 +1,48 @@
-package com.bharatpe.lending.service;
-
-import com.bharatpe.common.dao.*;
-import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.NotificationProvider;
-import com.bharatpe.common.handlers.PushNotificationHandler;
-import com.bharatpe.common.handlers.SmsServiceHandler;
-import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
-import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
-import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
-import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.SettlementScheduleDao;
-import com.bharatpe.lending.dto.PayloadDTO;
-import com.bharatpe.lending.handlers.KarzaHandler;
-import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.*;
-
-@Service
-public class UpdateLoanInfoFromPanelService {
+//package com.bharatpe.lending.service;
+//
+//import com.bharatpe.common.dao.*;
+//import com.bharatpe.common.entities.*;
+//import com.bharatpe.common.enums.NotificationProvider;
+//import com.bharatpe.common.handlers.PushNotificationHandler;
+//import com.bharatpe.common.handlers.SmsServiceHandler;
+//import com.bharatpe.common.objects.CommonAPIRequest;
+//import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
+//import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
+//import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
+//import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
+//import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+//import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+//import com.bharatpe.lending.dao.LendingApplicationDao;
+//import com.bharatpe.lending.dao.LendingAuditTrialDao;
+//import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+//import com.bharatpe.lending.dao.SettlementScheduleDao;
+//import com.bharatpe.lending.dto.PayloadDTO;
+//import com.bharatpe.lending.handlers.KarzaHandler;
+//import com.bharatpe.lending.handlers.S3BucketHandler;
+//import com.fasterxml.jackson.core.JsonParseException;
+//import com.fasterxml.jackson.core.type.TypeReference;
+//import com.fasterxml.jackson.databind.JsonMappingException;
+//import com.fasterxml.jackson.databind.ObjectMapper;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.beans.factory.annotation.Value;
+//import org.springframework.stereotype.Service;
+//import org.springframework.util.ObjectUtils;
+//
+//import java.io.FileNotFoundException;
+//import java.io.IOException;
+//import java.text.DateFormat;
+//import java.text.ParseException;
+//import java.text.SimpleDateFormat;
+//import java.time.Duration;
+//import java.time.Instant;
+//import java.time.LocalDate;
+//import java.time.ZoneId;
+//import java.util.*;
+//
+//@Service
+//public class UpdateLoanInfoFromPanelService {
 //	Logger logger = LoggerFactory.getLogger(UpdateLoanInfoFromPanelService.class);
 //
 //	@Autowired
@@ -704,4 +704,4 @@ public class UpdateLoanInfoFromPanelService {
 //		}
 //
 //	}
-}
+//}

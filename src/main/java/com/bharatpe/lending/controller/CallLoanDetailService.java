@@ -3,8 +3,6 @@ package com.bharatpe.lending.controller;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.PushNotificationHandler;
-import com.bharatpe.common.handlers.SmsServiceHandler;
-import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.EcollectTransactionDaoSlave;
@@ -66,8 +64,8 @@ public class CallLoanDetailService {
     @Autowired
     LoanEligibleService loanEligibleService;
 
-    @Autowired
-    SmsServiceHandler smsServiceHandler;
+//    @Autowired
+//    SmsServiceHandler smsServiceHandler;
 
     @Autowired
     PushNotificationHandler pushNotificationHandler;
@@ -75,8 +73,8 @@ public class CallLoanDetailService {
 //    @Autowired
 //    MerchantFcmTokenDao merchantFcmTokenDao;
 
-    @Autowired
-    WhatsappNotificationService whatsappNotificationService;
+//    @Autowired
+//    WhatsappNotificationService whatsappNotificationService;
 
     @Autowired
     LendingCitiesDao lendingCitiesDao;

@@ -4,7 +4,6 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status.LendingStatus;
-import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
@@ -77,8 +76,8 @@ public class LoanDetailsService {
 	@Autowired
 	LendingGstDao lendingGstDao;
 
-	@Autowired
-	SmsServiceHandler smsServiceHandler;
+//	@Autowired
+//	SmsServiceHandler smsServiceHandler;
 
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
@@ -92,8 +91,8 @@ public class LoanDetailsService {
 	@Autowired
 	LendingEDIScheduleDao lendingEDIScheduleDao;
 
-	@Autowired
-	MerchantStoreDao merchantStoreDao;
+//	@Autowired
+//	MerchantStoreDao merchantStoreDao;
 
 //	@Autowired
 //	MerchantDao merchantDao;

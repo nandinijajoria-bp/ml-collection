@@ -3,7 +3,6 @@ package com.bharatpe.lending.service;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
-import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
@@ -84,8 +83,8 @@ public class LoanEligibleService {
     @Autowired
     LendingLedgerDao lendingLedgerDao;
 
-    @Autowired
-    EmailHandler emailHandler;
+//    @Autowired
+//    EmailHandler emailHandler;
 
     @Autowired
     LendingCategoryDao lendingCategoryDao;

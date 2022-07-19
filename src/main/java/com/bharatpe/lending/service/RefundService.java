@@ -2,7 +2,6 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
@@ -52,8 +51,8 @@ public class RefundService {
     @Autowired
     EnachHandler enachHandler;
 
-    @Autowired
-    SmsServiceHandler smsServiceHandler;
+//    @Autowired
+//    SmsServiceHandler smsServiceHandler;
 
     @Autowired
     LiquiloansService liquiloansService;

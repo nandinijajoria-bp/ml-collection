@@ -63,8 +63,8 @@ public class FosService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-    @Autowired
-    LendingCpvDetailsDao lendingCpvDetailsDao;
+//    @Autowired
+//    LendingCpvDetailsDao lendingCpvDetailsDao;
 
 //    @Autowired
 //    IfscDaoSlave ifscDaoSlave;
@@ -493,11 +493,11 @@ public class FosService {
                     return responseDTO;
                 }
             }
-            LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByMerchantIdAndApplicationIdAndAgentId(merchantId, applicationId, cpvAgentId);
-            if (lendingCpvDetails != null) {
-                lendingCpvDetails.setAccountType(accType);
-                lendingCpvDetailsDao.save(lendingCpvDetails);
-            }
+//            LendingCpvDetails lendingCpvDetails = lendingCpvDetailsDao.findByMerchantIdAndApplicationIdAndAgentId(merchantId, applicationId, cpvAgentId);
+//            if (lendingCpvDetails != null) {
+//                lendingCpvDetails.setAccountType(accType);
+//                lendingCpvDetailsDao.save(lendingCpvDetails);
+//            }
             responseDTO.setMessage("Loan Application Updated Successfully!");
             responseDTO.setSuccess(Boolean.TRUE);
         } catch (Exception ex) {

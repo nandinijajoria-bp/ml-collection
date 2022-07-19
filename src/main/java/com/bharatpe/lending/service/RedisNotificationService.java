@@ -7,7 +7,6 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.EligibleLoan;
-import com.bharatpe.common.handlers.SmsServiceHandler;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -31,9 +30,9 @@ public class RedisNotificationService {
 
 	@Autowired
 	LendingCache lendingCache;
-
-	@Autowired
-	SmsServiceHandler smsServiceHandler;
+//
+//	@Autowired
+//	SmsServiceHandler smsServiceHandler;
 
 	@Autowired
 	EligibleLoanDao eligibleLoanDao;

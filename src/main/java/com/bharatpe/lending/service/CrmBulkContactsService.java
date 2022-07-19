@@ -1,6 +1,8 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dao.CrmBulkContactsDao;
+import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.CrmBulkContacts;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -42,6 +44,9 @@ public class CrmBulkContactsService {
 
     @Autowired
     PhonebookDaoSlave phonebookDaoSlave;
+
+    @Autowired
+    PhonebookHandler phonebookHandler;
 
     @Autowired
     S3BucketHandler s3BucketHandler;

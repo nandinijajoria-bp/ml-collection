@@ -2,8 +2,6 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.handlers.SmsServiceHandler;
-import com.bharatpe.common.service.WhatsappNotificationService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
@@ -95,14 +93,11 @@ public class LiquiloansService {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Autowired
-    SmsServiceHandler smsServiceHandler;
+//    @Autowired
+//    SmsServiceHandler smsServiceHandler;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
-
-    @Autowired
-    WhatsappNotificationService whatsappNotificationService;
 
     @Value("${aws.s3.loan.agreement.bucket}")
     private String bucket;
