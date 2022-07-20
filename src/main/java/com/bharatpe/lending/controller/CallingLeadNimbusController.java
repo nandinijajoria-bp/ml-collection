@@ -20,7 +20,7 @@ import java.util.Map;
 @RequestMapping("lending")
 public class CallingLeadNimbusController {
 
-    Logger logger = LoggerFactory.getLogger(MerchantDetailsController.class);
+    Logger logger = LoggerFactory.getLogger(CallingLeadNimbusController.class);
 
     @Autowired
     CallingLeadNimbusService callingLeadNimbusService;

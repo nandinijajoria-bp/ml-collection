@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.BharatSwipeHandler;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
@@ -11,6 +12,7 @@ import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.BharatSwipeAccountDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
@@ -24,7 +26,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BharatSwipeAccountDaoSlave;
 import com.bharatpe.lending.common.query.dao.ExperianDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
@@ -148,7 +149,7 @@ public class LendingApplicationService {
     ENachService eNachService;
 
     @Autowired
-    BharatSwipeAccountDaoSlave bharatSwipeAccountDaoSlave;
+    BharatSwipeHandler bharatSwipeHandler;
 
 //    @Autowired
 //    OrderStickerDaoSlave orderStickerDaoSlave;
@@ -790,7 +791,7 @@ public class LendingApplicationService {
             applicationId = 0L;
         }
         String html = populateHtml(merchant, applicationId, category, lender);
-        BharatSwipeAccountSlave bharatSwipeAccount = bharatSwipeAccountDaoSlave.findByMerchantId(merchant.getId());
+        BharatSwipeAccountDTO bharatSwipeAccount = bharatSwipeHandler.findByMerchantId(merchant.getId());
         tnc.setSwipe(bharatSwipeAccount != null);
         if (html == null) {
             tnc.setSuccess(false);
