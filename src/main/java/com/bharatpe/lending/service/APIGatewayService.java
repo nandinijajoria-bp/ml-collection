@@ -1497,17 +1497,18 @@ public class APIGatewayService {
     public Boolean checkClubV2(Long merchantId) {
         try {
             logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
-            TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(merchantId);
-            if (ObjectUtils.isEmpty(tokenVerification)) {
-                return false;
-            }
-            String token = tokenVerification.getAccessToken();
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("merchant_id", merchantId);
+            String payload = lendingHmacCalculator.getObjectPayload(body);
+            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("clientName", CLIENT);
-            headers.set("token", token);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+            headers.set("hash", hash);
 
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             logger.info("checking for clubV2 request:{} for merchant:{}", request, merchantId);
             ResponseEntity<ClubV2DTO> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL_V2, HttpMethod.POST, request, ClubV2DTO.class);
             logger.info("clubV2 eligibility response:{} for merchant:{}", responseEntity, merchantId);
