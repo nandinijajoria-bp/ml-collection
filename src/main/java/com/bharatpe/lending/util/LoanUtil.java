@@ -675,14 +675,13 @@ public class LoanUtil {
 				merchantBankDetail = bankDetailsDtoOptional.get();
 			if (merchantBankDetail == null) return null;
 
-			BankListSlave bankList = bankListDaoSlave.findByBankCode(merchantBankDetail.getBankCode());
 				return BankAccountDetails.builder()
 						.beneficiaryName(merchantBankDetail.getBeneficiaryName())
 						.bankName(merchantBankDetail.getBankName())
 						.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4))
 						.branchName("")
 						.ifsc(merchantBankDetail.getIfsc())
-						.bankLogo(bankList != null ? bankList.getImageUrl() : null).build();
+						.bankLogo(merchantBankDetail.getIfscLogo()).build();
 
 		} catch (Exception e) {
 			logger.error("Exception in getAccountDetails for merchant:{}", merchantId);

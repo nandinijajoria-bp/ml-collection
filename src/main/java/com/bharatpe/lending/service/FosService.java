@@ -22,10 +22,10 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
+//import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
 //import com.bharatpe.lending.common.slave.dao.IfscDaoSlave;
-import com.bharatpe.lending.common.slave.dao.MerchantInferredLocationDaoSlave;
-import com.bharatpe.lending.common.slave.entity.MerchantInferredLocationSlave;
+//import com.bharatpe.lending.common.slave.dao.MerchantInferredLocationDaoSlave;
+//import com.bharatpe.lending.common.slave.entity.MerchantInferredLocationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
@@ -69,23 +69,23 @@ public class FosService {
 //    @Autowired
 //    IfscDaoSlave ifscDaoSlave;
 
-    @Autowired
-    BankListDaoSlave bankListDaoSlave;
+//    @Autowired
+//    BankListDaoSlave bankListDaoSlave;
 
     @Autowired
     APIGatewayService apiGatewayService;
 
-    @Autowired
-    LendingPennydropDao lendingPennydropDao;
+//    @Autowired
+//    LendingPennydropDao lendingPennydropDao;
 
 //    @Autowired
 //    DocumentsIdProofDao documentsIdProofDao;
 
-    @Autowired
-    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
+//    @Autowired
+//    DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
-    @Autowired
-    MerchantInferredLocationDaoSlave merchantInferredLocationDaoSlave;
+//    @Autowired
+//    MerchantInferredLocationDaoSlave merchantInferredLocationDaoSlave;
 
 //    @Autowired
 //    MerchantDao merchantDao;
@@ -508,133 +508,133 @@ public class FosService {
         return responseDTO;
     }
 
-    public ResponseDTO getMerchantAddress(Long merchantId) {
-        ResponseDTO responseDTO = new ResponseDTO();
-
-//        Merchant merchant = merchantDao.findById(merchantId).get();
-
-        try {
-            Map<String, Object> addressResponse = new HashMap<>();
-            LendingApplication lendingApplication = lendingApplicationDao.findApplicableApplication(merchantId);
-            if (Objects.nonNull(lendingApplication)) {
-                Object experianAddress = getExperianAddress(merchantId);
-                Object lendingAddress = getLendingAddress(lendingApplication);
-                Object documentIdProofAddress = getDocumentIdProofAddress(lendingApplication);
-                Object merchantInferredAddress = getMerchantInferredAddress(lendingApplication);
-
-                addressResponse.put("experian_address", experianAddress);
-                addressResponse.put("lending_address", lendingAddress);
-                addressResponse.put("document_id_proof_address", documentIdProofAddress);
-                addressResponse.put("merchant_inferred_address", merchantInferredAddress);
-
-                responseDTO.setMessage("Address");
-                responseDTO.setSuccess(Boolean.TRUE);
-                responseDTO.setData(addressResponse);
-
-                return responseDTO;
-            }
-        } catch (Exception ex) {
-            logger.error("Error while sending Address to fos App for Merchant: {} Error: {}", merchantId, ex);
-        }
-
-        responseDTO.setMessage("Something Went Wrong!");
-        responseDTO.setSuccess(Boolean.FALSE);
-        return responseDTO;
-    }
-
-
-    public Object getExperianAddress(Long merchant) {
-//        Map<String, Object> experianAddress = new HashMap<>();
-//        Experian experian = experianDao.getByMerchantId(merchant.getId());
+//    public ResponseDTO getMerchantAddress(Long merchantId) {
+//        ResponseDTO responseDTO = new ResponseDTO();
 //
-//        JsonNode bureauResponse = parseStringResponse(experian.getResponse());;
-//        if (bureauResponse == null) {
-//            return new CreditScoreReportDetailDTO();
+////        Merchant merchant = merchantDao.findById(merchantId).get();
+//
+//        try {
+//            Map<String, Object> addressResponse = new HashMap<>();
+//            LendingApplication lendingApplication = lendingApplicationDao.findApplicableApplication(merchantId);
+//            if (Objects.nonNull(lendingApplication)) {
+//                Object experianAddress = getExperianAddress(merchantId);
+//                Object lendingAddress = getLendingAddress(lendingApplication);
+//                Object documentIdProofAddress = getDocumentIdProofAddress(lendingApplication);
+//                Object merchantInferredAddress = getMerchantInferredAddress(lendingApplication);
+//
+//                addressResponse.put("experian_address", experianAddress);
+//                addressResponse.put("lending_address", lendingAddress);
+//                addressResponse.put("document_id_proof_address", documentIdProofAddress);
+//                addressResponse.put("merchant_inferred_address", merchantInferredAddress);
+//
+//                responseDTO.setMessage("Address");
+//                responseDTO.setSuccess(Boolean.TRUE);
+//                responseDTO.setData(addressResponse);
+//
+//                return responseDTO;
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Error while sending Address to fos App for Merchant: {} Error: {}", merchantId, ex);
 //        }
-//        ResponseUtil responseUtil;
-//        if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
-//            responseUtil = new CrifResponseUtil(experianDao);
-//        } else {
-//            responseUtil = new ExperianResponseUtil(experianDao);
+//
+//        responseDTO.setMessage("Something Went Wrong!");
+//        responseDTO.setSuccess(Boolean.FALSE);
+//        return responseDTO;
+//    }
+
+
+//    public Object getExperianAddress(Long merchant) {
+////        Map<String, Object> experianAddress = new HashMap<>();
+////        Experian experian = experianDao.getByMerchantId(merchant.getId());
+////
+////        JsonNode bureauResponse = parseStringResponse(experian.getResponse());;
+////        if (bureauResponse == null) {
+////            return new CreditScoreReportDetailDTO();
+////        }
+////        ResponseUtil responseUtil;
+////        if ("CRIF".equalsIgnoreCase(experian.getBureau())) {
+////            responseUtil = new CrifResponseUtil(experianDao);
+////        } else {
+////            responseUtil = new ExperianResponseUtil(experianDao);
+////        }
+//
+//        return null;
+//    }
+//
+//    public Object getLendingAddress(LendingApplication lendingApplication) {
+//        try {
+//            Map<String, Object> lendingAddress = new HashMap<>();
+//
+//            String address = Objects.isNull(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber() + ",";
+//            address += Objects.isNull(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress() + ",";
+//            address += Objects.isNull(lendingApplication.getArea()) ? "" : lendingApplication.getArea() + ",";
+//            address += Objects.isNull(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark() + ",";
+//
+//            address += Objects.isNull(lendingApplication.getCity()) ? "" : lendingApplication.getCity() + ",";
+//            address += Objects.isNull(lendingApplication.getState()) ? "" : lendingApplication.getState() + ",";
+//
+//            lendingAddress.put("address", address);
+//            lendingAddress.put("pincode", lendingApplication.getPincode());
+//            lendingAddress.put("lat", lendingApplication.getLatitude());
+//            lendingAddress.put("long", lendingApplication.getLongitude());
+//
+//            return lendingAddress;
+//        } catch (Exception ex) {
+//            logger.error("Error while sending LendingAddress to fos App for Application Id: {} Error: {}", lendingApplication.getId(), ex);
 //        }
-
-        return null;
-    }
-
-    public Object getLendingAddress(LendingApplication lendingApplication) {
-        try {
-            Map<String, Object> lendingAddress = new HashMap<>();
-
-            String address = Objects.isNull(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber() + ",";
-            address += Objects.isNull(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress() + ",";
-            address += Objects.isNull(lendingApplication.getArea()) ? "" : lendingApplication.getArea() + ",";
-            address += Objects.isNull(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark() + ",";
-
-            address += Objects.isNull(lendingApplication.getCity()) ? "" : lendingApplication.getCity() + ",";
-            address += Objects.isNull(lendingApplication.getState()) ? "" : lendingApplication.getState() + ",";
-
-            lendingAddress.put("address", address);
-            lendingAddress.put("pincode", lendingApplication.getPincode());
-            lendingAddress.put("lat", lendingApplication.getLatitude());
-            lendingAddress.put("long", lendingApplication.getLongitude());
-
-            return lendingAddress;
-        } catch (Exception ex) {
-            logger.error("Error while sending LendingAddress to fos App for Application Id: {} Error: {}", lendingApplication.getId(), ex);
-        }
-
-        return null;
-    }
-
-
-    public Object getDocumentIdProofAddress(LendingApplication lendingApplication) {
-        try {
-
-            DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.getAadharAddress(lendingApplication.getId());
-            logger.error("check for getDocumentIdProofAddress :{}", docKycDetails);
-            if (Objects.nonNull(docKycDetails)) {
-                Map<String, Object> docAddress = new HashMap<>();
-
-                docAddress.put("pincode", docKycDetails.getPincode());
-                docAddress.put("city", docKycDetails.getCity());
-                docAddress.put("state", docKycDetails.getState());
-                docAddress.put("address", docKycDetails.getAddress());
-                docAddress.put("lat", docKycDetails.getDocumentsIdProof().getLatitude());
-                docAddress.put("long", docKycDetails.getDocumentsIdProof().getLongitude());
-
-                return docAddress;
-            }
-        } catch (Exception ex) {
-            logger.error("Error while sending DocumentIdProof to fos App for Application Id: {} Error: {}", lendingApplication.getId(), ex);
-        }
-        return null;
-    }
-
-    public Object getMerchantInferredAddress(LendingApplication lendingApplication) {
-        try {
-            MerchantInferredLocationSlave merchantInferredLocation = merchantInferredLocationDaoSlave.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
-
-            if (Objects.nonNull(merchantInferredLocation)) {
-                Map<String, Object> lendingAddress = new HashMap<>();
-
-                String address = Objects.isNull(merchantInferredLocation.getAddress()) ? "" : merchantInferredLocation.getAddress() + ", ";
-                address += Objects.isNull(merchantInferredLocation.getCity()) ? "" : merchantInferredLocation.getCity() + ", ";
-                address += Objects.isNull(merchantInferredLocation.getState()) ? "" : merchantInferredLocation.getState() + ", ";
-
-                lendingAddress.put("address", address);
-                lendingAddress.put("initial_lat", merchantInferredLocation.getIntialLatitude());
-                lendingAddress.put("initial_long", merchantInferredLocation.getIntialLongitude());
-                lendingAddress.put("inferred_lat", merchantInferredLocation.getInferredLatitude());
-                lendingAddress.put("inferred_long", merchantInferredLocation.getInferredLongitude());
-//                lendingAddress.put("pincode", merchantInferredLocation.getPincode());
-
-                return lendingAddress;
-            }
-        } catch (Exception ex) {
-            logger.error("Error while sending DocumentIdProof to fos App for Application Id: {} Error: {}", lendingApplication.getId(), ex);
-        }
-        return null;
-    }
+//
+//        return null;
+//    }
+//
+//
+//    public Object getDocumentIdProofAddress(LendingApplication lendingApplication) {
+//        try {
+//
+//            DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.getAadharAddress(lendingApplication.getId());
+//            logger.error("check for getDocumentIdProofAddress :{}", docKycDetails);
+//            if (Objects.nonNull(docKycDetails)) {
+//                Map<String, Object> docAddress = new HashMap<>();
+//
+//                docAddress.put("pincode", docKycDetails.getPincode());
+//                docAddress.put("city", docKycDetails.getCity());
+//                docAddress.put("state", docKycDetails.getState());
+//                docAddress.put("address", docKycDetails.getAddress());
+//                docAddress.put("lat", docKycDetails.getDocumentsIdProof().getLatitude());
+//                docAddress.put("long", docKycDetails.getDocumentsIdProof().getLongitude());
+//
+//                return docAddress;
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Error while sending DocumentIdProof to fos App for Application Id: {} Error: {}", lendingApplication.getId(), ex);
+//        }
+//        return null;
+//    }
+//
+//    public Object getMerchantInferredAddress(LendingApplication lendingApplication) {
+//        try {
+//            MerchantInferredLocationSlave merchantInferredLocation = merchantInferredLocationDaoSlave.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
+//
+//            if (Objects.nonNull(merchantInferredLocation)) {
+//                Map<String, Object> lendingAddress = new HashMap<>();
+//
+//                String address = Objects.isNull(merchantInferredLocation.getAddress()) ? "" : merchantInferredLocation.getAddress() + ", ";
+//                address += Objects.isNull(merchantInferredLocation.getCity()) ? "" : merchantInferredLocation.getCity() + ", ";
+//                address += Objects.isNull(merchantInferredLocation.getState()) ? "" : merchantInferredLocation.getState() + ", ";
+//
+//                lendingAddress.put("address", address);
+//                lendingAddress.put("initial_lat", merchantInferredLocation.getIntialLatitude());
+//                lendingAddress.put("initial_long", merchantInferredLocation.getIntialLongitude());
+//                lendingAddress.put("inferred_lat", merchantInferredLocation.getInferredLatitude());
+//                lendingAddress.put("inferred_long", merchantInferredLocation.getInferredLongitude());
+////                lendingAddress.put("pincode", merchantInferredLocation.getPincode());
+//
+//                return lendingAddress;
+//            }
+//        } catch (Exception ex) {
+//            logger.error("Error while sending DocumentIdProof to fos App for Application Id: {} Error: {}", lendingApplication.getId(), ex);
+//        }
+//        return null;
+//    }
 
     public FosResponseDTO getFosSalaryAttribution(FosAttributionRequestDTO request) {
         logger.info("FOS salary attribution request:{}", request);

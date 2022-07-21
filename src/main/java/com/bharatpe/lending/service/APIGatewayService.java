@@ -1094,7 +1094,7 @@ public class APIGatewayService {
                 return responseEntity.getBody();
             }
         } catch (Exception e) {
-            logger.error("Exception while initiating enach for merchant:{}", requestDTO.getMerchantId(), e);
+            logger.error("Exception while initiating enach for merchant:{} {}", requestDTO.getMerchantId(), e.getMessage());
         }
         return null;
     }

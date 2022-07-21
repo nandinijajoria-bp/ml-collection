@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -158,9 +159,12 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute BasicDetailsDto merchant) {
-		logger.info("merchantLoans request merchant_id: {}", merchant.getId());
-		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchant.getId());
+	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestParam(required = false) Long merchantId) {
+		if (!ObjectUtils.isEmpty(merchant)){
+			merchantId = merchant.getId();
+		}
+		logger.info("merchantLoans request merchant_id: {}", merchantId);
+		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchantId);
 		logger.info("merchantLoans response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
