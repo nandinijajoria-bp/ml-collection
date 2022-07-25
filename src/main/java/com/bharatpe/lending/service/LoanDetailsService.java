@@ -9,6 +9,7 @@ import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
@@ -16,6 +17,7 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
@@ -26,10 +28,8 @@ import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingD
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
-import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
-import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.common.slave.entity.SettlementSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -152,7 +152,7 @@ public class LoanDetailsService {
 	EnachHandler enachHandler;
 
 	@Autowired
-	PhonebookDaoSlave phonebookDaoSlave;
+	PhonebookHandler phonebookHandler;
 
 	@Autowired
 	EnachErrorHandingService enachErrorHandingService;
@@ -509,8 +509,8 @@ public class LoanDetailsService {
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchantBasicDetailsDto.getId());
 				boolean syncContacts = false;
-				Optional<PhonebookSlave> phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantBasicDetailsDto.getId());
-				if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
+				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
+				if (phonebook.isEmpty()) {
 					logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
 					syncContacts = true;
 				}
@@ -545,8 +545,8 @@ public class LoanDetailsService {
 //			boolean retry = shouldRetry(lendingApplication);
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
-				Optional<PhonebookSlave> phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantBasicDetailsDto.getId());
-				if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
+				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
+				if (phonebook.isEmpty()) {
 					logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
 					syncContacts = true;
 				}

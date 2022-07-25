@@ -1,12 +1,12 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dao.CrmBulkContactsDao;
+import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.CrmBulkContacts;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
-import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.opencsv.CSVWriter;
@@ -41,7 +41,7 @@ public class CrmBulkContactsService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    PhonebookDaoSlave phonebookDaoSlave;
+    PhonebookHandler phonebookHandler;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
@@ -88,7 +88,7 @@ public class CrmBulkContactsService {
                     }
 //                    Merchant merchant = merchantDao.findByMobile(contact);
                     Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetailsByMobile(contact);
-                    if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                    if (!basicDetailsDto.isPresent()) {
                         emptyPhoneBookData.add(new String[]{contact, "invalid merchant"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
@@ -99,39 +99,20 @@ public class CrmBulkContactsService {
 //                        readLine = bulkContactFileReader.readLine();
 //                        continue;
 //                    }
-                    PhonebookSlave phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByContactsCountDesc(basicDetailsDto.get().getId());
-                    if (ObjectUtils.isEmpty(phonebook)) {
+                    List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(basicDetailsDto.get().getId());
+                    if (phonebook.isEmpty()) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
                     }
                     String contactFileName = "/tmp/" + contact + "-" + requestId + ".csv";
-                    if (phonebook.getContactsCount() > 50) {
-                        String phoneBookS3Url = phonebook.getS3URL();
-                        InputStream contactDataFileInputStream = s3BucketHandler.getObject(phoneBookS3Url.substring(phoneBookS3Url.lastIndexOf("/") + 1), bucketName, contactBucketRegion);
-                        File contactDataFile = new File(contactFileName);
-                        ZipEntry zipEntry = new ZipEntry(contactDataFile.getName());
-                        zos.putNextEntry(zipEntry);
-                        byte[] bytes = new byte[1024];
-                        int length;
-                        while ((length = contactDataFileInputStream.read(bytes)) >= 0) {
-                            zos.write(bytes, 0, length);
-                        }
-                        contactDataFileInputStream.close();
-                        count++;
-                        readLine = bulkContactFileReader.readLine();
-                        continue;
-
-                    } else {
-                        String outputPath = mergeContacts(basicDetailsDto.get().getId(), contactFileName);
-                        if (outputPath!=null) {
-                            addToZip(contact + "-" + requestId + ".csv", zos,outputPath);
-                            count++;
-                            readLine = bulkContactFileReader.readLine();
-                            continue;
-                        }
-                    }
+                    writeContactsToCSV(basicDetailsDto.get().getId(), contactFileName, phonebook);
+                    File contactDataFile = new File(contactFileName);
+                    ZipEntry zipEntry = new ZipEntry(contactDataFile.getName());
+                    addToZip(contact + "-" + requestId + ".csv", zos, contactFileName);
                     count++;
+                    readLine = bulkContactFileReader.readLine();
+                    continue;
                 } catch (Exception e) {
                     logger.info("Exception occured while processing {}", readLine);
                 }
@@ -162,51 +143,72 @@ public class CrmBulkContactsService {
         crmBulkContacts.get().setStatus(CrmBulkContactsResponseStatus.FAILED.name());
         crmBulkContactsDao.save(crmBulkContacts.get());
     }
-    public String mergeContacts (Long merchantId, String mergedContactsFileName) throws IOException {
+
+//    public String mergeContacts (Long merchantId, String mergedContactsFileName) throws IOException {
+//        try {
+//            Map<String, String> lookUp = new HashMap<>();
+//            File mergedContactsFile = new File(mergedContactsFileName);
+//            FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
+//            CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
+//            mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
+//            Pageable pageable = PageRequest.of(0, 10);
+//            List<PhonebookSlave> phonebookList = phonebookDaoSlave.getPhonebookByMerchantIdOrderByContactsCountDesc(merchantId, pageable);
+//            int contactCount = 0;
+//            for (PhonebookSlave phonebook : phonebookList) {
+//                String phoneBookS3Url = phonebook.getS3URL();
+//                InputStream contactDataFileInputStream = s3BucketHandler.getObject(phoneBookS3Url.substring(phoneBookS3Url.lastIndexOf("/") + 1),
+//                bucketName, contactBucketRegion);
+//                BufferedReader contactFile = new BufferedReader(new InputStreamReader(contactDataFileInputStream));
+//                String readLine = contactFile.readLine();
+//                int count = 0;
+//                if (contactCount >= 50) {
+//                    break;
+//                }
+//                while (Objects.nonNull(readLine)) {
+//                    if (count == 0) {
+//                        count++;
+//                        readLine = contactFile.readLine();
+//                        continue;
+//                    }
+//                    String[] record = readLine.split(",");
+//                    if (record.length < 2) {
+//                        count++;
+//                        readLine = contactFile.readLine();
+//                        continue;
+//                    }
+//                    String name = record[0];
+//                    String mobile = record[1];
+//                    if (!lookUp.containsKey(mobile)) {
+//                        lookUp.put(mobile, name);
+//                        mergedContactsCsvWriter.writeNext(new String[]{name, mobile});
+//                        contactCount++;
+//                    }
+//                    readLine = contactFile.readLine();
+//                }
+//            }
+//            mergedContactsCsvWriter.close();
+//            return mergedContactsFileName;
+//        } catch (Exception e) {
+//            logger.error("Exception occurred while merging process {}", Arrays.asList(e.getStackTrace()));
+//        }
+//        return null;
+//    }
+
+    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<PhonebookDTO> phonebook) {
         try {
-            Map<String, String> lookUp = new HashMap<>();
-            File mergedContactsFile = new File(mergedContactsFileName);
+            File mergedContactsFile = new File(contactsFileName);
             FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
             mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
-            Pageable pageable = PageRequest.of(0, 10);
-            List<PhonebookSlave> phonebookList = phonebookDaoSlave.getPhonebookByMerchantIdOrderByContactsCountDesc(merchantId, pageable);
-            int contactCount = 0;
-            for (PhonebookSlave phonebook : phonebookList) {
-                String phoneBookS3Url = phonebook.getS3URL();
-                InputStream contactDataFileInputStream = s3BucketHandler.getObject(phoneBookS3Url.substring(phoneBookS3Url.lastIndexOf("/") + 1), bucketName, contactBucketRegion);
-                BufferedReader contactFile = new BufferedReader(new InputStreamReader(contactDataFileInputStream));
-                String readLine = contactFile.readLine();
-                int count = 0;
-                if (contactCount >= 50) {
-                    break;
-                }
-                while (Objects.nonNull(readLine)) {
-                    if (count == 0) {
-                        count++;
-                        readLine = contactFile.readLine();
-                        continue;
-                    }
-                    String[] record = readLine.split(",");
-                    if (record.length < 2) {
-                        count++;
-                        readLine = contactFile.readLine();
-                        continue;
-                    }
-                    String name = record[0];
-                    String mobile = record[1];
-                    if (!lookUp.containsKey(mobile)) {
-                        lookUp.put(mobile, name);
-                        mergedContactsCsvWriter.writeNext(new String[]{name, mobile});
-                        contactCount++;
-                    }
-                    readLine = contactFile.readLine();
-                }
+
+            for (PhonebookDTO phonebookDTO : phonebook) {
+                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getName(), phonebookDTO.getPhoneNumber()});
             }
+
             mergedContactsCsvWriter.close();
-            return mergedContactsFileName;
+            return contactsFileName;
         } catch (Exception e) {
-            logger.error("Exception occurred while merging process {}", Arrays.asList(e.getStackTrace()));
+            logger.error("Exception occurred while merging process for merchantId : {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

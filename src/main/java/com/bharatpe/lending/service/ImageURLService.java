@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
@@ -11,14 +12,13 @@ import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
-import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,7 @@ public class ImageURLService {
 	LendingResubmitTaskDao lendingResubmitTaskDao;
 
 	@Autowired
-	PhonebookDaoSlave phonebookDaoSlave;
+	PhonebookHandler phonebookHandler;
 
 	@Autowired
 	RedisNotificationService redisNotificationService;
@@ -100,8 +100,8 @@ public class ImageURLService {
 		}
 		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
 		if (finalCall) {
-			Optional<PhonebookSlave> phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-			if (!phonebook.isPresent() || phonebook.get().getContactsCount() == null) {
+			List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchant.getId());
+			if (phonebook.isEmpty()) {
 				logger.info("Contacts not synced for merchant:{}", merchant.getId());
 				result.put("success", false);
 				result.put("message", "CONTACTS_NOT_SYNCED");

@@ -4,14 +4,14 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Handler.PhonebookHandler;
+import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.PhonebookDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
-import com.bharatpe.lending.common.slave.entity.PhonebookSlave;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -89,7 +89,7 @@ public class MerchantLoansService {
     LendingIoHalfTopupDao lendingIoHalfTopupDao;
 
     @Autowired
-    PhonebookDaoSlave phonebookDaoSlave;
+    PhonebookHandler phonebookHandler;
 
     @Autowired
     S3BucketHandler s3BucketHandler;
@@ -251,49 +251,62 @@ public class MerchantLoansService {
                 return false;
             }
 
-            Optional<PhonebookSlave> phonebook = phonebookDaoSlave.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchantId());
-            if (!phonebook.isPresent()) {
+            List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(lendingPaymentSchedule.getMerchantId());
+            if (phonebook.isEmpty()) {
                 return true;
             }
-            if (LoanUtil.getDateDiffInDays(phonebook.get().getUpdatedAt(), new Date()) > 60) {
-                return true;
-            }
+//            if (LoanUtil.getDateDiffInDays(phonebook.get().getUpdatedAt(), new Date()) > 60) {
+//                return true;
+//            }
             if (Objects.isNull(lendingContactSyncAudit)) {
                 lendingContactSyncAudit = new LendingContactSyncAudit();
                 lendingContactSyncAudit.setMerchantId(lendingPaymentSchedule.getMerchantId());
             }
-            String[] s3Url = phonebook.get().getS3URL().split("/");
-            String fileName = s3Url[s3Url.length - 1];
-            logger.info("Filename for loanId: {}, {}", lendingPaymentSchedule.getId(), fileName);
+//            String[] s3Url = phonebook.get().getS3URL().split("/");
+//            String fileName = s3Url[s3Url.length - 1];
+//            logger.info("Filename for loanId: {}, {}", lendingPaymentSchedule.getId(), fileName);
             Long totalEntries = 0l, nameEntries = 0l, mobileEntries = 0l;
             try {
-                InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook", "us-west-2");
-                if (ObjectUtils.isEmpty(inputStream)) {
-                    return true;
-                }
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                String readLine = bufferedReader.readLine();
-                readLine = bufferedReader.readLine();
-                while (Objects.nonNull(readLine)) {
+//                InputStream inputStream = s3BucketHandler.getObject(fileName, "merchant-phonebook", "us-west-2");
+//                if (ObjectUtils.isEmpty(inputStream)) {
+//                    return true;
+//                }
+//                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+//                String readLine = bufferedReader.readLine();
+//                readLine = bufferedReader.readLine();
+
+//                while (Objects.nonNull(readLine)) {
+//                    totalEntries++;
+//                    logger.info("phonebook for loan id : {}, readline: {}", lendingPaymentSchedule.getId(), readLine);
+//                    String[] arr = readLine.split(",");
+//                    String name = "";
+//                    if (arr.length >= 1) {
+//                        name = arr[0];
+//                    }
+//                    String mobile = "";
+//                    if (arr.length >= 2) {
+//                        mobile = arr[1];
+//                    }
+//                    if (!StringUtils.isEmpty(name)) {
+//                        nameEntries++;
+//                    }
+//                    if (!StringUtils.isEmpty(mobile)) {
+//                        mobileEntries++;
+//                    }
+//                    readLine = bufferedReader.readLine();
+//                }
+
+                for (PhonebookDTO phonebookDTO : phonebook) {
                     totalEntries++;
-                    logger.info("phonebook for loan id : {}, readline: {}", lendingPaymentSchedule.getId(), readLine);
-                    String[] arr = readLine.split(",");
-                    String name = "";
-                    if (arr.length >= 1) {
-                        name = arr[0];
-                    }
-                    String mobile = "";
-                    if (arr.length >= 2) {
-                        mobile = arr[1];
-                    }
-                    if (!StringUtils.isEmpty(name)) {
+                    if (!StringUtils.isEmpty(phonebookDTO.getName())) {
                         nameEntries++;
                     }
-                    if (!StringUtils.isEmpty(mobile)) {
+                    if (!StringUtils.isEmpty(phonebookDTO.getPhoneNumber())) {
                         mobileEntries++;
                     }
-                    readLine = bufferedReader.readLine();
                 }
+
+
                 lendingContactSyncAudit.setMobileEntries(mobileEntries);
                 lendingContactSyncAudit.setNameEntries(nameEntries);
                 lendingContactSyncAudit.setTotalEntries(totalEntries);
