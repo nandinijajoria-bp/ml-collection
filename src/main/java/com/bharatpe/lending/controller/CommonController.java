@@ -84,7 +84,7 @@ public class CommonController {
 		InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(clientName);
 		if (internalClient != null) {
 			logger.info("lending secret:{}", aesEncryptionUtil.decrypt(internalClient.getSecret()));
-			String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getNestedObject(requestMap), aesEncryptionUtil.decrypt(internalClient.getSecret()));
+			String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestMap), aesEncryptionUtil.decrypt(internalClient.getSecret()));
 			return new ResponseEntity<>(hash, HttpStatus.OK);
 		}
 		return null;

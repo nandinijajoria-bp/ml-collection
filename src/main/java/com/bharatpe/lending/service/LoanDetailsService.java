@@ -199,7 +199,8 @@ public class LoanDetailsService {
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp, String token) {
+	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
+												   String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
 		try {
 //			if(isMerchantFromCreditLine(merchantBasicDetailsDto)) {

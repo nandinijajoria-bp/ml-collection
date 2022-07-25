@@ -166,9 +166,6 @@ public class APIGatewayService {
     EnachHandler enachHandler;
 
     @Autowired
-    TokenVerificationDaoSlave tokenVerificationDaoSlave;
-
-    @Autowired
     LendingPennydropDao lendingPennydropDao;
 
     @Autowired
@@ -1008,20 +1005,23 @@ public class APIGatewayService {
         if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L) || merchantId.equals(4340760L) || merchantId.equals(2097359L) || merchantId.equals(7090157L) || merchantId.equals(5358374L)) {
             return "bharatpe://enachdigio";
         }
-        if (ObjectUtils.isEmpty(token)) {
-            TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(merchantId);
-            if (ObjectUtils.isEmpty(tokenVerification)) {
-                return null;
-            }
-            token = tokenVerification.getAccessToken();
-        }
+
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+            put("merchant_id", merchantId);
+        }};
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
-        headers.set("token", token);
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<String> request = new HttpEntity<>(headers);
+        headers.set("clientName", CLIENT);
+        headers.set("hash", hash);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+
+        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?merchant_id=" + merchantId;
+
         try {
-            logger.info("Enach provider request:{} for merchant:{}", request, merchantId);
-            ResponseEntity<Object> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL, HttpMethod.GET, request, Object.class);
+            logger.info("Enach provider url: {} request:{} for merchant:{}", url, request, merchantId);
+            ResponseEntity<Object> response = restTemplate.exchange(url, HttpMethod.GET, request, Object.class);
             logger.info("Enach provider response:{} for merchant:{}", response.getBody(), merchantId);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map<String, String> responseData = (Map<String, String>) ((Map<String, Object>) response.getBody()).get("data");
@@ -1532,22 +1532,25 @@ public class APIGatewayService {
     public boolean sendCommunicationForNewOffer(LendingPaymentSchedule activeLoan) {
         if ("CLOSED".equalsIgnoreCase(activeLoan.getStatus())) {
             logger.info("Checking loan offer from Lending for merchant:{}", activeLoan.getMerchantId());
-            TokenVerificationSlave tokenVerification = tokenVerificationDaoSlave.findByMerchantId(activeLoan.getMerchantId());
-            if (tokenVerification == null) {
-                logger.info("Token not found for merchant:{}", activeLoan.getMerchantId());
-                return false;
-            }
             try {
                 Map<String, Object> body = new HashMap<>();
                 body.putIfAbsent("meta", new HashMap<>());
                 body.putIfAbsent("payload", new HashMap<String, Object>() {
                 });
                 logger.info("Calling loan details api from Lending for merchant: {}", activeLoan.getMerchantId());
+
+                String payload = lendingHmacCalculator.getObjectPayload(body);
+                String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("token", tokenVerification.getAccessToken());
+                headers.set("clientName", CLIENT);
+                headers.set("hash", hash);
                 HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-                ResponseEntity<LoanDetailsResponseDTO> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("loan.details.url")), HttpMethod.POST, request, LoanDetailsResponseDTO.class);
+
+                String url = Objects.requireNonNull(env.getProperty("loan.details.url"));
+                url = url + "?merchantId=" + activeLoan.getMerchantId();
+
+                ResponseEntity<LoanDetailsResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, LoanDetailsResponseDTO.class);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().getDetails() != null && responseEntity.getBody().getDetails().isEligible() && responseEntity.getBody().getDetails().getEligibility() != null && !responseEntity.getBody().getDetails().getEligibility().isEmpty()) {
                     logger.info("Eligibility found from Lending for merchant:{}", activeLoan.getMerchantId());
                     sendComm(activeLoan.getMerchantId(), responseEntity.getBody().getDetails().getEligibility().get(0).getAmount(), responseEntity.getBody().getDetails().getEligibility().get(0).getInterestRate());

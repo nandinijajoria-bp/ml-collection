@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -9,8 +10,12 @@ import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 @RestController
 @RequestMapping("lending")
@@ -20,9 +25,22 @@ public class LoanDetailsControllerV2 {
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
+    @Autowired
+    MerchantService merchantService;
+
     @PostMapping(value = "/loanDetails/v2", produces="application/json")
-    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant,
-                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest){
+    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader(value = "token", required = false) String token, @RequestAttribute(required = false) BasicDetailsDto merchant,
+                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest, @RequestParam(required = false) Long merchantId){
+
+        if (ObjectUtils.isEmpty(merchant)) {
+            final Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+            if (basicDetailsDto.isPresent())
+                merchant = basicDetailsDto.get();
+            else {
+                return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
+            }
+        }
+
         log.info("loan details v2 request:{} for merchant:{}", loanDetailsRequest, merchant.getId());
         ApiResponse<?> response;
         try {
