@@ -11,14 +11,13 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
@@ -95,9 +94,6 @@ public class LoanUtil {
 
 	@Autowired
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
-
-	@Autowired
-	BankListDaoSlave bankListDaoSlave;
 
 	@Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
@@ -773,8 +769,8 @@ public class LoanUtil {
 		return ntcCategories.contains(experian.getCategory());
 	}
 
-	public List<BankListSlave> getEnachBanks() {
-		return bankListDaoSlave.findNachBankList();
+	public List<NachableBanksDTO> getEnachBanks() {
+		return enachHandler.getEnachBankList();
 	}
 
 	public static Date loanRejectionDate(LendingApplication lendingApplication) {

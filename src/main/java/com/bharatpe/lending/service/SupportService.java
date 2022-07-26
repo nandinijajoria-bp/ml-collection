@@ -8,9 +8,11 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.Constants.SupportApiConstants;
+import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
+import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
@@ -18,8 +20,6 @@ import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.BankListDaoSlave;
-import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -131,7 +131,7 @@ public class SupportService {
     LoanDpdDao loanDpdDao;
 
     @Autowired
-    BankListDaoSlave bankListDaoSlave;
+    EnachHandler enachHandler;
 
     @Autowired
     MerchantLoansService merchantLoansService;
@@ -178,7 +178,7 @@ public class SupportService {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
-            List<BankListSlave> nachableBanks = bankListDaoSlave.findNachBankList();
+            List<NachableBanksDTO> nachableBanks = enachHandler.getEnachBankList();
 
             SupportApiResponseDto supportApiResponseDto = new SupportApiResponseDto();
             supportApiResponseDto.setMerchantId(merchantId);

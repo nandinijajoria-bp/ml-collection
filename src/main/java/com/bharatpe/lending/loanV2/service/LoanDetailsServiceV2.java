@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
@@ -738,7 +739,7 @@ public class LoanDetailsServiceV2 {
 //    }
 
     public ApiResponse<?> getEnachBanks() {
-        List<BankListSlave> enachBanks = loanUtil.getEnachBanks();
+        List<NachableBanksDTO> enachBanks = loanUtil.getEnachBanks();
         if (enachBanks.isEmpty()) {
             return new ApiResponse<>(false, "No Bank Found");
         }

@@ -2,6 +2,7 @@ package com.bharatpe.lending.dto;
 
 import com.bharatpe.common.entities.BankList;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import lombok.Data;
 
@@ -49,5 +50,5 @@ public class SupportApiResponseDto {
 
     //additional Params
     List<LendingPaymentSchedule> closedLoans;
-    List<BankListSlave> nachableBanks;
+    List<NachableBanksDTO> nachableBanks;
 }
