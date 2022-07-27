@@ -31,10 +31,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.math.BigInteger;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -111,8 +109,11 @@ public class MerchantLoansService {
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
     @Autowired
     MerchantService merchantService;
+
+    private final DecimalFormat df = new DecimalFormat("#.##");
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -142,10 +143,109 @@ public class MerchantLoansService {
     private List<LendingPaymentScheduleSlave> fetchLendingPaymentScheduleSlave(Long merchantId, Long merchantStoreId, String status) {
         if (merchantStoreId != null) {
             return lendingPaymentScheduleDaoSlave.findByMerchantIdAndMerchantStoreIdAndStatus(merchantId, merchantStoreId,
-                    status);
+              status);
         }
         return lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(merchantId, status);
     }
+
+    public LendingPaymentScheduleStatusDTO firstLoanStatus(Long merchantId, Long merchantStoreId) {
+        final LendingPaymentScheduleSlave loan =
+          lendingPaymentScheduleDaoSlave.findTop1ByMerchantIdAndMerchantStoreId(merchantId, merchantStoreId);
+
+        if (Objects.nonNull(loan))
+            return LendingPaymentScheduleStatusDTO.builder().id(loan.getId()).status(loan.getStatus()).build();
+
+        return null;
+    }
+
+    public LendingPaymentScheduleStatusDTO checkLoanStatus(Long merchantId, Long merchantStoreId) {
+        LendingPaymentScheduleSlave loan;
+        if (merchantStoreId != null) {
+            loan = lendingPaymentScheduleDaoSlave.findTop1ByMerchantIdAndMerchantStoreId(merchantId, merchantStoreId);
+        } else {
+            loan = lendingPaymentScheduleDaoSlave.findTop1ByMerchantId(merchantId);
+        }
+
+        if (Objects.nonNull(loan))
+            return LendingPaymentScheduleStatusDTO.builder().id(loan.getId()).status(loan.getStatus()).build();
+
+        return null;
+    }
+
+    public List<LoansHistoryResponseDTO> getLoansHistory(Long merchantId, Long merchantStoreId) {
+        final List<LendingPaymentScheduleSlave> loans =
+          lendingPaymentScheduleDaoSlave.findByMerchantIdAndMerchantStoreId(merchantId, merchantStoreId);
+
+        List<LoansHistoryResponseDTO> loansHistory = new ArrayList<>();
+
+        for (LendingPaymentScheduleSlave loan : loans) {
+            loansHistory.add(createLoanHistoryDTO(loan));
+        }
+
+        return loansHistory;
+    }
+
+    public LoanDetailsAndStatementDTO getLoanDetailsAndStatement(Long merchantId, Long merchantStoreId) {
+        return LoanDetailsAndStatementDTO.builder()
+          .loanDetails(getActiveLoanDetails(merchantId, merchantStoreId))
+          .loanStatement(getLoanStatement(merchantId, merchantStoreId)).build();
+    }
+
+    private LendingPaymentScheduleDetailsDTO getActiveLoanDetails(Long merchantId, Long merchantStoreId) {
+        final LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findTop1ByMerchantIdAndMerchantStoreIdAndStatusOrderByIdDesc(merchantId,
+          merchantStoreId, "ACTIVE");
+
+        if (Objects.nonNull(activeLoan))
+            return LendingPaymentScheduleDetailsDTO.builder()
+              .loanId(activeLoan.getId())
+              .loanAmount(activeLoan.getLoanAmount())
+              .paidAmount(activeLoan.getPaidAmount())
+              .totalPayableAmount(activeLoan.getTotalPayableAmount())
+              .ediAmount(activeLoan.getEdiAmount())
+              .ediCount(activeLoan.getEdiCount())
+              .build();
+
+        return null;
+    }
+
+    private List<LendingPaymentScheduleDaoSlave.LoanStatementDTO> getLoanStatement(Long merchantId, Long merchantStoreId) {
+        return lendingPaymentScheduleDaoSlave.getLoanStatement(merchantId,
+          merchantStoreId);
+    }
+
+    private LoansHistoryResponseDTO createLoanHistoryDTO(LendingPaymentScheduleSlave lendingPaymentScheduleSlave) {
+        Float tenure = getTenure(lendingPaymentScheduleSlave.getEdiCount());
+        Double interestRate =  calculateInterestRate(lendingPaymentScheduleSlave, tenure);
+
+        return LoansHistoryResponseDTO.builder()
+          .loanId(lendingPaymentScheduleSlave.getId())
+          .loanAmount(lendingPaymentScheduleSlave.getLoanAmount())
+          .status(lendingPaymentScheduleSlave.getStatus())
+          .startDate(lendingPaymentScheduleSlave.getStartDate())
+          .closingDate(lendingPaymentScheduleSlave.getClosingDate())
+          .tentativeClosingDate(lendingPaymentScheduleSlave.getTentativeClosingDate())
+          .interestRate(interestRate)
+          .tenure(tenure)
+          .build();
+    }
+
+    private Float getTenure(Integer ediCount) {
+        final LendingCategories lendingCategory = lendingCategoryDao.findTop1ByPayableDays(ediCount);
+        if (Objects.nonNull(lendingCategory))
+            return lendingCategory.getTenureMonths();
+
+        return null;
+    }
+
+    private Double calculateInterestRate(LendingPaymentScheduleSlave lendingPaymentScheduleSlave, Float tenure) {
+        Double interestRate = null;
+        if (Objects.nonNull(tenure) & tenure > 0) {
+            interestRate = (((lendingPaymentScheduleSlave.getTotalPayableAmount()/lendingPaymentScheduleSlave.getLoanAmount()) - 1) / tenure) * 100;
+            interestRate = Double.valueOf(df.format(interestRate));
+        }
+        return interestRate;
+    }
+
 
     public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();

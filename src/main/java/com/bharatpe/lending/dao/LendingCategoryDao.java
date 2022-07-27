@@ -27,4 +27,6 @@ public interface LendingCategoryDao extends CrudRepository<LendingCategories, Lo
 
 	@Query(value = "select l from LendingCategories l where l.masterCategory=?1 and l.payableDays=?2 and l.status='ACTIVE'")
 	LendingCategories getByMasterCategoryAndPayableDays(String masterCategory, int payableDays);
+
+	LendingCategories findTop1ByPayableDays(Integer ediCount);
 }

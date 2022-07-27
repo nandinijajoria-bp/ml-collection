@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.*;
 
 import org.slf4j.Logger;
@@ -129,6 +130,46 @@ public class LoanDetailsController {
 				requestMerchantStoreId);
 		return new ResponseEntity<>(merchantLoansService.getActiveLoans(requestMerchantId, requestMerchantStoreId), HttpStatus.OK);
 
+	}
+
+	@RequestMapping(value = "/first_loan_status", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<?> firstLoanStatus(
+	@RequestParam(name = "merchant_id") Long requestMerchantId,
+	@RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
+		logger.info("first_loan_status request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
+		requestMerchantStoreId);
+		return new ResponseEntity<>(new ApiResponse<>(merchantLoansService.firstLoanStatus(requestMerchantId, requestMerchantStoreId)),
+		HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/check_loan_status", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<?> checkLoanStatus(
+	@RequestParam(name = "merchant_id") Long requestMerchantId,
+	@RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
+		logger.info("check_loan_status request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
+		requestMerchantStoreId);
+		return new ResponseEntity<>(new ApiResponse<>(merchantLoansService.checkLoanStatus(requestMerchantId, requestMerchantStoreId)),
+		HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/loan_history", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<?> loanHistory(
+	@RequestParam(name = "merchant_id") Long requestMerchantId,
+	@RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
+		logger.info("check_loan_status request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
+		requestMerchantStoreId);
+		return new ResponseEntity<>(new ApiResponse<>(merchantLoansService.getLoansHistory(requestMerchantId, requestMerchantStoreId)),
+		HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/loan_statement", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<?> getLoanDetailsAndStatement(
+	@RequestParam(name = "merchant_id") Long requestMerchantId,
+	@RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {
+		logger.info("getLoanDetailsAndSatement request with merchant_id : {}, merchant_store_id: {}", requestMerchantId,
+		requestMerchantStoreId);
+		return new ResponseEntity<>(new ApiResponse<>(merchantLoansService.getLoanDetailsAndStatement(requestMerchantId, requestMerchantStoreId)),
+		HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/get_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
