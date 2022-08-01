@@ -27,7 +27,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
-import com.bharatpe.lending.common.slave.dao.MerchantDocumentProofDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
 import com.bharatpe.lending.common.slave.entity.SettlementSlave;
@@ -41,6 +40,7 @@ import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -142,8 +142,8 @@ public class LoanDetailsService {
 	@Autowired
 	LendingBharatswipeOffersDao lendingBharatswipeOffersDao;
 
-	@Autowired
-	MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
+//	@Autowired
+//	MerchantDocumentProofDaoSlave merchantDocumentProofDaoSlave;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -194,6 +194,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	SupportService supportService;
+
+	@Autowired
+	KycHandler kycHandler;
 //	@Transactional
 
 
@@ -686,10 +689,11 @@ public class LoanDetailsService {
 			boolean hasExperian;
 			if (panCard == null && pincode == null) {
 				hasExperian = false;
-				MerchantDocumentProofSlave merchantDocumentProof = merchantDocumentProofDaoSlave.findVerifiedProofType(merchantBasicDetailsDto.getId(), "pancard");
-				if (merchantDocumentProof != null && merchantDocumentProof.getProofNumber() != null) {
-					panCard = merchantDocumentProof.getProofNumber();
-				}
+//				MerchantDocumentProofSlave merchantDocumentProof = merchantDocumentProofDaoSlave.findVerifiedProofType(merchantBasicDetailsDto.getId(), "pancard");
+//				if (merchantDocumentProof != null && merchantDocumentProof.getProofNumber() != null) {
+//					panCard = merchantDocumentProof.getProofNumber();
+//				}
+				panCard = kycHandler.getPanNumber(merchantBasicDetailsDto.getId());
 				pincode = fetchPincode(merchantBasicDetailsDto.getId());
 			} else {
 				hasExperian = true;

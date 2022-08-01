@@ -51,9 +51,6 @@ public class LendingApplicationController {
 	CallLoanDetailService callLoanDetailService;
 
 	@Autowired
-	AdhaarMaskService adhaarMaskService;
-
-	@Autowired
 	LendingEdiScheduleService lendingEdiScheduleService;
 
 	@Autowired
@@ -62,31 +59,31 @@ public class LendingApplicationController {
 	@Autowired
 	LendingCache lendingCache;
 	
-	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public LendingApplicationResponseDTO createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
-		
-		if(requestDTO.getPayload() != null && requestDTO.getPayload().getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
-			logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
-			LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
-			lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
-			lendingApplicationResponse.setMessage(LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
-			lendingApplicationResponse.setSuccess(false);
-			return lendingApplicationResponse;
-		}
-		
-		logger.info("Create Application request : {} for merchant:{}",requestDTO, merchant.getId());
-		if(requestDTO.getPayload() == null) {
-			logger.info("Invalid request parameters : {}", requestDTO);
-			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			return null;
-		}
-		requestDTO.getMeta().setIp(clientIp);
-		LendingApplicationResponseDTO lendingApplicationResponse = lendingApplicationService.createApplication(merchant, requestDTO);
-		logger.info("Create Application response : {}", lendingApplicationResponse);
-		lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
-		lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
-		return lendingApplicationResponse;
-	}
+//	@RequestMapping(value="/createApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
+//	public LendingApplicationResponseDTO createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, HttpServletResponse response, @RequestBody RequestDTO<LendingApplicationRequestDTO> requestDTO) {
+//
+//		if(requestDTO.getPayload() != null && requestDTO.getPayload().getPincode() != null && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)requestDTO.getPayload().getPincode())) {
+//			logger.info("This loan request was raised from the location whose pin code is not eligible for the loan");
+//			LendingApplicationResponseDTO lendingApplicationResponse=new LendingApplicationResponseDTO();
+//			lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_OGL_CODE);
+//			lendingApplicationResponse.setMessage(LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
+//			lendingApplicationResponse.setSuccess(false);
+//			return lendingApplicationResponse;
+//		}
+//
+//		logger.info("Create Application request : {} for merchant:{}",requestDTO, merchant.getId());
+//		if(requestDTO.getPayload() == null) {
+//			logger.info("Invalid request parameters : {}", requestDTO);
+//			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
+//			return null;
+//		}
+//		requestDTO.getMeta().setIp(clientIp);
+//		LendingApplicationResponseDTO lendingApplicationResponse = lendingApplicationService.createApplication(merchant, requestDTO);
+//		logger.info("Create Application response : {}", lendingApplicationResponse);
+//		lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
+//		lendingApplicationResponse.setCode(LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
+//		return lendingApplicationResponse;
+//	}
 
 	@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public UploadDocumentResponseDTO uploadDocument(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp,
