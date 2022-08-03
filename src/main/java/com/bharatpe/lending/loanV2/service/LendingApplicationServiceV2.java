@@ -564,7 +564,7 @@ public class LendingApplicationServiceV2 {
             applicationLoanDetailsDTO.setTenure(lendingApplication.getTenure());
             applicationLoanDetailsDTO.setInterestRate(lendingApplication.getInterestRate());
             applicationLoanDetailsDTO.setEdiAmount(lendingApplication.getEdi());
-            applicationLoanDetailsDTO.setArrangerFee(LoanCalculationUtil.getProcessingFee(lendingApplication.getLoanAmount(), lendingCategories));
+            applicationLoanDetailsDTO.setArrangerFee(lendingApplication.getProcessingFee().intValue());
             String modalType = null;
             if (isLowPriority && showOrderQr && ("NTB".equals(lendingApplication.getLoanType()) || "NTB_SMS_1".equals(lendingApplication.getLoanType()))) {
                 modalType = "QR";
@@ -593,6 +593,7 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setStatus("APPROVED");
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
+                applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
                 dateDTO.setDay(lendingApplication.getAgreementAt().toString());
                 dateDTO.setTime(lendingApplication.getAgreementAt().toString());
@@ -602,6 +603,7 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setStatus(successEnach.getStatus());
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
+                applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
                 dateDTO.setDay(getDateInFormat(successEnach.getCreatedAt()));
                 dateDTO.setTime(getDateInFormat(successEnach.getCreatedAt()));
@@ -648,6 +650,7 @@ public class LendingApplicationServiceV2 {
             ApplicationDTO kycDTO = new ApplicationDTO();
             kycDTO.setText("KYC Verification");
             kycDTO.setDisabled(enachMandatory);
+            kycDTO.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
             kycDTO.setStatus(lendingApplication.getCkycStatus());
             kycDTO.setComment(lendingApplication.getCkycRejectionReason());
             if (lendingApplication.getCkycDate() != null) {
@@ -658,9 +661,11 @@ public class LendingApplicationServiceV2 {
             ApplicationDTO applicationDTO3 = new ApplicationDTO();
             applicationDTO3.setText("Document Verification");
             applicationDTO3.setDisabled(enachMandatory);
+            applicationDTO3.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
             if (kycStatus.equalsIgnoreCase("APPROVED") || kycStatus.equalsIgnoreCase("REJECTED")) {
                 applicationDTO3.setDisabled(false);
             }
+            applicationDTO3.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
             applicationDTO3.setStatus(kycStatus);
             if (kycComment != null && kycComment.equals("eNACH Failure")) {
                 applicationDTO3.setComment("Your application is rejected due to enach failure");
@@ -744,6 +749,17 @@ public class LendingApplicationServiceV2 {
                 applicationLoanDetailsDTO.setStatus(applicationDTO5.getStatus());
                 applicationDTO.add(applicationDTO5);
             }
+            if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
+                ApplicationDTO rejectionDTO = new ApplicationDTO();
+                rejectionDTO.setText("Application Rejected");
+                rejectionDTO.setDisabled(!"rejected".equalsIgnoreCase(lendingApplication.getStatus()));
+                rejectionDTO.setStatus("REJECTED");
+                rejectionDTO.setComment(lendingApplication.getCkycRejectionReason());
+                if (lendingApplication.getCkycDate() != null) {
+                    rejectionDTO.setDateDTO(new ApplicationDTO.DateDTO(lendingApplication.getUpdatedAt()));
+                }
+                applicationDTO.add(rejectionDTO);
+            }
 
             if (!"rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
                 ApplicationDTO applicationDTO6 = new ApplicationDTO();
@@ -768,26 +784,34 @@ public class LendingApplicationServiceV2 {
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(kycStatus)) {
                 headerDTO.setTitle("Document Verification Failed");
                 String rejectionMessage;
+                String rejectionReason;
                 if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getManualCibil())) {
                     rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getManualCibilReason(), RejectionStage.CIBIL);
+                    rejectionReason = Objects.nonNull(lendingApplication.getManualCibilReason()) ? lendingApplication.getManualCibilReason() : null;
                 } else {
                     rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getManualKycReason(), RejectionStage.KYC);
+                    rejectionReason = Objects.nonNull(lendingApplication.getManualKycReason()) ? lendingApplication.getManualKycReason() : null;
                 }
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
                 headerDTO.setComment(rejectionMessage);
+                applicationStatusResponseDTO.setRejectionReason(rejectionReason);
             }  else if (KycStatus.REJECTED.name().equalsIgnoreCase(cpvStatus)) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
+                String rejectionReason = Objects.nonNull(lendingApplication.getPhysicalReason()) ? lendingApplication.getPhysicalReason() : null;
                 headerDTO.setTitle("Document Verification Failed");
                 headerDTO.setComment(rejectionMessage);
+                applicationStatusResponseDTO.setRejectionReason(rejectionReason);
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Failed");
                 headerDTO.setComment("You were unreachable on " + merchantBasicDetailsDto.getMobile());
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
+                String rejectionReason = Objects.nonNull(lendingApplication.getPhysicalReason()) ? lendingApplication.getPhysicalReason() : null;
                 headerDTO.setTitle("Document Verification Failed");
                 headerDTO.setComment(rejectionMessage);
+                applicationStatusResponseDTO.setRejectionReason(rejectionReason);
             } else if (KycStatus.PENDING.name().equalsIgnoreCase(kycStatus)) {
                 headerDTO.setTitle("Document Verification Pending");
                 headerDTO.setComment("We are reviewing your shop documents");
