@@ -51,4 +51,7 @@ public class SupportApiResponseDto {
     //additional Params
     List<LendingPaymentSchedule> closedLoans;
     List<NachableBanksDTO> nachableBanks;
+
+    String clubStatus;
+    String stageCommunication;
 }
