@@ -155,7 +155,7 @@ public class RefundService {
         return new CommonResponse(false, "Something went wrong");
     }
 
-    public CommonResponse processingFeeRefund(ProcessingFeeRequest processingFeeRequest){
+    public CommonResponse processingFeeRefund(ProcessingFeeRequest processingFeeRequest, Boolean callFromLMS){
         try{
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(processingFeeRequest.getLoanId(), processingFeeRequest.getMerchantId());
             if (lendingPaymentSchedule == null) {
@@ -172,7 +172,7 @@ public class RefundService {
                     logger.info("Already Processing Fee Refund For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
                 }
-                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule));
+                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule, callFromLMS));
 
             }else if(refundType.equalsIgnoreCase("CASHBACK")){
                 LendingPayoutResponseDTO lendingPayouts = lendingPayoutsHandler.findByMerchantIdAndOwnerIdForNachCashBack(lendingPaymentSchedule.getMerchantId(),

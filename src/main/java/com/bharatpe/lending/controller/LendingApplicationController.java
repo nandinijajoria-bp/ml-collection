@@ -223,9 +223,9 @@ public class LendingApplicationController {
 	}
 
 	@PostMapping(value = "/processing_fee_refund")
-	public ResponseEntity<CommonResponse> processingFeeRefund(@RequestBody ProcessingFeeRequest processingFeeRequest){
+	public ResponseEntity<CommonResponse> processingFeeRefund(@RequestBody ProcessingFeeRequest processingFeeRequest, @RequestParam(required = false) Boolean callFromLMS){
 		logger.info("Processing Fee Request:{}", processingFeeRequest);
-		CommonResponse response = refundService.processingFeeRefund(processingFeeRequest);
+		CommonResponse response = refundService.processingFeeRefund(processingFeeRequest, callFromLMS);
 		logger.info("Nach refund response:{}", response);
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
