@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -80,6 +81,16 @@ public class LoanDetailsControllerV2 {
     public ResponseEntity<ApiResponse<?>> getLoanAndCreditCardDetail(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
         ApiResponse<?> apiResponse= loanDetailsServiceV2.getLoanAndCreditCardDetail(merchant,commonAPIRequest);
         return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping(value = "/getLoanDashboardDetails")
+    public ResponseEntity<ApiResponse<?>> getDashboardDetails(@RequestAttribute(required = true) BasicDetailsDto merchant,
+                                                              @RequestParam Boolean isIOS) {
+        if(Objects.isNull(merchant)) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        return ResponseEntity.ok(loanDetailsServiceV2.getLoanDashboardDetails(merchant, isIOS));
     }
 }
 
