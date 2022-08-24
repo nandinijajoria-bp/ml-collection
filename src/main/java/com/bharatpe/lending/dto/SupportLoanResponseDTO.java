@@ -28,10 +28,9 @@ public class SupportLoanResponseDTO {
     private Boolean creditLineAccount;
     private LoanApplication loanApplication;
     private Eligibility eligibility;
-    private List<LoanDetailsDTO> loanDetailsList;
+    private List<Map<String, Object>> loanDetailsList;
     private LoanArrangerFee loanArrangerFee;
     private SupportApiResponseDto supportApiResponseDto;
-    private List<ApplicationDetailsDTO> applicationHistory;
 
     public Long getMerchantId() {
         return merchantId;
@@ -129,11 +128,11 @@ public class SupportLoanResponseDTO {
         this.nachMandatory = nachMandatory;
     }
 
-    public List<LoanDetailsDTO> getLoanDetailsList() {
+    public List<Map<String, Object>> getLoanDetailsList() {
         return loanDetailsList;
     }
 
-    public void setLoanDetailsList(List<LoanDetailsDTO> loanDetailsList) {
+    public void setLoanDetailsList(List<Map<String, Object>> loanDetailsList) {
         this.loanDetailsList = loanDetailsList;
     }
 
@@ -276,24 +275,6 @@ public class SupportLoanResponseDTO {
         private String tenure;
         private Double interestRate;
         private Double repayment;
-        private Date applicationRecvDate;
-        private Long applicationId;
-
-        public Date getApplicationRecvDate() {
-            return applicationRecvDate;
-        }
-
-        public void setApplicationRecvDate(Date applicationRecvDate) {
-            this.applicationRecvDate = applicationRecvDate;
-        }
-
-        public Long getApplicationId() {
-            return applicationId;
-        }
-
-        public void setApplicationId(Long applicationId) {
-            this.applicationId = applicationId;
-        }
 
         public Date getApplicationSubmittedDate() {
             return applicationSubmittedDate;

@@ -1,10 +1,6 @@
 package com.bharatpe.lending.controller;
 
-import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.service.FLDGReportService;
@@ -17,10 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpServletResponse;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -86,25 +78,6 @@ public class SupportLoanController {
     public ResponseDTO showBulkContacts(){
         logger.info("Fetching bulk contacts");
         return supportService.showBulkContacts();
-    }
-
-    @RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public Object cancelApplication(@RequestParam Long merchantId, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-        logger.info("cancelApplication request : {}",commonAPIRequest);
-        Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-        String reason = commonAPIRequest.getPayload().get("reason") != null ? commonAPIRequest.getPayload().get("reason").toString() : null;
-        if(applicationId == null || applicationId <=0) {
-            logger.info("CancelApplicationService invalid applicationId");
-            response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-            Map<String, Boolean> resp = new HashMap<>();
-            resp.put("success",false);
-            return resp;
-        }
-
-        Object resp = supportService.cancelApplication(merchantId, applicationId, reason);
-
-        logger.info("cancelApplication response : {}", resp);
-        return resp;
     }
 }
 

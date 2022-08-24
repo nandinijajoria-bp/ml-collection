@@ -17,8 +17,6 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.enums.RejectionStage;
-import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -163,17 +161,8 @@ public class SupportService {
     @Autowired
     MerchantService merchantService;
 
-    @Autowired
-    LendingApplicationDaoSlave lendingApplicationDaoSlave;
-
-    @Autowired
-    CancelApplicationService cancelApplicationService;
-
-    @Autowired
-    LendingRiskVariablesDao lendingRiskVariablesDao;
-
     public SupportResponseDTO supportLoan(Long merchantId) {
-        logger.info("supportLoan called for merchant:{}", merchantId);
+
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
         if (ObjectUtils.isEmpty(basicDetailsDto)) {
@@ -187,7 +176,7 @@ public class SupportService {
 //            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             Experian experian = experianDao.getByMerchantId(merchantId);
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
-            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdAndStatusNotOrderByIdDesc(merchantId, "deleted");
+            LendingApplication lendingApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
             List<NachableBanksDTO> nachableBanks = enachHandler.getEnachBankList();
 
@@ -210,6 +199,8 @@ public class SupportService {
                 logger.info("Populating Experian Data for merchant: {}", merchantId);
                 populateExperianData(supportApiResponseDto, experian, lendingApplication, false);
             }
+            supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
+            responseDTO.setData(supportLoanResponseDTO);
 //            if (!ObjectUtils.isEmpty(creditLineMerchant)) {
 //                supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_CREDIT_LINE);
 //                supportLoanResponseDTO.setCreditLineAccount(Boolean.TRUE);
@@ -217,30 +208,12 @@ public class SupportService {
 //                logger.info("CreditLine merchant found for merchantId: {}", merchantId);
 //                return responseDTO;
 //            }
-
-            //fetchClubStatus
-            Boolean isClubV1 = apiGatewayService.eligibleForProcessingFee(merchantId);
-            if(isClubV1){
-                logger.info("Club status is V1");
-                supportApiResponseDto.setClubStatus("V1");
-            } else{
-                Boolean isClubV2 = apiGatewayService.checkClubV2(merchantId);
-                if(isClubV2){
-                    logger.info("Club status is V2");
-                    supportApiResponseDto.setClubStatus("V2");
-                }
-            }
-
             supportLoanResponseDTO.setMerchantId(merchantId);
             supportLoanResponseDTO.setActiveLoan(Boolean.FALSE);
             supportLoanResponseDTO.setApplied(Boolean.FALSE);
             supportLoanResponseDTO.setExperian(Boolean.TRUE);
 
             supportLoanResponseDTO = getLoanDetail(supportLoanResponseDTO, merchantId);
-
-            supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
-            supportApiResponseDto.setStageCommunication(getStageCommunication(supportApiResponseDto));
-            responseDTO.setData(supportLoanResponseDTO);
 
             if (ObjectUtils.isEmpty(experian)) {
                 logger.info("PAN not entered so eligibility is not checked for the merchantId: {}", merchantId);
@@ -252,7 +225,6 @@ public class SupportService {
                 return responseDTO;
             }
 
-            // NULL CHECK ON EXPERIAN---
             if ( (Objects.isNull(lendingApplication) || Boolean.TRUE.equals(supportApiResponseDto.getEligibleToApplyAgain())) && experian.getRejected()) {
                 logger.info("Experian Rejected for merchantId: {}, experianId: {}", merchantId, experian.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.NOT_ELIGIBLE);
@@ -274,7 +246,7 @@ public class SupportService {
 //            }
 
             LendingApplication lendingApplicationNew =
-                    lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
+                lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantId);
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             if (ObjectUtils.isEmpty(lendingApplicationNew)) {
                 if (ObjectUtils.isEmpty(eligibleLoan)) {
@@ -342,10 +314,6 @@ public class SupportService {
             loanApplication.setTenure(lendingApplication.getTenure());
             loanApplication.setInterestRate(lendingApplication.getInterestRate());
             loanApplication.setRepayment(lendingApplication.getRepayment());
-
-            loanApplication.setApplicationRecvDate(lendingApplication.getCreatedAt());
-            loanApplication.setApplicationId(lendingApplication.getId());
-
             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
             loanArrangerFee.setFeeAmount(lendingApplication.getProcessingFee());
             supportLoanResponseDTO.setLoanArrangerFee(loanArrangerFee);
@@ -396,7 +364,7 @@ public class SupportService {
 
             if(ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 logger.info("Application status is in DRAFT for merchantId: {}, and "
-                        + "applicationId: {}", merchantId, lendingApplication.getId());
+                    + "applicationId: {}", merchantId, lendingApplication.getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED);
                 supportLoanResponseDTO.setMessage(SupportConstants.STARTED_APPLICATION_NOT_SUBMITTED_MESSAGE);
                 supportLoanResponseDTO.setConditionalMessage("NA");
@@ -542,59 +510,11 @@ public class SupportService {
 
             return responseDTO;
         } catch (Exception ex) {
-            logger.error("Exception while fetching the merchant loan details for merchant Id : {}, exception is: {}, {} ", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            logger.error("Exception while fetching the merchant loan details for merchant Id : {}, exception is: {} ", merchantId, ex);
             SupportLoanResponseDTO supportLoanResponseDTO = new SupportLoanResponseDTO();
             responseDTO.setData(supportLoanResponseDTO);
             return responseDTO;
         }
-    }
-
-    private String getStageCommunication(SupportApiResponseDto supportApiResponseDto){
-        if(ApplicationStage.ELIGIBILITY_NOT_CHECKED.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.ELIGIBILITY_NOT_CHECKED;
-        }
-        if(ApplicationStage.INELIGIBLE.getStage().equals(supportApiResponseDto.getApplicationStage())) {
-            if ("DEROG".equals(supportApiResponseDto.getIneligibleType())) {
-                return SupportConstants.DEROG;
-            }
-            if ("OGL".equals(supportApiResponseDto.getIneligibleType())) {
-                return SupportConstants.OGL;
-            }
-            if ("LOW_TRANSACTION".equals(supportApiResponseDto.getIneligibleType())) {
-                return SupportConstants.LOW_TRANSACTION;
-            }
-            if ("CHANGE_BANK_ACCOUNT".equals(supportApiResponseDto.getIneligibleType())) {
-                return SupportConstants.CHANGE_BANK_ACCOUNT;
-            }
-            if ("PERMANENT".equals(supportApiResponseDto.getIneligibleType())) {
-                return SupportConstants.PERMANENT;
-            }
-        }
-        if(ApplicationStage.NOT_STARTED.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.NOT_STARTED;
-        }
-        if(ApplicationStage.DRAFT.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.DRAFT;
-        }
-        if(ApplicationStage.SUBMITTED.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.SUBMITTED;
-        }
-        if(ApplicationStage.RELEVANT.getStage().equals(supportApiResponseDto.getApplicationStage())) {
-            return SupportConstants.RELEVANT;
-        }
-        if(ApplicationStage.REJECTED.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.REJECTED;
-        }
-        if(ApplicationStage.ACTIVE_LOAN.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.ACTIVE_LOAN_COMM;
-        }
-        if(ApplicationStage.CLOSED_LOAN.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.CLOSED_LOAN;
-        }
-        if(ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage())){
-            return SupportConstants.IN_PROCESS;
-        }
-        return null;
     }
 
     private void populateExperianData(SupportApiResponseDto supportApiResponseDto, Experian experian, LendingApplication lendingApplication, Boolean refresh) {
@@ -612,14 +532,13 @@ public class SupportService {
                             && Boolean.TRUE.equals(supportApiResponseDto.getEligibleToApplyAgain()))) {
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
                 experian = experianDao.getByMerchantId(supportApiResponseDto.getMerchantId());
-                LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(supportApiResponseDto.getMerchantId());
-                if (experian.getRejected() && !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) && lendingRiskVariables.getFinalOffer() == 0) {
+                if (experian.getRejected()) {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
-                    supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(lendingRiskVariables.getExperianRejection(), RejectionStage.EXPERIAN));
+                    supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(experian.getReason(), RejectionStage.EXPERIAN));
                     supportApiResponseDto.setEligible(Boolean.FALSE);
                     Long reapplyTime = null;
                     if (Objects.nonNull(experian.getRejectedDate())) {
-                        Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingRiskVariables.getExperianRejection(), RejectionStage.EXPERIAN);
+                        Integer reapplyDayDiff = easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN);
                         if(Objects.nonNull(reapplyDayDiff)) {
                             reapplyTime = reapplyDayDiff - LoanUtil.getDateDiffInDays(experian.getRejectedDate(), new Date());
                         }
@@ -670,12 +589,6 @@ public class SupportService {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.SUBMITTED.getStage());
                 }
             }
-
-            if(lendingApplication.getStatus().equalsIgnoreCase("approved") && Objects.isNull(lendingApplication.getDisburseTimestamp())){
-                supportApiResponseDto.setApplicationStage(ApplicationStage.IN_PROCESS.getStage());
-                supportApiResponseDto.setEligible(Boolean.FALSE);
-            }
-
             if ("rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.REJECTED.getStage());
                 Long reapplyTime;
@@ -740,7 +653,7 @@ public class SupportService {
                 }
             } else if ("CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
                 LendingPayoutResponseDTO lendingPayouts = lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule.getMerchantId(),
-                        lendingPaymentSchedule.getId(), "PF_CASHBACK");
+                  lendingPaymentSchedule.getId(), "PF_CASHBACK");
                 supportApiResponseDto.setApplicationStage(ApplicationStage.CLOSED_LOAN.getStage());
                 supportApiResponseDto.setPfRefunded(lendingPayouts != null);
                 supportApiResponseDto.setEligibleForRepeat(getEligibility(lendingPaymentSchedule.getMerchantId()));
@@ -884,94 +797,7 @@ public class SupportService {
     }
 
     private SupportLoanResponseDTO getLoanDetail(SupportLoanResponseDTO supportLoanResponseDTO, Long merchantId) {
-        List<LendingApplicationSlave> applicationList = lendingApplicationDaoSlave.fetchApplicationHistory(merchantId);
-        logger.info("fetching application List for merchant:{} of size:{}", merchantId, applicationList.size());
-        if(!ObjectUtils.isEmpty(applicationList)){
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-            if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
-                logger.info("Active Loan found for merchantId: {}, and applicationId: {}", merchantId, applicationList.get(0).getId());
-                supportLoanResponseDTO.setApplicationStatus(SupportConstants.ACTIVE_LOAN);
-                supportLoanResponseDTO.setMessage(SupportConstants.ACTIVE_LOAN_MESSAGE);
-                supportLoanResponseDTO.setConditionalMessage(SupportConstants.ACTIVE_LOAN_CONDITIONAL_MESSAGE);
-                supportLoanResponseDTO.setActiveLoan(Boolean.TRUE);
-            }
-            List<LoanDetailsDTO> loanHistoryList = new ArrayList<>();
-            List<ApplicationDetailsDTO> applicationHistoryList = new ArrayList<>();
-
-            for (LendingApplicationSlave application : applicationList) {
-                //applicationHistory
-                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null);
-                String reason = null;
-                if("rejected".equalsIgnoreCase(application.getStatus())){
-                    if ("REJECTED".equalsIgnoreCase(application.getManualCibil())) {
-                        reason = easyLoanUtil.getRejectionMessage(application.getManualCibilReason(), RejectionStage.CIBIL);
-                    } else if ("REJECTED".equalsIgnoreCase(application.getManualKyc())) {
-                        reason = easyLoanUtil.getRejectionMessage(application.getManualKycReason(), RejectionStage.KYC);
-                    } else if ("REJECTED".equalsIgnoreCase(application.getPhysicalVerificationStatus())) {
-                        reason = easyLoanUtil.getRejectionMessage(application.getPhysicalReason(), RejectionStage.QC);
-                    }
-                }
-                application1.setReason(reason);
-
-                LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByApplicationIdAndCreditLoan(application.getId(), Boolean.FALSE);
-
-                if (!Objects.isNull(lendingPaymentSchedule1)) {
-                    logger.info("loan found in LPS for merchant:{} with status:{}", merchantId, lendingPaymentSchedule1.getStatus());
-                    List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
-                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDescAmountAsc(lendingPaymentSchedule1);
-                    Double dueAmount = 0D;
-                    for (LendingLedger lendingLedger1 : lendingLedgerList) {
-                        Map<String, Object> lendingLedgerDetail = new HashMap<>();
-                        lendingLedgerDetail.put("createdAt", lendingLedger1.getDate() == null ? lendingLedger1.getCreatedAt().toString() : lendingLedger1.getDate().toString());
-                        lendingLedgerDetail.put("id", lendingLedger1.getId());
-                        lendingLedgerDetail.put("transactionType", lendingLedger1.getTxnType());
-                        if(lendingLedger1.getAmount() < 0){
-                            Double ediAmount = lendingLedger1.getAmount();
-                            dueAmount += -1* ediAmount;
-                            lendingLedgerDetail.put("amount", ediAmount);
-                        } else {
-                            Double paidAmount = lendingLedger1.getAmount();
-                            dueAmount -= paidAmount;
-                            lendingLedgerDetail.put("paidAmount", paidAmount);
-                        }
-                        lendingLedgerDetail.put("dueAmount", dueAmount);
-                        lendingLedgerDetailList.add(lendingLedgerDetail);
-                    }
-
-                    SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
-
-                    LendingPayoutResponseDTO lendingPayouts =
-                            lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule1.getMerchantId(),
-                                    lendingPaymentSchedule1.getId(), "PF_CASHBACK");
-                    if (!Objects.isNull(lendingPayouts) && !ObjectUtils.isEmpty(lendingPayouts)) {
-                        loanArrangerFee.setArrangerFeeRefundEligible(true);
-                        loanArrangerFee.setArrangerFeeRefunded(true);
-                        loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
-                        loanArrangerFee.setInEligibleReason(SupportConstants.ALREADY_REFUNDED);
-                    } else {
-                        populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
-                    }
-                    // Loan details
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null);
-                    loanArrangerFee.setFeeAmount(application.getProcessingFee());
-                    loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
-                    loanDetailsDTO.setRepayment(application.getRepayment());
-                    if ("CLOSED".equalsIgnoreCase(lendingPaymentSchedule1.getStatus())) {
-                        loanDetailsDTO.setNocUrl(getNocUrl(lendingPaymentSchedule1));
-                    }
-                    loanDetailsDTO.setForClosureAmount(lendingPaymentSchedule1.getLoanAmount() - lendingPaymentSchedule1.getPaidPrinciple() + lendingPaymentSchedule1.getDueInterest());
-                    application1.setArrangerFee(loanArrangerFee);
-                    loanHistoryList.add(loanDetailsDTO);
-                }
-                applicationHistoryList.add(application1);
-            }
-            supportLoanResponseDTO.setLoanDetailsList(loanHistoryList);
-            supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
-        }
-        return supportLoanResponseDTO;
-    }
-
-        /*LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.APPROVED.name());
+        LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.APPROVED.name());
         if (ObjectUtils.isEmpty(lendingApplication)) {
             logger.info("No any APPROVED loan found for merchantId: {}", merchantId);
             return supportLoanResponseDTO;
@@ -1048,11 +874,11 @@ public class SupportService {
             return supportLoanResponseDTO;
 
         }
-        return supportLoanResponseDTO;*/
+        return supportLoanResponseDTO;
+    }
 
     private void populateArrangerFeeEligible(LendingPaymentSchedule lendingPaymentSchedule,
-                                             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee) {
-        logger.info("populating arranger Fee eligibility for loan:{} of merchant:{}", lendingPaymentSchedule.getLoanApplication().getId(), lendingPaymentSchedule.getMerchantId());
+                                              SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee) {
         if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
             BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
             long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
@@ -1534,7 +1360,7 @@ public class SupportService {
     public String getAgreementHtml(Map<String,Object> data,String lender){
         String html = null;
         if("MAMTA".equals(lender)) {
-            html = "<p style=\"text-align: center;\"><strong>Loan Details</strong></p>\n" +
+             html = "<p style=\"text-align: center;\"><strong>Loan Details</strong></p>\n" +
                     "<p><span style=\"font-weight: 400;\">Loan ID: " + data.get("externalLoanId") + "</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style=\"font-weight: 400;\">Date:" + data.get("agreementAt") + "</span></p>\n" +
                     "<p><span style=\"font-weight: 400;\">Loan Amount (INR):&nbsp; " + data.get("loanAmount") + "</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style=\"font-weight: 400;\">Tenure (Months):&nbsp; &nbsp; " + data.get("tenure") + "</span></p>\n" +
                     "<p><span style=\"font-weight: 400;\">Flat Rate of Interest&nbsp;(% per month) : &nbsp;&nbsp;" + data.get("interestRate") + " %</span></p>\n" +
@@ -2176,19 +2002,4 @@ public class SupportService {
         }
         return new ResponseDTO(false, "something went wrong !");
     }
-
-    public Object cancelApplication(Long merchantId, Long applicationId, String reason) {
-        logger.info("Cancelling application:{} for merchant:{}", applicationId, merchantId);
-        Object response = null;
-        try {
-            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
-            if(merchant.isPresent()) {
-                response = cancelApplicationService.cancelApplication(merchant.get(), applicationId, reason);
-            }
-        } catch (Exception ex) {
-            logger.error("Error occurred while cancelling application:{} for merchant:{} with exception:{}, {}", applicationId, merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-        }
-        return response;
-    }
 }
-

@@ -1,7 +1,5 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import org.springframework.stereotype.Repository;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -64,6 +62,4 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	LendingPaymentSchedule findTop1ByMerchantIdOrderByIdDesc(Long merchantId);
 
 	LendingPaymentSchedule findByApplicationId(Long applicationId);
-
-	LendingPaymentSchedule findByApplicationIdAndCreditLoan(Long applicationId, Boolean creditLoan);
 }

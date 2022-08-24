@@ -2,7 +2,6 @@ package com.bharatpe.lending.dao;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -108,9 +107,4 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	LendingApplication findTop1ByMerchantIdOrderByIdDesc(Long merchantId);
 
 	LendingApplication findTop1ByMerchantIdAndStatusOrderByIdDesc(Long merchant, String status);
-
-/*
-	@Query(value = "select * from lending_application where merchant_id= :merchantId and status != 'deleted' order by id desc limit 1", nativeQuery = true)
-*/
-	LendingApplication findTop1ByMerchantIdAndStatusNotOrderByIdDesc(Long merchantId, String status);
 }
