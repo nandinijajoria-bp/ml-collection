@@ -66,6 +66,19 @@ public interface SupportConstants {
       + "the loan";
     String MAX_DPD = "Not eligible for Processing fee refund as max dpd was greater than 5";
 
-
+    String ELIGIBILITY_NOT_CHECKED = "User has not entered pan-pin.";
+    String OGL = "User is outside geo coverage area";
+    String DEROG = "issue with the bureau";
+    String LOW_TRANSACTION = "user should increase transaction to get loan from bharatpe";
+    String CHANGE_BANK_ACCOUNT = "Current bank is not nachable, user should change bank account to get loan from BharatPe";
+    String PERMANENT = "User will never get loan from BharatPe";
+    String NOT_STARTED = "user is eligible for loan but has not started taking application ";
+    String DRAFT = "user application is currently in draft state";
+    String SUBMITTED = "Application is submitted but nach not done";
+    String RELEVANT = "";
+    String REJECTED = "application is rejected, user can re-apply after sometime";
+    String ACTIVE_LOAN_COMM = "active loan";
+    String CLOSED_LOAN = "closed loan";
+    String IN_PROCESS = "application is getting processed";
 
 }
