@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
-import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
-import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.LiquiloansService;
 
 import java.util.Optional;
@@ -89,4 +86,9 @@ public class LiquiloanController {
 //		liquilaonService.createLead(lendingPaymentSchedule.get(), lendingTlDetails.get());
 //		return new ResponseEntity<>(HttpStatus.OK);
 //	}
+
+	@RequestMapping(value="postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallback(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
 }
