@@ -437,8 +437,8 @@ public class LiquiloansService {
         PostPayoutAuditDto postPayoutAuditDto = new PostPayoutAuditDto();
         postPayoutAuditDto.setPostPayoutRequest(postPayoutRequestDto);
         postPayoutAuditDto.setExternalLoanId(postPayoutRequestDto.getApplicationId());
-        postPayoutAuditDto.setStatus(postPayoutRequestDto.getLoanDisbursalStatus());
-        postPayoutAuditDto.setLender(postPayoutRequestDto.getLender());
+        postPayoutAuditDto.setStatus(postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase());
+        postPayoutAuditDto.setLender(postPayoutRequestDto.getLender().toUpperCase());
         logger.info("Create LPS request:{}", postPayoutRequestDto);
         LendingApplication lendingApplication = null;
         LendingPaymentSchedule lendingPaymentSchedule = null;
@@ -484,7 +484,7 @@ public class LiquiloansService {
             postPayoutAuditDto.setMerchantId(lendingApplication.getMerchantId());
 
             if (ObjectUtils.isEmpty(lendingApplication.getNbfcId()) || !lendingApplication.getNbfcId().equalsIgnoreCase(postPayoutRequestDto.getNbfcId()) ||
-                    !lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender())) {
+                    !lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender().toUpperCase())) {
                 logger.error("lender mismatch or loan not found for {}", lendingApplication.getMerchantId());
                 postPayoutResponseDto.setStatus("FAILED");
                 postPayoutResponseDto.setMessage("lender mismatch or loan not found");
@@ -494,7 +494,7 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
 
-            if ("DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+            if ("DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
                 logger.info("Changing loan_disbursal_status to 'DISBURSED'");
                 lendingApplication.setLoanDisbursalStatus("DISBURSED");
                 lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
@@ -584,7 +584,7 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-            } else if ("UNKNOWN".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+            } else if ("UNKNOWN".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
                 logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
                 postPayoutResponseDto.setMessage("UNKNOWN status code");
@@ -594,7 +594,7 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             else {
-                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus()));
+                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus()));
                 lendingApplicationDao.save(lendingApplication);
                 logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
