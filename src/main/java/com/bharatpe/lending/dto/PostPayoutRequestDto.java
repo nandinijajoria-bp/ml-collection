@@ -1,23 +1,23 @@
 package com.bharatpe.lending.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.Date;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+
 @Getter
 @Setter
+@ToString
+@Data
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@AllArgsConstructor
+@NoArgsConstructor
 public class PostPayoutRequestDto {
+    @JsonProperty("lender")
     String lender;
     @JsonProperty("amount")
     Double disbursedAmount;
@@ -28,12 +28,18 @@ public class PostPayoutRequestDto {
     Date disbursalDate;
     @JsonProperty("bp_loan_id")
     String applicationId;
+    @JsonProperty("reason")
     String reason;
     @JsonProperty("loan_id")
     String nbfcId;
+    @JsonProperty("utr")
     String utr;
+    @JsonProperty("urn")
     String urn;
+    @JsonProperty("emi")
     Double emi;
+    @JsonProperty("roi")
     Double roi;
+    @JsonProperty("tenure")
     Integer tenure;
 }

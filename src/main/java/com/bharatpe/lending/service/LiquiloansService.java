@@ -421,7 +421,6 @@ public class LiquiloansService {
     }
 
     public ResponseEntity<PostPayoutResponseDto> populatePostPayoutSchedule(PostPayoutRequestDto postPayoutRequestDto) {
-
         if (ObjectUtils.isEmpty(postPayoutRequestDto) || ObjectUtils.isEmpty(postPayoutRequestDto.getApplicationId())
           || ObjectUtils.isEmpty(postPayoutRequestDto.getNbfcId())
           || ObjectUtils.isEmpty(postPayoutRequestDto.getLender())
@@ -429,12 +428,12 @@ public class LiquiloansService {
           || ObjectUtils.isEmpty(postPayoutRequestDto.getLoanDisbursalStatus()) ) {
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
-
+        logger.info(" postPayoutRequestDto {} :", postPayoutRequestDto);
         PostPayoutResponseDto postPayoutResponseDto = new PostPayoutResponseDto();
         postPayoutResponseDto.setStatus("SUCCESS");
         postPayoutResponseDto.setApplicationId(postPayoutRequestDto.getApplicationId());
         postPayoutResponseDto.setNbfcId(postPayoutRequestDto.getNbfcId());
-        KafkaAudit<PostPayoutAuditDto> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "postPayout", null);
+        KafkaAudit<PostPayoutAuditDto> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "post_payout", null);
         PostPayoutAuditDto postPayoutAuditDto = new PostPayoutAuditDto();
         postPayoutAuditDto.setPostPayoutRequest(postPayoutRequestDto);
         postPayoutAuditDto.setExternalLoanId(postPayoutRequestDto.getApplicationId());
