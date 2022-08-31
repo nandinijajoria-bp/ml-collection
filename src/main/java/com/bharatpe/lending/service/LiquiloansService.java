@@ -472,24 +472,26 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
-
             postPayoutAuditDto.setApplicationId(lendingApplication.getId());
             postPayoutAuditDto.setMerchantId(lendingApplication.getMerchantId());
-            if (!"DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
-                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus()));
-                lendingApplicationDao.save(lendingApplication);
-                logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
+
+            if (ObjectUtils.isEmpty(lendingApplication.getNbfcId()) || !lendingApplication.getNbfcId().equalsIgnoreCase(postPayoutRequestDto.getNbfcId()) ||
+                    !lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender())) {
+                logger.error("lender mismatch or loan not found for {}", lendingApplication.getMerchantId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("lender mismatch or loan not found");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
-            else {
+
+            if ("DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
                 logger.info("Changing loan_disbursal_status to 'DISBURSED'");
                 lendingApplication.setLoanDisbursalStatus("DISBURSED");
                 lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
                 lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
-                if (lendingApplication.getDisbursalAmount() != postPayoutRequestDto.getDisbursedAmount()) {
+                if (lendingApplication.getDisbursalAmount() != Math.floor( postPayoutRequestDto.getDisbursedAmount())) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
                     lendingApplicationDao.save(lendingApplication);
                     logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
@@ -574,6 +576,23 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
+            } else if ("UNKNOWN".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+                logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("UNKNOWN status code");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+            }
+            else {
+                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender(),postPayoutRequestDto.getLoanDisbursalStatus()));
+                lendingApplicationDao.save(lendingApplication);
+                logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
             }
         } catch (Exception e) {
             logger.error("Error occured while populating data into lending_payment_schedule table {}", Arrays.toString(e.getStackTrace()));

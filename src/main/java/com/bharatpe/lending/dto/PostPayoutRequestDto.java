@@ -25,7 +25,6 @@ public class PostPayoutRequestDto {
     @NonNull
     @JsonProperty("status")
     String loanDisbursalStatus;
-    @NonNull
     @JsonProperty("timestamp")
     Date disbursalDate;
     @NonNull
