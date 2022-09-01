@@ -397,11 +397,8 @@ public class VerifyOTPService {
     private Boolean topUpLoans(LendingApplication lendingApplication) {
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
-            if (activeLoan == null) {
-                return false;
-            }
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            if (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && !Objects.equals(lendingApplication.getLoanAmount(), lendingRiskVariables.getFinalOffer())) {
+            if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && !Objects.equals(lendingApplication.getLoanAmount(), lendingRiskVariables.getFinalOffer()))) {
                 logger.info("Rejection in post application check entered if to get rejected due to offer value mismatch for application: {}",lendingApplication.getId());
                 lendingApplication.setStatus("DELETED");
                 lendingApplication.setManualCibilReason("OFFER_MISMATCH");
