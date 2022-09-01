@@ -13,11 +13,13 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -146,12 +148,15 @@ public class VerifyOTPService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
     @Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
     String kafkaTopicPostChecks;
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
-    public Map<String, Boolean> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
+    public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
         if (Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             logger.info("deleting cached key of loan details in verifyOtp flow for merchant: {}", merchant.getId());
@@ -159,7 +164,7 @@ public class VerifyOTPService {
         } else {
             logger.info("merchant id not found in verifyOtp flow");
         }
-        Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+        Map<String, Object> finalResponse = new LinkedHashMap<>();
         finalResponse.put("success", false);
         finalResponse.put("agreement_verified", false);
 
@@ -185,8 +190,8 @@ public class VerifyOTPService {
         return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(), null);
     }
 
-    private Map<String, Boolean> verifyOTP(String otp, String uuid, BasicDetailsDto merchant, LendingApplication lendingApplication, Meta meta, LendingResubmitTask lendingResubmitTask) {
-        Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+    private Map<String, Object> verifyOTP(String otp, String uuid, BasicDetailsDto merchant, LendingApplication lendingApplication, Meta meta, LendingResubmitTask lendingResubmitTask) {
+        Map<String, Object> finalResponse = new LinkedHashMap<>();
         logger.info("Mobile length: {}", merchant.getMobile().length());
         finalResponse.put("success", false);
         finalResponse.put("agreement_verified", false);
@@ -228,9 +233,9 @@ public class VerifyOTPService {
         return finalResponse;
     }
 
-    private Map<String, Boolean> updateApplicationStatusAndSuccessSms(BasicDetailsDto merchantBasicDetailsDto,
+    private Map<String, Object> updateApplicationStatusAndSuccessSms(BasicDetailsDto merchantBasicDetailsDto,
                                                                       LendingApplication lendingApplication, Meta meta) {
-        Map<String, Boolean> finalResponse = new LinkedHashMap<>();
+        Map<String, Object> finalResponse = new LinkedHashMap<>();
         List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
         finalResponse.put("success", false);
         finalResponse.put("agreement_verified", false);
@@ -298,10 +303,14 @@ public class VerifyOTPService {
             lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
             lendingApplication.setNachStatus("APPROVED");
         }
+
         if (topupLoans.contains(lendingApplication.getLoanType())) {
             logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
             updateDocuments(lendingApplication, meta,merchantBasicDetailsDto);
-            topUpLoans(lendingApplication);
+            if (!topUpLoans(lendingApplication)) {
+                finalResponse.put("message", "Failed to create TopUp application");
+                return finalResponse;
+            }
         }
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
@@ -391,6 +400,25 @@ public class VerifyOTPService {
             if (activeLoan == null) {
                 return false;
             }
+            LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            if (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && !Objects.equals(lendingApplication.getLoanAmount(), lendingRiskVariables.getFinalOffer())) {
+                logger.info("Rejection in post application check entered if to get rejected due to offer value mismatch for application: {}",lendingApplication.getId());
+                lendingApplication.setStatus("DELETED");
+                lendingApplication.setManualCibilReason("OFFER_MISMATCH");
+                lendingApplicationDao.save(lendingApplication);
+                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                lendingAuditTrial.setUserId(Long.parseLong("0"));
+                lendingAuditTrial.setOldStatus("draft");
+                lendingAuditTrial.setNewStatus("deleted");
+                lendingAuditTrial.setType("APP_STATUS");
+
+                lendingAuditTrialDao.save(lendingAuditTrial);
+                return false;
+            }
+
             double previousAmount = loanUtil.getForeclosureAmount(activeLoan);
             LendingLedger lendingLedger = new LendingLedger();
             lendingLedger.setMerchantId(activeLoan.getMerchantId());
