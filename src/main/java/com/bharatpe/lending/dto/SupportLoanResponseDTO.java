@@ -279,6 +279,25 @@ public class SupportLoanResponseDTO {
         private Date applicationRecvDate;
         private Long applicationId;
 
+        private Date processingDate;
+        private Date relevantDate;
+
+        public Date getRelevantDate() {
+            return relevantDate;
+        }
+
+        public void setRelevantDate(Date relevantDate) {
+            this.relevantDate = relevantDate;
+        }
+
+        public Date getProcessingDate() {
+            return processingDate;
+        }
+
+        public void setProcessingDate(Date processingDate) {
+            this.processingDate = processingDate;
+        }
+
         public Date getApplicationRecvDate() {
             return applicationRecvDate;
         }

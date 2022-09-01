@@ -331,7 +331,7 @@ public class SupportService {
                 responseDTO.setData(supportLoanResponseDTO);
                 return responseDTO;
             }
-
+            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             supportLoanResponseDTO.setEligible(Boolean.TRUE);
             supportLoanResponseDTO.setApplied(Boolean.TRUE);
             SupportLoanResponseDTO.LoanApplication loanApplication = new SupportLoanResponseDTO.LoanApplication();
@@ -342,7 +342,8 @@ public class SupportService {
             loanApplication.setTenure(lendingApplication.getTenure());
             loanApplication.setInterestRate(lendingApplication.getInterestRate());
             loanApplication.setRepayment(lendingApplication.getRepayment());
-
+            loanApplication.setProcessingDate(null);
+            loanApplication.setRelevantDate(lendingApplicationPriority.getRelevantTime());
             loanApplication.setApplicationRecvDate(lendingApplication.getCreatedAt());
             loanApplication.setApplicationId(lendingApplication.getId());
 
@@ -369,7 +370,6 @@ public class SupportService {
 
             Boolean nachMandatory = Boolean.FALSE;
             supportLoanResponseDTO.setNachMandatory(false);
-            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if (ObjectUtils.isEmpty(lendingApplicationPriority) && !ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 logger.info("Application priority not found for merchantId: {}, applicationId: {}", merchantId, lendingApplication.getId());
                 logger.info("Application found with loan type: {}, and loan amount: {}, for merchantId: {}, and applicationId: {}", loanType, lendingApplication.getLoanAmount(), merchantId, lendingApplication.getId());
@@ -918,13 +918,13 @@ public class SupportService {
                 if (!Objects.isNull(lendingPaymentSchedule1)) {
                     logger.info("loan found in LPS for merchant:{} with status:{}", merchantId, lendingPaymentSchedule1.getStatus());
                     List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
-                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDescAmountAsc(lendingPaymentSchedule1);
+                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDate(lendingPaymentSchedule1);
                     Double dueAmount = 0D;
                     for (LendingLedger lendingLedger1 : lendingLedgerList) {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
                         lendingLedgerDetail.put("createdAt", lendingLedger1.getDate() == null ? lendingLedger1.getCreatedAt().toString() : lendingLedger1.getDate().toString());
                         lendingLedgerDetail.put("id", lendingLedger1.getId());
-                        lendingLedgerDetail.put("transactionType", lendingLedger1.getTxnType());
+                        lendingLedgerDetail.put("transactionType", Objects.isNull(lendingLedger1.getAdjustmentMode()) ? "EDI": lendingLedger1.getAdjustmentMode());
                         if(lendingLedger1.getAmount() < 0){
                             Double ediAmount = lendingLedger1.getAmount();
                             dueAmount += -1* ediAmount;
