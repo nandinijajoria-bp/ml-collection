@@ -66,19 +66,29 @@ public interface SupportConstants {
       + "the loan";
     String MAX_DPD = "Not eligible for Processing fee refund as max dpd was greater than 5";
 
-    String ELIGIBILITY_NOT_CHECKED = "User has not entered pan-pin.";
-    String OGL = "User is outside geo coverage area";
-    String DEROG = "issue with the bureau";
-    String LOW_TRANSACTION = "user should increase transaction to get loan from bharatpe";
-    String CHANGE_BANK_ACCOUNT = "Current bank is not nachable, user should change bank account to get loan from BharatPe";
-    String PERMANENT = "User will never get loan from BharatPe";
-    String NOT_STARTED = "user is eligible for loan but has not started taking application ";
-    String DRAFT = "user application is currently in draft state";
-    String SUBMITTED = "Application is submitted but nach not done";
-    String RELEVANT = "";
-    String REJECTED = "application is rejected, user can re-apply after sometime";
-    String ACTIVE_LOAN_COMM = "active loan";
+    String ELIGIBILITY_NOT_CHECKED = "Please enter your PIN & PAN to check eligibility";
+    String OGL = "BharatPe Loan is currently not available in your pincode, we'll inform you when we launch in your location.\n" +
+            "Please continue transacting on BharatPe.";
+    String DEROG = "You are not eligible for a BharatPe loan due to an issue with your credit report.\n" +
+            "Please check your eligibility again.";
+    String LOW_TRANSACTION = "You are not eligible for a loan due to low number of QR/ Swipe transactions. \n" +
+            "\n" +
+            "Please continue accepting payments using your BharatPe QR/ Swipe machine.";
+    String CHANGE_BANK_ACCOUNT = "Your bank does not allow eNACH. Please change your bank account and retry to be eligible for a loan.";
+    String PERMANENT = "You are currently not eligible for a BharatPe loan. \n" +
+            "\n" +
+            "We'll inform you once your eligibility changes";
+    String NOT_STARTED = "You are now eligible for a loan. Please start your application on the BharatPe app.";
+    String DRAFT = "You are a few steps away from completing your loan application for a loan. \n" +
+            "\n" +
+            "Please go to the BharatPe app and complete your loan application.";
+    String SUBMITTED = "You are only one step away from completing your loan application.\n" +
+            "\n" +
+            "Please go to the BharatPe app and complete this step now so that our credit officers can start working on your loan application!";
+    String RELEVANT = "Verification is pending for the application and the nach is approved";
+    String REJECTED = "Your loan application has been rejected after an internal assesment by our credit team.";
+    String ACTIVE_LOAN_COMM = "You currently have an active loan with BharatPe. Please go through loan details on the app";
     String CLOSED_LOAN = "closed loan";
-    String IN_PROCESS = "application is getting processed";
+    String IN_PROCESS = "Application is approved and the disbursal is in process.";
 
 }

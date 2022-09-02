@@ -334,6 +334,7 @@ public class SupportService {
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             supportLoanResponseDTO.setEligible(Boolean.TRUE);
             supportLoanResponseDTO.setApplied(Boolean.TRUE);
+            logger.info("LENDING APPLICATION -> {}", lendingApplication);
             SupportLoanResponseDTO.LoanApplication loanApplication = new SupportLoanResponseDTO.LoanApplication();
             loanApplication.setApplicationSubmittedDate(lendingApplication.getAgreementAt());
             loanApplication.setLoanId(lendingApplication.getExternalLoanId());
@@ -342,9 +343,11 @@ public class SupportService {
             loanApplication.setTenure(lendingApplication.getTenure());
             loanApplication.setInterestRate(lendingApplication.getInterestRate());
             loanApplication.setRepayment(lendingApplication.getRepayment());
-            loanApplication.setProcessingDate(null);
-            loanApplication.setRelevantDate(lendingApplicationPriority.getRelevantTime());
+            if(!ObjectUtils.isEmpty(lendingApplicationPriority)){
+                loanApplication.setRelevantDate(lendingApplicationPriority.getRelevantTime());
+            }
             loanApplication.setApplicationRecvDate(lendingApplication.getCreatedAt());
+            logger.info("LENDING APPLICATION ID -> {}", lendingApplication.getId());
             loanApplication.setApplicationId(lendingApplication.getId());
 
             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
