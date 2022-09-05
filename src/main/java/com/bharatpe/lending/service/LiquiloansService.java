@@ -499,7 +499,7 @@ public class LiquiloansService {
                 lendingApplication.setLoanDisbursalStatus("DISBURSED");
                 lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
                 lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
-                if (lendingApplication.getDisbursalAmount() != Math.floor( postPayoutRequestDto.getDisbursedAmount())) {
+                if (!lendingApplication.getDisbursalAmount().equals(Math.ceil(postPayoutRequestDto.getDisbursedAmount()))) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
                     lendingApplicationDao.save(lendingApplication);
                     logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
