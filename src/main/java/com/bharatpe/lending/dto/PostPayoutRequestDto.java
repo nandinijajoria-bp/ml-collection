@@ -17,21 +17,16 @@ import java.util.Date;
 @Getter
 @Setter
 public class PostPayoutRequestDto {
-    @NonNull
     String lender;
     @JsonProperty("amount")
-    @NonNull
     Double disbursedAmount;
-    @NonNull
     @JsonProperty("status")
     String loanDisbursalStatus;
     @JsonProperty("timestamp")
     Date disbursalDate;
-    @NonNull
     @JsonProperty("bp_loan_id")
     String applicationId;
     String reason;
-    @NonNull
     @JsonProperty("loan_id")
     String nbfcId;
     String utr;

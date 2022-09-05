@@ -20,6 +20,10 @@ import com.bharatpe.lending.service.LiquiloansService;
 
 import java.util.Optional;
 
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P_OF;
+
 @RestController
 @RequestMapping("lending/liquiloan/*")
 public class LiquiloanController {
@@ -89,6 +93,31 @@ public class LiquiloanController {
 
 	@RequestMapping(value="postPayout/callback",method=RequestMethod.POST)
 	public ResponseEntity<PostPayoutResponseDto> postPayoutCallback(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback request:{}", postPayoutRequestDto);
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+
+	@RequestMapping(value="nbfc/postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansNBFC(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback for LiquiloansNBFC request:{}", postPayoutRequestDto);
+		postPayoutRequestDto.setLender(LIQUILOANS_NBFC.name());
+		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+
+	@RequestMapping(value="p2p/postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansP2P(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback for LiquiloansP2P request:{}", postPayoutRequestDto);
+		postPayoutRequestDto.setLender(LIQUILOANS_P2P.name());
+		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+
+	@RequestMapping(value="p2p_of/postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansP2P_OF(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback for LIQUILOANS_P2P_OF request:{}", postPayoutRequestDto);
+		postPayoutRequestDto.setLender(LIQUILOANS_P2P_OF.name());
+		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
 		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
 	}
 }
