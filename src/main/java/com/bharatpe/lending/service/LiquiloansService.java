@@ -585,7 +585,7 @@ public class LiquiloansService {
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
             } else if ("UNKNOWN".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
-                logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
+                logger.info("unknown application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
                 postPayoutResponseDto.setMessage("UNKNOWN status code");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
@@ -594,9 +594,9 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             else {
-                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus()));
+                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()));
                 lendingApplicationDao.save(lendingApplication);
-                logger.info("application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
+                logger.info("known application status {} for the application id {} is set to {}", postPayoutRequestDto.getLoanDisbursalStatus(), lendingApplication.getId(), lendingApplication.getLoanDisbursalStatus());
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);

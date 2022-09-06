@@ -37,6 +37,15 @@ public class LiquiloanInterceptor implements HandlerInterceptor {
     @Value("${liquiloan.secret}")
     private String secretKey;
 
+    @Value("${liquiloan.nbfc.secret:C27C59C879112B7E}")
+    private String nbfcSecretKey;
+
+    @Value("${liquiloan.p2p.secret:2ACB12B639AB6D4F}")
+    private String p2pSecretKey;
+
+    @Value("${liquiloan.p2pof.secret:3F88FDC8D4EB1}")
+    private String p2pOfSecretKey;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         logger.info("Pre handle Interceptor of liquiloan approveLoan for request:{}",request);
@@ -52,7 +61,7 @@ public class LiquiloanInterceptor implements HandlerInterceptor {
                 return false;
             }
             String checksumString = getChecksumString(request, isSettlementApi);
-            String checksum = lendingHmacCalculator.calculateHMACHexEncoded(checksumString, secretKey);
+            String checksum = lendingHmacCalculator.calculateHMACHexEncoded(checksumString, getSecretFromUri(interceptorRequestWrapper.getRequestURI()));
             if (validateChecksum(request, checksum)) {
                 return true;
             } else {
@@ -109,5 +118,18 @@ public class LiquiloanInterceptor implements HandlerInterceptor {
             }
         }
         return "";
+    }
+
+    private String getSecretFromUri(String uri) {
+        switch(uri){
+            case "/lending/liquiloan/nbfc/postPayout/callback":
+                return this.nbfcSecretKey;
+            case "/lending/liquiloan/p2p/postPayout/callback":
+                return this.p2pSecretKey;
+            case "/lending/liquiloan/p2p_of/postPayout/callback":
+                return this.p2pOfSecretKey;
+            default:
+                return this.secretKey;
+        }
     }
 }
