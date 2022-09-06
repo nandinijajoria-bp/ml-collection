@@ -37,13 +37,13 @@ public class LiquiloanInterceptor implements HandlerInterceptor {
     @Value("${liquiloan.secret}")
     private String secretKey;
 
-    @Value("${liquiloan.nbfc.secret:C27C59C879112B7E}")
+    @Value("${liquiloan.nbfc.secret}")
     private String nbfcSecretKey;
 
-    @Value("${liquiloan.p2p.secret:2ACB12B639AB6D4F}")
+    @Value("${liquiloan.p2p.secret}")
     private String p2pSecretKey;
 
-    @Value("${liquiloan.p2pof.secret:3F88FDC8D4EB1}")
+    @Value("${liquiloan.p2pof.secret}")
     private String p2pOfSecretKey;
 
     @Override

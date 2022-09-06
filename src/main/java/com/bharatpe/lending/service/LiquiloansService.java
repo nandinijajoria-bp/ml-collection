@@ -195,6 +195,9 @@ public class LiquiloansService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LendingGstDao lendingGstDao;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public void publishForDisbursal(Long lendingAppId) {
@@ -470,10 +473,11 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-            if (!basicDetailsDto.isPresent()) {
-                logger.error("Merchant not found for the merchant id {}", lendingApplication.getMerchantId());
+            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+            if (!basicDetailsDto.isPresent() || ObjectUtils.isEmpty(lendingGstDetail)) {
+                logger.error("Merchant details or gst details not found for the merchant id {}  and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
-                postPayoutResponseDto.setMessage("Invalid merchantId");
+                postPayoutResponseDto.setMessage("Invalid data");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
                 kafkaAudit.setData(postPayoutAuditDto);
@@ -483,6 +487,14 @@ public class LiquiloansService {
             postPayoutAuditDto.setApplicationId(lendingApplication.getId());
             postPayoutAuditDto.setMerchantId(lendingApplication.getMerchantId());
 
+            if (ObjectUtils.isEmpty(lendingGstDetail.getDisbursedAccountPersonal()) || !lendingGstDetail.getDisbursedAccountPersonal()) {
+                logger.info("Disbursed account is bharatpe vpa for this request {} ", postPayoutRequestDto);
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+            }
             if (ObjectUtils.isEmpty(lendingApplication.getNbfcId()) || !lendingApplication.getNbfcId().equalsIgnoreCase(postPayoutRequestDto.getNbfcId()) ||
                     !lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender().toUpperCase())) {
                 logger.error("lender mismatch or loan not found for {}", lendingApplication.getMerchantId());
