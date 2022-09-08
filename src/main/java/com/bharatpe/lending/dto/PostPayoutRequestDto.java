@@ -21,6 +21,9 @@ public class PostPayoutRequestDto {
     String lender;
     @JsonProperty("amount")
     Double disbursedAmount;
+    // only to be consumed for LL
+    @JsonProperty("disbursed_amount")
+    Double disbursalAmountLL;
     @JsonProperty("status")
     String loanDisbursalStatus;
     @JsonProperty("timestamp")

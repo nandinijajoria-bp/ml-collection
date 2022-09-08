@@ -489,6 +489,7 @@ public class LiquiloansService {
 
             if (ObjectUtils.isEmpty(lendingGstDetail.getDisbursedAccountPersonal()) || !lendingGstDetail.getDisbursedAccountPersonal()) {
                 logger.info("Disbursed account is bharatpe vpa for this request {} ", postPayoutRequestDto);
+                postPayoutResponseDto.setMessage("VPA_DISBURSAL");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
                 kafkaAudit.setData(postPayoutAuditDto);

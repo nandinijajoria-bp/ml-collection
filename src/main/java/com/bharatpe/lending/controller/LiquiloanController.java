@@ -102,6 +102,7 @@ public class LiquiloanController {
 		logger.info("postPayout callback for LiquiloansNBFC request:{}", postPayoutRequestDto);
 		postPayoutRequestDto.setLender(LIQUILOANS_NBFC.name());
 		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
 		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
 	}
 
@@ -110,6 +111,7 @@ public class LiquiloanController {
 		logger.info("postPayout callback for LiquiloansP2P request:{}", postPayoutRequestDto);
 		postPayoutRequestDto.setLender(LIQUILOANS_P2P.name());
 		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
 		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
 	}
 
@@ -118,6 +120,7 @@ public class LiquiloanController {
 		logger.info("postPayout callback for LIQUILOANS_P2P_OF request:{}", postPayoutRequestDto);
 		postPayoutRequestDto.setLender(LIQUILOANS_P2P_OF.name());
 		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
 		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
 	}
 }
