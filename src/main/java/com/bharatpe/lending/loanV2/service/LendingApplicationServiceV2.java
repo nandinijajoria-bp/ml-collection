@@ -211,7 +211,7 @@ public class LendingApplicationServiceV2 {
             updateApplicationData(lendingApplication, applicationRequest, addressValidationDto);
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
-            log.error("Exception in updateApplication for merchant:{}", merchant.getId(), e);
+            log.error("Exception in updateApplication for merchant:{} {}", merchant.getId(), e.getMessage());
             return new ApiResponse<>(false, "Something went wrong");
         }
     }
@@ -238,7 +238,7 @@ public class LendingApplicationServiceV2 {
             loanUtil.publishApplicationEvent(lendingApplication);
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
-            log.error("Exception in createNewApplication for merchant:{}", merchant.getId(), e);
+            log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), e);
             return new ApiResponse<>(false, "Something went wrong");
         }
     }
@@ -390,7 +390,7 @@ public class LendingApplicationServiceV2 {
             lendingApplication.setBusinessName(!StringUtils.isEmpty(applicationRequest.getBusinessName()) ? applicationRequest.getBusinessName() : lendingApplication.getBusinessName());
             lendingApplicationDao.save(lendingApplication);
         } catch (Exception e) {
-            log.error("Exception in updateApplicationData for application:{} , {} {}", lendingApplication.getId(), applicationRequest, e);
+            log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
 
