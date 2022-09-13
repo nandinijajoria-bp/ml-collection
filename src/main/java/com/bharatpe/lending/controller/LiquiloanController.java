@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +16,13 @@ import org.springframework.web.bind.annotation.*;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dto.LiquidatePostPayoutStatusUpdateRequestDTO;
-import com.bharatpe.lending.dto.LiquiloanCallbackRequestDTO;
-import com.bharatpe.lending.dto.LiquiloanSettlementRequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.service.LiquiloansService;
 
 import java.util.Optional;
+
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P_OF;
 
 @RestController
 @RequestMapping("lending/liquiloan/*")
@@ -89,4 +90,37 @@ public class LiquiloanController {
 //		liquilaonService.createLead(lendingPaymentSchedule.get(), lendingTlDetails.get());
 //		return new ResponseEntity<>(HttpStatus.OK);
 //	}
+
+	@RequestMapping(value="postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallback(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback request:{}", postPayoutRequestDto);
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+
+	@RequestMapping(value="nbfc/postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansNBFC(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback for LiquiloansNBFC request:{}", postPayoutRequestDto);
+		postPayoutRequestDto.setLender(LIQUILOANS_NBFC.name());
+		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+
+	@RequestMapping(value="p2p/postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansP2P(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback for LiquiloansP2P request:{}", postPayoutRequestDto);
+		postPayoutRequestDto.setLender(LIQUILOANS_P2P.name());
+		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+
+	@RequestMapping(value="p2p_of/postPayout/callback",method=RequestMethod.POST)
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansP2P_OF(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+		logger.info("postPayout callback for LIQUILOANS_P2P_OF request:{}", postPayoutRequestDto);
+		postPayoutRequestDto.setLender(LIQUILOANS_P2P_OF.name());
+		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
+		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
+		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
 }

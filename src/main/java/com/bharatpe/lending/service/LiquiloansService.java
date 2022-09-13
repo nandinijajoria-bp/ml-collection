@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.dto.KafkaAudit;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
@@ -30,6 +31,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.SettlementType;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.util.DisbursalStageMapping;
 import com.bharatpe.lending.util.Finance;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
+import org.springframework.data.util.Pair;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -191,6 +194,9 @@ public class LiquiloansService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingGstDao lendingGstDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -415,6 +421,249 @@ public class LiquiloansService {
         }
         loanUtil.publishApplicationEvent(lendingApplication);
         return new ResponseEntity<>("Ok", HttpStatus.OK);
+    }
+
+    public ResponseEntity<PostPayoutResponseDto> populatePostPayoutSchedule(PostPayoutRequestDto postPayoutRequestDto) {
+        if (ObjectUtils.isEmpty(postPayoutRequestDto) || ObjectUtils.isEmpty(postPayoutRequestDto.getApplicationId())
+          || ObjectUtils.isEmpty(postPayoutRequestDto.getNbfcId())
+          || ObjectUtils.isEmpty(postPayoutRequestDto.getLender())
+          || ObjectUtils.isEmpty(postPayoutRequestDto.getDisbursedAmount())
+          || ObjectUtils.isEmpty(postPayoutRequestDto.getLoanDisbursalStatus()) ) {
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        logger.info(" postPayoutRequestDto {} :", postPayoutRequestDto);
+        PostPayoutResponseDto postPayoutResponseDto = new PostPayoutResponseDto();
+        postPayoutResponseDto.setStatus("SUCCESS");
+        postPayoutResponseDto.setApplicationId(postPayoutRequestDto.getApplicationId());
+        postPayoutResponseDto.setNbfcId(postPayoutRequestDto.getNbfcId());
+        KafkaAudit<PostPayoutAuditDto> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "post_payout", null);
+        PostPayoutAuditDto postPayoutAuditDto = new PostPayoutAuditDto();
+        postPayoutAuditDto.setPostPayoutRequest(postPayoutRequestDto);
+        postPayoutAuditDto.setExternalLoanId(postPayoutRequestDto.getApplicationId());
+        postPayoutAuditDto.setStatus(postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase());
+        postPayoutAuditDto.setLender(postPayoutRequestDto.getLender().toUpperCase());
+        logger.info("Create LPS request:{}", postPayoutRequestDto);
+        LendingApplication lendingApplication = null;
+        LendingPaymentSchedule lendingPaymentSchedule = null;
+//        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(Long.valueOf(postPayoutRequestDto.getMerchantId()));
+        try {
+//            logger.info("Fetching merchant for the merchant id {}", postPayoutRequestDto.getMerchantId());
+//            Optional<Merchant> merchant = merchantDao.findById(Long.parseLong(postPayoutRequestDto.getMerchantId()));
+//            if (!basicDetailsDto.isPresent()) {
+//                logger.error("Merchant not found for the merchant id {}", postPayoutRequestDto.getMerchantId());
+//                return new ResponseEntity<>("Invalid merchantId", HttpStatus.BAD_REQUEST);
+//            }
+            logger.info("Fetching loan application on the basis of application id {}", postPayoutRequestDto.getApplicationId());
+            lendingApplication =
+              lendingApplicationDao.findByExternalLoanId(postPayoutRequestDto.getApplicationId());
+
+
+//    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
+//    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+//    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
+//    		}
+
+            if (lendingApplication == null) {
+                logger.error("Loan application for loanId {} not found.", postPayoutRequestDto.getApplicationId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("Invalid applicationId");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+            }
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+            if (!basicDetailsDto.isPresent() || ObjectUtils.isEmpty(lendingGstDetail)) {
+                logger.error("Merchant details or gst details not found for the merchant id {}  and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("Invalid data");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+            }
+            postPayoutAuditDto.setApplicationId(lendingApplication.getId());
+            postPayoutAuditDto.setMerchantId(lendingApplication.getMerchantId());
+
+            if (ObjectUtils.isEmpty(lendingGstDetail.getDisbursedAccountPersonal()) || !lendingGstDetail.getDisbursedAccountPersonal()) {
+                logger.info("Disbursed account is bharatpe vpa for this request {} ", postPayoutRequestDto);
+                postPayoutResponseDto.setMessage("VPA_DISBURSAL");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+            }
+            if (ObjectUtils.isEmpty(lendingApplication.getNbfcId()) || !lendingApplication.getNbfcId().equalsIgnoreCase(postPayoutRequestDto.getNbfcId()) ||
+                    !lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender().toUpperCase())) {
+                logger.error("lender mismatch or loan not found for {}", lendingApplication.getMerchantId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("lender mismatch or loan not found");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+            }
+
+            if ("DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+                logger.info("Changing loan_disbursal_status to 'DISBURSED'");
+                lendingApplication.setLoanDisbursalStatus("DISBURSED");
+                lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
+                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
+                if (!lendingApplication.getDisbursalAmount().equals(Math.ceil(postPayoutRequestDto.getDisbursedAmount()))) {
+                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
+                    lendingApplicationDao.save(lendingApplication);
+                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
+                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
+                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                    kafkaAudit.setData(postPayoutAuditDto);
+                    pushKafkaAudit(kafkaAudit);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                }
+                lendingApplicationDao.save(lendingApplication);
+//            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
+
+                lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
+                if (lendingPaymentSchedule != null) {
+                    logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.", postPayoutRequestDto.getApplicationId(), basicDetailsDto);
+                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setMessage("Duplicate Request");
+                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                    kafkaAudit.setData(postPayoutAuditDto);
+                    pushKafkaAudit(kafkaAudit);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                }
+
+                lendingPaymentSchedule = new LendingPaymentSchedule();
+
+                logger.info("Populating data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
+
+                lendingPaymentSchedule.setLoanApplication(lendingApplication);
+                lendingPaymentSchedule.setLoanType("NORMAL");
+                lendingPaymentSchedule.setMerchantId(lendingApplication.getMerchantId());
+                lendingPaymentSchedule.setLoanAmount(lendingApplication.getLoanAmount());
+                lendingPaymentSchedule.setMobile(basicDetailsDto.get().getMobile());
+                lendingPaymentSchedule.setEdiAmount(lendingApplication.getEdi());
+                lendingPaymentSchedule.setStatus("ACTIVE");
+                lendingPaymentSchedule.setNbfc(lendingApplication.getLender());
+                lendingPaymentSchedule.setEdiCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
+                lendingPaymentSchedule.setOverdueEdiCount(0);
+                lendingPaymentSchedule.setDueAmount(0D);
+                lendingPaymentSchedule.setDueInterest(0D);
+                lendingPaymentSchedule.setDuePrinciple(0D);
+                lendingPaymentSchedule.setIncentiveAmount(0D);
+                lendingPaymentSchedule.setEdiRemainingCount(Integer.parseInt(lendingApplication.getPayableDays().toString()));
+                lendingPaymentSchedule.setOverdueAmount(0D);
+                lendingPaymentSchedule.setPaidAmount(0D);
+                lendingPaymentSchedule.setPaidPrinciple(0D);
+                lendingPaymentSchedule.setPaidInterest(0D);
+                lendingPaymentSchedule.setTotalCashbackAmount(0D);
+                lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
+                lendingPaymentSchedule.setCreatedAt(new Date());
+                lendingPaymentSchedule.setUpdatedAt(new Date());
+
+                Date date = new Date();
+
+                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
+
+                //getting tommorow's date
+
+                Date tomorrow = new Date(date.getTime() + (1000 * 60 * 60 * 24));
+                //checking if next day is Sunday or not because we don't cut edi on Sunday
+                if (tomorrow.getDay() == 0) {
+                    tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
+                }
+                tomorrow = format.parse(format.format(tomorrow));
+                lendingPaymentSchedule.setStartDate(tomorrow);
+                postPayoutResponseDto.setLoanStartDate(tomorrow);
+
+                lendingPaymentSchedule.setNextEdiDate(tomorrow);
+                postPayoutResponseDto.setNextEdiDate(tomorrow);
+
+                Date tenativeLoanEndDate = getDateAfterNMonths(date, lendingApplication.getTenureInMonths());
+                if (tenativeLoanEndDate == null) {
+                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setMessage("unable to compute tentative closing date");
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                }
+                lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
+                lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+                if (!SettlementType.BHARATPE_ACCOUNT.name().equalsIgnoreCase(basicDetailsDto.get().getSettlementType())) {
+                    changeDeductionFromInstantToDaily(basicDetailsDto.get());
+                }
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+            } else if ("UNKNOWN".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+                logger.info("unknown application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("UNKNOWN status code");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+            }
+            else {
+                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()));
+                lendingApplicationDao.save(lendingApplication);
+                logger.info("known application status {} for the application id {} is set to {}", postPayoutRequestDto.getLoanDisbursalStatus(), lendingApplication.getId(), lendingApplication.getLoanDisbursalStatus());
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+            }
+        } catch (Exception e) {
+            logger.error("Error occured while populating data into lending_payment_schedule table {}", Arrays.toString(e.getStackTrace()));
+            logger.info("Changing loan_disbursal_status back to 'PENDING'");
+            if (lendingApplication != null) {
+                lendingApplication.setDisburseTimestamp(null);
+                lendingApplication.setLoanDisbursalStatus("PENDING");
+                lendingApplicationDao.save(lendingApplication);
+//                updateLendingVpaStage(lendingApplication, VpaTrackingStatus.PROCESSING.name());
+                if (lendingPaymentSchedule != null) {
+                    lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
+                }
+            }
+            postPayoutResponseDto.setStatus("FAILED");
+            postPayoutResponseDto.setMessage("Error occurred while populating data into lending_payment_schedule table" + Arrays.toString(e.getStackTrace()));
+            postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+            kafkaAudit.setData(postPayoutAuditDto);
+            pushKafkaAudit(kafkaAudit);
+            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        createEdiSchedule(lendingPaymentSchedule);
+        createEdiException(lendingPaymentSchedule);
+        LendingApplication finalLendingApplication = lendingApplication;
+        LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
+
+        executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
+
+        if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
+            executorService.execute(() -> createGSTInvoice(finalLendingApplication));
+        }
+        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
+//        if (bharatPeEnach != null) {
+//            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
+//        }
+        executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchantId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
+        executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
+        if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
+            prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
+        }
+        loanUtil.publishApplicationEvent(lendingApplication);
+        return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+    }
+
+    public void pushKafkaAudit(KafkaAudit kafkaAudit) {
+        try {
+            logger.info("pushing kafka event for {}", kafkaAudit);
+            kafkaTemplate.send("easyloan_audit_data",kafkaAudit);
+        } catch (Exception e) {
+            logger.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
+        }
     }
 
     private void prepayDisbursalAmount(LendingPaymentSchedule lendingPaymentSchedule, Double disbursalAmount) {
