@@ -24,6 +24,8 @@ public class KycDoc {
     private KycDocStatus status;
     private String address;
     private String city;
+    private String pincode;
+    private String state;
     private String xml;
     private String passPhrase;
     private String dob;

@@ -100,4 +100,18 @@ public class LendingApplicationControllerV2 {
         lendingApplicationServiceV2.evictCache(merchant.getId());
         return ResponseEntity.ok(new ApiResponse<>(null));
     }
+
+    @PostMapping(value = "/updateCurrentAddress", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateCurrentAddress(@RequestParam Long applicationId, @RequestBody AddressDetails addressDetails, @RequestParam Boolean sameAsAadhaar, @RequestAttribute BasicDetailsDto merchant) {
+        log.info("Updating current Address {} for applicationId {} and merchantId {}", addressDetails, applicationId, merchant.getId());
+        ApiResponse<?> response = lendingApplicationServiceV2.updateCurrentAddress(merchant, applicationId, addressDetails, sameAsAadhaar);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping(value = "/getAadhaarAddress", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAadhaarAddress(@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant) {
+        log.info("Fetching Aadhaar Address for applicationId {} and merchantId {}", applicationId, merchant.getId());
+        ApiResponse<?> response = lendingApplicationServiceV2.getAadhaarAddress(merchant, applicationId);
+        return ResponseEntity.ok(response);
+    }
 }

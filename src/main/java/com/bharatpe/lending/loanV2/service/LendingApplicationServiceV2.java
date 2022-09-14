@@ -1372,4 +1372,67 @@ public class LendingApplicationServiceV2 {
         String currentData = sdf.format(date);
         return currentData;
     }
+    public ApiResponse<?> updateCurrentAddress(BasicDetailsDto merchant, Long applicationId, AddressDetails addressDetails, Boolean sameAsAdhaar) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
+            if (Objects.isNull(lendingApplication)) {
+                return new ApiResponse<>(false, "There is no such applicationId for given merchantId");
+            }
+            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
+            if (Objects.isNull(lendingGstDetail)) {
+                lendingGstDetail = new LendingGstDetail();
+                lendingGstDetail.setMerchantId(merchant.getId());
+                lendingGstDetail.setApplicationId(applicationId);
+            }
+            if (sameAsAdhaar == true) {
+                List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchantId());
+                for (KycDoc kycDoc : kycDocs) {
+                    if (KycDocType.POA.equals(kycDoc.getDocType())) {
+                        lendingGstDetail.setAddress1(kycDoc.getAddress());
+                        lendingGstDetail.setCity(kycDoc.getCity());
+                        lendingApplication.setPincode(Long.valueOf(kycDoc.getPincode()));
+                        lendingGstDetail.setState(kycDoc.getState());
+                    }
+                }
+                log.info("Updating current address details as aadhaar address of applicationId {} and merchantId {}", applicationId, merchant.getId());
+            } else {
+
+                lendingGstDetail.setCity(addressDetails.getCity());
+                lendingGstDetail.setAddress1(addressDetails.getAddress1());
+                lendingGstDetail.setAddress2(addressDetails.getAddress2());
+                lendingGstDetail.setPincode(addressDetails.getPincode());
+                lendingGstDetail.setLandmark(addressDetails.getLandmark());
+                lendingGstDetail.setState(addressDetails.getState());
+                log.info("Updating current address details as address provided by merchant of applicationId {} and merchantId {}", applicationId, merchant.getId());
+            }
+            lendingGstDao.save(lendingGstDetail);
+            return new ApiResponse<>(true, "Current Address updated successfully!");
+        } catch (Exception e) {
+            log.error("Exception occurred while updating current address for applicationId: {}", applicationId, Arrays.toString(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong !");
+    }
+
+    public ApiResponse<?> getAadhaarAddress(BasicDetailsDto merchant, Long applicationId) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
+            if (Objects.isNull(lendingApplication)) {
+                return new ApiResponse<>(false, "There is no such applicationId for given merchantId");
+            }
+            List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchantId());
+            for (KycDoc kycDoc : kycDocs) {
+                if (KycDocType.POA.equals(kycDoc.getDocType())) {
+                    AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();
+                    dto.setAddress(kycDoc.getAddress());
+                    dto.setCity(kycDoc.getCity());
+                    dto.setPincode(kycDoc.getPincode());
+                    dto.setState(kycDoc.getState());
+                    return new ApiResponse<>(dto);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while fetching aadhaar address for applicationId: {}", applicationId, Arrays.toString(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong !");
+    }
 }
