@@ -1392,6 +1392,8 @@ public class LendingApplicationServiceV2 {
                         lendingGstDetail.setCity(kycDoc.getCity());
                         lendingApplication.setPincode(Long.valueOf(kycDoc.getPincode()));
                         lendingGstDetail.setState(kycDoc.getState());
+                        lendingGstDetail.setAddress2(null);
+                        lendingGstDetail.setLandmark(null);
                     }
                 }
                 log.info("Updating current address details as aadhaar address of applicationId {} and merchantId {}", applicationId, merchant.getId());
