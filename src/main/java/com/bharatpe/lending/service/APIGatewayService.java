@@ -68,6 +68,9 @@ import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
@@ -1857,7 +1860,13 @@ public class APIGatewayService {
                                     DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
                                     dateOfBirth = sdf.parse(dob);
                                 } catch (ParseException ex) {
-                                    logger.error("Exception while parsing DOB date:{}", dob, ex);
+                                    try {
+                                        DateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                                        sdf.setLenient(false);
+                                        dateOfBirth = sdf.parse(dob);
+                                    } catch (ParseException exc) {
+                                        logger.error("Exception while parsing DOB date:{}", dob, exc);
+                                    }
                                 }
                             }
                             result.put("dob", dateOfBirth != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth) : kycDoc.getDob());
@@ -1869,6 +1878,35 @@ public class APIGatewayService {
             logger.error("Exception Occurred while getting kyc data for merchantId: {} {} {}", merchantId, ex.getMessage(), ex);
         }
         return result;
+    }
+
+    public Integer getMerchantAge(LendingApplication lendingApplication) {
+
+        Integer age = 0;
+        try {
+            Map ckycDetails = getKycDetails(lendingApplication);
+            if (Objects.nonNull(ckycDetails) && Objects.nonNull(ckycDetails.get("dob"))) {
+                String dobValue = ckycDetails.get("dob").toString();
+                logger.info("dob value from ckyc: {} for application id: {}",dobValue, lendingApplication.getId());
+                DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                Date dateOfBirth = sdf.parse(dobValue);
+                age = getAge(dateOfBirth);
+            }
+            return age;
+        } catch (ParseException e) {
+            logger.info("parse exception of dob for applicationId : {}", lendingApplication.getId());
+        }
+        return age;
+    }
+
+    public Integer getAge(Date dob) {
+        return Period.between(convertToLocalDateViaInstant(dob), LocalDate.now()).getYears();
+    }
+
+    private LocalDate convertToLocalDateViaInstant(Date dateToConvert) {
+        return dateToConvert.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
     }
 
 //    private boolean isValidReport(String panCard, String phoneNumber, JsonNode response) {
