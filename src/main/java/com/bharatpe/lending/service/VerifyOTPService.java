@@ -399,7 +399,7 @@ public class VerifyOTPService {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && !Objects.equals(lendingApplication.getLoanAmount(), lendingRiskVariables.getFinalOffer()))) {
-                logger.info("Rejection in post application check entered if to get rejected due to offer value mismatch for application: {}",lendingApplication.getId());
+                logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
                 lendingApplication.setStatus("DELETED");
                 lendingApplication.setManualCibilReason("OFFER_MISMATCH");
                 lendingApplicationDao.save(lendingApplication);
@@ -415,7 +415,24 @@ public class VerifyOTPService {
                 lendingAuditTrialDao.save(lendingAuditTrial);
                 return false;
             }
+            Integer age = apiGatewayService.getMerchantAge(lendingApplication);
+            if (age > 65 || age < 21) {
+                logger.info("Rejection in topUp flow due to age restriction check: {} for id: {}",age, lendingApplication.getId());
+                lendingApplication.setStatus("DELETED");
+                lendingApplication.setManualCibilReason("Age restriction");
+                lendingApplicationDao.save(lendingApplication);
+                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                lendingAuditTrial.setUserId(Long.parseLong("0"));
+                lendingAuditTrial.setOldStatus("draft");
+                lendingAuditTrial.setNewStatus("deleted");
+                lendingAuditTrial.setType("APP_STATUS");
 
+                lendingAuditTrialDao.save(lendingAuditTrial);
+                return false;
+            }
             double previousAmount = loanUtil.getForeclosureAmount(activeLoan);
             LendingLedger lendingLedger = new LendingLedger();
             lendingLedger.setMerchantId(activeLoan.getMerchantId());
