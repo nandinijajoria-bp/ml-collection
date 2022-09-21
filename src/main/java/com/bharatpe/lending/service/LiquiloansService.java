@@ -104,11 +104,11 @@ public class LiquiloansService {
     @Value("${aws.s3.loan.agreement.bucket}")
     private String bucket;
 
-    @Autowired
-    ValidateDao validateDao;
-
-    @Autowired
-    SettlementScheduleDao settlementScheduleDao;
+//    @Autowired
+//    ValidateDao validateDao;
+//
+//    @Autowired
+//    SettlementScheduleDao settlementScheduleDao;
 
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
@@ -383,9 +383,6 @@ public class LiquiloansService {
             }
             lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
             lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-            if (!SettlementType.BHARATPE_ACCOUNT.name().equalsIgnoreCase(basicDetailsDto.get().getSettlementType())) {
-                changeDeductionFromInstantToDaily(basicDetailsDto.get());
-            }
         } catch (Exception e) {
             logger.error("Error occured while populating data into lending_payment_schedule table {}", Arrays.toString(e.getStackTrace()));
             logger.info("Changing loan_disbursal_status back to 'PENDING'");
@@ -591,9 +588,6 @@ public class LiquiloansService {
                 }
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-                if (!SettlementType.BHARATPE_ACCOUNT.name().equalsIgnoreCase(basicDetailsDto.get().getSettlementType())) {
-                    changeDeductionFromInstantToDaily(basicDetailsDto.get());
-                }
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
@@ -785,31 +779,6 @@ public class LiquiloansService {
         }
     }
 
-    public void changeDeductionFromInstantToDaily(BasicDetailsDto merchant) {
-
-        logger.info("Changing settlement from instant to daily for merchant {}", merchant.getId());
-        List<PayloadDTO> merchantPayload = new ArrayList<>();
-        merchantPayload.add(new PayloadDTO("set", "settlementtype", "DAILY"));
-
-        List<Validate> validateList = validateDao.findByMobile(merchant.getMobile());
-        for (Validate validate : validateList) {
-            validate.setSettlement("daily");
-        }
-        SettlementSchedule settlementSchedule = settlementScheduleDao.findTop1ByMerchantIdAndStatus(merchant.getId(), "PENDING");
-        if (settlementSchedule != null) {
-            settlementSchedule.setSettlementDate(new Date());
-            settlementSchedule.setMoveDaily("YES");
-            settlementScheduleDao.save(settlementSchedule);
-        }
-        boolean merchantUpdated = merchantUpdateService.curlMerchantPartialUpdateAPI(merchant.getId(), merchantPayload);
-        if (!merchantUpdated) {
-            logger.info("Error while updating merchant info!");
-        }
-        if (!validateList.isEmpty()) {
-            validateDao.saveAll(validateList);
-        }
-
-    }
 
 //    public void changeDeductionFromInstantToDaily(Merchant merchant) {
 //
