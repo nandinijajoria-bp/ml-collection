@@ -153,8 +153,8 @@ public class APIGatewayService {
     @Autowired
     Environment env;
 
-    @Autowired
-    CrifRequestResponseDao crifRequestResponseDao;
+//    @Autowired
+//    CrifRequestResponseDao crifRequestResponseDao;
 
     @Autowired
     InternalClientDaoSlave internalClientDaoSlave;

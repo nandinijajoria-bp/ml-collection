@@ -11,7 +11,6 @@ import com.bharatpe.lending.common.slave.entity.EcollectTransactionSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.dao.ExperianDummyDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.service.LoanDetailsService;
 import com.bharatpe.lending.service.LoanEligibleService;
@@ -53,8 +52,8 @@ public class CallLoanDetailService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
-    @Autowired
-    ExperianDummyDao experianDummyDao;
+//    @Autowired
+//    ExperianDummyDao experianDummyDao;
 
     SimpleDateFormat experianFormat = new SimpleDateFormat("yyyyMMdd");
 

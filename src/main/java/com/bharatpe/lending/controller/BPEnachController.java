@@ -1,11 +1,8 @@
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dao.BPEnachRawRequestDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.entity.BPEnachRawRequest;
 import com.bharatpe.lending.service.BPEnachService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +25,6 @@ public class BPEnachController {
 
     @Autowired
     private BPEnachService bpEnachService;
-
-
-    @Autowired
-    BPEnachRawRequestDao bpEnachRawRequestDao;
 
     @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
     public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute BasicDetailsDto merchant,

@@ -14,7 +14,6 @@ import com.bharatpe.lending.common.entity.LendingGlobalLimit;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 //import com.bharatpe.lending.common.slave.dao.OrderStickerDaoSlave;
 //import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
-import com.bharatpe.lending.dao.BPEnachDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.CoolOffRequestDTO;
 import com.bharatpe.lending.dto.CoolOffResponseDTO;
@@ -65,8 +64,8 @@ public class LendingOffersService {
 //	@Autowired
 //	MerchantDao merchantDao;
 
-	@Autowired
-	BPEnachDao bpEnachDao;
+//	@Autowired
+//	BPEnachDao bpEnachDao;
 
 	@Autowired
 	LendingEkycDao lendingEkycDao;
@@ -198,7 +197,7 @@ public class LendingOffersService {
 		lendingPancardDao.deleteByMerchantId(merchant.getId());
 		experianDao.deleteByMerchantId(merchant.getId());
 		lendingApplicationDao.deleteByMerchantId(merchant.getId());
-		bpEnachDao.deleteByMerchantId(merchant.getId());
+//		bpEnachDao.deleteByMerchantId(merchant.getId());
 		lendingEkycDao.deleteByMerchantId(merchant.getId());
 		documentsIdProofDaoMaster.deleteByMerchantId(merchant.getId());
 		docKycDetailsDaoMaster.deleteByMerchantId(merchant.getId());

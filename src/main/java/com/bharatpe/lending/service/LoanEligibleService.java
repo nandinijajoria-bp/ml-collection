@@ -4,7 +4,6 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
-import com.bharatpe.lending.common.dao.CrifRequestResponseDao;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
@@ -111,9 +110,6 @@ public class LoanEligibleService {
     ExperianDetailsDao experianDetailsDao;
 
     @Autowired
-    MerchantSummaryLendingDao merchantSummaryLendingDao;
-
-    @Autowired
     EligibleLoanAuditDao eligibleLoanAuditDao;
 
     @Autowired
@@ -131,8 +127,8 @@ public class LoanEligibleService {
 //    @Autowired
 //    MerchantSummaryDao merchantSummaryDao;
 
-    @Autowired
-    CrifRequestResponseDao crifRequestResponseDao;
+//    @Autowired
+//    CrifRequestResponseDao crifRequestResponseDao;
 
     @Autowired
     LendingMerchantDropoffDao lendingMerchantDropoffDao;
@@ -643,223 +639,223 @@ public class LoanEligibleService {
         return null;
     }
 
-    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(ResponseUtil responseUtil, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
-        int bureauVintage = responseUtil.fetchBureauVintage();//months
-        String accountCategory = responseUtil.fetchAccountCategory();// A,B,C or NTC
-        if (accountCategory.equals("NTC")) {
-            logger.info("Loan category is NTC for merchant: {}, Calculate NTC...", merchantId);
-            return calculateNTC(bpScore, merchantId, repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
-            //calculate NTC....
-        }
-        String segment = calculateSegment(bureauVintage, accountCategory, bpScore);
-        String color;
-        if (ExperianConstants.RED.contains(segment)) {
-            color = ExperianConstants.COLOR.RED.name();
-            experian.setCategory(segment);
-            experian.setColor(color);
-            experian.setReason(ExperianConstants.CATEGORY_RED);
-            experianDao.save(experian);
-            logger.info("Category color RED, so rejecting merchant: {}", merchantId);
-            return new ArrayList<>();
-        } else if (ExperianConstants.AMBER.contains(segment)) {
-            color = ExperianConstants.COLOR.AMBER.name();
-        } else if (ExperianConstants.LIGHT_GREEN.contains(segment)) {
-            color = ExperianConstants.COLOR.LIGHT_GREEN.name();
-        } else {
-            color = ExperianConstants.COLOR.DARK_GREEN.name();
-        }
-        logger.info("Bureau Segment: {}, Color: {} for merchant: {}", segment, color, merchantId);
-        //update segment and color
-        experian.setCategory(segment);
-        experian.setColor(color);
-        experianDao.save(experian);
-        logger.info("Calculating bureau eligible loans for merchant: {}", merchantId);
-        return calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode);
-    }
+//    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(ResponseUtil responseUtil, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
+//        int bureauVintage = responseUtil.fetchBureauVintage();//months
+//        String accountCategory = responseUtil.fetchAccountCategory();// A,B,C or NTC
+//        if (accountCategory.equals("NTC")) {
+//            logger.info("Loan category is NTC for merchant: {}, Calculate NTC...", merchantId);
+//            return calculateNTC(bpScore, merchantId, repeatedLoan, avgTpv, isEligibleForConstruct2And3, experian, loanCount, previousLoanDays, lendingApplication, yellowPincode);
+//            //calculate NTC....
+//        }
+//        String segment = calculateSegment(bureauVintage, accountCategory, bpScore);
+//        String color;
+//        if (ExperianConstants.RED.contains(segment)) {
+//            color = ExperianConstants.COLOR.RED.name();
+//            experian.setCategory(segment);
+//            experian.setColor(color);
+//            experian.setReason(ExperianConstants.CATEGORY_RED);
+//            experianDao.save(experian);
+//            logger.info("Category color RED, so rejecting merchant: {}", merchantId);
+//            return new ArrayList<>();
+//        } else if (ExperianConstants.AMBER.contains(segment)) {
+//            color = ExperianConstants.COLOR.AMBER.name();
+//        } else if (ExperianConstants.LIGHT_GREEN.contains(segment)) {
+//            color = ExperianConstants.COLOR.LIGHT_GREEN.name();
+//        } else {
+//            color = ExperianConstants.COLOR.DARK_GREEN.name();
+//        }
+//        logger.info("Bureau Segment: {}, Color: {} for merchant: {}", segment, color, merchantId);
+//        //update segment and color
+//        experian.setCategory(segment);
+//        experian.setColor(color);
+//        experianDao.save(experian);
+//        logger.info("Calculating bureau eligible loans for merchant: {}", merchantId);
+//        return calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode);
+//    }
 
-    private List<LoanEligibilityDTO> calculateNTC(Double bpScore, Long merchantId, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, Experian experian, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
-        logger.info("Calculating NTC for merchant: {}", merchantId);
-        String segment;
-        String color;
-        if (bpScore <= 15) {
-            segment = "2N";
-            color = ExperianConstants.COLOR.AMBER.name();
-        } else if (bpScore <= 25) {
-            segment = "3N";
-            color = ExperianConstants.COLOR.LIGHT_GREEN.name();
-        } else {
-            segment = "4N";
-            color = ExperianConstants.COLOR.DARK_GREEN.name();
-        }
-        logger.info("NTC Segment: {}, Color: {} for merchant: {}", segment, color, merchantId);
-        //update segment and color
-        experian.setCategory(segment);
-        experian.setColor(color);
-        experianDao.save(experian);
-        return loanCount > 2 ? calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode) : calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, true, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode);
-    }
+//    private List<LoanEligibilityDTO> calculateNTC(Double bpScore, Long merchantId, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, Experian experian, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
+//        logger.info("Calculating NTC for merchant: {}", merchantId);
+//        String segment;
+//        String color;
+//        if (bpScore <= 15) {
+//            segment = "2N";
+//            color = ExperianConstants.COLOR.AMBER.name();
+//        } else if (bpScore <= 25) {
+//            segment = "3N";
+//            color = ExperianConstants.COLOR.LIGHT_GREEN.name();
+//        } else {
+//            segment = "4N";
+//            color = ExperianConstants.COLOR.DARK_GREEN.name();
+//        }
+//        logger.info("NTC Segment: {}, Color: {} for merchant: {}", segment, color, merchantId);
+//        //update segment and color
+//        experian.setCategory(segment);
+//        experian.setColor(color);
+//        experianDao.save(experian);
+//        return loanCount > 2 ? calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, false, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode) : calculateEligibleLoans(avgTpv, repeatedLoan, color, isEligibleForConstruct2And3, true, previousLoanDays, merchantId, experian.getId(), lendingApplication, yellowPincode);
+//    }
 
-    private List<LoanEligibilityDTO> calculateEligibleLoans(double avgTpv, boolean repeatedLoan, String color, boolean isEligibleForConstruct2And3, boolean isNTC, int previousLoanDays, Long merchantId, Long experianId, LendingApplication lendingApplication, boolean yellowPincode) {
-        logger.info("Calculating offers for merchant: {}", merchantId);
-        String masterCategory = getMasterCategory(color, isNTC, repeatedLoan);
-        logger.info("Master Category for merchant: {} is {}", merchantId, masterCategory);
-        List<LendingCategories> lendingCategories;
-        String type;
-        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchantId);
-        String set = (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null) ? merchantSummaryLending.getSegment() : "2";
-        double prevLoanAmount = 0d;
-        if (lendingApplication != null) {
-            switch (color) {
-                case "AMBER":
-                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.1;
-                    break;
-                case "LIGHT_GREEN":
-                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;
-                    break;
-                case "DARK_GREEN":
-                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.5;
-                    break;
-            }
-        }
-        if (yellowPincode) {
-            lendingCategories = lendingCategoryDao.findByBureau("OGL");
-            type = null;
-        } else if (isEligibleForConstruct2And3) {
-            List<String> payableConverters = new ArrayList<>();
-            switch (previousLoanDays) {
-                case 26:
-                    payableConverters.add("1+3 Months");
-                    break;
-                case 77:
-                    payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months"));
-                    break;
-                default:
-                    payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months", "1+12 Months"));
-            }
-            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct3(masterCategory, payableConverters);
-            type = "Only Interest";
-        } else {
-            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1(masterCategory);
-            type = null;
-        }
-        if (lendingCategories.isEmpty()) {
-            logger.error("No active lending category found for merchant: {}", merchantId);
-            return new ArrayList<>();
-        } else {
-            String loanType = yellowPincode ? "OGL" : "REGULAR";
-            logger.info("Deleting eligible loans for merchant: {}", merchantId);
-            eligibleLoanDao.deleteByMerchantId(merchantId);
-            List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
-            for (LendingCategories lendingCategory : lendingCategories) {
-                if (lendingCategory.getLoanConstruct() != null && lendingCategory.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-                    if (yellowPincode && ((isNTC && !lendingCategory.getCategory().contains("NTC")) || (!isNTC && !lendingCategory.getCategory().contains("ETC")))) {
-                        continue;
-                    }
-                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
-                    if (loanEligibilityDTO != null) {
-                        loanEligibilityDTOList.add(loanEligibilityDTO);
-                    } else {
-                        logger.info("loan offer is null for merchant: {}", merchantId);
-                    }
-                }
-            }
-            if (yellowPincode && loanEligibilityDTOList.isEmpty()) {
-                logger.info("No OGL loan for merchant:{}, fetching 10k loans", merchantId);
-                for (LendingCategories category : lendingCategories) {
-                    if ((isNTC && category.getCategory().contains("NTC")) || (!isNTC && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-                        loanEligibilityDTOList.add(calculateLoanBreakup(category, 0, null, merchantId, experianId, 10000D, color, "2", loanType, false, true));
-                    }
-                }
-            }
-            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-            if (!yellowPincode && lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
-                LendingCategories category = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-                if (category != null && category.getLoanConstruct() != null && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(category, 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
-                    if (loanEligibilityDTO != null) {
-                        logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
-                        loanEligibilityDTOList.add(loanEligibilityDTO);
-                        loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-                    } else {
-                        logger.info("loan offer is null for merchant: {}", merchantId);
-                    }
-                }
-            }
-            if (!yellowPincode && !loanEligibilityDTOList.isEmpty()) {
-                try {
-                    LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchantId);
-                    if (ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
-                        logger.info("Calculating regular loan using previous NTB loan amount for merchant:{}", merchantId);
-                        LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
-                        if (categories != null) {
-                            LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
-                            if (loanEligibilityDTO != null) {
-                                logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
-                                loanEligibilityDTOList.add(loanEligibilityDTO);
-                                loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
-                            } else {
-                                logger.info("loan offer is null for merchant: {}", merchantId);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.error("Exception in regular ntb loan", e);
-                }
-            }
-            if (!loanEligibilityDTOList.isEmpty()) {
-                experianDao.updateEligibleAmount(experianId, loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), loanType);
-            }
-            return loanEligibilityDTOList;
-        }
-    }
+//    private List<LoanEligibilityDTO> calculateEligibleLoans(double avgTpv, boolean repeatedLoan, String color, boolean isEligibleForConstruct2And3, boolean isNTC, int previousLoanDays, Long merchantId, Long experianId, LendingApplication lendingApplication, boolean yellowPincode) {
+//        logger.info("Calculating offers for merchant: {}", merchantId);
+//        String masterCategory = getMasterCategory(color, isNTC, repeatedLoan);
+//        logger.info("Master Category for merchant: {} is {}", merchantId, masterCategory);
+//        List<LendingCategories> lendingCategories;
+//        String type;
+//        MerchantSummaryLending merchantSummaryLending = merchantSummaryLendingDao.findByMerchantId(merchantId);
+//        String set = (merchantSummaryLending != null && merchantSummaryLending.getSegment() != null) ? merchantSummaryLending.getSegment() : "2";
+//        double prevLoanAmount = 0d;
+//        if (lendingApplication != null) {
+//            switch (color) {
+//                case "AMBER":
+//                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.1;
+//                    break;
+//                case "LIGHT_GREEN":
+//                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.25;
+//                    break;
+//                case "DARK_GREEN":
+//                    prevLoanAmount = lendingApplication.getLoanAmount() * 1.5;
+//                    break;
+//            }
+//        }
+//        if (yellowPincode) {
+//            lendingCategories = lendingCategoryDao.findByBureau("OGL");
+//            type = null;
+//        } else if (isEligibleForConstruct2And3) {
+//            List<String> payableConverters = new ArrayList<>();
+//            switch (previousLoanDays) {
+//                case 26:
+//                    payableConverters.add("1+3 Months");
+//                    break;
+//                case 77:
+//                    payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months"));
+//                    break;
+//                default:
+//                    payableConverters.addAll(Arrays.asList("1+3 Months", "1+6 Months", "1+12 Months"));
+//            }
+//            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct3(masterCategory, payableConverters);
+//            type = "Only Interest";
+//        } else {
+//            lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1(masterCategory);
+//            type = null;
+//        }
+//        if (lendingCategories.isEmpty()) {
+//            logger.error("No active lending category found for merchant: {}", merchantId);
+//            return new ArrayList<>();
+//        } else {
+//            String loanType = yellowPincode ? "OGL" : "REGULAR";
+//            logger.info("Deleting eligible loans for merchant: {}", merchantId);
+//            eligibleLoanDao.deleteByMerchantId(merchantId);
+//            List<LoanEligibilityDTO> loanEligibilityDTOList = new ArrayList<>();
+//            for (LendingCategories lendingCategory : lendingCategories) {
+//                if (lendingCategory.getLoanConstruct() != null && lendingCategory.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
+//                    if (yellowPincode && ((isNTC && !lendingCategory.getCategory().contains("NTC")) || (!isNTC && !lendingCategory.getCategory().contains("ETC")))) {
+//                        continue;
+//                    }
+//                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(lendingCategory, avgTpv, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
+//                    if (loanEligibilityDTO != null) {
+//                        loanEligibilityDTOList.add(loanEligibilityDTO);
+//                    } else {
+//                        logger.info("loan offer is null for merchant: {}", merchantId);
+//                    }
+//                }
+//            }
+//            if (yellowPincode && loanEligibilityDTOList.isEmpty()) {
+//                logger.info("No OGL loan for merchant:{}, fetching 10k loans", merchantId);
+//                for (LendingCategories category : lendingCategories) {
+//                    if ((isNTC && category.getCategory().contains("NTC")) || (!isNTC && category.getCategory().contains("ETC")) && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
+//                        loanEligibilityDTOList.add(calculateLoanBreakup(category, 0, null, merchantId, experianId, 10000D, color, "2", loanType, false, true));
+//                    }
+//                }
+//            }
+//            loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+//            if (!yellowPincode && lendingApplication != null && lendingApplication.getCategory() != null && (loanEligibilityDTOList.isEmpty() || (loanEligibilityDTOList.get(0).getAmount() < prevLoanAmount))) {
+//                LendingCategories category = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
+//                if (category != null && category.getLoanConstruct() != null && category.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
+//                    LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(category, 0, type, merchantId, experianId, prevLoanAmount, color, set, loanType, false, yellowPincode);
+//                    if (loanEligibilityDTO != null) {
+//                        logger.info("loan offer calculated using previous category for merchant: {}", merchantId);
+//                        loanEligibilityDTOList.add(loanEligibilityDTO);
+//                        loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+//                    } else {
+//                        logger.info("loan offer is null for merchant: {}", merchantId);
+//                    }
+//                }
+//            }
+//            if (!yellowPincode && !loanEligibilityDTOList.isEmpty()) {
+//                try {
+//                    LendingApplication ntbLoan = lendingApplicationDao.getPreviousNTBLoan(merchantId);
+//                    if (ntbLoan != null && ntbLoan.getLoanAmount() * 1.25 > loanEligibilityDTOList.get(0).getAmount()) {
+//                        logger.info("Calculating regular loan using previous NTB loan amount for merchant:{}", merchantId);
+//                        LendingCategories categories = lendingCategoryDao.getByCategory(ntbLoan.getCategory());
+//                        if (categories != null) {
+//                            LoanEligibilityDTO loanEligibilityDTO = calculateLoanBreakup(categories, 0, type, merchantId, experianId, ntbLoan.getLoanAmount() * 1.25, color, set, "NTB", false, false);
+//                            if (loanEligibilityDTO != null) {
+//                                logger.info("loan offer calculated using previous ntb loan for merchant: {}", merchantId);
+//                                loanEligibilityDTOList.add(loanEligibilityDTO);
+//                                loanEligibilityDTOList.sort(Comparator.comparing(LoanEligibilityDTO::getAmount, Comparator.reverseOrder()).thenComparing(LoanEligibilityDTO::getEdi));
+//                            } else {
+//                                logger.info("loan offer is null for merchant: {}", merchantId);
+//                            }
+//                        }
+//                    }
+//                } catch (Exception e) {
+//                    logger.error("Exception in regular ntb loan", e);
+//                }
+//            }
+//            if (!loanEligibilityDTOList.isEmpty()) {
+//                experianDao.updateEligibleAmount(experianId, loanEligibilityDTOList.get(0).getAmount().doubleValue(), loanEligibilityDTOList.get(0).getPrincipleEdiTenure().toString(), loanType);
+//            }
+//            return loanEligibilityDTOList;
+//        }
+//    }
 
-    private String getMasterCategory(String color, boolean isNTC, boolean repeatedLoan) {
-        switch (color) {
-            case "AMBER":
-                if (isNTC) {
-                    if (repeatedLoan) {
-                        return "S4A";
-                    } else {
-                        return "S3A";
-                    }
-                } else {
-                    if (repeatedLoan) {
-                        return "S2A";
-                    } else {
-                        return "S1A";
-                    }
-                }
-            case "LIGHT_GREEN":
-                if (isNTC) {
-                    if (repeatedLoan) {
-                        return "S4LG";
-                    } else {
-                        return "S3LG";
-                    }
-                } else {
-                    if (repeatedLoan) {
-                        return "S2LG";
-                    } else {
-                        return "S1LG";
-                    }
-                }
-            case "DARK_GREEN":
-                if (isNTC) {
-                    if (repeatedLoan) {
-                        return "S4DG";
-                    } else {
-                        return "S3DG";
-                    }
-                } else {
-                    if (repeatedLoan) {
-                        return "S2DG";
-                    } else {
-                        return "S1DG";
-                    }
-                }
-        }
-        return "S4A";
-    }
+//    private String getMasterCategory(String color, boolean isNTC, boolean repeatedLoan) {
+//        switch (color) {
+//            case "AMBER":
+//                if (isNTC) {
+//                    if (repeatedLoan) {
+//                        return "S4A";
+//                    } else {
+//                        return "S3A";
+//                    }
+//                } else {
+//                    if (repeatedLoan) {
+//                        return "S2A";
+//                    } else {
+//                        return "S1A";
+//                    }
+//                }
+//            case "LIGHT_GREEN":
+//                if (isNTC) {
+//                    if (repeatedLoan) {
+//                        return "S4LG";
+//                    } else {
+//                        return "S3LG";
+//                    }
+//                } else {
+//                    if (repeatedLoan) {
+//                        return "S2LG";
+//                    } else {
+//                        return "S1LG";
+//                    }
+//                }
+//            case "DARK_GREEN":
+//                if (isNTC) {
+//                    if (repeatedLoan) {
+//                        return "S4DG";
+//                    } else {
+//                        return "S3DG";
+//                    }
+//                } else {
+//                    if (repeatedLoan) {
+//                        return "S2DG";
+//                    } else {
+//                        return "S1DG";
+//                    }
+//                }
+//        }
+//        return "S4A";
+//    }
 
     public LoanEligibilityDTO calculateLoanBreakup(LendingCategories lendingCategories, double avgTpv, String type, Long merchantId, Long experianId, double prevLoanAmount, String color, String set, String loanType, boolean isZomato, boolean yellowPincode) {
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);

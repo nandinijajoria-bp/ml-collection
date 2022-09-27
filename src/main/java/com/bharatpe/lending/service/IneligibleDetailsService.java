@@ -34,14 +34,14 @@ public class IneligibleDetailsService {
 //    @Autowired
 //    private MerchantSummaryDao merchantSummaryDao;
 
-    @Autowired
-    private MerchantLoanRequestDoa merchantLoanRequestDoa;
+//    @Autowired
+//    private MerchantLoanRequestDoa merchantLoanRequestDoa;
 
 //    @Autowired
 //    private MerchantDao merchantDao;
 
-    @Autowired
-    MerchantLoanRequestAuditTrailDoa merchantLoanRequestAuditTrailDoa;
+//    @Autowired
+//    MerchantLoanRequestAuditTrailDoa merchantLoanRequestAuditTrailDoa;
 
 //    @Autowired
 //    ScoreCategoryMasterDao scoreCategoryMasterDao;

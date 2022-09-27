@@ -27,7 +27,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.common.dao.DocAuthenticationDao;
 import com.bharatpe.common.entities.DocAuthentication;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.dao.LendingApplicationDao;

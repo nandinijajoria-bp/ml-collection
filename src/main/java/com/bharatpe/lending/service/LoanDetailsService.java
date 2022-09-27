@@ -895,43 +895,43 @@ public class LoanDetailsService {
 //		return false;
 //	}
 
-	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
-		if(offer!=null && offer.getExpiryDate()!=null) {
-			return offer.getExpiryDate().compareTo(new Date())<=0;
-		}
-		return true;
-	}
+//	private Boolean isOfferExpired(LendingBharatswipeOffers offer) {
+//		if(offer!=null && offer.getExpiryDate()!=null) {
+//			return offer.getExpiryDate().compareTo(new Date())<=0;
+//		}
+//		return true;
+//	}
 
-	private List<LoanEligibilityDTO> fetchZomatoOffers(Experian experian, List<LendingPartnerOffers> lendingPartnerOffers) {
-		if (lendingPartnerOffers.isEmpty()) {
-			return new ArrayList<>();
-		}
-		boolean ntc = loanEligibleService.isNTC(experian);
-		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
-		List<String> categorySeen = new ArrayList<>();
-		eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
-		for (LendingPartnerOffers lendingPartnerOffer : lendingPartnerOffers) {
-			if (categorySeen.contains(lendingPartnerOffer.getCategory())) {
-				continue;
-			}
-			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingPartnerOffer.getCategory());
-			if (lendingCategories == null || !lendingCategories.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
-				logger.error("Invalid Zomato category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
-				continue;
-			}
-			if (ntc && !lendingCategories.getCategory().contains("ZNTC")) {
-				logger.error("Invalid Zomato NTC category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
-				continue;
-			}
-			eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingPartnerOffer.getLoanAmount(), experian.getColor(), "2", "ZOMATO", true, false));
-			categorySeen.add(lendingPartnerOffer.getCategory());
-		}
-		if (!eligibilityDTOS.isEmpty()) {
-			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).thenComparing(LoanEligibilityDTO::getPrincipleEdiTenure).reversed());
-			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "ZOMATO");
-		}
-		return eligibilityDTOS;
-	}
+//	private List<LoanEligibilityDTO> fetchZomatoOffers(Experian experian, List<LendingPartnerOffers> lendingPartnerOffers) {
+//		if (lendingPartnerOffers.isEmpty()) {
+//			return new ArrayList<>();
+//		}
+//		boolean ntc = loanEligibleService.isNTC(experian);
+//		List<LoanEligibilityDTO> eligibilityDTOS = new ArrayList<>();
+//		List<String> categorySeen = new ArrayList<>();
+//		eligibleLoanDao.deleteByMerchantId(experian.getMerchantId());
+//		for (LendingPartnerOffers lendingPartnerOffer : lendingPartnerOffers) {
+//			if (categorySeen.contains(lendingPartnerOffer.getCategory())) {
+//				continue;
+//			}
+//			LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingPartnerOffer.getCategory());
+//			if (lendingCategories == null || !lendingCategories.getLoanConstruct().equalsIgnoreCase("CONSTRUCT_1")) {
+//				logger.error("Invalid Zomato category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
+//				continue;
+//			}
+//			if (ntc && !lendingCategories.getCategory().contains("ZNTC")) {
+//				logger.error("Invalid Zomato NTC category:{} for merchant:{}", lendingPartnerOffer.getCategory(), experian.getMerchantId());
+//				continue;
+//			}
+//			eligibilityDTOS.add(loanEligibleService.calculateLoanBreakup(lendingCategories, 0, null, experian.getMerchantId(), experian.getId(), lendingPartnerOffer.getLoanAmount(), experian.getColor(), "2", "ZOMATO", true, false));
+//			categorySeen.add(lendingPartnerOffer.getCategory());
+//		}
+//		if (!eligibilityDTOS.isEmpty()) {
+//			eligibilityDTOS.sort(Comparator.comparing(LoanEligibilityDTO::getAmount).thenComparing(LoanEligibilityDTO::getPrincipleEdiTenure).reversed());
+//			experianDao.updateEligibleAmount(experian.getId(), eligibilityDTOS.get(0).getAmount().doubleValue(), eligibilityDTOS.get(0).getPrincipleEdiTenure().toString(), "ZOMATO");
+//		}
+//		return eligibilityDTOS;
+//	}
 
 	private LoanDetailsResponseDTO createFailureResponse() {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
