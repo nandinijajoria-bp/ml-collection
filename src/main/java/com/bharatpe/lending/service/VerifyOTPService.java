@@ -417,9 +417,10 @@ public class VerifyOTPService {
             }
             Integer age = apiGatewayService.getMerchantAge(lendingApplication);
             if (age > 65 || age < 21) {
+                String ageRejectReason = age > 65 ? "Age_Reject_65" : "Age Reject";
                 logger.info("Rejection in topUp flow due to age restriction check: {} for id: {}",age, lendingApplication.getId());
                 lendingApplication.setStatus("DELETED");
-                lendingApplication.setManualCibilReason("Age restriction");
+                lendingApplication.setManualCibilReason(ageRejectReason);
                 lendingApplicationDao.save(lendingApplication);
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
                 lendingAuditTrial.setApplicationId(lendingApplication.getId());

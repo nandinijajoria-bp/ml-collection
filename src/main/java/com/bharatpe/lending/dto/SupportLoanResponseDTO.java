@@ -390,6 +390,24 @@ public class SupportLoanResponseDTO {
         private Boolean arrangerFeeRefunded;
         private Date timestamp;
         private String inEligibleReason;
+        private String utr;
+        private String refundType;
+
+        public String getRefundType() {
+            return refundType;
+        }
+
+        public void setRefundType(String refundType) {
+            this.refundType = refundType;
+        }
+
+        public String getUtr() {
+            return utr;
+        }
+
+        public void setUtr(String utr) {
+            this.utr = utr;
+        }
 
         public Double getFeeAmount() {
             return feeAmount;

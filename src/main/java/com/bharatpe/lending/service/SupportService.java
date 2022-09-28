@@ -951,6 +951,8 @@ public class SupportService {
                         loanArrangerFee.setArrangerFeeRefunded(true);
                         loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
                         loanArrangerFee.setInEligibleReason(SupportConstants.ALREADY_REFUNDED);
+                        loanArrangerFee.setUtr(lendingPayouts.getBankReferenceNo());
+                        loanArrangerFee.setRefundType(lendingPayouts.getMessage());
                     } else {
                         populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
                     }
