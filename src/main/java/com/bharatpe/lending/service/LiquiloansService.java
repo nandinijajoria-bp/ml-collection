@@ -335,6 +335,7 @@ public class LiquiloansService {
             lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
             lendingPaymentSchedule.setCreatedAt(new Date());
             lendingPaymentSchedule.setUpdatedAt(new Date());
+            lendingPaymentSchedule.setOffDay("SUNDAY");
 //    		String construct=lendingApplication.getLoanConstruct();
 //    		lendingPaymentSchedule.setLoanConstruct(construct);
 
@@ -561,6 +562,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
                 lendingPaymentSchedule.setCreatedAt(new Date());
                 lendingPaymentSchedule.setUpdatedAt(new Date());
+                lendingPaymentSchedule.setOffDay("SUNDAY");
 
                 Date date = new Date();
 
