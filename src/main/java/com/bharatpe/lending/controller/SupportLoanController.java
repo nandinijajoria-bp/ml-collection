@@ -7,6 +7,7 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.FLDGReportService;
 import com.bharatpe.lending.service.SupportService;
 import org.slf4j.Logger;
@@ -89,22 +90,21 @@ public class SupportLoanController {
     }
 
     @RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public Object cancelApplication(@RequestParam Long merchantId, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
+    public ResponseEntity cancelApplication(@RequestParam Long merchantId, @RequestBody CommonAPIRequest commonAPIRequest) {
         logger.info("cancelApplication request : {}",commonAPIRequest);
-        Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
+        Long applicationId =  commonAPIRequest.getPayload().get("applicationId") != null ? Long.parseLong(commonAPIRequest.getPayload().get("applicationId").toString()) : null;
         String reason = commonAPIRequest.getPayload().get("reason") != null ? commonAPIRequest.getPayload().get("reason").toString() : null;
         if(applicationId == null || applicationId <=0) {
             logger.info("CancelApplicationService invalid applicationId");
-            response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
             Map<String, Boolean> resp = new HashMap<>();
             resp.put("success",false);
-            return resp;
+            return new ResponseEntity<>(resp, HttpStatus.BAD_REQUEST);
         }
 
-        Object resp = supportService.cancelApplication(merchantId, applicationId, reason);
+        Map<String, Boolean> resp = supportService.cancelApplication(merchantId, applicationId, reason);
 
         logger.info("cancelApplication response : {}", resp);
-        return resp;
+        return new ResponseEntity<>(resp, HttpStatus.OK);
     }
 }
 

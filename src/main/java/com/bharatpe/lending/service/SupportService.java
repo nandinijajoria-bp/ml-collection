@@ -2182,9 +2182,9 @@ public class SupportService {
         return new ResponseDTO(false, "something went wrong !");
     }
 
-    public Object cancelApplication(Long merchantId, Long applicationId, String reason) {
+    public Map<String, Boolean> cancelApplication(Long merchantId, Long applicationId, String reason) {
         logger.info("Cancelling application:{} for merchant:{}", applicationId, merchantId);
-        Object response = null;
+        Map<String, Boolean> response = null;
         try {
             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
             if(merchant.isPresent()) {
