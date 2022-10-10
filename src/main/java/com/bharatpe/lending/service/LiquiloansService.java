@@ -718,7 +718,7 @@ public class LiquiloansService {
                 body.put("merchant_id", lendingApplication.getMerchantId());
                 body.put("ref_txn_id", lendingApplication.getId());
                 body.put("amount", clubAvailAmount);
-                body.put("narration", "Extra Loan Amount");
+                body.put("narration", "Loan timely repayment cashback");
                 body.put("source_module", "LOAN");
 
                 kafkaTemplate.send(TOPIC, body);
