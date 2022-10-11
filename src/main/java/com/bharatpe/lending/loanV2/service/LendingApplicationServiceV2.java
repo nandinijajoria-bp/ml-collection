@@ -1401,13 +1401,13 @@ public class LendingApplicationServiceV2 {
     public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType){
         try{
             if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS.toString())){
-                return getKfsDetails(applicationId,null, merchant, "draft");
+                return getKfsDetails(applicationId,null, merchant);
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DOC.toString())){
-                return generateKfs(applicationId, null, merchant, false, "draft");
+                return generateKfs(applicationId, null, merchant, false);
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.toString())){
-                return generateSanctionCumLoanAgreement(applicationId, null, merchant, false, "draft");
+                return generateSanctionCumLoanAgreement(applicationId, null, merchant, false);
             }
             return new ApiResponse<>(false, "Unhandled DocType");
         }
@@ -1417,12 +1417,12 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public ApiResponse<?> getKfsDetails(Long applicationId, LendingApplication lendingApplication1, BasicDetailsDto merchant, String status){
+    public ApiResponse<?> getKfsDetails(Long applicationId, LendingApplication lendingApplication1, BasicDetailsDto merchant){
         try{
             LendingApplication lendingApplication;
             if(ObjectUtils.isEmpty(lendingApplication1)){
-                lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
-                        merchant.getId(), status);
+                lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
+                        merchant.getId());
                 if(ObjectUtils.isEmpty(lendingApplication)) {
                     log.info("Application not found while fetching KFS details for Id: {} for merchant : {}", applicationId, merchant.getId());
                     return new ApiResponse<>(false, "Unable to fetch application details");
@@ -1522,7 +1522,7 @@ public class LendingApplicationServiceV2 {
         }
         String fileName = "";
         ApiResponse<?> apiResponse;
-        apiResponse = generateKfs(applicationId, lendingApplication, merchant, true, "pending_verification");
+        apiResponse = generateKfs(applicationId, lendingApplication, merchant, true);
         if(apiResponse.success){
             String kfsHtml = (String)apiResponse.data;
             fileName = "Key_Facts_Statement_" + applicationId;
@@ -1549,7 +1549,7 @@ public class LendingApplicationServiceV2 {
             throw new Exception("Unable to generate KFS for applicationID" + applicationId);
         }
 
-        apiResponse = generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, true, "pending_verification");
+        apiResponse = generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, true);
         if(apiResponse.success){
             String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
             fileName = "Sanction_Cum_Loan_Agreement_" + applicationId;
@@ -1624,8 +1624,8 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, String status){
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, status);
+    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp){
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating KFS doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve KFS Details");
@@ -1661,8 +1661,8 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, String status){
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, status);
+    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp){
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating Sanction Cum Loan Agreement doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve KFS Details");
