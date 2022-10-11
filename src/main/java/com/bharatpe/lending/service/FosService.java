@@ -810,18 +810,18 @@ public class FosService {
                 logger.info("is a store/d2r merchant {}", merchantId);
                 return computeEligibilityParams("ineligible", null, merchantId);
             }
-            // check for red pin
-            if (Objects.nonNull(merchant.get().getZipCode())) {
-                LendingPincodes lendingPincode = lendingPincodesDao.findByPincode(Integer.valueOf(merchant.get().getZipCode()));
-                if (Objects.isNull(lendingPincode) || (Objects.nonNull(lendingPincode) && lendingPincode.getColor().equals(PincodeColor.RED))) {
-                    logger.info("merchant {} is in red pin zone", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId);
-                }
-            }
             Experian experian = experianDao.getByMerchantId(merchantId);
             if (Objects.isNull(experian) || Objects.isNull(experian.getPancardNumber())) {
                 logger.info("merchant {} 's pan card doesn't exist", merchantId);
                 return computeEligibilityParams("maybe", null, merchantId);
+            }
+            // check for red pin
+            if (Objects.nonNull(experian.getPincode())) {
+                LendingPincodes lendingPincode = lendingPincodesDao.findByPincode(experian.getPincode());
+                if (Objects.isNull(lendingPincode) || (Objects.nonNull(lendingPincode) && lendingPincode.getColor().equals(PincodeColor.RED))) {
+                    logger.info("merchant {} is in red pin zone", merchantId);
+                    return computeEligibilityParams("ineligible", null, merchantId);
+                }
             }
             if (Objects.nonNull(experian)) {
                 // blocked pan card
@@ -831,7 +831,7 @@ public class FosService {
                     return computeEligibilityParams("ineligible", null, merchantId);
                 }
                 // rejected experian
-                if (experian.getRejected() &&
+                if (experian.getRejected() && !"LIMIT BLOCKED: Pending application".equalsIgnoreCase(experian.getReason()) &&
                         LoanUtil.getDateDiffInDays(experian.getRejectedDate(), dateTimeUtil.getCurrentDate()) <
                                 easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN, merchantId)) {
                     logger.info("merchant {} has a rejected entry in experian and has not elapsed the reapply timetime", merchantId);
