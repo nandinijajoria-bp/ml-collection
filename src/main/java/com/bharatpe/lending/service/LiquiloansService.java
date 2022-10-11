@@ -24,6 +24,7 @@ import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofOcrSlave;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.LendingPayoutType;
@@ -194,6 +195,12 @@ public class LiquiloansService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingKfsDao lendingKfsDao;
+
+    @Autowired
+    LiquiloansService liquiloansService;
 
     @Autowired
     LendingGstDao lendingGstDao;
@@ -635,7 +642,14 @@ public class LiquiloansService {
         LendingApplication finalLendingApplication = lendingApplication;
         LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
 
-        executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
+
+        LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(lendingKfs)){
+            executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
+        } else{
+            LendingApplication finalLendingApplication1 = lendingApplication;
+            executorService.execute(() -> liquiloansService.sendWPAndSMSNotification(finalLendingApplication1));
+        }
 
         if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
             executorService.execute(() -> createGSTInvoice(finalLendingApplication));
@@ -1378,4 +1392,91 @@ public class LiquiloansService {
         return beneficiaryName;
     }
 
+    public void sendWPAndSMSNotification(LendingApplication lendingApplication) {
+        logger.info("notification send request received for SMS and WhatsApp for application->{}", lendingApplication.getId());
+        String shortUrl = null;
+        try {
+//            LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), "agreement");
+            MerchantDetailsDto merchantDetailsDTO = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+            BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                return;
+            }
+            if (merchantBankDetail == null) {
+                return;
+            }
+//            if (loanAgreement != null) {
+//                String fileName = loanAgreement.getAgreementName();
+//                try {
+//                    logger.info("Fetching agreement URL for merchant->{}", lendingApplication.getMerchantId());
+//                    shortUrl = liquiloansService.getShorturl(fileName, loanAgreement);
+//                    logger.info("Short URL->{}", shortUrl);
+//                } catch (UnsupportedEncodingException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+            if(ObjectUtils.isEmpty(lendingKfs)){
+                logger.info("Lending kfs is null");
+                return;
+            }
+            String identifierWP = env.getProperty("kfs.wp.notification");
+            String identifierSMS = env.getProperty("kfs.sms.notification");
+            String message = env.getProperty("kfs.template.notification");
+
+            String loanAgreementName = "Sanction_Cum_Loan_Agreement_" + lendingKfs.getApplicationId();
+            String kfsName = "Key_Facts_Statement_" + lendingKfs.getApplicationId();
+
+            String loanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(loanAgreementName, "loan-document");
+            String kfsDocUrl = s3BucketHandler.getPreSignedPublicURL(kfsName, "loan-document");
+
+
+            Map<String, Object> templateParams = new HashMap<>();
+            templateParams.put("Merchant Name", basicDetailsDto.getBeneficiaryName());
+            templateParams.put("Link 1", loanAgreementUrl);
+            templateParams.put("Link 2", kfsDocUrl);
+
+            //FOR SMS
+            NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+            notificationPayloadDto.setTemplateIdentifier(identifierSMS);
+            notificationPayloadDto.setClientName("LENDING");
+            notificationPayloadDto.setMobile(basicDetailsDto.getMobile());//basicDetailsDto.getMobile()
+            notificationPayloadDto.setTemplateParams(templateParams);
+
+            logger.info("payload for SMS: {}", notificationPayloadDto);
+
+            // FOR WHATSAPP
+            NotificationPayloadDto notificationPayloadDto2 = new NotificationPayloadDto();
+            notificationPayloadDto2.setTemplateIdentifier(identifierWP);
+            notificationPayloadDto2.setClientName("LENDING");
+            notificationPayloadDto2.setMobile(basicDetailsDto.getMobile());
+            notificationPayloadDto2.setTemplateParams(templateParams);
+
+            logger.info("payload for WHATSAPP: {}", notificationPayloadDto2);
+
+            executorService.execute(() -> lendingNotificationService.notify(notificationPayloadDto));
+            lendingKfs.setSmsSendAt(new Date());
+            executorService.execute(() -> lendingNotificationService.notify(notificationPayloadDto2));
+            lendingKfs.setWhatsappSendAt(new Date());
+
+            message = message.replace("{Merchant Name}", basicDetailsDto.getBeneficiaryName());
+            message = message.replace("{{Link 1}}", loanAgreementUrl);
+            message = message.replace("{{Link 2}}", kfsDocUrl);
+            logger.info("message->{}", message);
+            lendingKfs.setMessage(message);
+            lendingKfsDao.save(lendingKfs);
+        } catch (Exception ex) {
+            logger.error("Exception occurred while sending notification for merchant->{}, {}, {}", lendingApplication.getMerchantId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+    }
+
+    public String testNotification(Long applicationId){
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+        if(lendingApplication.isPresent()){
+            liquiloansService.sendWPAndSMSNotification(lendingApplication.get());
+            return "SUCCESS";
+        }
+        return "FAILED";
+    }
 }

@@ -2,14 +2,19 @@ package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.RequestCallbackDto;
+import com.bharatpe.lending.dto.Response;
+import com.bharatpe.lending.dto.TncDto;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("lending")
@@ -101,6 +106,14 @@ public class LendingApplicationControllerV2 {
         return ResponseEntity.ok(new ApiResponse<>(null));
     }
 
+    @GetMapping(value="/applicationDocs")
+    public ResponseEntity<?> kfs(@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant, @RequestParam String docType) {
+        log.info("Request for {} for applicationId :{} for merchant:{}", docType, applicationId, merchant.getId());
+        if (Objects.isNull(applicationId) || Objects.isNull(docType))
+            return ResponseEntity.badRequest().body("ApplicationId or docType is missing.");
+        ApiResponse<?> response = lendingApplicationServiceV2.getApplicationDoc(applicationId, merchant, docType);
+        return ResponseEntity.ok(response);
+    }
     @PostMapping(value = "/updateCurrentAddress", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> updateCurrentAddress(@RequestParam Long applicationId, @RequestBody AddressDetails addressDetails, @RequestParam Boolean sameAsAadhaar, @RequestAttribute BasicDetailsDto merchant) {
         log.info("Updating current Address {} for applicationId {} and merchantId {}", addressDetails, applicationId, merchant.getId());

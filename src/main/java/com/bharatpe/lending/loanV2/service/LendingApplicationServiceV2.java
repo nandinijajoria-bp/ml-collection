@@ -3,6 +3,8 @@ package com.bharatpe.lending.loanV2.service;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -12,28 +14,37 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
-import com.bharatpe.lending.common.service.merchant.service.Impl.MerchantServiceImpl;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.entity.BpEnachSlave;
-import com.bharatpe.lending.common.slave.entity.OrderStickerSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.service.LendingEdiScheduleService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.itextpdf.html2pdf.ConverterProperties;
+import com.itextpdf.html2pdf.HtmlConverter;
+import com.itextpdf.io.image.ImageData;
+import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.events.Event;
+import com.itextpdf.kernel.events.IEventHandler;
+import com.itextpdf.kernel.events.PdfDocumentEvent;
+import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfPage;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -43,6 +54,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.io.*;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -127,6 +141,15 @@ public class LendingApplicationServiceV2 {
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingKfsDao lendingKfsDao;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    LendingEdiScheduleService lendingEdiScheduleService;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         if(Objects.nonNull(merchant.getId())) {
@@ -1374,6 +1397,510 @@ public class LendingApplicationServiceV2 {
         String currentData = sdf.format(date);
         return currentData;
     }
+
+    public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType){
+        try{
+            if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS.toString())){
+                return getKfsDetails(applicationId,null, merchant, "draft");
+            }
+            else if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DOC.toString())){
+                return generateKfs(applicationId, null, merchant, false, "draft");
+            }
+            else if(docType.equalsIgnoreCase(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.toString())){
+                return generateSanctionCumLoanAgreement(applicationId, null, merchant, false, "draft");
+            }
+            return new ApiResponse<>(false, "Unhandled DocType");
+        }
+        catch(Exception e){
+            log.error("Exception for applicationId : {}, merchant : {}{}{}",applicationId, merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    public ApiResponse<?> getKfsDetails(Long applicationId, LendingApplication lendingApplication1, BasicDetailsDto merchant, String status){
+        try{
+            LendingApplication lendingApplication;
+            if(ObjectUtils.isEmpty(lendingApplication1)){
+                lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
+                        merchant.getId(), status);
+                if(ObjectUtils.isEmpty(lendingApplication)) {
+                    log.info("Application not found while fetching KFS details for Id: {} for merchant : {}", applicationId, merchant.getId());
+                    return new ApiResponse<>(false, "Unable to fetch application details");
+                }
+            }
+            else lendingApplication = lendingApplication1;
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if(ObjectUtils.isEmpty(lendingKfs)){
+                log.info("KFS details not present for Id: {} for merchant : {}", applicationId, merchant.getId());
+                lendingKfs = saveKfsDetails(merchant, lendingApplication);
+            }
+            if(ObjectUtils.isEmpty(lendingKfs)){
+                return new ApiResponse<>(false, "Unable to create KFS details");
+            }
+
+            String lenderCorporateName = "";
+            String lenderBusinessAddress = "";
+            String lenderContactName = "";
+            String lenderContactEmail = "";
+            String lenderContactNumber = "";
+            if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LIQUILOANS;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LIQUILOANS;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LIQUILOANS;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LIQUILOANS;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LIQUILOANS;
+            }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LL_NBFC;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LL_NBFC;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LL_NBFC;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LL_NBFC;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LL_NBFC;
+            }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.LDC.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LDC;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LDC;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LDC;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LDC;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LDC;
+            }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_MAMTA;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_MAMTA;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MAMTA;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MAMTA;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MAMTA;
+            }
+            KfsDto kfsDto = KfsDto.builder()
+                    .merchantId(lendingKfs.getMerchantId())
+                    .applicationId(lendingKfs.getApplicationId())
+                    .externalLoanId(lendingApplication.getExternalLoanId())
+                    .lender(lendingKfs.getLender())
+                    .lenderCorporateName(lenderCorporateName)
+                    .lenderBusinessAddress(lenderBusinessAddress)
+                    .lenderContactName(lenderContactName)
+                    .lenderContactEmail(lenderContactEmail)
+                    .lenderContactNumber(lenderContactNumber)
+                    .loanAmount(lendingApplication.getLoanAmount())
+                    .processingFee(lendingApplication.getProcessingFee())
+                    .tenureInMonths(lendingApplication.getTenureInMonths())
+                    .disbursalAmount(lendingApplication.getDisbursalAmount())
+                    .repaymentAmount(lendingApplication.getRepayment())
+                    .interestRate(lendingApplication.getInterestRate())
+                    .apr(lendingKfs.getApr())
+                    .coolingOffDays(KfsConstants.COOLING_OFF_DAYS)
+                    .ediCount(lendingApplication.getPayableDays())
+                    .ediAmount(lendingApplication.getEdi())
+                    .lspContactName(KfsConstants.LSP_CONTACT_NAME)
+                    .lspContactEmail(KfsConstants.LSP_CONTACT_EMAIL)
+                    .lspContactNumber(KfsConstants.LSP_CONTACT_NUMBER).build();
+            return new ApiResponse<>(kfsDto);
+        }
+        catch(Exception e){
+            log.error("Unable to fetch KFS details for applicationId : {}, Exception : {}, stacktrace : {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    public LendingKfs saveKfsDetails(BasicDetailsDto merchant, LendingApplication lendingApplication){
+        LendingKfs lendingKfs = new LendingKfs();
+        lendingKfs.setApplicationId(lendingApplication.getId());
+        lendingKfs.setMerchantId(merchant.getId());
+        lendingKfs.setLender(lendingApplication.getLender());
+        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getDisbursalAmount());
+        if(ObjectUtils.isEmpty(apr))return null;
+        lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
+        lendingKfsDao.save(lendingKfs);
+        return lendingKfs;
+    }
+
+    public void storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) throws Exception {
+        LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+        if(ObjectUtils.isEmpty(lendingKfs)){
+            log.error("Unable to retrieve KFS details from db for applicationId : {}", applicationId);
+            throw new Exception("Unable to retrieve KFS details from db for applicationId : " + applicationId);
+        }
+        String fileName = "";
+        ApiResponse<?> apiResponse;
+        apiResponse = generateKfs(applicationId, lendingApplication, merchant, true, "pending_verification");
+        if(apiResponse.success){
+            String kfsHtml = (String)apiResponse.data;
+            fileName = "Key_Facts_Statement_" + applicationId;
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            if(!getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()){
+                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
+                Header headerHandler = new Header(logoImageData);
+                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+            }
+            InputStream htmlStringInputStream = new ByteArrayInputStream(kfsHtml.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
+            if(kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for KFS doc link for : " + applicationId);
+            else lendingKfs.setKfsDocUrl(kfsShortUrl);
+            lendingKfs.setKfsSignedAt(dateTimeUtil.getCurrentDate());
+        }
+        else{
+            log.error("Unable to store KFS pdf doc for applicationId : {}", applicationId);
+            throw new Exception("Unable to generate KFS for applicationID" + applicationId);
+        }
+
+        apiResponse = generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, true, "pending_verification");
+        if(apiResponse.success){
+            String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
+            fileName = "Sanction_Cum_Loan_Agreement_" + applicationId;
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            if(!getLenderLogo(lendingKfs.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
+                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingKfs.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
+                Header headerHandler = new Header(logoImageData);
+                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+            }
+            InputStream htmlStringInputStream = new ByteArrayInputStream(sanctionCumLoanAgreementHtml.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
+            if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + applicationId);
+            else lendingKfs.setSanctionLoanAgreementDocUrl(shortUrl);
+            lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
+        }
+        else{
+            log.error("Unable to store Sanction Cum Loan Agreement pdf doc for applicationId : {}", applicationId);
+            throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + applicationId);
+        }
+        lendingKfsDao.save(lendingKfs);
+    }
+
+    public Double getApr(Long merchantId, Long applicationId, Double disbursalAmount){
+        try{
+            log.info("calculating APR for applicationId : {}", applicationId);
+            Double guess = 0.01;
+            ArrayList<Double> values = new ArrayList<>();
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId);
+            if(!response.isSuccess()){
+                log.info(response.getMessage());
+                log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
+                return null;
+            }
+            List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
+            if(ObjectUtils.isEmpty(ediSchedule)){
+                log.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
+                return null;
+            }
+            values.add(0-disbursalAmount);
+            for(int i = 0; i < ediSchedule.size(); i++){
+                if(ediSchedule.get(i).getSerialNumber() == 0)continue;
+                values.add(new Double(ediSchedule.get(i).getEdiAmount()));
+                if((i+1) < ediSchedule.size()){
+                    long diff = Math.abs(dateTimeUtil.getDateDiffInDays(ediSchedule.get(i).getDate(), ediSchedule.get(i+1).getDate()));
+                    if(diff == 2){
+                        values.add(0.0);
+                    }
+                }
+            }
+            int tenureInDays = values.size() - 1;
+            Double apr = 0.0;
+            double[] valuesDouble = new double[values.size()];
+            for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
+            log.info("valuesDouble Size : {}", valuesDouble.length);
+            apr = LoanCalculationUtil.irr(valuesDouble, guess) * 365;
+            if(apr.isNaN()){
+                log.info("APR : {}", apr);
+                return null;
+            }
+            log.info("APR : {}", apr);
+            return apr * 100;
+        }
+        catch(Exception e){
+            log.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, String status){
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, status);
+        if(!apiResponse.success){
+            log.info("Unable to get KFS details while creating KFS doc for applicationId: {}", applicationId);
+            return new ApiResponse<>(false,"Unable to retrieve KFS Details");
+        }
+        KfsDto kfsDto = (KfsDto)apiResponse.data;
+        if(kfsDto.getLender() == null){
+            log.info("Unable to get lender details while creating KFS doc for applicationId: {}", applicationId);
+            return new ApiResponse<>(false,"Unable to get lender while generating KFS");
+        }
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC);
+            String lender = kfsDto.getLender();
+            String html = "";
+            String filePath = "";
+            if(lender.equalsIgnoreCase(Lender.LDC.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
+                filePath = "/templates/" + "KFS_P2P" + ".html";
+            }
+            else filePath = "/templates/" + "KFS_NONP2P" + ".html";
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";;
+            for(Map.Entry<String,Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                log.info(key + " " + val);
+                html = html.replace(key, val);
+            }
+            return new ApiResponse<>(html);
+        } catch (Exception e) {
+            log.error("Exception while generating KFS html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Unable to generate KFS");
+        }
+    }
+
+    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, String status){
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, status);
+        if(!apiResponse.success){
+            log.info("Unable to get KFS details while creating Sanction Cum Loan Agreement doc for applicationId: {}", applicationId);
+            return new ApiResponse<>(false,"Unable to retrieve KFS Details");
+        }
+        KfsDto kfsDto = (KfsDto)apiResponse.data;
+        if(kfsDto.getLender() == null){
+            return new ApiResponse<>(false,"Unable to get lender while generating Sanction Cum Loan Agreement");
+        }
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
+            String lender = kfsDto.getLender();
+            String html = "";
+            String filePath = "";
+            if(lender.equalsIgnoreCase(Lender.LDC.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
+                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
+            }
+            else filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";;
+            for(Map.Entry<String,Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                log.info(key + " " + val);
+                html = html.replace(key, val);
+            }
+            return new ApiResponse<>(html);
+        } catch (Exception e) {
+            log.error("Exception while generating Sanction Cum Loan Agreement html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Unable to generate Sanction Cum Loan Agreement");
+        }
+    }
+
+    public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType) throws Exception {
+        Date dateTime  = dateTimeUtil.getCurrentDate();
+        Map<String, Object> data = new HashMap<>();
+        data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
+        data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
+        data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
+        data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
+        data.put("processing_percentage", KfsConstants.PROCESSING_FEE_PERCENTAGE);
+        data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
+        data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
+        data.put("rate_of_interest", kfsDto.getInterestRate());
+        data.put("apr", kfsDto.getApr());
+        data.put("interest_charged_to_borrower", kfsDto.getRepaymentAmount() - kfsDto.getLoanAmount());
+        data.put("interest_charged_to_borrower_in_words", getAmountInWords(data.get("interest_charged_to_borrower").toString()));
+        data.put("total_amount_including_interest_paid_by_borrower_entire_tenure", kfsDto.getRepaymentAmount());
+        data.put("total_amount_including_interest_paid_by_borrower_entire_tenure_in_words", getAmountInWords(kfsDto.getRepaymentAmount().toString()));
+        data.put("loan_amount_disbursed", kfsDto.getDisbursalAmount());
+        data.put("loan_amount_disbursed_in_words", getAmountInWords(kfsDto.getDisbursalAmount().toString()));
+        data.put("interest_equal_daily", kfsDto.getEdiAmount());
+        data.put("interest_equal_daily_in_words", getAmountInWords(kfsDto.getEdiAmount().toString()));
+        data.put("no_of_edis", kfsDto.getEdiCount());
+        data.put("default_rate_of_interest", "N/A");
+        data.put("default_rate_of_interest_on_monthly_or_daily_basis", "N/A");
+        data.put("forclosure_amount_rate_of_rate_of_interest", "Foreclosure is allowed with no charges");
+        data.put("cooling_off_days", kfsDto.getCoolingOffDays());
+        data.put("tenure_of_loan_in_months", kfsDto.getTenureInMonths());
+        data.put("name_of_nodal_officer", kfsDto.getLenderContactName());
+        data.put("email_id", kfsDto.getLenderContactEmail());
+        data.put("conatct_no", kfsDto.getLenderContactNumber());
+        data.put("timing_for_contact", "");
+        data.put("name_of_nodal_officer_lsp", kfsDto.getLspContactName());
+        data.put("email_id_lsp", kfsDto.getLspContactEmail());
+        data.put("conatct_no_lsp", kfsDto.getLspContactNumber());
+        data.put("timing_for_contact_lsp", "");
+        String repaymentSchedule = getRepaymentSchedule(applicationId, merchant);
+        if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
+        data.put("repayment_schedule", repaymentSchedule);
+        if(timeStamp)data.put("date", new SimpleDateFormat("dd-MM-yyyy").format(dateTime));
+        else data.put("date", "");
+        data.put("mobile_number_for_otp", merchant.getMobile());
+        data.put("platform", "BHARATPE");
+        data.put("ip_address", "");
+        if(timeStamp)data.put("time_stamp", dateTime);
+        else data.put("time_stamp", "");
+        data.put("loan_id", kfsDto.getExternalLoanId());
+        data.put("bharatpe_id", kfsDto.getExternalLoanId());
+        data.put("borrower_name", merchant.getBeneficiaryName());
+        data.put("email_of_borrower", merchant.getEmail());
+        data.put("phone_number_of_borrower", merchant.getMobile());
+        data.put("pan_of_borrower", kycHandler.getPanNumber(merchant.getId()));
+        ApiResponse aadharAddressResponse = getAadhaarAddress(merchant, applicationId);
+        if(aadharAddressResponse.isSuccess()){
+            AadhaarAddressResponseDTO aadhaarAddressResponseDTO = (AadhaarAddressResponseDTO)aadharAddressResponse.getData();
+            data.put("address_of_borrower", aadhaarAddressResponseDTO.getAddress());
+        }
+        else throw new Exception("Unable to get aadhar address for : " + applicationId);
+        data.put("device_id", "");
+        if(!timeStamp){
+            String lenderLogoHtml = "<p class=\"text-center\">\n" +
+                    "<img class=\"width-66 mb20\" src=\"" + getLenderLogo(kfsDto.getLender(), applicationDocType) + "\" alt=\"lender\" />\n" +
+                    "</p>";
+            data.put("lender_logo", lenderLogoHtml);
+        }
+        else data.put("lender_logo", "");
+        return data;
+    }
+
+    public String getLenderLogo(String lender, ApplicationDocType applicationDocType){
+        String logoUrl = "";
+        if(lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
+            logoUrl = "https://d36q81tf33qni.cloudfront.net/LiquiLoans.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/TrillionLogoKFS.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
+            logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.KEY_FACTS_STATEMENT_DOC)){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/Lenden.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.MAMTA.toString())){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
+        }
+        return logoUrl;
+    }
+
+    public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant) {
+        CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
+        if(!response.isSuccess()){
+            log.info(response.getMessage());
+            log.info("Unable to fetch edi schedule for applicationId : {}", applicationId);
+            return null;
+        }
+        List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
+        if(ObjectUtils.isEmpty(ediSchedule)){
+            log.info("Unable to fetch edi schedule for applicationId : {}", applicationId);
+            return null;
+        }
+
+        String html = "";
+        for(int i = 0; i < ediSchedule.size(); i++){
+            if(ediSchedule.get(i).getSerialNumber() == 0)continue;
+            html += "    <tr class=\"width-100\">\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + ediSchedule.get(i).getSerialNumber() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + ediSchedule.get(i).getBalance() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + ediSchedule.get(i).getPrincipal() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + ediSchedule.get(i).getInterest() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + ediSchedule.get(i).getEdiAmount() + "</p>\n" +
+                    "      </td>\n" +
+                    "    </tr>\n";
+        }
+        return html;
+    }
+
+    public String getAmountInWords(String amount){
+        BigDecimal bd = new BigDecimal(amount);
+        long number = bd.longValue();
+        long no = bd.longValue();
+        int decimal = (int) (bd.remainder(BigDecimal.ONE).doubleValue() * 100);
+        int digits_length = String.valueOf(no).length();
+        int i = 0;
+        ArrayList<String> str = new ArrayList<>();
+        HashMap<Integer, String> words = new HashMap<>();
+        words.put(0, "");
+        words.put(1, "One");
+        words.put(2, "Two");
+        words.put(3, "Three");
+        words.put(4, "Four");
+        words.put(5, "Five");
+        words.put(6, "Six");
+        words.put(7, "Seven");
+        words.put(8, "Eight");
+        words.put(9, "Nine");
+        words.put(10, "Ten");
+        words.put(11, "Eleven");
+        words.put(12, "Twelve");
+        words.put(13, "Thirteen");
+        words.put(14, "Fourteen");
+        words.put(15, "Fifteen");
+        words.put(16, "Sixteen");
+        words.put(17, "Seventeen");
+        words.put(18, "Eighteen");
+        words.put(19, "Nineteen");
+        words.put(20, "Twenty");
+        words.put(30, "Thirty");
+        words.put(40, "Forty");
+        words.put(50, "Fifty");
+        words.put(60, "Sixty");
+        words.put(70, "Seventy");
+        words.put(80, "Eighty");
+        words.put(90, "Ninety");
+        String digits[] = {"", "Hundred", "Thousand", "Lakh", "Crore"};
+        while (i < digits_length) {
+            int divider = (i == 2) ? 10 : 100;
+            number = no % divider;
+            no = no / divider;
+            i += divider == 10 ? 1 : 2;
+            if (number > 0) {
+                int counter = str.size();
+                String plural = (counter > 0 && number > 9) ? "s" : "";
+                String tmp = (number < 21) ? words.get(Integer.valueOf((int) number)) + " " + digits[counter] + plural : words.get(Integer.valueOf((int) Math.floor(number / 10) * 10)) + " " + words.get(Integer.valueOf((int) (number % 10))) + " " + digits[counter] + plural;
+                str.add(tmp);
+            } else {
+                str.add("");
+            }
+        }
+
+        Collections.reverse(str);
+        String Rupees = String.join(" ", str).trim();
+
+        //String paise = (decimal) > 0 ? " And Paise " + words.get(Integer.valueOf((int) (decimal - decimal % 10))) + " " + words.get(Integer.valueOf((int) (decimal % 10))) : "";
+        return Rupees;
+    }
+
+    protected static class Header implements IEventHandler {
+        private ImageData headerImage;
+
+        public Header(ImageData header) {
+            this.headerImage = header;
+        }
+
+        @Override
+        public void handleEvent(Event event) {
+            PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
+            PdfDocument pdf = docEvent.getDocument();
+            PdfPage page = docEvent.getPage();
+            Rectangle pageSize = page.getPageSize();
+            Rectangle rectangle = new Rectangle(0, pageSize.getHeight() - 75, pageSize.getWidth(), 75);
+            PdfCanvas pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
+            pdfCanvas.addImageFittedIntoRectangle(headerImage, rectangle, false);
+            pdfCanvas.release();
+        }
+    }
+
     public ApiResponse<?> updateCurrentAddress(BasicDetailsDto merchant, Long applicationId, AddressDetails addressDetails, Boolean sameAsAdhaar) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());

@@ -26,6 +26,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.enums.KycStatus;
@@ -151,6 +152,9 @@ public class VerifyOTPService {
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
     @Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
     String kafkaTopicPostChecks;
 
@@ -198,6 +202,13 @@ public class VerifyOTPService {
         if (lendingResubmitTask != null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
+                try{
+                    lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchant);
+                }
+                catch(Exception e){
+                    logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+                    return finalResponse;
+                }
                 lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
                 lendingResubmitTask.setDowngradedAt(new Date());
                 lendingResubmitTaskDao.save(lendingResubmitTask);
@@ -218,6 +229,7 @@ public class VerifyOTPService {
                 lendingDisbursalStage.setCallStage("YES");
                 lendingDisbursalStage.setCallTimestamp(currentDate);
                 lendingDisbursalStageDao.save(lendingDisbursalStage);
+
                 finalResponse.put("success", true);
                 finalResponse.put("agreement_verified", true);
                 return finalResponse;
@@ -226,6 +238,7 @@ public class VerifyOTPService {
         if (merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
+
                 finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
                 //createPrebookTarget(lendingApplication, merchant);
             }
@@ -314,6 +327,14 @@ public class VerifyOTPService {
         }
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
+
+        try{
+            lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchantBasicDetailsDto);
+        }
+        catch(Exception e){
+            logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return finalResponse;
+        }
 
         LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
         lendingAuditTrial.setApplicationId(lendingApplication.getId());

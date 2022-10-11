@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 
@@ -191,7 +192,7 @@ public class LendingEdiScheduleService {
             }
             return new CommonResponse(true, "success", ediSchedules);
         } catch(Exception ex) {
-            logger.error("Exception while creating schedule V2 for applicationId {}, Exception is {}", applicationId, ex);
+            logger.error("Exception while creating schedule V2 for applicationId {}, Exception is {}, Stacktrace : {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new CommonResponse(false, "Something went wrong");
     }

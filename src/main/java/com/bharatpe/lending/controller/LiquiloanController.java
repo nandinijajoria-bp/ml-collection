@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.service.LiquiloansService;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
@@ -116,11 +118,19 @@ public class LiquiloanController {
 	}
 
 	@RequestMapping(value="p2p_of/postPayout/callback",method=RequestMethod.POST)
-	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansP2P_OF(@RequestBody PostPayoutRequestDto postPayoutRequestDto){
+	public ResponseEntity<PostPayoutResponseDto> postPayoutCallbackForLiquiloansP2P_OF(@RequestBody PostPayoutRequestDto postPayoutRequestDto) {
 		logger.info("postPayout callback for LIQUILOANS_P2P_OF request:{}", postPayoutRequestDto);
 		postPayoutRequestDto.setLender(LIQUILOANS_P2P_OF.name());
 		postPayoutRequestDto.setApplicationId(postPayoutRequestDto.getUrn());
 		postPayoutRequestDto.setDisbursedAmount(postPayoutRequestDto.getDisbursalAmountLL());
 		return liquilaonService.populatePostPayoutSchedule(postPayoutRequestDto);
+	}
+	@GetMapping(value="/test_kfs_notification")
+	public ResponseEntity<?> testKfsNotification(@RequestParam Long applicationId){
+		try{
+			return ResponseEntity.ok(new ApiResponse<>(liquilaonService.testNotification(applicationId)));
+		}catch(Exception ex){
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage() + Arrays.asList(ex.getStackTrace()));
+		}
 	}
 }

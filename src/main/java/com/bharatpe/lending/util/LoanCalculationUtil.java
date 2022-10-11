@@ -352,4 +352,39 @@ public class LoanCalculationUtil {
 //		}
 		return list;
 	}
+
+	public static double irr(double[] values, double guess) {
+		double x0 = guess;
+
+		for(int i = 0; i < 20; ++i) {
+			double factor = 1.0 + x0;
+			double denominator = factor;
+			if (factor == 0.0) {
+				return Double.NaN;
+			}
+
+			double fValue = values[0];
+			double fDerivative = 0.0;
+
+			for(int k = 1; k < values.length; ++k) {
+				double value = values[k];
+				fValue += value / denominator;
+				denominator *= factor;
+				fDerivative -= (double)k * value / denominator;
+			}
+
+			if (fDerivative == 0.0) {
+				return Double.NaN;
+			}
+
+			double x1 = x0 - fValue / fDerivative;
+			if (Math.abs(x1 - x0) <= 1.0E-7) {
+				return x1;
+			}
+
+			x0 = x1;
+		}
+
+		return Double.NaN;
+	}
 }
