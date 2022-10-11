@@ -864,7 +864,8 @@ public class FosService {
                     return computeEligibilityParams("ineligible", null, merchantId);
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("pending_verification")) {
                     // pending nach
-                    if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && !lendingApplication.getNachStatus().equalsIgnoreCase("APPROVED") && Objects.nonNull(lendingApplication.getAgreementAt())) {
+                    logger.info("merchant {} has a pending application", merchantId);
+                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
                         logger.info("merchant {} has a pending nach application", merchantId);
                         return computeEligibilityParams("eligible", "pending_nach", merchantId);
                     }
