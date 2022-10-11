@@ -2182,18 +2182,25 @@ public class SupportService {
         return new ResponseDTO(false, "something went wrong !");
     }
 
-    public Map<String, Boolean> cancelApplication(Long merchantId, Long applicationId, String reason) {
+    public ResponseDTO cancelApplication(Long merchantId, Long applicationId, String reason) {
         logger.info("Cancelling application:{} for merchant:{}", applicationId, merchantId);
-        Map<String, Boolean> response = null;
         try {
+            Map<String, Boolean> response = null;
             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
             if(merchant.isPresent()) {
                 response = cancelApplicationService.cancelApplication(merchant.get(), applicationId, reason);
             }
+            if(!ObjectUtils.isEmpty(response)){
+                if(response.get("success")){
+                    return new ResponseDTO(true, "Application cancelled successfully.");
+                }
+                return new ResponseDTO(false, "Application not found.");
+            }
+            return new ResponseDTO(false, "Merchant details not found.");
         } catch (Exception ex) {
             logger.error("Error occurred while cancelling application:{} for merchant:{} with exception:{}, {}", applicationId, merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            return new ResponseDTO(false, "Error occurred while cancelling application.");
         }
-        return response;
     }
 }
 

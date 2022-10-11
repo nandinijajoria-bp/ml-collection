@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -90,21 +91,15 @@ public class SupportLoanController {
     }
 
     @RequestMapping(value="/cancelApplication", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-    public ResponseEntity cancelApplication(@RequestParam Long merchantId, @RequestBody CommonAPIRequest commonAPIRequest) {
+    public ResponseDTO cancelApplication(@RequestParam Long merchantId, @RequestBody CommonAPIRequest commonAPIRequest) {
         logger.info("cancelApplication request : {}",commonAPIRequest);
         Long applicationId =  commonAPIRequest.getPayload().get("applicationId") != null ? Long.parseLong(commonAPIRequest.getPayload().get("applicationId").toString()) : null;
         String reason = commonAPIRequest.getPayload().get("reason") != null ? commonAPIRequest.getPayload().get("reason").toString() : null;
         if(applicationId == null || applicationId <=0) {
             logger.info("CancelApplicationService invalid applicationId");
-            Map<String, Boolean> resp = new HashMap<>();
-            resp.put("success",false);
-            return new ResponseEntity<>(resp, HttpStatus.BAD_REQUEST);
+            return new ResponseDTO(false, "Incorrect applicationId.");
         }
-
-        Map<String, Boolean> resp = supportService.cancelApplication(merchantId, applicationId, reason);
-
-        logger.info("cancelApplication response : {}", resp);
-        return new ResponseEntity<>(resp, HttpStatus.OK);
+        return supportService.cancelApplication(merchantId, applicationId, reason);
     }
 }
 
