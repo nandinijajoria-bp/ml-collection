@@ -651,10 +651,11 @@ public class LiquiloansService {
             executorService.execute(() -> liquiloansService.sendWPAndSMSNotification(finalLendingApplication1));
         }
 
-        if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
-            executorService.execute(() -> createGSTInvoice(finalLendingApplication));
-        }
-        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
+//        if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
+//            executorService.execute(() -> createGSTInvoice(finalLendingApplication));
+//        }
+//
+//        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSuccess(lendingApplication.getMerchantId(), lendingApplication.getId());
 //        if (bharatPeEnach != null) {
 //            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
 //        }
