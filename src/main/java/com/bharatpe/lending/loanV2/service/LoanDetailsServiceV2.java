@@ -258,6 +258,63 @@ public class LoanDetailsServiceV2 {
         }
     }
 
+    public ApiResponse<?> getLoanDashboardDetails(BasicDetailsDto merchant, Boolean isIos) {
+        LoanDetailsResponse loanDashBoardDTO = new LoanDetailsResponse();
+        try {
+            if ("ORGANIZED".equalsIgnoreCase(merchant.getCorrectMerchantType())) {
+                log.info("organized merchant: {}", merchant.getId());
+
+                return new ApiResponse<>(loanDashBoardDTO);
+            }
+            loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+            loanDashBoardDTO.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchant.getId()));
+            loanDashBoardDTO.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
+            loanDashBoardDTO.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
+            loanDashBoardDTO.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
+            loanDashBoardDTO.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
+            if (loanUtil.hasActiveLoan(merchant)) {
+                log.info("active loan merchant:{}", merchant.getId());
+                loanDashBoardDTO.setActiveLoan(true);
+                return new ApiResponse<>(loanDashBoardDTO);
+            }
+            Experian experian = experianDao.getByMerchantId(merchant.getId());
+            if (experian != null) {
+                loanDashBoardDTO.setPancard(experian.getPancardNumber());
+                loanDashBoardDTO.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
+                loanDashBoardDTO.setHasExperian(true);
+            }
+
+            loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+            loanDashBoardDTO.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
+
+            Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
+            LendingApplication openApplication;
+            if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullAndPaymentScheduleStatusClosedOrderByIdDesc(merchant.getId(), lendingPaymentSchedule.get().getCreatedAt());
+            } else {
+                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
+            }
+            if (openApplication != null) {
+                log.info("open application for merchant:{}", merchant.getId());
+                updateCkycStatus(openApplication, experian);
+                if (!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
+                    log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDashBoardDTO.getKycStatus());
+                    loanDashBoardDTO.setKycStatus(KycStatus.APPROVED);
+                }
+                boolean isIOS = isIos != null && isIos;
+                setApplicationDetails(loanDashBoardDTO, openApplication, null, isIOS, experian, merchant);
+                if (loanDashBoardDTO.getLoanApplication() != null && StringUtils.isEmpty(loanDashBoardDTO.getLoanApplication().getReapply())) {
+                    //if no reapply then dont check eligibility
+                    return new ApiResponse<>(loanDashBoardDTO);
+                }
+            }
+            return new ApiResponse<>(loanDashBoardDTO);
+        } catch (Exception e) {
+            log.error("Exception in loan dashboard service for merchant: {} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
     private void cacheLoanDetailsData(LoanDetailsResponse loanDetailsResponse, String key, int ttl) {
         try {
             AddCacheDto addCacheDto = new AddCacheDto();

@@ -42,7 +42,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/nach_refund","/support/lender","/lending/processing_fee_refund","/lending/payment/callback/**","/error","/","/actuator/prometheus",
 				"/enach/bulkNach","/lending/due_amount","/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/support" +
 				"/createAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
-				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status", "/lending/check_loan_status", "/support/cancelApplication");
+				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
+						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails");
+
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication",
@@ -58,7 +60,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(hmacForMIDInterceptorWithObject).addPathPatterns("/lending/payment/callback/v2");
 
-		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount","/lending/merchant_loans", "/lending/loanDetails/v2", "/lending/loanDetails");
+		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount","/lending/merchant_loans", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/getLoanDashboardDetails");
 
 //		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");
 
