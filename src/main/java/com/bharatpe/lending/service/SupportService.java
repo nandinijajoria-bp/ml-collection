@@ -168,10 +168,10 @@ public class SupportService {
     LendingApplicationDaoSlave lendingApplicationDaoSlave;
 
     @Autowired
-    CancelApplicationService cancelApplicationService;
+    LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Autowired
-    LendingRiskVariablesDao lendingRiskVariablesDao;
+    LendingAuditTrialDao lendingAuditTrialDao;
 
     @Autowired
     LendingKfsDao lendingKfsDao;
@@ -2231,18 +2231,34 @@ public class SupportService {
     public ResponseDTO cancelApplication(Long merchantId, Long applicationId, String reason) {
         logger.info("Cancelling application:{} for merchant:{}", applicationId, merchantId);
         try {
-            Map<String, Boolean> response = null;
-            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
-            if(merchant.isPresent()) {
-                response = cancelApplicationService.cancelApplication(merchant.get(), applicationId, reason);
-            }
-            if(!ObjectUtils.isEmpty(response)){
-                if(response.get("success")){
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if(!ObjectUtils.isEmpty(lendingApplication)){
+                String status = lendingApplication.getStatus();
+                logger.info("Found application with ID: {} and status: {}",lendingApplication.getId() ,status);
+                if(Objects.isNull(lendingApplication.getNbfcId()) && Objects.isNull(lendingApplication.getNbfcSendDate())
+                        && Objects.isNull(lendingApplication.getSendToNbfc()) && Objects.isNull(lendingApplication.getDisburseTimestamp())){
+                    lendingApplication.setStatus("rejected");
+                    lendingApplication.setResponseCode(reason);
+                    lendingApplicationDao.save(lendingApplication);
+                    executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
+
+                    logger.info("Application status update success for applicationId : {} and merchantId : {}", applicationId, merchantId);
+                    LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                    lendingAuditTrial.setApplicationId(applicationId);
+                    lendingAuditTrial.setMerchantId(merchantId);
+                    lendingAuditTrial.setLoanId("");
+                    lendingAuditTrial.setUserId(Long.parseLong("0"));
+                    lendingAuditTrial.setOldStatus(status);
+                    lendingAuditTrial.setNewStatus("rejected");
+                    lendingAuditTrial.setType("APP_STATUS");
+                    lendingAuditTrialDao.save(lendingAuditTrial);
                     return new ResponseDTO(true, "Application cancelled successfully.");
                 }
-                return new ResponseDTO(false, "Application not found.");
+                logger.info("Application with id : {} not eligible to be cancelled.", lendingApplication.getId());
+                return new ResponseDTO(false, "Application cannot be cancelled.");
             }
-            return new ResponseDTO(false, "Merchant details not found.");
+            logger.info("Application with id : {} not found", applicationId);
+            return new ResponseDTO(false, "Application not found.");
         } catch (Exception ex) {
             logger.error("Error occurred while cancelling application:{} for merchant:{} with exception:{}, {}", applicationId, merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return new ResponseDTO(false, "Error occurred while cancelling application.");
