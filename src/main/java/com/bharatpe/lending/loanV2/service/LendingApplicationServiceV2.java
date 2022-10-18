@@ -1650,7 +1650,7 @@ public class LendingApplicationServiceV2 {
         }
         try {
             Map<String, Object> data = new HashMap<>();
-            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, dateTime);
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
@@ -1686,7 +1686,7 @@ public class LendingApplicationServiceV2 {
         }
         try {
             Map<String, Object> data = new HashMap<>();
-            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime);
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
@@ -1710,7 +1710,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType, Date dateTime) throws Exception {
+    public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType, Date dateTime, String ip) throws Exception {
         if(ObjectUtils.isEmpty(dateTime)){
             dateTime  = dateTimeUtil.getCurrentDate();
         }
@@ -1753,7 +1753,7 @@ public class LendingApplicationServiceV2 {
         else data.put("date", "");
         data.put("mobile_number_for_otp", merchant.getMobile());
         data.put("platform", "BHARATPE");
-        data.put("ip_address", "");
+        data.put("ip_address", ip);
         if(timeStamp)data.put("time_stamp", dateTime);
         else data.put("time_stamp", "");
         data.put("loan_id", kfsDto.getExternalLoanId());

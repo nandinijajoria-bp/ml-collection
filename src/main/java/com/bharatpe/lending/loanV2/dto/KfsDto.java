@@ -28,4 +28,5 @@ public class KfsDto {
     private String lspContactName;
     private String lspContactEmail;
     private String lspContactNumber;
+
 }
