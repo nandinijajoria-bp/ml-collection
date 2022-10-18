@@ -41,6 +41,12 @@ public class ResponseDTO {
         this.uuid = uuid;
     }
 
+    public ResponseDTO(boolean success, String message, Object data){
+        this.success = success;
+        this.data = data;
+        this.message = message;
+    }
+
     public ResponseDTO() {
     }
 

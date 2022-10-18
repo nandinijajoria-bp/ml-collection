@@ -27,6 +27,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.ILendingCitiesService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
@@ -1404,10 +1405,10 @@ public class LendingApplicationServiceV2 {
                 return getKfsDetails(applicationId,null, merchant);
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DOC.toString())){
-                return generateKfs(applicationId, null, merchant, false);
+                return generateKfs(applicationId, null, merchant, false, null);
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.toString())){
-                return generateSanctionCumLoanAgreement(applicationId, null, merchant, false);
+                return generateSanctionCumLoanAgreement(applicationId, null, merchant, false, null);
             }
             return new ApiResponse<>(false, "Unhandled DocType");
         }
@@ -1520,39 +1521,22 @@ public class LendingApplicationServiceV2 {
             log.error("Unable to retrieve KFS details from db for applicationId : {}", applicationId);
             throw new Exception("Unable to retrieve KFS details from db for applicationId : " + applicationId);
         }
-        String fileName = "";
-        ApiResponse<?> apiResponse;
-        apiResponse = generateKfs(applicationId, lendingApplication, merchant, true);
-        if(apiResponse.success){
-            String kfsHtml = (String)apiResponse.data;
-            fileName = "Key_Facts_Statement_" + applicationId;
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream);
-            PdfDocument pdfDocument = new PdfDocument(writer);
-            if(!getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()){
-                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
-                Header headerHandler = new Header(logoImageData);
-                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-            }
-            InputStream htmlStringInputStream = new ByteArrayInputStream(kfsHtml.getBytes(StandardCharsets.UTF_8));
-            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
-            String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
-            if(kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for KFS doc link for : " + applicationId);
-            else lendingKfs.setKfsDocUrl(kfsShortUrl);
-            lendingKfs.setKfsSignedAt(dateTimeUtil.getCurrentDate());
-        }
-        else{
-            log.error("Unable to store KFS pdf doc for applicationId : {}", applicationId);
-            throw new Exception("Unable to generate KFS for applicationID" + applicationId);
-        }
+        //KFS
+        generateKfsDocument(lendingApplication, merchant, lendingKfs, null);
+        lendingKfs.setKfsSignedAt(dateTimeUtil.getCurrentDate());
 
-        apiResponse = generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, true);
+        //Loan Agreement
+        generateSanctionCumLoanAgreementDoc(lendingApplication, merchant, lendingKfs, null);
+        lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
+        lendingKfsDao.save(lendingKfs);
+    }
+
+    public void generateSanctionCumLoanAgreementDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception{
+        String fileName = "";
+        ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if(apiResponse.success){
             String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
-            fileName = "Sanction_Cum_Loan_Agreement_" + applicationId;
+            fileName = "Sanction_Cum_Loan_Agreement_" + lendingApplication.getId();
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
@@ -1567,15 +1551,13 @@ public class LendingApplicationServiceV2 {
             s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
             String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
             String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
-            if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + applicationId);
+            if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
             else lendingKfs.setSanctionLoanAgreementDocUrl(shortUrl);
-            lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
         }
         else{
-            log.error("Unable to store Sanction Cum Loan Agreement pdf doc for applicationId : {}", applicationId);
-            throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + applicationId);
+            log.error("Unable to store Sanction Cum Loan Agreement pdf doc for applicationId : {}", lendingApplication.getId());
+            throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + lendingApplication.getId());
         }
-        lendingKfsDao.save(lendingKfs);
     }
 
     public Double getApr(Long merchantId, Long applicationId, Double disbursalAmount){
@@ -1624,7 +1606,38 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp){
+    public void generateKfsDocument(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
+        String fileName = "";
+        ApiResponse<?> apiResponse;
+        apiResponse = generateKfs(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        if (apiResponse.success) {
+            String kfsHtml = (String) apiResponse.data;
+            fileName = "Key_Facts_Statement_" + lendingApplication.getId();
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            if (!getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
+                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
+                Header headerHandler = new Header(logoImageData);
+                pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+            }
+            InputStream htmlStringInputStream = new ByteArrayInputStream(kfsHtml.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
+            if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
+                throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
+            else lendingKfs.setKfsDocUrl(kfsShortUrl);
+        }
+        else{
+            log.error("Unable to store KFS pdf doc for applicationId : {}", lendingApplication.getId());
+            throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
+        }
+    }
+
+    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating KFS doc for applicationId: {}", applicationId);
@@ -1637,7 +1650,7 @@ public class LendingApplicationServiceV2 {
         }
         try {
             Map<String, Object> data = new HashMap<>();
-            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC);
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, dateTime);
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
@@ -1661,7 +1674,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp){
+    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating Sanction Cum Loan Agreement doc for applicationId: {}", applicationId);
@@ -1673,7 +1686,7 @@ public class LendingApplicationServiceV2 {
         }
         try {
             Map<String, Object> data = new HashMap<>();
-            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime);
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
@@ -1697,8 +1710,10 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType) throws Exception {
-        Date dateTime  = dateTimeUtil.getCurrentDate();
+    public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType, Date dateTime) throws Exception {
+        if(ObjectUtils.isEmpty(dateTime)){
+            dateTime  = dateTimeUtil.getCurrentDate();
+        }
         Map<String, Object> data = new HashMap<>();
         data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());

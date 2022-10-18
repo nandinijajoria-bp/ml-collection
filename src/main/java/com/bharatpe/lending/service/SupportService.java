@@ -27,6 +27,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -171,6 +172,9 @@ public class SupportService {
 
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    LendingKfsDao lendingKfsDao;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -1466,17 +1470,17 @@ public class SupportService {
         loanAgreementDao.save(loanAgreement);
         String shortUrl = "";
         try {
-            shortUrl = getShorturl(fileName, loanAgreement);
+            shortUrl = getShorturl(fileName, loanAgreement, "bharatpe-agreement");
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
         return  shortUrl;
     }
 
-    public String getShorturl(String fileName, LoanAgreement loanAgreement) throws UnsupportedEncodingException {
+    public String getShorturl(String fileName, LoanAgreement loanAgreement, String bucket) throws UnsupportedEncodingException {
         String tempUrl="";
         try {
-            tempUrl=s3BucketHandler.getPreSignedPublicURL(fileName, "bharatpe-agreement");
+            tempUrl=s3BucketHandler.getPreSignedPublicURL(fileName, bucket);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -2078,17 +2082,59 @@ public class SupportService {
         }
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
         if (ObjectUtils.isEmpty(basicDetailsDto)) {
-            return new ResponseDTO(false, "Application not found");
+            return new ResponseDTO(false, "Merchant details not found");
         }
-
         try {
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if(!ObjectUtils.isEmpty(lendingKfs)){
+                if(lendingKfs.getLender().equals(lendingApplication.get().getLender())){
+                    logger.info("Fetched Loan Agreement from Lending KFS for application id: {}", applicationId);
+                    lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getKfsSignedAt());
+                    lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                    lendingKfsDao.save(lendingKfs);
+                    return new ResponseDTO(true, "Agreement created successfully.", lendingKfs.getSanctionLoanAgreementDocUrl());
+                } else{
+                    //create a new record with the new lender.
+                    LendingKfs lendingKfs1 = new LendingKfs();
+                    lendingKfs1.setApplicationId(lendingApplication.get().getId());
+                    lendingKfs1.setMerchantId(lendingApplication.get().getMerchantId());
+                    lendingKfs1.setLender(lendingApplication.get().getLender());
+                    lendingKfs1.setApr(lendingKfs.getApr());
+                    //create agreement and KFS doc if, present in old ones.
+                    if(!ObjectUtils.isEmpty(lendingKfs.getKfsDocUrl()) && !ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())){
+                        lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getKfsSignedAt());
+                        lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getSanctionLoanAgreementSignedAt());
+                        //set timestamps as the old ones.
+                        lendingKfs1.setKfsSignedAt(lendingKfs.getKfsSignedAt());
+                        lendingKfs1.setSanctionLoanAgreementSignedAt(lendingKfs.getSanctionLoanAgreementSignedAt());
+                        logger.info("KFS URL: {} Loan Agreement URL: {}", lendingKfs1.getKfsDocUrl(), lendingKfs1.getSanctionLoanAgreementDocUrl());
+                        lendingKfsDao.save(lendingKfs1);
+                        return new ResponseDTO(true, "Agreement Created Successfully", lendingKfs1.getSanctionLoanAgreementDocUrl());
+                    }
+                }
+                return new ResponseDTO(false, "Error creating agreement");
+            }
             logger.info("Creating Loan Agreement for application id : {}",applicationId);
-            getAgreement(lendingApplication.get(), lendingApplication.get().getLender(),basicDetailsDto.get());
-            return new ResponseDTO(true, "Agreement Created Successfully");
+            String shortUrl = getAgreement(lendingApplication.get(), lendingApplication.get().getLender(),basicDetailsDto.get());
+            return new ResponseDTO(true, "Agreement Created Successfully", shortUrl);
         } catch (Exception e) {
-            logger.error("Exception Occured while creating agreement for application id: {}",e);
+            logger.error("Exception Occurred while creating agreement for application id: {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return new ResponseDTO(false, "Internal Server Error");
+    }
+
+    public String getSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication){
+        String url = null;
+        String fileName = "Sanction_Cum_Loan_Agreement_" + applicationId;
+        try{
+            url = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            if(ObjectUtils.isEmpty(url)){
+                return null;
+            }
+        }catch(Exception ex){
+            logger.error("Exception occurred while fetching s3 url: {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return url;
     }
 
     public String getNocUrl(LendingPaymentSchedule lendingPaymentSchedule) {
