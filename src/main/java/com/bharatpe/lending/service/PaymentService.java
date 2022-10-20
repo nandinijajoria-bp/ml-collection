@@ -1033,7 +1033,9 @@ public class PaymentService {
 			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null
 					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null
 					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D
-					&& (apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId()))) {
+					&& (apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId()))
+					&& lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp()
+					.before(new SimpleDateFormat("dd/MM/yyyy").parse("01-07-2022"))) {
 				logger.info("refund processing fee before 1st june or club member for merchant: {}", lendingPaymentSchedule.getMerchantId());
 				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
 				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
@@ -1044,62 +1046,6 @@ public class PaymentService {
 					Double cashbackAmount = Math.min(cashbackAmt, 1500);
 					String orderId = "PF_CASHBACK" + System.currentTimeMillis();
 					LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "PF_CASHBACK");
-					LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
-					if (lendingPayoutResponse != null) {
-						String identifier = "LENDING_ARRANGER_REFUND_2_SMS";
-						Map<String,Object> templateParams = new HashMap<>();
-						templateParams.put("beneficiary_name",getBeneficiaryName(merchantBankDetail.getBeneficiaryName()));
-						templateParams.put("cashback_amount",merchantBankDetail.getBeneficiaryName());
-						templateParams.put("bank_name",merchantBankDetail.getBeneficiaryName());
-
-						NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
-						notificationPayloadDto.setTemplateIdentifier(identifier);
-						notificationPayloadDto.setMobile(basicDetailsDto.getMobile());
-						notificationPayloadDto.setClientName("LENDING");
-						notificationPayloadDto.setTemplateParams(templateParams);
-						lendingNotificationService.notify(notificationPayloadDto);
-						identifier = "LENDING_ARRANGER_FEE_REFUND_PUSH";
-						String deeplink = notificationUtil.getDeeplink(basicDetailsDto.getSettlementType(),"LOAN_DASHBOARD");
-						notificationPayloadDto.setPushDeepLink(deeplink);
-						notificationPayloadDto.setPushTitle("Arranger Fee refund!");
-						notificationPayloadDto.setTemplateIdentifier(identifier);
-						lendingNotificationService.notify(notificationPayloadDto);
-					}
-				}
-			}
-		} catch (Exception e) {
-			logger.error("Exception in PF Refund for loanId:{}", lendingPaymentSchedule.getId(), e);
-		}
-	}
-
-	public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule, Boolean callFromLMS) {
-		try {
-			logger.info("enter refund processing fee for merchant: {} from LMS.", lendingPaymentSchedule.getMerchantId());
-			LendingPayoutResponseDTO checkRefunded = lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule.getMerchantId(),
-					lendingPaymentSchedule.getId(), "PF_CASHBACK");
-			if(checkRefunded != null){
-				return;
-			}
-			MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(lendingPaymentSchedule.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
-			BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
-			BankDetailsDto merchantBankDetail = merchantDetailsDTO.getBankDetail();
-			if (ObjectUtils.isEmpty(basicDetailsDto)) {
-				return;
-			}
-			if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null
-					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null
-					&& lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D
-					&& (apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId()) || Boolean.TRUE.equals(callFromLMS))) {
-				logger.info("refund processing fee before 1st june or club member for merchant: {}", lendingPaymentSchedule.getMerchantId());
-				BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
-				long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
-				LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
-				if (maxDpd.intValue() <= 5 &&  dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger))) {
-					logger.info("Closing dpd is between 5 days for loanId:{}, processing fee refund for amount:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getLoanApplication().getProcessingFee());
-					Double cashbackAmt = lendingPaymentSchedule.getLoanApplication().getProcessingFee();
-//					Double cashbackAmount = Math.min(cashbackAmt, 1500);
-					String orderId = "PF_CASHBACK" + System.currentTimeMillis();
-					LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmt, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "PF_CASHBACK");
 					LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
 					if (lendingPayoutResponse != null) {
 						String identifier = "LENDING_ARRANGER_REFUND_2_SMS";

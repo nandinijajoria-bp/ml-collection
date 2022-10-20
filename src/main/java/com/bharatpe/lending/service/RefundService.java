@@ -172,7 +172,7 @@ public class RefundService {
                     logger.info("Already Processing Fee Refund For id :{}", processingFeeRequest.getLoanId());
                     return new CommonResponse(false, "Refund Already Done");
                 }
-                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule, callFromLMS));
+                executorService.execute(() -> paymentService.refundProcessingFee(lendingPaymentSchedule));
 
             }else if(refundType.equalsIgnoreCase("CASHBACK")){
                 LendingPayoutResponseDTO lendingPayouts = lendingPayoutsHandler.findByMerchantIdAndOwnerIdForNachCashBack(lendingPaymentSchedule.getMerchantId(),
