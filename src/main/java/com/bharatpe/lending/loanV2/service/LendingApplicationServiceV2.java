@@ -1400,15 +1400,22 @@ public class LendingApplicationServiceV2 {
     }
 
     public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType){
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
+          merchant.getId());
+        if (ObjectUtils.isEmpty(lendingApplication)) {
+            log.info("Application not found while fetching KFS details for Id: {} for merchant : {}", applicationId, merchant.getId());
+            return new ApiResponse<>(false, "Unable to fetch application details");
+        }
+
         try{
             if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS.toString())){
-                return getKfsDetails(applicationId,null, merchant);
+                return getKfsDetails(applicationId,lendingApplication, merchant);
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DOC.toString())){
-                return generateKfs(applicationId, null, merchant, false, null);
+                return generateKfs(applicationId, lendingApplication, merchant, false, null);
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.toString())){
-                return generateSanctionCumLoanAgreement(applicationId, null, merchant, false, null);
+                return generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, false, null);
             }
             return new ApiResponse<>(false, "Unhandled DocType");
         }
@@ -1476,7 +1483,7 @@ public class LendingApplicationServiceV2 {
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
                     .externalLoanId(lendingApplication.getExternalLoanId())
-                    .lender(lendingKfs.getLender())
+                    .lender(lendingApplication.getLender())
                     .lenderCorporateName(lenderCorporateName)
                     .lenderBusinessAddress(lenderBusinessAddress)
                     .lenderContactName(lenderContactName)
@@ -1540,8 +1547,8 @@ public class LendingApplicationServiceV2 {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
-            if(!getLenderLogo(lendingKfs.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
-                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingKfs.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
+            if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
+                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                 Header headerHandler = new Header(logoImageData);
                 pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
             }
@@ -1616,8 +1623,8 @@ public class LendingApplicationServiceV2 {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
-            if (!getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingKfs.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
+            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
+                ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                 Header headerHandler = new Header(logoImageData);
                 pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
             }
