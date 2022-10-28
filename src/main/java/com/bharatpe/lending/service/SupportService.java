@@ -907,7 +907,7 @@ public class SupportService {
 
             for (LendingApplicationSlave application : applicationList) {
                 //applicationHistory
-                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null);
+                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc());
                 String reason = null;
                 if("rejected".equalsIgnoreCase(application.getStatus())){
                     if ("REJECTED".equalsIgnoreCase(application.getManualCibil())) {

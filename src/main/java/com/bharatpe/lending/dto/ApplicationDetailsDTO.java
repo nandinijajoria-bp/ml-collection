@@ -32,4 +32,6 @@ public class ApplicationDetailsDTO {
     private String tenure;
     @JsonProperty("arrangerFee")
     private SupportLoanResponseDTO.LoanArrangerFee arrangerFee;
+    @JsonProperty("sendToNbfc")
+    private String sendToNbfc;
 }
