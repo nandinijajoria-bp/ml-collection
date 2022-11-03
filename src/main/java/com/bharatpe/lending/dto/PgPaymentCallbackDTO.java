@@ -16,6 +16,7 @@ public class PgPaymentCallbackDTO {
     private String orderId;
     private String paymentURI;
     private String redirectURI;
+    private String checkoutType;
     private List<Payments> payments;
 
     @ToString
@@ -25,6 +26,51 @@ public class PgPaymentCallbackDTO {
         private String status;
         private Date completedAt;
         private String refId;
+        private String pgReferenceId;
+        private Double finalAmount;
+        private String breakupType;
+        private String finalGateway;
+        private String accountType;
+
+        public String getAccountType() {
+            return accountType;
+        }
+
+        public void setAccountType(String accountType) {
+            this.accountType = accountType;
+        }
+
+        public String getPgReferenceId() {
+            return pgReferenceId;
+        }
+
+        public void setPgReferenceId(String pgReferenceId) {
+            this.pgReferenceId = pgReferenceId;
+        }
+
+        public Double getFinalAmount() {
+            return finalAmount;
+        }
+
+        public void setFinalAmount(Double finalAmount) {
+            this.finalAmount = finalAmount;
+        }
+
+        public String getBreakupType() {
+            return breakupType;
+        }
+
+        public void setBreakupType(String breakupType) {
+            this.breakupType = breakupType;
+        }
+
+        public String getFinalGateway() {
+            return finalGateway;
+        }
+
+        public void setFinalGateway(String finalGateway) {
+            this.finalGateway = finalGateway;
+        }
 
         public Double getAmount() {
             return amount;
@@ -65,6 +111,14 @@ public class PgPaymentCallbackDTO {
         public void setRefId(String refId) {
             this.refId = refId;
         }
+    }
+
+    public String getCheckoutType() {
+        return checkoutType;
+    }
+
+    public void setCheckoutType(String checkoutType) {
+        this.checkoutType = checkoutType;
     }
 
     public Double getOrderAmount() {

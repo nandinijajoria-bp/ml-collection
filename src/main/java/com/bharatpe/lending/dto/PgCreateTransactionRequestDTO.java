@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.lending.enums.Lender;
+
 import java.util.List;
 
 public class PgCreateTransactionRequestDTO {
@@ -10,9 +12,27 @@ public class PgCreateTransactionRequestDTO {
     private String paymentPageHeaderText;
     private String narration;
     private List<String> allowedModes;
+    private Lender lender;
+    private String checkout;
+
+    public String getCheckout() {
+        return checkout;
+    }
+
+    public void setCheckout(String checkout) {
+        this.checkout = checkout;
+    }
 
     public String getOrderId() {
         return orderId;
+    }
+
+    public Lender getLender() {
+        return lender;
+    }
+
+    public void setLender(Lender lender) {
+        this.lender = lender;
     }
 
     public void setOrderId(String orderId) {
