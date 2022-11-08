@@ -255,18 +255,23 @@ public class PaymentService {
 
 			Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
 			logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
-			if (Objects.equals(request.getMeta().getClient(), "android")) {
-				if (appVersion >= 320) {
-					pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
+			if (loanUtil.isInternalMerchant(merchantBasicDetails.getId())) {
+				logger.info("pg flow enabling for internal merchants with app version for merchant: {}",merchantBasicDetails.getId());
+				if (Objects.equals(request.getMeta().getClient(), "android")) {
+					if (appVersion >= 320) {
+						pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
+					} else {
+						pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
+					}
 				} else {
-					pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
+					if (appVersion >= 254) {
+						pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
+					} else {
+						pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
+					}
 				}
 			} else {
-				if (appVersion >= 254) {
-					pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
-				} else {
-					pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
-				}
+				pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
 			}
 
 			PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), pgCreateTransactionRequestDTO);
