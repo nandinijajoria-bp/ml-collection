@@ -1,5 +1,6 @@
 package com.bharatpe.lending.util;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
@@ -27,6 +28,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,6 +127,11 @@ public class LoanUtil {
 
 	@Autowired
 	MerchantScoreHandler merchantScoreHandler;
+
+	@Autowired
+	LendingCache lendingCache;
+
+	String INTERNAL_MERCHANTS = "internal_merchants";
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -888,5 +895,9 @@ public class LoanUtil {
 				.build();
 		eligibleLoanDao.saveAndFlush(eligibleLoan);
 		return null;
+	}
+
+	public boolean isInternalMerchant(Long merchantId) {
+		return BooleanUtils.toBoolean(lendingCache.contains(INTERNAL_MERCHANTS, merchantId));
 	}
 }

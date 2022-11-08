@@ -14,6 +14,25 @@ public class DeviceInfoDTO {
 	@JsonProperty("is_virtual")
 	private Boolean isVirtual;
 
+	@JsonProperty("app_version")
+	private String appVersion;
+
+	public Boolean getVirtual() {
+		return isVirtual;
+	}
+
+	public void setVirtual(Boolean virtual) {
+		isVirtual = virtual;
+	}
+
+	public String getAppVersion() {
+		return appVersion;
+	}
+
+	public void setAppVersion(String appVersion) {
+		this.appVersion = appVersion;
+	}
+
 	public String getOs() {
 		return os;
 	}

@@ -3,9 +3,12 @@ package com.bharatpe.lending.interceptor;
 import com.amazonaws.HttpMethod;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.enums.Status;
+import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
+import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.util.StringUtils;
@@ -13,14 +16,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Component
 public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
@@ -34,6 +35,16 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
 //    MerchantDao merchantDao;
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingPgMidConfigSlaveDao lendingPgMidConfigSlaveDao;
+
+    @Autowired
+    LoanUtil loanUtil;
+
+    List<String> pgMids = Arrays.asList("LENTRIgUqSD3gV0xCW6gCijBLsZU9eU2", "LENLDCmzpVvR90yJCzKJWuYgWMvpVPZg", "LENLLzV9L6C0FcejvkqDzVbZvQpBUQY4",
+            "LENHIN7nhdRBCGrskaRyHQSOYrN3paPh", "6AB51HF1MSRKT1QH5AZ0");
+
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         logger.info("Pre handle Interceptor of Hmac Interceptor for {}", request);
@@ -57,16 +68,32 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
             }
 
 //            Merchant merchant = merchantDao.findByMid(mid);
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetailsByMid(mid);
-            if (basicDetailsDto == null || Status.MerchantStatus.INACTIVE.toString().equalsIgnoreCase(basicDetailsDto.get().getStatus())) {
-                logger.error("Merchant not found (}", mid);
+            String secret;
+            Optional<BasicDetailsDto> basicDetailsDto = null;
+            LendingPgMidConfigSlave pgMidConfig = null;
+            if (!pgMids.contains(mid)) {
+                basicDetailsDto = merchantService.fetchMerchantBasicDetailsByMid(mid);
+                if (basicDetailsDto == null || Status.MerchantStatus.INACTIVE.toString().equalsIgnoreCase(basicDetailsDto.get().getStatus())) {
+                    logger.error("Merchant not found (}", mid);
+                    sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
+                    return false;
+                }
+                secret = basicDetailsDto.get().getSecret();
+                logger.info("secret in old mid flow: {}",secret);
+                request.setAttribute("merchant", basicDetailsDto.get());
+            } else {
+                pgMidConfig = lendingPgMidConfigSlaveDao.findByMidAndStatus(mid, "ACTIVE");
+                logger.info("pg mid config: {}", pgMidConfig);
+                secret = pgMidConfig.getSecret();
+            }
+
+            if (ObjectUtils.isEmpty(secret)) {
+                logger.info("secret is empty");
                 sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
                 return false;
             }
 
-            request.setAttribute("merchant", basicDetailsDto.get());
-
-            if (lendingHmacCalculator.validateExternalGateway(payload, basicDetailsDto.get().getSecret(), hmac)) {
+            if (lendingHmacCalculator.validateExternalGateway(payload, secret, hmac)) {
                 logger.info("Hmac Verification successfull for hmac Value for the hmac {} and mid {}", hmac, mid);
                 return true;
             }

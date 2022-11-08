@@ -51,6 +51,28 @@ public class LoanPaymentOrder extends BaseEntity {
 
     private String source;
 
+    @Column(name = "checkout_type")
+    private String checkoutType;
+
+    @Column(name = "final_gateway")
+    private String finalGateway;
+
+    public String getCheckoutType() {
+        return checkoutType;
+    }
+
+    public void setCheckoutType(String checkoutType) {
+        this.checkoutType = checkoutType;
+    }
+
+    public String getFinalGateway() {
+        return finalGateway;
+    }
+
+    public void setFinalGateway(String finalGateway) {
+        this.finalGateway = finalGateway;
+    }
+
     public Long getMerchantId() {
         return merchantId;
     }

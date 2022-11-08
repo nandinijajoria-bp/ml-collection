@@ -17,6 +17,8 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
+import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -35,6 +37,7 @@ import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.KycDocType;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
@@ -187,6 +190,12 @@ public class APIGatewayService {
     LendingEkycDao lendingEkycDao;
 
     @Autowired
+    LendingPgMidConfigSlaveDao lendingPgMidConfigSlaveDao;
+
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Autowired
     @Qualifier("customRestTemplate")
     RestTemplate customRestTemplate;
 
@@ -254,6 +263,8 @@ public class APIGatewayService {
         PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO = new PgCreateTransactionResponseDTO();
         logger.info("In Create pg transaction for merchnat id {}", merchantId);
         InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
+        LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
+        logger.info("pg config related to mid: {}", pgMidConfig);
         try {
             Map requestParams = new HashMap<>();
             requestParams.put("orderId", pgCreateTransactionRequestDTO.getOrderId());
@@ -263,20 +274,22 @@ public class APIGatewayService {
             requestParams.put("paymentPageHeaderText", pgCreateTransactionRequestDTO.getPaymentPageHeaderText());
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
             requestParams.put("allowedModes", pgCreateTransactionRequestDTO.getAllowedModes());
+            requestParams.put("checkout", pgCreateTransactionRequestDTO.getCheckout());
 
-            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getSecret());
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
             headers.set("hash", hash);
-            headers.set("mid", getMid());
+            headers.set("mid", getPgMid(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
             logger.info("Create pg transaction internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
             while (retryCount < 3) {
                 try {
-                    PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + LendingConstants.CREATE_PG_TXN, request, PgCreateTransactionResponseDTO.class);
+                    String pgCreateTxnURL = getPgCreateTxnUrl(merchantId);
+                    PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, PgCreateTransactionResponseDTO.class);
                     logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
@@ -293,6 +306,14 @@ public class APIGatewayService {
         return null;
     }
 
+    private String getPgCreateTxnUrl(Long merchantId) {
+
+        if (loanUtil.isInternalMerchant(merchantId)) {
+            return LendingConstants.CREATE_PG_TXN_V2;
+        }
+        return LendingConstants.CREATE_PG_TXN_V1;
+    }
+
     private String getSecret() {
 //        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
         Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
@@ -303,6 +324,33 @@ public class APIGatewayService {
             }
         }
         return SECRET;
+    }
+
+    private String getPgMid(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
+        String pgMID = null;
+        if (!loanUtil.isInternalMerchant(merchantId)) {
+            return getMid();
+        }
+        if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getMid())) {
+            pgMID = pgMidConfig.getMid();
+        }
+        return pgMID;
+    }
+
+    private String getPgSecret(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
+        String pgSecret = null;
+        if (!loanUtil.isInternalMerchant(merchantId)) {
+            logger.info("not a internal merchant in PG flow: {}", merchantId);
+            return getSecret();
+        }
+        if (Lender.MAMTA.equals(lender)) {
+            return getSecret();
+        }
+        if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getSecret())) {
+            pgSecret = pgMidConfig.getSecret();
+            pgSecret = aesEncryptionUtil.decrypt(pgSecret);
+        }
+        return pgSecret;
     }
 
     private String getMid() {
@@ -2116,18 +2164,19 @@ public class APIGatewayService {
         return success;
     }
 
-    public PgStatusResponse checkPgStatus(String orderId) {
+    public PgStatusResponse checkPgStatus(String orderId, Lender lender, Long merchantId) {
         logger.info("Pg status check for  and orderId:{}", orderId);
         try {
             Map<String, String> requestBody = new HashMap<String, String>() {{
                 put("orderId", orderId);
             }};
-            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestBody), getSecret());
+            LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(lender.name(), "ACTIVE");
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestBody), getPgSecret(lender, pgMidConfig, merchantId));
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setCacheControl(CacheControl.noCache());
             headers.set("hash", hash);
-            headers.set("mid", getMid());
+            headers.set("mid", getPgMid(lender, pgMidConfig, merchantId));
             HttpEntity<Map> request = new HttpEntity<>(headers);
 
             logger.info("Pg status Check internal request: {}", mapper.writeValueAsString(request));
