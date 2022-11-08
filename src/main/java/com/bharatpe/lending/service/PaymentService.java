@@ -479,15 +479,16 @@ public class PaymentService {
 					if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getAccountType())){
 						accountType = request.getPayments().get(0).getAccountType();
 					}
-					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
-							PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType);
 
-					if(!request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getFinalGateway())){
+					if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getFinalGateway())){
 
 						order.setFinalGateway(request.getPayments().get(0).getFinalGateway());
 					}
 					order.setCheckoutType(request.getCheckoutType());
 					order.setBankRefNo(request.getPaymentRefId());
+					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
+							PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType);
+
 				}
 			}
 			loanPaymentOrderDao.save(order);
