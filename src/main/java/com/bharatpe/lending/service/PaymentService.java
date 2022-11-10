@@ -1048,6 +1048,7 @@ public class PaymentService {
 		lendingLedger.setPrinciple(principle);
 		lendingLedger.setDescription(description);
 		lendingLedger.setAdjustmentMode(adjustmentMode);
+		lendingLedger.setTransferType("Transfer by BP");
 		lendingLedgerDao.save(lendingLedger);
 	}
 

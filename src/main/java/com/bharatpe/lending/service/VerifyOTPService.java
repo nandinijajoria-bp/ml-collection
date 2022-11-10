@@ -466,6 +466,7 @@ public class VerifyOTPService {
             lendingLedger.setPrinciple(previousAmount - activeLoan.getDueInterest());
             lendingLedger.setInterest(activeLoan.getDueInterest());
             lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
+            lendingLedger.setTransferType("Transfer by BP");
             lendingLedgerDao.save(lendingLedger);
 
             LendingLedger negativeEntry = new LendingLedger();
@@ -478,6 +479,7 @@ public class VerifyOTPService {
             negativeEntry.setPrinciple(-(previousAmount - activeLoan.getDueAmount()));
             negativeEntry.setInterest(0D);
             negativeEntry.setAdjustmentMode(lendingApplication.getLoanType());
+            negativeEntry.setTransferType("Transfer by BP");
             lendingLedgerDao.save(negativeEntry);
 
             activeLoan.setStatus("CLOSED");
