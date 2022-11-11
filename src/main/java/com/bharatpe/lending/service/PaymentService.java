@@ -467,7 +467,7 @@ public class PaymentService {
 			if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())){
 				order.setSource(request.getPayments().get(0).getMode());
 			}
-			if (request.getPaymentStatus() != null) {
+			if (request.getPaymentStatus() != null && Objects.nonNull(request.getPayments())) {
 			    if ("FAILURE".equalsIgnoreCase(request.getPaymentStatus())) {
                     order.setStatus(Status.TransactionStatus.FAILED.name());
 //                    order.setDescription(response.getData().getErrorDescription());
