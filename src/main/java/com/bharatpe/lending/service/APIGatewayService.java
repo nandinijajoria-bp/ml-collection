@@ -343,7 +343,7 @@ public class APIGatewayService {
             logger.info("not a internal merchant in PG flow: {}", merchantId);
             return getSecret();
         }
-        if (Lender.MAMTA.equals(lender)) {
+        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
             return getSecret();
         }
         if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getSecret())) {
