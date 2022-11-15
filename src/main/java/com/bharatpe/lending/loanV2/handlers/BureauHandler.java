@@ -41,12 +41,13 @@ public class BureauHandler {
             requestBody.put("mobile",mobile);
             log.info("mobile number fetched");
             Map<String, String> merchantName = apiGatewayService.getFirstLastName(merchantId, pancard);
-            requestBody.put("first_name",merchantName.get("firstname"));
-            requestBody.put("last_name",merchantName.get("lastname"));
+            requestBody.put("first_name",merchantName.get("firstName"));
+            requestBody.put("last_name",merchantName.get("lastName"));
             log.info("name fetched");
             if (!StringUtils.isEmpty(pancard)) {
                 requestBody.put("pancard", pancard);
             }
+            requestBody.put("source", "EASY_LOANS");
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days=30";
             log.info("BureauHandler call for phone: {}",mobile);
