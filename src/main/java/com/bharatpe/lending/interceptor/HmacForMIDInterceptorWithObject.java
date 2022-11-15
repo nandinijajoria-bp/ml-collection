@@ -43,7 +43,7 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
     LoanUtil loanUtil;
 
     List<String> pgMids = Arrays.asList("LENTRIgUqSD3gV0xCW6gCijBLsZU9eU2", "LENLDCmzpVvR90yJCzKJWuYgWMvpVPZg", "LENLLzV9L6C0FcejvkqDzVbZvQpBUQY4",
-            "LENHIN7nhdRBCGrskaRyHQSOYrN3paPh", "6AB51HF1MSRKT1QH5AZ0");
+            "LENHIN7nhdRBCGrskaRyHQSOYrN3paPh");
 
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
