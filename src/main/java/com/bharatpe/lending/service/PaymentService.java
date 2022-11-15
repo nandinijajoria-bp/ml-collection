@@ -73,6 +73,7 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -132,6 +133,12 @@ public class PaymentService {
 
 	@Autowired
 	LendingInterestWaiverDao lendingInterestWaiverDao;
+
+	@Value(("${pg.android.version:324}"))
+	Long androidVersion;
+
+	@Value(("${pg.ios.version:254}"))
+	Long iosVersion;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
@@ -258,13 +265,13 @@ public class PaymentService {
 			if (loanUtil.isInternalMerchant(merchantBasicDetails.getId())) {
 				logger.info("pg flow enabling for internal merchants with app version for merchant: {}",merchantBasicDetails.getId());
 				if (Objects.equals(request.getMeta().getClient(), "android")) {
-					if (appVersion >= 320) {
+					if (appVersion >= androidVersion) {
 						pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
 					} else {
 						pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
 					}
 				} else {
-					if (appVersion >= 254) {
+					if (appVersion >= iosVersion) {
 						pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
 					} else {
 						pgCreateTransactionRequestDTO.setCheckout("BHARATPE");
