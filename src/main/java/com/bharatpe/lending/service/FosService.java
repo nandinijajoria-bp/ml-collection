@@ -902,18 +902,18 @@ public class FosService {
     }
 
     public String hasFinalOfferGtZero(BasicDetailsDto merchant, Boolean forceEligibilityCheck) {
-        if (forceEligibilityCheck) {
-            try {
-                String globalDetailsCacheKey = "LENDING_GLOBAL_DETAILS_" + merchant.getId();
-                if (Objects.nonNull(lendingCache.get(globalDetailsCacheKey))) {
-                    logger.info("clearing cache for fos eligibility computation {}", merchant.getId());
-                    lendingCache.delete(globalDetailsCacheKey);
-                }
-                apiGatewayService.getGlobalLimit(merchant.getId());
-            } catch (Exception e) {
-                logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);
-            }
-        }
+//        if (forceEligibilityCheck) {
+//            try {
+//                String globalDetailsCacheKey = "LENDING_GLOBAL_DETAILS_" + merchant.getId();
+//                if (Objects.nonNull(lendingCache.get(globalDetailsCacheKey))) {
+//                    logger.info("clearing cache for fos eligibility computation {}", merchant.getId());
+//                    lendingCache.delete(globalDetailsCacheKey);
+//                }
+//                apiGatewayService.getGlobalLimit(merchant.getId());
+//            } catch (Exception e) {
+//                logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);
+//            }
+//        }
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
         if (Objects.isNull(lendingRiskVariables)) {
             return "maybe";
@@ -1003,7 +1003,7 @@ public class FosService {
         ResponseDTO responseDTO = new ResponseDTO();
         FosTaskStatusDto fosTaskStatusDto = new FosTaskStatusDto();
         try {
-            Date taskStartTimestamp = new Date(taskTimestampEpoch * 1000);
+            Date taskStartTimestamp = dateTimeUtil.getDatePlusMinutes(new Date(taskTimestampEpoch * 1000), -30);
             logger.info("task status timestamp: {}", taskStartTimestamp);
             Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
 //            Merchant merchant = merchantDao.getById(merchantId);
