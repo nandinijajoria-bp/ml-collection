@@ -26,6 +26,8 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -158,6 +160,12 @@ public class VerifyOTPService {
     @Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
     String kafkaTopicPostChecks;
 
+    @Autowired
+    LendingKfsDao lendingKfsDao;
+
+    @Autowired
+    SupportService supportService;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -183,10 +191,17 @@ public class VerifyOTPService {
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
                 merchant.getId(), "draft");
         LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-        if (lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
+        if (lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
             lendingApplication = lendingApplicationDao.findById(applicationId).get();
             return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(), lendingResubmitTask);
         }
+
+        // get resigned  after events like lender change
+        if (lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getResign() && (lendingResubmitTask.getResignDone() == null || !lendingResubmitTask.getResignDone())) {
+            lendingApplication = lendingApplicationDao.findById(applicationId).get();
+            return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(), lendingResubmitTask);
+        }
+
         if (lendingApplication == null) {
             logger.info("No application found in draft status for given application id {}", applicationId);
             return finalResponse;
@@ -199,7 +214,7 @@ public class VerifyOTPService {
         logger.info("Mobile length: {}", merchant.getMobile().length());
         finalResponse.put("success", false);
         finalResponse.put("agreement_verified", false);
-        if (lendingResubmitTask != null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12) {
+        if (lendingResubmitTask != null && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
                 try{
@@ -235,6 +250,45 @@ public class VerifyOTPService {
                 return finalResponse;
             }
         }
+
+        if (lendingResubmitTask != null && lendingResubmitTask.getResign() && merchant.getMobile().length() == 12) {
+            Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
+            if (isOTPVerified) {
+                lendingResubmitTask.setResignDone(Boolean.TRUE);
+                lendingResubmitTask.setResignTimestamp(new Date());
+                lendingResubmitTaskDao.save(lendingResubmitTask);
+
+                lendingApplication.setAgreementAt(new Date());
+                lendingApplicationDao.save(lendingApplication);
+
+                final LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+                lendingKfs.setKfsSignedAt(new Date());
+                lendingKfs.setSanctionLoanAgreementSignedAt(new Date());
+                lendingKfsDao.save(lendingKfs);
+
+                // create agreement according to the new lender
+                final ResponseDTO agreement = supportService.createAgreement(lendingApplication.getId());
+
+                if (!agreement.isSuccess()){
+                    logger.error("Error in creating agreement for applicationId : {} ", lendingApplication.getId());
+                    return finalResponse;
+                }
+
+                // upload new agreement with the resigned new lender
+                final Boolean uploadLoanAgreement = apiGatewayService.uploadLoanAgreement(lendingApplication.getId());
+
+                if (!uploadLoanAgreement) {
+                    logger.error("Error in uploading agreement for applicationId : {} ", lendingApplication.getId());
+                    return finalResponse;
+                }
+
+                finalResponse.put("success", true);
+                finalResponse.put("agreement_verified", true);
+                return finalResponse;
+            }
+        }
+
+
         if (merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {

@@ -514,7 +514,7 @@ public class LendingApplicationServiceV2 {
             log.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
             return new ApiResponse<>(false, "Draft application not found");
         }
-        if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
+        if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())){
             lendingApplication =lendingApplicationDao.findById(applicationId).get();
         }
         if (lendingApplication == null) {
@@ -1451,6 +1451,9 @@ public class LendingApplicationServiceV2 {
             String lenderContactName = "";
             String lenderContactEmail = "";
             String lenderContactNumber = "";
+            String colenderCorporateName = "";
+            String colenderBusinessAddress = "";
+
             if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LIQUILOANS;
                 lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LIQUILOANS;
@@ -1472,12 +1475,16 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LDC;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LDC;
             }
-            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())){
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString()) || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())  || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_MAMTA;
                 lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_MAMTA;
                 lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MAMTA;
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MAMTA;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MAMTA;
+            }
+            if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
+                colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA1;
+                colenderBusinessAddress = KfsConstants.COLENDER_BUSINESS_ADDRESS_MAMTA1;
             }
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -1486,6 +1493,8 @@ public class LendingApplicationServiceV2 {
                     .lender(lendingApplication.getLender())
                     .lenderCorporateName(lenderCorporateName)
                     .lenderBusinessAddress(lenderBusinessAddress)
+                    .colenderCorporateName(colenderCorporateName)
+                    .colenderBusinessAddress(colenderBusinessAddress)
                     .lenderContactName(lenderContactName)
                     .lenderContactEmail(lenderContactEmail)
                     .lenderContactNumber(lenderContactNumber)
@@ -1783,6 +1792,18 @@ public class LendingApplicationServiceV2 {
             data.put("lender_logo", lenderLogoHtml);
         }
         else data.put("lender_logo", "");
+
+        data.put("lender_tag", "");
+        data.put("name_of_colender", "");
+        data.put("register_address_of_colender", "");
+        data.put("colender_text", "");
+
+        if(kfsDto.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
+            data.put("lender_tag", "(Lender)");
+            data.put("name_of_colender", kfsDto.getColenderCorporateName());
+            data.put("register_address_of_colender", kfsDto.getColenderBusinessAddress() + " (Co-Lender)");
+            data.put("colender_text", "The loan is given under the Co-Lending model by the Lender & Co-Lender in the ratio of 30:70 respectively.");
+        }
         return data;
     }
 
@@ -1800,7 +1821,7 @@ public class LendingApplicationServiceV2 {
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.KEY_FACTS_STATEMENT_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/Lenden.png";
         }
-        else if(lender.equalsIgnoreCase(Lender.MAMTA.toString())){
+        else if(lender.equalsIgnoreCase(Lender.MAMTA.toString()) || lender.equalsIgnoreCase(Lender.MAMTA0.toString()) || lender.equalsIgnoreCase(Lender.MAMTA1.toString())){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
         }
         return logoUrl;

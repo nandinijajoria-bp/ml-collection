@@ -27,6 +27,8 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_MAMTA = "Ms. Aradhana Nathany";
     String LENDER_CONTACT_EMAIL_MAMTA = "statutory.compliance@arthmate.com";
     String LENDER_CONTACT_NUMBER_MAMTA = "+91-8336901719";
+    String COLENDER_CORPORATE_NAME_MAMTA1 = "Vedika Credit Capital Limited";
+    String COLENDER_BUSINESS_ADDRESS_MAMTA1 = "Village - Collage Pally, P.O. - Shiuli Telini Para, P.S. - Titagar, Kolkata Parganas North, West Bengal - 700121, India";
     String LSP_CONTACT_NAME = "Mr. Ankit Parnami";
     String LSP_CONTACT_EMAIL = "nodalofficer@bharatpe.com";
     String LSP_CONTACT_NUMBER = "8851681932";

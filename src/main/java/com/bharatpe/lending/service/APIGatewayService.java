@@ -203,6 +203,9 @@ public class APIGatewayService {
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
+    @Value("${nbfc.service.base.url}")
+    public String nbfcServiceBaseUrl;
+
     private static String clientSecret;
 
     @Autowired
@@ -2415,5 +2418,35 @@ public class APIGatewayService {
             logger.error("Exception occurred while fetching validity of the address {}", addressDetails, e);
         }
         return null;
+    }
+
+    public Boolean uploadLoanAgreement(Long applicationId) {
+        try {
+            logger.info("starting uploading agreement of applicationId {}", applicationId);
+            String url = nbfcServiceBaseUrl + "/api/v1/updateLoanAgreementDoc?application_id="+ applicationId;
+            Map<String, Object> requestParams = new HashMap<String, Object>() {{
+                put("application_id", applicationId);
+            }};
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Client-name", CLIENT);
+            headers.set("hash", getHmacBase64(requestParams));
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
+            logger.info("Request for update Loan Agreement document api is {}, for applicationId: {}", request, applicationId);
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, new ParameterizedTypeReference<Map<String, Object>>() {
+            });
+            logger.info("Response for update Loan Agreement document api is {}, for applicationId: {}", responseEntity, applicationId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("data") != null) {
+                Map<String, Object> resMap = responseEntity.getBody();
+                if (resMap.get("data").equals("true")) {
+                    logger.info("Loan Agreement uploaded successfully for applicationId: {}", applicationId);
+                    return true;
+                }
+            }
+            logger.info("Loan Agreement not uploaded for applicationId: {}", applicationId);
+        } catch (Exception e) {
+            logger.error("Exception occurred while uploading Loan agreement document of applicationId {}", applicationId, e);
+        }
+        return false;
     }
 }

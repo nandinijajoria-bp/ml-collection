@@ -43,7 +43,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/enach/bulkNach","/lending/due_amount","/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/support" +
 				"/createAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
 				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
-						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails");
+						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback");
 
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
@@ -54,7 +54,8 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/support/loan", "/lending/nach_refund","/support/lenderchange","/support/lender","/lending/processing_fee_refund","/enach/bulkNach",
 				"/lending/common/merchant", "/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/lending/application/resubmit",
 				"/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/experian","/experian/update","/experian/insert", "/lending/common/lending_cities/active",
-				"/lending/common/lending_pincode" , "/lending/common/lending_pancard", "/lending/application", "/lending/liquiloan/postPayout/callback","/lending/liquiloan/postPayout/callback");
+				"/lending/common/lending_pincode" , "/lending/common/lending_pancard", "/lending/application", "/lending/liquiloan/postPayout/callback",
+		"/lending/liquiloan/postPayout/callback", "/lending/nbfc/mamta/decision/callback");
 
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
 

@@ -592,6 +592,9 @@ public class LoanDetailsServiceV2 {
                 if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && (lendingResubmitTask.getDowngradeDone() == null || !lendingResubmitTask.getDowngradeDone())) {
                     applicationDetails.setApplicationStatus("DOWNGRADE");
                 }
+                if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResign() != null && lendingResubmitTask.getResign() && (lendingResubmitTask.getResignDone() == null || !lendingResubmitTask.getResignDone())) {
+                    applicationDetails.setApplicationStatus("RESIGN");
+                }
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication,merchant));
             applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchantId()));
