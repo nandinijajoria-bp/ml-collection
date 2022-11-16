@@ -437,13 +437,17 @@ public class PaymentService {
 
 	public String handlePgCallback(PgPaymentCallbackDTO request) {
 		logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
+		if (Objects.nonNull(request) && Objects.isNull(request.getPayments())) {
+			logger.info("null payments object in pg callback for request: {}", request);
+			return "OK";
+		}
 		LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
 		try {
 			if(order == null) {
 				logger.error("No order for order id {}", request.getOrderId());
 				return "OK";
 			}
-
+			logger.info("status of order saved in DB: {} for orderId: {}", order.getOrderId(), order.getStatus());
 			if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
 				logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchantId(), request.getOrderId());
 				return "OK";
