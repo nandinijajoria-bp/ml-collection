@@ -1432,11 +1432,15 @@ public class LiquiloansService {
             String loanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(loanAgreementName, "loan-document");
             String kfsDocUrl = s3BucketHandler.getPreSignedPublicURL(kfsName, "loan-document");
 
+            String loanAgreementShortUrl = apiGatewayService.getShortUrl(loanAgreementUrl);
+            if(loanAgreementShortUrl == null || loanAgreementShortUrl.isEmpty() || loanAgreementShortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
+            String kfsDocShortUrl = apiGatewayService.getShortUrl(kfsDocUrl);
+            if(kfsDocShortUrl == null || kfsDocShortUrl.isEmpty() || kfsDocShortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
 
             Map<String, Object> templateParams = new HashMap<>();
             templateParams.put("Merchant Name", basicDetailsDto.getBeneficiaryName());
-            templateParams.put("Link 1", loanAgreementUrl);
-            templateParams.put("Link 2", kfsDocUrl);
+            templateParams.put("Link 1", loanAgreementShortUrl);
+            templateParams.put("Link 2", kfsDocShortUrl);
 
             //FOR SMS
             NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
@@ -1462,8 +1466,8 @@ public class LiquiloansService {
             lendingKfs.setWhatsappSendAt(new Date());
 
             message = message.replace("{Merchant Name}", basicDetailsDto.getBeneficiaryName());
-            message = message.replace("{{Link 1}}", loanAgreementUrl);
-            message = message.replace("{{Link 2}}", kfsDocUrl);
+            message = message.replace("{{Link 1}}", loanAgreementShortUrl);
+            message = message.replace("{{Link 2}}", kfsDocShortUrl);
             logger.info("message->{}", message);
             lendingKfs.setMessage(message);
             lendingKfsDao.save(lendingKfs);
