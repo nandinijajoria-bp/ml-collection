@@ -197,7 +197,7 @@ public class VerifyOTPService {
         }
 
         // get resigned  after events like lender change
-        if (lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getResign() && (lendingResubmitTask.getResignDone() == null || !lendingResubmitTask.getResignDone())) {
+        if (lendingApplication == null && lendingResubmitTask != null && lendingResubmitTask.getResign() != null && lendingResubmitTask.getResign() && (lendingResubmitTask.getResignDone() == null || !lendingResubmitTask.getResignDone())) {
             lendingApplication = lendingApplicationDao.findById(applicationId).get();
             return verifyOTP(otp, uuid, merchant, lendingApplication, commonAPIRequest.getMeta(), lendingResubmitTask);
         }
@@ -251,7 +251,7 @@ public class VerifyOTPService {
             }
         }
 
-        if (lendingResubmitTask != null && lendingResubmitTask.getResign() && merchant.getMobile().length() == 12) {
+        if (lendingResubmitTask != null && lendingResubmitTask.getResign() != null  && lendingResubmitTask.getResign() && merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
                 lendingResubmitTask.setResignDone(Boolean.TRUE);
