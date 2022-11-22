@@ -27,6 +27,7 @@ import com.bharatpe.lending.common.slave.dao.*;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.slave.entity.TokenVerificationSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
@@ -89,6 +90,9 @@ public class APIGatewayService {
 
     @Value("${pg.url}")
     String PG_URL;
+
+    @Value("${pg.percent:10}")
+    Integer pgPercent;
 
     @Autowired
     LendingHmacCalculator lendingHmacCalculator;
@@ -199,6 +203,9 @@ public class APIGatewayService {
     @Qualifier("customRestTemplate")
     RestTemplate customRestTemplate;
 
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
     private final String CLIENT = "LENDING";
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
@@ -292,6 +299,7 @@ public class APIGatewayService {
             while (retryCount < 3) {
                 try {
                     String pgCreateTxnURL = getPgCreateTxnUrl(merchantId);
+                    logger.info("pg create url: {}", pgCreateTxnURL);
                     PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, PgCreateTransactionResponseDTO.class);
                     logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
@@ -311,7 +319,7 @@ public class APIGatewayService {
 
     private String getPgCreateTxnUrl(Long merchantId) {
 
-        if (loanUtil.isInternalMerchant(merchantId)) {
+        if (loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent)) {
             return LendingConstants.CREATE_PG_TXN_V2;
         }
         return LendingConstants.CREATE_PG_TXN_V1;
@@ -331,10 +339,11 @@ public class APIGatewayService {
 
     private String getPgMid(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgMID = null;
-        if (!loanUtil.isInternalMerchant(merchantId)) {
+        if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
             return getMid();
         }
         if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getMid())) {
+            logger.info("returning mid of new flow for merchant id: {}", merchantId);
             pgMID = pgMidConfig.getMid();
         }
         return pgMID;
@@ -342,7 +351,7 @@ public class APIGatewayService {
 
     private String getPgSecret(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgSecret = null;
-        if (!loanUtil.isInternalMerchant(merchantId)) {
+        if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
             logger.info("not a internal merchant in PG flow: {}", merchantId);
             return getSecret();
         }
@@ -352,6 +361,7 @@ public class APIGatewayService {
         if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getSecret())) {
             pgSecret = pgMidConfig.getSecret();
             pgSecret = aesEncryptionUtil.decrypt(pgSecret);
+            logger.info("returning secret of new flow for merchant id: {}", merchantId);
         }
         return pgSecret;
     }

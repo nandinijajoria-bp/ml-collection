@@ -30,6 +30,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -139,6 +140,9 @@ public class PaymentService {
 
 	@Value(("${pg.ios.version:254}"))
 	Long iosVersion;
+
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
 
 	ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
@@ -262,7 +266,7 @@ public class PaymentService {
 
 			Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
 			logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
-			if (loanUtil.isInternalMerchant(merchantBasicDetails.getId())) {
+			if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.pgPercent)) {
 				logger.info("pg flow enabling for internal merchants with app version for merchant: {}",merchantBasicDetails.getId());
 				if (Objects.equals(request.getMeta().getClient(), "android")) {
 					if (appVersion >= androidVersion) {
