@@ -63,6 +63,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class LiquiloansService {
@@ -515,7 +516,7 @@ public class LiquiloansService {
             if ("DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
                 logger.info("Changing loan_disbursal_status to 'DISBURSED'");
                 lendingApplication.setLoanDisbursalStatus("DISBURSED");
-                lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
+                lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
                 lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
                 if (!lendingApplication.getDisbursalAmount().equals(Math.ceil(postPayoutRequestDto.getDisbursedAmount()))) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
@@ -571,13 +572,11 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setUpdatedAt(new Date());
                 lendingPaymentSchedule.setOffDay("SUNDAY");
 
-                Date date = new Date();
-
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
 
                 //getting tommorow's date
 
-                Date tomorrow = new Date(date.getTime() + (1000 * 60 * 60 * 24));
+                Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
                 if (tomorrow.getDay() == 0) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
@@ -589,7 +588,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setNextEdiDate(tomorrow);
                 postPayoutResponseDto.setNextEdiDate(tomorrow);
 
-                Date tenativeLoanEndDate = getDateAfterNMonths(date, lendingApplication.getTenureInMonths());
+                Date tenativeLoanEndDate = getDateAfterNMonths(lendingApplication.getDisburseTimestamp(), lendingApplication.getTenureInMonths());
                 if (tenativeLoanEndDate == null) {
                     postPayoutResponseDto.setStatus("FAILED");
                     postPayoutResponseDto.setMessage("unable to compute tentative closing date");
@@ -1483,5 +1482,37 @@ public class LiquiloansService {
             return "SUCCESS";
         }
         return "FAILED";
+    }
+
+    public Date getDisburseTimestamp(Date utrTimestamp, Date webhookTimestamp){
+        if(ObjectUtils.isEmpty(utrTimestamp))return webhookTimestamp;
+        int daysDiff = daysDifference(utrTimestamp, webhookTimestamp);
+        if(daysDiff == 1  && webhookTimestamp.getHours() < 4)return utrTimestamp;
+        return webhookTimestamp;
+    }
+
+    public static int daysDifference(Date d1, Date d2){
+        Calendar dayOne = Calendar.getInstance();
+        dayOne.setTime(d1);
+        Calendar dayTwo = Calendar.getInstance();
+        dayTwo.setTime(d2);
+        if (dayOne.get(Calendar.YEAR) == dayTwo.get(Calendar.YEAR)) {
+            return Math.abs(dayOne.get(Calendar.DAY_OF_YEAR) - dayTwo.get(Calendar.DAY_OF_YEAR));
+        } else {
+            if (dayTwo.get(Calendar.YEAR) > dayOne.get(Calendar.YEAR)) {
+                //swap them
+                Calendar temp = dayOne;
+                dayOne = dayTwo;
+                dayTwo = temp;
+            }
+            int extraDays = 0;
+            int dayOneOriginalYearDays = dayOne.get(Calendar.DAY_OF_YEAR);
+            while (dayOne.get(Calendar.YEAR) > dayTwo.get(Calendar.YEAR)) {
+                dayOne.add(Calendar.YEAR, -1);
+                // getActualMaximum() important for leap years
+                extraDays += dayOne.getActualMaximum(Calendar.DAY_OF_YEAR);
+            }
+            return extraDays - dayTwo.get(Calendar.DAY_OF_YEAR) + dayOneOriginalYearDays ;
+        }
     }
 }
