@@ -357,6 +357,7 @@ public class VerifyOTPService {
         String loanId = "BPL" + df.format(dateobj) + lendingApplication.getId();
         lendingApplication.setAgreementAt(new Date());
         lendingApplication.setAgreement(1);
+        lendingApplication.setIp(meta.getIp());
         if (meta != null && meta.getLatitude() != null && !meta.getLatitude().equalsIgnoreCase("undefined") && !meta.getLatitude().trim().equalsIgnoreCase("")) {
             lendingApplication.setLatitude(meta.getLatitude());
         }
