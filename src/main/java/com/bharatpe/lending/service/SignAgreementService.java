@@ -307,6 +307,7 @@ public class SignAgreementService {
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLongitude()) && !requestDTO.getMeta().getLongitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLongitude(requestDTO.getMeta().getLongitude());
+		logger.info("ip from meta before setting to application : {} meta : {}",requestDTO.getMeta().getIp(), requestDTO.getMeta() );
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
         newApplication = lendingApplicationDao.save(newApplication);
