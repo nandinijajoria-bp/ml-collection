@@ -64,6 +64,8 @@ public interface LendingConstants {
 	String APPLICATION_DS_EVENT_TOPIC = "LENDING_EVENT_DS_DATA";
     String CREDIT_CARD_STATUS_URL = "/credit_card/status?merchant_id=";
     String GOLD_LOAN_DUE_URL = "/api/live-loan/due-amount?merchantId=";
+	String INITIATE_KYC_CACHE_KEYWORD = "INITIATE_KYC_CALLED_";
+	String POA_PROVIDER = "DIGIO";
 }
 
 

@@ -1,8 +1,11 @@
 package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.cache.service.LendingCache;
+import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
@@ -50,6 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -62,6 +66,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -152,40 +157,190 @@ public class LendingApplicationServiceV2 {
     @Autowired
     LendingEdiScheduleService lendingEdiScheduleService;
 
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Value("${kyc.revalidation.deeplink}")
+    String kycRevalidationDeeplink;
+
+    @Value("${kyc.deeplink}")
+    String kycDeepLink;
+
+    @Value("${loan.details.refresh.window:15}")
+    int loanDetailsRefreshWindow;
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
-        if(Objects.nonNull(merchant.getId())) {
-            String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
-            log.info("deleting cached key of loan details in create application for merchant: {}",merchant.getId());
-            lendingCache.delete(loanDetailsCacheKey);
-        } else {
-            log.info("no key exists in for kyc!");
-        }
-        Experian experian = experianDao.getByMerchantId(merchant.getId());
-        if (experian == null || experian.getPancardNumber() == null) {
-            return new ApiResponse<>(false, "Pancard does not exist");
-        }
-        String callBackURL = env.getProperty("kyc.loan.deeplink");
-        if (!StringUtils.isEmpty(initiateKycRequest.getWroute())) {
-            callBackURL += "&wroute=" + initiateKycRequest.getWroute();
-        }
-        InitiateKycDTO initiateKycDTO = InitiateKycDTO.builder()
-                .referenceId(initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId()))
-                .panNumber(experian.getPancardNumber())
-                .callBackUrl(callBackURL)
-                .merchantId(String.valueOf(merchant.getId())).build();
-        List<KycDocType> docTypes = new ArrayList<>(Arrays.asList(KycDocType.PAN_CARD, KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.EKYC));
-        if (initiateKycRequest.getApplicationId() != null) {
-            docTypes.add(KycDocType.AADHAAR);
-        }
-        Map<String,String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes);
-        if (ckycResponseObj.containsKey("ckycId")) {
-            if (initiateKycRequest.getApplicationId() != null) {
-                lendingApplicationDao.updateKycId(initiateKycRequest.getApplicationId(), ckycResponseObj.get("ckycId"), merchant.getId());
+        try {
+            if (Objects.nonNull(merchant.getId())) {
+                cacheInitiateKycCall(merchant.getId(), loanDetailsRefreshWindow);
+                String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+                log.info("deleting cached key of loan details in create application for merchant: {}", merchant.getId());
+                lendingCache.delete(loanDetailsCacheKey);
+            } else {
+                log.info("merchantId not found");
+                return new ApiResponse<>(false, "MerchantID not found");
             }
-            return new ApiResponse<>(env.getProperty("kyc.deeplink"));
+            Experian experian = experianDao.getByMerchantId(merchant.getId());
+            if (experian == null || experian.getPancardNumber() == null) {
+                return new ApiResponse<>(false, "Pancard does not exist");
+            }
+            boolean newMerchantFirstCall = false;
+            boolean newLoanFirstCall = false;
+            Date validAfterDate = null;
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+            if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                //New merchant applying for loan
+                log.info("New merchant applying for loan with id : {}", merchant.getId());
+                newMerchantFirstCall = true;
+                LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
+                lendingApplicationKycDetails1.setMerchantId(merchant.getId());
+                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+                validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
+            } else {
+                if (lendingApplicationKycDetails.getApplicationId() == 0) {
+                    log.info("application id unavailable in kyc table for merchant : {}", merchant.getId());
+                    validAfterDate = lendingApplicationKycDetails.getCreatedAt();
+                    log.info("setting validAfter date : {} for merchant : {}", validAfterDate.toString(), merchant.getId());
+                    if (initiateKycRequest.getApplicationId() != null) {
+                        try {
+                            log.info("saving application details in kyc table for merchant : {}", merchant.getId());
+                            saveKycDetails(initiateKycRequest.getApplicationId(), lendingApplicationKycDetails);
+                        } catch (Exception e) {
+                            log.error("Unable to save application details to Kyc table for : {}, {}, {}", initiateKycRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+                            new ApiResponse<>(false, "Unable to save application details to Kyc table");
+                        }
+                    }
+                } else {
+                    if ((initiateKycRequest.getApplicationId() == null) || (lendingApplicationKycDetails.getApplicationId() != initiateKycRequest.getApplicationId())) {
+                        //merchant has applied previously before
+                        //making a new entry in lending_application_kyc_details
+                        newLoanFirstCall = true;
+                        LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
+                        lendingApplicationKycDetails1.setMerchantId(merchant.getId());
+                        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+                        validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
+                    } else {
+                        validAfterDate = lendingApplicationKycDetails.getCreatedAt();
+                    }
+                }
+            }
+            boolean selfieValid = false;
+            boolean aadharValid = false;
+            boolean aadharDigilocker = false;
+            boolean panCardApproved = false;
+            boolean panNoApproved = false;
+            List<KycDoc> kycDocs = kycHandler.getKycDoc(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER);
+            if (ObjectUtils.isEmpty(kycDocs)) {
+                log.info("Unable to fetch KYC Docs for id : {}, merchantId : {}", initiateKycRequest.getApplicationId(), merchant.getId());
+                return new ApiResponse<>(false, "Unable to fetch KYC Docs");
+            }
+            log.info("KYC doc fetched for : {}", merchant.getId());
+            for (KycDoc kycDoc : kycDocs) {
+                if (kycDoc.getDocType() != null && KycDocType.SELFIE.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    selfieValid = true;
+                    log.info("Selfie is valid for : {}", merchant.getId());
+                } else if (kycDoc.getDocType() != null && KycDocType.POA.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    aadharValid = true;
+                    log.info("Aadhar is valid for : {}", merchant.getId());
+                    if (kycDoc.getSubDocType() != null && KycDocType.EKYC.equals(kycDoc.getSubDocType())) {
+                        aadharDigilocker = true;
+                        log.info("Aadhar is digilocker approved for : {}", merchant.getId());
+                    }
+                } else if (kycDoc.getDocType() != null && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    panCardApproved = true;
+                } else if (kycDoc.getDocType() != null && KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    panNoApproved = true;
+                }
+            }
+            if (selfieValid && aadharValid && aadharDigilocker && panCardApproved && panNoApproved) {
+                try {
+                    log.info("Saving kyc details for merchant : {}", merchant.getId());
+                    saveKycDetails(merchant.getId(), kycDocs);
+                } catch (Exception e) {
+                    log.error("Exception in saving kyc details for : {}, {}, {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+                    return new ApiResponse<>(false, "Unable to save KYC Details");
+                }
+                return new ApiResponse<>(kycDeepLink);
+            }
+            List<KycDocType> docTypes = new ArrayList<>();
+            if (!panCardApproved) docTypes.add(KycDocType.PAN_CARD);
+            if (!panNoApproved) docTypes.add(KycDocType.PAN_NO);
+            docTypes.add(KycDocType.SELFIE);
+            docTypes.add(KycDocType.EKYC);
+            String callBackURL = env.getProperty("kyc.loan.deeplink");
+            if (!StringUtils.isEmpty(initiateKycRequest.getWroute())) {
+                callBackURL += "&wroute=" + initiateKycRequest.getWroute();
+            }
+            InitiateKycDTO initiateKycDTO = InitiateKycDTO.builder()
+                    .referenceId(initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId()))
+                    .panNumber(experian.getPancardNumber())
+                    .callBackUrl(callBackURL)
+                    .merchantId(String.valueOf(merchant.getId())).build();
+            Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes, validAfterDate);
+            if (ckycResponseObj.containsKey("ckycId")) {
+                if (initiateKycRequest.getApplicationId() != null) {
+                    lendingApplicationDao.updateKycId(initiateKycRequest.getApplicationId(), ckycResponseObj.get("ckycId"), merchant.getId());
+                }
+                if (newMerchantFirstCall || newLoanFirstCall) return new ApiResponse<>(kycDeepLink);
+                return new ApiResponse<>(kycRevalidationDeeplink);
+            }
+            log.error("Uanble to initiate kyc for merchant : {}", merchant.getId());
+            return new ApiResponse<>(false, ckycResponseObj.get("message"));
         }
-        log.info("Unable to initiate kyc for merchant:{}", merchant.getId());
-        return new ApiResponse<>(false, ckycResponseObj.get("message"));
+        catch(Exception ex){
+            log.error("Exception while initiating kyc for merchant:{} {} {}", merchant.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    private void cacheInitiateKycCall(Long merchantId, int ttl){
+        AddCacheDto addCacheDto = new AddCacheDto();
+        String key = LendingConstants.INITIATE_KYC_CACHE_KEYWORD + merchantId;
+        Boolean initiateKycCalled = true;
+        addCacheDto.setKey(key);
+        addCacheDto.setValue(initiateKycCalled);
+        addCacheDto.setTtl(ttl);
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        log.info("Initiate KYC call cached with Key : {}", key);
+    }
+
+
+    public void saveKycDetails(Long merchantId, List<KycDoc> kycDocs) throws Exception {
+        Date currDate = dateTimeUtil.getCurrentDate();
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if(ObjectUtils.isEmpty(lendingApplicationKycDetails))throw new Exception("Unable to fetch lending application kyc details");
+        lendingApplicationKycDetails.setMerchantId(merchantId);
+        lendingApplicationKycDetails.setConsentDate(currDate);
+        for(KycDoc kycDoc : kycDocs) {
+            if (KycDocType.POA.equals(kycDoc.getDocType())) {
+                lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
+                lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
+                if (!ObjectUtils.isEmpty(kycDoc.getXml())) {
+                    lendingApplicationKycDetails.setAadharXml(kycDoc.getXml());
+                } else if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+                    lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+                } else lendingApplicationKycDetails.setAadharXml(kycDoc.getDocFrontImageUrl());
+                lendingApplicationKycDetails.setAadharApprovedAt(currDate);
+            } else if (KycDocType.SELFIE.equals(kycDoc.getDocType())) {
+                lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
+                lendingApplicationKycDetails.setSelfieApprovedAt(currDate);
+            } else if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
+                lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
+                lendingApplicationKycDetails.setPanApprovedAt(currDate);
+            } else if (KycDocType.PAN_NO.equals(kycDoc.getDocType())) {
+                lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
+            }
+        }
+        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+        log.info("Kyc details saved for merchant : {}", merchantId);
+    }
+
+    public void saveKycDetails(Long applicationId, LendingApplicationKycDetails lendingApplicationKycDetails) throws Exception {
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, lendingApplicationKycDetails.getMerchantId());
+        if(ObjectUtils.isEmpty(lendingApplication))throw new Exception("Unable to fetch application details for {}" + applicationId);
+        lendingApplicationKycDetails.setApplicationId(lendingApplication.getId());
+        lendingApplicationKycDetails.setLender(lendingApplication.getLender());
+        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
     }
 
     public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {

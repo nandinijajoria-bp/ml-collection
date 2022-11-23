@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.ToString;
+import java.util.Date;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -27,9 +28,11 @@ public class KycDoc {
     private String pincode;
     private String state;
     private String xml;
+    private String digioXml;
     private String passPhrase;
     private String dob;
     private String remarks;
     private String gender;
     private String response;
+    private Date updatedAt;
 }

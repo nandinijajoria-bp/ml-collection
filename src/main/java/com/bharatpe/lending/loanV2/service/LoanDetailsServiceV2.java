@@ -22,11 +22,14 @@ import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -148,6 +151,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
         try {
             if (Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
@@ -167,13 +173,18 @@ public class LoanDetailsServiceV2 {
             }
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
+            String initiateKycCallCacheKey = LendingConstants.INITIATE_KYC_CACHE_KEYWORD + merchant.getId();
+            Object initiateKycCallCache = lendingCache.get(initiateKycCallCacheKey);
             if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)
 //                    && request.isCachedData()
             ) {
-                log.info("returning loan details response from cache for {}", merchant.getId());
-                LoanDetailsResponse loanDetailsResponse = objectMapper.readValue((String) loanDetailsCacheResponse, LoanDetailsResponse.class);
-                loanDetailsResponse.setSource("CACHE");
-                return new ApiResponse<>(loanDetailsResponse);
+                if(ObjectUtils.isEmpty(initiateKycCallCache)){
+                    log.info("returning loan details response from cache for {}", merchant.getId());
+                    LoanDetailsResponse loanDetailsResponse = objectMapper.readValue((String) loanDetailsCacheResponse, LoanDetailsResponse.class);
+                    loanDetailsResponse.setSource("CACHE");
+                    return new ApiResponse<>(loanDetailsResponse);
+                }
+                else lendingCache.delete(initiateKycCallCacheKey);
             }
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
 //            if (isCreditLineMerchant(merchant)) {
@@ -186,7 +197,6 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(loanDetailsResponse);
             }
             // dummy merchant flag exposed to FE
-            loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             loanDetailsResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchant.getId()));
             loanDetailsResponse.setBankLinked(loanUtil.isBankAccLinked(merchant.getId()));
             loanDetailsResponse.setMerchantName(loanUtil.getBeneficiaryName(merchant.getId()));
@@ -218,8 +228,6 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setHasExperian(true);
             }
 
-            loanDetailsResponse.setKycStatus(merchant.getId() == 10407700L ? KycStatus.APPROVED : kycHandler.getKycStatus(merchant.getId()).getKycStatus());
-
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
@@ -235,6 +243,22 @@ public class LoanDetailsServiceV2 {
             }
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
+                //with validAfter timestamp
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(openApplication.getId());
+                Date validAfterDate;
+                if(ObjectUtils.isEmpty(lendingApplicationKycDetails)){
+                    log.info("Unable to fetch entry from KYC table for {}", openApplication.getId());
+                    LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
+                    lendingApplicationKycDetails1.setMerchantId(merchant.getId());
+                    lendingApplicationKycDetails1.setApplicationId(openApplication.getId());
+                    lendingApplicationKycDetails1.setLender(openApplication.getLender());
+                    lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+                    validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
+                }
+                else{
+                    validAfterDate = lendingApplicationKycDetails.getCreatedAt();
+                }
+                loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER).getKycStatus());
                 updateCkycStatus(openApplication, experian);
                 if (!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
@@ -247,6 +271,8 @@ public class LoanDetailsServiceV2 {
                     cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
                     return new ApiResponse<>(loanDetailsResponse);
                 }
+            }else{
+                loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             }
             checkEligibility(loanDetailsResponse, request, experian, merchant);
             cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
@@ -284,7 +310,6 @@ public class LoanDetailsServiceV2 {
                 loanDashBoardDTO.setHasExperian(true);
             }
 
-            loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             loanDashBoardDTO.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
 
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
@@ -296,6 +321,22 @@ public class LoanDetailsServiceV2 {
             }
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
+                //with validAfter timestamp
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(openApplication.getId());
+                Date validAfterDate;
+                if(ObjectUtils.isEmpty(lendingApplicationKycDetails)){
+                    log.info("Unable to fetch entry from KYC table for {}", openApplication.getId());
+                    LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
+                    lendingApplicationKycDetails1.setMerchantId(merchant.getId());
+                    lendingApplicationKycDetails1.setApplicationId(openApplication.getId());
+                    lendingApplicationKycDetails1.setLender(openApplication.getLender());
+                    lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+                    validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
+                }
+                else{
+                    validAfterDate = lendingApplicationKycDetails.getCreatedAt();
+                }
+                loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER).getKycStatus());
                 updateCkycStatus(openApplication, experian);
                 if (!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDashBoardDTO.getKycStatus());
@@ -307,6 +348,9 @@ public class LoanDetailsServiceV2 {
                     //if no reapply then dont check eligibility
                     return new ApiResponse<>(loanDashBoardDTO);
                 }
+            }
+            else {
+                loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             }
             return new ApiResponse<>(loanDashBoardDTO);
         } catch (Exception e) {
