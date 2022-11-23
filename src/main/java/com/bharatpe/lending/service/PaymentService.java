@@ -1247,7 +1247,9 @@ public class PaymentService {
 					logger.info("Pg txn Status SUCCESS for orderId:{}", order.getOrderId());
 					handlePgCallback(response.getData());
 					order = loanPaymentOrderDao.findByOrderId(orderId);
-				} else if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus()) || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+				} else if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
+						|| Status.TransactionStatus.FAILURE.name().equalsIgnoreCase(response.getData().getPaymentStatus())
+						|| Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
 					order.setStatus(response.getData().getPaymentStatus());
 					loanPaymentOrderDao.save(order);
 					logger.info("Pg txn Status FAILED/CANCELLED for orderId:{}", order.getOrderId());
