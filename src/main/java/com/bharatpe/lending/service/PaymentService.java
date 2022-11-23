@@ -23,6 +23,7 @@ import com.bharatpe.lending.common.entity.LendingInterestWaiver;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.LendingPrepaymentAudit;
 import com.bharatpe.lending.common.entity.LendingVirtualAccount;
+import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -582,8 +583,9 @@ public class PaymentService {
 
         lendingLedger.setDescription(description);
 
-		lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ? "Directly transfered to lender" : "Transfer by BP");
-        
+		lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ?
+				CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
+
         lendingLedgerDao.save(lendingLedger);
 
         if(amount > 0 && principle > 0) {
