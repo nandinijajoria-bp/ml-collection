@@ -351,13 +351,15 @@ public class APIGatewayService {
 
     private String getPgSecret(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgSecret = null;
+        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender) || Lender.HINDON.equals(lender)) {
+            return getSecret();
+        }
+
         if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
             logger.info("not a internal merchant in PG flow: {}", merchantId);
             return getSecret();
         }
-        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
-            return getSecret();
-        }
+
         if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getSecret())) {
             pgSecret = pgMidConfig.getSecret();
             pgSecret = aesEncryptionUtil.decrypt(pgSecret);
