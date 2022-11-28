@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -211,7 +212,7 @@ public class RefundService {
         lendingLedger.setPrinciple(principle);
         lendingLedger.setDescription(description);
         lendingLedger.setAdjustmentMode(adjustmentMode);
-        lendingLedger.setTransferType("Transfer by BP");
+        lendingLedger.setTransferType(CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
         lendingLedgerDao.save(lendingLedger);
     }
 }
