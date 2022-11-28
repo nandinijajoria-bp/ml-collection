@@ -2,9 +2,9 @@ package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
@@ -91,6 +91,27 @@ public class LoanDetailsControllerV2 {
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
         return ResponseEntity.ok(loanDetailsServiceV2.getLoanDashboardDetails(merchant, isIOS));
+    }
+
+    @GetMapping(value = "/getMerchantPermissions")
+    public ResponseEntity<ApiResponse<?>> getMerchantPermissionDetails(@RequestAttribute(required = true) BasicDetailsDto merchant) {
+        log.info("Start getting Lending merchant permission details of merchantId: {}", merchant.getId());
+        if (Objects.isNull(merchant)) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        return ResponseEntity.ok(loanDetailsServiceV2.getMerchantPermissions(merchant));
+    }
+
+    @PostMapping(value = "/updateMerchantPermissions")
+    public ResponseEntity<ApiResponse<?>> updateMerchantPermissionDetails(@RequestAttribute(required = true) BasicDetailsDto merchant,
+                                                                          @RequestBody LendingMerchantPermissionsDto lendingMerchantPermissionsDto) {
+        log.info("Start updating Lending merchant permission  details: {} of merchantId: {}", lendingMerchantPermissionsDto, merchant.getId());
+        if (Objects.isNull(merchant)) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantPermissions(merchant, lendingMerchantPermissionsDto));
     }
 }
 

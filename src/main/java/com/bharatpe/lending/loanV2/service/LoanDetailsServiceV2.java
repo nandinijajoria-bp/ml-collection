@@ -17,7 +17,6 @@ import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.entity.BankListSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -51,6 +50,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,6 +74,9 @@ public class LoanDetailsServiceV2 {
 
 //    @Autowired
 //    CreditLineMerchantDao creditLineMerchantDao;
+
+    @Autowired
+    LendingMerchantPermissionsDao lendingMerchantPermissionsDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -1057,4 +1060,60 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(loanAndCreditCardDetailDTO);
     }
 
+    public ApiResponse<?> getMerchantPermissions(BasicDetailsDto merchant) {
+        try {
+            Long merchantId = merchant.getId();
+            LendingMerchantPermissions lendingMerchantPermissions = lendingMerchantPermissionsDao.findByMerchantId(merchantId);
+            LendingMerchantPermissionsDto dto = new LendingMerchantPermissionsDto();
+            if (Objects.isNull(lendingMerchantPermissions)) {
+                log.info("lendingMerchantPermissions not found of merchantId: {}", merchantId);
+                dto.setLocationPermissionIsActive(false);
+                dto.setSmsPermissionIsActive(false);
+                dto.setSmsPermissionDate(null);
+                dto.setLocationPermissionDate(null);
+                return new ApiResponse<>(dto);
+            }
+            log.info("lendingMerchantPermissions: {} of merchantId: {}", lendingMerchantPermissions, merchantId);
+            SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss");
+
+            dto.setLocationPermissionIsActive(lendingMerchantPermissions.getLocationPermissionActive());
+            dto.setSmsPermissionIsActive(lendingMerchantPermissions.getSmsPermissionActive());
+            dto.setSmsPermissionDate(sdf.format(lendingMerchantPermissions.getSmsPermissionDate()));
+            dto.setLocationPermissionDate(sdf.format(lendingMerchantPermissions.getLocationPermissionDate()));
+            return new ApiResponse<>(dto);
+
+        } catch (Exception e) {
+            log.error("Error occurred while fetching merchant permissions of merchantId: {} {}", merchant.getId(), e);
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while getting merchant permissions.");
+    }
+
+    public ApiResponse<?> updateMerchantPermissions(BasicDetailsDto merchant, LendingMerchantPermissionsDto dto) {
+        try {
+            Long merchantId = merchant.getId();
+            if (Objects.isNull(dto) || Objects.isNull(dto.getSmsPermissionIsActive()) || Objects.isNull(dto.getLocationPermissionIsActive()) || Objects.isNull(dto.getLocationPermissionDate()) || Objects.isNull(dto.getSmsPermissionDate())) {
+                return new ApiResponse<>(false, "Invalid Request Body!");
+            }
+            Date locationPermissionDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(dto.getLocationPermissionDate());
+            Date smsPermissionDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(dto.getSmsPermissionDate());
+            log.info("locationPermissionDate: {} smsPermissionDate: {} for merchantId: {}", locationPermissionDate, smsPermissionDate, merchantId);
+
+            LendingMerchantPermissions lendingMerchantPermissions = lendingMerchantPermissionsDao.findByMerchantId(merchantId);
+            if (Objects.isNull(lendingMerchantPermissions)) {
+                lendingMerchantPermissions = new LendingMerchantPermissions();
+                lendingMerchantPermissions.setMerchantId(merchantId);
+            }
+            lendingMerchantPermissions.setLocationPermissionActive(dto.getLocationPermissionIsActive());
+            lendingMerchantPermissions.setSmsPermissionActive(dto.getSmsPermissionIsActive());
+            lendingMerchantPermissions.setLocationPermissionDate(locationPermissionDate);
+            lendingMerchantPermissions.setSmsPermissionDate(smsPermissionDate);
+            lendingMerchantPermissionsDao.save(lendingMerchantPermissions);
+            log.info("Successfully updated merchant permissions of merchantId: {}", merchantId);
+            return new ApiResponse<>(true, "Successfully updated merchant permissions!");
+
+        } catch (Exception e) {
+            log.error("Error occurred while updating merchant permissions of merchantId: {} {}", merchant.getId(), e);
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while updating merchant permissions.");
+    }
 }
