@@ -62,6 +62,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
@@ -1726,6 +1727,43 @@ public class APIGatewayService {
             logger.info("Exception In Create Loan Disbursal VPA:{}", ex);
         }
         return ldcVirtualAccount;
+    }
+
+    public NbfcStatusApiResponseDTO getNbfcStatus(Long applicationId) {
+        try {
+            Map<String, Object> requestParams = new HashMap<String, Object>() {{
+                put("application_id", applicationId);
+            }};
+            String url = nbfcServiceBaseUrl+ "/api/v2/status?application_id=" + applicationId;
+            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.set("Hash", hash);
+            headers.set("Client-Name", CLIENT);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+            logger.info("NBFC Status API Request :{} for status of application:{}", request, applicationId);
+            NbfcStatusApiResponseDTO nbfcStatusApiResponseDTO = null;
+            try {
+                ResponseEntity<NbfcStatusApiResponseDTO> response = restTemplate.exchange(url, HttpMethod.GET, request, NbfcStatusApiResponseDTO.class);
+                if (!ObjectUtils.isEmpty(response)) {
+                    nbfcStatusApiResponseDTO = response.getBody();
+                }
+                logger.info("NBFC Status API  Response :{} for application:{}", response, applicationId);
+            } catch (ResourceAccessException ex) {
+                logger.info("Nbfc status check service got timed out for application Id", applicationId);
+                return null;
+            } catch (HttpClientErrorException | HttpServerErrorException ex) {
+                logger.error("Exception In Calling NBFC Service for applicationId:{}", applicationId, ex);
+                nbfcStatusApiResponseDTO = mapper.readValue(ex.getResponseBodyAsString(), NbfcStatusApiResponseDTO.class);
+            }
+            return nbfcStatusApiResponseDTO;
+        } catch (Exception ex) {
+            logger.error("Exception In Creating Loan for application:{}", applicationId, ex);
+        }
+        return null;
     }
 
 //    public JsonNode fetchCrifResponse(BasicDetailsDto merchant, Experian experian) {

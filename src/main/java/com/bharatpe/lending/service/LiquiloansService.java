@@ -502,6 +502,28 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
             }
+
+            if (lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender().toUpperCase()) && ObjectUtils.isEmpty(lendingApplication.getNbfcId())) {
+                // check status and populate lending_application with the nbfcId
+                final NbfcStatusApiResponseDTO nbfcStatusApiResponseDTO = apiGatewayService.getNbfcStatus(lendingApplication.getId());
+
+                logger.info("nbfcStatusApiResponseDTO for applicationId : {} {}", lendingApplication.getId(), nbfcStatusApiResponseDTO);
+
+                if (!ObjectUtils.isEmpty(nbfcStatusApiResponseDTO)
+                    && nbfcStatusApiResponseDTO.getSuccess()
+                    && "SUCCESS".equalsIgnoreCase(nbfcStatusApiResponseDTO.getStatus())) {
+
+                    lendingApplication.setNbfcId(nbfcStatusApiResponseDTO.getLoanId());
+
+                    lendingApplication.setLoanDisbursalStatus("PENDING");
+                    lendingApplication.setSendToNbfc("YES");
+
+                    // if earlier due to some reason this nbfc send date was missed add it
+                    if (ObjectUtils.isEmpty(lendingApplication.getNbfcSendDate()))
+                        lendingApplication.setNbfcSendDate(new Date());
+                }
+            }
+
             if (ObjectUtils.isEmpty(lendingApplication.getNbfcId()) || !lendingApplication.getNbfcId().equalsIgnoreCase(postPayoutRequestDto.getNbfcId()) ||
                     !lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender().toUpperCase())) {
                 logger.error("lender mismatch or loan not found for {}", lendingApplication.getMerchantId());
