@@ -21,6 +21,7 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -521,7 +522,7 @@ public class VerifyOTPService {
             lendingLedger.setPrinciple(previousAmount - activeLoan.getDueInterest());
             lendingLedger.setInterest(activeLoan.getDueInterest());
             lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
-            lendingLedger.setTransferType("Transfer by BP");
+            lendingLedger.setTransferType(CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
             lendingLedgerDao.save(lendingLedger);
 
             LendingLedger negativeEntry = new LendingLedger();
@@ -534,7 +535,7 @@ public class VerifyOTPService {
             negativeEntry.setPrinciple(-(previousAmount - activeLoan.getDueAmount()));
             negativeEntry.setInterest(0D);
             negativeEntry.setAdjustmentMode(lendingApplication.getLoanType());
-            negativeEntry.setTransferType("Transfer by BP");
+            negativeEntry.setTransferType(CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
             lendingLedgerDao.save(negativeEntry);
 
             activeLoan.setStatus("CLOSED");
