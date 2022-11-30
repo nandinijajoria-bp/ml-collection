@@ -20,10 +20,10 @@ public class DsHandler {
     RestTemplate restTemplate;
 
     @Value("${ds.reference.base.url}")
-    int dsBaseUrl;
+    String dsBaseUrl;
 
     @Value("${de.reference.base.url}")
-    int deBaseUrl;
+    String deBaseUrl;
 
     public List<MerchantReference> validateMerchantReferences(Long merchantId, List<ValidateMerchantReferencesRequestDto> referenceList) {
         log.info("Start validating merchant references: {} of merchantId: {} from DS", referenceList, merchantId);
