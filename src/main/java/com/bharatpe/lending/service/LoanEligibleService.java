@@ -176,7 +176,7 @@ public class LoanEligibleService {
                 queryAmount = queryAmount > globalLimitResponse.getData().getGlobalLimit() ? globalLimitResponse.getData().getGlobalLimit() : queryAmount;
             }
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
-            eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtAfter(merchantId, queryAmount, dateWindow,
+            eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqual(merchantId, queryAmount, dateWindow,
                     Sort.by(Sort.Direction.DESC, "id"));
         }
 
