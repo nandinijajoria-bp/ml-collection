@@ -436,7 +436,7 @@ public class LoanDetailsService {
 					eligibleFlag = false;
 					accountDetails = true;
 					if (enachSuccess == null && enachSkipped == null && bankCode != null) {
-						enach = apiGatewayService.getEnachProvider(token, merchantBasicDetailsDto.getId());
+						enach = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId());
 						skipEnatch = true;
 					}
 					if ("PREBOOK".equalsIgnoreCase(lendingApplication.getLoanType())) {
@@ -467,7 +467,7 @@ public class LoanDetailsService {
 
 					//enach not success and not skipped and bankcode enachable
 					if (enachSuccess == null && enachSkipped == null && bankCode != null) {
-						enach = apiGatewayService.getEnachProvider(token, merchantBasicDetailsDto.getId());
+						enach = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId());
 					}
 					if(enachSuccess != null && "OGL".equalsIgnoreCase(lendingApplication.getLoanType())) {
 						enach = null;

@@ -8,6 +8,7 @@ public class EnachInitiateRequestDTO {
     private String clientName = "LENDING";
     private String nachAmount;
     private String enachProvider;
+    private String lender;
 
     public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider) {
         this.token = token;
@@ -15,6 +16,15 @@ public class EnachInitiateRequestDTO {
         this.applicationId = applicationId;
         this.nachAmount = nachAmount;
         this.enachProvider = enachProvider;
+    }
+
+    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider, String lender) {
+        this.token = token;
+        this.merchantId = merchantId;
+        this.applicationId = applicationId;
+        this.nachAmount = nachAmount;
+        this.enachProvider = enachProvider;
+        this.lender = lender;
     }
 
     public String getToken() {
@@ -61,6 +71,14 @@ public class EnachInitiateRequestDTO {
         return enachProvider;
     }
 
+    public String getLender() {
+        return lender;
+    }
+
+    public void setLender(String lender) {
+        this.lender = lender;
+    }
+
     public void setEnachProvider(String enachProvider) {
         this.enachProvider = enachProvider;
     }
@@ -74,6 +92,7 @@ public class EnachInitiateRequestDTO {
                 ", clientName='" + clientName + '\'' +
                 ", nachAmount='" + nachAmount + '\'' +
                 ", enachProvider='" + enachProvider + '\'' +
+                ", lender='" + lender + '\'' +
                 '}';
     }
 }

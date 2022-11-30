@@ -718,7 +718,7 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId());
+            MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 //            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -800,7 +800,7 @@ public class LendingApplicationServiceV2 {
                 if (BooleanUtils.isTrue(isIOS)) {
                     buttonContextDTO.setDeeplink("bharatpe://enachtp");
                 } else {
-                    buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, merchantBasicDetailsDto.getId()));
+                    buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId()));
                 }
                 applicationDTO2.setButtonContextDTO(buttonContextDTO);
                 applicationDTO.add(applicationDTO2);
@@ -1035,7 +1035,7 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(basicDetailsDto.get().getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-            MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId());
+            MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(basicDetailsDto.get().getId(), lendingApplication.getId());
 //            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(basicDetailsDto.get().getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(basicDetailsDto.get().getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
@@ -1111,7 +1111,7 @@ public class LendingApplicationServiceV2 {
                 if (BooleanUtils.isTrue(isIOS)) {
                     buttonContextDTO.setDeeplink("bharatpe://enachtp");
                 } else {
-                    buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, basicDetailsDto.get().getId()));
+                    buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(),basicDetailsDto.get().getId()));
                 }
                 applicationDTO2.setButtonContextDTO(buttonContextDTO);
                 applicationDTO.add(applicationDTO2);

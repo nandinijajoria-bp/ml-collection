@@ -2012,7 +2012,7 @@ public class LendingApplicationService {
             if (requestDTO.getPayload().getIOS() != null && requestDTO.getPayload().getIOS()) {
                 buttonContextDTO.setDeeplink("bharatpe://enachtp");
             } else {
-                buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, merchantBasicDetails.getId()));
+                buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.get().getLender(), merchantBasicDetails.getId()));
             }
             applicationDTO2.setButtonContextDTO(buttonContextDTO);
             applicationDTO.add(applicationDTO2);

@@ -368,7 +368,11 @@ public class VerifyOTPService {
         lendingApplication.setExternalLoanId(loanId);
         if (enachSuccess != null) {
             lendingApplication.setNachType("ENACH");
-            lendingApplication.setNachLender("BHARATPE");
+            if(!ObjectUtils.isEmpty(enachSuccess.getNachLender())){
+                lendingApplication.setNachLender(enachSuccess.getNachLender());
+            }else{
+                lendingApplication.setNachLender("BHARATPE");
+            }
             lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
             lendingApplication.setNachStatus("APPROVED");
         }

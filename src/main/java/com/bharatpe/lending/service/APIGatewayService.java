@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.amazonaws.services.xray.model.Http;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
 import com.bharatpe.common.dao.LendingPancardDao;
@@ -1140,25 +1141,59 @@ public class APIGatewayService {
 //        return null;
 //    }
 
+    public String getEnachProvider(String token, String lender, Long merchantId){
+        logger.info("Fetching enach provider for merchant:{}", merchantId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("token", token);
+        String finalLender = loanUtil.enachServiceLenderMapper(lender);
+//        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?lender=" + lender;
+        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?lender=" + finalLender;
+        ResponseEntity<Object> responseEntity = null;
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(headers);
+        try{
+            logger.info("Get Enach Provider url: {} and Request: {}", url, requestEntity);
+            responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity,Object.class);
+            logger.info("Get Enach Provider Response: {}", responseEntity);
+            if(!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody()!= null){
+                Map<String, String> responseData = (Map<String, String>) ((Map<String, Object>) responseEntity.getBody()).get("data");
+                if(!ObjectUtils.isEmpty(responseData.get("deep_link")) && !ObjectUtils.isEmpty(responseData.get("enach_provider"))){
+                    return responseData.get("deep_link");
+                }
+            }
+        }catch(HttpClientErrorException | HttpServerErrorException ex){
+            logger.info("Error occurred while calling nach provider URL {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }catch(Exception ex){
+            logger.info("Exception occurred while getting nach provider {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
+
     public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
         logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", requestDTO.getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
+        String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
+
         Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
             put("client_name", requestDTO.getClientName());
             put("nach_amount", requestDTO.getNachAmount());
             put("enach_provider", requestDTO.getEnachProvider());
+            put("lender", finalLender);
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
             logger.info("Enach initiate request:{} for merchant:{}", request, merchantId);
-            ResponseEntity<ENachIntitiationResponseDTO> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_INITIATE_URL, HttpMethod.POST, request, ENachIntitiationResponseDTO.class);
+            ResponseEntity<String> responseEntity = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_INITIATE_URL, HttpMethod.POST, request, String.class);
             logger.info("Enach initiate response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
-                responseEntity.getBody().setResponse(responseEntity.getBody().isSuccess());
-                return responseEntity.getBody();
+                ObjectMapper mapper = new ObjectMapper();
+                String responseString = responseEntity.getBody();
+                JsonNode actualObj = mapper.readTree(responseString);
+                ENachIntitiationResponseDTO newJsonNode = mapper.treeToValue(actualObj, ENachIntitiationResponseDTO.class);
+                logger.info("responseDTO:{}", newJsonNode);
+                return newJsonNode;
             }
         } catch (Exception e) {
             logger.error("Exception while initiating enach for merchant:{} {}", requestDTO.getMerchantId(), e.getMessage());
@@ -1171,6 +1206,7 @@ public class APIGatewayService {
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
         headers.setContentType(MediaType.APPLICATION_JSON);
+        String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
         Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
             put("client_name", clientName);
@@ -1181,15 +1217,23 @@ public class APIGatewayService {
             put("status_message", requestDTO.getStatusMessage());
             put("response", requestDTO.getResponse());
             put("transaction_identifier", requestDTO.getTransactionIdentifier());
+            put("lender", finalLender);
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
             logger.info("Enach submit request:{} for merchant:{}", request, merchantId);
-            ResponseEntity<ENachIntitiationResponseDTO> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL,
-              HttpMethod.POST, request, ENachIntitiationResponseDTO.class);
+            ResponseEntity<String> response = restTemplate.exchange(env.getProperty("bpnach.endpoint") + LendingConstants.NACH_SUBMIT_URL,
+                    HttpMethod.POST, request, String.class);
 
             logger.info("Submit enach response:{} for merchant:{}", response.getBody(), merchantId);
-            return response.getBody();
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                ObjectMapper mapper = new ObjectMapper();
+                String responseString = response.getBody();
+                JsonNode actualObj = mapper.readTree(responseString);
+                ENachIntitiationResponseDTO newJsonNode = mapper.treeToValue(actualObj, ENachIntitiationResponseDTO.class);
+                logger.info("responseDTO:{}", newJsonNode);
+                return newJsonNode;
+            }
         } catch (Exception e) {
             logger.info("Exception in enach submit for merchant:{}", merchantId, e);
         }

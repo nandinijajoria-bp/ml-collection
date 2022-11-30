@@ -28,6 +28,8 @@ public class ENachSubmitRequestDTO {
 
     private Boolean newApp=false;
 
+    private String lender;
+
 //    public Long getMandateId() {
 //        return mandateId;
 //    }
@@ -111,18 +113,27 @@ public class ENachSubmitRequestDTO {
         this.newApp = newApp;
     }
 
+    public String getLender() {
+        return lender;
+    }
+
+    public void setLender(String lender) {
+        this.lender = lender;
+    }
+
     @Override
     public String toString() {
         return "ENachSubmitRequestDTO{" +
-                "mandateId=" + mandateId +
-                ", identifier=" + identifier +
+                "mandateId='" + mandateId + '\'' +
+                ", identifier='" + identifier + '\'' +
                 ", applicationId=" + applicationId +
                 ", status=" + status +
                 ", response='" + response + '\'' +
                 ", transactionIdentifier=" + transactionIdentifier +
-                ", statusMessage=" + statusMessage +
-                ", provider=" + provider +
+                ", statusMessage='" + statusMessage + '\'' +
+                ", provider='" + provider + '\'' +
                 ", newApp=" + newApp +
+                ", lender='" + lender + '\'' +
                 '}';
     }
 }

@@ -824,7 +824,7 @@ public class LoanDetailsServiceV2 {
         if (!ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             return null;
         }
-        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId())) {
+        if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId())) {
             return null;
         }
 //        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
@@ -832,7 +832,7 @@ public class LoanDetailsServiceV2 {
 //            return null;
 //        }
         if (isIOS) return Deeplink.TECHPROCESS;
-        return apiGatewayService.getEnachProvider(token, openApplication.getMerchantId());
+        return apiGatewayService.getEnachProvider(token, openApplication.getLender(),openApplication.getMerchantId());
     }
 
 //    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {

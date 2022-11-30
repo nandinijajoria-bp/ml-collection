@@ -22,6 +22,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -522,6 +523,19 @@ public class LoanUtil {
 		return enachDone;
 	}
 
+	public boolean isEnachDone(Long merchantId, Long applicationId) {
+		boolean enachDone = false;
+		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId, applicationId);
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
+		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			enachDone = true;
+		}
+		return enachDone;
+	}
+
 	public boolean isOGL(Integer pincode) {
 		if (pincode == null) return false;
 		PincodeCityStateMappingDTO pincodeCityStateMapping = merchantService.findByPincode(pincode);
@@ -713,8 +727,8 @@ public class LoanUtil {
 		return !prevLoans.isEmpty();
 	}
 
-	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId) {
-		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId);
+	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId, Long applicationId) {
+		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId, applicationId);
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
 		if (bankDetailsDtoOptional.isPresent())
@@ -899,5 +913,42 @@ public class LoanUtil {
 
 	public boolean isInternalMerchant(Long merchantId) {
 		return BooleanUtils.toBoolean(lendingCache.contains(INTERNAL_MERCHANTS, merchantId));
+	}
+
+	public String enachServiceLenderMapper(String lender){
+		String finalLender = null;
+		if(lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA")){
+			finalLender = Lender.MAMTA.name();
+		}
+		if(lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")){
+			finalLender = Lender.LIQUILOANS.name();
+		}
+		if(lender.equals("LIQUILOANS_NBFC")){
+			finalLender = "TRILLIONS";
+		}
+		if(lender.equals("LIQUILOANS_P2P_OF")){
+			finalLender = Lender.LIQUILOANS_P2P_OF.name();
+		}
+		if(lender.equals("HINDON")){
+			finalLender = Lender.HINDON.name();
+		}
+		if(lender.equals("LDC")){
+			finalLender = Lender.LDC.name();
+		}
+		if(lender.equals("ABFL")){
+			finalLender = "ABFL";
+		}
+		return finalLender;
+	}
+
+	public boolean isNachToBeRefunded(Long merchantId, Long applicationId){
+		boolean flag = false;
+		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findSuccessEnach(merchantId, applicationId);
+		if(!ObjectUtils.isEmpty(responseDTO)){
+			if(responseDTO.getNachLender().equals("BHARATPE")){
+				flag = true;
+			}
+		}
+		return flag;
 	}
 }

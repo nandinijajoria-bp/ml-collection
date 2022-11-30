@@ -581,6 +581,14 @@ public class PaymentService {
 			lendingLedger.setAdjustmentMode("UPI");
 		}
 
+		if(!ObjectUtils.isEmpty(source) && source.equals("BHARATPE_NACH")){
+			Boolean isBpNachDone = false;
+			isBpNachDone = loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId());
+			if(!isBpNachDone){
+				transferType = "EXTERNAL";
+			}
+		}
+
         lendingLedger.setDescription(description);
 
 		lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ?

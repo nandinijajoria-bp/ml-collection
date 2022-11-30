@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.lending.enums.EnachProvider;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -44,7 +45,7 @@ public class ENachIntitiationResponseDTO {
 
         private String merchantIdentifier = "L517110";
 
-        private Long transactionIdentifier;
+        private String transactionIdentifier;
 
         private Long transactionReferenceNumber;
 
@@ -63,12 +64,16 @@ public class ENachIntitiationResponseDTO {
         private String beneficiaryName;
 
         private String ifscCode;
-        
+
         private String mandate_id;
-        
+
         private String customer_identifier;
 
-        public Data(Long transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid) {
+        private String lender;
+
+        private EnachProvider enachProvider;
+
+        public Data(String transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid, String lender, EnachProvider enachProvider) {
             this.transactionIdentifier = transactionIdentifier;
             this.transactionReferenceNumber = transactionReferenceNumber;
             this.bankCode = bankCode;
@@ -79,36 +84,60 @@ public class ENachIntitiationResponseDTO {
             this.beneficiaryName = beneficiaryName;
             this.ifscCode = ifscCode;
             this.mid = mid;
-           
+            this.lender = lender;
+            this.enachProvider = enachProvider;
+
         }
-        
-        
-        
+
+        public String getAccountType() {
+            return accountType;
+        }
+
+        public void setAccountType(String accountType) {
+            this.accountType = accountType;
+        }
+
+        public String getLender() {
+            return lender;
+        }
+
+        public void setLender(String lender) {
+            this.lender = lender;
+        }
+
+        public EnachProvider getEnachProvider() {
+            return enachProvider;
+        }
+
+        public void setEnachProvider(EnachProvider enachProvider) {
+            this.enachProvider = enachProvider;
+        }
+
         public String getMandate_id() {
-			return mandate_id;
-		}
+            return mandate_id;
+        }
 
 
 
-		public void setMandate_id(String mandate_id) {
-			this.mandate_id = mandate_id;
-		}
+        public void setMandate_id(String mandate_id) {
+            this.mandate_id = mandate_id;
+        }
 
 
 
-		public String getCustomer_identifier() {
-			return customer_identifier;
-		}
+        public String getCustomer_identifier() {
+            return customer_identifier;
+        }
 
 
 
-		public void setCustomer_identifier(String customer_identifier) {
-			this.customer_identifier = customer_identifier;
-		}
+        public void setCustomer_identifier(String customer_identifier) {
+            this.customer_identifier = customer_identifier;
+        }
 
 
 
-		public Data() {
+        public Data() {
         }
 
         public String getMid() {
@@ -167,14 +196,6 @@ public class ENachIntitiationResponseDTO {
             this.payFrequency = payFrequency;
         }
 
-        public String getAccount_type() {
-            return accountType;
-        }
-
-        public void setAccount_type(String account_type) {
-            this.accountType = account_type;
-        }
-
         public String getAccountNumber() {
             return accountNumber;
         }
@@ -215,11 +236,11 @@ public class ENachIntitiationResponseDTO {
             this.merchantIdentifier = merchantIdentifier;
         }
 
-        public Long getTransactionIdentifier() {
+        public String getTransactionIdentifier() {
             return transactionIdentifier;
         }
 
-        public void setTransactionIdentifier(Long transactionIdentifier) {
+        public void setTransactionIdentifier(String transactionIdentifier) {
             this.transactionIdentifier = transactionIdentifier;
         }
 
@@ -273,21 +294,21 @@ public class ENachIntitiationResponseDTO {
 
 
 
-		@Override
-		public String toString() {
-			return "Data [mid=" + mid + ", currency=" + currency + ", pennyAmount=" + pennyAmount
-					+ ", transactionMerchantInitiated=" + transactionMerchantInitiated + ", paymentInstructionAction="
-					+ paymentInstructionAction + ", paymentInstructionType=" + paymentInstructionType
-					+ ", payFrequency=" + payFrequency + ", accountType=" + accountType + ", deep_link=" + deep_link
-					+ ", merchantIdentifier=" + merchantIdentifier + ", transactionIdentifier=" + transactionIdentifier
-					+ ", transactionReferenceNumber=" + transactionReferenceNumber + ", schemeCode=" + schemeCode
-					+ ", bankCode=" + bankCode + ", loanAmount=" + loanAmount + ", loanStartDate=" + loanStartDate
-					+ ", applicationId=" + applicationId + ", accountNumber=" + accountNumber + ", beneficiaryName="
-					+ beneficiaryName + ", ifscCode=" + ifscCode + ", mandate_id=" + mandate_id
-					+ ", customer_identifier=" + customer_identifier + "]";
-		}
+        @Override
+        public String toString() {
+            return "Data [mid=" + mid + ", currency=" + currency + ", pennyAmount=" + pennyAmount
+                    + ", transactionMerchantInitiated=" + transactionMerchantInitiated + ", paymentInstructionAction="
+                    + paymentInstructionAction + ", paymentInstructionType=" + paymentInstructionType
+                    + ", payFrequency=" + payFrequency + ", accountType=" + accountType + ", deep_link=" + deep_link
+                    + ", merchantIdentifier=" + merchantIdentifier + ", transactionIdentifier=" + transactionIdentifier
+                    + ", transactionReferenceNumber=" + transactionReferenceNumber + ", schemeCode=" + schemeCode
+                    + ", bankCode=" + bankCode + ", loanAmount=" + loanAmount + ", loanStartDate=" + loanStartDate
+                    + ", applicationId=" + applicationId + ", accountNumber=" + accountNumber + ", beneficiaryName="
+                    + beneficiaryName + ", ifscCode=" + ifscCode + ", mandate_id=" + mandate_id
+                    + ", customer_identifier=" + customer_identifier + "]";
+        }
 
-        
+
     }
 
     public Data getData() {

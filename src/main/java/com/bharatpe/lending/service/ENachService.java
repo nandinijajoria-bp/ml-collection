@@ -14,24 +14,24 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ErrorMessages;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.util.LoanUtil;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -42,7 +42,7 @@ public class ENachService {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
-    
+
     @Autowired
     VerifyOTPService verifyOTPService;
 
@@ -100,7 +100,9 @@ public class ENachService {
             }
         }
 
-        return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(), String.valueOf(lendingApplication.getLoanAmount()), provider));
+        String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
+        String providerName = deep_link.equals("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
+        return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(), String.valueOf(lendingApplication.getLoanAmount()), providerName, lendingApplication.getLender()));
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token){
@@ -114,7 +116,7 @@ public class ENachService {
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
         LendingApplication lendingApplication =
-          lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
+                lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
         if (bharatPeEnach == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Enach not initiated");
@@ -134,10 +136,10 @@ public class ENachService {
                 return responseDTO;
             }
             lendingApplication.setNachType("ENACH");
-            lendingApplication.setNachLender("BHARATPE");
-            lendingApplication.setNachStatus("APPROVED");  
+//            lendingApplication.setNachLender("BHARATPE");
+            lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
-            lendingApplicationDao.save(lendingApplication);
+//            lendingApplicationDao.save(lendingApplication);
 
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
@@ -152,9 +154,19 @@ public class ENachService {
 //                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
 //            }
         }
+        
+        requestDTO.setLender(lendingApplication.getLender());
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
 
-        apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+        if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
+            if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
+                lendingApplication.setNachLender(eNachIntitiationResponseDTO.getData().getLender());
+            } else{
+                lendingApplication.setNachLender("BHARATPE");
+            }
+        }
 
+        lendingApplicationDao.save(lendingApplication);
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
         }
@@ -206,7 +218,7 @@ public class ENachService {
                     default:
                         return null;
                 }
-        }
+            }
         }catch(Exception ex){
             logger.error("Error Orrocured while Checking Application Rejection , Error - {}", ex);
             return null;
