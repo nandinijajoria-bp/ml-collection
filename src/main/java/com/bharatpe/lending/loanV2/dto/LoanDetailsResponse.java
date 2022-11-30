@@ -34,4 +34,5 @@ public class LoanDetailsResponse {
     private boolean eligibleForCallback;
     private String source;
     private Boolean clubV2Member = false;
+    private Boolean showReferencePage = true;
 }

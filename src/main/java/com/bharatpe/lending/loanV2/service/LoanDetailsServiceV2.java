@@ -30,6 +30,7 @@ import com.bharatpe.lending.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
@@ -65,7 +66,13 @@ public class LoanDetailsServiceV2 {
     BureauHandler bureauHandler;
 
     @Autowired
+    LendingMerchantReferencesDao lendingMerchantReferencesDao;
+
+    @Autowired
     LendingCityCreditScoreDao lendingCityCreditScoreDao;
+
+    @Autowired
+    DsHandler dsHandler;
 
 //    @Autowired
 //    MerchantDao merchantDao;
@@ -89,6 +96,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     LendingGstDao lendingGstDao;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
     LendingResubmitTaskDao lendingResubmitTaskDao;
@@ -147,6 +157,9 @@ public class LoanDetailsServiceV2 {
 
     @Value("${club.eligible.loan.cache:true}")
     Boolean clubEligibleLoanCache;
+
+    @Value("${merchant.references.min.score}")
+    Integer minScore;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -268,6 +281,11 @@ public class LoanDetailsServiceV2 {
                     loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 }
                 boolean isIOS = request != null && request.isIOS();
+                List<LendingMerchantReferences> referencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(),openApplication.getId());
+                log.info("ReferenceList: {}",Arrays.toString(referencesList.toArray()));
+                if(!referencesList.isEmpty()) {
+                    loanDetailsResponse.setShowReferencePage(false);
+                }
                 setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian,merchant);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
                     //if no reapply then dont check eligibility
@@ -276,6 +294,14 @@ public class LoanDetailsServiceV2 {
                 }
             }else{
                 loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
+            }
+            LendingApplication draftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(),"draft");
+            if(draftApplication != null) {
+                String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchant.getId();
+                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty() && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
+                    log.info("Again caching MerchantReferences from de of merchantId : {}",merchant.getId());
+                    loanUtil.callingDeForReferences(merchant.getId(),draftApplication);
+                }
             }
             checkEligibility(loanDetailsResponse, request, experian, merchant);
             cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
@@ -1058,6 +1084,185 @@ public class LoanDetailsServiceV2 {
         }
 
         return new ApiResponse<>(loanAndCreditCardDetailDTO);
+    }
+
+
+    public ApiResponse<?> getMerchantReferences(BasicDetailsDto merchant) {
+        try {
+            Long merchantId = merchant.getId();
+            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+
+            if (Objects.isNull(lendingApplication) || Objects.isNull(lendingApplication.getId())) {
+                log.info("No applicationId found of merchantId: {}", merchantId);
+                return new ApiResponse<>(false, "No applicationId found for given merchantId");
+            }
+
+            log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
+            Long referencesLimit = getReferenceLimit(lendingApplication);
+            Integer toBeShown = getToBeShownReferences(referencesLimit);
+            MerchantReferencesResponseDto responseDto;
+            DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown);
+            if(Objects.isNull(deResponse)) {
+                rejectingLoanDueToInsufficientReferences(lendingApplication);
+                log.info("Successfully rejected applicationId: {} because of no response from DE api of merchantId: {}", lendingApplication.getId(), merchantId);
+                responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
+                return new ApiResponse<>(responseDto);
+            }
+            Integer totalContacts = deResponse.getTotalContacts();
+            List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
+
+            if (totalContacts < LendingConstants.MINIMUM_CONTACTS_NEEDED) {
+
+                rejectingLoanDueToInsufficientReferences(lendingApplication);
+                log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", lendingApplication.getId(), merchantId);
+                responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(true).build();
+
+            } else {
+
+                int scoreGreaterThan100 = 0, scoreGreaterThan80 = 0;
+
+                if (referencesLimit == 10L) {
+                    for (MerchantReference merchantReference : deReferenceList) {
+                        if (merchantReference.getScore() >= 100) scoreGreaterThan100++;
+                        if (merchantReference.getScore() >= 80) scoreGreaterThan80++;
+                    }
+                    if (scoreGreaterThan100 >= 2) {
+                        deReferenceList.subList(Math.min(13,deReferenceList.size()), deReferenceList.size()).clear();
+                    } else if (scoreGreaterThan80 < 4) {
+                        deReferenceList.subList(Math.min(10,deReferenceList.size()), deReferenceList.size()).clear();
+                    }
+                }
+                log.info("Successfully fetched references of merchantId: {}", merchantId);
+                responseDto = MerchantReferencesResponseDto.builder().references(deResponse.getData().getOutput()).minScore(minScore).limit(referencesLimit).ineligible(false).build();
+
+            }
+            return new ApiResponse<>(responseDto);
+        } catch (Exception e) {
+            log.error("Error occurred while fetching merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while getting merchant references!");
+    }
+
+    public ApiResponse<?> validateMerchantReferences(BasicDetailsDto merchant, List<ValidateMerchantReferencesRequestDto> referenceList) {
+        try {
+            Long merchantId = merchant.getId();
+            if (Objects.isNull(referenceList) || referenceList.isEmpty()) {
+                return new ApiResponse<>(false, "Requested Reference List for validation is empty!");
+            }
+            List<MerchantReference> validatedData = dsHandler.validateMerchantReferences(merchantId, referenceList);
+            if (Objects.isNull(validatedData)) {
+                return new ApiResponse<>(false, "Something Went Wrong from DS api while validating merchant references!");
+            }
+            MerchantReferencesResponseDto responseDto = MerchantReferencesResponseDto.builder().references(validatedData).minScore(minScore).build();
+
+            return new ApiResponse<>(responseDto);
+        } catch (Exception e) {
+            log.error("Error occurred while validating merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while validating merchant references!");
+    }
+
+    public ApiResponse<?> updateMerchantReferences(BasicDetailsDto merchant, UpdateMerchantReferencesRequestDto requestDto) {
+        try {
+            Long merchantId = merchant.getId();
+            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+            if (Objects.isNull(lendingApplication) || Objects.isNull(lendingApplication.getId())) {
+                log.info("No applicationId found of merchantId: {}", merchantId);
+                return new ApiResponse<>(false, "No applicationId found for given merchantId");
+            }
+            Long applicationId = lendingApplication.getId();
+            log.info("applicationId: {} found of merchantId: {}", applicationId, merchantId);
+            Boolean isIneligible = requestDto.getIneligible();
+            if (Objects.isNull(isIneligible)) {
+                return new ApiResponse<>(false, "ineligible field can not be null!");
+            }
+            if (isIneligible) {
+                log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", applicationId, merchantId);
+                return new ApiResponse<>(true, "Successfully rejected applicationId because of insufficient references");
+            } else {
+                List<MerchantReference> requestedReferenceList = requestDto.getReferences();
+                if (Objects.isNull(requestedReferenceList)) {
+                    return new ApiResponse<>(false, "references field can not be empty!");
+                }
+                boolean toBeAdded;
+                List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+                for (MerchantReference requestedReferences : requestedReferenceList) {
+                    toBeAdded = true;
+                    for (LendingMerchantReferences savedReference : savedMerchantReferencesList) {
+                        if (requestedReferences.getPhoneNumber().equals(savedReference.getReferenceNumber())) {
+                            toBeAdded = false;
+                            break;
+                        }
+                    }
+                    if (toBeAdded) {
+                        LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
+                        lendingMerchantReferences.setReferenceName(requestedReferences.getName());
+                        lendingMerchantReferences.setReferenceNumber(requestedReferences.getPhoneNumber());
+                        lendingMerchantReferences.setMerchantId(merchantId);
+                        lendingMerchantReferences.setApplicationId(applicationId);
+                        lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
+                        lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
+                        lendingMerchantReferences.setInferredName(requestedReferences.getInferredName());
+                        lendingMerchantReferences.setInferredLocation(requestedReferences.getInferredLocation());
+                        lendingMerchantReferences.setInferredNameConfidence(requestedReferences.getInferredNameConfidence());
+                        lendingMerchantReferences.setInferredOccupation(requestedReferences.getInferredOccupation());
+                        lendingMerchantReferences.setInferredRelation(requestedReferences.getInferredRelation());
+                        lendingMerchantReferences.setNumHits(requestedReferences.getNumHits());
+                        lendingMerchantReferences.setScore(requestedReferences.getScore());
+                        lendingMerchantReferencesDao.save(lendingMerchantReferences);
+                        log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReferences, merchantId);
+                    }
+                }
+                log.info("Successfully saved all references of merchantId: {}", merchantId);
+                return new ApiResponse<>(true, "Successfully updated merchant References!");
+            }
+
+        } catch (Exception e) {
+            log.error("Error occurred while updating merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while updating merchant references!");
+    }
+
+    private void rejectingLoanDueToInsufficientReferences(LendingApplication lendingApplication) {
+        log.info("Started Rejecting application: {} due to insufficient references of merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+        lendingApplication.setStatus("rejected");
+        lendingApplication.setManualCibil("REJECTED");
+        lendingApplication.setManualCibilReason("not_enough_references");
+        lendingApplication.setCibilApprovedDate(new Date());
+        lendingApplicationDao.save(lendingApplication);
+    }
+
+    public Long getReferenceLimit(LendingApplication lendingApplication) {
+        Long referencesLimit = null;
+        try {
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            if (Objects.isNull(lendingRiskVariablesSnapshot)) {
+                log.info("lendingRiskVariableSnapshot not found of applicationId: {}", lendingApplication.getId());
+            } else {
+                referencesLimit = lendingRiskVariablesSnapshot.getReferenceCount();
+            }
+            if (Objects.isNull(referencesLimit)) {
+                log.info("Assigning default value 10 to referencesLimit of applicationId: {}", lendingApplication.getId());
+                referencesLimit = LendingConstants.DEFAULT_REFERENCE_LIMIT;
+            }
+            return referencesLimit;
+        } catch (Exception e) {
+            log.error("Exception occurred while getting reference limit from lendingRiskVariableSnapshotDao of applicationId: {}, {}", lendingApplication.getId(), e);
+        }
+        return referencesLimit;
+    }
+
+    public Integer getToBeShownReferences(Long referencesLimit) {
+        try {
+            HashMap<Long, Integer> requiredToShownMap = new HashMap<>();
+            requiredToShownMap.put(3L, 10);
+            requiredToShownMap.put(5L, 7);
+            requiredToShownMap.put(10L, 15);
+            return requiredToShownMap.get(referencesLimit);
+        } catch (Exception e) {
+            log.error("Exception occurred while getting toBeShown value ", e);
+        }
+        return null;
     }
 
     public ApiResponse<?> getMerchantPermissions(BasicDetailsDto merchant) {

@@ -62,8 +62,11 @@ public interface LendingConstants {
 	String PAN_NAME = "/api/v1/internal/pan-verify";
 	String APPLICATION_EVENT_TOPIC = "LENDING_EVENT_APPLICATION_UPDATE";
 	String APPLICATION_DS_EVENT_TOPIC = "LENDING_EVENT_DS_DATA";
-    String CREDIT_CARD_STATUS_URL = "/credit_card/status?merchant_id=";
-    String GOLD_LOAN_DUE_URL = "/api/live-loan/due-amount?merchantId=";
+  String CREDIT_CARD_STATUS_URL = "/credit_card/status?merchant_id=";
+  String GOLD_LOAN_DUE_URL = "/api/live-loan/due-amount?merchantId=";
+	Long DEFAULT_REFERENCE_LIMIT = 10L;
+	Integer MINIMUM_CONTACTS_NEEDED = 50;
+	String GET_MERCHANTS_REFERENCES_CACHE_KEY = "MERCHANT_REFERENCES_FROM_DE_";
 	String INITIATE_KYC_CACHE_KEYWORD = "INITIATE_KYC_CALLED_";
 	String POA_PROVIDER = "DIGIO";
 }

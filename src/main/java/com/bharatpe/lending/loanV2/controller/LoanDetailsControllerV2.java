@@ -1,7 +1,11 @@
 package com.bharatpe.lending.loanV2.controller;
 
+import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.dto.MerchantReference;
+import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
+import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
@@ -15,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -93,6 +99,7 @@ public class LoanDetailsControllerV2 {
         return ResponseEntity.ok(loanDetailsServiceV2.getLoanDashboardDetails(merchant, isIOS));
     }
 
+
     @GetMapping(value = "/getMerchantPermissions")
     public ResponseEntity<ApiResponse<?>> getMerchantPermissionDetails(@RequestAttribute(required = true) BasicDetailsDto merchant) {
         log.info("Start getting Lending merchant permission details of merchantId: {}", merchant.getId());
@@ -113,5 +120,38 @@ public class LoanDetailsControllerV2 {
         }
         return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantPermissions(merchant, lendingMerchantPermissionsDto));
     }
-}
 
+    @GetMapping(value = "/getMerchantReferences")
+    public ResponseEntity<ApiResponse<?>> getMerchantReferences(@RequestAttribute(required = true) BasicDetailsDto merchant) {
+        if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Start getting merchant references of merchantId: {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.getMerchantReferences(merchant));
+    }
+
+    @PostMapping(value = "/validateMerchantReferences")
+    public ResponseEntity<ApiResponse<?>> validateMerchantReferences(@RequestAttribute(required = true) BasicDetailsDto merchant, @RequestBody List<ValidateMerchantReferencesRequestDto> referenceList) {
+        if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        if (Objects.isNull(referenceList)) {
+            log.info("request body not found!");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Validating merchant references of merchantId: {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.validateMerchantReferences(merchant, referenceList));
+    }
+
+    @PostMapping(value = "/updateMerchantReferences")
+    public ResponseEntity<ApiResponse<?>> updateMerchantReferences(@RequestAttribute(required = true) BasicDetailsDto merchant, @RequestBody UpdateMerchantReferencesRequestDto requestDto) {
+        if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Updating merchant references of merchantId: {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantReferences(merchant, requestDto));
+    }
+}

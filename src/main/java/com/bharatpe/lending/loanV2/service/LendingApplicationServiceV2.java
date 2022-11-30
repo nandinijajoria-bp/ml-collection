@@ -414,6 +414,7 @@ public class LendingApplicationServiceV2 {
             LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
             loanUtil.createApplicationSnapshot(lendingApplication);
             createStatusAuditTrail(lendingApplication);
+            loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
             loanUtil.publishApplicationEvent(lendingApplication);
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {

@@ -1,5 +1,6 @@
 package com.bharatpe.lending.util;
 
+import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
@@ -19,14 +20,17 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.config.AsyncConfig;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.BooleanUtils;
@@ -34,7 +38,9 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -55,7 +61,11 @@ public class LoanUtil {
 	@Autowired
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
+	@Autowired
+	LoanDetailsServiceV2 loanDetailsServiceV2;
 
+	@Autowired
+	DsHandler dsHandler;
 	@Autowired
 	LendingApplicationPriorityDao lendingApplicationPriorityDao;
 
@@ -131,6 +141,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingCache lendingCache;
+
+	@Value("${merchant.references.min.score}")
+	Integer minScore;
 
 	String INTERNAL_MERCHANTS = "internal_merchants";
 
@@ -914,6 +927,36 @@ public class LoanUtil {
 	public boolean isInternalMerchant(Long merchantId) {
 		return BooleanUtils.toBoolean(lendingCache.contains(INTERNAL_MERCHANTS, merchantId));
 	}
+
+	@Async
+	public void callingDeForReferences(Long merchantId, LendingApplication lendingApplication) {
+		try {
+			int ttl = 45;
+			Long referencesLimit = loanDetailsServiceV2.getReferenceLimit(lendingApplication);
+			Integer toBeShown = loanDetailsServiceV2.getToBeShownReferences(referencesLimit);
+			logger.info("async threadpool flow executed for getMerchantReferences.");
+			dsHandler.getMerchantReferences(merchantId, minScore, toBeShown);
+			String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchantId;
+			cacheDeReferencesData(deReferencesCacheKey, ttl);
+			logger.info("successfully caching of merchant references from de completed");
+		} catch (Exception e) {
+			logger.error("exception occurred while callingDeForReferences {}", e.getMessage());
+		}
+	}
+
+	private void cacheDeReferencesData(String key, int ttl) {
+		try {
+			AddCacheDto addCacheDto = new AddCacheDto();
+			addCacheDto.setKey(key);
+			addCacheDto.setValue(Boolean.TRUE);
+			addCacheDto.setTtl(ttl);
+			lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+			logger.info("caching of merchant references from de completed key: {}",key);
+		} catch (Exception e) {
+			logger.error("exception occurred while caching merchant References for {},{}", key, e.getMessage());
+		}
+	}
+
 
 	public String enachServiceLenderMapper(String lender){
 		String finalLender = null;
