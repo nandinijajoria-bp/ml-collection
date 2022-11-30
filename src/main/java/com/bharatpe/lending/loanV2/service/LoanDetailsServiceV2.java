@@ -250,6 +250,16 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
                 return new ApiResponse<>(loanDetailsResponse);
             }
+            LendingApplication draftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(),"draft");
+            String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchant.getId();
+            if(draftApplication != null) {
+                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty() && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
+                    executorService.submit(() -> {
+                        log.info("Again caching MerchantReferences from de of merchantId : {} inside",merchant.getId());
+                        loanUtil.callingDeForReferences(merchant.getId(),draftApplication);
+                    });
+                }
+            }
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
@@ -295,14 +305,8 @@ public class LoanDetailsServiceV2 {
             }else{
                 loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId()).getKycStatus());
             }
-            LendingApplication draftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(),"draft");
-            if(draftApplication != null) {
-                String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchant.getId();
-                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty() && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
-                    log.info("Again caching MerchantReferences from de of merchantId : {}",merchant.getId());
-                    loanUtil.callingDeForReferences(merchant.getId(),draftApplication);
-                }
-            }
+
+
             checkEligibility(loanDetailsResponse, request, experian, merchant);
             cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
             log.info("returning response from database");

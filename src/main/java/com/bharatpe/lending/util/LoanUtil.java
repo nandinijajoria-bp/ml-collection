@@ -928,7 +928,6 @@ public class LoanUtil {
 		return BooleanUtils.toBoolean(lendingCache.contains(INTERNAL_MERCHANTS, merchantId));
 	}
 
-	@Async
 	public void callingDeForReferences(Long merchantId, LendingApplication lendingApplication) {
 		try {
 			int ttl = 45;
