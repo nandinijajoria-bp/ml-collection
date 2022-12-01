@@ -341,9 +341,9 @@ public class APIGatewayService {
 
     private String getPgMid(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgMID = null;
-        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
-            return getMid();
-        }
+//        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
+//            return getMid();
+//        }
         if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
             return getMid();
         }
@@ -356,9 +356,9 @@ public class APIGatewayService {
 
     private String getPgSecret(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgSecret = null;
-        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
-            return getSecret();
-        }
+//        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
+//            return getSecret();
+//        }
 
         if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
             logger.info("not a internal merchant in PG flow: {}", merchantId);
