@@ -1181,6 +1181,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "ineligible field can not be null!");
             }
             if (isIneligible) {
+                rejectingLoanDueToInsufficientReferences(lendingApplication);
                 log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", applicationId, merchantId);
                 return new ApiResponse<>(true, "Successfully rejected applicationId because of insufficient references");
             } else {

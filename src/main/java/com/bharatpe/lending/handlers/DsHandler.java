@@ -62,7 +62,7 @@ public class DsHandler {
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
             String url = deBaseUrl + "/GetMerchantConfidenceScore" + "?merchant_id=" + merchantId + "&min_score=" + minScore + "&limit=" + limit;
-            log.info("DE get merchant references request :{} url: {}", request, url);
+            log.info("DE get merchant references for merchantId: {}, request :{} url: {}", merchantId, request, url);
             ResponseEntity<DeGetReferencesResponse> responseEntity = null;
             int retryCount = 0;
             while (retryCount < 3) {
@@ -75,7 +75,7 @@ public class DsHandler {
                     log.error("Retrying: {} time, Exception occurred while getting merchant references from DE api of merchantId: {}, {}", retryCount, merchantId, e);
                 }
             }
-            log.info("DE Get Merchant References responseEntity : {} for merchantId: {}", responseEntity, merchantId);
+            log.info("DE Get Merchant References for merchantId: {}, responseEntity : {} ", responseEntity, merchantId);
             if (Objects.nonNull(responseEntity) && Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().getStatus().equals("success") && responseEntity.getBody().getData() != null) {
                 return responseEntity.getBody();
             }
