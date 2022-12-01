@@ -341,6 +341,9 @@ public class APIGatewayService {
 
     private String getPgMid(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgMID = null;
+        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender) || Lender.HINDON.equals(lender)) {
+            return getMid();
+        }
         if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
             return getMid();
         }
