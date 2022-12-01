@@ -985,7 +985,7 @@ public class LoanUtil {
 
 	public boolean isNachToBeRefunded(Long merchantId, Long applicationId){
 		boolean flag = false;
-		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findSuccessEnach(merchantId, applicationId);
+		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findSuccessEnach(merchantId);
 		if(!ObjectUtils.isEmpty(responseDTO)){
 			if(responseDTO.getNachLender().equals("BHARATPE")){
 				flag = true;
