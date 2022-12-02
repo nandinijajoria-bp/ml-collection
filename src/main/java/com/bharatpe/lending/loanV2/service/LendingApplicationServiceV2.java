@@ -230,10 +230,12 @@ public class LendingApplicationServiceV2 {
             boolean panCardApproved = false;
             boolean panNoApproved = false;
             List<KycDoc> kycDocs = kycHandler.getKycDoc(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER);
-            if (ObjectUtils.isEmpty(kycDocs)) {
-                log.info("Unable to fetch KYC Docs for id : {}, merchantId : {}", initiateKycRequest.getApplicationId(), merchant.getId());
-                return new ApiResponse<>(false, "Unable to fetch KYC Docs");
-            }
+
+//            if (ObjectUtils.isEmpty(kycDocs)) {
+//                log.info("Unable to fetch KYC Docs for id : {}, merchantId : {}", initiateKycRequest.getApplicationId(), merchant.getId());
+//                return new ApiResponse<>(false, "Unable to fetch KYC Docs");
+//            }
+
             log.info("KYC doc fetched for : {}", merchant.getId());
             for (KycDoc kycDoc : kycDocs) {
                 if (kycDoc.getDocType() != null && KycDocType.SELFIE.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
