@@ -959,6 +959,9 @@ public class LoanUtil {
 
 	public String enachServiceLenderMapper(String lender){
 		String finalLender = null;
+		if(ObjectUtils.isEmpty(lender)){
+			return null;
+		}
 		if(lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA")){
 			finalLender = Lender.MAMTA.name();
 		}
