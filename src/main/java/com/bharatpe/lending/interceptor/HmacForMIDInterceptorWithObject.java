@@ -82,7 +82,7 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
                 logger.info("secret in old mid flow: {}",secret);
                 request.setAttribute("merchant", basicDetailsDto.get());
             } else {
-                pgMidConfig = lendingPgMidConfigSlaveDao.findByMidAndStatus(mid, "ACTIVE");
+                pgMidConfig = lendingPgMidConfigSlaveDao.findTop1ByMidAndStatus(mid, "ACTIVE");
                 logger.info("pg mid config: {}", pgMidConfig);
                 secret = pgMidConfig.getSecret();
             }
