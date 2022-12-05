@@ -36,9 +36,11 @@ public class DisbursalStageMapping {
         put(Pair.of("MAMTA", "SUCCESS"),"DISBURSED");
         put(Pair.of("MAMTA0", "SUCCESS"),"DISBURSED");
         put(Pair.of("MAMTA1", "SUCCESS"),"DISBURSED");
+        put(Pair.of("MAMTA2", "SUCCESS"),"DISBURSED");
         put(Pair.of("MAMTA", "CANCELLED"),"FAILED");
         put(Pair.of("MAMTA0", "CANCELLED"),"FAILED");
         put(Pair.of("MAMTA1", "CANCELLED"),"FAILED");
+        put(Pair.of("MAMTA2", "CANCELLED"),"FAILED");
     }};
 
     public static String getDisbursedStage(String lender, String stage) {

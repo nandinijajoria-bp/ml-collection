@@ -962,7 +962,7 @@ public class LoanUtil {
 		if(ObjectUtils.isEmpty(lender)){
 			return null;
 		}
-		if(lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA")){
+		if(lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA2") || lender.equals("MAMTA")){
 			finalLender = Lender.MAMTA.name();
 		}
 		if(lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")){

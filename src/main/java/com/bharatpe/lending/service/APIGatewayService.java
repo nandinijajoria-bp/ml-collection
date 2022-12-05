@@ -341,7 +341,7 @@ public class APIGatewayService {
 
     private String getPgMid(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgMID = null;
-//        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
+//        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender) || Lender.MAMTA2.equals(lender)) {
 //            return getMid();
 //        }
         if (!(loanUtil.isInternalMerchant(merchantId) || easyLoanUtil.percentScaleUp(merchantId, pgPercent))) {
@@ -356,7 +356,7 @@ public class APIGatewayService {
 
     private String getPgSecret(Lender lender, LendingPgMidConfigSlave pgMidConfig, Long merchantId) {
         String pgSecret = null;
-//        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender)) {
+//        if (Lender.MAMTA.equals(lender) || Lender.MAMTA0.equals(lender) || Lender.MAMTA1.equals(lender) || Lender.MAMTA2.equals(lender)) {
 //            return getSecret();
 //        }
 

@@ -29,6 +29,11 @@ public interface KfsConstants {
     String LENDER_CONTACT_NUMBER_MAMTA = "+91-8336901719";
     String COLENDER_CORPORATE_NAME_MAMTA1 = "Vedika Credit Capital Limited";
     String COLENDER_BUSINESS_ADDRESS_MAMTA1 = "Village - Collage Pally, P.O. - Shiuli Telini Para, P.S. - Titagar, Kolkata Parganas North, West Bengal - 700121, India";
+
+    String COLENDER_CORPORATE_NAME_MAMTA2 = "Profectus Capital Private Limited";
+    String COLENDER_BUSINESS_ADDRESS_MAMTA2 = "B-17, 4th Floor, Art Guild House, Phoenix Market City, Kurla West, Mumbai, Mumbai City MH 400070, India";
+
+
     String LSP_CONTACT_NAME = "Mr. Ankit Parnami";
     String LSP_CONTACT_EMAIL = "nodalofficer@bharatpe.com";
     String LSP_CONTACT_NUMBER = "8851681932";

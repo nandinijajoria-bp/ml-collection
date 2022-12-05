@@ -1637,7 +1637,10 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LDC;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LDC;
             }
-            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString()) || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())  || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
+              || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
+              || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
+              || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA2.toString()) ){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_MAMTA;
                 lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_MAMTA;
                 lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MAMTA;
@@ -1647,7 +1650,11 @@ public class LendingApplicationServiceV2 {
             if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
                 colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA1;
                 colenderBusinessAddress = KfsConstants.COLENDER_BUSINESS_ADDRESS_MAMTA1;
+            } else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA2.toString())){
+                colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA2;
+                colenderBusinessAddress = KfsConstants.COLENDER_BUSINESS_ADDRESS_MAMTA2;
             }
+
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -1960,7 +1967,7 @@ public class LendingApplicationServiceV2 {
         data.put("register_address_of_colender", "");
         data.put("colender_text", "");
 
-        if(kfsDto.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
+        if(kfsDto.getLender().equalsIgnoreCase(Lender.MAMTA1.toString()) || kfsDto.getLender().equalsIgnoreCase(Lender.MAMTA2.toString())){
             data.put("lender_tag", "(Lender)");
             data.put("name_of_colender", kfsDto.getColenderCorporateName());
             data.put("register_address_of_colender", kfsDto.getColenderBusinessAddress() + " (Co-Lender)");
@@ -1983,7 +1990,10 @@ public class LendingApplicationServiceV2 {
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.KEY_FACTS_STATEMENT_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/Lenden.png";
         }
-        else if(lender.equalsIgnoreCase(Lender.MAMTA.toString()) || lender.equalsIgnoreCase(Lender.MAMTA0.toString()) || lender.equalsIgnoreCase(Lender.MAMTA1.toString())){
+        else if(lender.equalsIgnoreCase(Lender.MAMTA.toString())
+          || lender.equalsIgnoreCase(Lender.MAMTA0.toString())
+          || lender.equalsIgnoreCase(Lender.MAMTA1.toString())
+          || lender.equalsIgnoreCase(Lender.MAMTA2.toString())){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
         }
         return logoUrl;
