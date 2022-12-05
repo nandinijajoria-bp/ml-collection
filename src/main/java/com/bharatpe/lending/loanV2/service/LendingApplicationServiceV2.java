@@ -265,8 +265,10 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(kycDeepLink);
             }
             List<KycDocType> docTypes = new ArrayList<>();
-            if (!panCardApproved) docTypes.add(KycDocType.PAN_CARD);
-            if (!panNoApproved) docTypes.add(KycDocType.PAN_NO);
+            if (!panCardApproved) {
+                docTypes.add(KycDocType.PAN_CARD);
+                docTypes.add(KycDocType.PAN_NO);
+            }
             docTypes.add(KycDocType.SELFIE);
             docTypes.add(KycDocType.EKYC);
             String callBackURL = env.getProperty("kyc.loan.deeplink");
