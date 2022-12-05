@@ -27,8 +27,8 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_MAMTA = "Ms. Aradhana Nathany";
     String LENDER_CONTACT_EMAIL_MAMTA = "statutory.compliance@arthmate.com";
     String LENDER_CONTACT_NUMBER_MAMTA = "+91-8336901719";
-    String COLENDER_CORPORATE_NAME_MAMTA1 = "Vedika Credit Capital Limited";
-    String COLENDER_BUSINESS_ADDRESS_MAMTA1 = "Village - Collage Pally, P.O. - Shiuli Telini Para, P.S. - Titagar, Kolkata Parganas North, West Bengal - 700121, India";
+    String COLENDER_CORPORATE_NAME_MAMTA1 = "Profectus Capital Private Limited";
+    String COLENDER_BUSINESS_ADDRESS_MAMTA1 = "B-17, 4th Floor, Art Guild House, Phoenix Market City, Kurla West, Mumbai, Mumbai City MH 400070, India";
 
     String COLENDER_CORPORATE_NAME_MAMTA2 = "Profectus Capital Private Limited";
     String COLENDER_BUSINESS_ADDRESS_MAMTA2 = "B-17, 4th Floor, Art Guild House, Phoenix Market City, Kurla West, Mumbai, Mumbai City MH 400070, India";
