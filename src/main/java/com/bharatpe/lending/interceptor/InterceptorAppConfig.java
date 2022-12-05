@@ -10,10 +10,10 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 	@Autowired
 	ValidateTokenInterceptor validateTokenInterceptor;
-	
+
 	@Autowired
 	InternalClientHmacInterceptor clientHmacInterceptor;
-	
+
 	@Autowired
 	HmacForMIDAndInternalClientInterceptor midInterceptor;
 
@@ -28,11 +28,11 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 //	@Autowired
 //	ExternalClientHmacInterceptor externalClientHmacInterceptor;
-	
+
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
-				.excludePathPatterns("/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
+				.excludePathPatterns("/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
 				"/lending/push_lead_response",
 				"/lending/csPanel/**",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
@@ -46,7 +46,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback");
 
 
-        registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
+        registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication",
 		"/support/showBulkContacts","/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update",
 				"/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans", "/lending/offers", "/lending/derog_application",
