@@ -34,6 +34,7 @@ import com.bharatpe.lending.service.ILendingCitiesService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
+import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -171,6 +172,10 @@ public class LendingApplicationServiceV2 {
 
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
+
+    @Autowired
+    LenderAssignService lenderAssignService;
+    
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -491,7 +496,13 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
         lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
         lendingApplication = lendingApplicationDao.save(lendingApplication);
-        lenderMappingService.lenderMapping(lendingApplication);
+
+        if(lendingApplication.getId() % 10 == 1){
+            lenderAssignService.assignLender(lendingApplication, null);
+        } else{
+            lenderMappingService.lenderMapping(lendingApplication);
+        }
+
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));

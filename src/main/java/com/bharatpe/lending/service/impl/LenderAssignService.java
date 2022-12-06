@@ -1,0 +1,316 @@
+package com.bharatpe.lending.service.impl;
+
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.enums.EdiModel;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.LendingEnum;
+import com.bharatpe.lending.common.service.ILenderAssignService;
+import com.bharatpe.lending.dao.LenderAssignmentRulesDao;
+import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.entity.LenderAssignmentRules;
+import com.bharatpe.lending.entity.LendingLenderQuota;
+import com.bharatpe.lending.enums.Lender;
+import com.sun.org.apache.xpath.internal.operations.Bool;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+
+import java.util.*;
+
+@Slf4j
+@Service
+public class LenderAssignService implements ILenderAssignService {
+
+    @Autowired
+    LenderAssignmentRulesDao lenderAssignmentRulesDao;
+
+    @Autowired
+    LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Value("${disbursal_target}")
+    Double WEEKLY_TARGET_AMOUNT;
+
+    @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
+
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Override
+    public LendingEnum.LENDER assignLender(EdiModel ediModel) {
+        return null;
+    }
+
+    public String lenderAssignmentHandler(LendingApplication application, EdiModel ediModel) {
+        refreshDisbursalLimitsForLender();
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
+        Double bureauScore = 0D;
+        String riskSegment = "";
+        if (!ObjectUtils.isEmpty(lendingRiskVariables) && !ObjectUtils.isEmpty(lendingRiskVariables.getBureauScore())) {
+            bureauScore = lendingRiskVariables.getBureauScore();
+        }
+        if(!ObjectUtils.isEmpty(lendingRiskVariables)) riskSegment = lendingRiskVariables.getRiskSegment();
+        try {
+            log.info("Lender assignment parameters -> bureau:{}, loanType:{}, tenure:{}, loanAmount:{}", bureauScore, application.getLoanType(), application.getTenure(),
+                    application.getLoanAmount());
+            List<String> lenders = new ArrayList<>();
+            String decidedLender = null;
+            List<LenderAssignmentRules> defaultRules = lenderAssignmentRulesDao.findByIsDefaultAndIsActive(Boolean.TRUE, Boolean.TRUE);
+            List<LenderAssignmentRules> ruleList = lenderAssignmentRulesDao.fetchEligibleRules(application.getLoanAmount(), bureauScore, riskSegment, application.getTenureInMonths());
+            if (ObjectUtils.isEmpty(ruleList)) {
+                log.info("Assigning default lender");
+                lenders = getLenderList(defaultRules, ediModel, application.getLender());
+                // assign default lender and EdiModel.
+            } else {
+                log.info("Found matching rules.");
+                lenders = getLenderList(ruleList, ediModel, application.getLender());
+            }
+            decidedLender = getLender(application, lenders, ediModel, defaultRules);
+            return decidedLender;
+        } catch(Exception ex){
+            return null;
+        }
+    }
+
+    public LendingApplication assignLender(LendingApplication application, EdiModel ediModel) {
+        LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(application.getMerchantId());
+        if (ObjectUtils.isEmpty(application)) {
+            throw new RuntimeException("Application not found for merchant:" + application.getMerchantId());
+        }
+        String decidedLender = lenderAssignmentHandler(lendingApplication, ediModel);
+        if(!ObjectUtils.isEmpty(decidedLender)){
+            saveLenderChangeAudit(lendingApplication, decidedLender);
+
+        }else{
+            EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
+            log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
+            // ModifyEdiModel
+            decidedLender = lenderAssignmentHandler(lendingApplication, modifiedEdiModel);
+            if(ObjectUtils.isEmpty(decidedLender)){
+                decidedLender = Lender.LDC.name();
+            } else{
+                modifyEdiModel(lendingApplication, modifiedEdiModel);
+            }
+            saveLenderChangeAudit(lendingApplication, decidedLender);
+        }
+        lendingApplication.setLender(decidedLender);
+        return lendingApplicationDao.save(lendingApplication);
+    }
+
+    public void saveLenderChangeAudit(LendingApplication lendingApplication, String lender){
+        LendingAuditTrial auditLender = new LendingAuditTrial();
+        auditLender.setApplicationId(lendingApplication.getId());
+        auditLender.setMerchantId(lendingApplication.getMerchantId());
+        auditLender.setType("LENDER_SET");
+        auditLender.setLoanId("BPL"+lendingApplication.getId());
+        auditLender.setOldStatus(lendingApplication.getLender());
+        auditLender.setNewStatus(lender);
+        log.info("Audit Trail: {}", auditLender);
+        lendingAuditTrialDao.save(auditLender);
+    }
+
+
+    public String getLender(LendingApplication lendingApplication, List<String> lenders, EdiModel ediModel, List<LenderAssignmentRules> defaultRules){
+        log.info("Implementing logic for lender assignment.");
+        LendingLenderQuota assigneeLender = null;
+        List<LendingLenderQuota> toBeAssignedLenders = new ArrayList<>();
+        if(!ObjectUtils.isEmpty(lenders)){
+            toBeAssignedLenders = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(lenders, lendingApplication.getLoanAmount());
+        }
+        if(ObjectUtils.isEmpty(toBeAssignedLenders)){
+            log.info("Not enough balance remaining on eligible lenders. Fetching default Lenders");
+            lenders = getLenderList(defaultRules, ediModel, lendingApplication.getLender());
+            if(!ObjectUtils.isEmpty(lenders)){
+                toBeAssignedLenders = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(lenders, lendingApplication.getLoanAmount());
+            }
+        }
+        if(ObjectUtils.isEmpty(toBeAssignedLenders)){
+            log.info("No Eligible lenders found. Changing ediModel.");
+            return null;
+        }
+        assigneeLender = toBeAssignedLenders.get(0);
+        log.info("Selected Lender : {}", assigneeLender);
+        EdiModel ediModel1 = EdiModel.valueOf(assigneeLender.getEdiModel());
+        log.info("Selected EDI Model : {}", ediModel1);
+        ediModelAudit(lendingApplication, ediModel1);
+
+        //updating lender limits
+        LendingEnum.LENDER lender = LendingEnum.LENDER.valueOf(assigneeLender.getLender());
+        Double updatedAssignedAmount = assigneeLender.getAssignedAmount() + lendingApplication.getLoanAmount();
+        assigneeLender.setAssignedAmount(updatedAssignedAmount);
+        Double updatedBalance = ObjectUtils.isEmpty(assigneeLender.getRemainingBalance()) ? null:assigneeLender.getRemainingBalance() - lendingApplication.getLoanAmount();
+        assigneeLender.setRemainingBalance(updatedBalance);
+        lenderDisbursalLimitsDao.save(assigneeLender);
+        return lender.name();
+    }
+
+    public void ediModelAudit(LendingApplication lendingApplication, EdiModel ediModel){
+        LendingApplicationDetails lenderAudit = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if(!ObjectUtils.isEmpty(lenderAudit)){
+            if(lenderAudit.getEdiModel().equals(ediModel.name())){
+                return;
+            }
+            LendingApplicationDetails lendingApplicationDetails = new LendingApplicationDetails();
+            lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+            lendingApplicationDetails.setEdiModelModified(Boolean.FALSE);
+            lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
+            lendingApplicationDetails.setCreatedAt(new Date());
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+        }
+    }
+
+    public void refreshDisbursalLimitsForLender(){
+        log.info("Refreshing Weekly Disbursal Limits");
+        Double disbursedAmount = lenderDisbursalLimitsDao.fetchDisbursedCount();
+        log.info("Disbursed Amount: {}, TARGET: {}", disbursedAmount, WEEKLY_TARGET_AMOUNT);
+        if(disbursedAmount >= Double.valueOf(WEEKLY_TARGET_AMOUNT)){
+            List<LendingLenderQuota> quotaList = lenderDisbursalLimitsDao.findAll();
+            for(LendingLenderQuota quota : quotaList){
+                quota.setRemainingBalance(quota.getTotalWeeklyAmount());
+                quota.setAssignedAmount(0D);
+            }
+            lenderDisbursalLimitsDao.saveAll(quotaList);
+        }
+    }
+
+    public List<LenderAssignmentRules> getAllActiveRules(){
+        log.info("Fetching all Active Rules");
+        return lenderAssignmentRulesDao.findByIsActive(Boolean.TRUE);
+    }
+
+    public List<LendingLenderQuota> getAllLenderLimits(){
+        log.info("Fetching all Lender limits");
+        return lenderDisbursalLimitsDao.findAll();
+    }
+
+    public LenderAssignmentRules updateRules(LenderAssignmentRules lenderAssignmentRules){
+        log.info("Updating rule with ID: {}", lenderAssignmentRules.getId());
+        if(ObjectUtils.isEmpty(lenderAssignmentRules.getId())){
+            return lenderAssignmentRulesDao.save(lenderAssignmentRules);
+        }
+        Optional<LenderAssignmentRules> rule = lenderAssignmentRulesDao.findById(lenderAssignmentRules.getId());
+        Long id = lenderAssignmentRules.getId();
+        if(rule.isPresent()){
+            LenderAssignmentRules updatedRule = new LenderAssignmentRules(lenderAssignmentRules.getLender(), lenderAssignmentRules.getLoanType(),
+                    lenderAssignmentRules.getTenure(), lenderAssignmentRules.getMinBureauScore(), lenderAssignmentRules.getMaxBureauScore(), lenderAssignmentRules.getMinAmount(),
+                    lenderAssignmentRules.getMaxAmount(), lenderAssignmentRules.getDefault(), lenderAssignmentRules.getActive());
+            updatedRule.setId(id);
+            updatedRule.setCreatedAt(rule.get().getCreatedAt());
+            return lenderAssignmentRulesDao.save(updatedRule);
+        }
+        return null;
+    }
+
+    public LendingLenderQuota updateLenderLimits(LendingLenderQuota limit){
+        log.info("Updating lender limit with ID: {}", limit.getId());
+        if(ObjectUtils.isEmpty(limit.getId())){
+            limit.setEdiModel(LenderOffDays.valueOf(LendingEnum.LENDER.valueOf(limit.getLender()).name()).getEdiModel().name());
+            return lenderDisbursalLimitsDao.save(limit);
+        }
+        Optional<LendingLenderQuota> limit1 = lenderDisbursalLimitsDao.findById(limit.getId());
+        Long id = limit.getId();
+        if(limit1.isPresent()){
+            LendingLenderQuota updatedLimit = new LendingLenderQuota(limit.getLender(), limit.getTotalWeeklyAmount(),
+                    limit.getRemainingBalance(), limit.getAssignedAmount(), null);
+            updatedLimit.setCreatedAt(limit1.get().getCreatedAt());
+            updatedLimit.setId(id);
+            updatedLimit.setEdiModel(LenderOffDays.valueOf(LendingEnum.LENDER.valueOf(limit1.get().getLender()).name()).getEdiModel().name());
+            return lenderDisbursalLimitsDao.save(updatedLimit);
+        }
+        return null;
+    }
+
+    public String assignLenderAndEdiModel(Long applicationId, String ediModel){
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+        if(lendingApplication.isPresent()){
+            return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel)).getLender();
+        }
+        return "Application Not Found.";
+    }
+
+    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender){
+        log.info("Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
+        List<String> eligibleLenders = new ArrayList<>();
+        for(LenderAssignmentRules rule:lenderAssignmentRules){
+            String lender = rule.getLender();
+            if(ObjectUtils.isEmpty(ediModel) || ediModel.name().equals(LenderOffDays.valueOf(lender).getEdiModel().name())){
+                // in case lender is to be changed.
+                if(!ObjectUtils.isEmpty(assignedLender) && rule.getLender().equals(assignedLender)){
+                    continue;
+                }
+                eligibleLenders.add(lender);
+            }
+        }
+        log.info("Eligible Lenders: {}", eligibleLenders);
+        return eligibleLenders;
+    }
+
+    public Lender modifyLender(Long applicationId){
+        Optional<LendingApplication> application = lendingApplicationDao.findById(applicationId);
+        if(application.isPresent()){
+            log.info("Modifying lender for application:{}", application.get().getId());
+            List<LendingAuditTrial> auditLenderList = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndType(application.get().getId(),
+                    application.get().getMerchantId(), "LENDER_SET");
+            if(auditLenderList.size()>=2){
+                log.info("Lender already changed twice for application: {}", application.get().getId());
+                EdiModel ediModel = LenderOffDays.valueOf(Lender.LDC.name()).getEdiModel();
+                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
+                LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+                if (!ediDetails.getEdiModel().equals(ediModel.name())) {
+                    modifyEdiModel(application.get(), modifiedEdiModel);
+                }
+                application.get().setLender(Lender.LDC.name());
+                lendingApplicationDao.save(application.get());
+                return Lender.LDC;
+            }
+            EdiModel ediModel = LenderOffDays.valueOf(application.get().getLender()).getEdiModel();
+            assignLender(application.get(), ediModel);
+            return Lender.valueOf(application.get().getLender());
+        }
+        log.info("Application with id:{} not found.", applicationId);
+        return null;
+    }
+
+    public void modifyEdiModel(LendingApplication application, EdiModel modifiedModel){
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(application.getId());
+        if(!ObjectUtils.isEmpty(lendingApplicationDetails)){
+            lendingApplicationDetails.setEdiModel(modifiedModel.name());
+            lendingApplicationDetails.setEdiModelModified(Boolean.TRUE);
+            lendingApplicationDetails.setUpdatedAt(new Date());
+            lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+        }
+        log.info("Modifying Edi Model for application:{}", application.getId());
+    }
+
+    public void updateLenderLimitsForRejectedLoans(Long applicationId){
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+        if(lendingApplication.isPresent()){
+            if(ObjectUtils.isEmpty(lendingApplication.get().getLender())){
+                log.info("Lender not found in application:{}", applicationId);
+                return;
+            }
+            LendingLenderQuota lender = lenderDisbursalLimitsDao.findByLender(lendingApplication.get().getLender());
+            log.info("Updating balance for lender:{} for loan amount:{}", lendingApplication.get().getLender(), lendingApplication.get().getLoanAmount());
+            lender.setAssignedAmount(lender.getAssignedAmount() - lendingApplication.get().getLoanAmount());
+            lender.setRemainingBalance(lender.getRemainingBalance() + lendingApplication.get().getLoanAmount());
+            lenderDisbursalLimitsDao.save(lender);
+        }
+    }
+}

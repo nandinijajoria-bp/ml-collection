@@ -28,6 +28,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,6 +112,10 @@ public class SignAgreementService {
 
 	@Autowired
 	MerchantSummaryHandler merchantSummaryHandler;
+
+	@Autowired
+	LenderAssignService lenderAssignService;
+
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -312,7 +317,12 @@ public class SignAgreementService {
 		newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
         newApplication = lendingApplicationDao.save(newApplication);
         loanUtil.publishApplicationEvent(newApplication);
-		lenderMappingService.lenderMapping(newApplication);
+
+		if(newApplication.getId() % 10 == 1){
+			lenderAssignService.assignLender(newApplication, null);
+		} else{
+			lenderMappingService.lenderMapping(newApplication);
+		}
 
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
