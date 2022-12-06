@@ -65,6 +65,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
+
 @Component
 public class LiquiloansService {
 
@@ -1447,8 +1450,8 @@ public class LiquiloansService {
             String identifierSMS = env.getProperty("kfs.sms.notification");
             String message = env.getProperty("kfs.template.notification");
 
-            String loanAgreementName = "Sanction_Cum_Loan_Agreement_" + lendingKfs.getApplicationId();
-            String kfsName = "Key_Facts_Statement_" + lendingKfs.getApplicationId();
+            String loanAgreementName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingKfs.getApplicationId();
+            String kfsName = KFS_S3_KEY_PREFIX + lendingKfs.getApplicationId();
 
             String loanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(loanAgreementName, "loan-document");
             String kfsDocUrl = s3BucketHandler.getPreSignedPublicURL(kfsName, "loan-document");

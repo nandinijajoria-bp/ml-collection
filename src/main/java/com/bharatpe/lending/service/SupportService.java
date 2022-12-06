@@ -66,6 +66,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
+
 @Service
 public class SupportService {
     private final Logger logger = LoggerFactory.getLogger(SupportService.class);
@@ -2088,9 +2090,14 @@ public class SupportService {
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
             if(!ObjectUtils.isEmpty(lendingKfs)){
                 if(lendingKfs.getLender().equals(lendingApplication.get().getLender())){
+
+                    // below does not generate new loan_agreement/kfs only fetchs from s3 and updates the shorturls in kfs table
+
                     logger.info("Fetched Loan Agreement from Lending KFS for application id: {}", applicationId);
-                    lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getKfsSignedAt());
-                    lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                    String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get());
+                    String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get());
+                    lendingKfs.setKfsDocUrl(kfsShorturl);
+                    lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
                     lendingKfsDao.save(lendingKfs);
                     return new ResponseDTO(true, "Agreement created successfully.", lendingKfs.getSanctionLoanAgreementDocUrl());
                 } else{
@@ -2125,7 +2132,7 @@ public class SupportService {
 
     public String getSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication){
         String url = null;
-        String fileName = "Sanction_Cum_Loan_Agreement_" + applicationId;
+        String fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
         try{
             url = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
             if(ObjectUtils.isEmpty(url)){

@@ -68,6 +68,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
+
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
@@ -1721,7 +1724,7 @@ public class LendingApplicationServiceV2 {
         ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if(apiResponse.success){
             String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
-            fileName = "Sanction_Cum_Loan_Agreement_" + lendingApplication.getId();
+            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId();
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
@@ -1797,7 +1800,7 @@ public class LendingApplicationServiceV2 {
         apiResponse = generateKfs(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if (apiResponse.success) {
             String kfsHtml = (String) apiResponse.data;
-            fileName = "Key_Facts_Statement_" + lendingApplication.getId();
+            fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId();
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
@@ -1893,6 +1896,26 @@ public class LendingApplicationServiceV2 {
             log.error("Exception while generating Sanction Cum Loan Agreement html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Unable to generate Sanction Cum Loan Agreement");
         }
+    }
+
+    public String fetchKfsFromS3andGenerateShortUrl(LendingApplication lendingApplication) throws Exception {
+            String fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId();
+            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
+            if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
+                throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
+
+            return kfsShortUrl;
+    }
+
+    public String fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(LendingApplication lendingApplication) throws Exception {
+        String fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId();
+        String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
+        if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())
+            throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
+
+        return shortUrl;
     }
 
     public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType, Date dateTime, String ip) throws Exception {

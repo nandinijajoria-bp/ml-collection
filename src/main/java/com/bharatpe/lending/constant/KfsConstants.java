@@ -2,6 +2,9 @@ package com.bharatpe.lending.constant;
 
 public interface KfsConstants {
 
+    String KFS_S3_KEY_PREFIX = "Key_Facts_Statement_";
+    String SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX = "Sanction_Cum_Loan_Agreement_";
+
     String LENDER_CORPORATE_NAME_LIQUILOANS = "NDX P2P Private Limited";
     String LENDER_BUSINESS_ADDRESS_LIQUILOANS = "B 104, The Qube, Hasan Pada Rd, Mittal Industrial Estate, Marol, Andheri East, Mumbai, Maharashtra 400059";
     String LENDER_CONTACT_NAME_LIQUILOANS = "Shweta Jain";

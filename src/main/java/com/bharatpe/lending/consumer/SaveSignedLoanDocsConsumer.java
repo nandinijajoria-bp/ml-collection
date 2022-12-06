@@ -14,6 +14,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
+import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
+
 @Service
 @Slf4j
 public class SaveSignedLoanDocsConsumer {
@@ -37,12 +40,12 @@ public class SaveSignedLoanDocsConsumer {
             }
             applicationId = Long.parseLong(String.valueOf(signedLoanDocsMap.get("application_id")));
 
-            String kfsFileName = "Key_Facts_Statement_" + applicationId;
+            String kfsFileName = KFS_S3_KEY_PREFIX + applicationId;
             URL kfsUrlNbfc = new URL(signedLoanDocsMap.get("signed_kfs"));
             InputStream kfsInstream = kfsUrlNbfc.openStream();
             s3BucketHandler.uploadToS3PdfBucket(kfsInstream, kfsFileName, "loan-document");
 
-            String sanctionLoanAgreementFileName = "Sanction_Cum_Loan_Agreement_" + applicationId;
+            String sanctionLoanAgreementFileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
             URL sanctionLoanAgreementUrl = new URL(signedLoanDocsMap.get("signed_sanction_letter"));
             InputStream sanctionLoanAgreementInstream = sanctionLoanAgreementUrl.openStream();
             s3BucketHandler.uploadToS3PdfBucket(sanctionLoanAgreementInstream, sanctionLoanAgreementFileName, "loan-document");
