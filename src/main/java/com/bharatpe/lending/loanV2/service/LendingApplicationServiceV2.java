@@ -4,6 +4,7 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.entity.LendingKfs;
@@ -15,7 +16,6 @@ import com.bharatpe.lending.common.dto.AddLeadRequestNimbusDto;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -498,7 +498,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication = lendingApplicationDao.save(lendingApplication);
 
         if(lendingApplication.getId() % 10 == 1){
-            lenderAssignService.assignLender(lendingApplication, null);
+            lenderAssignService.assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL);
         } else{
             lenderMappingService.lenderMapping(lendingApplication);
         }

@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -319,7 +320,7 @@ public class SignAgreementService {
         loanUtil.publishApplicationEvent(newApplication);
 
 		if(newApplication.getId() % 10 == 1){
-			lenderAssignService.assignLender(newApplication, null);
+			lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
 		} else{
 			lenderMappingService.lenderMapping(newApplication);
 		}
