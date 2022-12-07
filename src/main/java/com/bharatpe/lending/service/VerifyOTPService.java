@@ -344,7 +344,7 @@ public class VerifyOTPService {
             lendingApplication.setProcessingFee(0D);
         }
 
-        MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantBasicDetailsDto.getId());
+        MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantBasicDetailsDto.getId(), lendingApplication.getId());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetailsDto.getId());
         BankDetailsDto merchantBankDetail = null;
         if (bankDetailsDtoOptional.isPresent())

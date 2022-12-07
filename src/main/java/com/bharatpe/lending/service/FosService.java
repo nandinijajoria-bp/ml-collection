@@ -1016,7 +1016,7 @@ public class FosService {
                 return responseDTO;
             }
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(basicDetailsDto.get().getId());
-            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId);
+            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
             if (ObjectUtils.isEmpty(lendingApplication) ||
                     ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) || lendingApplication.getAgreementAt().after(taskEndTimeStamp))) &&
