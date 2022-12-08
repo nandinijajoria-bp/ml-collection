@@ -461,7 +461,7 @@ public class FosService {
             }
             if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && !"approved".equalsIgnoreCase(lendingApplication.getStatus())) {
                 lendingApplication.setNachReferenceNumber(lendingApplication.getExternalLoanId());
-                lendingApplication.setNachLender("BHARATPE");
+//                lendingApplication.setNachLender("BHARATPE");
                 lendingApplication.setNachType("EXTERNAL");
                 lendingApplication.setNachStatus("NOT_STARTED");
                 lendingApplication.setPhysicalVerificationStatus("SUBMITTED");
