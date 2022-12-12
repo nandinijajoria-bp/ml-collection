@@ -1336,7 +1336,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"application Not Eligible for resubmited");
             }
 
-            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE) && !"approved".equalsIgnoreCase(lendingApplication.getStatus())){
+            if(Objects.isNull(resubmitApplicationDTO.getCustomAmount()) && (resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE) && !"approved".equalsIgnoreCase(lendingApplication.getStatus()))){
                 return new ApiResponse<>(false,"application Not Eligible for downgrade");
             }
 
@@ -1368,13 +1368,18 @@ public class LendingApplicationServiceV2 {
 
             }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
-                Boolean downGradeStatus= downgradeApplication(lendingApplication);
+                Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 if(downGradeStatus){
                     lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
                     lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
                     lendingResubmitTask.setDowngradeDone(Boolean.FALSE);
                     lendingResubmitTask.setDowngradeTimestamp(new Date());
+                    lendingResubmitTask.setLmsLastStage(lendingApplication.getLmsStage());
+                    if (Objects.nonNull(resubmitApplicationDTO.getCustomAmount())) {
+                        lendingApplication.setLmsStage(LendingConstants.CUSTOM_OFFER_DOWNGRADE);
+                    }
+                    lendingApplicationDao.save(lendingApplication);
                 }
             }
             lendingResubmitTaskDao.save(lendingResubmitTask);
@@ -1386,7 +1391,7 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false,"Something went wrong");
     }
 
-    public Boolean downgradeApplication(LendingApplication lendingApplication){
+    public Boolean downgradeApplication(LendingApplication lendingApplication, ResubmitApplicationDTO resubmitApplicationDTO){
         try{
             Double loanAmount;
             if (OfferDowngradeApplication.eligibleForDowngrade(lendingApplication)) {
@@ -1394,6 +1399,8 @@ public class LendingApplicationServiceV2 {
                 if (Objects.isNull(loanAmount)) {
                     loanAmount = 0d;
                 }
+            } else if (Objects.nonNull(resubmitApplicationDTO.getCustomAmount())){
+                loanAmount = resubmitApplicationDTO.getCustomAmount();
             } else {
                 loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
                 loanAmount = Math.min(loanAmount, 100000d);

@@ -27,6 +27,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -225,26 +226,34 @@ public class VerifyOTPService {
                     logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
                     return finalResponse;
                 }
+
                 lendingResubmitTask.setDowngradeDone(Boolean.TRUE);
                 lendingResubmitTask.setDowngradedAt(new Date());
                 lendingResubmitTaskDao.save(lendingResubmitTask);
-                lendingApplication.setLmsStage("PENDING_DISBURSAL");
+                if (LendingConstants.CUSTOM_OFFER_DOWNGRADE.equalsIgnoreCase(lendingApplication.getLmsStage())) {
+                    lendingApplication.setLmsStage(lendingResubmitTask.getLmsLastStage());
+                } else {
+                    lendingApplication.setLmsStage(LendingConstants.PENDING_DISBURSAL);
+                }
                 lendingApplicationDao.save(lendingApplication);
 
+
                 // updating ready timestamp on downgrade
-                LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
-                if (Objects.isNull(lendingDisbursalStage)) {
-                    lendingDisbursalStage = new LendingDisbursalStage();
-                    lendingDisbursalStage.setApplicationId(lendingApplication.getId());
-                    lendingDisbursalStage.setMerchantId(lendingApplication.getMerchantId());
+                if (LendingConstants.PENDING_DISBURSAL.equalsIgnoreCase(lendingApplication.getLmsStage())) {
+                    LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
+                    if (Objects.isNull(lendingDisbursalStage)) {
+                        lendingDisbursalStage = new LendingDisbursalStage();
+                        lendingDisbursalStage.setApplicationId(lendingApplication.getId());
+                        lendingDisbursalStage.setMerchantId(lendingApplication.getMerchantId());
+                    }
+                    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+                    String currentDate = dateFormat.format(new Date());
+                    lendingDisbursalStage.setReadyStage("YES");
+                    lendingDisbursalStage.setReadyTimestamp(currentDate);
+                    lendingDisbursalStage.setCallStage("YES");
+                    lendingDisbursalStage.setCallTimestamp(currentDate);
+                    lendingDisbursalStageDao.save(lendingDisbursalStage);
                 }
-                DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-                String currentDate = dateFormat.format(new Date());
-                lendingDisbursalStage.setReadyStage("YES");
-                lendingDisbursalStage.setReadyTimestamp(currentDate);
-                lendingDisbursalStage.setCallStage("YES");
-                lendingDisbursalStage.setCallTimestamp(currentDate);
-                lendingDisbursalStageDao.save(lendingDisbursalStage);
 
                 finalResponse.put("success", true);
                 finalResponse.put("agreement_verified", true);
