@@ -32,7 +32,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
-				.excludePathPatterns("/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
+				.excludePathPatterns("/test/**", "/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
 				"/lending/push_lead_response",
 				"/lending/csPanel/**",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
