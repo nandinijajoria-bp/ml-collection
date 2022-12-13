@@ -208,7 +208,8 @@ public class LoanEligibleService {
 
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
-        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsOrderByIdDesc(merchantId, body.getAmount(), body.getTenure());
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow);
         if (Objects.nonNull(eligibleLoan)) {
             EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
             customLoan.setOfferType("CUSTOM");
