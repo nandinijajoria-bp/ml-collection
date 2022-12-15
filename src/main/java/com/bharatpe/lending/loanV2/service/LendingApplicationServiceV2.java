@@ -35,6 +35,7 @@ import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
+import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -175,6 +176,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LenderAssignService lenderAssignService;
+
+    @Autowired
+    CleverTapEventService cleverTapEventService;
     
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -266,6 +270,7 @@ public class LendingApplicationServiceV2 {
                 try {
                     log.info("Saving kyc details for merchant : {}", merchant.getId());
                     saveKycDetails(merchant.getId(), kycDocs);
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.KYC_VERIFIED.name(), null, merchant.getMid()));
                 } catch (Exception e) {
                     log.error("Exception in saving kyc details for : {}, {}, {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
                     return new ApiResponse<>(false, "Unable to save KYC Details");
