@@ -1,5 +1,7 @@
 package com.bharatpe.lending.consumer;
 
+import com.bharatpe.lending.dao.LendingKfsDao;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,10 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
 
@@ -25,6 +29,9 @@ public class SaveSignedLoanDocsConsumer {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    LendingKfsDao lendingKfsDao;
 
     @KafkaListener(topics = "save_signed_loan_docs", autoStartup ="${sign_loan_docs.consumer.enabled:false}")
     public void saveSignedLoanDocs(String data) {
@@ -49,6 +56,13 @@ public class SaveSignedLoanDocsConsumer {
             URL sanctionLoanAgreementUrl = new URL(signedLoanDocsMap.get("signed_sanction_letter"));
             InputStream sanctionLoanAgreementInstream = sanctionLoanAgreementUrl.openStream();
             s3BucketHandler.uploadToS3PdfBucket(sanctionLoanAgreementInstream, sanctionLoanAgreementFileName, "loan-document");
+
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if(ObjectUtils.isEmpty(lendingKfs)){
+                throw new Exception("Unable to retrieve KFS details for applicationId : " + applicationId);
+            }
+            lendingKfs.setNbfcSignedAt(new Date());
+            lendingKfsDao.save(lendingKfs);
 
             log.info("Signed loan docs saved for {}", applicationId);
         } catch (Exception e) {
