@@ -518,7 +518,7 @@ public class LiquiloansService {
 
                     lendingApplication.setNbfcId(nbfcStatusApiResponseDTO.getLoanId());
 
-                    lendingApplication.setLoanDisbursalStatus("PENDING");
+                    lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()));
                     lendingApplication.setSendToNbfc("YES");
 
                     // if earlier due to some reason this nbfc send date was missed add it
