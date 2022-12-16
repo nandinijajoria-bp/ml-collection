@@ -1119,7 +1119,7 @@ public class LoanDetailsServiceV2 {
             List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
 
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-            log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails.toString());
+            log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
             if (Objects.isNull(lendingApplicationDetails)) {
                 lendingApplicationDetails = new LendingApplicationDetails();
                 lendingApplicationDetails.setApplicationId(lendingApplication.getId());
@@ -1235,7 +1235,7 @@ public class LoanDetailsServiceV2 {
                 }
 
                 LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-                log.info("lendingApplicationDetails of applicationId: {}, {}",applicationId,lendingApplicationDetails.toString());
+                log.info("lendingApplicationDetails of applicationId: {}, {}",applicationId,lendingApplicationDetails);
                 if (Objects.nonNull(lendingApplicationDetails) && Objects.nonNull(lendingApplicationDetails.getReferencesFromDe())) {
                     lendingApplicationDetails.setSavedReferences(requestedReferenceList.size());
                     lendingApplicationDetails.setReferencesAddedByMerchant(Math.max(requestedReferenceList.size() - lendingApplicationDetails.getReferencesFromDe(), 0));
