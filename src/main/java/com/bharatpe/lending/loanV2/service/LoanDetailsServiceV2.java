@@ -69,6 +69,9 @@ public class LoanDetailsServiceV2 {
     LendingMerchantReferencesDao lendingMerchantReferencesDao;
 
     @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
     LendingCityCreditScoreDao lendingCityCreditScoreDao;
 
     @Autowired
@@ -1105,7 +1108,7 @@ public class LoanDetailsServiceV2 {
             Long referencesLimit = getReferenceLimit(lendingApplication);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
             MerchantReferencesResponseDto responseDto;
-            DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown);
+            DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
             if(Objects.isNull(deResponse)) {
                 rejectingLoanDueToInsufficientReferences(lendingApplication);
                 log.info("Successfully rejected applicationId: {} because of no response from DE api of merchantId: {}", lendingApplication.getId(), merchantId);
@@ -1114,6 +1117,18 @@ public class LoanDetailsServiceV2 {
             }
             Integer totalContacts = deResponse.getTotalContacts();
             List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
+
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails.toString());
+            if (Objects.isNull(lendingApplicationDetails)) {
+                lendingApplicationDetails = new LendingApplicationDetails();
+                lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+            }
+            lendingApplicationDetails.setTotalReferences(totalContacts);
+            if (Objects.nonNull(deReferenceList))
+                lendingApplicationDetails.setReferencesFromDe(deReferenceList.size());
+
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
             if (totalContacts < LendingConstants.MINIMUM_CONTACTS_NEEDED) {
 
@@ -1137,7 +1152,7 @@ public class LoanDetailsServiceV2 {
                     }
                 }
                 log.info("Successfully fetched references of merchantId: {}", merchantId);
-                responseDto = MerchantReferencesResponseDto.builder().references(deResponse.getData().getOutput()).minScore(minScore).limit(referencesLimit).ineligible(false).build();
+                responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
 
             }
             return new ApiResponse<>(responseDto);
@@ -1218,6 +1233,15 @@ public class LoanDetailsServiceV2 {
                         log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReferences, merchantId);
                     }
                 }
+
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+                log.info("lendingApplicationDetails of applicationId: {}, {}",applicationId,lendingApplicationDetails.toString());
+                if (Objects.nonNull(lendingApplicationDetails) && Objects.nonNull(lendingApplicationDetails.getReferencesFromDe())) {
+                    lendingApplicationDetails.setSavedReferences(requestedReferenceList.size());
+                    lendingApplicationDetails.setReferencesAddedByMerchant(Math.max(requestedReferenceList.size() - lendingApplicationDetails.getReferencesFromDe(), 0));
+                    lendingApplicationDetailsDao.save(lendingApplicationDetails);
+                }
+
                 log.info("Successfully saved all references of merchantId: {}", merchantId);
                 return new ApiResponse<>(true, "Successfully updated merchant References!");
             }

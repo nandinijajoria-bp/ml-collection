@@ -934,7 +934,7 @@ public class LoanUtil {
 			Long referencesLimit = loanDetailsServiceV2.getReferenceLimit(lendingApplication);
 			Integer toBeShown = loanDetailsServiceV2.getToBeShownReferences(referencesLimit);
 			logger.info("async threadpool flow executed for getMerchantReferences.");
-			dsHandler.getMerchantReferences(merchantId, minScore, toBeShown);
+			dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
 			String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchantId;
 			cacheDeReferencesData(deReferencesCacheKey, ttl);
 			logger.info("successfully caching of merchant references from de completed");

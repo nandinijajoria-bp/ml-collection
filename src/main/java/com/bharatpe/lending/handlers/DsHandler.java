@@ -1,6 +1,9 @@
 package com.bharatpe.lending.handlers;
 
+import com.bharatpe.lending.common.dto.KafkaAudit;
+import com.bharatpe.lending.dto.DeGetMerchantReferencesAudit;
 import com.bharatpe.lending.dto.MerchantReference;
+import com.bharatpe.lending.dto.PostPayoutAuditDto;
 import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
 import com.bharatpe.lending.loanV2.dto.DeGetReferencesResponse;
 import com.bharatpe.lending.loanV2.dto.DsValidateReferencesResponse;
@@ -8,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,6 +25,9 @@ public class DsHandler {
 
     @Value("${ds.reference.base.url}")
     String dsBaseUrl;
+
+    @Autowired
+    KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${de.reference.base.url}")
     String deBaseUrl;
@@ -55,7 +62,7 @@ public class DsHandler {
         return null;
     }
 
-    public DeGetReferencesResponse getMerchantReferences(Long merchantId, Integer minScore, Integer limit) {
+    public DeGetReferencesResponse getMerchantReferences(Long merchantId, Integer minScore, Integer limit,Long applicationId) {
         log.info("Start getting merchant references from DE of merchantId: {}", merchantId);
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -75,7 +82,12 @@ public class DsHandler {
                     log.error("Retrying: {} time, Exception occurred while getting merchant references from DE api of merchantId: {}, {}", retryCount, merchantId, e);
                 }
             }
-            log.info("DE Get Merchant References for merchantId: {}, responseEntity : {} ", responseEntity, merchantId);
+            DeGetMerchantReferencesAudit auditData = new DeGetMerchantReferencesAudit(applicationId,responseEntity);
+            KafkaAudit<DeGetMerchantReferencesAudit> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "de_get_references_response_audit", null);
+            kafkaAudit.setData(auditData);
+            pushKafkaAudit(kafkaAudit);
+
+            log.info("DE Get Merchant References for merchantId: {}, responseEntity : {} ", merchantId, responseEntity);
             if (Objects.nonNull(responseEntity) && Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().getStatus().equals("success") && responseEntity.getBody().getData() != null) {
                 return responseEntity.getBody();
             }
@@ -83,6 +95,15 @@ public class DsHandler {
             log.error("Exception occurred while getting merchant references from DE api of merchantId: {}, {}", merchantId, e);
         }
         return null;
+    }
+
+    public void pushKafkaAudit(KafkaAudit kafkaAudit) {
+        try {
+            log.info("pushing kafka event for {}", kafkaAudit);
+            kafkaTemplate.send("easyloan_audit_data",kafkaAudit);
+        } catch (Exception e) {
+            log.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
+        }
     }
 
 }
