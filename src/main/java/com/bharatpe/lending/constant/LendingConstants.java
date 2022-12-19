@@ -71,6 +71,10 @@ public interface LendingConstants {
 	String POA_PROVIDER = "DIGIO";
 	String CUSTOM_OFFER_DOWNGRADE = "CUSTOM_OFFER_DOWNGRADE";
 	String PENDING_DISBURSAL = "PENDING_DISBURSAL";
+
+	String REJECTION_REASON_1 = "not_enough_references";
+
+	String REJECTION_REASON_2 = "not_enough_references_de";
 }
 
 

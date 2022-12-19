@@ -1110,7 +1110,7 @@ public class LoanDetailsServiceV2 {
             MerchantReferencesResponseDto responseDto;
             DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
             if(Objects.isNull(deResponse)) {
-                rejectingLoanDueToInsufficientReferences(lendingApplication);
+                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
                 log.info("Successfully rejected applicationId: {} because of no response from DE api of merchantId: {}", lendingApplication.getId(), merchantId);
                 responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
                 return new ApiResponse<>(responseDto);
@@ -1132,7 +1132,7 @@ public class LoanDetailsServiceV2 {
 
             if (totalContacts < LendingConstants.MINIMUM_CONTACTS_NEEDED) {
 
-                rejectingLoanDueToInsufficientReferences(lendingApplication);
+                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
                 log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", lendingApplication.getId(), merchantId);
                 responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(true).build();
 
@@ -1196,7 +1196,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "ineligible field can not be null!");
             }
             if (isIneligible) {
-                rejectingLoanDueToInsufficientReferences(lendingApplication);
+                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_1);
                 log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", applicationId, merchantId);
                 return new ApiResponse<>(true, "Successfully rejected applicationId because of insufficient references");
             } else {
@@ -1252,12 +1252,17 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong while updating merchant references!");
     }
 
-    private void rejectingLoanDueToInsufficientReferences(LendingApplication lendingApplication) {
+    private void rejectingLoanDueToInsufficientReferences(LendingApplication lendingApplication,String rejection_reason) {
         log.info("Started Rejecting application: {} due to insufficient references of merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
         lendingApplication.setStatus("rejected");
         lendingApplication.setManualCibil("REJECTED");
-        lendingApplication.setManualCibilReason("not_enough_references");
+        lendingApplication.setManualCibilReason(rejection_reason);
         lendingApplication.setCibilApprovedDate(new Date());
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        if(Objects.nonNull(lendingRiskVariablesSnapshot)) {
+            lendingRiskVariablesSnapshot.setExperianRejection(rejection_reason);
+            lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
+        }
         lendingApplicationDao.save(lendingApplication);
     }
 
