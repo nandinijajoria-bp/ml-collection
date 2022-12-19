@@ -1700,6 +1700,7 @@ public class LendingApplicationServiceV2 {
                     .repaymentAmount(lendingApplication.getRepayment())
                     .interestRate(lendingApplication.getInterestRate())
                     .apr(lendingKfs.getApr())
+                    .locationLatLong(Objects.toString(lendingApplication.getLatitude(),"") + ", " + Objects.toString(lendingApplication.getLongitude(),""))
                     .coolingOffDays(KfsConstants.COOLING_OFF_DAYS)
                     .ediCount(lendingApplication.getPayableDays())
                     .ediAmount(lendingApplication.getEdi())
@@ -1985,6 +1986,7 @@ public class LendingApplicationServiceV2 {
         data.put("mobile_number_for_otp", merchant.getMobile());
         data.put("platform", "BHARATPE");
         data.put("ip_address", ip);
+        data.put("location", kfsDto.getLocationLatLong());
         if(timeStamp)data.put("time_stamp", dateTime);
         else data.put("time_stamp", "");
         data.put("loan_id", kfsDto.getExternalLoanId());
