@@ -1,5 +1,6 @@
 package com.bharatpe.lending.enums;
 
 public enum CleverTapEvents {
-    KYC_VERIFIED
+    LOAN_KYC_VERIFIED_BE,
+    LOAN_KYC_INITIATED_BE
 }

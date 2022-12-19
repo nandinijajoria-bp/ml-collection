@@ -184,6 +184,7 @@ public class LendingApplicationServiceV2 {
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.nonNull(merchant.getId())) {
+                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, merchant.getMid()));
                 cacheInitiateKycCall(merchant.getId(), loanDetailsRefreshWindow);
                 String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
                 log.info("deleting cached key of loan details in create application for merchant: {}", merchant.getId());
@@ -270,7 +271,7 @@ public class LendingApplicationServiceV2 {
                 try {
                     log.info("Saving kyc details for merchant : {}", merchant.getId());
                     saveKycDetails(merchant.getId(), kycDocs);
-                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.KYC_VERIFIED.name(), null, merchant.getMid()));
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
                 } catch (Exception e) {
                     log.error("Exception in saving kyc details for : {}, {}, {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
                     return new ApiResponse<>(false, "Unable to save KYC Details");
