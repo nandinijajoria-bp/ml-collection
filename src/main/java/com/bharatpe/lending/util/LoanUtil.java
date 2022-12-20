@@ -9,11 +9,7 @@ import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
-import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.dto.NachableBanksDTO;
+import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -561,16 +557,27 @@ public class LoanUtil {
 		return lendingPaymentScheduleDao.findByMerchantIdAndCreditLoanOrderByIdDesc(merchantId, false);
 	}
 
-	public void createApplicationSnapshot(LendingApplication lendingApplication) {
+	public void createApplicationSnapshot(LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		logger.info("Creating snapshots for application:{}", lendingApplication.getId());
 		createMerchantSummarySnapshot(lendingApplication);
 		createExperianSnapshot(lendingApplication);
 		createBBSSnapshot(lendingApplication);
 		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
+		createBureauDrsSnapshot(lendingApplication, merchant);
 	}
 
-    private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
+	private void createBureauDrsSnapshot(LendingApplication lendingApplication, BasicDetailsDto merchant) {
+		Map<String, Object> applicationData = new HashMap<>();
+		applicationData.put("applicationId", lendingApplication.getId());
+		applicationData.put("merchantId", lendingApplication.getMerchantId());
+		applicationData.put("mobile", merchant.getMobile().substring(2));
+
+		KafkaAudit<Map<String, Object>> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "application_snapshot", applicationData);
+		dsHandler.pushKafkaAudit(kafkaAudit);
+	}
+
+	private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
         try {
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
             if (lendingRiskVariables != null) {

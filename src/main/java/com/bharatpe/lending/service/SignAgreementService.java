@@ -346,7 +346,7 @@ public class SignAgreementService {
 			Instant end = Instant.now();
 			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 			response.put("application_id", newApplication.getId());
-			loanUtil.createApplicationSnapshot(newApplication);
+			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
         LendingApplication finalNewApplication = newApplication;
         executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));

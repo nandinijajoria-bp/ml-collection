@@ -439,7 +439,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "eligible loan not found");
             }
             LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
-            loanUtil.createApplicationSnapshot(lendingApplication);
+            loanUtil.createApplicationSnapshot(lendingApplication, merchant);
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
