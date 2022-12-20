@@ -200,13 +200,22 @@ public class LendingApplicationServiceV2 {
             boolean newMerchantFirstCall = false;
             boolean newLoanFirstCall = false;
             Date validAfterDate = null;
-            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+            LendingApplicationKycDetails lendingApplicationKycDetails = null;
+            if(Objects.nonNull(initiateKycRequest.getApplicationId())){
+                log.info("Table entry fetched from applicationId for : {}", merchant.getId());
+                lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(initiateKycRequest.getApplicationId());
+            }
+            if(ObjectUtils.isEmpty(lendingApplicationKycDetails)){
+                log.info("Table entry fetched from merchantId for : {}", merchant.getId());
+                lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+            }
             if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                 //New merchant applying for loan
                 log.info("New merchant applying for loan with id : {}", merchant.getId());
                 newMerchantFirstCall = true;
                 LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
                 lendingApplicationKycDetails1.setMerchantId(merchant.getId());
+                if(Objects.nonNull(initiateKycRequest.getApplicationId()))lendingApplicationKycDetails1.setApplicationId(initiateKycRequest.getApplicationId());
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
                 validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
             } else {
@@ -226,7 +235,7 @@ public class LendingApplicationServiceV2 {
                 } else {
                     if ((initiateKycRequest.getApplicationId() == null) || (lendingApplicationKycDetails.getApplicationId() != initiateKycRequest.getApplicationId())) {
                         //merchant has applied previously before
-                        //making a new entry in lending_application_kyc_details
+                        log.info("making a new entry in table for : {}", merchant.getId());
                         newLoanFirstCall = true;
                         LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
                         lendingApplicationKycDetails1.setMerchantId(merchant.getId());
