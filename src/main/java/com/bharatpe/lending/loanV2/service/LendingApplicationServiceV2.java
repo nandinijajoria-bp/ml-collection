@@ -2029,7 +2029,7 @@ public class LendingApplicationServiceV2 {
             data.put("lender_tag", "(Lender)");
             data.put("name_of_colender", kfsDto.getColenderCorporateName());
             data.put("register_address_of_colender", kfsDto.getColenderBusinessAddress() + " (Co-Lender)");
-            data.put("colender_text", "The loan is given under the Co-Lending model by the Lender & Co-Lender in the ratio of 30:70 respectively.");
+            data.put("colender_text", "The loan is given under the Co-Lending model by the Lender & Co-Lender in the ratio of 20:80 respectively.");
         }
         return data;
     }

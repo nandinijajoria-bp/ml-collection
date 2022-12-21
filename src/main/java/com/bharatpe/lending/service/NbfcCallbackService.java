@@ -61,7 +61,7 @@ public class NbfcCallbackService {
             return apiResponse;
         } else if ("REJECT".equalsIgnoreCase(nbfcDecisionCallbackRequestDTO.getStatus())) {
 
-            final LendingResubmitTask resubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(lendingApplication.getId()
+            LendingResubmitTask resubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(lendingApplication.getId()
               , lendingApplication.getMerchantId());
 
             // if already a re-sign request exists then return success
@@ -76,18 +76,20 @@ public class NbfcCallbackService {
 
 
             // else if rejected change the lender to mamta0
-            LendingResubmitTask lendingResubmitTask = new LendingResubmitTask();
-            lendingResubmitTask.setMerchantId(lendingApplication.getMerchantId());
-            lendingResubmitTask.setApplicationId(lendingApplication.getId());
-            lendingResubmitTask.setResign(Boolean.TRUE);
-            lendingResubmitTask.setResignDone(Boolean.FALSE);
-            lendingResubmitTask.setResignReason("LENDER_CHANGE_FROM_" + lendingApplication.getLender() + "_TO_" + MAMTA0.name());
+            if (Objects.isNull(resubmitTask)){
+                resubmitTask = new LendingResubmitTask();
+                resubmitTask.setMerchantId(lendingApplication.getMerchantId());
+                resubmitTask.setApplicationId(lendingApplication.getId());
+            }
+            resubmitTask.setResign(Boolean.TRUE);
+            resubmitTask.setResignDone(Boolean.FALSE);
+            resubmitTask.setResignReason("LENDER_CHANGE_FROM_" + lendingApplication.getLender() + "_TO_" + MAMTA0.name());
 
             log.info("changing lender from : {} to {}", lendingApplication.getLender(), MAMTA0.name());
             lendingApplication.setLender(MAMTA0.name());
 
             lendingApplicationDao.save(lendingApplication);
-            lendingResubmitTaskDao.save(lendingResubmitTask);
+            lendingResubmitTaskDao.save(resubmitTask);
 
             // add code to send notification for the lender and resign to the merchant
 
