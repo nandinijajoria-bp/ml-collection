@@ -31,6 +31,7 @@ import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -572,6 +573,8 @@ public class LoanUtil {
 		applicationData.put("applicationId", lendingApplication.getId());
 		applicationData.put("merchantId", lendingApplication.getMerchantId());
 		applicationData.put("mobile", merchant.getMobile().substring(2));
+		applicationData.put("createdAt", DateTime.now());
+		applicationData.put("updatedAt", DateTime.now());
 
 		KafkaAudit<Map<String, Object>> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "application_snapshot", applicationData);
 		dsHandler.pushKafkaAudit(kafkaAudit);
