@@ -165,6 +165,7 @@ public class ENachService {
                 lendingApplication.setNachLender("BHARATPE");
             }
         }
+        responseDTO.setMessage(ObjectUtils.isEmpty(eNachIntitiationResponseDTO) ? null : eNachIntitiationResponseDTO.getMessage());
 
         lendingApplicationDao.save(lendingApplication);
         if(Objects.nonNull(requestDTO)){
