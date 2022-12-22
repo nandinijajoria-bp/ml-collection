@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
+import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -567,14 +568,14 @@ public class LoanUtil {
 		createRiskVariablesSnapshot(lendingApplication);
 		createBureauDrsSnapshot(lendingApplication, merchant);
 	}
-
+	// pushing data to DE team for creating snapshot
 	private void createBureauDrsSnapshot(LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		Map<String, Object> applicationData = new HashMap<>();
 		applicationData.put("applicationId", lendingApplication.getId());
 		applicationData.put("merchantId", lendingApplication.getMerchantId());
 		applicationData.put("mobile", merchant.getMobile().substring(2));
-		applicationData.put("createdAt", DateTime.now());
-		applicationData.put("updatedAt", DateTime.now());
+		applicationData.put("createdAt", new Date());
+		applicationData.put("updatedAt", new Date());
 
 		KafkaAudit<Map<String, Object>> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "application_snapshot", applicationData);
 		dsHandler.pushKafkaAudit(kafkaAudit);
