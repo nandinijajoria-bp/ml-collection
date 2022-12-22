@@ -210,6 +210,10 @@ public class PaymentService {
 				logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
 			}
+			if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+				logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
+				return new InitiatePaymentResponseDTO("No dues left.");
+			}
 			if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
 				Integer advanceEdiCount = request.getPayload().getAdvanceEdiCount();
 				if (advanceEdiCount == null) {
