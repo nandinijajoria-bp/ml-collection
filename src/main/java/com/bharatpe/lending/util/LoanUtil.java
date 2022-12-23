@@ -1007,4 +1007,14 @@ public class LoanUtil {
 		}
 		return flag;
 	}
+
+	public static double roundUp(double loanAmount) {
+		if (loanAmount < 20000) {
+			return (Math.ceil(loanAmount / 1000.0) * 1000);
+		} else if (loanAmount < 100000) {
+			return (Math.ceil(loanAmount / 5000.0) * 5000);
+		} else {
+			return (Math.ceil(loanAmount / 10000.0) * 10000);
+		}
+	}
 }

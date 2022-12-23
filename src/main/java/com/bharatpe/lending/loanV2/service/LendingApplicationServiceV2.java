@@ -25,6 +25,7 @@ import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -182,8 +183,15 @@ public class LendingApplicationServiceV2 {
     @Autowired
     CleverTapEventService cleverTapEventService;
 
-    @Autowired
     FunnelService funnelService;
+
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    LoanDowngradeConfigDao loanDowngradeConfigDao;
+
+    @Value("${downgrade.config.version:1.1}")
+    double downgradeConfigVersion;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -1407,7 +1415,8 @@ public class LendingApplicationServiceV2 {
             }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
-                if(downGradeStatus){
+                double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
+                if(downGradeStatus && loanAmountDifference > 0){
                     lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
                     lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
@@ -1418,6 +1427,16 @@ public class LendingApplicationServiceV2 {
                         lendingApplication.setLmsStage(LendingConstants.CUSTOM_OFFER_DOWNGRADE);
                     }
                     lendingApplicationDao.save(lendingApplication);
+                }else if(lendingApplication.getLoanAmount() < 10000) {
+                    lendingApplication.setManualKyc("REJECTED");
+                    lendingApplication.setManualKycReason("DOWNGRADE REJECT");
+                    lendingApplication.setLmsStage("KYC REJECTED");
+                    lendingApplication.setStatus("REJECTED");
+                    lendingApplicationDao.save(lendingApplication);
+                } else if (loanAmountDifference == 0) {
+                    lendingApplication.setLmsStage(LendingConstants.PENDING_DISBURSAL);
+                    lendingApplicationDao.save(lendingApplication);
+                    return new ApiResponse<>(true,"Application Submitted Successfully");
                 }
             }
             lendingResubmitTaskDao.save(lendingResubmitTask);
@@ -1439,11 +1458,14 @@ public class LendingApplicationServiceV2 {
                 }
             } else if (Objects.nonNull(resubmitApplicationDTO.getCustomAmount())){
                 loanAmount = resubmitApplicationDTO.getCustomAmount();
-            } else {
+            } else if (Objects.nonNull(resubmitApplicationDTO.getShopStructure()) &&
+                    (resubmitApplicationDTO.getShopStructure().equalsIgnoreCase("movable") || resubmitApplicationDTO.getShopStructure().equalsIgnoreCase("temporary"))) {
+                loanAmount = getLoanAmount(lendingApplication, resubmitApplicationDTO.getShopStructure());
+            }else {
                 loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
                 loanAmount = Math.min(loanAmount, 100000d);
             }
-            if(loanAmount > lendingApplication.getLoanAmount()) {
+            if(loanAmount >= lendingApplication.getLoanAmount()) {
                 return false;
             }
             if(loanAmount < 10000d){
@@ -1482,6 +1504,33 @@ public class LendingApplicationServiceV2 {
             log.error("Exception while downgrading application for applicationId:{}",lendingApplication.getId(),e);
         }
         return false;
+    }
+
+    private Double getLoanAmount(LendingApplication lendingApplication, String shopType) {
+        log.info("calculating downgraded loan amount for application: {}, with shop type: {}", lendingApplication.getId(), shopType);
+        Double loanAmount = lendingApplication.getLoanAmount();
+        try {
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            LoanDowngradeConfigEntity loanDowngradeConfigEntity = loanDowngradeConfigDao.findTop1ByRiskSegmentAndRiskGroupAndColorAndTenureAndVersion(lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.getTenureInMonths(), downgradeConfigVersion);
+            if (Objects.isNull(loanDowngradeConfigEntity)) {
+                log.info("no config found with risk segment: {}, riskGroup: {}, color: {}, tenure: {}",lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                        lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.getTenureInMonths());
+                return loanAmount;
+            }
+            Double maxLimit = shopType.equalsIgnoreCase("movable") ? loanDowngradeConfigEntity.getMaxLimitMov() : loanDowngradeConfigEntity.getMaxLimitTemp();
+            double amount;
+            double nfiLimit = LoanUtil.roundUp(lendingRiskVariablesSnapshot.getMonthlyNfi() * loanDowngradeConfigEntity.getNfiMultiplier() * lendingRiskVariablesSnapshot.getTenure());
+            double tpvLimit = LoanUtil.roundUp(lendingRiskVariablesSnapshot.getNtbLimit() * loanDowngradeConfigEntity.getTpvMultiplier() * lendingRiskVariablesSnapshot.getTenure());
+            amount = Math.max(nfiLimit, tpvLimit);
+            amount = Math.min(amount, maxLimit);
+            amount = Math.min(amount, loanAmount);
+            log.info("final amount: {} from downgrade config for application: {}",amount, lendingApplication.getId());
+            return amount;
+        } catch (Exception e) {
+            log.error("exception while downgrade loan amount according to config for applicationId: {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return loanAmount;
     }
 
     private double roundDown(double limit) {//round down to nearest 1000
@@ -1526,6 +1575,7 @@ public class LendingApplicationServiceV2 {
             lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
             lendingAuditTrial.setUserId(0L);
             lendingAuditTrialDao.save(lendingAuditTrial);
+            loanUtil.publishDSData(lendingApplication);
 
             return new ApiResponse<>(true,"Resubmit Done Succesfully.");
         }catch (Exception e){
