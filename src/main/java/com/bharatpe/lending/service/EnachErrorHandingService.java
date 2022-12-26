@@ -121,13 +121,16 @@ public class EnachErrorHandingService {
 
         if(Objects.nonNull(bharatPeEnach.getMessage()) && Objects.nonNull(applicable.get(bharatPeEnach.getMessage().toLowerCase())) && applicable.get(bharatPeEnach.getMessage().toLowerCase()).equals("initiateRetry")){
             initiateRetry.setSkipEnach(checkForCpv(lendingApplication, experian, false));
+            initiateRetry.setMessage(bharatPeEnach.getMessage());
 
             return initiateRetry;
         }else if(Objects.nonNull(bharatPeEnach.getMessage()) && Objects.nonNull(applicable.get(bharatPeEnach.getMessage().toLowerCase())) && applicable.get(bharatPeEnach.getMessage().toLowerCase()).equals("initiatePopup")){
 
             initiateRetry.setSkipEnach(checkForCpv(lendingApplication, experian, false));
+            initiateRetry.setMessage(bharatPeEnach.getMessage());
             return initiateRetry;
         }else if(Objects.nonNull(bharatPeEnach.getMessage()) && Objects.nonNull(applicable.get(bharatPeEnach.getMessage().toLowerCase())) && applicable.get(bharatPeEnach.getMessage().toLowerCase()).equals("initiatePopupOrDebit")){
+            initiateRetry.setMessage(bharatPeEnach.getMessage());
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
             BankDetailsDto merchantBankDetail = null;
             if (bankDetailsDtoOptional.isPresent())
