@@ -119,6 +119,10 @@ public class EnachErrorHandingService {
         EnachErrorMessageDTO initiateDebit = initiateDebitPage();
         EnachErrorMessageDTO initPopup = initiatePopup();
 
+        if (Objects.nonNull(bharatPeEnach.getMessage())) {
+            initiateRetry.setMessage(bharatPeEnach.getMessage());
+        }
+
         if(Objects.nonNull(bharatPeEnach.getMessage()) && Objects.nonNull(applicable.get(bharatPeEnach.getMessage().toLowerCase())) && applicable.get(bharatPeEnach.getMessage().toLowerCase()).equals("initiateRetry")){
             initiateRetry.setSkipEnach(checkForCpv(lendingApplication, experian, false));
             initiateRetry.setMessage(bharatPeEnach.getMessage());
