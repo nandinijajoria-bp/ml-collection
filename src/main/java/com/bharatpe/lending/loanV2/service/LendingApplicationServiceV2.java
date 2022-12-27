@@ -179,7 +179,7 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     CleverTapEventService cleverTapEventService;
-    
+
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -217,6 +217,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplicationKycDetails1.setMerchantId(merchant.getId());
                 if(Objects.nonNull(initiateKycRequest.getApplicationId()))lendingApplicationKycDetails1.setApplicationId(initiateKycRequest.getApplicationId());
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+                lendingApplicationKycDetails = lendingApplicationKycDetails1;
                 validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
             } else {
                 if (lendingApplicationKycDetails.getApplicationId() == 0) {
@@ -240,11 +241,16 @@ public class LendingApplicationServiceV2 {
                         LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
                         lendingApplicationKycDetails1.setMerchantId(merchant.getId());
                         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+                        lendingApplicationKycDetails = lendingApplicationKycDetails1;
                         validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
                     } else {
                         validAfterDate = lendingApplicationKycDetails.getCreatedAt();
                     }
                 }
+            }
+            if(Objects.isNull(lendingApplicationKycDetails.getKycInitiatedAt())){
+                lendingApplicationKycDetails.setKycInitiatedAt(new Date());
+                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
             }
             boolean selfieValid = false;
             boolean aadharValid = false;
@@ -261,30 +267,40 @@ public class LendingApplicationServiceV2 {
             log.info("KYC doc fetched for : {}", merchant.getId());
             for (KycDoc kycDoc : kycDocs) {
                 if (kycDoc.getDocType() != null && KycDocType.SELFIE.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
+                    if(Objects.isNull(lendingApplicationKycDetails.getSelfieApprovedAt()))lendingApplicationKycDetails.setSelfieApprovedAt(new Date());
                     selfieValid = true;
                     log.info("Selfie is valid for : {}", merchant.getId());
                 } else if (kycDoc.getDocType() != null && KycDocType.POA.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
                     aadharValid = true;
                     log.info("Aadhar is valid for : {}", merchant.getId());
                     if (kycDoc.getSubDocType() != null && KycDocType.EKYC.equals(kycDoc.getSubDocType())) {
+                        lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
+                        lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
+                        if(Objects.isNull(lendingApplicationKycDetails.getAadharApprovedAt()))lendingApplicationKycDetails.setAadharApprovedAt(new Date());
+                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+                        }
                         aadharDigilocker = true;
                         log.info("Aadhar is digilocker approved for : {}", merchant.getId());
                     }
                 } else if (kycDoc.getDocType() != null && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
+                    if(Objects.isNull(lendingApplicationKycDetails.getPanApprovedAt()))lendingApplicationKycDetails.setPanApprovedAt(new Date());
                     panCardApproved = true;
+                    log.info("Pan Card is valid for : {}", merchant.getId());
                 } else if (kycDoc.getDocType() != null && KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
                     panNoApproved = true;
+                    log.info("Pan No is valid for : {}", merchant.getId());
                 }
             }
+            lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
             if (selfieValid && aadharValid && aadharDigilocker && panCardApproved && panNoApproved) {
-                try {
-                    log.info("Saving kyc details for merchant : {}", merchant.getId());
-                    saveKycDetails(merchant.getId(), kycDocs);
-                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
-                } catch (Exception e) {
-                    log.error("Exception in saving kyc details for : {}, {}, {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
-                    return new ApiResponse<>(false, "Unable to save KYC Details");
-                }
+                lendingApplicationKycDetails.setConsentDate(new Date());
+                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+                log.info("Kyc details verified for merchant : {}", merchant.getId());
+                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
                 return new ApiResponse<>(kycDeepLink);
             }
             List<KycDocType> docTypes = new ArrayList<>();
@@ -332,35 +348,33 @@ public class LendingApplicationServiceV2 {
     }
 
 
-    public void saveKycDetails(Long merchantId, List<KycDoc> kycDocs) throws Exception {
-        Date currDate = dateTimeUtil.getCurrentDate();
-        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-        if(ObjectUtils.isEmpty(lendingApplicationKycDetails))throw new Exception("Unable to fetch lending application kyc details");
-        lendingApplicationKycDetails.setMerchantId(merchantId);
-        lendingApplicationKycDetails.setConsentDate(currDate);
-        for(KycDoc kycDoc : kycDocs) {
-            if (KycDocType.POA.equals(kycDoc.getDocType())) {
-                lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
-                lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
-                if (!ObjectUtils.isEmpty(kycDoc.getXml())) {
-                    lendingApplicationKycDetails.setAadharXml(kycDoc.getXml());
-                } else if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
-                    lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
-                } else lendingApplicationKycDetails.setAadharXml(kycDoc.getDocFrontImageUrl());
-                lendingApplicationKycDetails.setAadharApprovedAt(currDate);
-            } else if (KycDocType.SELFIE.equals(kycDoc.getDocType())) {
-                lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
-                lendingApplicationKycDetails.setSelfieApprovedAt(currDate);
-            } else if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
-                lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
-                lendingApplicationKycDetails.setPanApprovedAt(currDate);
-            } else if (KycDocType.PAN_NO.equals(kycDoc.getDocType())) {
-                lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
-            }
-        }
-        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
-        log.info("Kyc details saved for merchant : {}", merchantId);
-    }
+//    public void saveKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, List<KycDoc> kycDocs) throws Exception {
+//        Date currDate = dateTimeUtil.getCurrentDate();
+//        if(ObjectUtils.isEmpty(lendingApplicationKycDetails))throw new Exception("Unable to fetch lending application kyc details");
+//        lendingApplicationKycDetails.setConsentDate(currDate);
+//        for(KycDoc kycDoc : kycDocs) {
+//            if (KycDocType.POA.equals(kycDoc.getDocType())) {
+//                lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
+//                lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
+//                if (!ObjectUtils.isEmpty(kycDoc.getXml())) {
+//                    lendingApplicationKycDetails.setAadharXml(kycDoc.getXml());
+//                } else if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+//                    lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+//                } else lendingApplicationKycDetails.setAadharXml(kycDoc.getDocFrontImageUrl());
+//                lendingApplicationKycDetails.setAadharApprovedAt(currDate);
+//            } else if (KycDocType.SELFIE.equals(kycDoc.getDocType())) {
+//                lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
+//                lendingApplicationKycDetails.setSelfieApprovedAt(currDate);
+//            } else if (KycDocType.PAN_CARD.equals(kycDoc.getDocType())) {
+//                lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
+//                lendingApplicationKycDetails.setPanApprovedAt(currDate);
+//            } else if (KycDocType.PAN_NO.equals(kycDoc.getDocType())) {
+//                lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
+//            }
+//        }
+//        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+//
+//    }
 
     public void saveKycDetails(Long applicationId, LendingApplicationKycDetails lendingApplicationKycDetails) throws Exception {
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, lendingApplicationKycDetails.getMerchantId());

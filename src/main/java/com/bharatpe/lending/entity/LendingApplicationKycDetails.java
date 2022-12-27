@@ -50,4 +50,7 @@ public class LendingApplicationKycDetails extends BaseEntity {
 
     @Column(name = "selfie_approved_at")
     private Date selfieApprovedAt;
+
+    @Column(name = "kyc_initiated_at")
+    private Date kycInitiatedAt;
 }
