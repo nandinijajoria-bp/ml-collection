@@ -587,6 +587,7 @@ public class LendingApplicationServiceV2 {
             if (applicationRequest.getAddressDetails() != null) {
                 AddressDetails addressDetails = applicationRequest.getAddressDetails();
                 lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
+                lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
                 lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
                 lendingApplication.setState(!StringUtils.isEmpty(addressDetails.getState()) ? addressDetails.getState() : lendingApplication.getState());
                 lendingApplication.setShopNumber(!StringUtils.isEmpty(addressDetails.getAddress1()) ?

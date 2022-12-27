@@ -12,6 +12,7 @@ import lombok.ToString;
 @Builder
 public class AddressDetails {
     private String pincode;
+    private String area;
     private String city;
     private String state;
     private String address1;
