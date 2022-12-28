@@ -1415,22 +1415,17 @@ public class APIGatewayService {
         headers.set("clientName", CLIENT);
         HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
         logger.info("Get Global Limit request:{} for merchant:{}, Url :{}", request, merchantId, url);
-        int retryCount = 0;
-        while (retryCount < 3) {
             try {
                 ResponseEntity<GlobalLimitResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, GlobalLimitResponse.class);
                 logger.info("Get Global Limit response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
                     return responseEntity.getBody();
                 }
-                break;
             } catch (ResourceAccessException ex) {
                 logger.info("Global Limit Api timed out for merchantId: {} {}", merchantId, ex);
             } catch (Exception e) {
                 logger.error("Error occurred while getting global limit for merchant:{} {} {}", merchantId, e.getMessage(), e);
             }
-            retryCount++;
-        }
         return null;
     }
 
