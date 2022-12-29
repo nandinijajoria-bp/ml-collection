@@ -216,7 +216,7 @@ public class VerifyOTPService {
         logger.info("Mobile length: {}", merchant.getMobile().length());
         finalResponse.put("success", false);
         finalResponse.put("agreement_verified", false);
-        if (lendingResubmitTask != null && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && merchant.getMobile().length() == 12) {
+        if (lendingResubmitTask != null && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && lendingResubmitTask.getDowngradeDone() != null && !lendingResubmitTask.getDowngradeDone() && merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
                 try{
@@ -261,7 +261,7 @@ public class VerifyOTPService {
             }
         }
 
-        if (lendingResubmitTask != null && lendingResubmitTask.getResign() != null  && lendingResubmitTask.getResign() && merchant.getMobile().length() == 12) {
+        if (lendingResubmitTask != null && lendingResubmitTask.getResign() != null  && lendingResubmitTask.getResign() && lendingResubmitTask.getResignDone() != null && !lendingResubmitTask.getResignDone()  && merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
                 lendingResubmitTask.setResignDone(Boolean.TRUE);

@@ -163,10 +163,33 @@ public class SignAgreementService {
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
 		merchant.getId());
 		LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-		if ((Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getDowngradeDone())) {
+		if ((Objects.isNull(lendingResubmitTask))) {
 			if (lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
 				logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
 				return response;
+			}
+		}
+		if (Objects.nonNull(lendingResubmitTask)) {
+
+			boolean isDownGradeRequired = ObjectUtils.nullSafeEquals(lendingResubmitTask.getDowngrade(), true);
+			boolean isDownGradeDone = ObjectUtils.nullSafeEquals(lendingResubmitTask.getDowngradeDone(), true);
+			boolean isResignRequired = ObjectUtils.nullSafeEquals(lendingResubmitTask.getResign(), true);
+			boolean isResignDone = ObjectUtils.nullSafeEquals(lendingResubmitTask.getResignDone(), true);
+
+			boolean draftCheck = true;
+
+			if (isDownGradeRequired)
+				draftCheck = isDownGradeDone;
+
+			if (isResignRequired)
+				draftCheck = draftCheck && isResignDone;
+
+
+			if (draftCheck) {
+				if (lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
+					logger.info("Application is empty or status is not in draft with id {}, returing.", applicationId);
+					return response;
+				}
 			}
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
