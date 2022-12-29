@@ -1,6 +1,7 @@
 package com.bharatpe.lending.entity;
 
 import com.bharatpe.lending.common.entity.BaseEntity;
+import com.bharatpe.lending.common.enums.*;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
@@ -43,6 +44,12 @@ public class LenderAssignmentRules extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @Column(name = "pincode_color")
+    private PincodeColor pincodeColor;
+
+    @Column(name = "risk_group")
+    private String riskGroup;
 
     public String getLender() {
         return lender;
@@ -116,6 +123,22 @@ public class LenderAssignmentRules extends BaseEntity {
         isActive = active;
     }
 
+    public PincodeColor getPincodeColor() {
+        return pincodeColor;
+    }
+
+    public void setPincodeColor(PincodeColor pincodeColor) {
+        this.pincodeColor = pincodeColor;
+    }
+
+    public String getRiskGroup() {
+        return riskGroup;
+    }
+
+    public void setRiskGroup(String riskGroup) {
+        this.riskGroup = riskGroup;
+    }
+
     @Override
     public String toString() {
         return "LenderAssignmentRules{" +
@@ -128,6 +151,8 @@ public class LenderAssignmentRules extends BaseEntity {
                 ", maxAmount='" + maxAmount + '\'' +
                 ", isDefault=" + isDefault +
                 ", isActive=" + isActive +
+                ", pincodeColor='" + pincodeColor + '\'' +
+                ", riskGroup='" + riskGroup + '\'' +
                 '}';
     }
 }

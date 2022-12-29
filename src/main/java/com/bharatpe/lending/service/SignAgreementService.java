@@ -319,11 +319,7 @@ public class SignAgreementService {
         newApplication = lendingApplicationDao.save(newApplication);
         loanUtil.publishApplicationEvent(newApplication);
 
-		if(newApplication.getId() % 10 == 1){
-			lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
-		} else{
-			lenderMappingService.lenderMapping(newApplication);
-		}
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
 
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();

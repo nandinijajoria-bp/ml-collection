@@ -526,11 +526,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
         lendingApplication = lendingApplicationDao.save(lendingApplication);
 
-        if(lendingApplication.getId() % 10 == 1){
-            lenderAssignService.assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL);
-        } else{
-            lenderMappingService.lenderMapping(lendingApplication);
-        }
+        lenderAssignService.assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL);
 
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);
@@ -1929,6 +1925,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             }
             else filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);

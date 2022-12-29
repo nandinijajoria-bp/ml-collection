@@ -17,4 +17,6 @@ public interface LenderDisbursalLimitsDao extends JpaRepository<LendingLenderQuo
     Double fetchDisbursedCount();
 
     LendingLenderQuota findByLender(String lender);
+
+    LendingLenderQuota findByEdiModelIsNull();
 }
