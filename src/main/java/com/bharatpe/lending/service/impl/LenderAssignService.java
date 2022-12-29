@@ -74,6 +74,7 @@ public class LenderAssignService implements ILenderAssignService {
             String decidedLender = null;
             List<LenderAssignmentRules> defaultRules = lenderAssignmentRulesDao.findByIsDefaultAndIsActive(Boolean.TRUE, Boolean.TRUE);
             List<LenderAssignmentRules> ruleList = lenderAssignmentRulesDao.fetchEligibleRules(application.getLoanAmount(), bureauScore, riskSegment, application.getTenureInMonths(), riskGroupLike, pincodeColor.toString());
+            log.info("Fetched Rules:{}", ruleList);
             if (ObjectUtils.isEmpty(ruleList)) {
                 log.info("Assigning default lender");
                 lenders = getLenderList(defaultRules, ediModel, application.getLender());
@@ -85,6 +86,7 @@ public class LenderAssignService implements ILenderAssignService {
             decidedLender = getLender(application, lenders, ediModel, defaultRules);
             return decidedLender;
         } catch(Exception ex){
+            log.error("Exception occurred while assigning lender : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return null;
         }
     }
