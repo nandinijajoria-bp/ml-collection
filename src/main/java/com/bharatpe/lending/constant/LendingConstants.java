@@ -75,6 +75,8 @@ public interface LendingConstants {
 	String REJECTION_REASON_1 = "not_enough_references";
 
 	String REJECTION_REASON_2 = "not_enough_references_de";
+
+	String COMPUTE_GLOBAL_LIMIT = "compute_global_limit";
 }
 
 

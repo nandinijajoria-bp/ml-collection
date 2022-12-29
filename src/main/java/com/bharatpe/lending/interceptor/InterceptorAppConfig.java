@@ -44,7 +44,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/createAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
 				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
 						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback",
-						"/assign/lender","/assign/rules", "/assign/limit","/assign/update-rule","/assign/update-limit");
+						"/assign/lender","/assign/rules", "/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility");
 
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
@@ -56,7 +56,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/common/merchant", "/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/lending/application/resubmit",
 				"/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/experian","/experian/update","/experian/insert", "/lending/common/lending_cities/active",
 				"/lending/common/lending_pincode" , "/lending/common/lending_pancard", "/lending/application", "/lending/liquiloan/postPayout/callback",
-		"/lending/liquiloan/postPayout/callback", "/lending/nbfc/mamta/decision/callback","/assign/rules","/assign/limit","/assign/update-rule","/assign/update-limit");
+		"/lending/liquiloan/postPayout/callback", "/lending/nbfc/mamta/decision/callback","/assign/rules","/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility");
 
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
 

@@ -1,11 +1,9 @@
 package com.bharatpe.lending.service;
 
-import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.handlers.EmailHandler;
 import com.bharatpe.lending.common.Constants.SupportApiConstants;
 import com.bharatpe.lending.common.Handler.EnachHandler;
@@ -74,6 +72,9 @@ public class SupportService {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    EligibilityComputationService eligibilityComputationService;
 
     @Autowired
     ExperianDao experianDao;
@@ -2271,5 +2272,29 @@ public class SupportService {
             return new ResponseDTO(false, "Error occurred while cancelling application.");
         }
     }
+
+    public ResponseDTO computeEligibility(ComputeEligibilityRequestDto requestDto) {
+        ResponseDTO responseDTO = new ResponseDTO(false, "");
+        try {
+            if (Objects.isNull(requestDto) || (Objects.isNull(requestDto.getFileName()))) {
+                return responseDTO;
+            }
+            String fileName = requestDto.getFileName();
+            logger.info("Getting file : {} from s3", fileName);
+            InputStream file = s3BucketHandler.getObject(fileName, "loan-document");
+            if (Objects.isNull(file)) {
+                return responseDTO;
+            }
+            byte[] bytes = com.amazonaws.util.IOUtils.toByteArray(file);
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
+            eligibilityComputationService.extractDataAndAddInRedis(byteArrayInputStream);
+            logger.info("successfully invoked eligibility computation");
+            responseDTO.setSuccess(true);
+        } catch (IOException e) {
+            logger.error("something went wrong !!! {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return responseDTO;
+    }
+
 }
 

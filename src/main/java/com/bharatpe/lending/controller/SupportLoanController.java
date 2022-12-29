@@ -5,6 +5,7 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.ComputeEligibilityRequestDto;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -100,6 +101,12 @@ public class SupportLoanController {
             return new ResponseDTO(false, "Incorrect applicationId.");
         }
         return supportService.cancelApplication(merchantId, applicationId, reason);
+    }
+
+    @RequestMapping(value = "/computeEligibility", method = RequestMethod.POST)
+    public ResponseDTO computeEligibility(@RequestBody ComputeEligibilityRequestDto request) {
+        logger.info("Start generating eligibility");
+        return supportService.computeEligibility(request);
     }
 }
 
