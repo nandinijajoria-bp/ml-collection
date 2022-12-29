@@ -7,9 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
@@ -46,6 +44,7 @@ public class LenderAssignmentRules extends BaseEntity {
     private Boolean isActive;
 
     @Column(name = "pincode_color")
+    @Enumerated(EnumType.STRING)
     private PincodeColor pincodeColor;
 
     @Column(name = "risk_group")
