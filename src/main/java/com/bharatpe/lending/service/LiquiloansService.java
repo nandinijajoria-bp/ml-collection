@@ -12,7 +12,10 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
+import com.bharatpe.lending.common.exceptions.CustomException;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -208,6 +211,9 @@ public class LiquiloansService {
 
     @Autowired
     LendingGstDao lendingGstDao;
+
+    @Autowired
+    FunnelService funnelService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -555,6 +561,15 @@ public class LiquiloansService {
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
                 lendingApplicationDao.save(lendingApplication);
+                try{
+                    funnelService.submitEvent(
+                            lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                            FunnelEnums.StageId.DISBURSED, FunnelEnums.StageEvent.COMPLETED,
+                            (new Date()).toString());
+                }
+                catch(CustomException e){
+                    logger.error("Exception in sending funnel event for {}, {}", lendingApplication.getMerchantId(), e.getMessage());
+                }
 //            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
 
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());

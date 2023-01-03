@@ -12,6 +12,9 @@ import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.exceptions.CustomException;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
@@ -80,6 +83,9 @@ public class UploadDocumentService {
 	@Autowired
 	MongoPublisher mongoPublisher;
 
+	@Autowired
+	FunnelService funnelService;
+
 //	@Autowired
 //	MerchantDao merchantDao;
 
@@ -127,6 +133,15 @@ public class UploadDocumentService {
 		if(documentList.size() > 0) {
 			finalResponse.put("success", true);
 			uploadDocumentResponse.setSuccess(true);
+			try{
+				funnelService.submitEvent(
+						merchant.getId(), null, applicationId, FunnelEnums.StageId.SHOP_PHOTO,
+						FunnelEnums.StageEvent.SUBMITTED,
+						(new Date()).toString());
+			}
+			catch(CustomException e){
+				logger.error("Exception in sending funnel event for {}, {}", merchant.getId(), e.getMessage());
+			}
 		}
 		uploadDocumentResponse.setDocument(documentList);
 //		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));

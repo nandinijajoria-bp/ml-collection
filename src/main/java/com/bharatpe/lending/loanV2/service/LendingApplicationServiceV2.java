@@ -188,16 +188,24 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
-            if (Objects.nonNull(merchant.getId())) {
-                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, merchant.getMid()));
-                cacheInitiateKycCall(merchant.getId(), loanDetailsRefreshWindow);
-                String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
-                log.info("deleting cached key of loan details in create application for merchant: {}", merchant.getId());
-                lendingCache.delete(loanDetailsCacheKey);
-            } else {
+            if (Objects.isNull(merchant.getId())) {
                 log.info("merchantId not found");
                 return new ApiResponse<>(false, "MerchantID not found");
             }
+            executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, merchant.getMid()));
+            try{
+                funnelService.submitEvent(
+                        merchant.getId(), null, initiateKycRequest.getApplicationId(), FunnelEnums.StageId.KYC,
+                        FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
+            }
+            catch(CustomException e){
+                log.error("Exception in sending funnel event for {}, {}", merchant.getId(), e.getMessage());
+            }
+            cacheInitiateKycCall(merchant.getId(), loanDetailsRefreshWindow);
+            String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+            log.info("deleting cached key of loan details in create application for merchant: {}", merchant.getId());
+            lendingCache.delete(loanDetailsCacheKey);
+
             Experian experian = experianDao.getByMerchantId(merchant.getId());
             if (experian == null || experian.getPancardNumber() == null) {
                 return new ApiResponse<>(false, "Pancard does not exist");
@@ -256,14 +264,6 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(lendingApplicationKycDetails.getKycInitiatedAt())){
                 lendingApplicationKycDetails.setKycInitiatedAt(new Date());
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
-                try{
-                    funnelService.submitEvent(
-                            merchant.getId(), null, null, FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED,
-                            (new Date()).toString());
-                }
-                catch(CustomException e){
-                    log.error("Exception in sending funnel event for {}, {}", merchant.getId(), e.getMessage());
-                }
             }
             boolean selfieValid = false;
             boolean aadharValid = false;
@@ -316,8 +316,8 @@ public class LendingApplicationServiceV2 {
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
                 try{
                     funnelService.submitEvent(
-                            merchant.getId(), null, null, FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED,
-                            (new Date()).toString());
+                            merchant.getId(), null, initiateKycRequest.getApplicationId(), FunnelEnums.StageId.KYC,
+                            FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
                 }
                 catch(CustomException e){
                     log.error("Exception in sending funnel event for {}, {}", merchant.getId(), e.getMessage());
@@ -2274,7 +2274,7 @@ public class LendingApplicationServiceV2 {
             }
             return new ApiResponse<>(true, "Current Address updated successfully!");
         } catch (Exception e) {
-            log.error("Exception occurred while updating current address for applicationId: {}", applicationId, Arrays.toString(e.getStackTrace()));
+            log.error("Exception occurred while updating current address for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong !");
     }
@@ -2297,7 +2297,7 @@ public class LendingApplicationServiceV2 {
                 }
             }
         } catch (Exception e) {
-            log.error("Exception occurred while fetching aadhaar address for applicationId: {}", applicationId, Arrays.toString(e.getStackTrace()));
+            log.error("Exception occurred while fetching aadhaar address for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong !");
     }
