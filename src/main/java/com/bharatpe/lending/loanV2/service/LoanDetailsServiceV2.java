@@ -1109,15 +1109,6 @@ public class LoanDetailsServiceV2 {
                 log.info("No applicationId found of merchantId: {}", merchantId);
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
-            try{
-                funnelService.submitEvent(
-                        merchant.getId(), null, lendingApplication.getId(), FunnelEnums.StageId.REFERENCE_PAGE,
-                        FunnelEnums.StageEvent.INITIATED,
-                        (new Date()).toString());
-            }
-            catch(CustomException e){
-                log.error("Exception in sending funnel event for {}, {}", merchantId, e.getMessage());
-            }
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
             Long referencesLimit = getReferenceLimit(lendingApplication);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
@@ -1259,7 +1250,7 @@ public class LoanDetailsServiceV2 {
                 log.info("Successfully saved all references of merchantId: {}", merchantId);
                 try{
                     funnelService.submitEvent(
-                            merchant.getId(), null, null, FunnelEnums.StageId.REFERENCE_PAGE,
+                            merchant.getId(), null, applicationId, FunnelEnums.StageId.REFERENCE_PAGE,
                             FunnelEnums.StageEvent.SUBMITTED,
                             (new Date()).toString());
                 }

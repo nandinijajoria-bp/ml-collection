@@ -564,7 +564,7 @@ public class LiquiloansService {
                 try{
                     funnelService.submitEvent(
                             lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                            FunnelEnums.StageId.DISBURSED, FunnelEnums.StageEvent.COMPLETED,
+                            FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED,
                             (new Date()).toString());
                 }
                 catch(CustomException e){
