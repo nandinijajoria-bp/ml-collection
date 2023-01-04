@@ -7,7 +7,9 @@ import com.bharatpe.lending.common.entity.CrmBulkContacts;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.MerchantReference;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
@@ -57,6 +59,9 @@ public class CrmBulkContactsService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LendingMerchantReferencesDao lendingMerchantReferencesDao;
+
     @Async
     public void fetchCrmBulkContacts(InputStream bulkContactFile, Long requestId) throws IOException {
         Optional<CrmBulkContacts> crmBulkContacts = crmBulkContactsDao.findById(requestId);
@@ -99,14 +104,14 @@ public class CrmBulkContactsService {
 //                        readLine = bulkContactFileReader.readLine();
 //                        continue;
 //                    }
-                    List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(basicDetailsDto.get().getId());
-                    if (phonebook.isEmpty()) {
+                    List<MerchantReference> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
+                    if (merchantReferences.isEmpty()) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
                     }
                     String contactFileName = "/tmp/" + contact + "-" + requestId + ".csv";
-                    writeContactsToCSV(basicDetailsDto.get().getId(), contactFileName, phonebook);
+                    writeContactsToCSV(basicDetailsDto.get().getId(), contactFileName, merchantReferences);
                     File contactDataFile = new File(contactFileName);
                     ZipEntry zipEntry = new ZipEntry(contactDataFile.getName());
                     addToZip(contact + "-" + requestId + ".csv", zos, contactFileName);
@@ -194,15 +199,15 @@ public class CrmBulkContactsService {
 //        return null;
 //    }
 
-    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<PhonebookDTO> phonebook) {
+    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<MerchantReference> phonebook) {
         try {
             File mergedContactsFile = new File(contactsFileName);
             FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
             mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
 
-            for (PhonebookDTO phonebookDTO : phonebook) {
-                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getName(), phonebookDTO.getPhoneNumber()});
+            for (MerchantReference phonebookDTO : phonebook) {
+                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getName(), phonebookDTO.getInferredRelation() , phonebookDTO.getPhoneNumber()});
             }
 
             mergedContactsCsvWriter.close();
