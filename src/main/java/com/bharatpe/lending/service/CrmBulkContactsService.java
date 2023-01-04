@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
+import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.MerchantReference;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -104,7 +105,7 @@ public class CrmBulkContactsService {
 //                        readLine = bulkContactFileReader.readLine();
 //                        continue;
 //                    }
-                    List<MerchantReference> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
+                    List<LendingMerchantReferences> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
                     if (merchantReferences.isEmpty()) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
@@ -199,15 +200,15 @@ public class CrmBulkContactsService {
 //        return null;
 //    }
 
-    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<MerchantReference> phonebook) {
+    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<LendingMerchantReferences> phonebook) {
         try {
             File mergedContactsFile = new File(contactsFileName);
             FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
             mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
 
-            for (MerchantReference phonebookDTO : phonebook) {
-                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getName(), phonebookDTO.getInferredRelation() , phonebookDTO.getPhoneNumber()});
+            for (LendingMerchantReferences phonebookDTO : phonebook) {
+                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getReferenceName(), phonebookDTO.getInferredRelation() , phonebookDTO.getReferenceNumber()});
             }
 
             mergedContactsCsvWriter.close();
