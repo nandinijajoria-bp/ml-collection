@@ -800,24 +800,26 @@ public class FosService {
             if (!merchant.isPresent()) {
                 logger.info("non existing merchant {}", merchantId);
 
-                return computeEligibilityParams("ineligible", null, merchantId);
+                return computeEligibilityParams("ineligible", null, merchantId, "non existing merchant");
             }
             // is a store/d2r merchant
-            if ("ORGANIZED".equalsIgnoreCase(merchant.get().getCorrectMerchantType()) || partnersApiHandler.isD2RMerchant(merchantId)) {
+            if ("ORGANIZED".equalsIgnoreCase(merchant.get().getCorrectMerchantType())
+//                    || partnersApiHandler.isD2RMerchant(merchantId)
+            ) {
                 logger.info("is a store/d2r merchant {}", merchantId);
-                return computeEligibilityParams("ineligible", null, merchantId);
+                return computeEligibilityParams("ineligible", null, merchantId, "store merchant");
             }
             Experian experian = experianDao.getByMerchantId(merchantId);
             if (Objects.isNull(experian) || Objects.isNull(experian.getPancardNumber())) {
                 logger.info("merchant {} 's pan card doesn't exist", merchantId);
-                return computeEligibilityParams("maybe", null, merchantId);
+                return computeEligibilityParams("maybe", null, merchantId, "experian/pan dne");
             }
             // check for red pin
             if (Objects.nonNull(experian.getPincode())) {
                 LendingPincodes lendingPincode = lendingPincodesDao.findByPincode(experian.getPincode());
                 if (Objects.isNull(lendingPincode) || (Objects.nonNull(lendingPincode) && lendingPincode.getColor().equals(PincodeColor.RED))) {
                     logger.info("merchant {} is in red pin zone", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId);
+                    return computeEligibilityParams("ineligible", null, merchantId, "red pin zone");
                 }
             }
             if (Objects.nonNull(experian)) {
@@ -825,14 +827,14 @@ public class FosService {
                 LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findTop1ByPancard(experian.getPancardNumber());
                 if (Objects.nonNull(lendingBlockedPancard)) {
                     logger.info("merchant {} 's pan card is blocked", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId);
+                    return computeEligibilityParams("ineligible", null, merchantId, "blocked pan card");
                 }
                 // rejected experian
                 if (experian.getRejected() && !"LIMIT BLOCKED: Pending application".equalsIgnoreCase(experian.getReason()) &&
                         LoanUtil.getDateDiffInDays(experian.getRejectedDate(), dateTimeUtil.getCurrentDate()) <
                                 easyLoanUtil.getReapplyTime(experian.getReason(), RejectionStage.EXPERIAN, merchantId)) {
                     logger.info("merchant {} has a rejected entry in experian and has not elapsed the reapply timetime", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId);
+                    return computeEligibilityParams("ineligible", null, merchantId, "non zero reapply timeline");
                 }
             }
             // non nachable bank check
@@ -842,7 +844,7 @@ public class FosService {
                 LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
                 if (Objects.isNull(lendingNachBank)) {
                     logger.info("merchant {} has a non nachable bank", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId);
+                    return computeEligibilityParams("ineligible", null, merchantId, "non nachable bank");
                 }
             }
 
@@ -853,48 +855,48 @@ public class FosService {
                 Long reapplyTimeline = loanDetailsServiceV2.getReapplyTime(lendingApplication);
                 if (lendingApplication.getStatus().equalsIgnoreCase("draft")) {
                     logger.info("merchant {} has a draft application", merchantId);
-                    return computeEligibilityParams("eligible", "draft", merchantId);
+                    return computeEligibilityParams("eligible", "draft", merchantId, "draft application");
                 }
                 //rejected
                 else if (Objects.nonNull(reapplyTimeline) && reapplyTimeline > 0) {
                     logger.info("merchant {} has a rejected application", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId);
+                    return computeEligibilityParams("ineligible", null, merchantId, "rejected application");
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("pending_verification")) {
                     // pending nach
                     logger.info("merchant {} has a pending application", merchantId);
                     if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
                         logger.info("merchant {} has a pending nach application", merchantId);
-                        return computeEligibilityParams("eligible", "pending_nach", merchantId);
+                        return computeEligibilityParams("eligible", "pending_nach", merchantId, "pending nach application");
                     }
                     // pending applications
                     else if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equalsIgnoreCase("APPROVED")) {
                         logger.info("merchant {} has a pending application", merchantId);
-                        return computeEligibilityParams("ineligible", null, merchantId);
+                        return computeEligibilityParams("ineligible", null, merchantId, "pending application");
                     }
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("APPROVED")) {
                     // approved and not disbursed
                     if (Objects.isNull(lendingApplication.getDisburseTimestamp())) {
                         logger.info("merchant {} has an approved but not disbursed application", merchantId);
-                        return computeEligibilityParams("ineligible", null, merchantId);
+                        return computeEligibilityParams("ineligible", null, merchantId, "approved but not disbursed application");
                     } else {
                         LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
                         if (Objects.nonNull(lendingPaymentSchedule)) {
                             // active loans
                             if (lendingPaymentSchedule.getStatus().equalsIgnoreCase("ACTIVE")) {
                                 logger.info("merchant {} has an active loan", merchantId);
-                                return computeEligibilityParams("ineligible", null, merchantId);
+                                return computeEligibilityParams("ineligible", null, merchantId, "active loan");
                             }
                             // closed loans and eligibility check
                             else if (lendingPaymentSchedule.getStatus().equalsIgnoreCase("CLOSED")) {
                                 logger.info("merchant {} has a closed loan", merchantId);
-                                return computeEligibilityParams(hasFinalOfferGtZero(merchant.get(), forceEligibilityCheck), null, merchantId);
+                                return computeEligibilityParams(hasFinalOfferGtZero(merchant.get(), forceEligibilityCheck), null, merchantId, "closed loan");
                             }
                         }
                     }
                 }
             }
             String finalOfferEligibility = hasFinalOfferGtZero(merchant.get(), forceEligibilityCheck);
-            return finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId) : computeEligibilityParams(finalOfferEligibility, null, merchantId);
+            return finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId, null) : computeEligibilityParams(finalOfferEligibility, null, merchantId, "no existing offer found");
         } catch (Exception e) {
             logger.error("error while checking fos loan eligibility for merchant: {}", merchantId, e);
         }
@@ -988,11 +990,11 @@ public class FosService {
         }
     }
 
-    public ResponseDTO computeEligibilityParams(String eligibility, String applicationStatus, Long merchantId) {
+    public ResponseDTO computeEligibilityParams(String eligibility, String applicationStatus, Long merchantId, String reason) {
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto(eligibility, merchantId, priority, offerType, loanType);
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto(eligibility, merchantId, priority, offerType, loanType, reason);
         ResponseDTO responseDTO = new ResponseDTO();
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);

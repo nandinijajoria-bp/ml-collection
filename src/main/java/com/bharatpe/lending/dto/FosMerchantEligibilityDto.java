@@ -15,4 +15,5 @@ public class FosMerchantEligibilityDto {
     Integer priority;
     String offerType;
     String loanType;
+    String reason;
 }
