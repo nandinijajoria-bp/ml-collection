@@ -1067,42 +1067,42 @@ public class APIGatewayService {
 //        }
 //    }
 
-    public String getEnachProvider(String token, Long merchantId) {
-        logger.info("Fetching enach provider for merchant:{}", merchantId);
-        Long digioFailedCount = enachHandler.isDigioFailed(merchantId);
-        if (digioFailedCount != null && digioFailedCount >= LendingConstants.DIGIO_FAILED_LIMIT) {
-            return "bharatpe://enachtp";
-        }
-        if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L) || merchantId.equals(4340760L) || merchantId.equals(2097359L) || merchantId.equals(7090157L) || merchantId.equals(5358374L)) {
-            return "bharatpe://enachdigio";
-        }
-
-        Map<String, Object> requestParams = new HashMap<String, Object>() {{
-            put("merchant_id", merchantId);
-        }};
-        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
-        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("clientName", CLIENT);
-        headers.set("hash", hash);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
-
-        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?merchant_id=" + merchantId;
-
-        try {
-            logger.info("Enach provider url: {} request:{} for merchant:{}", url, request, merchantId);
-            ResponseEntity<Object> response = restTemplate.exchange(url, HttpMethod.GET, request, Object.class);
-            logger.info("Enach provider response:{} for merchant:{}", response.getBody(), merchantId);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, String> responseData = (Map<String, String>) ((Map<String, Object>) response.getBody()).get("data");
-                return responseData.get("deep_link");
-            }
-        } catch (Exception e) {
-            logger.error("Exception while fetching enach provider for merchant:{}", merchantId, e);
-        }
-        return null;
-    }
+//    public String getEnachProvider(String token, Long merchantId) {
+//        logger.info("Fetching enach provider for merchant:{}", merchantId);
+//        Long digioFailedCount = enachHandler.isDigioFailed(merchantId);
+//        if (digioFailedCount != null && digioFailedCount >= LendingConstants.DIGIO_FAILED_LIMIT) {
+//            return "bharatpe://enachtp";
+//        }
+//        if (merchantId.equals(1141505L) || merchantId.equals(3612680L) || merchantId.equals(6518986L) || merchantId.equals(4340760L) || merchantId.equals(2097359L) || merchantId.equals(7090157L) || merchantId.equals(5358374L)) {
+//            return "bharatpe://enachdigio";
+//        }
+//
+//        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+//            put("merchant_id", merchantId);
+//        }};
+//        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+//        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.set("clientName", CLIENT);
+//        headers.set("hash", hash);
+//        HttpEntity<Map<String, Object>> request = new HttpEntity<>(headers);
+//
+//        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?merchant_id=" + merchantId;
+//
+//        try {
+//            logger.info("Enach provider url: {} request:{} for merchant:{}", url, request, merchantId);
+//            ResponseEntity<Object> response = restTemplate.exchange(url, HttpMethod.GET, request, Object.class);
+//            logger.info("Enach provider response:{} for merchant:{}", response.getBody(), merchantId);
+//            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+//                Map<String, String> responseData = (Map<String, String>) ((Map<String, Object>) response.getBody()).get("data");
+//                return responseData.get("deep_link");
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception while fetching enach provider for merchant:{}", merchantId, e);
+//        }
+//        return null;
+//    }
 
 //    public String signzySnoop(String itemId, String accessToken, String task, Long merchantId, String module, HashMap<String, String> essentials) {
 //        logger.info("Calling Signzy Snoop Api for itemId:{} and task:{}", itemId, task);
@@ -1146,12 +1146,22 @@ public class APIGatewayService {
 
     public String getEnachProvider(String token, String lender, Long merchantId){
         logger.info("Fetching enach provider for merchant:{}", merchantId);
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("token", token);
+
         String finalLender = loanUtil.enachServiceLenderMapper(lender);
-//        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?lender=" + lender;
-        String url = env.getProperty("bpnach.endpoint") + LendingConstants.NACH_PROVIDER_URL + "?lender=" + finalLender;
+
+        String url = env.getProperty("bpnach.endpoint") + LendingConstants.INTERNAL_NACH_PROVIDER_URL + "?lender=" + finalLender;
         ResponseEntity<Object> responseEntity = null;
+
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+            put("lender", finalLender);
+        }};
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("clientName", CLIENT);
+        headers.set("hash", hash);
+
         HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(headers);
         try{
             logger.info("Get Enach Provider url: {} and Request: {}", url, requestEntity);
