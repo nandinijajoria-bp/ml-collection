@@ -54,6 +54,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1248,7 +1249,7 @@ public class LoanDetailsServiceV2 {
 
                 log.info("Successfully saved all references of merchantId: {}", merchantId);
                 funnelService.submitEvent(merchant.getId(), null, applicationId,
-                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, (new Date()).toString());
+                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
                 return new ApiResponse<>(true, "Successfully updated merchant References!");
             }
 
@@ -1355,7 +1356,7 @@ public class LoanDetailsServiceV2 {
             lendingMerchantPermissionsDao.save(lendingMerchantPermissions);
             log.info("Successfully updated merchant permissions of merchantId: {}", merchantId);
             funnelService.submitEvent(merchant.getId(), null, null,
-                    FunnelEnums.StageId.PERMISSION_PAGE, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
+                    FunnelEnums.StageId.PERMISSION_PAGE, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
             return new ApiResponse<>(true, "Successfully updated merchant permissions!");
 
         } catch (Exception e) {

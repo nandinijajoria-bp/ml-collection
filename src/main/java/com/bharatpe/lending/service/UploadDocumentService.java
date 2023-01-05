@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import com.bharatpe.common.entities.*;
@@ -133,7 +134,7 @@ public class UploadDocumentService {
 			finalResponse.put("success", true);
 			uploadDocumentResponse.setSuccess(true);
 			funnelService.submitEvent(merchant.getId(), null, applicationId,
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, (new Date()).toString());
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
 		}
 		uploadDocumentResponse.setDocument(documentList);
 //		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));

@@ -62,6 +62,7 @@ import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -561,7 +562,7 @@ public class LiquiloansService {
                 }
                 lendingApplicationDao.save(lendingApplication);
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                        FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
+                        FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
 //            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
 
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
