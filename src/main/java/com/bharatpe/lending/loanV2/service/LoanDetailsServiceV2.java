@@ -12,8 +12,10 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -172,6 +174,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Autowired
+    FunnelService funnelService;
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
         try {
@@ -1103,7 +1108,6 @@ public class LoanDetailsServiceV2 {
                 log.info("No applicationId found of merchantId: {}", merchantId);
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
-
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
             Long referencesLimit = getReferenceLimit(lendingApplication);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
@@ -1243,6 +1247,8 @@ public class LoanDetailsServiceV2 {
                 }
 
                 log.info("Successfully saved all references of merchantId: {}", merchantId);
+                funnelService.submitEvent(merchant.getId(), null, applicationId,
+                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, (new Date()).toString());
                 return new ApiResponse<>(true, "Successfully updated merchant References!");
             }
 
@@ -1348,6 +1354,8 @@ public class LoanDetailsServiceV2 {
             lendingMerchantPermissions.setSmsPermissionDate(smsPermissionDate);
             lendingMerchantPermissionsDao.save(lendingMerchantPermissions);
             log.info("Successfully updated merchant permissions of merchantId: {}", merchantId);
+            funnelService.submitEvent(merchant.getId(), null, null,
+                    FunnelEnums.StageId.PERMISSION_PAGE, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
             return new ApiResponse<>(true, "Successfully updated merchant permissions!");
 
         } catch (Exception e) {
