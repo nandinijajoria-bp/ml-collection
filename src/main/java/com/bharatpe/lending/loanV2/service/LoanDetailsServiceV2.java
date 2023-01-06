@@ -684,10 +684,20 @@ public class LoanDetailsServiceV2 {
             }
             applicationDetails.setRejectReason(getRejectionReason(openApplication,merchant));
             applicationDetails.setEnachBank(loanUtil.isEnachBank(openApplication.getMerchantId()));
-
+            
             if (applicationDetails.getEnachBank()) {
                 applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
             }
+
+            if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
+                if ("APPROVED".equalsIgnoreCase(openApplication.getNachStatus())) {
+                    applicationDetails.setEnachDone(true);
+                } else {
+                    applicationDetails.setEnachDone(false);
+                }
+            }
+
+            
 //            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
 //                applicationDetails.setSkipEnach(Boolean.TRUE);
 //            }
@@ -864,6 +874,8 @@ public class LoanDetailsServiceV2 {
             return null;
         }
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId())) {
+            openApplication.setNachStatus("APPROVED");
+            lendingApplicationDao.save(openApplication);
             return null;
         }
 //        BharatPeEnach bharatPeEnach = bharatPeEnachDao.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
