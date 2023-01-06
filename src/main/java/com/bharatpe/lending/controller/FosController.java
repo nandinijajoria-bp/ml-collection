@@ -56,8 +56,26 @@ public class FosController {
 
     @RequestMapping(value = "/task_status",method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<ResponseDTO> getMerchantEligibilityForLoan(@RequestParam Long merchantId,
-                                                                     @RequestParam Long taskTimestamp) {
-        return new ResponseEntity<>(fosService.getFosTaskStatus(merchantId, taskTimestamp),HttpStatus.OK);
+                                                                     @RequestParam Long visitTimestamp,
+                                                                     @RequestParam Long refCode,
+                                                                     @RequestParam Integer timeWindow) {
+        return new ResponseEntity<>(fosService.getFosTaskStatus(merchantId, visitTimestamp, refCode, timeWindow),HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/attribution",method = RequestMethod.POST, produces = "application/json")
+    public ResponseEntity<ResponseDTO> fosLoanTaskAttribution(@RequestBody Map<String, Object> request){
+        return new ResponseEntity<>(fosService.fosLoanTaskAttribution(request), HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/nach/success",method = RequestMethod.POST, produces = "application/json")
+    public ResponseEntity<ResponseDTO> getNachTaskSuccess(@RequestBody Map<String, Object> request){
+        return new ResponseEntity<>(fosService.nachTaskSuccess(request), HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/nach/attribution", method = RequestMethod.GET, produces = "application/json")
+    public ResponseEntity<ResponseDTO> nachAttribution(@RequestParam Long refCode,
+                                                       @RequestParam Long applicationId){
+        return new ResponseEntity<>(fosService.nachAttribution(refCode, applicationId), HttpStatus.OK);
     }
 
 }
