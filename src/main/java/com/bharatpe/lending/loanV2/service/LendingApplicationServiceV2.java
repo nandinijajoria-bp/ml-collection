@@ -66,6 +66,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -193,7 +194,7 @@ public class LendingApplicationServiceV2 {
             }
             executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, merchant.getMid()));
             funnelService.submitEvent(merchant.getId(), null, initiateKycRequest.getApplicationId(),
-                    FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
+                    FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
             cacheInitiateKycCall(merchant.getId(), loanDetailsRefreshWindow);
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             log.info("deleting cached key of loan details in create application for merchant: {}", merchant.getId());
@@ -308,7 +309,7 @@ public class LendingApplicationServiceV2 {
                 log.info("Kyc details verified for merchant : {}", merchant.getId());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
                 funnelService.submitEvent(merchant.getId(), null, initiateKycRequest.getApplicationId(),
-                        FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
+                        FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
                 return new ApiResponse<>(kycDeepLink);
             }
             List<KycDocType> docTypes = new ArrayList<>();
@@ -468,7 +469,7 @@ public class LendingApplicationServiceV2 {
             });
             loanUtil.publishApplicationEvent(lendingApplication);
             funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),
-                    FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
+                    FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
             log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), e);
@@ -1774,7 +1775,7 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
         lendingKfsDao.save(lendingKfs);
         funnelService.submitEvent(merchant.getId(), null, applicationId,
-                FunnelEnums.StageId.AGREEMENT, FunnelEnums.StageEvent.SUBMITTED, (new Date()).toString());
+                FunnelEnums.StageId.AGREEMENT, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
     }
 
     public void generateSanctionCumLoanAgreementDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception{
@@ -2237,7 +2238,7 @@ public class LendingApplicationServiceV2 {
             }
             lendingGstDao.save(lendingGstDetail);
             funnelService.submitEvent(merchant.getId(), null, applicationId,
-                    FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, (new Date()).toString());
+                    FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             return new ApiResponse<>(true, "Current Address updated successfully!");
         } catch (Exception e) {
             log.error("Exception occurred while updating current address for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));

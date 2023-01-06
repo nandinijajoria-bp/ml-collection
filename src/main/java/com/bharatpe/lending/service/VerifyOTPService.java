@@ -22,6 +22,8 @@ import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
+import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -52,6 +54,7 @@ import org.springframework.util.StringUtils;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -167,6 +170,9 @@ public class VerifyOTPService {
 
     @Autowired
     SupportService supportService;
+
+    @Autowired
+    FunnelService funnelService;
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -396,6 +402,8 @@ public class VerifyOTPService {
         }
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
+        funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
 
         try{
             lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchantBasicDetailsDto);
