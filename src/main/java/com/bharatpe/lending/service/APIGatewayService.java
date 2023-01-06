@@ -1187,26 +1187,19 @@ public class APIGatewayService {
     }
 
     public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
-        try{
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
-                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
-        }
-        catch(Exception e){
-            logger.info("Exception occurred when calling Funnel Service submitEvent for merchantId: {} and applicationId: {} for event: {}", requestDTO.getMerchantId(), requestDTO.getApplicationId(), FunnelEnums.StageEvent.INITIATED);
-        }
+
+        funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
+
         logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", requestDTO.getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
         String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
 
-        try {
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
-                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
-        }
-        catch(Exception e){
-            logger.info("Exception occurred when calling Funnel Service submitEvent for merchantId: {} and applicationId: {} for event: {}", requestDTO.getMerchantId(), requestDTO.getApplicationId(), FunnelEnums.StageEvent.LENDER_ASSIGNED);
-        }
+        funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
+
         Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
             put("client_name", requestDTO.getClientName());
@@ -1263,17 +1256,12 @@ public class APIGatewayService {
                 String responseString = response.getBody();
                 JsonNode actualObj = mapper.readTree(responseString);
                 ENachIntitiationResponseDTO newJsonNode = mapper.treeToValue(actualObj, ENachIntitiationResponseDTO.class);
-                try {
-                    if (!newJsonNode.getMessage().equalsIgnoreCase("success")) {
-                        funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
-                                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
-                    }
+                if(!newJsonNode.getMessage().equalsIgnoreCase("success")){
                     funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
-                            FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
+                            FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
                 }
-                catch(Exception e){
-                    logger.info("Exception occurred when calling Funnel Service submitEvent for merchantId: {} and applicationId: {} for event: {}", requestDTO.getMerchantId(), requestDTO.getApplicationId(), FunnelEnums.StageEvent.COMPLETED);
-                }
+                funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                        FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
                 logger.info("responseDTO:{}", newJsonNode);
                 return newJsonNode;
             }
