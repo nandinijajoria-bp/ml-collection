@@ -105,7 +105,7 @@ public class SupportLoanController {
 
     @RequestMapping(value = "/computeEligibility", method = RequestMethod.POST)
     public ResponseDTO computeEligibility(@RequestBody ComputeEligibilityRequestDto request) {
-        logger.info("Start generating eligibility");
+        logger.info("Start computing eligibility");
         return supportService.computeEligibility(request);
     }
 }

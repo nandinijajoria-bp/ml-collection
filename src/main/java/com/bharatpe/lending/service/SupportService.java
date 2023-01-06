@@ -49,7 +49,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -2276,21 +2275,13 @@ public class SupportService {
     public ResponseDTO computeEligibility(ComputeEligibilityRequestDto requestDto) {
         ResponseDTO responseDTO = new ResponseDTO(false, "");
         try {
-            if (Objects.isNull(requestDto) || (Objects.isNull(requestDto.getFileName()))) {
+            if (ObjectUtils.isEmpty(requestDto) || ObjectUtils.isEmpty(requestDto.getMerchantId()) || ObjectUtils.isEmpty(requestDto.getPincode()) || ObjectUtils.isEmpty(requestDto.getPan())) {
                 return responseDTO;
             }
-            String fileName = requestDto.getFileName();
-            logger.info("Getting file : {} from s3", fileName);
-            InputStream file = s3BucketHandler.getObject(fileName, "loan-document");
-            if (Objects.isNull(file)) {
-                return responseDTO;
-            }
-            byte[] bytes = com.amazonaws.util.IOUtils.toByteArray(file);
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-            eligibilityComputationService.extractDataAndAddInRedis(byteArrayInputStream);
+            Boolean isComputed = eligibilityComputationService.computeEligibility(requestDto);
             logger.info("successfully invoked eligibility computation");
-            responseDTO.setSuccess(true);
-        } catch (IOException e) {
+            responseDTO.setSuccess(isComputed);
+        } catch (Exception e) {
             logger.error("something went wrong !!! {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return responseDTO;
