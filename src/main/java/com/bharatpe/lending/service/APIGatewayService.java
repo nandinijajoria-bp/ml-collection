@@ -77,6 +77,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.*;
@@ -1189,7 +1190,7 @@ public class APIGatewayService {
     public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
 
         funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
-                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
 
         logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
         HttpHeaders headers = new HttpHeaders();
@@ -1261,7 +1262,7 @@ public class APIGatewayService {
                             FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
                 }
                 funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
-                        FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
+                        FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
                 logger.info("responseDTO:{}", newJsonNode);
                 return newJsonNode;
             }
