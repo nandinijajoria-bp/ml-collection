@@ -200,15 +200,15 @@ public class CrmBulkContactsService {
 //        return null;
 //    }
 
-    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<LendingMerchantReferences> phonebook) {
+    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<LendingMerchantReferences> merchantReferences) {
         try {
             File mergedContactsFile = new File(contactsFileName);
             FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
             mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
 
-            for (LendingMerchantReferences phonebookDTO : phonebook) {
-                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getReferenceName(), phonebookDTO.getInferredRelation() , phonebookDTO.getReferenceNumber()});
+            for (LendingMerchantReferences merchantReference : merchantReferences) {
+                mergedContactsCsvWriter.writeNext(new String[]{merchantReference.getReferenceName(), merchantReference.getInferredRelation() , merchantReference.getReferenceNumber()});
             }
 
             mergedContactsCsvWriter.close();
