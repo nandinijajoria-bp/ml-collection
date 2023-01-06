@@ -22,6 +22,8 @@ import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.dao.*;
@@ -219,6 +221,9 @@ public class APIGatewayService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    FunnelService funnelService;
 
     @PostConstruct
     public void init() {
@@ -1182,11 +1187,18 @@ public class APIGatewayService {
     }
 
     public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
+
+        funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, (new Date()).toString());
+
         logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", requestDTO.getToken());
         headers.setContentType(MediaType.APPLICATION_JSON);
         String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
+
+        funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
 
         Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
@@ -1244,6 +1256,12 @@ public class APIGatewayService {
                 String responseString = response.getBody();
                 JsonNode actualObj = mapper.readTree(responseString);
                 ENachIntitiationResponseDTO newJsonNode = mapper.treeToValue(actualObj, ENachIntitiationResponseDTO.class);
+                if(!newJsonNode.getMessage().equalsIgnoreCase("success")){
+                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                            FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
+                }
+                funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                        FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, (new Date()).toString());
                 logger.info("responseDTO:{}", newJsonNode);
                 return newJsonNode;
             }
