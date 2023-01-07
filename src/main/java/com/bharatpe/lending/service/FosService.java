@@ -1031,13 +1031,13 @@ public class FosService {
                 responseDTO.setSuccess(Boolean.TRUE);
                 return responseDTO;
             }
-//            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
+            MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
             if (ObjectUtils.isEmpty(lendingApplication) ||
                     ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
-                                    lendingApplication.getAgreementAt().after(taskEndTimeStamp)))
-//                            && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
-                    )) {
+                                    lendingApplication.getAgreementAt().after(taskEndTimeStamp))
+                            && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
+                    ))) {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
                 fosTaskStatusDto.setMessage("no application found against this task");
@@ -1046,15 +1046,15 @@ public class FosService {
                 logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
             } else {
-//                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED")) {
-//                    fosTaskStatusDto.setStatus("COMPLETE");
-//                    fosTaskStatusDto.setMessage("task completed");
-//                    logger.info("nach done for merchant {}", merchantId);
-//                } else {
-//                    fosTaskStatusDto.setStatus("INCOMPLETE");
-//                    fosTaskStatusDto.setMessage("Nach pending for the application");
-//                    logger.info("nach pending for merchant {}", merchantId);
-//                }
+                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED")) {
+                    fosTaskStatusDto.setStatus("COMPLETE");
+                    fosTaskStatusDto.setMessage("task completed");
+                    logger.info("nach done for merchant {}", merchantId);
+                } else {
+                    fosTaskStatusDto.setStatus("INCOMPLETE");
+                    fosTaskStatusDto.setMessage("Nach pending for the application");
+                    logger.info("nach pending for merchant {}", merchantId);
+                }
                 fosTaskStatusDto.setStatus("COMPLETE");
                 fosTaskStatusDto.setMessage("task completed");
                 logger.info("agreement done for merchant {}", lendingApplication.getMerchantId());
