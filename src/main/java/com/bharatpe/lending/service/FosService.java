@@ -809,31 +809,33 @@ public class FosService {
                 return computeEligibilityParams("ineligible", null, merchantId, "non existing merchant");
             }
             // is a store/d2r merchant
-            if ("ORGANIZED".equalsIgnoreCase(merchant.get().getCorrectMerchantType())
-//                    || partnersApiHandler.isD2RMerchant(merchantId)
-            ) {
-                logger.info("is a store/d2r merchant {}", merchantId);
-                return computeEligibilityParams("ineligible", null, merchantId, "store merchant");
-            }
-            Experian experian = experianDao.getByMerchantId(merchantId);
-            if (Objects.isNull(experian) || Objects.isNull(experian.getPancardNumber())) {
-                logger.info("merchant {} 's pan card doesn't exist", merchantId);
-                return computeEligibilityParams("maybe", null, merchantId, "experian/pan dne");
-            }
+//            if ("ORGANIZED".equalsIgnoreCase(merchant.get().getCorrectMerchantType())
+////                    || partnersApiHandler.isD2RMerchant(merchantId)
+//            ) {
+//                logger.info("is a store/d2r merchant {}", merchantId);
+//                return computeEligibilityParams("ineligible", null, merchantId, "store merchant");
+//            }
+//            if (Objects.isNull(experian) || Objects.isNull(experian.getPancardNumber())) {
+//                logger.info("merchant {} 's pan card doesn't exist", merchantId);
+//                return computeEligibilityParams("maybe", null, merchantId, "experian/pan dne");
+//            }
             // check for red pin
-            if (Objects.nonNull(experian.getPincode())) {
-                LendingPincodes lendingPincode = lendingPincodesDao.findByPincode(experian.getPincode());
-                if (Objects.isNull(lendingPincode) || (Objects.nonNull(lendingPincode) && lendingPincode.getColor().equals(PincodeColor.RED))) {
-                    logger.info("merchant {} is in red pin zone", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId, "red pin zone");
-                }
-            }
+//            if (Objects.nonNull(experian.getPincode())) {
+//                LendingPincodes lendingPincode = lendingPincodesDao.findByPincode(experian.getPincode());
+//                if (Objects.isNull(lendingPincode) || (Objects.nonNull(lendingPincode) && lendingPincode.getColor().equals(PincodeColor.RED))) {
+//                    logger.info("merchant {} is in red pin zone", merchantId);
+//                    return computeEligibilityParams("ineligible", null, merchantId, "red pin zone");
+//                }
+//            }
+            Experian experian = experianDao.getByMerchantId(merchantId);
             if (Objects.nonNull(experian)) {
                 // blocked pan card
-                LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findTop1ByPancard(experian.getPancardNumber());
-                if (Objects.nonNull(lendingBlockedPancard)) {
-                    logger.info("merchant {} 's pan card is blocked", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId, "blocked pan card");
+                if (Objects.nonNull(experian.getPancardNumber())) {
+                    LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findTop1ByPancard(experian.getPancardNumber());
+                    if (Objects.nonNull(lendingBlockedPancard)) {
+                        logger.info("merchant {} 's pan card is blocked", merchantId);
+                        return computeEligibilityParams("ineligible", null, merchantId, "blocked pan card");
+                    }
                 }
                 // rejected experian
                 if (experian.getRejected() && !"LIMIT BLOCKED: Pending application".equalsIgnoreCase(experian.getReason()) &&
@@ -844,15 +846,15 @@ public class FosService {
                 }
             }
             // non nachable bank check
-            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
-            BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
-            if (Objects.nonNull(merchantBankDetail)) {
-                LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
-                if (Objects.isNull(lendingNachBank)) {
-                    logger.info("merchant {} has a non nachable bank", merchantId);
-                    return computeEligibilityParams("ineligible", null, merchantId, "non nachable bank");
-                }
-            }
+//            final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+//            BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
+//            if (Objects.nonNull(merchantBankDetail)) {
+//                LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
+//                if (Objects.isNull(lendingNachBank)) {
+//                    logger.info("merchant {} has a non nachable bank", merchantId);
+//                    return computeEligibilityParams("ineligible", null, merchantId, "non nachable bank");
+//                }
+//            }
 
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.get().getId());
             // lending applications
