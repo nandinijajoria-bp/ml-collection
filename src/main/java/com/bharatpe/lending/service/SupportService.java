@@ -2246,6 +2246,9 @@ public class SupportService {
                         && Objects.isNull(lendingApplication.getSendToNbfc()) && Objects.isNull(lendingApplication.getDisburseTimestamp())){
                     lendingApplication.setStatus("rejected");
                     lendingApplication.setResponseCode(reason);
+                    lendingApplication.setManualKyc("REJECTED");
+                    lendingApplication.setManualKycReason("Merchant Denied for Loan");
+                    lendingApplication.setLmsStage("SYSTEM_REJECTED");
                     lendingApplicationDao.save(lendingApplication);
                     executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
 
