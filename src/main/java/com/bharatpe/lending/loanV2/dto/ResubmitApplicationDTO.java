@@ -16,4 +16,5 @@ public class ResubmitApplicationDTO {
     String resubmitReason;
     LendingResubmitEnum type;
     Double customAmount;
+    String shopStructure;
 }
