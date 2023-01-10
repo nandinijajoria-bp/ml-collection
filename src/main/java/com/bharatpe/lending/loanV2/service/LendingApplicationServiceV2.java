@@ -183,8 +183,10 @@ public class LendingApplicationServiceV2 {
     @Autowired
     CleverTapEventService cleverTapEventService;
 
+    @Autowired
     FunnelService funnelService;
 
+    @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
