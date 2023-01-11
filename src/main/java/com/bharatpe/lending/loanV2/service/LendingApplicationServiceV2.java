@@ -59,6 +59,7 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -1494,7 +1495,7 @@ public class LendingApplicationServiceV2 {
             lendingAuditTrial.setApplicationId(lendingApplication.getId());
             lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
             lendingAuditTrial.setType("APP_STATUS");
-            lendingAuditTrial.setNewStatus("DOWNGRADE");
+            lendingAuditTrial.setNewStatus(Objects.isNull(resubmitApplicationDTO.getCustomAmount()) ? resubmitApplicationDTO.getType().toString() : LendingConstants.CUSTOM_OFFER_DOWNGRADE);
             lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
             lendingAuditTrial.setUserId(0L);
             lendingAuditTrialDao.save(lendingAuditTrial);
@@ -1513,13 +1514,22 @@ public class LendingApplicationServiceV2 {
         Double loanAmount = lendingApplication.getLoanAmount();
         try {
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            LoanDowngradeConfigEntity loanDowngradeConfigEntity = loanDowngradeConfigDao.findTop1ByRiskSegmentAndRiskGroupAndColorAndTenureAndVersion(lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                    lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.getTenureInMonths(), downgradeConfigVersion);
-            if (Objects.isNull(loanDowngradeConfigEntity)) {
+            List<LoanDowngradeConfigEntity> loanDowngradeConfigEntities = loanDowngradeConfigDao.findByRiskSegmentAndRiskGroupAndColorAndVersion(lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(),
+                    Sort.by(Sort.Direction.DESC, "tenure"), downgradeConfigVersion);
+            if (ObjectUtils.isEmpty(loanDowngradeConfigEntities)) {
                 log.info("no config found with risk segment: {}, riskGroup: {}, color: {}, tenure: {}",lendingRiskVariablesSnapshot.getRiskSegment().name(),
                         lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.getTenureInMonths());
                 return loanAmount;
             }
+            LoanDowngradeConfigEntity loanDowngradeConfigEntity = loanDowngradeConfigEntities.get(0);
+            for (LoanDowngradeConfigEntity loanDowngradeConfig: loanDowngradeConfigEntities) {
+                if (loanDowngradeConfig.getTenure() <= lendingApplication.getTenureInMonths()) {
+                    loanDowngradeConfigEntity = loanDowngradeConfig;
+                    break;
+                }
+            }
+            log.info("downgrade config entity used for downgrade: {} for application: {}", loanDowngradeConfigEntity, lendingApplication.getId());
             Double maxLimit = shopType.equalsIgnoreCase("movable") ? loanDowngradeConfigEntity.getMaxLimitMov() : loanDowngradeConfigEntity.getMaxLimitTemp();
             double amount;
             double nfiLimit = LoanUtil.roundUp(lendingRiskVariablesSnapshot.getMonthlyNfi() * loanDowngradeConfigEntity.getNfiMultiplier() * lendingRiskVariablesSnapshot.getTenure());
@@ -1528,6 +1538,10 @@ public class LendingApplicationServiceV2 {
             amount = Math.min(amount, maxLimit);
             amount = Math.min(amount, loanAmount);
             log.info("final amount: {} from downgrade config for application: {}",amount, lendingApplication.getId());
+            lendingApplication.setTenure(loanDowngradeConfigEntity.getTenure().toString() + " months");
+            lendingApplication.setTenureInMonths(loanDowngradeConfigEntity.getTenure());
+            lendingApplication.setPayableDays((long)easyLoanUtil.getEdiDays(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), loanDowngradeConfigEntity.getTenure()));
+            lendingApplicationDao.save(lendingApplication);
             return amount;
         } catch (Exception e) {
             log.error("exception while downgrade loan amount according to config for applicationId: {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
