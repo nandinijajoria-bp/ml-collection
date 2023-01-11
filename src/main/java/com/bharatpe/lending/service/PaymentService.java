@@ -1300,7 +1300,11 @@ public class PaymentService {
 		//waiver audit
 		LendingInterestWaiver lendingInterestWaiver = new LendingInterestWaiver();
 		lendingInterestWaiver.setAmount(foreClosureAmount);
-		lendingInterestWaiver.setApplicationId(lendingPaymentSchedule.getApplicationId());
+
+		// check added for waiver of high tpv cases where applicationId does not exists
+		if (!ObjectUtils.isEmpty(lendingPaymentSchedule.getApplicationId()))
+			lendingInterestWaiver.setApplicationId(lendingPaymentSchedule.getApplicationId());
+
 		lendingInterestWaiver.setMerchantId(lendingPaymentSchedule.getMerchantId());
 		lendingInterestWaiver.setPaymentId(lendingPaymentSchedule.getId());
 		lendingInterestWaiver.setSchemeName(waiverType.name());
