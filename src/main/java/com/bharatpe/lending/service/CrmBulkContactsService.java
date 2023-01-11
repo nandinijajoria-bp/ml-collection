@@ -105,14 +105,23 @@ public class CrmBulkContactsService {
 //                        readLine = bulkContactFileReader.readLine();
 //                        continue;
 //                    }
+                    List<PhonebookDTO> phonebook = null;
                     List<LendingMerchantReferences> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
-                    if (merchantReferences.isEmpty()) {
+                    if (merchantReferences.isEmpty()){
+                        phonebook = phonebookHandler.getPhonebook(basicDetailsDto.get().getId());
+                    }
+                    if (merchantReferences.isEmpty() && phonebook.isEmpty()) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
                     }
                     String contactFileName = "/tmp/" + contact + "-" + requestId + ".csv";
-                    writeContactsToCSV(basicDetailsDto.get().getId(), contactFileName, merchantReferences);
+                    if(!merchantReferences.isEmpty()) {
+                        writeMerchantReferencesContactsToCSV(basicDetailsDto.get().getId(), contactFileName, merchantReferences);
+                    }
+                    else{
+                        writeContactsToCSV(basicDetailsDto.get().getId(), contactFileName, phonebook);
+                    }
                     File contactDataFile = new File(contactFileName);
                     ZipEntry zipEntry = new ZipEntry(contactDataFile.getName());
                     addToZip(contact + "-" + requestId + ".csv", zos, contactFileName);
@@ -200,15 +209,34 @@ public class CrmBulkContactsService {
 //        return null;
 //    }
 
-    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<LendingMerchantReferences> merchantReferences) {
+    public String writeMerchantReferencesContactsToCSV(Long merchantId, String contactsFileName, List<LendingMerchantReferences> merchantReferences) {
+        try {
+            File mergedContactsFile = new File(contactsFileName);
+            FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
+            CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
+            mergedContactsCsvWriter.writeNext(new String[]{"name", "relation", "contact"});
+
+            for (LendingMerchantReferences merchantReference : merchantReferences) {
+                mergedContactsCsvWriter.writeNext(new String[]{merchantReference.getReferenceName(), merchantReference.getInferredRelation() , merchantReference.getReferenceNumber()});
+            }
+
+            mergedContactsCsvWriter.close();
+            return contactsFileName;
+        } catch (Exception e) {
+            logger.error("Exception occurred while merging process for merchantId : {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    public String writeContactsToCSV(Long merchantId, String contactsFileName, List<PhonebookDTO> phonebook) {
         try {
             File mergedContactsFile = new File(contactsFileName);
             FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
             mergedContactsCsvWriter.writeNext(new String[]{"name", "contact"});
 
-            for (LendingMerchantReferences merchantReference : merchantReferences) {
-                mergedContactsCsvWriter.writeNext(new String[]{merchantReference.getReferenceName(), merchantReference.getInferredRelation() , merchantReference.getReferenceNumber()});
+            for (PhonebookDTO phonebookDTO : phonebook) {
+                mergedContactsCsvWriter.writeNext(new String[]{phonebookDTO.getName(), phonebookDTO.getPhoneNumber()});
             }
 
             mergedContactsCsvWriter.close();
