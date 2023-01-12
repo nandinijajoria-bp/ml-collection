@@ -214,6 +214,20 @@ public class PaymentService {
 				logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
 				return new InitiatePaymentResponseDTO("No dues left.");
 			}
+			Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
+			logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
+			if (Objects.equals(request.getMeta().getClient(), "android")) {
+				if (appVersion < androidVersion) {
+					logger.info("app version of android: {} for merchant: {}",appVersion, merchantBasicDetails.getId());
+					return new InitiatePaymentResponseDTO("App version of android is less. Please update");
+				}
+			} else {
+				if (appVersion < iosVersion) {
+					logger.info("app version of ios: {} for merchant: {}",appVersion, merchantBasicDetails.getId());
+					return new InitiatePaymentResponseDTO("App version of ios is less. Please update");
+				}
+			}
+
 			if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
 				Integer advanceEdiCount = request.getPayload().getAdvanceEdiCount();
 				if (advanceEdiCount == null) {
@@ -269,8 +283,6 @@ public class PaymentService {
 			pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
 			pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
 
-			Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
-			logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
 			if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.pgPercent)) {
 				logger.info("pg flow enabling for internal merchants with app version for merchant: {}",merchantBasicDetails.getId());
 				if (Objects.equals(request.getMeta().getClient(), "android")) {
