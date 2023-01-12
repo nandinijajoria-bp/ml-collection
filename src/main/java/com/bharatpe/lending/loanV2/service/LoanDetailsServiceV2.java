@@ -217,7 +217,7 @@ public class LoanDetailsServiceV2 {
 //                loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
 //                return new ApiResponse<>(loanDetailsResponse);
 //            }
-            if ("ORGANIZED".equalsIgnoreCase(merchant.getCorrectMerchantType())) {
+            if ("ORGANIZED".equalsIgnoreCase(merchant.getMerchantType())) {
                 log.info("organized merchant: {}", merchant.getId());
                 return new ApiResponse<>(loanDetailsResponse);
             }
@@ -329,7 +329,7 @@ public class LoanDetailsServiceV2 {
     public ApiResponse<?> getLoanDashboardDetails(BasicDetailsDto merchant, Boolean isIos) {
         LoanDetailsResponse loanDashBoardDTO = new LoanDetailsResponse();
         try {
-            if ("ORGANIZED".equalsIgnoreCase(merchant.getCorrectMerchantType())) {
+            if ("ORGANIZED".equalsIgnoreCase(merchant.getMerchantType())) {
                 log.info("organized merchant: {}", merchant.getId());
 
                 return new ApiResponse<>(loanDashBoardDTO);

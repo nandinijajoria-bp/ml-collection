@@ -298,7 +298,7 @@ public class LoanDetailsService {
 				pincodeCityStateMapping = merchantService.findByPincode(pincode);
 			}
 
-			if("ORGANIZED".equalsIgnoreCase(merchantBasicDetailsDto.getCorrectMerchantType())) {
+			if("ORGANIZED".equalsIgnoreCase(merchantBasicDetailsDto.getMerchantType())) {
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
 				loanDetailsDTO.setEligibility(new ArrayList<>());
 				loanDetailsDTO.setHistory(new ArrayList<>());
