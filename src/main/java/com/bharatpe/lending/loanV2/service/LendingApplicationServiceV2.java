@@ -547,8 +547,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
         lendingApplication = lendingApplicationDao.save(lendingApplication);
 
-        lenderMappingService.lenderMapping(lendingApplication);
-//        lenderAssignService.assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL);
+//        lenderMappingService.lenderMapping(lendingApplication);
+        lenderAssignService.assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL);
 
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);

@@ -23,7 +23,7 @@ public class LenderAssignmentRules extends BaseEntity {
     private String loanType;
 
     @Column(name = "tenure")
-    private Integer tenure;
+    private String tenure;
 
     @Column(name = "min_bureau_score")
     private Double minBureauScore;
@@ -44,8 +44,7 @@ public class LenderAssignmentRules extends BaseEntity {
     private Boolean isActive;
 
     @Column(name = "pincode_color")
-    @Enumerated(EnumType.STRING)
-    private PincodeColor pincodeColor;
+    private String pincodeColor;
 
     @Column(name = "risk_group")
     private String riskGroup;
@@ -66,11 +65,11 @@ public class LenderAssignmentRules extends BaseEntity {
         this.loanType = loanType;
     }
 
-    public Integer getTenure() {
+    public String getTenure() {
         return tenure;
     }
 
-    public void setTenure(Integer tenure) {
+    public void setTenure(String tenure) {
         this.tenure = tenure;
     }
 
@@ -122,11 +121,11 @@ public class LenderAssignmentRules extends BaseEntity {
         isActive = active;
     }
 
-    public PincodeColor getPincodeColor() {
+    public String getPincodeColor() {
         return pincodeColor;
     }
 
-    public void setPincodeColor(PincodeColor pincodeColor) {
+    public void setPincodeColor(String pincodeColor) {
         this.pincodeColor = pincodeColor;
     }
 

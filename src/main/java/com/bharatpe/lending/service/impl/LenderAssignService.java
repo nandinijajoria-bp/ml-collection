@@ -60,20 +60,21 @@ public class LenderAssignService implements ILenderAssignService {
         Double bureauScore = 0D;
         String riskSegment = "";
         String riskGroupLike = null;
-        PincodeColor pincodeColor = null;
+        String pincodeColor = null;
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
-            riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? lendingRiskVariables.getRiskSegment() : "";
-            riskGroupLike = Objects.nonNull(lendingRiskVariables.getRiskGroup()) ? "%" + lendingRiskVariables.getRiskGroup() + "%" : null;
-            pincodeColor = Objects.nonNull(lendingRiskVariables.getPincodeColor()) ? lendingRiskVariables.getPincodeColor() : null;
+            riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
+            riskGroupLike = Objects.nonNull(lendingRiskVariables.getRiskGroup()) ? "%" + lendingRiskVariables.getRiskGroup() + "%" : "";
+            pincodeColor = Objects.nonNull(lendingRiskVariables.getPincodeColor()) ? "%"+lendingRiskVariables.getPincodeColor().name() + "%" : "";
         }
+        String tenure = "%" + application.getTenureInMonths() + "%";
         try {
             log.info("Lender assignment parameters -> bureau:{}, loanType:{}, tenure:{}, loanAmount:{}, riskGroup:{}, pincodeColor:{}", bureauScore, riskSegment, application.getTenure(),
                     application.getLoanAmount(), riskGroupLike, pincodeColor);
             List<String> lenders = new ArrayList<>();
             String decidedLender = null;
             List<LenderAssignmentRules> defaultRules = lenderAssignmentRulesDao.findByIsDefaultAndIsActive(Boolean.TRUE, Boolean.TRUE);
-            List<LenderAssignmentRules> ruleList = lenderAssignmentRulesDao.fetchEligibleRules(application.getLoanAmount(), bureauScore, riskSegment, application.getTenureInMonths(), riskGroupLike, pincodeColor.toString());
+            List<LenderAssignmentRules> ruleList = lenderAssignmentRulesDao.fetchEligibleRules(application.getLoanAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
             log.info("Fetched Rules:{}", ruleList);
             if (ObjectUtils.isEmpty(ruleList)) {
                 log.info("Assigning default lender");
@@ -148,7 +149,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
         assigneeLender = toBeAssignedLenders.get(0);
         log.info("Selected Lender : {}", assigneeLender);
-        EdiModel ediModel1 = EdiModel.valueOf(assigneeLender.getEdiModel());
+        EdiModel ediModel1 = LenderOffDays.valueOf(assigneeLender.getLender()).getEdiModel();
         log.info("Selected EDI Model : {}", ediModel1);
         ediModelAudit(lendingApplication, ediModel1);
 
@@ -185,10 +186,14 @@ public class LenderAssignService implements ILenderAssignService {
     public void refreshDisbursalLimitsForLender(){
         log.info("Refreshing Weekly Disbursal Limits");
         Double disbursedAmount = lenderDisbursalLimitsDao.fetchDisbursedCount();
-        log.info("Disbursed Amount: {}, TARGET: {}", disbursedAmount, WEEKLY_TARGET_AMOUNT);
-        if(disbursedAmount >= Double.valueOf(WEEKLY_TARGET_AMOUNT)){
+        LendingLenderQuota weeklyTarget = lenderDisbursalLimitsDao.findByLender("WEEKLY_TARGET");
+        log.info("Disbursed Amount: {}, TARGET: {}", disbursedAmount, weeklyTarget.getTotalWeeklyAmount());
+        if(disbursedAmount >= weeklyTarget.getTotalWeeklyAmount()){
             List<LendingLenderQuota> quotaList = lenderDisbursalLimitsDao.findAll();
             for(LendingLenderQuota quota : quotaList){
+                if("WEEKLY_TARGET".equals(quota.getLender())) {
+                    continue;
+                }
                 quota.setRemainingBalance(quota.getTotalWeeklyAmount());
                 quota.setAssignedAmount(0D);
             }
