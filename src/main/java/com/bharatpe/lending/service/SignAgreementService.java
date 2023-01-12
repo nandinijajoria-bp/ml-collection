@@ -342,8 +342,8 @@ public class SignAgreementService {
         newApplication = lendingApplicationDao.save(newApplication);
         loanUtil.publishApplicationEvent(newApplication);
 
-		lenderMappingService.lenderMapping(newApplication);
-//		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
+//		lenderMappingService.lenderMapping(newApplication);
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
 
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
