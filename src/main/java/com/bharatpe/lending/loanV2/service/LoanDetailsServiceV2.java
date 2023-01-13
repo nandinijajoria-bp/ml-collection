@@ -212,6 +212,7 @@ public class LoanDetailsServiceV2 {
                 else lendingCache.delete(initiateKycCallCacheKey);
             }
             LoanDetailsResponse loanDetailsResponse = new LoanDetailsResponse();
+            loanDetailsResponse.setMerchantId(merchant.getId());
 //            if (isCreditLineMerchant(merchant)) {
 //                log.info("credit line merchant: {}", merchant.getId());
 //                loanDetailsResponse.setCreditLineDeeplink("bharatpe://dynamic?key=credit-line");
@@ -648,6 +649,7 @@ public class LoanDetailsServiceV2 {
               .category(eligibleLoan.getCategory())
               .loanType(eligibleLoan.getLoanType())
               .clubV2Amount(eligibleLoan.getClubV2Amount())
+                    .uniqueKey(eligibleLoan.getId())
               .build();
         } catch (Exception e) {
             log.error("Exception in createEligibility for merchant:{}", merchantId, e);
