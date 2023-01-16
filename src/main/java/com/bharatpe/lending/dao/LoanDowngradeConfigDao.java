@@ -6,9 +6,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface LoanDowngradeConfigDao extends JpaRepository<LoanDowngradeConfigEntity, Long> {
 
-    LoanDowngradeConfigEntity findTop1ByRiskSegmentAndRiskGroupAndColorAndTenureAndVersion(String riskSegment, String riskGroup, PincodeColor color, Integer tenure, Double version);
+    List<LoanDowngradeConfigEntity> findByRiskSegmentAndRiskGroupAndColorAndVersion(String riskSegment, String riskGroup, PincodeColor color, Sort sort, Double version);
 
 }
