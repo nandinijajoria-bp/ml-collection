@@ -1,14 +1,14 @@
 package com.bharatpe.lending.loanV2.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Builder;
-import lombok.Data;
-import lombok.ToString;
+import lombok.*;
 
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class Eligibility {
     private Double loanAmount;
     private Integer arrangerFee;
@@ -20,4 +20,5 @@ public class Eligibility {
     private String category;
     private String loanType;
     private Double clubV2Amount;
+    private Long uniqueKey;
 }

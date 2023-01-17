@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV2.dto;
 
 import com.bharatpe.lending.enums.KycStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.Map;
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@AllArgsConstructor
+@NoArgsConstructor
 public class LoanDetailsResponse {
     private boolean hasExperian = false;
     private KycStatus kycStatus;
@@ -35,4 +39,5 @@ public class LoanDetailsResponse {
     private String source;
     private Boolean clubV2Member = false;
     private Boolean showReferencePage = true;
+    private Long merchantId;
 }
