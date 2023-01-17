@@ -32,8 +32,6 @@ public class CancelApplicationService {
 	@Autowired
 	APIGatewayService apiGatewayService;
 
-	ExecutorService executorService = Executors.newFixedThreadPool(10);
-
 	public Map<String, Boolean> cancelApplication(BasicDetailsDto merchant, Long applicationId, String reason) {
 
 		Map<String, Boolean> resp = new HashMap<> ();
@@ -45,10 +43,18 @@ public class CancelApplicationService {
 			resp.put("success",false);
 			return resp;
 		}
+
+		final boolean isTxnSuccess = apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT", lendingApplication.getLoanAmount());
+
+		if (!isTxnSuccess) {
+			logger.error("credit txn failed for applicationId {}", applicationId);
+			resp.put("success",false);
+			return resp;
+		}
+
 		lendingApplication.setStatus("deleted");
 		lendingApplication.setResponseCode(reason);
 		lendingApplicationDao.save(lendingApplication);
-		executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT",lendingApplication.getLoanAmount()));
 
 		logger.info("CancelApplicationService application status update success for applicationId : {} and merchantId : {}", applicationId, merchant.getId());
 		LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();

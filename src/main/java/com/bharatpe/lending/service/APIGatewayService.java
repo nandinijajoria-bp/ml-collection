@@ -1463,7 +1463,7 @@ public class APIGatewayService {
         return getGlobalLimit(merchantId, source, null, clubV2);
     }
 
-    public void globalLimitTxn(Long merchantId, String mode, Double amount) {
+    public boolean globalLimitTxn(Long merchantId, String mode, Double amount) {
         logger.info("Global limit txn for merchant:{}, mode:{} and amount:{}", merchantId, mode, amount);
         Map<String, Object> requestBody = new HashMap<String, Object>() {{
             put("merchant_id", merchantId);
@@ -1486,6 +1486,7 @@ public class APIGatewayService {
                 logger.info("Global Limit txn response:{} for merchant:{}", responseEntity, merchantId);
                 if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
                     logger.info("Global limit txn success for merchant:{}", merchantId);
+                    return true;
                 } else {
                     logger.info("Global limit txn failed for merchant:{}", merchantId);
                 }
@@ -1495,6 +1496,7 @@ public class APIGatewayService {
             }
             retryCount++;
         }
+        return false;
     }
 
 //    public Map<String, Object> riskByPspApp(Merchant merchant) {
