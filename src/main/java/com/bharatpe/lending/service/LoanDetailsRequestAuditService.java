@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.LoanDetailsEligibilityAuditDto;
 import com.bharatpe.lending.dto.RequestResponseAuditDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -12,12 +14,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Map;
+
 @Service
 @Slf4j
 public class LoanDetailsRequestAuditService implements IRequestAudit<RequestResponseAuditDto,LoanDetailsEligibilityAuditDto> {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    MerchantService merchantService;
 
     public LoanDetailsEligibilityAuditDto refineAuditData(RequestResponseAuditDto payload) {
         LoanDetailsEligibilityAuditDto loanDetailsEligibilityAuditDto = new LoanDetailsEligibilityAuditDto(payload);
@@ -26,6 +33,7 @@ public class LoanDetailsRequestAuditService implements IRequestAudit<RequestResp
             apiResponse = objectMapper.readValue(payload.getResponse(), new TypeReference<ApiResponse<LoanDetailsResponse>>(){});
         } catch (Exception e) {
             log.error("exception occurred while auditing data {}", e.getMessage());
+            loanDetailsEligibilityAuditDto.setMerchantId(fetchIdentifier(payload.getRequestHeaders()));
             return loanDetailsEligibilityAuditDto;
         }
         LoanDetailsResponse loanDetailsResponse = null;
@@ -33,21 +41,23 @@ public class LoanDetailsRequestAuditService implements IRequestAudit<RequestResp
             loanDetailsResponse = apiResponse.getData();
         } catch (Exception e) {
             log.error("exception occurred while parsing data {}", e.getMessage());
+            loanDetailsEligibilityAuditDto.setMerchantId(fetchIdentifier(payload.getRequestHeaders()));
             return loanDetailsEligibilityAuditDto;
         }
         if (ObjectUtils.isEmpty(loanDetailsResponse)) {
+            loanDetailsEligibilityAuditDto.setMerchantId(fetchIdentifier(payload.getRequestHeaders()));
             return loanDetailsEligibilityAuditDto;
         }
+        loanDetailsEligibilityAuditDto.setMerchantId(loanDetailsResponse.getMerchantId());
         if (!ObjectUtils.isEmpty(loanDetailsResponse.getLoanApplication()) &&
-                ("pending_verification".equalsIgnoreCase(loanDetailsResponse.getLoanApplication().getApplicationStatus())
+                (("pending_verification".equalsIgnoreCase(loanDetailsResponse.getLoanApplication().getApplicationStatus())
                         && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanApplication().getEnachDone())
                         && loanDetailsResponse.getLoanApplication().getEnachDone()) ||
-                ("approved".equalsIgnoreCase(loanDetailsResponse.getLoanApplication().getApplicationStatus()))) {
+                ("approved".equalsIgnoreCase(loanDetailsResponse.getLoanApplication().getApplicationStatus())))) {
             log.info("ignoring this audit ! {}", payload.getRequestId());
             return null;
         }
         loanDetailsEligibilityAuditDto.setApplicationId(ObjectUtils.isEmpty(loanDetailsResponse.getLoanApplication()) ? null : loanDetailsResponse.getLoanApplication().getApplicationId());
-        loanDetailsEligibilityAuditDto.setMerchantId(loanDetailsResponse.getMerchantId());
         loanDetailsEligibilityAuditDto.setIneligibility(loanDetailsResponse.getIneligible());
         loanDetailsEligibilityAuditDto.setSource(ObjectUtils.isEmpty(loanDetailsResponse.getSource()) ? "REQUEST" : loanDetailsResponse.getSource());
         if (!ObjectUtils.isEmpty(loanDetailsResponse.getEligibility())) {
@@ -70,5 +80,16 @@ public class LoanDetailsRequestAuditService implements IRequestAudit<RequestResp
     @Override
     public String getEntityName() {
         return "lending_eligibility";
+    }
+
+    public Long fetchIdentifier(String headers) {
+        try {
+            Map<String,String> headersMap = objectMapper.readValue(headers, Map.class);
+            BasicDetailsDto merchant = merchantService.fetchMerchantDetails(headersMap.get("token"));
+            return merchant.getId();
+        } catch (Exception e) {
+            log.error("merchant info not found ! {}", e.getMessage());
+        }
+        return null;
     }
 }
