@@ -43,8 +43,15 @@ public class EligibleLoanUpdateRequestDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "EligibleLoanUpdateRequestDTO{" + " category='" + getCategory() + "'" + ", amount='" + getAmount() + "'"
-                + ", edi='" + getEdi() + "'" + ", ioEdi='" + getIoEdi() + "'" + ", ioEdiDays='" + getIoEdiDays() + "'"
-                + ", ediFreeDays='" + getEdiFreeDays() + "'" + ", repayment='" + getRepayment() + "'" + "}";
+        return "EligibleLoanUpdateRequestDTO{" +
+          "category='" + category + '\'' +
+          ", amount=" + amount +
+          ", tenure=" + tenure +
+          ", edi=" + edi +
+          ", ioEdi=" + ioEdi +
+          ", ioEdiDays=" + ioEdiDays +
+          ", ediFreeDays=" + ediFreeDays +
+          ", repayment=" + repayment +
+          '}';
     }
 }

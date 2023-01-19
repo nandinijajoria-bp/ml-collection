@@ -205,7 +205,12 @@ public class LoanDetailsController {
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute BasicDetailsDto merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {
 		logger.info("updateEligibleLoanAmount request with merchant_id: {}, with body: {}", merchant.getId(), requestDTO);
-		return new ResponseEntity<>(loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO), HttpStatus.OK);
+
+		final ResponseDTO responseDTO = loanEligibleService.updateEligibleLoan(merchant.getId(), requestDTO);
+
+		logger.info("updateEligibleLoanAmount response: {}", responseDTO);
+
+		return new ResponseEntity<>(responseDTO, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value = "/derog_application", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")

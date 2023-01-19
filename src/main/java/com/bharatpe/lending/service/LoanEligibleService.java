@@ -208,17 +208,34 @@ public class LoanEligibleService {
 
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
-        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
-        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow);
-        if (Objects.nonNull(eligibleLoan)) {
-            EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
-            customLoan.setOfferType("CUSTOM");
-            eligibleLoanDao.save(customLoan);
-            eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(customLoan));
-            responseDTO.setMessage("Created eligible loan entry successfully");
-            responseDTO.setSuccess(true);
-            return responseDTO;
+
+        try
+        {
+            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+
+            logger.info("EligibleLoan Query values merchantId : {}, amount : {}, tenure : {}, dateWindow : {}", merchantId, body.getAmount(), body.getTenure(), dateWindow);
+
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow);
+
+            logger.info("eligibleLoan merchant_id : {}", eligibleLoan);
+
+            if (Objects.nonNull(eligibleLoan)) {
+                EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
+                customLoan.setOfferType("CUSTOM");
+                eligibleLoanDao.save(customLoan);
+
+                logger.info("Eligible loan custom offer for merchantId : {} {}", merchantId, customLoan);
+
+                eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(customLoan));
+                responseDTO.setMessage("Created eligible loan entry successfully");
+                responseDTO.setSuccess(true);
+                return responseDTO;
+            }
+        } catch (Exception e) {
+            logger.error("Error occurred while creating custom offer for merchantId : {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
+
+        logger.info("Could not create custom offer for the merchant : {}", merchantId);
         responseDTO.setMessage("No eligible loan entry found");
         responseDTO.setSuccess(false);
         return responseDTO;
