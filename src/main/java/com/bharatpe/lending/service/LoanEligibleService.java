@@ -155,12 +155,14 @@ public class LoanEligibleService {
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
 
-        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmount(merchantId, queryAmount,
-                Sort.by(Sort.Direction.DESC, "id"));
-        logger.info("Eligible loan offers : {} , {}", merchantId, eligibleLoans);
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
 
-        if (ObjectUtils.isEmpty(eligibleLoans) || (!ObjectUtils.isEmpty(eligibleLoans.get(0)) && !eligibleLoans.get(0).getCreatedAt().after(dateWindow))) {
+        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqual(merchantId, queryAmount, dateWindow,
+          Sort.by(Sort.Direction.DESC, "id"));
+
+        logger.info("Eligible loan offers : {} , {}", merchantId, eligibleLoans);
+
+        if (ObjectUtils.isEmpty(eligibleLoans)) {
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             //Todo if global response is null: return
             if ((queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&

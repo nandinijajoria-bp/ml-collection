@@ -210,7 +210,10 @@ public class LoanDetailsController {
 
 		logger.info("updateEligibleLoanAmount response: {}", responseDTO);
 
-		return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+		if (responseDTO.isSuccess()) {
+			return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+		}
+		return new ResponseEntity<>(responseDTO, HttpStatus.BAD_REQUEST);
 	}
 	
 	@RequestMapping(value = "/derog_application", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
