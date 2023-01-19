@@ -37,7 +37,7 @@ public class RequestAuditService {
                 pushKafkaAudit(kafkaAudit);
             }
         } catch (Exception e) {
-            log.error("exception occurred in auditing response {}", e.getMessage());
+            log.error("exception occurred in auditing response {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
 
     }
