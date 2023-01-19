@@ -26,12 +26,14 @@ public class LoanDetailsRequestAuditService implements IRequestAudit<RequestResp
             apiResponse = objectMapper.readValue(payload.getResponse(), new TypeReference<ApiResponse<LoanDetailsResponse>>(){});
         } catch (Exception e) {
             log.error("exception occurred while auditing data {}", e.getMessage());
+            return loanDetailsEligibilityAuditDto;
         }
         LoanDetailsResponse loanDetailsResponse = null;
         try {
             loanDetailsResponse = apiResponse.getData();
         } catch (Exception e) {
             log.error("exception occurred while parsing data {}", e.getMessage());
+            return loanDetailsEligibilityAuditDto;
         }
         if (ObjectUtils.isEmpty(loanDetailsResponse)) {
             return loanDetailsEligibilityAuditDto;
