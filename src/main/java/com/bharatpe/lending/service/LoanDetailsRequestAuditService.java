@@ -40,6 +40,7 @@ public class LoanDetailsRequestAuditService implements IRequestAudit<RequestResp
         }
         if (!ObjectUtils.isEmpty(loanDetailsResponse.getLoanApplication()) &&
                 ("pending_verification".equalsIgnoreCase(loanDetailsResponse.getLoanApplication().getApplicationStatus())
+                        && !ObjectUtils.isEmpty(loanDetailsResponse.getLoanApplication().getEnachDone())
                         && loanDetailsResponse.getLoanApplication().getEnachDone()) ||
                 ("approved".equalsIgnoreCase(loanDetailsResponse.getLoanApplication().getApplicationStatus()))) {
             log.info("ignoring this audit ! {}", payload.getRequestId());
