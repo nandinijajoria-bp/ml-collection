@@ -1,17 +1,13 @@
 package com.bharatpe.lending.service.impl;
 
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.ILenderAssignService;
-import com.bharatpe.lending.dao.LenderAssignmentRulesDao;
-import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.LenderAssignmentRules;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.Lender;
@@ -48,6 +44,12 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Value("${whitelisted.topup.lenders}")
+    String topupLenders;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -93,6 +95,7 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public LendingApplication assignLender(LendingApplication application, EdiModel ediModel) {
+
         if (ObjectUtils.isEmpty(application)) {
             throw new RuntimeException("Application not found for merchant:" + application.getMerchantId());
         }
@@ -338,5 +341,33 @@ public class LenderAssignService implements ILenderAssignService {
         fallbackLender.setAssignedAmount(fallbackLender.getAssignedAmount() + lendingApplication.getLoanAmount());
         lenderDisbursalLimitsDao.save(fallbackLender);
         return fallbackLender.getLender();
+    }
+
+    public String assignTopupLender(LendingApplication lendingApplication){
+        log.info("Assigning lender for topup loan for application:{}", lendingApplication.getId());
+        String lender = null;
+        if("ALL".equals(topupLenders)){
+            lender = assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL).getLender();
+        }
+        else if("NONE".equals(topupLenders)){
+            lender = Lender.LDC.name();
+        }
+        else{
+            String[] lenders = topupLenders.split(",");
+            List<String> topupLenders = Arrays.asList(lenders);
+            log.info("topup lenders:{}", topupLenders);
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            if(topupLenders.contains(activeLoan.getNbfc())){
+                lender = activeLoan.getNbfc();
+                lendingApplication.setLender(lender);
+                lendingApplicationDao.save(lendingApplication);
+                saveLenderChangeAudit(lendingApplication, lender);
+                ediModelAudit(lendingApplication, LenderOffDays.valueOf(lender).getEdiModel());
+            }else {
+                log.error("Lender could not be assigned for application:{}", lendingApplication.getId());
+                throw new RuntimeException("Lender not same/Not eligible for topup loans");
+            }
+        }
+        return lender;
     }
 }

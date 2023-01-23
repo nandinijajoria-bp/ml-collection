@@ -381,15 +381,19 @@ public class VerifyOTPService {
             lendingApplication.setLongitude(meta.getLongitude());
         }
         lendingApplication.setExternalLoanId(loanId);
-        if (enachSuccess != null) {
-            lendingApplication.setNachType("ENACH");
-            if(!ObjectUtils.isEmpty(enachSuccess.getNachLender())){
-                lendingApplication.setNachLender(enachSuccess.getNachLender());
-            }else{
-                lendingApplication.setNachLender("BHARATPE");
+
+        //skip nach check for topup loans
+        if(!"TOPUP".equals(lendingApplication.getLoanType())){
+            if (enachSuccess != null) {
+                lendingApplication.setNachType("ENACH");
+                if(!ObjectUtils.isEmpty(enachSuccess.getNachLender())){
+                    lendingApplication.setNachLender(enachSuccess.getNachLender());
+                }else{
+                    lendingApplication.setNachLender("BHARATPE");
+                }
+                lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
+                lendingApplication.setNachStatus("APPROVED");
             }
-            lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
-            lendingApplication.setNachStatus("APPROVED");
         }
 
         if (topupLoans.contains(lendingApplication.getLoanType())) {

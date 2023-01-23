@@ -255,6 +255,13 @@ public class LoanDetailsServiceV2 {
             }
 
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
+
+            //fetching TOPUP application details
+            LendingApplication topupLoan = lendingApplicationDao.findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId(), "TOPUP");
+            boolean isIOS = request != null && request.isIOS();
+            LoanApplicationDetails topupApplication = setApplicationDetails(loanDetailsResponse, topupLoan, token, isIOS, experian,merchant);
+            loanDetailsResponse.setTopupApplication(topupApplication);
+
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
@@ -300,13 +307,13 @@ public class LoanDetailsServiceV2 {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
                     loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 }
-                boolean isIOS = request != null && request.isIOS();
                 List<LendingMerchantReferences> referencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(),openApplication.getId());
                 log.info("ReferenceList: {}",Arrays.toString(referencesList.toArray()));
                 if(!referencesList.isEmpty()) {
                     loanDetailsResponse.setShowReferencePage(false);
                 }
-                setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian,merchant);
+                LoanApplicationDetails loanApplicationDetails = setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian,merchant);
+                loanDetailsResponse.setLoanApplication(loanApplicationDetails);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
                     //if no reapply then dont check eligibility
                     cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
@@ -657,7 +664,7 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private void setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian, BasicDetailsDto merchant) {
+    private LoanApplicationDetails setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian, BasicDetailsDto merchant) {
         try {
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
@@ -722,10 +729,11 @@ public class LoanDetailsServiceV2 {
             if (!StringUtils.isEmpty(applicationDetails.getEnachDeeplink())) {
                 applicationDetails.setEnachErrorResponse(getEnachError(openApplication, experian));
             }
-            loanDetailsResponse.setLoanApplication(applicationDetails);
+            return applicationDetails;
         } catch (Exception e) {
             log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchantId(), e);
         }
+        return null;
     }
 
     public Long getReapplyTime(LendingApplication lendingApplication) {

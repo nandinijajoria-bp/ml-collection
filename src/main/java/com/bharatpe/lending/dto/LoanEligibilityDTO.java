@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class LoanEligibilityDTO {
 
+	private Long id;
+
 	@JsonProperty(value = "finance_charge")
 	private Integer processingFee;
 	
@@ -38,6 +40,14 @@ public class LoanEligibilityDTO {
 	@JsonIgnore
 	private Integer principleEdiTenure;
 	private Integer tenureInMonths;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
 
 	public Integer getTenureInMonths() {
 		return tenureInMonths;
@@ -203,7 +213,7 @@ public class LoanEligibilityDTO {
 
 	@Override
 	public String toString() {
-		return "LoanEligibilityDTO [processingFee=" + processingFee + ", interestRate=" + interestRate
+		return "LoanEligibilityDTO [id="+ id + "processingFee=" + processingFee + ", interestRate=" + interestRate
 				+ ", interestAmount=" + interestAmount + ", disbursementAmount=" + disbursementAmount
 				+ ", prevLoanUnpaidAmount=" + prevLoanUnpaidAmount + ", optionEnable=" + optionEnable + ", amount="
 				+ amount + ", edi=" + edi + ", repayment=" + repayment + ", category=" + category + ", tenure=" + tenure

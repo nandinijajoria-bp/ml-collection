@@ -40,4 +40,5 @@ public class LoanDetailsResponse {
     private Boolean clubV2Member = false;
     private Boolean showReferencePage = true;
     private Long merchantId;
+    private LoanApplicationDetails topupApplication;
 }
