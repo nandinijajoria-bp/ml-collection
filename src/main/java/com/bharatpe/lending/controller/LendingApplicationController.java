@@ -263,7 +263,7 @@ public class LendingApplicationController {
 		logger.info("singAgreement request : {}",requestDTO);
 		Map<String, Object> response = signAgreementService.createNewApplicationAndSendOTPForTopup(merchant, requestDTO);
 //		logger.info("signAgreement response : {}", resp);
-		return null;
+		return new ResponseEntity<>(new ApiResponse<>(response), HttpStatus.OK);
 	}
 
 }

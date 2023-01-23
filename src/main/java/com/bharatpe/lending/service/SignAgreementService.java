@@ -661,6 +661,7 @@ public class SignAgreementService {
 		}
 
 		LendingApplication newApplication = new LendingApplication();
+		newApplication.setMerchantName(merchant.getBeneficiaryName());
 
 		if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
 			logger.info("Last loan not closed for merchant ID {}", merchant.getId());
@@ -687,7 +688,8 @@ public class SignAgreementService {
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 		newApplication.setProcessingFee((double)processingFee);
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())? eligibleLoan.getAmount() - processingFee - prevLendingSchedule.getDueAmount():eligibleLoan.getAmount() - processingFee;
+		newApplication.setDisbursalAmount(disbursalAmount);
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -727,7 +729,7 @@ public class SignAgreementService {
 		}else {
 			lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
 		}
-
+		newApplication.setNachLender("TOPUP".equals(eligibleLoan.getLoanType())?loanUtil.enachServiceLenderMapper(newApplication.getLender()):null);
 //		lenderMappingService.lenderMapping(newApplication);
 
 		if(newApplication.getId() != null) {
