@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -43,7 +44,8 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
     LoanUtil loanUtil;
 
     List<String> pgMids = Arrays.asList("LENTRIgUqSD3gV0xCW6gCijBLsZU9eU2", "LENLDCmzpVvR90yJCzKJWuYgWMvpVPZg", "LENLLzV9L6C0FcejvkqDzVbZvQpBUQY4",
-            "LENHIN7nhdRBCGrskaRyHQSOYrN3paPh", "LENMAM1T78fJ3PBkYPfOvHAOGdLuiopm");
+            "LENHIN7nhdRBCGrskaRyHQSOYrN3paPh", "LENMAM1T78fJ3PBkYPfOvHAOGdLuiopm", "LENLLOBmSHeoNlJ3lfd7M5SDu2HJXYwY", "LENLLOFr0ZxlHGwodR5bklVHWkTCHCk0",
+            "LENABFLcuNy15FG7NEhhuJK31S1f7HbO");
 
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -83,6 +85,9 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
                 request.setAttribute("merchant", basicDetailsDto.get());
             } else {
                 pgMidConfig = lendingPgMidConfigSlaveDao.findTop1ByMidAndStatus(mid, "ACTIVE");
+                if (mid.equals("LENLLOBmSHeoNlJ3lfd7M5SDu2HJXYwY") || mid.equals("LENLLOFr0ZxlHGwodR5bklVHWkTCHCk0") || mid.equals("LENABFLcuNy15FG7NEhhuJK31S1f7HbO")) {
+                    pgMidConfig = lendingPgMidConfigSlaveDao.findTop1ByMidAndStatus(mid, "INACTIVE");
+                }
                 logger.info("pg mid config: {}", pgMidConfig);
                 secret = pgMidConfig.getSecret();
             }
