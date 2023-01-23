@@ -252,7 +252,7 @@ public class MerchantLoansService {
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentSchedule> merchantLoans = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoan(merchantId, false);
         responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
-
+        
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
             responseDTO.setLoans(Collections.emptyList());

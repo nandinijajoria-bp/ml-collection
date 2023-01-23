@@ -1,4 +1,4 @@
-  
+
 package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.service.LendingCache;
@@ -49,10 +49,10 @@ import java.util.concurrent.Executors;
 @Service
 public class SignAgreementService {
 	Logger logger = LoggerFactory.getLogger(SignAgreementService.class);
-	
+
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
-	
+
 	@Autowired
 	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
@@ -64,22 +64,22 @@ public class SignAgreementService {
 
 //	@Autowired
 //	MerchantSummaryDao merchantSummaryDao;
-	
+
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
-	
+
 	@Autowired
 	LendingCategoryDao lendingCategoryDao;
-	
+
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
-	
+
 	@Autowired
 	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
-	
+
 	@Autowired
 	BharatPeOtpHandler bharatPeOtpHandler;
-	
+
 	@Autowired
 	LendingApplicationService lendingApplicationService;
 
@@ -131,7 +131,7 @@ public class SignAgreementService {
 		if (!ObjectUtils.isEmpty(merchantBasicDetails.getId())) {
 			String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchantBasicDetails.getId();
 			logger.info("deleting cached key of loan details where merchant initiates agreement: {}",
-			merchantBasicDetails.getId());
+					merchantBasicDetails.getId());
 			if (Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
 				lendingCache.delete(loanDetailsCacheKey);
 			}
@@ -158,14 +158,14 @@ public class SignAgreementService {
 	}
 
 
-	
+
 	private Map<String, Object> verifyApplicationAndSendOTP(BasicDetailsDto merchant, Long applicationId, String appSign) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success", false);
 		response.put("otp_flow", false);
 
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
-		merchant.getId());
+				merchant.getId());
 		LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
 		if ((Objects.isNull(lendingResubmitTask))) {
 			if (lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
@@ -211,19 +211,19 @@ public class SignAgreementService {
 				return response;
 			}
 		}
-        executorService.execute(() -> loanUtil.publishDSData(lendingApplication));
+		executorService.execute(() -> loanUtil.publishDSData(lendingApplication));
 		response =  sendOTP(merchant, appSign);
 		response.put("application_id", applicationId);
 		return response;
 	}
 
-	
+
 	private Map<String, Object> createNewApplicationAndSendOTP(RequestDTO<SignAgreementDTO> requestDTO, BasicDetailsDto merchant) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success", false);
 		response.put("otp_flow", false);
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
-		LoanType.IO_TOPUP.name());
+				LoanType.IO_TOPUP.name());
 		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 //		String selectedCategory = requestDTO.getPayload().getCategory();
 		Integer selectedTenure = requestDTO.getPayload().getTenureInMonths();
@@ -236,7 +236,7 @@ public class SignAgreementService {
 			logger.error("Selected tenure is null/empty for merchant {}", merchant.getId());
 			return response;
 		}
-		
+
 //		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
 		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 		if(merchantResponseDTO == null) {
@@ -247,15 +247,15 @@ public class SignAgreementService {
 		LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(merchant.getId());
 		if (checkDupe != null) {
 			logger.error("Merchant Has Already Active Application for merchantId: {} And ApplicationId:{}",
-			merchant.getId(), checkDupe.getId());
+					merchant.getId(), checkDupe.getId());
 			return response;
 		}
 
 		LendingPaymentSchedule prevLendingSchedule =
-		lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+				lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
 		LendingApplication prevApplication =
-		lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
-		, "APPROVED");
+				lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
+						, "APPROVED");
 
 		if (prevLendingSchedule == null || prevApplication == null) {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
@@ -286,25 +286,25 @@ public class SignAgreementService {
 		catch(Exception e) {
 			logger.error("Error ocuured while checking loan eligibilty for pin code", e);
 		}
-		
+
 		LendingApplication newApplication = new LendingApplication();
 
-        if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
-            logger.info("Last loan not closed for merchant ID {}", merchant.getId());
-            return response;
-        }
-        int processingFee;
-        if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-            processingFee = 0;
-        }else {
-            processingFee = eligibleLoan.getProcessingFee();
-        }
-        if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-            processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
-        }
-        newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
-        newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
-        newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+		if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
+			logger.info("Last loan not closed for merchant ID {}", merchant.getId());
+			return response;
+		}
+		int processingFee;
+		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
+			processingFee = 0;
+		}else {
+			processingFee = eligibleLoan.getProcessingFee();
+		}
+		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
+			processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
+		}
+		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+		newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 //        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
 //            newApplication.setInterestRate(1.75D);
 //        } else {
@@ -312,29 +312,29 @@ public class SignAgreementService {
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 		newApplication.setProcessingFee((double)processingFee);
-        newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-        newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
-        newApplication.setMerchantId(merchant.getId());
-        newApplication.setShopNumber(prevApplication.getShopNumber());
-        newApplication.setStreetAddress(prevApplication.getStreetAddress());
-        newApplication.setArea(prevApplication.getArea());
-        newApplication.setLandmark(prevApplication.getLandmark());
-        newApplication.setPincode(prevApplication.getPincode());
-        newApplication.setCity(prevApplication.getCity());
-        newApplication.setState(prevApplication.getState());
-        newApplication.setBusinessName(prevApplication.getBusinessName());
-        newApplication.setStatus("draft");
-        newApplication.setMode("AUTO");
-        newApplication.setCategory(eligibleLoan.getCategory());
-        newApplication.setTenure(eligibleLoan.getTenure());
-        newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
-        newApplication.setPayableDays((long) eligibleLoan.getEdiCount());
-        newApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
-        newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
-        newApplication.setLoanAmount(eligibleLoan.getAmount());
-        newApplication.setLoanType(eligibleLoan.getLoanType());
-        if("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
-        	newApplication.setCkycId(String.valueOf(merchant.getId()));
+		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
+		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+		newApplication.setMerchantId(merchant.getId());
+		newApplication.setShopNumber(prevApplication.getShopNumber());
+		newApplication.setStreetAddress(prevApplication.getStreetAddress());
+		newApplication.setArea(prevApplication.getArea());
+		newApplication.setLandmark(prevApplication.getLandmark());
+		newApplication.setPincode(prevApplication.getPincode());
+		newApplication.setCity(prevApplication.getCity());
+		newApplication.setState(prevApplication.getState());
+		newApplication.setBusinessName(prevApplication.getBusinessName());
+		newApplication.setStatus("draft");
+		newApplication.setMode("AUTO");
+		newApplication.setCategory(eligibleLoan.getCategory());
+		newApplication.setTenure(eligibleLoan.getTenure());
+		newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+		newApplication.setPayableDays((long) eligibleLoan.getEdiCount());
+		newApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
+		newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
+		newApplication.setLoanAmount(eligibleLoan.getAmount());
+		newApplication.setLoanType(eligibleLoan.getLoanType());
+		if("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
+			newApplication.setCkycId(String.valueOf(merchant.getId()));
 		}
 		if(!StringUtils.isEmpty(requestDTO.getMeta().getLatitude()) && !requestDTO.getMeta().getLatitude().trim().equalsIgnoreCase("undefined"))
 			newApplication.setLatitude(requestDTO.getMeta().getLatitude());
@@ -343,8 +343,8 @@ public class SignAgreementService {
 		logger.info("ip from meta before setting to application : {} meta : {}",requestDTO.getMeta().getIp(), requestDTO.getMeta() );
 		newApplication.setIp(requestDTO.getMeta().getIp());
 		newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
-        newApplication = lendingApplicationDao.save(newApplication);
-        loanUtil.publishApplicationEvent(newApplication);
+		newApplication = lendingApplicationDao.save(newApplication);
+		loanUtil.publishApplicationEvent(newApplication);
 
 //		lenderMappingService.lenderMapping(newApplication);
 		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
@@ -372,12 +372,12 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
-        LendingApplication finalNewApplication = newApplication;
-        executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
-        executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
+		LendingApplication finalNewApplication = newApplication;
+		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
+		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
 		return response;
 	}
-	
+
 	public void replicateDocumentsForNewApplication(LendingApplication prevApplication, LendingApplication newApplication, BasicDetailsDto merchant, MetaDTO meta) {
 		DocKycDetailsMaster panDoc = docKycDetailsDaoMaster.fetchLatestPanCardDetails(prevApplication.getMerchantId(),prevApplication.getId());
 		DocKycDetailsMaster poaDoc = docKycDetailsDaoMaster.fetchLatestAddressDetails(prevApplication.getMerchantId(),prevApplication.getId());
@@ -507,10 +507,10 @@ public class SignAgreementService {
 		}
 
 	}
-	
+
 	private DocKycDetailsMaster insertIntoDocKycDetails(DocKycDetailsMaster oldDocKycDetails, DocumentsIdProofMaster documentsIdProof) {
 		DocKycDetailsMaster docKycDetails = new DocKycDetailsMaster();
-		
+
 		docKycDetails.setMerchantId(oldDocKycDetails.getMerchantId());
 		docKycDetails.setDocSide(oldDocKycDetails.getDocSide());
 		docKycDetails.setDocumentsIdProof(documentsIdProof);
@@ -573,7 +573,7 @@ public class SignAgreementService {
 
 		finalResponse.put("success", false);
 		finalResponse.put("otp_flow",false);
-		
+
 		if(merchant.getMobile().length() == 12) {
 			String hash = appSign != null ? appSign : "";
 			String message = "<#> BharatPe: {otp} is your OTP to complete loan agreement for BharatPe Loans. NEVER SHARE THIS OTP WITH ANYONE. " + hash;
@@ -591,6 +591,13 @@ public class SignAgreementService {
 	public Map<String, Object> createNewApplicationAndSendOTPForTopup(BasicDetailsDto merchant, CreateApplicationRequestForTopupDTO requestDTO) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success", false);
+
+		if(ObjectUtils.isEmpty(requestDTO) || ObjectUtils.isEmpty(requestDTO.getEligibleLoanId())){
+			logger.info("Loan ID not found.");
+			response.put("message", "Eligible loan id is null");
+			return response;
+		}
+
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
 				LoanType.IO_TOPUP.name());
 		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
@@ -615,7 +622,7 @@ public class SignAgreementService {
 			response.put("success", true);
 			return response;
 		}
-		
+
 
 		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 		if(merchantResponseDTO == null) {
