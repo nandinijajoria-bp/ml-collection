@@ -239,6 +239,16 @@ public class LoanDetailsServiceV2 {
             } else {
                 loanDetailsResponse.setBpClubMember((Boolean) bpCLubResponse);
             }
+
+            //fetching TOPUP application details
+            Experian experian = experianDao.getByMerchantId(merchant.getId());
+            LendingApplication topupLoan = lendingApplicationDao.findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId(), "TOPUP");
+            boolean isIOS = request != null && request.isIOS();
+            if(!ObjectUtils.isEmpty(topupLoan)) {
+                LoanApplicationDetails topupApplication = setApplicationDetails(loanDetailsResponse, topupLoan, token, isIOS, experian,merchant);
+                loanDetailsResponse.setTopupApplication(topupApplication);
+            }
+            
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
             populateBusinessDetails(merchant.getId(), loanDetailsResponse);
@@ -255,7 +265,6 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setActiveLoan(true);
                 return new ApiResponse<>(loanDetailsResponse);
             }
-            Experian experian = experianDao.getByMerchantId(merchant.getId());
             if (experian != null) {
                 loanDetailsResponse.setPancard(experian.getPancardNumber());
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
@@ -263,12 +272,6 @@ public class LoanDetailsServiceV2 {
             }
 
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
-
-            //fetching TOPUP application details
-            LendingApplication topupLoan = lendingApplicationDao.findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId(), "TOPUP");
-            boolean isIOS = request != null && request.isIOS();
-            LoanApplicationDetails topupApplication = setApplicationDetails(loanDetailsResponse, topupLoan, token, isIOS, experian,merchant);
-            loanDetailsResponse.setTopupApplication(topupApplication);
 
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {

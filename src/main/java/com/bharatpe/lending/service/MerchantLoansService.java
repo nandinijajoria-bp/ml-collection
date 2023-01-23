@@ -252,15 +252,6 @@ public class MerchantLoansService {
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentSchedule> merchantLoans = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoan(merchantId, false);
         responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
-
-
-        //refresh eligibility after top up loan created_at check.
-//        EligibleLoan topupLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeOrderByIdDesc(merchantId, "TOPUP");
-//        LendingLedger ledger = lendingLedgerDao.findLastLedgerEntry(merchantId, topupLoan.getCreatedAt());
-//        if(!ObjectUtils.isEmpty(ledger)){
-//            apiGatewayService.getGlobalLimit(merchantId, null, 318, null);
-//        }
-
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
             responseDTO.setLoans(Collections.emptyList());
@@ -635,7 +626,8 @@ public class MerchantLoansService {
 //            }
 
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
-            if (ObjectUtils.isEmpty(eligibleLoanList)) {
+            LendingLedger ledger = lendingLedgerDao.findLastLedgerEntry(lendingPaymentSchedule.getMerchantId(), eligibleLoanList.get(0).getCreatedAt());
+            if (ObjectUtils.isEmpty(eligibleLoanList) || !ObjectUtils.isEmpty(ledger)) {
                 Double eligibleAmount = 0D;
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId());
                 if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
