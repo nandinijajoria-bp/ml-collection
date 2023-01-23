@@ -253,6 +253,13 @@ public class MerchantLoansService {
         List<LendingPaymentSchedule> merchantLoans = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoan(merchantId, false);
         responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
 
+        //refresh eligibility after top up loan created_at check.
+        EligibleLoan topupLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeOrderByIdDesc(merchantId, "TOPUP");
+        LendingLedger ledger = lendingLedgerDao.findLastLedgerEntry(merchantId, topupLoan.getCreatedAt());
+        if(!ObjectUtils.isEmpty(ledger)){
+            apiGatewayService.getGlobalLimit(merchantId, null, 318, null);
+        }
+
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
             responseDTO.setLoans(Collections.emptyList());
