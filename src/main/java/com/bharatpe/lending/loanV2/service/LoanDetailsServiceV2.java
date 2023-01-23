@@ -263,6 +263,13 @@ public class LoanDetailsServiceV2 {
             }
 
             loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
+
+            //fetching TOPUP application details
+            LendingApplication topupLoan = lendingApplicationDao.findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId(), "TOPUP");
+            boolean isIOS = request != null && request.isIOS();
+            LoanApplicationDetails topupApplication = setApplicationDetails(loanDetailsResponse, topupLoan, token, isIOS, experian,merchant);
+            loanDetailsResponse.setTopupApplication(topupApplication);
+
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
@@ -308,7 +315,6 @@ public class LoanDetailsServiceV2 {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
                     loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 }
-                boolean isIOS = request != null && request.isIOS();
                 List<LendingMerchantReferences> referencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(),openApplication.getId());
                 log.info("ReferenceList: {}",Arrays.toString(referencesList.toArray()));
                 if(!referencesList.isEmpty()) {
