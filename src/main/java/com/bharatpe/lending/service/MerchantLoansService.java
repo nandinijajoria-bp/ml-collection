@@ -627,8 +627,7 @@ public class MerchantLoansService {
 //            }
 
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
-            LendingLedger ledger = lendingLedgerDao.findLastLedgerEntry(lendingPaymentSchedule.getMerchantId(), eligibleLoanList.get(0).getCreatedAt());
-            if (ObjectUtils.isEmpty(eligibleLoanList) || !ObjectUtils.isEmpty(ledger)) {
+            if (ObjectUtils.isEmpty(eligibleLoanList)) {
                 Double eligibleAmount = 0D;
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId());
                 if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
