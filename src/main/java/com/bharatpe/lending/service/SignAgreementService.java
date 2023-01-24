@@ -781,7 +781,6 @@ public class SignAgreementService {
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
 		LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
-
 		LendingApplication finalNewApplication = newApplication;
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
