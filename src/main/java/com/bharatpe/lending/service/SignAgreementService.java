@@ -119,6 +119,8 @@ public class SignAgreementService {
 	@Autowired
 	LenderAssignService lenderAssignService;
 
+	@Autowired
+	LendingLedgerDao lendingLedgerDao;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -765,6 +767,7 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
+		LendingLedger lendingLedger = lendingLedgerDao.find;
 		LendingApplication finalNewApplication = newApplication;
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
