@@ -850,7 +850,7 @@ public class LendingApplicationServiceV2 {
                 dateDTO.setTime(lendingApplication.getAgreementAt().toString());
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
-            } else if (successEnach != null) {
+            } else if (successEnach != null || "APPROVED".equals(lendingApplication.getNachStatus())) {
                 applicationDTO2.setStatus(successEnach.getStatus());
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);

@@ -609,6 +609,12 @@ public class SignAgreementService {
 //		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
 
 		LendingApplication previousDraftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
+		if(Objects.nonNull(previousDraftApplication) && "TOPUP".equals(previousDraftApplication.getLoanType())){
+			response.put("message", "Open topup application already exists.");
+			response.put("application_id", previousDraftApplication.getId());
+			response.put("success", true);
+			return response;
+		}
 		
 
 		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
@@ -695,7 +701,7 @@ public class SignAgreementService {
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())? eligibleLoan.getAmount() - processingFee - loanUtil.getForeclosureAmount(prevLendingSchedule)
 				:eligibleLoan.getAmount() - processingFee;
-		newApplication.setDisbursalAmount(disbursalAmount);
+		newApplication.setDisbursalAmount(Math.floor(disbursalAmount));
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -767,7 +773,10 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
-		LendingLedger lendingLedger = lendingLedgerDao.find;
+		LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
+//		if(){
+//
+//		}
 		LendingApplication finalNewApplication = newApplication;
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));

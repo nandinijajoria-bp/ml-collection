@@ -539,8 +539,7 @@ public class MerchantLoansService {
     }
 
     public boolean excludeTopUpBaseChecks(Long merchantId) {
-        List<Long> exclusionMerchantIDs = Arrays.asList(9319451L, 6518986L, 10407700L);
-        return exclusionMerchantIDs.contains(merchantId);
+        return loanUtil.isInternalMerchant(merchantId);
     }
 
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
