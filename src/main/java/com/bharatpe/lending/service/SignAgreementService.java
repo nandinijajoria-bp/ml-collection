@@ -623,7 +623,6 @@ public class SignAgreementService {
 			return response;
 		}
 
-
 		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 		if(merchantResponseDTO == null) {
 			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());

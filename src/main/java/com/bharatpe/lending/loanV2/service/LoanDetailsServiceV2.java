@@ -242,17 +242,19 @@ public class LoanDetailsServiceV2 {
 
             //fetching TOPUP application details
             Experian experian = experianDao.getByMerchantId(merchant.getId());
-            LendingApplication topupLoan = lendingApplicationDao.findOpenTopUpApplication(merchant.getId(), "TOPUP");
             boolean isIOS = request != null && request.isIOS();
-            if(!ObjectUtils.isEmpty(topupLoan)) {
-                LoanApplicationDetails topupApplication = setApplicationDetails(loanDetailsResponse, topupLoan, token, isIOS, experian,merchant);
-                loanDetailsResponse.setTopupApplication(topupApplication);
+            Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
+            LendingApplication openApplication;
+            if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullAndPaymentScheduleStatusClosedOrderByIdDesc(merchant.getId(), lendingPaymentSchedule.get().getCreatedAt());
+            } else {
+                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
             }
-            
+
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
             populateBusinessDetails(merchant.getId(), loanDetailsResponse);
-            if (loanUtil.hasActiveLoan(merchant)) {
+            if (loanUtil.hasActiveLoan(merchant) && !loanDetailsResponse.isTopUp()) {
                 log.info("active loan merchant:{}", merchant.getId());
                 LendingApplication topupApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchant.getId(), "TOPUP", "deleted");
                 if(!ObjectUtils.isEmpty(topupApplication) && !"rejected".equals(topupApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(topupApplication.getLoanDisbursalStatus())){
@@ -264,6 +266,7 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setActiveLoan(true);
                 return new ApiResponse<>(loanDetailsResponse);
             }
+            loanDetailsResponse.setActiveLoan(loanDetailsResponse.isTopUp());
             if (experian != null) {
                 loanDetailsResponse.setPancard(experian.getPancardNumber());
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
@@ -286,13 +289,6 @@ public class LoanDetailsServiceV2 {
                         loanUtil.callingDeForReferences(merchant.getId(),draftApplication);
                     });
                 }
-            }
-            Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
-            LendingApplication openApplication;
-            if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
-                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullAndPaymentScheduleStatusClosedOrderByIdDesc(merchant.getId(), lendingPaymentSchedule.get().getCreatedAt());
-            } else {
-                openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
             }
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
@@ -323,6 +319,7 @@ public class LoanDetailsServiceV2 {
                     loanDetailsResponse.setShowReferencePage(false);
                 }
                 LoanApplicationDetails loanApplicationDetails = setApplicationDetails(loanDetailsResponse, openApplication, token, isIOS, experian,merchant);
+                loanDetailsResponse.setTopUp("TOPUP".equals(openApplication.getLoanType()));
                 loanDetailsResponse.setLoanApplication(loanApplicationDetails);
                 if (loanDetailsResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDetailsResponse.getLoanApplication().getReapply())) {
                     //if no reapply then dont check eligibility
