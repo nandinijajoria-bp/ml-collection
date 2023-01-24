@@ -114,5 +114,6 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 */
 	LendingApplication findTop1ByMerchantIdAndStatusNotOrderByIdDesc(Long merchantId, String status);
 
-	LendingApplication findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(Long merchantId, String loanType);
+	@Query(value = "select * from lending_application where loan_type = :loanType and merchant_id = :merchantId and disburse_timestamp is null and status not in ('rejected','deleted') order by id desc limit 1", nativeQuery = true)
+	LendingApplication findOpenTopUpApplication(Long merchantId, String loanType);
 }
