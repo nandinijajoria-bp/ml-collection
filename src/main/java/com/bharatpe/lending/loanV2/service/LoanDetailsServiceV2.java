@@ -246,6 +246,7 @@ public class LoanDetailsServiceV2 {
                 log.info("active loan merchant:{}", merchant.getId());
                 LendingApplication topupApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchant.getId(), "TOPUP", "deleted");
                 if(!ObjectUtils.isEmpty(topupApplication) && !"rejected".equals(topupApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(topupApplication.getLoanDisbursalStatus())){
+
                     Experian experian = experianDao.getByMerchantId(merchant.getId());
                     boolean isIOS = request != null && request.isIOS();
                     LoanApplicationDetails topupApplicationDetails = setApplicationDetails(loanDetailsResponse, topupApplication, token, isIOS, experian, merchant);
