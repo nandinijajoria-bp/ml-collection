@@ -242,7 +242,7 @@ public class LoanDetailsServiceV2 {
 
             //fetching TOPUP application details
             Experian experian = experianDao.getByMerchantId(merchant.getId());
-            LendingApplication topupLoan = lendingApplicationDao.findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId(), "TOPUP");
+            LendingApplication topupLoan = lendingApplicationDao.findOpenTopUpApplication(merchant.getId(), "TOPUP");
             boolean isIOS = request != null && request.isIOS();
             if(!ObjectUtils.isEmpty(topupLoan)) {
                 LoanApplicationDetails topupApplication = setApplicationDetails(loanDetailsResponse, topupLoan, token, isIOS, experian,merchant);
