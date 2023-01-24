@@ -605,6 +605,10 @@ public class SignAgreementService {
 //		}
 
 //		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
+
+		LendingApplication previousDraftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
+		
+
 		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 		if(merchantResponseDTO == null) {
 			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
@@ -620,11 +624,10 @@ public class SignAgreementService {
 		}
 
 		LendingPaymentSchedule prevLendingSchedule =
-				lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchant.getId());
+				lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
 		LendingApplication prevApplication =
 				lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
 						, "APPROVED");
-
 		if (prevLendingSchedule == null || prevApplication == null) {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			response.put("message", "User not eligible, last loan not found or last application is not disbursed/found");

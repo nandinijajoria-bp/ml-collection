@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV2.dto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -40,5 +41,6 @@ public class LoanDetailsResponse {
     private Boolean clubV2Member = false;
     private Boolean showReferencePage = true;
     private Long merchantId;
-    private LoanApplicationDetails topupApplication;
+    @JsonProperty("isTopup")
+    private boolean isTopUp=false;
 }
