@@ -28,6 +28,7 @@ public class LoanDetailsResponse {
     private String creditLineDeeplink;
     private Eligibility eligibility;
     private LoanApplicationDetails loanApplication;
+    private LoanApplicationDetails topupLoanApplication;
     private String merchantName;
     private boolean bankLinked = false;
     private boolean repeatLoan = false;
@@ -41,6 +42,6 @@ public class LoanDetailsResponse {
     private Boolean clubV2Member = false;
     private Boolean showReferencePage = true;
     private Long merchantId;
-    @JsonProperty("isTopup")
-    private boolean isTopUp=false;
+//    @JsonProperty("isTopup")
+//    private boolean isTopUp=false;
 }
