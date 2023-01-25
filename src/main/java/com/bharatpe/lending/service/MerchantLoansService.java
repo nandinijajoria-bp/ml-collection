@@ -551,7 +551,12 @@ public class MerchantLoansService {
                 logger.info("Topup are loans are disabled");
                 return eligiblity;
             }
-            if(!Lender.LDC.name().equals(lendingPaymentSchedule.getNbfc())){
+
+            if (!easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent) || !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())){
+                logger.info("Topup not enabled for this merchant :{}",lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+            if(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                 logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
                 return eligiblity;
             }
