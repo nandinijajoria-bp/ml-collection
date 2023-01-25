@@ -31,6 +31,24 @@ public class PgPaymentCallbackDTO {
         private String breakupType;
         private String finalGateway;
         private String accountType;
+        private String pgOrderId;
+        private String terminalOrderId;
+
+        public String getPgOrderId() {
+            return pgOrderId;
+        }
+
+        public void setPgOrderId(String pgOrderId) {
+            this.pgOrderId = pgOrderId;
+        }
+
+        public String getTerminalOrderId() {
+            return terminalOrderId;
+        }
+
+        public void setTerminalOrderId(String terminalOrderId) {
+            this.terminalOrderId = terminalOrderId;
+        }
 
         public String getAccountType() {
             return accountType;
