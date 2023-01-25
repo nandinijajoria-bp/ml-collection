@@ -552,7 +552,7 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
-            if (!easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent) || !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())){
+            if (!(loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId()) || easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent))){
                 logger.info("Topup not enabled for this merchant :{}",lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
