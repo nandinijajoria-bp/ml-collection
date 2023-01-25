@@ -697,7 +697,7 @@ public class SignAgreementService {
 //            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-		newApplication.setProcessingFee((double)processingFee);
+		newApplication.setProcessingFee(Math.ceil(processingFee));
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
 		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())? eligibleLoan.getAmount() - processingFee - loanUtil.getForeclosureAmount(prevLendingSchedule)
 				:eligibleLoan.getAmount() - processingFee;
