@@ -397,6 +397,12 @@ public class VerifyOTPService {
         }
 
         if (topupLoans.contains(lendingApplication.getLoanType())) {
+
+            // skip nach check for topup loans and set
+            lendingApplication.setNachType("ENACH");
+            lendingApplication.setNachStatus("APPROVED");
+            lendingApplication.setNachLender("SKIP_FOR_TOPUP");
+
             logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
             updateDocuments(lendingApplication, meta,merchantBasicDetailsDto);
             if (!topUpLoans(lendingApplication)) {
@@ -446,8 +452,10 @@ public class VerifyOTPService {
         }
         logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
         sendLatLong(merchantBasicDetailsDto.getId(), lendingApplication.getId());
-        if (Objects.nonNull(enachSuccess)) {
-            logger.info("entered before sending to topic for post checks");
+
+        // skip nach check for topup loans
+        if (Objects.nonNull(enachSuccess) || topupLoans.contains(lendingApplication.getLoanType())) {
+            logger.info("entered before sending to topic for post checks for application_id :  {}", lendingApplication.getId());
             sendDetailsForContactsVerification(merchantBasicDetailsDto.getId(), lendingApplication.getId());
         }
         sendDuplicatePancardCheck(merchantBasicDetailsDto.getId(), lendingApplication.getId());
