@@ -508,7 +508,7 @@ public class VerifyOTPService {
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<activeLoan.getLoanAmount())) {
+            if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
                 lendingApplication.setStatus("DELETED");
                 lendingApplication.setManualCibilReason("OFFER_MISMATCH");
