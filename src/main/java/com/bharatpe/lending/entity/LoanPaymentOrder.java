@@ -57,6 +57,17 @@ public class LoanPaymentOrder extends BaseEntity {
     @Column(name = "final_gateway")
     private String finalGateway;
 
+    @Column(name = "terminal_order_id")
+    private String terminalOrderId;
+
+    public String getTerminalOrderId() {
+        return terminalOrderId;
+    }
+
+    public void setTerminalOrderId(String terminalOrderId) {
+        this.terminalOrderId = terminalOrderId;
+    }
+
     public String getCheckoutType() {
         return checkoutType;
     }

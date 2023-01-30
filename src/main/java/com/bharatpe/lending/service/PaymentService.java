@@ -446,7 +446,8 @@ public class PaymentService {
 				loanPaymentOrderDao.save(order);
 				return "OK";
 			}
-			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(), PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null);
+			adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
+					PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, null);
 			order.setBankRefNo(request.getBankReferenceNumber());
 			order.setStatus("SUCCESS");
 			loanPaymentOrderDao.save(order);
@@ -508,18 +509,24 @@ public class PaymentService {
                 }
 				if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
 					String accountType = null;
+					String terminalOrderId = null;
 					if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getAccountType())){
 						accountType = request.getPayments().get(0).getAccountType();
 					}
 
 					if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getFinalGateway())){
-
 						order.setFinalGateway(request.getPayments().get(0).getFinalGateway());
 					}
+					if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getTerminalOrderId())){
+						terminalOrderId = request.getPayments().get(0).getTerminalOrderId();
+						order.setTerminalOrderId(terminalOrderId);
+					}
+
 					order.setCheckoutType(request.getCheckoutType());
 					order.setBankRefNo(request.getPaymentRefId());
+
 					adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
-							PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType);
+							PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId);
 
 				}
 			}
@@ -572,7 +579,8 @@ public class PaymentService {
 		return preclosure ? "PRECLOSER_UPI : " + bankRRN : "PREPAYMENT : " + bankRRN;
 	}
 	
-	private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle, Double interest, String description, String source, String transferType) {
+	private void createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle,
+									 Double interest, String description, String source, String transferType, String terminalOrderId) {
         if(amount == 0) {
             return;
         }
@@ -606,7 +614,7 @@ public class PaymentService {
 		}
 
         lendingLedger.setDescription(description);
-
+		lendingLedger.setTerminalOrderId(terminalOrderId);
 		lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ?
 				CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
 
@@ -765,7 +773,8 @@ public class PaymentService {
 		return new ResponseDTO(false, "Unable to resend otp");
 	}
 
-	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, boolean advanceEdi, String transferType) {
+	private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
+								   boolean advanceEdi, String transferType, String terminalOrderId) {
 		logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
 		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
@@ -791,9 +800,12 @@ public class PaymentService {
 			}
 			logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 			if(activeLoan.getDueAmount() >= 0) {
-				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + advanceEdiAmount) , -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount), Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source, transferType);
+				createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + advanceEdiAmount) ,
+						-1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount),
+						Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source, transferType, terminalOrderId);
 			} else {
-				createLendingLedger(activeLoan, -1 * amount + advanceEdiAmount, -1 * amount - ediHolidayInterestAmount + advanceEdiAmount, Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source, transferType);
+				createLendingLedger(activeLoan, -1 * amount + advanceEdiAmount, -1 * amount - ediHolidayInterestAmount + advanceEdiAmount,
+						Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source, transferType, terminalOrderId);
 			}
 
 			activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + advanceEdiAmount);
@@ -947,7 +959,8 @@ public class PaymentService {
 				activeLoan.setPaidAmount(activeLoan.getPaidAmount() + principle + interest);
 				activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + principle);
 				activeLoan.setPaidInterest(activeLoan.getPaidInterest() + interest);
-				createLendingLedger(activeLoan, -1*(principle + interest), -1*principle, -1*interest, "PREPAYMENT", source, transferType);
+				createLendingLedger(activeLoan, -1*(principle + interest), -1*principle, -1*interest,
+						"PREPAYMENT", source, transferType, terminalOrderId);
 				int extraEdiCount = activeLoan.getAdjustedPaidAmount() != null ? (int) (activeLoan.getAdjustedPaidAmount()/activeLoan.getEdiAmount()) : 0;
 				if (extraEdiCount > 0) {
 					activeLoan.setEdiRemainingCount(activeLoan.getEdiRemainingCount() - extraEdiCount);
@@ -965,7 +978,8 @@ public class PaymentService {
 			amount = (paidPrincipalAmount + paidInterestAmount);
 		}
 		logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
-		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo, preclosure), source, transferType);
+		createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
+				preclosure), source, transferType, terminalOrderId);
 		lendingPaymentScheduleDao.save(activeLoan);
 		if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
 			redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
@@ -1174,7 +1188,8 @@ public class PaymentService {
 					loanPaymentOrder.setStatus("FAILED");
 					loanPaymentOrderDao.save(loanPaymentOrder);
 				} else if (CreditConstants.PaymentStatus.SUCCESS.name().equals(paymentStatus)) {
-					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null, loanPaymentOrder.getSource(), PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(loanPaymentOrder.getDescription()),"INTERNAL");
+					adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null, loanPaymentOrder.getSource(),
+							PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(loanPaymentOrder.getDescription()),"INTERNAL", null);
 					loanPaymentOrder.setStatus("SUCCESS");
 					loanPaymentOrderDao.save(loanPaymentOrder);
 				}
