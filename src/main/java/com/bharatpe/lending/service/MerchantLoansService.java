@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -112,6 +113,12 @@ public class MerchantLoansService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${topup.rollout.percent:10}")
+    Integer rolloutTopupPercent;
 
     private final DecimalFormat df = new DecimalFormat("#.##");
 

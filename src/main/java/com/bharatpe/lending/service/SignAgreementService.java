@@ -597,7 +597,6 @@ public class SignAgreementService {
 			response.put("message", "Eligible loan id is null");
 			return response;
 		}
-
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
 				LoanType.IO_TOPUP.name());
 		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
