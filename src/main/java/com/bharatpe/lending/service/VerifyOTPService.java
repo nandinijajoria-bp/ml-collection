@@ -381,18 +381,28 @@ public class VerifyOTPService {
             lendingApplication.setLongitude(meta.getLongitude());
         }
         lendingApplication.setExternalLoanId(loanId);
-        if (enachSuccess != null) {
-            lendingApplication.setNachType("ENACH");
-            if(!ObjectUtils.isEmpty(enachSuccess.getNachLender())){
-                lendingApplication.setNachLender(enachSuccess.getNachLender());
-            }else{
-                lendingApplication.setNachLender("BHARATPE");
+
+        //skip nach check for topup loans
+        if(!"TOPUP".equals(lendingApplication.getLoanType())){
+            if (enachSuccess != null) {
+                lendingApplication.setNachType("ENACH");
+                if(!ObjectUtils.isEmpty(enachSuccess.getNachLender())){
+                    lendingApplication.setNachLender(enachSuccess.getNachLender());
+                }else{
+                    lendingApplication.setNachLender("BHARATPE");
+                }
+                lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
+                lendingApplication.setNachStatus("APPROVED");
             }
-            lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
-            lendingApplication.setNachStatus("APPROVED");
         }
 
         if (topupLoans.contains(lendingApplication.getLoanType())) {
+
+            // skip nach check for topup loans and set
+            lendingApplication.setNachType("ENACH");
+            lendingApplication.setNachStatus("APPROVED");
+            lendingApplication.setNachLender("SKIP_FOR_TOPUP");
+
             logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
             updateDocuments(lendingApplication, meta,merchantBasicDetailsDto);
             if (!topUpLoans(lendingApplication)) {
@@ -442,8 +452,10 @@ public class VerifyOTPService {
         }
         logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
         sendLatLong(merchantBasicDetailsDto.getId(), lendingApplication.getId());
-        if (Objects.nonNull(enachSuccess)) {
-            logger.info("entered before sending to topic for post checks");
+
+        // skip nach check for topup loans
+        if (Objects.nonNull(enachSuccess) || topupLoans.contains(lendingApplication.getLoanType())) {
+            logger.info("entered before sending to topic for post checks for application_id :  {}", lendingApplication.getId());
             sendDetailsForContactsVerification(merchantBasicDetailsDto.getId(), lendingApplication.getId());
         }
         sendDuplicatePancardCheck(merchantBasicDetailsDto.getId(), lendingApplication.getId());
@@ -496,7 +508,7 @@ public class VerifyOTPService {
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && !Objects.equals(lendingApplication.getLoanAmount(), lendingRiskVariables.getFinalOffer()))) {
+            if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
                 lendingApplication.setStatus("DELETED");
                 lendingApplication.setManualCibilReason("OFFER_MISMATCH");
@@ -513,25 +525,25 @@ public class VerifyOTPService {
                 lendingAuditTrialDao.save(lendingAuditTrial);
                 return false;
             }
-            Integer age = apiGatewayService.getMerchantAge(lendingApplication);
-            if (age > 65 || age < 21) {
-                String ageRejectReason = age > 65 ? "Age_Reject_65" : "Age Reject";
-                logger.info("Rejection in topUp flow due to age restriction check: {} for id: {}",age, lendingApplication.getId());
-                lendingApplication.setStatus("DELETED");
-                lendingApplication.setManualCibilReason(ageRejectReason);
-                lendingApplicationDao.save(lendingApplication);
-                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-                lendingAuditTrial.setApplicationId(lendingApplication.getId());
-                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
-                lendingAuditTrial.setUserId(Long.parseLong("0"));
-                lendingAuditTrial.setOldStatus("draft");
-                lendingAuditTrial.setNewStatus("deleted");
-                lendingAuditTrial.setType("APP_STATUS");
-
-                lendingAuditTrialDao.save(lendingAuditTrial);
-                return false;
-            }
+//            Integer age = apiGatewayService.getMerchantAge(lendingApplication);
+//            if (age > 65 || age < 21) {
+//                String ageRejectReason = age > 65 ? "Age_Reject_65" : "Age Reject";
+//                logger.info("Rejection in topUp flow due to age restriction check: {} for id: {}",age, lendingApplication.getId());
+//                lendingApplication.setStatus("DELETED");
+//                lendingApplication.setManualCibilReason(ageRejectReason);
+//                lendingApplicationDao.save(lendingApplication);
+//                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+//                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+//                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+//                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+//                lendingAuditTrial.setUserId(Long.parseLong("0"));
+//                lendingAuditTrial.setOldStatus("draft");
+//                lendingAuditTrial.setNewStatus("deleted");
+//                lendingAuditTrial.setType("APP_STATUS");
+//
+//                lendingAuditTrialDao.save(lendingAuditTrial);
+//                return false;
+//            }
             double previousAmount = loanUtil.getForeclosureAmount(activeLoan);
             LendingLedger lendingLedger = new LendingLedger();
             lendingLedger.setMerchantId(activeLoan.getMerchantId());

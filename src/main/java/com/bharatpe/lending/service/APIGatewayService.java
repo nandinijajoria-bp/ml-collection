@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.amazonaws.services.cognitoidp.model.*;
 import com.amazonaws.services.xray.model.Http;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
@@ -2574,5 +2575,35 @@ public class APIGatewayService {
             logger.error("Exception occurred while uploading Loan agreement document of applicationId {}", applicationId, e);
         }
         return false;
+    }
+
+    public Map<String, Object> sendCollectionDataToLender(List<CollectionDataDTO> data, String lender){
+        logger.info("Sending Collection data to lender:{}", lender);
+        String url = nbfcServiceBaseUrl + "/api/v2/uploadReceipt";
+        Map<String, Object> requestPayload = new HashMap<String, Object>() {{
+             put("data", data);
+             put("lender", lender);
+        }};
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Client-Name", CLIENT);
+        headers.set("hash", getHmacBase64(requestPayload));
+
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestPayload, headers);
+        ResponseEntity<Map<String, Object>> responseEntity = null;
+        try{
+            logger.info("request entity for collection upload API:{} and url:{}", requestEntity, url);
+            responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, Object>>() {
+            });
+            logger.info("response entity for collection upload API:{} and url:{}", responseEntity, url);
+            if(!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())){
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException | HttpServerErrorException ex){
+            logger.error("Error occurred while calling collection upload API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }catch (Exception ex){
+            logger.error("Exception occurred while calling collection upload API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
     }
 }

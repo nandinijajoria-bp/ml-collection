@@ -57,4 +57,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
 
     List<LendingLedger> findByLendingPaymentScheduleOrderByDate(LendingPaymentSchedule lendingPaymentSchedule);
 
+    @Query(value = "select * from lending_ledger where amount > 0 and created_at > :date and merchant_id = :merchantId", nativeQuery = true)
+    LendingLedger findLastLedgerEntry(Long merchantId, Date date);
+
 }

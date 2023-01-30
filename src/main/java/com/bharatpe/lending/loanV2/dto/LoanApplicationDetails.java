@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV2.dto;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
