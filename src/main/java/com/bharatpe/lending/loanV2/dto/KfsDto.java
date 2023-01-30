@@ -16,6 +16,7 @@ public class KfsDto {
     private String colenderBusinessAddress;
     private Double loanAmount;
     private Double processingFee;
+    private Double processingFeePercentage;
     private Integer tenureInMonths;
     private Double disbursalAmount;
     private Double repaymentAmount;

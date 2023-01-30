@@ -1796,6 +1796,7 @@ public class LendingApplicationServiceV2 {
                     .lenderContactNumber(lenderContactNumber)
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
+                    .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/lendingApplication.getLoanAmount() * 100))))
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
                     .repaymentAmount(lendingApplication.getRepayment())
@@ -2056,7 +2057,7 @@ public class LendingApplicationServiceV2 {
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
         data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
         data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
-        data.put("processing_percentage", KfsConstants.PROCESSING_FEE_PERCENTAGE);
+        data.put("processing_percentage", kfsDto.getProcessingFeePercentage());
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
