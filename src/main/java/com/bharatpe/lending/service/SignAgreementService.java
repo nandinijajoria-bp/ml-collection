@@ -597,7 +597,6 @@ public class SignAgreementService {
 			response.put("message", "Eligible loan id is null");
 			return response;
 		}
-
 		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
 				LoanType.IO_TOPUP.name());
 		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
@@ -622,7 +621,6 @@ public class SignAgreementService {
 			response.put("success", true);
 			return response;
 		}
-
 
 		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
 		if(merchantResponseDTO == null) {
@@ -750,6 +748,7 @@ public class SignAgreementService {
 		}
 		newApplication.setNachLender("TOPUP".equals(eligibleLoan.getLoanType())? loanUtil.enachServiceLenderMapper(newApplication.getLender()):null);
 		lendingApplicationDao.save(newApplication);
+
 //		lenderMappingService.lenderMapping(newApplication);
 
 		if(newApplication.getId() != null) {
@@ -781,9 +780,6 @@ public class SignAgreementService {
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
 		LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
-//		if(){
-//
-//		}
 		LendingApplication finalNewApplication = newApplication;
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));

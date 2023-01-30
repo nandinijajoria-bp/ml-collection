@@ -1164,13 +1164,14 @@ public class LendingApplicationServiceV2 {
                 dateDTO.setTime(lendingApplication.getAgreementAt().toString());
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
-            } else if (successEnach != null) {
-                applicationDTO2.setStatus(successEnach.getStatus());
+            } else if (successEnach != null || "APPROVED".equals(lendingApplication.getNachStatus())) {
+                applicationDTO2.setStatus(ObjectUtils.isEmpty(successEnach) ? lendingApplication.getNachStatus() : successEnach.getStatus());
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
+                applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
-                dateDTO.setDay(getDateInFormat(successEnach.getCreatedAt()));
-                dateDTO.setTime(getDateInFormat(successEnach.getCreatedAt()));
+                dateDTO.setDay(ObjectUtils.isEmpty(successEnach) ? getDateInFormat(lendingApplication.getCreatedAt()) : getDateInFormat(successEnach.getCreatedAt()));
+                dateDTO.setTime(ObjectUtils.isEmpty(successEnach) ? getDateInFormat(lendingApplication.getCreatedAt()) : getDateInFormat(successEnach.getCreatedAt()));
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(basicDetailsDto.get().getId())) {

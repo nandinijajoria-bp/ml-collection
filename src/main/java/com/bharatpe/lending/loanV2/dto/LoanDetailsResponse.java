@@ -42,6 +42,5 @@ public class LoanDetailsResponse {
     private Boolean clubV2Member = false;
     private Boolean showReferencePage = true;
     private Long merchantId;
-//    @JsonProperty("isTopup")
-//    private boolean isTopUp=false;
+    private LoanApplicationDetails topupApplication;
 }

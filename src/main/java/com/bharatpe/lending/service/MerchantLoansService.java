@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
 import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -112,6 +113,12 @@ public class MerchantLoansService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${topup.rollout.percent:10}")
+    Integer rolloutTopupPercent;
 
     private final DecimalFormat df = new DecimalFormat("#.##");
 
@@ -252,7 +259,6 @@ public class MerchantLoansService {
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentSchedule> merchantLoans = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoan(merchantId, false);
         responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
-
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
             responseDTO.setLoans(Collections.emptyList());
@@ -552,7 +558,12 @@ public class MerchantLoansService {
                 logger.info("Topup are loans are disabled");
                 return eligiblity;
             }
-            if(!Lender.LDC.name().equals(lendingPaymentSchedule.getNbfc())){
+
+            if (!(loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId()) || easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent))){
+                logger.info("Topup not enabled for this merchant :{}",lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+            if(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                 logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
                 return eligiblity;
             }
