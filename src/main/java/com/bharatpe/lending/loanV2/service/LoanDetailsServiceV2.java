@@ -514,7 +514,7 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
 
-        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchant.getId(), Sort.by(Sort.Direction.DESC, "id"));
+        EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
         log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
@@ -641,7 +641,7 @@ public class LoanDetailsServiceV2 {
 
     private Eligibility createEligibility(Long merchantId) {
         try {
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC, "id"));
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchantId);
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
