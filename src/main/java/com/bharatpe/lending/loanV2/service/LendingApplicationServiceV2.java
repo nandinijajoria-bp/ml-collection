@@ -728,6 +728,11 @@ public class LendingApplicationServiceV2 {
             log.info("pincode mismatch for merchant:{}", merchant.getId());
             return "pincode mismatch";
         }
+
+        if (loanUtil.hasActiveLoan(merchant)){
+            log.info("Already an ongoing loan exists for the merchant : {}", merchant.getId());
+            return "Already an ongoing loan exists";
+        }
         return null;
     }
 
