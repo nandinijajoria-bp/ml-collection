@@ -16,9 +16,12 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
@@ -116,6 +119,9 @@ public class MerchantLoansService {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    KycHandler kycHandler;
 
     @Value("${topup.rollout.percent:10}")
     Integer rolloutTopupPercent;
@@ -578,6 +584,11 @@ public class MerchantLoansService {
                 }
                 if (!loanUtil.isEnachDone(lendingPaymentSchedule.getMerchantId())) {
                     logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+                KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchantId());
+                if(!KycStatus.APPROVED.equals(kycStatus.getKycStatus())){
+                    logger.info("Kyc not approved for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
