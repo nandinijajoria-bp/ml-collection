@@ -591,6 +591,11 @@ public class MerchantLoansService {
                     logger.info("Kyc not approved for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
+                Integer age = apiGatewayService.getMerchantAge(lendingPaymentSchedule.getMerchantId());
+                if (age > 0 && age < 21) {
+                    logger.info("Age requirement not fulfilled for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
 
                 double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
                 if (dpd > 3D) {

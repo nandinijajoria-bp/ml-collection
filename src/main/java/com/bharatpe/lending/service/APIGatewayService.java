@@ -42,6 +42,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -2082,6 +2083,35 @@ public class APIGatewayService {
         } catch (ParseException e) {
             logger.info("parse exception of dob for applicationId : {}", lendingApplication.getId());
         }
+        return age;
+    }
+
+    public Integer getMerchantAge(Long merchantId){
+        Integer age = 0;
+        try{
+            Date dateOfBirth = null;
+            List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId);
+            for(KycDoc kycDoc : kycDocs){
+                if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) &&
+                        KycDocStatus.APPROVED.equals(kycDoc.getStatus()) && Objects.nonNull(kycDoc.getDob())) {
+                    DateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                    dateOfBirth = sdf.parse(kycDoc.getDob());
+                }
+                else if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.POA.equals(kycDoc.getDocType()) &&
+                        KycDocStatus.APPROVED.equals(kycDoc.getStatus()) && Objects.nonNull(kycDoc.getDob())){
+                    DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                    dateOfBirth = sdf.parse(kycDoc.getDob());
+                }
+                if(Objects.nonNull(dateOfBirth)){
+                    logger.info("dateOfBirth from kycDocs : {} for merchant: {}",dateOfBirth, merchantId);
+                    age = getAge(dateOfBirth);
+                    break;
+                }
+            }
+        } catch (ParseException e) {
+            logger.error("parse exception of dob for merchant : {}", merchantId);
+        }
+        logger.info("age from kycDocs : {} for merchant: {}",age, merchantId);
         return age;
     }
 
