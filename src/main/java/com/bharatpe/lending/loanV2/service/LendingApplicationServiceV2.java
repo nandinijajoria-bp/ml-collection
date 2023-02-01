@@ -856,7 +856,7 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if (successEnach != null || "APPROVED".equals(lendingApplication.getNachStatus())) {
-                applicationDTO2.setStatus(successEnach.getStatus());
+                applicationDTO2.setStatus(!ObjectUtils.isEmpty(successEnach) ? successEnach.getStatus() : lendingApplication.getNachStatus());
                 applicationDTO2.setText("e-NACH Done");
                 applicationDTO2.setButtonContextDTO(null);
                 applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
