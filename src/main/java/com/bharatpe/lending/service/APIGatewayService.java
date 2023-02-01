@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.KafkaAudit;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
@@ -47,6 +48,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -226,6 +228,12 @@ public class APIGatewayService {
 
     @Autowired
     FunnelService funnelService;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Autowired
+    Request3PAuditService request3PAuditService;
 
     @PostConstruct
     public void init() {
@@ -2523,12 +2531,18 @@ public class APIGatewayService {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
             logger.info("Request {} for address validation", request);
             int retryCount = 0;
-            ResponseEntity<AddressValidationDto> responseEntity = null;
+            ResponseEntity<String> responseEntity = null;
             while (retryCount < 2) {
                 try {
                     logger.info("calling delhivery for address validation");
-                    responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, AddressValidationDto.class);
+                    responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
                     logger.info("Delhivery address validation response:{}", responseEntity);
+                    try {
+                        Request3PAudit request3PAudit = Request3PAudit.builder().request(objectMapper.writeValueAsString(request)).response(objectMapper.writeValueAsString(responseEntity)).type("DELHIVERY").timestamp(new Date()).build();
+                        request3PAuditService.pushKafkaAudit(request3PAudit, "request_3p_audit");
+                    } catch (Exception e) {
+                        logger.error("exception occurred while pushing audit data for 3p request to delhivery {}", Arrays.asList(e.getStackTrace()));
+                    }
                     break;
                 } catch (Exception e) {
                     logger.info("Delhivery api timeout", e);
@@ -2536,7 +2550,12 @@ public class APIGatewayService {
                 retryCount++;
             }
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
-                AddressValidationDto addressValidationDto = responseEntity.getBody();
+                AddressValidationDto addressValidationDto = null;
+                try {
+                    addressValidationDto = objectMapper.readValue(responseEntity.getBody(),AddressValidationDto.class);
+                } catch (Exception e) {
+                    logger.info("response json parsing issue {}", Arrays.asList(e.getStackTrace()));
+                }
                 return addressValidationDto;
             } else {
                 logger.info("unable to fetch address validation score from delhivery");
