@@ -1196,7 +1196,9 @@ public class FosService {
         LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
         logger.info("lendingApplication -> {}", lendingApplication);
         if(ObjectUtils.isEmpty(lendingApplication)){
-            logger.error("Application not found for merchant: {}", merchantId);
+            logger.info("Application not found for merchant: {}", merchantId);
+            response.put("message", "Application not found");
+            response.put("status", false);
             response.put("application_id", null);
             return new ResponseDTO(Boolean.FALSE, "Application not found.", response);
         }
@@ -1220,20 +1222,28 @@ public class FosService {
                     lendingApplicationDetails.setCpvReferralCodeNach(refCode);
                     lendingApplicationDetailsDao.save(lendingApplicationDetails);
                     saveRefCodeAudit(lendingApplicationDetails, refCode, lendingApplication, "NACH_TASK");
+                    response.put("message", "nach done for the application");
+                    response.put("status", true);
                     response.put("application_id", lendingApplication.getId());
                     return new ResponseDTO(Boolean.TRUE, "nach done for the application", response);
                 } else{
                     logger.info("nach is pending for application:{}", lendingApplication.getId());
+                    response.put("message", "nach is pending for the application");
+                    response.put("status", false);
                     response.put("application_id", null);
                     return new ResponseDTO(Boolean.FALSE, "nach is pending for the application", response);
                 }
             } else{
                 logger.info("no application found against this task");
+                response.put("message", "no application found against this task");
+                response.put("status", false);
                 response.put("application_id", null);
                 return new ResponseDTO(Boolean.FALSE, "no application found against this task", response);
             }
         } catch (Exception ex){
             logger.error("Error occurred while checking nach status for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            response.put("message", "Error occurred while checking nach status");
+            response.put("status", false);
             response.put("application_id", null);
             return new ResponseDTO(Boolean.FALSE, "Error occurred while checking nach status", response);
         }
