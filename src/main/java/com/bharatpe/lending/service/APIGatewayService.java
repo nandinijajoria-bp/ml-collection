@@ -2094,13 +2094,11 @@ public class APIGatewayService {
             for(KycDoc kycDoc : kycDocs){
                 if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) &&
                         KycDocStatus.APPROVED.equals(kycDoc.getStatus()) && Objects.nonNull(kycDoc.getDob())) {
-                    DateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
-                    dateOfBirth = sdf.parse(kycDoc.getDob());
+                    dateOfBirth = parseKycDob(kycDoc.getDob());
                 }
                 else if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.POA.equals(kycDoc.getDocType()) &&
                         KycDocStatus.APPROVED.equals(kycDoc.getStatus()) && Objects.nonNull(kycDoc.getDob())){
-                    DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-                    dateOfBirth = sdf.parse(kycDoc.getDob());
+                    dateOfBirth = parseKycDob(kycDoc.getDob());
                 }
                 if(Objects.nonNull(dateOfBirth)){
                     logger.info("dateOfBirth from kycDocs : {} for merchant: {}",dateOfBirth, merchantId);
@@ -2108,11 +2106,28 @@ public class APIGatewayService {
                     break;
                 }
             }
-        } catch (ParseException e) {
+        } catch (Exception e) {
             logger.error("parse exception of dob for merchant : {}", merchantId);
         }
         logger.info("age from kycDocs : {} for merchant: {}",age, merchantId);
         return age;
+    }
+
+    public Date parseKycDob(String dob){
+        Date dateOfBirth = null;
+        DateFormat sdf;
+        List<String> dateFormats = Arrays.asList("dd-MM-yyyy", "dd/MM/yyyy");
+        for(String dateFormat : dateFormats){
+            try{
+                sdf = new SimpleDateFormat(dateFormat);
+                dateOfBirth = sdf.parse(dob);
+                break;
+            }
+            catch(ParseException e){
+                logger.error("Failed to parse dob: {}, with format : {}", dob, dateFormat);
+            }
+        }
+        return dateOfBirth;
     }
 
     public Integer getAge(Date dob) {
