@@ -568,12 +568,14 @@ public class LiquiloansService {
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (lendingPaymentSchedule != null) {
                     logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.", postPayoutRequestDto.getApplicationId(), basicDetailsDto);
-                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setStatus("SUCCESS");
+                    postPayoutResponseDto.setLoanStartDate(lendingPaymentSchedule.getStartDate());
+                    postPayoutResponseDto.setNextEdiDate(lendingPaymentSchedule.getStartDate());
                     postPayoutResponseDto.setMessage("Duplicate Request");
                     postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                     kafkaAudit.setData(postPayoutAuditDto);
                     pushKafkaAudit(kafkaAudit);
-                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
 
                 lendingApplicationDao.save(lendingApplication);
