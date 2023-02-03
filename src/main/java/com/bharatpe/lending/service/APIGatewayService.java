@@ -2124,7 +2124,7 @@ public class APIGatewayService {
                 break;
             }
             catch(ParseException e){
-                logger.error("Failed to parse dob: {}, with format : {}", dob, dateFormat);
+                logger.info("Failed to parse dob: {}, with format : {}", dob, dateFormat);
             }
         }
         return dateOfBirth;
