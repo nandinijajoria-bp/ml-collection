@@ -561,7 +561,6 @@ public class LiquiloansService {
                     pushKafkaAudit(kafkaAudit);
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
-                lendingApplicationDao.save(lendingApplication);
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
 //            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
@@ -577,6 +576,7 @@ public class LiquiloansService {
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
 
+                lendingApplicationDao.save(lendingApplication);
                 lendingPaymentSchedule = new LendingPaymentSchedule();
 
                 logger.info("Populating data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
