@@ -36,23 +36,7 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
-import com.bharatpe.lending.dto.CreditSpendRequestDTO;
-import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
-import com.bharatpe.lending.dto.InitiatePaymentResponseDTO;
-import com.bharatpe.lending.dto.LendingPayoutRequest;
-import com.bharatpe.lending.dto.LendingPayoutResponse;
-import com.bharatpe.lending.dto.LoanRefundsResponseDTO;
-import com.bharatpe.lending.dto.PaymentDetailDto;
-import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
-import com.bharatpe.lending.dto.PaymentResendOTP;
-import com.bharatpe.lending.dto.PaymentStatusResponseDTO;
-import com.bharatpe.lending.dto.PaymentStatusV3ResponseDTO;
-import com.bharatpe.lending.dto.PgCreateTransactionRequestDTO;
-import com.bharatpe.lending.dto.PgCreateTransactionResponseDTO;
-import com.bharatpe.lending.dto.PgPaymentCallbackDTO;
-import com.bharatpe.lending.dto.PgStatusResponse;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.util.LoanUtil;
@@ -79,6 +63,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
+
+import javax.transaction.Transactional;
 
 @Service
 public class PaymentService {
@@ -1389,6 +1375,56 @@ public class PaymentService {
 		loanRefundsResponseDTO.setMessage("No loan found with id:" + loanId);
 		loanRefundsResponseDTO.setSuccess(false);
 		return loanRefundsResponseDTO;
+	}
+
+	@Transactional
+	public ResponseDTO createEntryInLedger(LedgerEntryDTO ledgerEntryDTO) {
+		if(Objects.isNull(ledgerEntryDTO.getType()) || Objects.isNull(ledgerEntryDTO.getAmount()) || Objects.isNull(ledgerEntryDTO.getPrinciple()) || Objects.isNull(ledgerEntryDTO.getInterest()) || Objects.isNull(ledgerEntryDTO.getLoanId())) {
+			return new ResponseDTO(false, "Invalid Request");
+		}
+		Double amount = ledgerEntryDTO.getAmount();
+		Double principle = ledgerEntryDTO.getPrinciple();
+		Double interest = ledgerEntryDTO.getInterest();
+		if(amount < 0 || principle < 0 || interest < 0 || amount != principle + interest) {
+			return new ResponseDTO(false, "Invalid Request");
+		}
+		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(ledgerEntryDTO.getLoanId(), ledgerEntryDTO.getMerchantId());
+		if(Objects.isNull(lendingPaymentSchedule)) {
+			return new ResponseDTO(false, "Loan Id doesn't exist");
+		}
+		if (!"ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
+			return new ResponseDTO(false, "Loan is not Active");
+		}
+		if("CREDIT".equalsIgnoreCase(ledgerEntryDTO.getType()) && ledgerEntryDTO.getAmount() > loanUtil.getForeclosureAmount(lendingPaymentSchedule)) {
+			return new ResponseDTO(false, "Amount greater than foreclosure amount");
+		}
+		if("DEBIT".equalsIgnoreCase(ledgerEntryDTO.getType()) && ledgerEntryDTO.getAmount() > lendingPaymentSchedule.getPaidAmount()) {
+			return new ResponseDTO(false, "Amount greater than paid amount");
+		}
+
+		if("DEBIT".equalsIgnoreCase(ledgerEntryDTO.getType())) {
+			amount = amount * -1;
+			principle = principle * -1;
+			interest = interest * -1;
+		}
+		lendingPaymentSchedule.setPaidAmount(lendingPaymentSchedule.getPaidAmount() + amount);
+		lendingPaymentSchedule.setPaidPrinciple(lendingPaymentSchedule.getPaidPrinciple() + principle);
+		lendingPaymentSchedule.setPaidInterest(lendingPaymentSchedule.getPaidInterest() + interest);
+		lendingPaymentSchedule.setDueAmount(lendingPaymentSchedule.getDueAmount() - amount);
+		lendingPaymentSchedule.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple() - principle);
+		lendingPaymentSchedule.setDueInterest(lendingPaymentSchedule.getDueInterest() - interest);
+		lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+		LendingLedger lendingLedger = new LendingLedger();
+		lendingLedger.setAmount(amount);
+		lendingLedger.setInterest(interest);
+		lendingLedger.setPrinciple(principle);
+		lendingLedger.setLendingPaymentSchedule(lendingPaymentSchedule);
+		lendingLedger.setMerchantId(lendingPaymentSchedule.getMerchantId());
+		lendingLedger.setDate(DateTimeUtil.getCurrentDayStartTime());
+		lendingLedger.setAdjustmentMode("MANUAL_"+ledgerEntryDTO.getType());
+		lendingLedger.setDescription(ledgerEntryDTO.getDescription());
+		lendingLedgerDao.save(lendingLedger);
+		return new ResponseDTO(true, "Entry Created");
 	}
 
 }

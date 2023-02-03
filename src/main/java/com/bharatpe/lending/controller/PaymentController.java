@@ -112,4 +112,10 @@ public class PaymentController {
         return paymentService.getRefunds(loanId);
     }
 
+    @RequestMapping(value = "/ledger_entry", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO applyWaiver(@RequestBody LedgerEntryDTO requestDTO) {
+        logger.info("Request received for add entry in ledger: {}", requestDTO);
+        return paymentService.createEntryInLedger(requestDTO);
+    }
+
 }
