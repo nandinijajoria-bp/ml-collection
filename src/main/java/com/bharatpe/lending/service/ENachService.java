@@ -76,6 +76,9 @@ public class ENachService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     ExecutorService executorService = Executors.newFixedThreadPool(50);
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider){
@@ -87,6 +90,14 @@ public class ENachService {
             logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
             return responseDTO;
         }
+
+        if(loanUtil.isEligibleForNachSkip(lendingApplication)){
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Nach can be skipped");
+            logger.info("nach can be skipped for application:{}", lendingApplication.getId());
+            return responseDTO;
+        }
+
         if (provider != null && !"DIGIO".equalsIgnoreCase(provider)) {
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
             BankDetailsDto merchantBankDetail = null;

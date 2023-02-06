@@ -485,7 +485,7 @@ public class FosService {
 //                if (lendingPennydrop == null) {
 //                    apiGatewayService.updateApplicationPriority(lendingApplication.getMerchantId(), lendingApplication.getId());
 //                }
-               enachHandler.skipNach(applicationId, merchantId);
+                enachHandler.skipNach(applicationId, merchantId);
             }
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
             BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
@@ -1038,8 +1038,8 @@ public class FosService {
                     ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
                                     lendingApplication.getAgreementAt().after(taskEndTimeStamp))
-                            && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
-                    ))) {
+                                    && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
+                            ))) {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
                 fosTaskStatusDto.setMessage("no application found against this task");

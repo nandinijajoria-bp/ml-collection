@@ -1017,4 +1017,33 @@ public class LoanUtil {
 			return (Math.ceil(loanAmount / 10000.0) * 10000);
 		}
 	}
+
+	public boolean isEligibleForNachSkip(LendingApplication lendingApplication){
+		boolean flag = false;
+
+		if(ObjectUtils.isEmpty(lendingApplication.getLender())) return false;
+
+		if("SMALL_TICKET".equals(lendingApplication.getLoanType())){
+			flag=true;
+		} else{
+			MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lendingApplication.getLender()));
+			if(!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lendingApplication.getLender())) &&
+					responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()){
+				flag=true;
+			}
+		}
+		return flag;
+	}
+	
+	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId, String lender){
+		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findByMerchantIdAndLender(merchantId, enachServiceLenderMapper(lender));
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
+		if (merchantBankDetail != null && enachSuccess != null && enachSuccess.getAccountNumber() != null && enachSuccess.getAccountNumber().equals(merchantBankDetail.getAccountNumber())) {
+			return enachSuccess;
+		}
+		return null;
+	}
 }

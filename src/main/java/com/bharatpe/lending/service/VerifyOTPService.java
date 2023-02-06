@@ -359,7 +359,10 @@ public class VerifyOTPService {
             lendingApplication.setProcessingFee(0D);
         }
 
-        MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantBasicDetailsDto.getId(), lendingApplication.getId());
+        MerchantNachDetailsResponseDTO enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getId());
+        if(ObjectUtils.isEmpty(enachSuccess) && loanUtil.isEligibleForNachSkip(lendingApplication)){
+            enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getLender());
+        }
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetailsDto.getId());
         BankDetailsDto merchantBankDetail = null;
         if (bankDetailsDtoOptional.isPresent())
@@ -381,7 +384,7 @@ public class VerifyOTPService {
             lendingApplication.setLongitude(meta.getLongitude());
         }
         lendingApplication.setExternalLoanId(loanId);
-
+        
         //skip nach check for topup loans
         if(!"TOPUP".equals(lendingApplication.getLoanType())){
             if (enachSuccess != null) {

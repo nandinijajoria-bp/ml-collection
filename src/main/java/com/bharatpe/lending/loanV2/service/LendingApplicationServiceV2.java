@@ -794,6 +794,9 @@ public class LendingApplicationServiceV2 {
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
             MerchantNachDetailsResponseDTO successEnach = loanUtil.getSuccessNach(merchantBasicDetailsDto.getId(), lendingApplication.getId());
+            if(ObjectUtils.isEmpty(successEnach) && loanUtil.isEligibleForNachSkip(lendingApplication)){
+                successEnach = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getLender());
+            }
 //            OrderStickerSlave orderSticker = orderStickerDaoSlave.findByMerchantId(merchantBasicDetailsDto.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantBasicDetailsDto.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
