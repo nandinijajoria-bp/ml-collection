@@ -152,12 +152,15 @@ public class LoanEligibleService {
     @Autowired
     KycHandler kycHandler;
 
+    static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
+      LoanType.IO_TOPUP.name());
+
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
 
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
 
-        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqual(merchantId, queryAmount, dateWindow,
+        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
           Sort.by(Sort.Direction.DESC, "id"));
 
         logger.info("Eligible loan offers : {} , {}", merchantId, eligibleLoans);
@@ -178,7 +181,7 @@ public class LoanEligibleService {
                 queryAmount = queryAmount > globalLimitResponse.getData().getGlobalLimit() ? globalLimitResponse.getData().getGlobalLimit() : queryAmount;
             }
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
-            eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqual(merchantId, queryAmount, dateWindow,
+            eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
                     Sort.by(Sort.Direction.DESC, "id"));
         }
 
@@ -217,7 +220,7 @@ public class LoanEligibleService {
 
             logger.info("EligibleLoan Query values merchantId : {}, amount : {}, tenure : {}, dateWindow : {}", merchantId, body.getAmount(), body.getTenure(), dateWindow);
 
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow);
+            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualAndLoanTypeNotInOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow, topupLoans);
 
             logger.info("eligibleLoan merchant_id : {}", eligibleLoan);
 
