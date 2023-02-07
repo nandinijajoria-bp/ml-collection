@@ -1120,7 +1120,7 @@ public class PaymentService {
 				if (maxDpd.intValue() <= 5 &&  dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger))) {
 					logger.info("Closing dpd is between 5 days for loanId:{}, processing fee refund for amount:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getLoanApplication().getProcessingFee());
 					Double cashbackAmt = lendingPaymentSchedule.getLoanApplication().getProcessingFee();
-					Double cashbackAmount = lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp().before(compareToDate)?cashbackAmt:1500;
+					Double cashbackAmount = lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp().before(compareToDate)?cashbackAmt:Math.min(cashbackAmt, 1500);
 					String orderId = "PF_CASHBACK" + System.currentTimeMillis();
 					LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "PF_CASHBACK");
 					LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
