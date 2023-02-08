@@ -513,6 +513,9 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
             }
 
+            String disbursalStage =  DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase());
+
+
             if (lendingApplication.getLender().equalsIgnoreCase(postPayoutRequestDto.getLender().toUpperCase()) && ObjectUtils.isEmpty(lendingApplication.getNbfcId())) {
                 // check status and populate lending_application with the nbfcId
                 final NbfcStatusApiResponseDTO nbfcStatusApiResponseDTO = apiGatewayService.getNbfcStatus(lendingApplication.getId());
@@ -525,7 +528,7 @@ public class LiquiloansService {
 
                     lendingApplication.setNbfcId(nbfcStatusApiResponseDTO.getLoanId());
 
-                    lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()));
+                    lendingApplication.setLoanDisbursalStatus(disbursalStage);
                     lendingApplication.setSendToNbfc("YES");
 
                     // if earlier due to some reason this nbfc send date was missed add it
@@ -545,7 +548,7 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
 
-            if ("DISBURSED".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+            if ("DISBURSED".equalsIgnoreCase(disbursalStage)) {
                 logger.info("Changing loan_disbursal_status to 'DISBURSED'");
                 lendingApplication.setLoanDisbursalStatus("DISBURSED");
                 lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
@@ -635,7 +638,9 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-            } else if ("UNKNOWN".equalsIgnoreCase(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()))) {
+            }
+
+            else if ("UNKNOWN".equalsIgnoreCase(disbursalStage)) {
                 logger.info("unknown application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
                 postPayoutResponseDto.setMessage("UNKNOWN status code");
@@ -645,7 +650,15 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             else {
-                lendingApplication.setLoanDisbursalStatus(DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase()));
+                if ("DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus()) && !"FAILED".equalsIgnoreCase(disbursalStage)) {
+                    logger.info("Loan already marked disbursed for application : {}", lendingApplication.getId());
+                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                    kafkaAudit.setData(postPayoutAuditDto);
+                    pushKafkaAudit(kafkaAudit);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+                }
+
+                lendingApplication.setLoanDisbursalStatus(disbursalStage);
                 lendingApplicationDao.save(lendingApplication);
                 logger.info("known application status {} for the application id {} is set to {}", postPayoutRequestDto.getLoanDisbursalStatus(), lendingApplication.getId(), lendingApplication.getLoanDisbursalStatus());
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
