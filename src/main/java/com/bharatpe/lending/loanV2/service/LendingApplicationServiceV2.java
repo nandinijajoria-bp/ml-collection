@@ -1544,7 +1544,7 @@ public class LendingApplicationServiceV2 {
             Double maxLimit = shopType.equalsIgnoreCase("movable") ? loanDowngradeConfigEntity.getMaxLimitMov() : loanDowngradeConfigEntity.getMaxLimitTemp();
             double amount;
             double nfiLimit = LoanUtil.roundUp(lendingRiskVariablesSnapshot.getMonthlyNfi() * loanDowngradeConfigEntity.getNfiMultiplier() * lendingRiskVariablesSnapshot.getTenure());
-            double tpvLimit = LoanUtil.roundUp(lendingRiskVariablesSnapshot.getNtbLimit() * loanDowngradeConfigEntity.getTpvMultiplier() * lendingRiskVariablesSnapshot.getTenure());
+            double tpvLimit = LoanUtil.roundUp(lendingRiskVariablesSnapshot.getMonthlyTpv() * loanDowngradeConfigEntity.getTpvMultiplier() * lendingRiskVariablesSnapshot.getTenure());
             amount = Math.max(nfiLimit, tpvLimit);
             amount = Math.min(amount, maxLimit);
             amount = Math.min(amount, loanAmount);
