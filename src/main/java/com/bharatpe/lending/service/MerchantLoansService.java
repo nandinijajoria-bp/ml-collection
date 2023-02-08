@@ -129,6 +129,11 @@ public class MerchantLoansService {
     @Value("${topup.rollout.percent:10}")
     Integer rolloutTopupPercent;
 
+    @Value("${whitelisted.topup.lenders}")
+    String topupLenders;
+
+    static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
+
     private final DecimalFormat df = new DecimalFormat("#.##");
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
@@ -324,7 +329,7 @@ public class MerchantLoansService {
                             responseDTO.setEligibility(loans);
                             responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
-                            responseDTO.setTopupLender(Lender.LDC.name());
+                            responseDTO.setTopupLender(lendingPaymentSchedule.getNbfc());
                         }
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
@@ -567,15 +572,16 @@ public class MerchantLoansService {
                 logger.info("Topup are loans are disabled");
                 return eligiblity;
             }
-
-            if (!(loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId()) || easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent))){
-                logger.info("Topup not enabled for this merchant :{}",lendingPaymentSchedule.getMerchantId());
-                return eligiblity;
-            }
-            if(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+            if(!topupLenders.contains(lendingPaymentSchedule.getNbfc())){
                 logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
                 return eligiblity;
             }
+
+            if (!(easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent)) && LIQUILOANS_TOPUP_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+                logger.info("Topup not enabled for this merchant :{}",lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+
             if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
                 if (lendingApplication == null) {
                     logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchantId());

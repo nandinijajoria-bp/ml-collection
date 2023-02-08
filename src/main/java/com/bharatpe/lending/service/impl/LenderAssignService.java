@@ -120,12 +120,19 @@ public class LenderAssignService implements ILenderAssignService {
 
     public LendingApplication assignLender(LendingApplication application, EdiModel ediModel) {
 
+        // for topup flow
+        if("TOPUP".equals(application.getLoanType())){
+            log.info("Assigning lender for topup application:{}", application.getId());
+            assignTopupLender(application);
+            return application;
+        }
+
         if (ObjectUtils.isEmpty(application)) {
             throw new RuntimeException("Application not found for merchant:" + application.getMerchantId());
         }
         String decidedLender = null;
         if (loanUtil.isInternalMerchant(application.getMerchantId()) && ObjectUtils.isEmpty(application.getLender())
-                // TODO: 15/02/23 remove this checks later (only for temp roll out) 
+                // TODO: 15/02/23 remove this checks later (only for temp roll out)
                 && !ObjectUtils.isEmpty(application.getExternalLoanId())
                 && application.getLoanAmount() > 10000) {
             log.info("internal merchant or rollout {}", application.getMerchantId());
@@ -405,7 +412,7 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("topup lenders:{}", topupLenders);
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
             if(topupLenders.contains(activeLoan.getNbfc())){
-                lender = activeLoan.getNbfc();
+                lender = lenderMapper(activeLoan.getNbfc());
                 lendingApplication.setLender(lender);
                 lendingApplicationDao.save(lendingApplication);
                 saveLenderChangeAudit(lendingApplication, lender);
@@ -416,6 +423,12 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
         return lender;
+    }
+
+    public String lenderMapper(String prevLender){
+       if("LDC".equals(prevLender)) return "LDC";
+       if("LIQUILOANS_P2P".equals(prevLender) || "LIQUILOANS_P2P_OF".equals(prevLender) || "LIQUILOANS_NBFC".equals(prevLender)) return "LIQUILOANS_P2P";
+       return null;
     }
 
     public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {

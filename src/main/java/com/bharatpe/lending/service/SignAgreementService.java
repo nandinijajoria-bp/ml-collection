@@ -641,6 +641,11 @@ public class SignAgreementService {
 		LendingApplication prevApplication =
 				lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
 						, "APPROVED");
+		if(Math.abs(LoanUtil.getDateDiffInHour(prevLendingSchedule.getLoanApplication().getDisburseTimestamp(), new Date())) < 24){
+			logger.error("Regular loan is not older than 24 hours for merchant:{}", merchant.getId());
+			response.put("message", "User not eligible, regular loan is not older than 24 hours");
+			return response;
+		}
 		if (prevLendingSchedule == null || prevApplication == null) {
 			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
 			response.put("message", "User not eligible, last loan not found or last application is not disbursed/found");
@@ -743,11 +748,8 @@ public class SignAgreementService {
 		newApplication = lendingApplicationDao.save(newApplication);
 		loanUtil.publishApplicationEvent(newApplication);
 
-		if("TOPUP".equals(eligibleLoan.getLoanType())){
-			lenderAssignService.assignTopupLender(newApplication);
-		}else {
-			lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
-		}
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
+
 		newApplication.setNachLender("TOPUP".equals(eligibleLoan.getLoanType())? loanUtil.enachServiceLenderMapper(newApplication.getLender()):null);
 		lendingApplicationDao.save(newApplication);
 
