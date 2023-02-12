@@ -10,7 +10,9 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
 import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.MerchantConfidenceScoreDTO;
 import com.bharatpe.lending.dto.MerchantReference;
+import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
@@ -48,6 +50,9 @@ public class CrmBulkContactsService {
 
     @Autowired
     S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    MerchantScoreHandler merchantScoreHandler;
 
     @Value("${crm.contact.bucket.name}")
     private String bucketName;
@@ -108,9 +113,14 @@ public class CrmBulkContactsService {
                     List<PhonebookDTO> phonebook = null;
                     List<LendingMerchantReferences> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
                     if (merchantReferences.isEmpty()){
-                        phonebook = phonebookHandler.getPhonebook(basicDetailsDto.get().getId());
+                        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(basicDetailsDto.get().getId(), "ACTIVE");
+                        if(!ObjectUtils.isEmpty(lendingPaymentSchedule)){
+                            Long applicationId = lendingPaymentSchedule.getApplicationId();
+                            MerchantConfidenceScoreDTO merchantConfidenceScoreResponse = merchantScoreHandler.getMerchantConfidenceScore(basicDetailsDto.get().getId());
+                            merchantReferences = saveLendingMerchantReferencesFromMerchantConfidenceScore(merchantConfidenceScoreResponse, basicDetailsDto.get().getId(), applicationId);
+                        }
                     }
-                    if (merchantReferences.isEmpty() && phonebook.isEmpty()) {
+                    if (merchantReferences.isEmpty() && ObjectUtils.isEmpty(phonebook)) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
@@ -157,6 +167,31 @@ public class CrmBulkContactsService {
         }
         crmBulkContacts.get().setStatus(CrmBulkContactsResponseStatus.FAILED.name());
         crmBulkContactsDao.save(crmBulkContacts.get());
+    }
+
+    private List<LendingMerchantReferences> saveLendingMerchantReferencesFromMerchantConfidenceScore(MerchantConfidenceScoreDTO response, Long merchantId, Long applicationId) {
+        List<LendingMerchantReferences> lendingMerchantReferencesList = new ArrayList<>();
+        List<MerchantConfidenceScoreDTO.Data.Contact> contacts = response.getData().getOutput();
+
+
+        for (MerchantConfidenceScoreDTO.Data.Contact contact : contacts) {
+            LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
+
+            lendingMerchantReferences.setReferenceName(contact.getName());
+            lendingMerchantReferences.setReferenceNumber(contact.getPhoneNumber());
+            lendingMerchantReferences.setInferredRelation(contact.getInferredRelation());
+            lendingMerchantReferences.setMerchantId(merchantId);
+            lendingMerchantReferences.setApplicationId(applicationId);
+            lendingMerchantReferences.setFraudFlag(contact.getFraudFlag() ? 1 : 0);
+            lendingMerchantReferences.setInferredName(contact.getInferredName());
+            lendingMerchantReferences.setNumHits(contact.getNumHits().toString());
+            lendingMerchantReferences.setInferredNameConfidence(contact.getInferredNameConfidence());
+            lendingMerchantReferences.setScore(contact.getScore());
+
+            lendingMerchantReferencesList.add(lendingMerchantReferences);
+        }
+        lendingMerchantReferencesDao.saveAll(lendingMerchantReferencesList);
+        return lendingMerchantReferencesList;
     }
 
 //    public String mergeContacts (Long merchantId, String mergedContactsFileName) throws IOException {

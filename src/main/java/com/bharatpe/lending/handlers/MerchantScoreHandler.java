@@ -2,6 +2,7 @@ package com.bharatpe.lending.handlers;
 
 import com.bharatpe.lending.common.dto.ResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
+import com.bharatpe.lending.dto.MerchantConfidenceScoreDTO;
 import com.bharatpe.lending.dto.MerchantScoreResponseDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +73,35 @@ public class MerchantScoreHandler {
             log.error("Error occurred while parsing json: {} {}", exception.getMessage(), exception);
         }
         return null;
+    }
+
+    public MerchantScoreResponseDto getMerchantConfidenceScore(Long merchantId) {
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(headers);
+            String url = appProperty.getMerchantConfidenceScoreUrl() + "?merchant_id=" + merchantId + "&min_score=4&limit=10";
+
+            log.info("URL for Merchant Confidence Score: {}", url);
+            ResponseEntity<String> merchantConfidenceScoreResponse = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, String.class);
+
+            log.info("Merchant Confidence Score response for merchantId: {}: {}", merchantId, merchantConfidenceScoreResponse);
+
+            MerchantConfidenceScoreDTO merchantConfidenceScore = objectMapper.readValue(merchantConfidenceScoreResponse.getBody(),
+                    MerchantConfidenceScoreDTO.class);
+
+
+            log.info("Merchant Confidence Score Dto response for merchantId: {}: {}", merchantId, merchantConfidenceScore);
+
+            return merchantConfidenceScore;
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+            log.error("Exception while calling getMerchantConfidenceScore API , Exception is  {}", ex.toString());
+            return null;
+        }
     }
 
 }

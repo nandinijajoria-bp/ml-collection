@@ -49,6 +49,8 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 
 	LendingPaymentSchedule findByIdAndMerchantId(Long id, Long merchantId);
 
+	LendingPaymentSchedule findTop1ByMerchantIdAndStatusOrderByIdDesc(Long merchantId, String status);
+
 	@Query(value = "SELECT count(1) FROM lending_payment_schedule WHERE merchant_id = :merchantId  and credit_loan=false", nativeQuery = true)
 	Integer getRepeatLoan(Long merchantId);
 
