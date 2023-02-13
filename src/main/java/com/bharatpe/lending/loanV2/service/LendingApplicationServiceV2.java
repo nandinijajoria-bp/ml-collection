@@ -1551,7 +1551,9 @@ public class LendingApplicationServiceV2 {
             log.info("final amount: {} from downgrade config for application: {}",amount, lendingApplication.getId());
             lendingApplication.setTenure(loanDowngradeConfigEntity.getTenure().toString() + " months");
             lendingApplication.setTenureInMonths(loanDowngradeConfigEntity.getTenure());
-            lendingApplication.setPayableDays((long)easyLoanUtil.getEdiDays(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), loanDowngradeConfigEntity.getTenure()));
+            lendingApplication.setPayableDays(loanDowngradeConfigEntity.getTenure() == 0 ? 0
+                    : (long)easyLoanUtil.getEdiDays(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), loanDowngradeConfigEntity.getTenure()));
+            lendingApplication.setLoanAmount(amount);
             lendingApplicationDao.save(lendingApplication);
             return amount;
         } catch (Exception e) {
