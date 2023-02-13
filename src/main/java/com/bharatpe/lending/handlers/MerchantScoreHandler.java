@@ -35,6 +35,9 @@ public class MerchantScoreHandler {
     @Value("${de.merchant.score.url}")
     String url;
 
+    @Value("${merchant.confidence.score.url}")
+    String merchantConfidenceScoreUrl;
+
     public MerchantScoreResponseDto getMerchantScore(Long merchantId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -75,13 +78,13 @@ public class MerchantScoreHandler {
         return null;
     }
 
-    public MerchantScoreResponseDto getMerchantConfidenceScore(Long merchantId) {
+    public MerchantConfidenceScoreDTO getMerchantConfidenceScore(Long merchantId) {
 
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(headers);
-            String url = appProperty.getMerchantConfidenceScoreUrl() + "?merchant_id=" + merchantId + "&min_score=4&limit=10";
+            String url = merchantConfidenceScoreUrl + "?merchant_id=" + merchantId + "&min_score=4&limit=10";
 
             log.info("URL for Merchant Confidence Score: {}", url);
             ResponseEntity<String> merchantConfidenceScoreResponse = restTemplate.exchange(

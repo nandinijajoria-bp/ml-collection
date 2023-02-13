@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dao.CrmBulkContactsDao;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
@@ -182,7 +183,7 @@ public class CrmBulkContactsService {
             lendingMerchantReferences.setInferredRelation(contact.getInferredRelation());
             lendingMerchantReferences.setMerchantId(merchantId);
             lendingMerchantReferences.setApplicationId(applicationId);
-            lendingMerchantReferences.setFraudFlag(contact.getFraudFlag() ? 1 : 0);
+            lendingMerchantReferences.setFraudFlag(contact.getFraudFlag());
             lendingMerchantReferences.setInferredName(contact.getInferredName());
             lendingMerchantReferences.setNumHits(contact.getNumHits().toString());
             lendingMerchantReferences.setInferredNameConfidence(contact.getInferredNameConfidence());
