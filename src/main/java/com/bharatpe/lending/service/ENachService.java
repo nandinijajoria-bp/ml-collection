@@ -16,7 +16,9 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
 import org.apache.commons.lang.StringUtils;
@@ -78,6 +80,9 @@ public class ENachService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(50);
 
@@ -177,7 +182,20 @@ public class ENachService {
             }
         }
         responseDTO.setMessage(ObjectUtils.isEmpty(eNachIntitiationResponseDTO) ? null : eNachIntitiationResponseDTO.getMessage());
+        if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){
+            lendingApplication.setLmsStage("PENDING_DISBURSAL");
+            lendingApplication.setStatus(ApplicationStatus.APPROVED.name().toLowerCase());
 
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial.setUserId(Long.parseLong("0"));
+            lendingAuditTrial.setOldStatus(ApplicationStatus.PENDING_VERIFICATION.name().toLowerCase());
+            lendingAuditTrial.setNewStatus(ApplicationStatus.APPROVED.name().toLowerCase());
+            lendingAuditTrial.setType("APP_STATUS");
+            lendingAuditTrialDao.save(lendingAuditTrial);
+        }
         lendingApplicationDao.save(lendingApplication);
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
@@ -265,6 +283,18 @@ public class ENachService {
             logger.info("Enach not found for merchant:{}", merchant.getId());
         } else {
             apiGatewayService.cancelEnach(merchant.getId());
+        }
+        return new CommonResponse(true, "success");
+    }
+
+    public CommonResponse cancelEnach(Long merchantId, Long applicationId) {
+        MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, applicationId);
+        if (bpEnach == null) {
+            logger.info("Enach not found for merchant:{}", merchantId);
+        } else {
+            if(!apiGatewayService.cancelEnach(merchantId, applicationId)){
+                return new CommonResponse(false, "Nach Cancellation Failed");
+            }
         }
         return new CommonResponse(true, "success");
     }

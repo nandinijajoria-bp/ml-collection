@@ -219,6 +219,8 @@ public class APIGatewayService {
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
+    private final String NACH_URL = "https://api-nach.bharatpe.in";
+
     @Value("${nbfc.service.base.url}")
     public String nbfcServiceBaseUrl;
 
@@ -2283,6 +2285,36 @@ public class APIGatewayService {
         } catch (Exception e) {
             logger.error("Error occurred in cancel enach for merchant:{}", merchantId, e);
         }
+    }
+
+    public Boolean cancelEnach(Long merchantId, Long applicationId) {
+        logger.info("Cancel enach for merchant:{}", merchantId);
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+            put("merchant_id", merchantId);
+            put("owner_id", applicationId);
+        }};
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
+        logger.info("Cancel enach request:{} for merchant:{}", request, merchantId);
+        try {
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(NACH_URL + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {
+            });
+            logger.info("Cancel enach response:{} for merchant:{}", responseEntity, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
+                logger.info("Cancel enach success for merchant:{}", merchantId);
+                return true;
+            } else {
+                logger.info("Cancel enach failed for merchant:{}", merchantId);
+            }
+        } catch (Exception e) {
+            logger.error("Error occurred in cancel enach for merchant:{}", merchantId, e);
+        }
+        return false;
     }
 
     public JsonNode getMerchantSmsAnalysisData(BasicDetailsDto basicDetailsDto) {
