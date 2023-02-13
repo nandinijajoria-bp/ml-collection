@@ -114,7 +114,7 @@ public class CrmBulkContactsService {
                     List<PhonebookDTO> phonebook = null;
                     List<LendingMerchantReferences> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
                     if (merchantReferences.isEmpty()){
-                        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(basicDetailsDto.get().getId(), "ACTIVE");
+                        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(basicDetailsDto.get().getId());
                         if(!ObjectUtils.isEmpty(lendingPaymentSchedule)){
                             Long applicationId = lendingPaymentSchedule.getApplicationId();
                             MerchantConfidenceScoreDTO merchantConfidenceScoreResponse = merchantScoreHandler.getMerchantConfidenceScore(basicDetailsDto.get().getId());
