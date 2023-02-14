@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -52,6 +53,14 @@ public class ENachController {
 	public ResponseEntity<CommonResponse> cancelEnach(@RequestAttribute BasicDetailsDto merchant){
 		logger.info("Cancel enach request for merchant:{}", merchant.getId());
 		return new ResponseEntity<>(eNachService.cancelEnach(merchant), HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/cancelEnach",method = RequestMethod.PUT)
+	public ResponseEntity<CommonResponse> cancelEnach(@RequestParam Long applicationId, @RequestParam Long merchantId){
+		if (Objects.isNull(applicationId) || Objects.isNull(merchantId))
+			return ResponseEntity.badRequest().body(new CommonResponse(false, "ApplicationId or merchantId missing"));
+		logger.info("Cancel enach request for merchant:{}", merchantId);
+		return new ResponseEntity<>(eNachService.cancelEnach(merchantId, applicationId), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/bulkNach",method = RequestMethod.POST)

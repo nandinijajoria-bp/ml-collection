@@ -32,6 +32,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
@@ -291,11 +292,13 @@ public class VerifyOTPService {
                 }
 
                 // upload new agreement with the resigned new lender
-                final Boolean uploadLoanAgreement = apiGatewayService.uploadLoanAgreement(lendingApplication.getId());
+                if(Lender.MAMTA0.name().equalsIgnoreCase(lendingApplication.getLender())){
+                    final Boolean uploadLoanAgreement = apiGatewayService.uploadLoanAgreement(lendingApplication.getId());
 
-                if (!uploadLoanAgreement) {
-                    logger.error("Error in uploading agreement for applicationId : {} ", lendingApplication.getId());
-                    return finalResponse;
+                    if (!uploadLoanAgreement) {
+                        logger.error("Error in uploading agreement for applicationId : {} ", lendingApplication.getId());
+                        return finalResponse;
+                    }
                 }
 
                 finalResponse.put("success", true);
