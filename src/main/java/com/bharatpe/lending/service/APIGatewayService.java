@@ -219,7 +219,8 @@ public class APIGatewayService {
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
-    private final String NACH_URL = "https://api-nach.bharatpe.in";
+    @Value("${bpnach.endpoint}")
+    public String bpnachEndpoint;
 
     @Value("${nbfc.service.base.url}")
     public String nbfcServiceBaseUrl;
@@ -2302,7 +2303,7 @@ public class APIGatewayService {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
         logger.info("Cancel enach request:{} for merchant:{}", request, merchantId);
         try {
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(NACH_URL + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(bpnachEndpoint + LendingConstants.CANCEL_ENACH_URL, HttpMethod.PUT, request, new ParameterizedTypeReference<Map<String, Object>>() {
             });
             logger.info("Cancel enach response:{} for merchant:{}", responseEntity, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
