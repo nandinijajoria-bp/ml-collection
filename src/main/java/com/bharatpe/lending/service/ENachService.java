@@ -194,7 +194,16 @@ public class ENachService {
             lendingAuditTrial.setOldStatus(ApplicationStatus.PENDING_VERIFICATION.name().toLowerCase());
             lendingAuditTrial.setNewStatus(ApplicationStatus.APPROVED.name().toLowerCase());
             lendingAuditTrial.setType("APP_STATUS");
+            LendingAuditTrial lendingAuditTrial1 = new LendingAuditTrial();
+            lendingAuditTrial1.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial1.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial1.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial1.setUserId(Long.parseLong("0"));
+            lendingAuditTrial1.setOldStatus("RESIGN_RENACH");
+            lendingAuditTrial1.setNewStatus("PENDING_DISBURSAL");
+            lendingAuditTrial1.setType("LMS_STAGE");
             lendingAuditTrialDao.save(lendingAuditTrial);
+            lendingAuditTrialDao.save(lendingAuditTrial1);
         }
         lendingApplicationDao.save(lendingApplication);
         if(Objects.nonNull(requestDTO)){
