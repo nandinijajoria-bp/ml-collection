@@ -1441,10 +1441,10 @@ public class LendingApplicationServiceV2 {
                         lendingApplication.setLmsStage(LendingConstants.CUSTOM_OFFER_DOWNGRADE);
                     }
                     lendingApplicationDao.save(lendingApplication);
-                }else if(lendingApplication.getLoanAmount() < 10000) {
+                }else if(!downGradeStatus) {
                     lendingApplication.setManualKyc("REJECTED");
-                    lendingApplication.setManualKycReason("DOWNGRADE REJECT");
-                    lendingApplication.setLmsStage("KYC REJECTED");
+                    lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+                    lendingApplication.setLmsStage("QC_REJECTED");
                     lendingApplication.setStatus("REJECTED");
                     lendingApplicationDao.save(lendingApplication);
                 } else if (loanAmountDifference == 0) {
@@ -1479,7 +1479,7 @@ public class LendingApplicationServiceV2 {
                 loanAmount = roundDown(lendingApplication.getLoanAmount() * 0.5);
                 loanAmount = Math.min(loanAmount, 100000d);
             }
-            if(loanAmount >= lendingApplication.getLoanAmount()) {
+            if(loanAmount > lendingApplication.getLoanAmount()) {
                 return false;
             }
             if(loanAmount < 10000d){
@@ -1549,12 +1549,14 @@ public class LendingApplicationServiceV2 {
             amount = Math.min(amount, maxLimit);
             amount = Math.min(amount, loanAmount);
             log.info("final amount: {} from downgrade config for application: {}",amount, lendingApplication.getId());
-            lendingApplication.setTenure(loanDowngradeConfigEntity.getTenure().toString() + " months");
-            lendingApplication.setTenureInMonths(loanDowngradeConfigEntity.getTenure());
-            lendingApplication.setPayableDays(loanDowngradeConfigEntity.getTenure() == 0 ? 0
-                    : (long)easyLoanUtil.getEdiDays(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), loanDowngradeConfigEntity.getTenure()));
-            lendingApplication.setLoanAmount(amount);
-            lendingApplicationDao.save(lendingApplication);
+            if (loanDowngradeConfigEntity.getTenure() > 0) {
+                lendingApplication.setTenure(loanDowngradeConfigEntity.getTenure().toString() + " months");
+                lendingApplication.setTenureInMonths(loanDowngradeConfigEntity.getTenure());
+                lendingApplication.setPayableDays(loanDowngradeConfigEntity.getTenure() == 0 ? 0
+                        : (long) easyLoanUtil.getEdiDays(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), loanDowngradeConfigEntity.getTenure()));
+                lendingApplicationDao.save(lendingApplication);
+            }
+
             return amount;
         } catch (Exception e) {
             log.error("exception while downgrade loan amount according to config for applicationId: {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
