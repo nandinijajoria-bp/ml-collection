@@ -123,6 +123,9 @@ public class MerchantLoansService {
     @Autowired
     KycHandler kycHandler;
 
+    @Autowired
+    LendingGstDao lendingGstDao;
+
     @Value("${topup.rollout.percent:10}")
     Integer rolloutTopupPercent;
 
@@ -621,8 +624,14 @@ public class MerchantLoansService {
 
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-                if (qrPaidRatio < 70) {
-                    logger.info("QR payment less than 70% for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                if (qrPaidRatio < 80) {
+                    logger.info("QR payment less than 80% for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
+                LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+                if (Objects.isNull(lendingGstDetail) || !"PERMANENT".equalsIgnoreCase(lendingGstDetail.getShopType())) {
+                    logger.info("No shop details/Not Permanent found for merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                     return eligiblity;
                 }
             }
@@ -666,8 +675,8 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
                 if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
-                    if (ediPaidRatio < 60D) {
-                        logger.info("EDI paid ratio:{} is less than 60% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
+                    if (ediPaidRatio < 65D) {
+                        logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
                         eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
                     }
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
