@@ -864,8 +864,8 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setButtonContextDTO(null);
                 applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
-                dateDTO.setDay(getDateInFormat(successEnach.getCreatedAt()));
-                dateDTO.setTime(getDateInFormat(successEnach.getCreatedAt()));
+                dateDTO.setDay(getDateInFormat(ObjectUtils.isEmpty(successEnach)?lendingApplication.getCreatedAt():successEnach.getCreatedAt()));
+                dateDTO.setTime(getDateInFormat(ObjectUtils.isEmpty(successEnach)?lendingApplication.getCreatedAt():successEnach.getCreatedAt()));
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchantBasicDetailsDto.getId())) {
