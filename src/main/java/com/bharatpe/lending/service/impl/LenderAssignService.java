@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service.impl;
 
+import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
@@ -7,10 +8,14 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.ILenderAssignService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.LenderAssignmentRules;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.utils.OfferUtils;
+import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.LoanUtil;
 import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,10 +51,28 @@ public class LenderAssignService implements ILenderAssignService {
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Autowired
+    LoanUtil loanUtil;
+
+    @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Value("${whitelisted.topup.lenders}")
     String topupLenders;
+
+    @Autowired
+    EligibleLoanDao eligibleLoanDao;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${abfl.rollout.percent:10}")
+    Integer rolloutAbflPercent;
+
+    @Value("${age.check.lenders}")
+    String ageCheckLenders;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -80,13 +103,14 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("Fetched Rules:{}", ruleList);
             if (ObjectUtils.isEmpty(ruleList)) {
                 log.info("Assigning default lender");
-                lenders = getLenderList(defaultRules, ediModel, application.getLender());
+                lenders = getLenderList(defaultRules, ediModel, application.getLender(), application.getMerchantId());
                 // assign default lender and EdiModel.
             } else {
                 log.info("Found matching rules.");
-                lenders = getLenderList(ruleList, ediModel, application.getLender());
+                lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId());
             }
             decidedLender = getLender(application, lenders, ediModel, defaultRules);
+            log.info("assigned lender {} {}", application.getLender(), application.getId());
             return decidedLender;
         } catch(Exception ex){
             log.error("Exception occurred while assigning lender : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
@@ -99,10 +123,18 @@ public class LenderAssignService implements ILenderAssignService {
         if (ObjectUtils.isEmpty(application)) {
             throw new RuntimeException("Application not found for merchant:" + application.getMerchantId());
         }
-        String decidedLender = lenderAssignmentHandler(application, ediModel);
+        String decidedLender = null;
+        if (loanUtil.isInternalMerchant(application.getMerchantId()) && ObjectUtils.isEmpty(application.getLender())
+                // TODO: 15/02/23 remove this checks later (only for temp roll out) 
+                && !ObjectUtils.isEmpty(application.getExternalLoanId())
+                && application.getLoanAmount() > 10000) {
+            log.info("internal merchant or rollout {}", application.getMerchantId());
+            decidedLender =  Lender.ABFL.name();
+        } else {
+            decidedLender = lenderAssignmentHandler(application, ediModel);
+        }
         if(!ObjectUtils.isEmpty(decidedLender)){
             saveLenderChangeAudit(application, decidedLender);
-
         }else{
             EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
             log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
@@ -115,7 +147,9 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
+        String oldLender = application.getLender();
         application.setLender(decidedLender);
+        updateOfferDetailsInApplication(application,LenderOffDays.valueOf(decidedLender).getEdiModel(), oldLender);
         return lendingApplicationDao.save(application);
     }
 
@@ -141,7 +175,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
         if(ObjectUtils.isEmpty(toBeAssignedLenders)){
             log.info("Not enough balance remaining on eligible lenders. Fetching default Lenders");
-            lenders = getLenderList(defaultRules, ediModel, lendingApplication.getLender());
+            lenders = getLenderList(defaultRules, ediModel, lendingApplication.getLender(), lendingApplication.getMerchantId());
             if(!ObjectUtils.isEmpty(lenders)){
                 toBeAssignedLenders = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(lenders, lendingApplication.getLoanAmount());
             }
@@ -259,14 +293,19 @@ public class LenderAssignService implements ILenderAssignService {
         return "Application Not Found.";
     }
 
-    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender){
+    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId){
         log.info("Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
         List<String> eligibleLenders = new ArrayList<>();
+        List<String> ageCheckLenderList = Arrays.asList(ageCheckLenders.split(","));
+        Integer age = apiGatewayService.getMerchantAge(merchantId);
         for(LenderAssignmentRules rule:lenderAssignmentRules){
             String lender = rule.getLender();
             if(ObjectUtils.isEmpty(ediModel) || ediModel.name().equals(LenderOffDays.valueOf(lender).getEdiModel().name())){
                 // in case lender is to be changed.
                 if(!ObjectUtils.isEmpty(assignedLender) && rule.getLender().equals(assignedLender)){
+                    continue;
+                }
+                if (ageCheckLenderList.contains(rule.getLender()) && (age < 21 || age > 65)){
                     continue;
                 }
                 eligibleLenders.add(lender);
@@ -290,7 +329,9 @@ public class LenderAssignService implements ILenderAssignService {
                 if (!ediDetails.getEdiModel().equals(ediModel.name())) {
                     modifyEdiModel(application.get(), modifiedEdiModel);
                 }
+                String oldLender = application.get().getLender();
                 application.get().setLender(Lender.LDC.name());
+                updateOfferDetailsInApplication(application.get(),ediModel,oldLender);
                 lendingApplicationDao.save(application.get());
                 return Lender.LDC;
             }
@@ -311,6 +352,7 @@ public class LenderAssignService implements ILenderAssignService {
             lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
         }
+
         log.info("Modifying Edi Model for application:{}", application.getId());
     }
 
@@ -369,5 +411,34 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
         return lender;
+    }
+
+    public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+        try {
+            if (ObjectUtils.isEmpty(lender) || lendingApplication.getLender().equalsIgnoreCase(lender)) {
+                log.info("skiping updated offer if first time assignment or same lender is set for {}", lendingApplication.getId());
+                return;
+            }
+            log.info("modifying application details post lender change for {}", lendingApplication.getId());
+            Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), ediModel);
+            Double interestAmt = (lendingApplication.getLoanAmount() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+            Double edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+            Double repayment = edi * payableDays;
+            lendingApplication.setRepayment(repayment);
+            lendingApplication.setEdi(edi);
+            lendingApplication.setPayableDays(payableDays);
+            lendingApplicationDao.save(lendingApplication);
+
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId())?"":lendingApplication.getExternalLoanId());
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial.setType("OFFER_MODIFIED_LENDER_CHANGE");
+            lendingAuditTrial.setOldStatus("OLD_LENDER" + lender);
+            lendingAuditTrial.setNewStatus("NEW_LENDER" + lendingApplication.getLender());
+            lendingAuditTrialDao.save(lendingAuditTrial);
+        } catch (Exception e) {
+            log.error("exception while updating applicationDetails {} {}",lendingApplication.getId(), e.getMessage());
+        }
     }
 }

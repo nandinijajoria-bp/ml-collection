@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
@@ -12,6 +13,7 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.FunnelService;
@@ -34,6 +36,8 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.SettlementType;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.services.associations.AbflDataUploadServiceUtil;
 import com.bharatpe.lending.util.DisbursalStageMapping;
 import com.bharatpe.lending.util.Finance;
 import com.bharatpe.lending.util.LoanUtil;
@@ -43,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.util.Pair;
 import org.springframework.http.*;
@@ -215,6 +220,10 @@ public class LiquiloansService {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    @Lazy
+    LiquiloansAsyncService liquiloansAsyncService;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public void publishForDisbursal(Long lendingAppId) {
@@ -352,7 +361,7 @@ public class LiquiloansService {
             lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
             lendingPaymentSchedule.setCreatedAt(new Date());
             lendingPaymentSchedule.setUpdatedAt(new Date());
-            lendingPaymentSchedule.setOffDay("SUNDAY");
+            lendingPaymentSchedule.setOffDay(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay());
 //    		String construct=lendingApplication.getLoanConstruct();
 //    		lendingPaymentSchedule.setLoanConstruct(construct);
 
@@ -460,6 +469,7 @@ public class LiquiloansService {
         logger.info("Create LPS request:{}", postPayoutRequestDto);
         LendingApplication lendingApplication = null;
         LendingPaymentSchedule lendingPaymentSchedule = null;
+        BasicDetailsDto basicDetailsDto = null;
 //        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(Long.valueOf(postPayoutRequestDto.getMerchantId()));
         try {
 //            logger.info("Fetching merchant for the merchant id {}", postPayoutRequestDto.getMerchantId());
@@ -487,9 +497,8 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
-            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
-            if (!basicDetailsDto.isPresent() || ObjectUtils.isEmpty(lendingGstDetail)) {
+            Optional<BasicDetailsDto> basicDetailsDtoOptional = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+            if (!basicDetailsDtoOptional.isPresent()) {
                 logger.error("Merchant details or gst details not found for the merchant id {}  and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
                 postPayoutResponseDto.setMessage("Invalid data");
@@ -499,19 +508,9 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
+            basicDetailsDto = basicDetailsDtoOptional.get();
             postPayoutAuditDto.setApplicationId(lendingApplication.getId());
             postPayoutAuditDto.setMerchantId(lendingApplication.getMerchantId());
-
-            if (ObjectUtils.isEmpty(lendingGstDetail.getDisbursedAccountPersonal()) || !lendingGstDetail.getDisbursedAccountPersonal()) {
-                logger.info("Disbursed account is bharatpe vpa for this request {} ", postPayoutRequestDto);
-                postPayoutResponseDto.setStatus("FAILED");
-                postPayoutResponseDto.setMessage("VPA_DISBURSAL");
-                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
-                postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
-                kafkaAudit.setData(postPayoutAuditDto);
-                pushKafkaAudit(kafkaAudit);
-                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
-            }
 
             String disbursalStage =  DisbursalStageMapping.getDisbursedStage(lendingApplication.getLender().toUpperCase(),postPayoutRequestDto.getLoanDisbursalStatus().toUpperCase());
 
@@ -590,7 +589,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setLoanType("NORMAL");
                 lendingPaymentSchedule.setMerchantId(lendingApplication.getMerchantId());
                 lendingPaymentSchedule.setLoanAmount(lendingApplication.getLoanAmount());
-                lendingPaymentSchedule.setMobile(basicDetailsDto.get().getMobile());
+                lendingPaymentSchedule.setMobile(basicDetailsDto.getMobile());
                 lendingPaymentSchedule.setEdiAmount(lendingApplication.getEdi());
                 lendingPaymentSchedule.setStatus("ACTIVE");
                 lendingPaymentSchedule.setNbfc(lendingApplication.getLender());
@@ -609,15 +608,16 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
                 lendingPaymentSchedule.setCreatedAt(new Date());
                 lendingPaymentSchedule.setUpdatedAt(new Date());
-                lendingPaymentSchedule.setOffDay("SUNDAY");
+                lendingPaymentSchedule.setOffDay(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay());
 
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
 
                 //getting tommorow's date
 
                 Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
+//                Date tomorrow = new Date();
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
-                if (tomorrow.getDay() == 0) {
+                if (tomorrow.getDay() == 0 && !lendingApplication.getLender().equalsIgnoreCase("ABFL")) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
                 }
                 tomorrow = format.parse(format.format(tomorrow));
@@ -689,6 +689,7 @@ public class LiquiloansService {
         createEdiException(lendingPaymentSchedule);
         LendingApplication finalLendingApplication = lendingApplication;
         LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
+        final BasicDetailsDto finalBasicDetailDto = basicDetailsDto;
 
 
         LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
@@ -697,6 +698,13 @@ public class LiquiloansService {
         } else{
             LendingApplication finalLendingApplication1 = lendingApplication;
             executorService.execute(() -> liquiloansService.sendWPAndSMSNotification(finalLendingApplication1));
+                executorService.execute(() -> {
+                    try {
+                        liquiloansAsyncService.generateWelcomeDocAndNotify(finalLendingApplication, finalBasicDetailDto, lendingKfs);
+                    } catch (Exception e) {
+                        logger.error("error generating welcome document for {}", finalLendingApplication.getId());
+                    }
+                });
         }
 
 //        if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
@@ -715,6 +723,7 @@ public class LiquiloansService {
         loanUtil.publishApplicationEvent(lendingApplication);
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
     }
+
 
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
         try {
@@ -1319,7 +1328,7 @@ public class LiquiloansService {
                     Calendar cal = Calendar.getInstance();
                     cal.setTime(paymentSchedule.getInterestOnlyStartDate());
                     while (ioInstallmentNo <= paymentSchedule.getInterestOnlyEdiCount()) {
-                        if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                        if (cal.get(Calendar.DAY_OF_WEEK) == getOffDayNumber(paymentSchedule.getOffDay())) {
                             cal.add(Calendar.DAY_OF_MONTH, 1);
                         } else {
                             LendingEDISchedule currentSchedule = new LendingEDISchedule();
@@ -1354,7 +1363,7 @@ public class LiquiloansService {
             Double reducingInterestRateDaily = Finance.rate(ediCount, paymentSchedule.getEdiAmount().intValue(), paymentSchedule.getLoanAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
-                if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                if (cal.get(Calendar.DAY_OF_WEEK) == getOffDayNumber(paymentSchedule.getOffDay())) {
                     cal.add(Calendar.DAY_OF_MONTH, 1);
                 } else {
                     Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * paymentSchedule.getLoanAmount()));
@@ -1399,6 +1408,10 @@ public class LiquiloansService {
         } catch (Exception ex) {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
         }
+    }
+
+    public Integer getOffDayNumber(String dayOff) {
+        return (dayOff != null && !"".equals(dayOff)) ? Loan.OffDay.valueOf(dayOff.toUpperCase()).getDayNumber() : -1;
     }
 
     private LendingEDISchedule createProcFeeSchedule(LendingPaymentSchedule paymentSchedule, Long storeId) {

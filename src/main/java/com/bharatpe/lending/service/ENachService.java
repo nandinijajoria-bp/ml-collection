@@ -18,9 +18,13 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +81,9 @@ public class ENachService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    NbfcUtils nbfcUtils;
 
     @Autowired
     LoanUtil loanUtil;
@@ -164,7 +171,9 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-
+            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                    LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+            logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
 //            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //            if (lendingPennydrop == null) {
 //                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());

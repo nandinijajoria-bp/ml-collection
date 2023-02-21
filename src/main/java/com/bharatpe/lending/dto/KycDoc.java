@@ -35,4 +35,7 @@ public class KycDoc {
     private String gender;
     private String response;
     private Date updatedAt;
+    private String lastName;
+    private String middleName;
+    private String firstName;
 }

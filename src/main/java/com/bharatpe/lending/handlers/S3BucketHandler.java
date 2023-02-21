@@ -228,9 +228,11 @@ public class S3BucketHandler {
 		    }
 		    catch (AmazonS3Exception exception){
 		        if(exception.getStatusCode() == 404){
+					logger.error("{}",exception);
 		            throw new FileNotFoundException(key);
 		        }
 		        else{
+					logger.error("{}",exception);
 		            throw exception;
 		        }
 		    }

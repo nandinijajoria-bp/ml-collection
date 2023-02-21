@@ -386,7 +386,7 @@ public class VerifyOTPService {
         if (meta != null && !StringUtils.isEmpty(meta.getLongitude()) && !meta.getLongitude().equalsIgnoreCase("undefined") && !meta.getLongitude().equalsIgnoreCase("null") && !meta.getLongitude().trim().equalsIgnoreCase("")) {
             lendingApplication.setLongitude(meta.getLongitude());
         }
-        lendingApplication.setExternalLoanId(loanId);
+        lendingApplication.setExternalLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId()) ? loanId : lendingApplication.getExternalLoanId());
         
         //skip nach check for topup loans
         if(!"TOPUP".equals(lendingApplication.getLoanType())){

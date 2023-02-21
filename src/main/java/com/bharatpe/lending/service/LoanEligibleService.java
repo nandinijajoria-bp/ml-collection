@@ -153,9 +153,10 @@ public class LoanEligibleService {
     KycHandler kycHandler;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
-      LoanType.IO_TOPUP.name());
+            LoanType.IO_TOPUP.name());
 
-    public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount) {
+    public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, Integer ediModel) {
+
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
 
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
@@ -187,7 +188,11 @@ public class LoanEligibleService {
 
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
         for (EligibleLoan el : eligibleLoans) {
-            tenures.add(convertLoanToTenureDetails(el, responseDTO));
+            if (ediModel == 6 && el.getEdiCount() % 30 !=0){
+                tenures.add(convertLoanToTenureDetails(el, responseDTO));
+            } else if (ediModel == 7 && el.getEdiCount() % 30 ==0) {
+                tenures.add(convertLoanToTenureDetails(el, responseDTO));
+            }
         }
         responseDTO.setEligibleOfferDetails(responseDTO.new EligibleOfferDetails(queryAmount, tenures));
         responseDTO.setMessage("Available tenures for given amount");
@@ -213,29 +218,31 @@ public class LoanEligibleService {
 
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
-
-        try
-        {
-            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
-
-            logger.info("EligibleLoan Query values merchantId : {}, amount : {}, tenure : {}, dateWindow : {}", merchantId, body.getAmount(), body.getTenure(), dateWindow);
-
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualAndLoanTypeNotInOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow, topupLoans);
-
+        // todo final fix this later
+        if (loanUtil.isInternalMerchant(merchantId)) {
+            body.setEdiDays( body.getEdiDays() == null ? body.getTenure() * 30 : body.getEdiDays());
+        }
+        try {
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+        logger.info("EligibleLoan Query values merchantId : {}, amount : {}, tenure : {}, dateWindow : {}", merchantId, body.getAmount(), body.getTenure(), dateWindow);
+        EligibleLoan eligibleLoan = null;
+        if (body.getEdiDays() == null) {
+            eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsAndCreatedAtIsGreaterThanEqualAndLoanTypeNotInOrderByIdDesc(merchantId, body.getAmount(), body.getTenure(), dateWindow, topupLoans);
+        } else {
+            eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndEdiCountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotInOrderByIdDesc(merchantId, body.getAmount(), body.getEdiDays(),dateWindow, topupLoans);
+        }
             logger.info("eligibleLoan merchant_id : {}", eligibleLoan);
-
-            if (Objects.nonNull(eligibleLoan)) {
-                EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
-                customLoan.setOfferType("CUSTOM");
-                eligibleLoanDao.save(customLoan);
-
-                logger.info("Eligible loan custom offer for merchantId : {} {}", merchantId, customLoan);
-
-                eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(customLoan));
-                responseDTO.setMessage("Created eligible loan entry successfully");
-                responseDTO.setSuccess(true);
-                return responseDTO;
-            }
+//        EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndAmountAndTenureInMonthsOrderByIdDesc(merchantId, body.getAmount(), body.getTenure());
+        if (Objects.nonNull(eligibleLoan)) {
+            EligibleLoan customLoan = new EligibleLoan(eligibleLoan);
+            customLoan.setOfferType("CUSTOM");
+            eligibleLoanDao.save(customLoan);
+            logger.info("Eligible loan custom offer for merchantId : {} {}", merchantId, customLoan);
+            eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(customLoan));
+            responseDTO.setMessage("Created eligible loan entry successfully");
+            responseDTO.setSuccess(true);
+            return responseDTO;
+        }
         } catch (Exception e) {
             logger.error("Error occurred while creating custom offer for merchantId : {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }

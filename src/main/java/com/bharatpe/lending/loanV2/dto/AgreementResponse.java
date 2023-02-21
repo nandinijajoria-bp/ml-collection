@@ -21,6 +21,7 @@ public class AgreementResponse {
     private BankAccountDetails accountDetails;
     private boolean bpClubMember;
     private boolean clubV2;
+    private boolean ediModelModified;
 
     @Data
     @ToString

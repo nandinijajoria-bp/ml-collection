@@ -24,7 +24,6 @@ public class InitFilter implements Filter {
     }
 
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-
         HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
         HttpServletResponse httpServletResponse = (HttpServletResponse) servletResponse;
 
@@ -38,10 +37,13 @@ public class InitFilter implements Filter {
                 ObjectUtils.isEmpty(httpServletRequest.getHeader(RequestConstants.requestId)) ? uniqueId.toString() : httpServletRequest.getHeader(RequestConstants.requestId));
         MDC.put(RequestConstants.loggerCode,
                 ObjectUtils.isEmpty(httpServletRequest.getHeader(RequestConstants.loggerCode)) ? loggerCode : httpServletRequest.getHeader(RequestConstants.loggerCode));
-
-        log.info("Request IP address is {}", servletRequest.getRemoteAddr());
-        log.info("Request content type is {}", servletRequest.getContentType());
-
+        if (!(((HttpServletRequest) servletRequest).getRequestURI().equalsIgnoreCase("/lending/common/hash") ||
+                ((HttpServletRequest) servletRequest).getRequestURI().equalsIgnoreCase("/actuator/prometheus") ||
+                ((HttpServletRequest) servletRequest).getRequestURI().equalsIgnoreCase("/lending/handshake/ping"))
+        ) {
+            log.info("Request IP address {}, content type {}, url {}", servletRequest.getRemoteAddr(), servletRequest.getContentType(),
+                    ((HttpServletRequest) servletRequest).getRequestURI());
+        }
         ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(httpServletResponse);
 
         InterceptorRequestWrapper interceptorRequestWrapper = new InterceptorRequestWrapper(httpServletRequest);
@@ -49,7 +51,12 @@ public class InitFilter implements Filter {
         filterChain.doFilter(interceptorRequestWrapper, responseWrapper);
         responseWrapper.setHeader(RequestConstants.loggerCode, MDC.get(RequestConstants.loggerCode));
         responseWrapper.setHeader(RequestConstants.requestId, MDC.get(RequestConstants.requestId));
-        log.info("Response header is set with requestId {} and loggerCode: {}", responseWrapper.getHeader(RequestConstants.requestId), responseWrapper.getHeader(RequestConstants.loggerCode));
+        if (!(((HttpServletRequest) servletRequest).getRequestURI().equalsIgnoreCase("/lending/common/hash") ||
+                ((HttpServletRequest) servletRequest).getRequestURI().equalsIgnoreCase("/actuator/prometheus") ||
+                ((HttpServletRequest) servletRequest).getRequestURI().equalsIgnoreCase("/lending/handshake/ping"))
+        ) {
+            log.info("Response header is set with requestId {} and loggerCode: {}", responseWrapper.getHeader(RequestConstants.requestId), responseWrapper.getHeader(RequestConstants.loggerCode));
+        }
         responseWrapper.setHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, RequestConstants.loggerCode + ", " + RequestConstants.requestId);
         responseWrapper.copyBodyToResponse();
     }

@@ -41,5 +41,6 @@ public class LoanDetailsResponse {
     private String source;
     private Boolean clubV2Member = false;
     private Boolean showReferencePage = true;
+    private Integer ediDaysModel;
     private Long merchantId;
 }

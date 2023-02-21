@@ -34,20 +34,20 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 	@Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
-
-		.excludePathPatterns("/test/**", "/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
-		"/lending/push_lead_response",
-		"/lending/csPanel/**",
-		"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
-		"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
-		"/partner/details", "/lending/active_loans", "/lending/offers","/lending/allow_bankaccount_change", "/lending/derog_application","/lending" +
-		"/fos/**","/fos/**", "/lending/adhaar_mask", "/lending/edi_schedule", "/lending/edi_schedule/v2", "/support/loan","/support/lenderchange",
-		"/lending/nach_refund","/support/lender","/lending/processing_fee_refund","/lending/payment/callback/**","/error","/","/actuator/prometheus",
-		"/enach/bulkNach","/lending/due_amount","/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/support" +
-		"/createAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
-		"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
-				"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback",
-				"/assign/lender","/assign/rules", "/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility", "/lending/payment/ledger_entry");
+				.excludePathPatterns("/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
+				"/lending/push_lead_response",
+				"/lending/csPanel/**",
+				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
+				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
+				"/partner/details", "/lending/active_loans", "/lending/offers","/lending/allow_bankaccount_change", "/lending/derog_application","/lending" +
+				"/fos/**","/fos/**", "/lending/adhaar_mask", "/lending/edi_schedule", "/lending/edi_schedule/v2", "/support/loan","/support/lenderchange",
+				"/lending/nach_refund","/support/lender","/lending/processing_fee_refund","/lending/payment/callback/**","/error","/","/actuator/prometheus",
+				"/enach/bulkNach","/lending/due_amount","/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/support" +
+				"/createAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
+				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
+						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback",
+						"/assign/lender","/assign/rules", "/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility", "/lending/payment/ledger_entry",
+						"/lending/v3/modify/application");
 
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",

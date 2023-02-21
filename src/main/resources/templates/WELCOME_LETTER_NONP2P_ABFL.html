@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Welcome Letter</title>
+    <style>
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .width-2 {
+            width: 2%;
+        }
+
+        .width-38 {
+            width: 38%;
+        }
+
+        .width-60 {
+            width: 60%;
+        }
+
+        .width-66 {
+            width: 66%;
+        }
+
+        .width-50 {
+            width: 50%;
+        }
+        .width-100 {
+            width: 100%;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-right {
+            text-align: right
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mt20 {
+            margin-top: 20px;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .mb30 {
+            margin-bottom: 20px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .text-start {
+            text-align: left;
+        }
+
+        .upper-case {
+            text-transform: uppercase;
+        }
+
+        .ml10 {
+            margin-left: 10px;
+        }
+
+        .ml20 {
+            margin-left: 20px;
+        }
+
+        .color-red {
+            color: red;
+        }
+
+        .weight-bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+<div style="padding: 20px 30px;margin-top: 50px;">
+    <p style="margin: 6px 16px;" class="width-100 text-left">
+        <span class="fw400 ">Date: {{date}}</span>
+    </p>
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">To</span>
+    </p>
+    <p style="margin: 6px 16px;" class="width-100 text-left">
+        <span class="fw400">{{borrower_name}}</span>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </p>
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="fw400 text-left">{{address_of_borrower}}</span>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">Dear Customer,</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">Welcome to Aditya Birla Capital.</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+            <span class="text-left mb20">We thank you for the trust you have shown by making us your preferred choice
+                for your financing needs. It's our pleasure to have you as a valued customer.</span>
+    </p>
+
+    <p style="margin: 20px 16px;" class="width-100 mb20 color-red weight-bold mt20">
+        <span class="text-left mb20">Your loan account details are as follows:</span>
+    </p>
+
+    <table border="1" cellspacing="0" class="width-100 mb20 mt20">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    1
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Product
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{product_name}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    2
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Loan Account Number
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{loan_account_number}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    3
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Sanctioned Amount
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Rs. {{loan_amount_in_figure}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    4
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Loan Tenure (in months)
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{tenure_of_loan_in_months}} Months
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    5
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Disbursement Amount
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Rs. {{loan_amount_disbursed}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    6
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Disbursement Date
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{disbursal_date}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    7
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Repayment mechanism
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Eq. Installment
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    8
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Repayment Mode
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{repayment_mode}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    9
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    EDI due date
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Every Day
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    10
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Type of Interest Rate
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Effective Rate
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    11
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Interest Rate
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{apr}} %pa
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    12
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Processing Fees (Including Taxes)
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Rs. {{processing_fee_includes_tax}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    13
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Facilitation Fees
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Rs. {{facilitation_fee_in_figure}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-2">
+                <p style="margin: 6px" class="fw400 text-left">
+                    14
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-38">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Flat Rate
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-60 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{rate_of_interest}} %pa
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table border="1" cellspacing="0" class="width-100 mb20 mt20">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-50">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Mailing Address
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-50 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{address_of_borrower}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-50">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Email Id
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-50 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{email_of_borrower}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-50">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Telephone Number
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-50 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    {{phone_number_of_borrower}}
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <p style="margin: 20px 16px;" class="width-100 mb20 color-red weight-bold mt20">
+        <span class="text-left mb20">Connect with us through our digital channels</span>
+    </p>
+
+    <ul>
+        <li class="fw400">
+            <p style="margin: 6px 16px;" class="width-100 mb20">Call us on 1800-270-7000</p>
+        </li>
+        <li class="fw400">
+            <p style="margin: 6px 16px;" class="fw400 text-left">
+                    <span class="">Email us at
+                        <a target="_blank"
+                           href="mailto:care.digitalfinance@adityabirlacapital.com"><em>care.digitalfinance@adityabirlacapital.com</em></a></span>
+            </p>
+        </li>
+        <li class="fw400">
+            <p style="margin: 6px 16px;" class="fw400 text-left">
+                    <span class="">Login into
+                        <a target="_blank" href="https://www.abfldirect.com"
+                           class="underline"><em>www.abfldirect.com</em></a></span>
+            </p>
+        </li>
+    </ul>
+
+    <p style="margin: 20px 16px;" class="width-100 mb20 color-red weight-bold mt20">
+        <span class="text-left mb20">We are here for you</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+            <span class="text-left mb20">We can also help you with a wide range of solutions that can enable you to fulfil all
+            your money needs in life. Take advantage of our Protecting and Investing solutions
+            such as Life Insurance, Health Insurance, Wealth Management, Mutual Funds and
+            more.</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">We look forward to a long lasting relationship with you and assure you of our best</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">Warm Regards,</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">Aditya Birla Finance Ltd.</span>
+    </p>
+
+    <p style="margin: 6px 16px;" class="width-100 mb20">
+        <span class="text-left mb20">This is a system generated document and does not require any signature.</span>
+    </p>
+</div>
+</body>
+
+</html>

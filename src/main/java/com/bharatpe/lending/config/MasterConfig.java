@@ -19,7 +19,7 @@ import javax.sql.DataSource;
 
 @Configuration
 @EnableJpaRepositories(
-        basePackages = {"com.bharatpe.common.dao","com.bharatpe.lending.common.dao", "com.bharatpe.lending.dao"},
+        basePackages = {"com.bharatpe.common.dao","com.bharatpe.lending.common.dao", "com.bharatpe.lending.dao", "com.bharatpe.lending.loanV3.dao"},
         entityManagerFactoryRef = "entityManagerFactory"
 )
 public class MasterConfig {
@@ -43,7 +43,7 @@ public class MasterConfig {
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(
             EntityManagerFactoryBuilder builder, @Qualifier("dataSource") DataSource dataSource) {
         return builder.dataSource(dataSource).
-                packages("com.bharatpe.common.entities","com.bharatpe.lending.common.entity", "com.bharatpe.lending.entity").
+                packages("com.bharatpe.common.entities","com.bharatpe.lending.common.entity", "com.bharatpe.lending.entity", "com.bharatpe.lending.loanV3.entities").
                 persistenceUnit("master")
                 .build();
     }

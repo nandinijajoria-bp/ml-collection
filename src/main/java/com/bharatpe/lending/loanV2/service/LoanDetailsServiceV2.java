@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
@@ -179,6 +180,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     FunnelService funnelService;
 
+    @Value("${abfl.rollout.percent:10}")
+    Integer rolloutAbflPercent;
+
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
         try {
             if (Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
@@ -279,11 +283,14 @@ public class LoanDetailsServiceV2 {
             }
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestClosedLoan(merchant.getId());
             LendingApplication openApplication;
-            if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+            if (lendingPaymentSchedule.isPresent()) {
                 openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullAndPaymentScheduleStatusClosedOrderByIdDesc(merchant.getId(), lendingPaymentSchedule.get().getCreatedAt());
             } else {
                 openApplication = lendingApplicationDao.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchant.getId());
             }
+//            if (ObjectUtils.isEmpty(openApplication)) {
+//                openApplication = draftApplication;
+//            }
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
                 //with validAfter timestamp
@@ -513,7 +520,12 @@ public class LoanDetailsServiceV2 {
         loanDetailsResponse.setPancard(experian.getPancardNumber());
         loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
         loanDetailsResponse.setHasExperian(true);
-
+        // TODO: 10/11/22 todo final hardcoded this bit
+//        loanDetailsResponse.setEdiDaysModel(EdiModel.assignEdiModel().getNoOfEdiDaysInAWeek());
+        loanDetailsResponse.setEdiDaysModel(6);
+        if (loanUtil.isInternalMerchant(merchant.getId()) || easyLoanUtil.percentScaleUp(merchant.getId(), rolloutAbflPercent)) {
+            loanDetailsResponse.setEdiDaysModel(7);
+        }
         EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
@@ -672,6 +684,11 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setExternalLoanId(openApplication.getExternalLoanId());
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setApplicationStatus(openApplication.getStatus());
+            LendingApplicationDetails lendingApplicationDetails =
+                    lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
+            if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+                applicationDetails.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
+            }
             if ("approved".equalsIgnoreCase(openApplication.getStatus()) || "pending_verification".equalsIgnoreCase(openApplication.getStatus())) {
                 LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchantId());
                 if (Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() != null && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {

@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingD
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.config.AsyncConfig;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -144,6 +145,12 @@ public class LoanUtil {
 	Integer minScore;
 
 	String INTERNAL_MERCHANTS = "internal_merchants";
+
+	@Autowired
+	LendingResubmitTaskDao lendingResubmitTaskDao;
+
+	@Autowired
+	LendingApplicationDao lendingApplicationDao;
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -911,6 +918,10 @@ public class LoanUtil {
 		Integer ediAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / tenureDetail.getEdiCount());
 		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
 
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round(( 30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		List<EligibleLoan> eligibleLoanList = new ArrayList<>();
+
 		EligibleLoan eligibleLoan = EligibleLoan.builder()
 				.loanType(loanType)
 				.offerType(offerType)
@@ -931,7 +942,30 @@ public class LoanUtil {
 				.version(version)
 				.clubV2Amount(tenureDetail.getClubV2Amount())
 				.build();
-		eligibleLoanDao.saveAndFlush(eligibleLoan);
+		EligibleLoan sevenDayEligibleLoanOffer = EligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.build();
+		eligibleLoanList.add(eligibleLoan);
+		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		eligibleLoanDao.saveAll(eligibleLoanList);
+		eligibleLoanDao.flush();
 		return null;
 	}
 
@@ -992,7 +1026,7 @@ public class LoanUtil {
 			finalLender = Lender.LDC.name();
 		}
 		if(lender.equals("ABFL")){
-			finalLender = "ABFL";
+			finalLender = Lender.ABFL.name();
 		}
 		return finalLender;
 	}
@@ -1045,5 +1079,43 @@ public class LoanUtil {
 			return enachSuccess;
 		}
 		return null;
+	}
+
+	public Boolean putApplicationInResignAndRenach(LendingApplication lendingApplication, String newLender) {
+		logger.info("putting application in resgin and renach for applicationId : {} and newLender : {}", lendingApplication.getId(), newLender);
+		try{
+			LendingResubmitTask resubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(lendingApplication.getId()
+			, lendingApplication.getMerchantId());
+			// if already a re-sign request exists then return success
+			if (Objects.nonNull(resubmitTask) && Objects.nonNull(resubmitTask.getResign()) && resubmitTask.getResign() &&
+			Objects.nonNull(resubmitTask.getResignDone()) && !resubmitTask.getResignDone()) {
+				logger.info("Already a re-sign task exists for the applicationId : {}", lendingApplication.getId());
+				return true;
+			}
+			if (Objects.isNull(resubmitTask)){
+				resubmitTask = new LendingResubmitTask();
+				resubmitTask.setMerchantId(lendingApplication.getMerchantId());
+				resubmitTask.setApplicationId(lendingApplication.getId());
+			}
+			resubmitTask.setResign(Boolean.TRUE);
+			resubmitTask.setResignDone(Boolean.FALSE);
+			resubmitTask.setResignReason("LENDER_CHANGE_FROM_" + lendingApplication.getLender() + "_TO_" + newLender);
+			Boolean renach = apiGatewayService.cancelEnach(lendingApplication.getMerchantId(), lendingApplication.getId());
+			if(!renach) return false;
+
+			logger.info("changing lender from : {} to {}", lendingApplication.getLender(), newLender);
+			lendingApplication.setLender(newLender);
+			lendingApplication.setNachStatus(null);
+			lendingApplication.setNachLender(null);
+			lendingApplication.setLmsStage("RESIGN_RENACH");
+			lendingApplication.setStatus("pending_verification");
+			lendingApplicationDao.save(lendingApplication);
+			lendingResubmitTaskDao.save(resubmitTask);
+			return true;
+		}
+		catch(Exception e){
+			logger.error("exception in updating lender for {}, {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+		}
+		return false;
 	}
 }

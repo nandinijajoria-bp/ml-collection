@@ -61,6 +61,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
@@ -87,6 +88,7 @@ import java.time.ZoneId;
 import java.util.*;
 
 @Service
+@Primary
 public class APIGatewayService {
 
     private static final Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
@@ -215,7 +217,7 @@ public class APIGatewayService {
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
-    private final String CLIENT = "LENDING";
+    public final String CLIENT = "LENDING";
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
@@ -1340,7 +1342,7 @@ public class APIGatewayService {
         return null;
     }
 
-    private String getInternalSecret() {
+    protected String getInternalSecret() {
         if (org.springframework.util.StringUtils.isEmpty(clientSecret)) {
             InternalClientSlave client = internalClientDaoSlave.findByClientName(CLIENT);
             if (client != null) {

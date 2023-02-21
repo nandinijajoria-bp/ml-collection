@@ -16,6 +16,7 @@ import java.util.Date;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class PostPayoutRequestDto {
     @JsonProperty("lender")
     String lender;

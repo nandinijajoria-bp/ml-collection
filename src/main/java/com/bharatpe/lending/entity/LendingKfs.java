@@ -49,6 +49,9 @@ public class LendingKfs extends BaseEntity {
     @Column(name = "message")
     private String message;
 
+    @Column(name = "welcome_doc_url")
+    private String welcomeDocUrl;
+
     @Column(name = "nbfc_signed_at")
     private Date nbfcSignedAt;
 }

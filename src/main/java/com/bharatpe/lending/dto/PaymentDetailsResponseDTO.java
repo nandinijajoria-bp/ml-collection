@@ -58,6 +58,7 @@ public class PaymentDetailsResponseDTO {
 		private Integer loanAmount;
 		private Integer overdueAmount;
 		private Integer principalDueAmount;
+		private Double lenderPrincipalDueAmount;
 		private Integer overdueDays;
 		private Boolean isEligibleForPayment;
 		private Integer remainingEdiCount;
@@ -67,7 +68,7 @@ public class PaymentDetailsResponseDTO {
 			
 		}
 		
-		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment, Integer remainingEdiCount, Double ediAmount) {
+		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment, Integer remainingEdiCount, Double ediAmount, Double lenderPrincipalDueAmount) {
 			this.loanAmount = loanAmount;
 			this.overdueAmount = overdueAmount;
 			this.principalDueAmount = principalDueAmount;
@@ -75,6 +76,7 @@ public class PaymentDetailsResponseDTO {
 			this.isEligibleForPayment = isEligibleForPayment;
 			this.remainingEdiCount = remainingEdiCount;
 			this.ediAmount = ediAmount;
+			this.lenderPrincipalDueAmount = lenderPrincipalDueAmount;
 		}
 
 		public Integer getLoanAmount() {
@@ -108,6 +110,14 @@ public class PaymentDetailsResponseDTO {
 			this.isEligibleForPayment = isEligibleForPayment;
 		}
 
+		public Double getLenderPrincipalDueAmount() {
+			return lenderPrincipalDueAmount;
+		}
+
+		public void setLenderPrincipalDueAmount(Double lenderPrincipalDueAmount) {
+			this.lenderPrincipalDueAmount = lenderPrincipalDueAmount;
+		}
+
 		public Boolean getEligibleForPayment() {
 			return isEligibleForPayment;
 		}
@@ -134,9 +144,16 @@ public class PaymentDetailsResponseDTO {
 
 		@Override
 		public String toString() {
-			return "Data [loanAmount=" + loanAmount + ", overdueAmount=" + overdueAmount + ", principalDueAmount="
-					+ principalDueAmount + ", overdueDays=" + overdueDays + ", isEligibleForPayment="
-					+ isEligibleForPayment + "]";
+			return "Data{" +
+					"loanAmount=" + loanAmount +
+					", overdueAmount=" + overdueAmount +
+					", principalDueAmount=" + principalDueAmount +
+					", lenderPrincipalDueAmount=" + lenderPrincipalDueAmount +
+					", overdueDays=" + overdueDays +
+					", isEligibleForPayment=" + isEligibleForPayment +
+					", remainingEdiCount=" + remainingEdiCount +
+					", ediAmount=" + ediAmount +
+					'}';
 		}
 	}
 }

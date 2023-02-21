@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.CommonResponse;
@@ -30,6 +31,9 @@ public class LendingEdiScheduleService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LiquiloansService liquiloansService;
 
     public CommonResponse getEdiSchedule(Long merchantId, Long applicationId) {
         logger.info("Creating EDI Schedule for applicationId:{}", applicationId);
@@ -137,7 +141,7 @@ public class LendingEdiScheduleService {
                     cal.setTime(lendingPaymentSchedule.getInterestOnlyStartDate());
                 }
                 while(ioInstallmentNo <= lendingApplication.getIoPayableDays()) {
-                    if(cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                    if(cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {
                         cal.add(Calendar.DAY_OF_MONTH, 1);
                         continue;
                     }
@@ -162,7 +166,7 @@ public class LendingEdiScheduleService {
             double reducingInterestRateDaily = Finance.rate(ediCount, lendingApplication.getEdi().intValue(), lendingApplication.getLoanAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
-                if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {
                     cal.add(Calendar.DAY_OF_MONTH, 1);
                     continue;
                 }

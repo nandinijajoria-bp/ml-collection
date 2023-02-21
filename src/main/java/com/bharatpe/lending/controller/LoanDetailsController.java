@@ -12,6 +12,7 @@ import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
@@ -62,6 +63,10 @@ public class LoanDetailsController {
 
 	@Autowired
 	MerchantService merchantService;
+
+//	 for testing - to be removed in future
+	@Value("${lending.edi.model:7}")
+	Integer lendingEdiModel;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestAttribute(required = false) String clientIp
@@ -195,9 +200,11 @@ public class LoanDetailsController {
 
 	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute BasicDetailsDto merchant,
-			@RequestParam(name = "query_amount", required = true) Double queryAmount) {
-		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}", merchant.getId(), queryAmount);
-		EligibleLendingOffersResponseDTO resp = loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount);
+																					@RequestParam(name = "query_amount", required = true) Double queryAmount,
+																					@RequestParam(name = "edi_model", required = false) Integer ediModel) {
+		ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
+		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}", merchant.getId(), queryAmount, ediModel);
+		EligibleLendingOffersResponseDTO resp = loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount,ediModel);
 		logger.info("EligibleLendingOffers response: {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
