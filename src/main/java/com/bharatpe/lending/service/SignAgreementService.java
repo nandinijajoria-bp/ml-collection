@@ -684,14 +684,18 @@ public class SignAgreementService {
 			response.put("message","Last loan not closed for merchant {}");
 			return response;
 		}
-		int processingFee;
+		Double processingFee;
+
+		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())? eligibleLoan.getAmount() - loanUtil.getForeclosureAmount(prevLendingSchedule)
+				:eligibleLoan.getAmount();
+
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-			processingFee = 0;
+			processingFee = 0D;
 		}else {
-			processingFee = eligibleLoan.getProcessingFee();
+			processingFee = disbursalAmount * eligibleLoan.getProcessingFeeRate();
 		}
 		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-			processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
+			processingFee = Double.valueOf(loanUtil.getIoHalfPF(prevLendingSchedule));
 		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
@@ -702,11 +706,9 @@ public class SignAgreementService {
 //            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-		newApplication.setProcessingFee(Math.ceil(processingFee));
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())? eligibleLoan.getAmount() - processingFee - loanUtil.getForeclosureAmount(prevLendingSchedule)
-				:eligibleLoan.getAmount() - processingFee;
-		newApplication.setDisbursalAmount(Math.floor(disbursalAmount));
+		newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee));
+		newApplication.setProcessingFee(Math.ceil(processingFee));
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());

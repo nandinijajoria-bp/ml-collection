@@ -1855,12 +1855,13 @@ public class LendingApplicationServiceV2 {
                     .lenderContactNumber(lenderContactNumber)
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
-                    .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/lendingApplication.getLoanAmount() * 100))))
+                    .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
                     .repaymentAmount(lendingApplication.getRepayment())
                     .interestRate(lendingApplication.getInterestRate())
                     .apr(Optional.ofNullable(apr).orElse(lendingKfs.getApr()))
+                    .isTopUpLoan("TOPUP".equals(lendingApplication.getLoanType()))
                     .locationLatLong(Objects.toString(lendingApplication.getLatitude(),"") + ", " + Objects.toString(lendingApplication.getLongitude(),""))
                     .coolingOffDays(KfsConstants.COOLING_OFF_DAYS)
                     .ediCount(lendingApplication.getPayableDays())
@@ -2170,6 +2171,7 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
+        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentage()+"% of the loan Amount i.e. ");
         String repaymentSchedule = getRepaymentSchedule(applicationId, merchant);
         if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);

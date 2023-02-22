@@ -962,6 +962,7 @@ public class LoanUtil {
 				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
 				.version(version)
 				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
 				.build();
 		EligibleLoan sevenDayEligibleLoanOffer = EligibleLoan.builder()
 				.loanType(loanType)

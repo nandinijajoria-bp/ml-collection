@@ -700,11 +700,9 @@ public class MerchantLoansService {
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
-                loanEligibilityDTO.setProcessingFee(eligibleLoan.getProcessingFee());
                 loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
                 loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
                 loanEligibilityDTO.setCategory(eligibleLoan.getCategory());
-                loanEligibilityDTO.setDisbursementAmount(eligibleLoan.getAmount().intValue() - eligibleLoan.getProcessingFee());
                 loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
                 loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
                 loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
@@ -717,7 +715,8 @@ public class MerchantLoansService {
 //              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //              loanEligibilityDTO.setType();
                 loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
-                loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getDisbursementAmount() - (int) prevLoanUnpaidAmount);
+                loanEligibilityDTO.setProcessingFee((int)Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
                 loanEligibilityDTO.setId(eligibleLoan.getId());
