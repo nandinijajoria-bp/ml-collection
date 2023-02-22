@@ -147,6 +147,9 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
+        if(Lender.ABFL.equals(Lender.valueOf(decidedLender)) && ObjectUtils.isEmpty(application.getId())){
+            decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
+        }
         String oldLender = application.getLender();
         application.setLender(decidedLender);
         updateOfferDetailsInApplication(application,LenderOffDays.valueOf(decidedLender).getEdiModel(), oldLender);
@@ -324,14 +327,14 @@ public class LenderAssignService implements ILenderAssignService {
             if(auditLenderList.size()>=2){
                 log.info("Lender already changed twice for application: {}", application.get().getId());
                 EdiModel ediModel = LenderOffDays.valueOf(Lender.LDC.name()).getEdiModel();
-                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
+//                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 if (!ediDetails.getEdiModel().equals(ediModel.name())) {
-                    modifyEdiModel(application.get(), modifiedEdiModel);
+                    modifyEdiModel(application.get(), ediModel);
                 }
                 String oldLender = application.get().getLender();
                 application.get().setLender(Lender.LDC.name());
-                updateOfferDetailsInApplication(application.get(),ediModel,oldLender);
+                updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 lendingApplicationDao.save(application.get());
                 return Lender.LDC;
             }
@@ -413,10 +416,11 @@ public class LenderAssignService implements ILenderAssignService {
         return lender;
     }
 
-    public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+    public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {
         try {
-            if (ObjectUtils.isEmpty(lender) || lendingApplication.getLender().equalsIgnoreCase(lender)) {
-                log.info("skiping updated offer if first time assignment or same lender is set for {}", lendingApplication.getId());
+            Long currentPayableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), ediModel);
+            if (currentPayableDays == lendingApplication.getPayableDays()) {
+                log.info("skipping updated offer as offer remains same for {}", lendingApplication.getId());
                 return;
             }
             log.info("modifying application details post lender change for {}", lendingApplication.getId());
@@ -434,7 +438,7 @@ public class LenderAssignService implements ILenderAssignService {
             lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId())?"":lendingApplication.getExternalLoanId());
             lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
             lendingAuditTrial.setType("OFFER_MODIFIED_LENDER_CHANGE");
-            lendingAuditTrial.setOldStatus("OLD_LENDER" + lender);
+            lendingAuditTrial.setOldStatus("OLD_LENDER" + oldLender);
             lendingAuditTrial.setNewStatus("NEW_LENDER" + lendingApplication.getLender());
             lendingAuditTrialDao.save(lendingAuditTrial);
         } catch (Exception e) {
