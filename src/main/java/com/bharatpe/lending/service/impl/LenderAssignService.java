@@ -147,8 +147,9 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
-        if(Lender.ABFL.equals(Lender.valueOf(decidedLender)) && ObjectUtils.isEmpty(application.getId())){
+        if(Lender.ABFL.equals(Lender.valueOf(decidedLender)) && ObjectUtils.isEmpty(application.getExternalLoanId())){
             decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
+            saveLenderChangeAudit(application, decidedLender);
         }
         String oldLender = application.getLender();
         application.setLender(decidedLender);
@@ -378,6 +379,7 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Assigning fallback lender");
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(ObjectUtils.isEmpty(fallbackLender)){
+            modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LDC.name()).getEdiModel());
             return Lender.LDC.name();
         }
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
