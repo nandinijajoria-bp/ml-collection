@@ -19,6 +19,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.config.AsyncConfig;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -30,6 +31,7 @@ import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
@@ -108,29 +110,29 @@ public class LoanUtil {
 	MerchantScoreSnapshotDao merchantScoreSnapshotDao;
 
 	@Autowired
-    LendingPrepaymentDao lendingPrepaymentDao;
+	LendingPrepaymentDao lendingPrepaymentDao;
 
-    @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
+	@Autowired
+	KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Autowired
-    LendingRiskVariablesDao lendingRiskVariablesDao;
+	@Autowired
+	LendingRiskVariablesDao lendingRiskVariablesDao;
 
-    @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+	@Autowired
+	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
-    @Autowired
-    LendingShopDocumentsDao lendingShopDocumentsDao;
+	@Autowired
+	LendingShopDocumentsDao lendingShopDocumentsDao;
 
-    @Autowired
-			EligibleLoanDao eligibleLoanDao;
+	@Autowired
+	EligibleLoanDao eligibleLoanDao;
 
 	@Autowired
 	MerchantSummaryHandler merchantSummaryHandler;
 
-    ExecutorService executorService = Executors.newFixedThreadPool(10);
+	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	@Autowired
 	MerchantService merchantService;
@@ -144,6 +146,12 @@ public class LoanUtil {
 	@Value("${merchant.references.min.score}")
 	Integer minScore;
 
+	@Autowired
+	LoanDpdDao loanDpdDao;
+
+	@Autowired
+	LendingLedgerDao lendingLedgerDao;
+
 	String INTERNAL_MERCHANTS = "internal_merchants";
 
 	@Autowired
@@ -151,6 +159,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
+
+	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
+
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();
@@ -231,12 +242,12 @@ public class LoanUtil {
 			shopDetails.put("hasGST", lendingGstDetail.getGst() != null ? lendingGstDetail.getGst() : "");
 			shopDetails.put("experience", lendingGstDetail.getExperience() != null ? lendingGstDetail.getExperience() : "");
 			shopDetails.put("businessCategory", lendingGstDetail.getBusinessCategory() != null ? lendingGstDetail.getBusinessCategory() : "");
-			shopDetails.put("shopType",lendingGstDetail.getShopType() != null ? lendingGstDetail.getShopType() : "");
+			shopDetails.put("shopType", lendingGstDetail.getShopType() != null ? lendingGstDetail.getShopType() : "");
 		}
 		return shopDetails;
 	}
 
-	public static ShopDetailsDTO prepareShopDetailsDTO(LendingApplication application,LendingGstDetail lendingGstDetail) {
+	public static ShopDetailsDTO prepareShopDetailsDTO(LendingApplication application, LendingGstDetail lendingGstDetail) {
 		ShopDetailsDTO shopDetails = new ShopDetailsDTO();
 
 		shopDetails.setBusinessName(application.getBusinessName());
@@ -244,7 +255,7 @@ public class LoanUtil {
 		shopDetails.setStreetAddress(application.getStreetAddress());
 		shopDetails.setArea(application.getArea());
 		shopDetails.setLandmark(application.getLandmark());
-		if(application.getPincode() != null) {
+		if (application.getPincode() != null) {
 			shopDetails.setPincode(application.getPincode().toString());
 		}
 		shopDetails.setCity(application.getCity());
@@ -262,10 +273,10 @@ public class LoanUtil {
 	}
 
 	//for credit line
-	public static ShopDetailsDTO prepareShopDetailsDTO(CreditApplication application, CreditApplicationAddress creditApplicationAddress){
+	public static ShopDetailsDTO prepareShopDetailsDTO(CreditApplication application, CreditApplicationAddress creditApplicationAddress) {
 
 		ShopDetailsDTO shopDetails = new ShopDetailsDTO();
-		if(creditApplicationAddress!=null) {
+		if (creditApplicationAddress != null) {
 			shopDetails.setBusinessName(application.getBusinessName());
 			shopDetails.setShopNumber(creditApplicationAddress.getShopNumber());
 			shopDetails.setStreetAddress(creditApplicationAddress.getStreetAddress());
@@ -277,9 +288,8 @@ public class LoanUtil {
 			shopDetails.setCity(creditApplicationAddress.getCity());
 			shopDetails.setState(creditApplicationAddress.getState());
 			shopDetails.setAlternateContact(application.getAlternateMobile());
-		}
-		else {
-			logger.warn("Shop details not available for application {}",application.getId());
+		} else {
+			logger.warn("Shop details not available for application {}", application.getId());
 		}
 		return shopDetails;
 	}
@@ -287,15 +297,15 @@ public class LoanUtil {
 	private static List<LabelDTO> prepareLabels(LendingApplication application, int months) {
 		List<LabelDTO> list = new ArrayList<>();
 
-		if("CONSTRUCT_1".equals(application.getLoanConstruct())) {
+		if ("CONSTRUCT_1".equals(application.getLoanConstruct())) {
 
-		} else if("CONSTRUCT_2".equals(application.getLoanConstruct())) {
+		} else if ("CONSTRUCT_2".equals(application.getLoanConstruct())) {
 			list.add(new LabelDTO("EDI for 1st Month", "ZERO"));
 			list.add(new LabelDTO("EDI for Next " + (application.getTenureInMonths() - 1) + " Months", "₹" + CurrencyUtils.formatInt(application.getEdi().intValue()) + "/day"));
 			list.add(new LabelDTO("No Deduction on Sundays", ""));
-		} else if("CONSTRUCT_3".equals(application.getLoanConstruct())) {
+		} else if ("CONSTRUCT_3".equals(application.getLoanConstruct())) {
 			if (months > 1) {
-				list.add(new LabelDTO("EDI for 1st "+months+" Months", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
+				list.add(new LabelDTO("EDI for 1st " + months + " Months", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
 			} else {
 				list.add(new LabelDTO("EDI for 1st Month", "₹" + CurrencyUtils.formatInt(application.getIoEdi().intValue()) + "/day"));
 			}
@@ -328,52 +338,58 @@ public class LoanUtil {
 		return cal.getTime();
 	}
 
-	public static Map<String , String> settlementMode = new HashMap<String , String>() {{
+	public static Map<String, String> settlementMode = new HashMap<String, String>() {{
 		put("SETTLEMENT", "QR Txns.");
 		put("EXTERNAL_NACH", "NACH");
 		put("INTEREST_ACCOUNT", "Investment A/c");
 		put("REFUND", "Refund");
 		put("BHARATPE_NACH", "NACH");
-		put("UPI","UPI");
-		put("SCHEME2","Waiver");
-		put("SCHEME1","Waiver");
-		put("SCHEME3","Waiver");
-		put("FP","Investment A/c");
-		put("UNSETTLED","QR Txns.");
-		put("DIRECT_TRANSFER","Offline");
-		put("EXCEPTION","Offline");
-		put("QR_SETTLEMENT","QR Txns.");
-		put("DC","Debit Card");
-		put("NB","Net Banking");
-		put("CC","Credit Card");
-		put("BP","BP Balance");
-		put("BT","Bank Transfer");
-		put("AUTO_FP","Investment A/c");
-		put("ADVANCE_EDI","Advance EDI");
+		put("UPI", "UPI");
+		put("SCHEME2", "Waiver");
+		put("SCHEME1", "Waiver");
+		put("SCHEME3", "Waiver");
+		put("FP", "Investment A/c");
+		put("UNSETTLED", "QR Txns.");
+		put("DIRECT_TRANSFER", "Offline");
+		put("EXCEPTION", "Offline");
+		put("QR_SETTLEMENT", "QR Txns.");
+		put("DC", "Debit Card");
+		put("NB", "Net Banking");
+		put("CC", "Credit Card");
+		put("BP", "BP Balance");
+		put("BT", "Bank Transfer");
+		put("AUTO_FP", "Investment A/c");
+		put("ADVANCE_EDI", "Advance EDI");
 	}};
 
-	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData){
-        List<JsonNode> resp = new ArrayList<>();
-        if(nodeData != null && !nodeData.asText().equals("\"\"")){
-            if(nodeData.isObject()){
-                resp.add(nodeData);
-            } else {
-                for(JsonNode node: nodeData){
-                    resp.add(node);
-                }
-            }
-        }
-        return resp;
-    }
+	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData) {
+		List<JsonNode> resp = new ArrayList<>();
+		if (nodeData != null && !nodeData.asText().equals("\"\"")) {
+			if (nodeData.isObject()) {
+				resp.add(nodeData);
+			} else {
+				for (JsonNode node : nodeData) {
+					resp.add(node);
+				}
+			}
+		}
+		return resp;
+	}
 
-	public static int getEdiDays(int tenure){
-		switch (tenure){
-			case 1: return 26;
-			case 3: return 77;
-			case 6: return 155;
-			case 9: return 234;
-			case 12: return 311;
-			default: return 388;//15 months
+	public static int getEdiDays(int tenure) {
+		switch (tenure) {
+			case 1:
+				return 26;
+			case 3:
+				return 77;
+			case 6:
+				return 155;
+			case 9:
+				return 234;
+			case 12:
+				return 311;
+			default:
+				return 388;//15 months
 		}
 	}
 
@@ -384,7 +400,9 @@ public class LoanUtil {
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
 			experianAuditTrail.setId(System.nanoTime());
-			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>(){{add(experianAuditTrail);}});
+			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>() {{
+				add(experianAuditTrail);
+			}});
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
 		}
@@ -408,17 +426,17 @@ public class LoanUtil {
 		int tat = -1;
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
 		if (lendingApplicationPriority != null && lendingApplicationPriority.getTat() != null && lendingApplicationPriority.getTatStartTime() != null) {
-			tat = (int)(lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
+			tat = (int) (lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
 		}
 		return tat;
 	}
 
-	public static String getFirstName(String name){
+	public static String getFirstName(String name) {
 		if (name == null) {
 			return "";
 		}
 		int lastIndexOfSpace = name.lastIndexOf(" ");
-		if (lastIndexOfSpace != -1){
+		if (lastIndexOfSpace != -1) {
 			return name.substring(0, lastIndexOfSpace);
 		} else {
 			lastIndexOfSpace = name.lastIndexOf(".");
@@ -430,12 +448,12 @@ public class LoanUtil {
 		}
 	}
 
-	public static String getLastName(String name){
+	public static String getLastName(String name) {
 		if (name == null) {
 			return "";
 		}
 		int lastIndexOfSpace = name.lastIndexOf(" ");
-		if (lastIndexOfSpace != -1){
+		if (lastIndexOfSpace != -1) {
 			return name.substring(lastIndexOfSpace + 1);
 		} else {
 			lastIndexOfSpace = name.lastIndexOf(".");
@@ -447,8 +465,8 @@ public class LoanUtil {
 		}
 	}
 
-	public Boolean isCovidCities(Integer pinCode){
-		if(pinCode == null){
+	public Boolean isCovidCities(Integer pinCode) {
+		if (pinCode == null) {
 			return false;
 		}
 		LendingCovidCities covidCities = lendingCovidCitiesDao.findByPincode(pinCode);
@@ -462,7 +480,9 @@ public class LoanUtil {
 		try {
 			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
 			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
-			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>(){{add(merchantSmsAnalysis);}});
+			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>() {{
+				add(merchantSmsAnalysis);
+			}});
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish merchant_sms_analysis for merchant:{}", merchant.getId(), e);
 		}
@@ -520,7 +540,7 @@ public class LoanUtil {
 
 	public static int calculateDPD(Double ediAmount, Double dueAmount) {
 		if (dueAmount < ediAmount) return 0;
-		return (int)Math.round(dueAmount/ediAmount);
+		return (int) Math.round(dueAmount / ediAmount);
 	}
 
 	public boolean hasActiveLoan(BasicDetailsDto merchant) {
@@ -575,6 +595,7 @@ public class LoanUtil {
 		createRiskVariablesSnapshot(lendingApplication);
 		createBureauDrsSnapshot(lendingApplication, merchant);
 	}
+
 	// pushing data to DE team for creating snapshot
 	private void createBureauDrsSnapshot(LendingApplication lendingApplication, BasicDetailsDto merchant) {
 		Map<String, Object> applicationData = new HashMap<>();
@@ -589,19 +610,19 @@ public class LoanUtil {
 	}
 
 	private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
-        try {
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-            if (lendingRiskVariables != null) {
-                LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = LendingRiskVariablesSnapshot.createObject(lendingRiskVariables);
-                lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
-                lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
-            }
-        } catch (Exception e) {
-            logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), e);
-        }
-    }
+		try {
+			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+			if (lendingRiskVariables != null) {
+				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = LendingRiskVariablesSnapshot.createObject(lendingRiskVariables);
+				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
+				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
+			}
+		} catch (Exception e) {
+			logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), e);
+		}
+	}
 
-    public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
+	public void createMerchantScoreSnapshot(LendingApplication lendingApplication) {
 		try {
 //			MerchantScore merchantScore = merchantScoreDao.findByMerchantId(lendingApplication.getMerchantId());
 			final MerchantScoreResponseDto merchantScoreResponseDto = merchantScoreHandler.getMerchantScore(lendingApplication.getMerchantId());
@@ -709,7 +730,7 @@ public class LoanUtil {
 				snapshot.setUniqueCustomer1mon(merchantResponseDTO.getUniqueCustomer1mon());
 				merchantSummarySnapshotDao.save(snapshot);
 			}
-		} catch(Exception ex) {
+		} catch (Exception ex) {
 			logger.error("Exception in createMerchantSummarySnapshot for application:{}", application.getId(), ex);
 		}
 	}
@@ -723,13 +744,13 @@ public class LoanUtil {
 				merchantBankDetail = bankDetailsDtoOptional.get();
 			if (merchantBankDetail == null) return null;
 
-				return BankAccountDetails.builder()
-						.beneficiaryName(merchantBankDetail.getBeneficiaryName())
-						.bankName(merchantBankDetail.getBankName())
-						.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length()-4))
-						.branchName("")
-						.ifsc(merchantBankDetail.getIfsc())
-						.bankLogo(merchantBankDetail.getIfscLogo()).build();
+			return BankAccountDetails.builder()
+					.beneficiaryName(merchantBankDetail.getBeneficiaryName())
+					.bankName(merchantBankDetail.getBankName())
+					.accountNumber("XXXX " + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length() - 4))
+					.branchName("")
+					.ifsc(merchantBankDetail.getIfsc())
+					.bankLogo(merchantBankDetail.getIfscLogo()).build();
 
 		} catch (Exception e) {
 			logger.error("Exception in getAccountDetails for merchant:{}", merchantId);
@@ -754,7 +775,7 @@ public class LoanUtil {
 	}
 
 	public boolean isRepeatLoan(Long merchantId) {
-		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(merchantId,"CLOSED", false);
+		List<LendingPaymentSchedule> prevLoans = lendingPaymentScheduleDao.findByMerchantIdAndStatusAndCreditLoan(merchantId, "CLOSED", false);
 		return !prevLoans.isEmpty();
 	}
 
@@ -797,15 +818,15 @@ public class LoanUtil {
 	public boolean cpvRequired(LendingApplication lendingApplication) {
 		Experian experian = experianDao.getByMerchantId(lendingApplication.getMerchantId());
 		boolean enachSuccess = "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && "ENACH".equalsIgnoreCase(lendingApplication.getNachType());
-		if(enachSuccess) {
+		if (enachSuccess) {
 			if ("BHARAT_SWIPE".equals(lendingApplication.getLoanType()) || "OGL".equals(lendingApplication.getLoanType())) {
 				return false;
 			}
 			boolean isNTC = isNTC(experian);
-			if(!isRepeatLoan(lendingApplication.getMerchantId())) {
-				if(isNTC && lendingApplication.getLoanAmount() <= 50000D) {
+			if (!isRepeatLoan(lendingApplication.getMerchantId())) {
+				if (isNTC && lendingApplication.getLoanAmount() <= 50000D) {
 					return false;
-				} else if(!isNTC && lendingApplication.getLoanAmount() <= 100000D) {//etc
+				} else if (!isNTC && lendingApplication.getLoanAmount() <= 100000D) {//etc
 					return false;
 				}
 			} else return lendingApplication.getLoanAmount() > 300000D;
@@ -817,7 +838,7 @@ public class LoanUtil {
 		if (experian == null || experian.getCategory() == null) {
 			return true;
 		}
-		List<String> ntcCategories = Arrays.asList("1N","2N","3N","4N");
+		List<String> ntcCategories = Arrays.asList("1N", "2N", "3N", "4N");
 		return ntcCategories.contains(experian.getCategory());
 	}
 
@@ -838,79 +859,79 @@ public class LoanUtil {
 	}
 
 	public int getForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
-	    if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-	        return 0;
-        }
-        LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-        double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return 0;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
 	}
 
 	public void publishApplicationEvent(LendingApplication lendingApplication) {
-	    try {
-            Map<String,Object> request = new HashMap<String, Object>(){{
-                put("merchantId", lendingApplication.getMerchantId());
-                put("applicationId", lendingApplication.getId());
-                put("status", lendingApplication.getStatus());
-                put("disbursalStatus", lendingApplication.getLoanDisbursalStatus());
-                put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
-                put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
-            }};
-            executorService.execute(() -> {
-                kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
-            });
-            logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
-        } catch (Exception e) {
-            logger.error("Exception in publishApplicationEvent for application:{}", lendingApplication.getId(), e);
-        }
-    }
+		try {
+			Map<String, Object> request = new HashMap<String, Object>() {{
+				put("merchantId", lendingApplication.getMerchantId());
+				put("applicationId", lendingApplication.getId());
+				put("status", lendingApplication.getStatus());
+				put("disbursalStatus", lendingApplication.getLoanDisbursalStatus());
+				put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
+				put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
+			}};
+			executorService.execute(() -> {
+				kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+			});
+			logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
+		} catch (Exception e) {
+			logger.error("Exception in publishApplicationEvent for application:{}", lendingApplication.getId(), e);
+		}
+	}
 
-    public void publishDSData(LendingApplication lendingApplication) {
-        try {
-            logger.info("Publishing DS Data for application:{}", lendingApplication.getId());
-            List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
-            String imageFrontLat = null;
-            String imageFrontLng = null;
-            String proof_front_side = null;
-            String proof_stock_side = null;
-            for (LendingShopDocuments lendingShopDocument : lendingShopDocuments) {
-                if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-stock")) {
-                    proof_stock_side = !StringUtils.isEmpty(lendingShopDocument.getProofFrontSide()) ? lendingShopDocument.getProofFrontSide() : null;
-                }
-                if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-front")) {
-                    imageFrontLat = !StringUtils.isEmpty(lendingShopDocument.getLatitude()) ? lendingShopDocument.getLatitude() : null;
-                    imageFrontLng = !StringUtils.isEmpty(lendingShopDocument.getLongitude()) ? lendingShopDocument.getLongitude() : null;
-                    proof_front_side = !StringUtils.isEmpty(lendingShopDocument.getProofFrontSide()) ? lendingShopDocument.getProofFrontSide() : null;
-                }
-            }
-            Map<String, Object> request = new HashMap<>();
-            request.put("merchantId", lendingApplication.getMerchantId());
-            request.put("applicationId", lendingApplication.getId());
-            request.put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
-            request.put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
-            request.put("latitude", !StringUtils.isEmpty(lendingApplication.getLatitude()) ? lendingApplication.getLatitude() : null);
-            request.put("longitude", !StringUtils.isEmpty(lendingApplication.getLongitude()) ? lendingApplication.getLongitude() : null);
-            request.put("image_front_lat", imageFrontLat);
-            request.put("image_front_lon", imageFrontLng);
-            request.put("pincode", lendingApplication.getPincode());
-            request.put("business_name", lendingApplication.getBusinessName());
-            request.put("street_address", lendingApplication.getStreetAddress());
-            request.put("area", lendingApplication.getArea());
-            request.put("shop_number", lendingApplication.getShopNumber());
-            request.put("proof_front_side", proof_front_side);
-            request.put("proof_stock_side", proof_stock_side);
-            executorService.execute(() -> {
-                kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
-            });
-        } catch (Exception e) {
-            logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
-        }
-    }
+	public void publishDSData(LendingApplication lendingApplication) {
+		try {
+			logger.info("Publishing DS Data for application:{}", lendingApplication.getId());
+			List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
+			String imageFrontLat = null;
+			String imageFrontLng = null;
+			String proof_front_side = null;
+			String proof_stock_side = null;
+			for (LendingShopDocuments lendingShopDocument : lendingShopDocuments) {
+				if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-stock")) {
+					proof_stock_side = !StringUtils.isEmpty(lendingShopDocument.getProofFrontSide()) ? lendingShopDocument.getProofFrontSide() : null;
+				}
+				if (lendingShopDocument.getProofType().equalsIgnoreCase("shop-front")) {
+					imageFrontLat = !StringUtils.isEmpty(lendingShopDocument.getLatitude()) ? lendingShopDocument.getLatitude() : null;
+					imageFrontLng = !StringUtils.isEmpty(lendingShopDocument.getLongitude()) ? lendingShopDocument.getLongitude() : null;
+					proof_front_side = !StringUtils.isEmpty(lendingShopDocument.getProofFrontSide()) ? lendingShopDocument.getProofFrontSide() : null;
+				}
+			}
+			Map<String, Object> request = new HashMap<>();
+			request.put("merchantId", lendingApplication.getMerchantId());
+			request.put("applicationId", lendingApplication.getId());
+			request.put("createdAt", simpleDateFormat.format(lendingApplication.getCreatedAt()));
+			request.put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
+			request.put("latitude", !StringUtils.isEmpty(lendingApplication.getLatitude()) ? lendingApplication.getLatitude() : null);
+			request.put("longitude", !StringUtils.isEmpty(lendingApplication.getLongitude()) ? lendingApplication.getLongitude() : null);
+			request.put("image_front_lat", imageFrontLat);
+			request.put("image_front_lon", imageFrontLng);
+			request.put("pincode", lendingApplication.getPincode());
+			request.put("business_name", lendingApplication.getBusinessName());
+			request.put("street_address", lendingApplication.getStreetAddress());
+			request.put("area", lendingApplication.getArea());
+			request.put("shop_number", lendingApplication.getShopNumber());
+			request.put("proof_front_side", proof_front_side);
+			request.put("proof_stock_side", proof_stock_side);
+			executorService.execute(() -> {
+				kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+			});
+		} catch (Exception e) {
+			logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
+		}
+	}
 
-    public int getIoHalfPF(LendingPaymentSchedule lendingPaymentSchedule) {
-	    int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
-	    return (int) Math.ceil(foreclosureAmount * 0.05);
-    }
+	public int getIoHalfPF(LendingPaymentSchedule lendingPaymentSchedule) {
+		int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
+		return (int) Math.ceil(foreclosureAmount * 0.05);
+	}
 
 
 	public LoanEligibilityDTO calculateLoanBreakup(GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
@@ -919,7 +940,7 @@ public class LoanUtil {
 		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
 
 		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
-		Integer sevenDayRepayment = Math.round(( 30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
 		List<EligibleLoan> eligibleLoanList = new ArrayList<>();
 
 		EligibleLoan eligibleLoan = EligibleLoan.builder()
@@ -979,7 +1000,7 @@ public class LoanUtil {
 			Long referencesLimit = loanDetailsServiceV2.getReferenceLimit(lendingApplication);
 			Integer toBeShown = loanDetailsServiceV2.getToBeShownReferences(referencesLimit);
 			logger.info("async threadpool flow executed for getMerchantReferences.");
-			dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
+			dsHandler.getMerchantReferences(merchantId, minScore, toBeShown, lendingApplication.getId());
 			String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchantId;
 			cacheDeReferencesData(deReferencesCacheKey, ttl);
 			logger.info("successfully caching of merchant references from de completed");
@@ -995,47 +1016,47 @@ public class LoanUtil {
 			addCacheDto.setValue(Boolean.TRUE);
 			addCacheDto.setTtl(ttl);
 			lendingCache.add(addCacheDto, TimeUnit.MINUTES);
-			logger.info("caching of merchant references from de completed key: {}",key);
+			logger.info("caching of merchant references from de completed key: {}", key);
 		} catch (Exception e) {
 			logger.error("exception occurred while caching merchant References for {},{}", key, e.getMessage());
 		}
 	}
 
 
-	public String enachServiceLenderMapper(String lender){
+	public String enachServiceLenderMapper(String lender) {
 		String finalLender = null;
-		if(ObjectUtils.isEmpty(lender)){
+		if (ObjectUtils.isEmpty(lender)) {
 			return null;
 		}
-		if(lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA2") || lender.equals("MAMTA")){
+		if (lender.equals("MAMTA0") || lender.equals("MAMTA1") || lender.equals("MAMTA2") || lender.equals("MAMTA")) {
 			finalLender = Lender.MAMTA.name();
 		}
-		if(lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")){
+		if (lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")) {
 			finalLender = Lender.LIQUILOANS.name();
 		}
-		if(lender.equals("LIQUILOANS_NBFC")){
+		if (lender.equals("LIQUILOANS_NBFC")) {
 			finalLender = "TRILLIONS";
 		}
-		if(lender.equals("LIQUILOANS_P2P_OF")){
+		if (lender.equals("LIQUILOANS_P2P_OF")) {
 			finalLender = Lender.LIQUILOANS_P2P_OF.name();
 		}
-		if(lender.equals("HINDON")){
+		if (lender.equals("HINDON")) {
 			finalLender = Lender.HINDON.name();
 		}
-		if(lender.equals("LDC")){
+		if (lender.equals("LDC")) {
 			finalLender = Lender.LDC.name();
 		}
-		if(lender.equals("ABFL")){
+		if (lender.equals("ABFL")) {
 			finalLender = Lender.ABFL.name();
 		}
 		return finalLender;
 	}
 
-	public boolean isNachToBeRefunded(Long merchantId, Long applicationId){
+	public boolean isNachToBeRefunded(Long merchantId, Long applicationId) {
 		boolean flag = false;
 		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findSuccessEnach(merchantId);
-		if(!ObjectUtils.isEmpty(responseDTO)){
-			if(responseDTO.getNachLender().equals("BHARATPE")){
+		if (!ObjectUtils.isEmpty(responseDTO)) {
+			if (responseDTO.getNachLender().equals("BHARATPE")) {
 				flag = true;
 			}
 		}
@@ -1052,24 +1073,25 @@ public class LoanUtil {
 		}
 	}
 
-	public boolean isEligibleForNachSkip(LendingApplication lendingApplication){
-		boolean flag = false;
 
-		if(ObjectUtils.isEmpty(lendingApplication.getLender())) return false;
+	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication) {
 
-		if("SMALL_TICKET".equals(lendingApplication.getLoanType())){
-			flag=true;
-		} else{
-			MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lendingApplication.getLender()));
-			if(!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lendingApplication.getLender())) &&
-					responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()){
-				flag=true;
-			}
+		if (ObjectUtils.isEmpty(lendingApplication.getLender())) return false;
+
+		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
+			return Boolean.TRUE;
 		}
-		return flag;
+		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lendingApplication.getLender()));
+		if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lendingApplication.getLender())) &&
+				responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
+			return Boolean.TRUE;
+		}
+		if (getExcludeNach(lendingApplication)) return Boolean.TRUE;
+
+		return Boolean.FALSE;
 	}
-	
-	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId, String lender){
+
+	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId, String lender) {
 		MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findByMerchantIdAndLender(merchantId, enachServiceLenderMapper(lender));
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
@@ -1081,18 +1103,19 @@ public class LoanUtil {
 		return null;
 	}
 
+
 	public Boolean putApplicationInResignAndRenach(LendingApplication lendingApplication, String newLender) {
 		logger.info("putting application in resgin and renach for applicationId : {} and newLender : {}", lendingApplication.getId(), newLender);
-		try{
+		try {
 			LendingResubmitTask resubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(lendingApplication.getId()
-			, lendingApplication.getMerchantId());
+					, lendingApplication.getMerchantId());
 			// if already a re-sign request exists then return success
 			if (Objects.nonNull(resubmitTask) && Objects.nonNull(resubmitTask.getResign()) && resubmitTask.getResign() &&
-			Objects.nonNull(resubmitTask.getResignDone()) && !resubmitTask.getResignDone()) {
+					Objects.nonNull(resubmitTask.getResignDone()) && !resubmitTask.getResignDone()) {
 				logger.info("Already a re-sign task exists for the applicationId : {}", lendingApplication.getId());
 				return true;
 			}
-			if (Objects.isNull(resubmitTask)){
+			if (Objects.isNull(resubmitTask)) {
 				resubmitTask = new LendingResubmitTask();
 				resubmitTask.setMerchantId(lendingApplication.getMerchantId());
 				resubmitTask.setApplicationId(lendingApplication.getId());
@@ -1101,7 +1124,7 @@ public class LoanUtil {
 			resubmitTask.setResignDone(Boolean.FALSE);
 			resubmitTask.setResignReason("LENDER_CHANGE_FROM_" + lendingApplication.getLender() + "_TO_" + newLender);
 			Boolean renach = apiGatewayService.cancelEnach(lendingApplication.getMerchantId(), lendingApplication.getId());
-			if(!renach) return false;
+			if (!renach) return false;
 
 			logger.info("changing lender from : {} to {}", lendingApplication.getLender(), newLender);
 			lendingApplication.setLender(newLender);
@@ -1112,10 +1135,62 @@ public class LoanUtil {
 			lendingApplicationDao.save(lendingApplication);
 			lendingResubmitTaskDao.save(resubmitTask);
 			return true;
-		}
-		catch(Exception e){
+		} catch (Exception e) {
 			logger.error("exception in updating lender for {}, {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 		return false;
 	}
+
+	public Boolean getExcludeNach(LendingApplication lendingApplication) {
+
+		Long merchantId = lendingApplication.getMerchantId();
+		try {
+			LendingPaymentSchedule lastLoan =
+					lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusAndCreditLoanOrderByIdDesc(merchantId, "CLOSED", false);
+			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			Integer maxDpd = getMaxDpdInLastLoan(merchantId, lastLoan);
+			logger.info("recieved risk group in lending risk variable snapshot: {} and maxDpd: {}", lendingRiskVariablesSnapshot.getRiskGroup(), maxDpd);
+
+			if (ObjectUtils.isEmpty(lastLoan)) {
+				return Boolean.FALSE;
+			}
+
+			Double settlementAmount = lendingLedgerDao.findSettlementAmount(lastLoan.getId());
+			double qrPaidRatio = (settlementAmount / lastLoan.getPaidAmount()) * 100;
+
+			Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lastLoan.getId(), lastLoan.getEdiAmount());
+			int paidCount = lastLoan.getEdiCount() - lastLoan.getEdiRemainingCount();
+			logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lastLoan.getMerchantId());
+			double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
+
+			if (isInternalMerchant(merchantId) && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())) {
+				logger.info("Nach Waiver is true for merchant:{}", merchantId);
+				return Boolean.TRUE;
+			}
+
+			if (qrPaidRatio > 80 && ediPaidRatio > 65 && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())
+					&& maxDpd <= 10) {
+				logger.info("nach waiver is true for merchant:{}", merchantId);
+				return Boolean.TRUE;
+			}
+
+		} catch (Exception e) {
+			logger.error("Exception while check nach waiver for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+		return Boolean.FALSE;
+	}
+
+	public Integer getMaxDpdInLastLoan(Long merchantId, LendingPaymentSchedule lastLoan) {
+		try {
+
+			if (ObjectUtils.isEmpty(lastLoan)) {
+				return 0;
+			}
+			return loanDpdDao.findMaxDpd(lastLoan.getId()).intValue();
+		} catch (Exception e) {
+			logger.error("Exception while checking max DPD for merchant:{}", merchantId, e);
+		}
+		return 0;
+	}
 }
+
