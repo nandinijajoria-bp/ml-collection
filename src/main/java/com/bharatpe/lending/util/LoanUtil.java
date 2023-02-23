@@ -160,6 +160,9 @@ public class LoanUtil {
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
 
+	@Autowired
+	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 
@@ -1086,7 +1089,15 @@ public class LoanUtil {
 				responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
 			return Boolean.TRUE;
 		}
-		if (getExcludeNach(lendingApplication)) return Boolean.TRUE;
+		if (getExcludeNach(lendingApplication)) {
+			Optional<LendingApplicationDetails> lendingApplicationDetails = lendingApplicationDetailsDao.findById(lendingApplication.getId());
+			if (lendingApplicationDetails.isPresent()) {
+				LendingApplicationDetails lendingApplicationDetail = lendingApplicationDetails.get();
+				lendingApplicationDetail.setIsNachSkip(Boolean.TRUE);
+				lendingApplicationDetailsDao.save(lendingApplicationDetail);
+			}
+			return Boolean.TRUE;
+		}
 
 		return Boolean.FALSE;
 	}
