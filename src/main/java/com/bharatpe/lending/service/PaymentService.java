@@ -1135,20 +1135,20 @@ public class PaymentService {
             if (ObjectUtils.isEmpty(basicDetailsDto)) {
                 return;
             }
-            Date compareToDate = new SimpleDateFormat("dd/MM/yyyy").parse("01/07/2022");
+            Date compareToDate = new SimpleDateFormat("dd/MM/yyyy").parse("16/07/2022");
             boolean isClubV2 = apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId());
             if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null
                     && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null
                     && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D
-                    && (isClubV2 || lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp().before(compareToDate))) {
-                logger.info("refund processing fee before 1st june or club member for merchant: {}", lendingPaymentSchedule.getMerchantId());
+                    && (isClubV2 || lendingPaymentSchedule.getLoanApplication().getAgreementAt().before(compareToDate))) {
+                logger.info("refund processing fee before 16th june or club member for merchant: {}", lendingPaymentSchedule.getMerchantId());
                 BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
                 long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
                 LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
                 if (maxDpd.intValue() <= 5 &&  dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger))) {
                     logger.info("Closing dpd is between 5 days for loanId:{}, processing fee refund for amount:{}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getLoanApplication().getProcessingFee());
                     Double cashbackAmt = lendingPaymentSchedule.getLoanApplication().getProcessingFee();
-                    Double cashbackAmount = lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp().before(compareToDate)?cashbackAmt:Math.min(cashbackAmt, 1500);
+                    Double cashbackAmount = lendingPaymentSchedule.getLoanApplication().getAgreementAt().before(compareToDate)?cashbackAmt:Math.min(cashbackAmt, 1500);
                     String orderId = "PF_CASHBACK" + System.currentTimeMillis();
                     LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "PF_CASHBACK");
                     LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
