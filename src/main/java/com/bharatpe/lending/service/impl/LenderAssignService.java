@@ -8,11 +8,15 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.ILenderAssignService;
+import com.bharatpe.lending.common.service.merchant.dto.*;
+import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.LenderAssignmentRules;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV2.dto.*;
+import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
@@ -73,6 +77,12 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    BureauHandler bureauHandler;
+
+    @Autowired
+    MerchantService merchantService;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -154,7 +164,7 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
-        if(Lender.ABFL.equals(Lender.valueOf(decidedLender)) && ObjectUtils.isEmpty(application.getExternalLoanId())){
+        if(additionalChecksForLenders(application, Lender.valueOf(decidedLender))){
             decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
             saveLenderChangeAudit(application, decidedLender);
         }
@@ -459,5 +469,23 @@ public class LenderAssignService implements ILenderAssignService {
         } catch (Exception e) {
             log.error("exception while updating applicationDetails {} {}",lendingApplication.getId(), e.getMessage());
         }
+    }
+
+    public boolean additionalChecksForLenders(LendingApplication lendingApplication, Lender lender){
+        log.info("Running additional checks for lender:{}", lender);
+        boolean flag = false;
+
+        // ABFL
+        if(Lender.ABFL.equals(lender)){
+            flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
+            MerchantDetailsDto merchantDetails = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId());
+            BureauResponseDTO responseDTO = null;
+            if(!ObjectUtils.isEmpty(merchantDetails)){
+                responseDTO = bureauHandler.getBureauData(merchantDetails.getMerchantDetail().getPanNumber(), lendingApplication.getMerchantId(), merchantDetails.getMerchantDetail().getMobile().substring(2));
+            }
+            flag = ObjectUtils.isEmpty(responseDTO) && ObjectUtils.isEmpty(responseDTO.getVariables()) && ObjectUtils.isEmpty(responseDTO.getVariables().getMaxDpd6Months()) &&
+                    responseDTO.getVariables().getMaxDpd6Months()<30;
+        }
+        return flag;
     }
 }
