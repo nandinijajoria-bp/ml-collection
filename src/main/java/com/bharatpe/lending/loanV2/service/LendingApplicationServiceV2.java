@@ -575,6 +575,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModelModified(false);
         lendingApplicationDetails.setLenderAssc(false);
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
+        lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
         lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL);
 
