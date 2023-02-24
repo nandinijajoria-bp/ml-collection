@@ -11,9 +11,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
 import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.MerchantConfidenceScoreDTO;
 import com.bharatpe.lending.dto.MerchantReference;
-import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
@@ -52,9 +50,6 @@ public class CrmBulkContactsService {
     @Autowired
     S3BucketHandler s3BucketHandler;
 
-    @Autowired
-    MerchantScoreHandler merchantScoreHandler;
-
     @Value("${crm.contact.bucket.name}")
     private String bucketName;
 
@@ -86,7 +81,6 @@ public class CrmBulkContactsService {
             File zipFile = new File(zipFileName);
             FileOutputStream fos = new FileOutputStream(zipFile);
             ZipOutputStream zos = new ZipOutputStream(fos);
-            List<String[]> referenceList = new ArrayList<>();
             while (Objects.nonNull(readLine)) {
                 String[] temp = readLine.split(",");
                 String contact = temp[0];
@@ -115,34 +109,23 @@ public class CrmBulkContactsService {
                     List<PhonebookDTO> phonebook = null;
                     List<LendingMerchantReferences> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
                     if (merchantReferences.isEmpty()){
-                        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(basicDetailsDto.get().getId());
-                        if(!ObjectUtils.isEmpty(lendingPaymentSchedule)){
-                            Long applicationId = lendingPaymentSchedule.getApplicationId();
-                            MerchantConfidenceScoreDTO merchantConfidenceScoreResponse = merchantScoreHandler.getMerchantConfidenceScore(basicDetailsDto.get().getId());
-                            merchantReferences = saveLendingMerchantReferencesFromMerchantConfidenceScore(merchantConfidenceScoreResponse, basicDetailsDto.get().getId(), applicationId);
-                        }
+                        phonebook = phonebookHandler.getPhonebook(basicDetailsDto.get().getId());
                     }
-                    if (merchantReferences.isEmpty() && ObjectUtils.isEmpty(phonebook)) {
+                    if (merchantReferences.isEmpty() && phonebook.isEmpty()) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                         readLine = bulkContactFileReader.readLine();
                         continue;
                     }
                     String contactFileName = "/tmp/" + contact + "-" + requestId + ".csv";
                     if(!merchantReferences.isEmpty()) {
-                        String[] merchantReference = new String[11];
-                        int ind = 1;
-                        merchantReference[0] = String.valueOf(basicDetailsDto.get().getId());
-                        for(LendingMerchantReferences lendingMerchantReference : merchantReferences){
-                            if(ind<=10) {
-                                merchantReference[ind] = lendingMerchantReference.getReferenceNumber();
-                                ind++;
-                            }
-                        }
-                        referenceList.add(merchantReference);
+                        writeMerchantReferencesContactsToCSV(basicDetailsDto.get().getId(), contactFileName, merchantReferences);
                     }
                     else{
                         writeContactsToCSV(basicDetailsDto.get().getId(), contactFileName, phonebook);
                     }
+                    File contactDataFile = new File(contactFileName);
+                    ZipEntry zipEntry = new ZipEntry(contactDataFile.getName());
+                    addToZip(contact + "-" + requestId + ".csv", zos, contactFileName);
                     count++;
                     readLine = bulkContactFileReader.readLine();
                     continue;
@@ -152,15 +135,6 @@ public class CrmBulkContactsService {
                 emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
                 readLine = bulkContactFileReader.readLine();
             }
-
-            String contactFileName = "/tmp/" + requestId + ".csv";
-
-            writeMerchantReferencesContactsToCSV(contactFileName, referenceList);
-
-            File contactDataFile = new File(contactFileName);
-            ZipEntry contactZipEntry = new ZipEntry(contactDataFile.getName());
-            addToZip(requestId + ".csv", zos, contactFileName);
-
             String emptyPhonebookPath = "/tmp/emptyPhoneBook-" + requestId + ".csv";
             File emptyPhoneBook = new File(emptyPhonebookPath);
             FileWriter emptyPhoneBookOutputFile = new FileWriter(emptyPhoneBook);
@@ -184,31 +158,6 @@ public class CrmBulkContactsService {
         }
         crmBulkContacts.get().setStatus(CrmBulkContactsResponseStatus.FAILED.name());
         crmBulkContactsDao.save(crmBulkContacts.get());
-    }
-
-    private List<LendingMerchantReferences> saveLendingMerchantReferencesFromMerchantConfidenceScore(MerchantConfidenceScoreDTO response, Long merchantId, Long applicationId) {
-        List<LendingMerchantReferences> lendingMerchantReferencesList = new ArrayList<>();
-        List<MerchantConfidenceScoreDTO.Data.Contact> contacts = response.getData().getOutput();
-
-
-        for (MerchantConfidenceScoreDTO.Data.Contact contact : contacts) {
-            LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
-
-            lendingMerchantReferences.setReferenceName(contact.getName());
-            lendingMerchantReferences.setReferenceNumber(contact.getPhoneNumber());
-            lendingMerchantReferences.setInferredRelation(contact.getInferredRelation());
-            lendingMerchantReferences.setMerchantId(merchantId);
-            lendingMerchantReferences.setApplicationId(applicationId);
-            lendingMerchantReferences.setFraudFlag(contact.getFraudFlag());
-            lendingMerchantReferences.setInferredName(contact.getInferredName());
-            lendingMerchantReferences.setNumHits(contact.getNumHits().toString());
-            lendingMerchantReferences.setInferredNameConfidence(contact.getInferredNameConfidence());
-            lendingMerchantReferences.setScore(contact.getScore());
-
-            lendingMerchantReferencesList.add(lendingMerchantReferences);
-        }
-        lendingMerchantReferencesDao.saveAll(lendingMerchantReferencesList);
-        return lendingMerchantReferencesList;
     }
 
 //    public String mergeContacts (Long merchantId, String mergedContactsFileName) throws IOException {
@@ -261,21 +210,21 @@ public class CrmBulkContactsService {
 //        return null;
 //    }
 
-    public String writeMerchantReferencesContactsToCSV(String contactsFileName, List<String[]> merchantReferencesList) {
+    public String writeMerchantReferencesContactsToCSV(Long merchantId, String contactsFileName, List<LendingMerchantReferences> merchantReferences) {
         try {
             File mergedContactsFile = new File(contactsFileName);
             FileWriter mergedContactsFileWriter = new FileWriter(mergedContactsFile);
             CSVWriter mergedContactsCsvWriter = new CSVWriter(mergedContactsFileWriter);
-            mergedContactsCsvWriter.writeNext(new String[]{"Merchant Id", "Alternate Number 1", "Alternate Number 2", "Alternate Number 3", "Alternate Number 4", "Alternate Number 5", "Alternate Number 6", "Alternate Number 7", "Alternate Number 8", "Alternate Number 9", "Alternate Number 10"});
+            mergedContactsCsvWriter.writeNext(new String[]{"name", "relation", "contact"});
 
-            for (String[] merchantReferences : merchantReferencesList) {
-                mergedContactsCsvWriter.writeNext(merchantReferences);
+            for (LendingMerchantReferences merchantReference : merchantReferences) {
+                mergedContactsCsvWriter.writeNext(new String[]{merchantReference.getReferenceName(), merchantReference.getInferredRelation() , merchantReference.getReferenceNumber()});
             }
 
             mergedContactsCsvWriter.close();
             return contactsFileName;
         } catch (Exception e) {
-            logger.error("Exception occurred while merging process for merchantId : {}", Arrays.asList(e.getStackTrace()));
+            logger.error("Exception occurred while merging process for merchantId : {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
