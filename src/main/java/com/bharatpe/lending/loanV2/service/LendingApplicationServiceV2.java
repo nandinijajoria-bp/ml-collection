@@ -1479,7 +1479,7 @@ public class LendingApplicationServiceV2 {
                     lendingApplication.setManualKyc("REJECTED");
                     lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
                     lendingApplication.setLmsStage("QC_REJECTED");
-                    lendingApplication.setStatus("REJECTED");
+                    lendingApplication.setStatus("rejected");
                     lendingApplicationDao.save(lendingApplication);
                 } else if (loanAmountDifference == 0) {
                     lendingApplication.setLmsStage(LendingConstants.PENDING_DISBURSAL);

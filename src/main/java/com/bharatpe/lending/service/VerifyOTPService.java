@@ -516,7 +516,7 @@ public class VerifyOTPService {
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
-                lendingApplication.setStatus("DELETED");
+                lendingApplication.setStatus("deleted");
                 lendingApplication.setManualCibilReason("OFFER_MISMATCH");
                 lendingApplicationDao.save(lendingApplication);
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
@@ -536,7 +536,7 @@ public class VerifyOTPService {
                 //String ageRejectReason = age > 65 ? "Age_Reject_65" : "Age Reject";
                 String ageRejectReason = "Age Reject";
                 logger.info("Rejection in topUp flow due to age restriction check: {} for id: {}",age, lendingApplication.getId());
-                lendingApplication.setStatus("DELETED");
+                lendingApplication.setStatus("deleted");
                 lendingApplication.setManualCibilReason(ageRejectReason);
                 lendingApplicationDao.save(lendingApplication);
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
