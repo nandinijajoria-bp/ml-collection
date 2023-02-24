@@ -1092,11 +1092,10 @@ public class LoanUtil {
 			return Boolean.TRUE;
 		}
 		if (getExcludeNach(lendingApplication)) {
-			Optional<LendingApplicationDetails> lendingApplicationDetails = lendingApplicationDetailsDao.findById(lendingApplication.getId());
-			if (lendingApplicationDetails.isPresent()) {
-				LendingApplicationDetails lendingApplicationDetail = lendingApplicationDetails.get();
-				lendingApplicationDetail.setIsNachSkip(Boolean.TRUE);
-				lendingApplicationDetailsDao.save(lendingApplicationDetail);
+			LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+			if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+				lendingApplicationDetails.setIsNachSkip(Boolean.TRUE);
+				lendingApplicationDetailsDao.save(lendingApplicationDetails);
 			}
 			return Boolean.TRUE;
 		}
