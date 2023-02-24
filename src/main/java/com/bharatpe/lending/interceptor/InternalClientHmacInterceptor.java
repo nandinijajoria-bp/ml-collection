@@ -45,7 +45,7 @@ public class InternalClientHmacInterceptor implements HandlerInterceptor {
         logger.info("Pre handle Interceptor of Hmac Interceptor for {}",request);
         String hmac = request.getHeader("hash") != null ? request.getHeader("hash") : request.getParameter("hash");
         String clientName = request.getHeader("clientName");
-
+        logger.info("clientName {}",clientName);
         try{
             if (StringUtils.isEmpty(hmac) || StringUtils.isEmpty(clientName)) {
                 logger.info("hmac or mid Value is Blank or Empty for request {}", request);
