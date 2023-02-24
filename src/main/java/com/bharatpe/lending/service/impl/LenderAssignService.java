@@ -309,7 +309,8 @@ public class LenderAssignService implements ILenderAssignService {
     public String assignLenderAndEdiModel(Long applicationId, String ediModel){
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(lendingApplication.isPresent()){
-            return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel)).getLender();
+//            return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel)).getLender();
+            return null;
         }
         return "Application Not Found.";
     }
@@ -411,7 +412,7 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Assigning lender for topup loan for application:{}", lendingApplication.getId());
         String lender = null;
         if("ALL".equals(topupLenders)){
-            lender = assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL).getLender();
+//            lender = assignLender(lendingApplication, EdiModel.SIX_DAY_MODEL).getLender();
         }
         else if("NONE".equals(topupLenders)){
             lender = Lender.LDC.name();
