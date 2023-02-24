@@ -577,7 +577,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL);
+        lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
 
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");

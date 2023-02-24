@@ -347,7 +347,7 @@ public class SignAgreementService {
 		loanUtil.publishApplicationEvent(newApplication);
 
 //		lenderMappingService.lenderMapping(newApplication);
-		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant);
 
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
@@ -748,7 +748,7 @@ public class SignAgreementService {
 		newApplication = lendingApplicationDao.save(newApplication);
 		loanUtil.publishApplicationEvent(newApplication);
 
-		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL);
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant);
 
 		newApplication.setNachLender("TOPUP".equals(eligibleLoan.getLoanType())? loanUtil.enachServiceLenderMapper(newApplication.getLender()):null);
 		lendingApplicationDao.save(newApplication);

@@ -128,7 +128,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    public LendingApplication assignLender(LendingApplication application, EdiModel ediModel) {
+    public LendingApplication assignLender(LendingApplication application, EdiModel ediModel, BasicDetailsDto merchantDetails) {
 
         // for topup flow
         if("TOPUP".equals(application.getLoanType())){
@@ -164,7 +164,7 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
-        if(additionalChecksForLenders(application, Lender.valueOf(decidedLender))){
+        if(additionalChecksForLenders(application, Lender.valueOf(decidedLender), merchantDetails)){
             decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
             saveLenderChangeAudit(application, decidedLender);
         }
@@ -357,7 +357,7 @@ public class LenderAssignService implements ILenderAssignService {
                 return Lender.LDC;
             }
             EdiModel ediModel = LenderOffDays.valueOf(application.get().getLender()).getEdiModel();
-            assignLender(application.get(), ediModel);
+            assignLender(application.get(), ediModel, null);
             return Lender.valueOf(application.get().getLender());
         }
         log.info("Application with id:{} not found.", applicationId);
@@ -471,20 +471,22 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    public boolean additionalChecksForLenders(LendingApplication lendingApplication, Lender lender){
+    public boolean additionalChecksForLenders(LendingApplication lendingApplication, Lender lender, BasicDetailsDto merchantDetails){
         log.info("Running additional checks for lender:{}", lender);
         boolean flag = false;
 
         // ABFL
         if(Lender.ABFL.equals(lender)){
             flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
-            MerchantDetailsDto merchantDetails = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId());
+            if(ObjectUtils.isEmpty(merchantDetails)){
+                merchantDetails=merchantService.fetchMerchantDetails(lendingApplication.getMerchantId()).getMerchantDetail();
+            }
             BureauResponseDTO responseDTO = null;
             if(!ObjectUtils.isEmpty(merchantDetails)){
-                responseDTO = bureauHandler.getBureauData(merchantDetails.getMerchantDetail().getPanNumber(), lendingApplication.getMerchantId(), merchantDetails.getMerchantDetail().getMobile().substring(2));
+                responseDTO = bureauHandler.getBureauData(merchantDetails.getPanNumber(), merchantDetails.getId(), merchantDetails.getMobile());
             }
-            flag = ObjectUtils.isEmpty(responseDTO) && ObjectUtils.isEmpty(responseDTO.getVariables()) && ObjectUtils.isEmpty(responseDTO.getVariables().getMaxDpd6Months()) &&
-                    responseDTO.getVariables().getMaxDpd6Months()<30;
+            flag = ObjectUtils.isEmpty(responseDTO) || ObjectUtils.isEmpty(responseDTO.getVariables()) || ObjectUtils.isEmpty(responseDTO.getVariables().getMaxDpd6Months()) ||
+                    responseDTO.getVariables().getMaxDpd6Months()>=30;
         }
         return flag;
     }
