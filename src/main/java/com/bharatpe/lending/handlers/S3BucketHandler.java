@@ -271,6 +271,29 @@ public class S3BucketHandler {
 		return null;
 	}
 
+	public boolean doesS3ObjectExist(String bucketName, String objectKey) {
+
+		// set up the S3 client
+		AmazonS3 s3client = createS3BucketConnection();
+
+		// check if the object exists
+		try {
+			ObjectMetadata metadata = s3client.getObjectMetadata(bucketName, objectKey);
+			return true; // the object exists
+		} catch (AmazonServiceException e) {
+			if (e.getStatusCode() == 404) {
+				logger.info("The object with key {} does not exist in the {} bucket.", objectKey, bucketName, e);
+				return false; // the object does not exist
+			} else {
+				logger.info("An error occured while fetching objectmetadata for ObjectKey {} in bucket {}", objectKey, bucketName, e);
+				return false; // an error occurred, assume the object does not exist
+			}
+		} catch (SdkClientException e) {
+			logger.info("An error occured while fetching objectmetadata for ObjectKey {} in bucket {}", objectKey, bucketName, e);
+			return false; // an error occurred, assume the object does not exist
+		}
+	}
+
 	public void uploadFileToS3(File file, String bucket, String fileName) {
 		Instant start = Instant.now();
 		AmazonS3 s3client = createS3WriteConnection();

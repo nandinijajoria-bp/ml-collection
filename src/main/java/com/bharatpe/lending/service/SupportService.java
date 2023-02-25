@@ -63,6 +63,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
 import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
 
 @Service
@@ -2092,12 +2093,25 @@ public class SupportService {
                 if(lendingKfs.getLender().equals(lendingApplication.get().getLender())){
 
                     // below does not generate new loan_agreement/kfs only fetchs from s3 and updates the shorturls in kfs table
-
                     logger.info("Fetched Loan Agreement from Lending KFS for application id: {}", applicationId);
-                    String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get());
-                    String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get());
-                    lendingKfs.setKfsDocUrl(kfsShorturl);
-                    lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
+
+                    String kfsFileName= KFS_S3_KEY_PREFIX + applicationId;
+                    String sanctionAndLoanAgreementFileName= SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
+                    String bucket = "loan-document";
+
+                    if (s3BucketHandler.doesS3ObjectExist(kfsFileName, bucket)) {
+                        String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get());
+                        lendingKfs.setKfsDocUrl(kfsShorturl);
+                    } else {
+                        lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getKfsSignedAt());
+                    }
+
+                    if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
+                        String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get());
+                        lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
+                    } else {
+                        lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                    }
                     lendingKfsDao.save(lendingKfs);
                     return new ResponseDTO(true, "Agreement created successfully.", lendingKfs.getSanctionLoanAgreementDocUrl());
                 } else{
