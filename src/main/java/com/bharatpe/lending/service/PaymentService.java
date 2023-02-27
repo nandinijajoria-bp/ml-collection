@@ -151,6 +151,9 @@ public class PaymentService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    LendingCollectionAuditService lendingCollectionAuditService;
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -629,6 +632,7 @@ public class PaymentService {
                 CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
 
         lendingLedgerDao.save(lendingLedger);
+        lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
 
         if(amount > 0 && principle > 0) {
             logger.info("Credit principle:{} in lending global limit for merchant:{}", principle, lendingLedger.getMerchantId());
@@ -1119,6 +1123,7 @@ public class PaymentService {
         lendingLedger.setAdjustmentMode(adjustmentMode);
         lendingLedger.setTransferType(CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
         lendingLedgerDao.save(lendingLedger);
+        lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
     }
 
     public void refundProcessingFee(LendingPaymentSchedule lendingPaymentSchedule) {
@@ -1454,6 +1459,7 @@ public class PaymentService {
         lendingLedger.setAdjustmentMode("MANUAL_"+ledgerEntryDTO.getType());
         lendingLedger.setDescription(ledgerEntryDTO.getDescription());
         lendingLedgerDao.save(lendingLedger);
+        lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
         return new ResponseDTO(true, "Entry Created");
     }
 
@@ -1489,5 +1495,4 @@ public class PaymentService {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
         }
     }
-
 }
