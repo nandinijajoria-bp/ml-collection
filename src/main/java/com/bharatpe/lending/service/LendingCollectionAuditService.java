@@ -42,6 +42,7 @@ public class LendingCollectionAuditService {
                     .txnType(lendingLedger.getTxnType())
                     .transferType(lendingLedger.getTransferType())
                     .transferDate(lendingLedger.getDate())
+                    .status("PENDING")
                     .amount(lendingLedger.getAmount())
                     .description(lendingLedger.getDescription())
                     .principle(lendingLedger.getPrinciple())
