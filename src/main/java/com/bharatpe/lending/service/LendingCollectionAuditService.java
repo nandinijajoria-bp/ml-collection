@@ -25,9 +25,9 @@ public class LendingCollectionAuditService {
 
     public void sendCollectionAudit(LendingLedger lendingLedger){
         try {
-            if(ObjectUtils.isEmpty(lendingLedger))return;
+            if(ObjectUtils.isEmpty(lendingLedger) || lendingLedger.getAmount() <= 0)return;
             Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
-            if (!lendingApplicationSlave.isPresent() || lendingLedger.getAmount() <= 0) {
+            if (!lendingApplicationSlave.isPresent()) {
                 return;
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
