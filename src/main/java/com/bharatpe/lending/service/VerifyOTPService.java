@@ -175,6 +175,9 @@ public class VerifyOTPService {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    LendingCollectionAuditService lendingCollectionAuditService;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {

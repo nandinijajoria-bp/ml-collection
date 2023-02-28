@@ -70,6 +70,9 @@ public class RefundService {
     @Autowired
     LoanUtil loanUtil;
 
+    @Autowired
+    LendingCollectionAuditService lendingCollectionAuditService;
+
     public CommonResponse nachRefund(NachRefundRequest refundRequest) {
         try {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(refundRequest.getLoanId(), refundRequest.getMerchantId());
@@ -225,5 +228,6 @@ public class RefundService {
         lendingLedger.setAdjustmentMode(adjustmentMode);
         lendingLedger.setTransferType(CollectionTransferTypeEnum.TRANSFER_BY_BP.name());
         lendingLedgerDao.save(lendingLedger);
+        lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
     }
 }
