@@ -169,6 +169,15 @@ public class KycRequestKafka {
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
                     LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC));
             log.info("kyc completed for the application {} ", lendingApplication.get().getId());
+
+
+            // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
+            // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
+            if ("APPROVED".equalsIgnoreCase(lendingApplication.get().getNachStatus())) {
+                nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(), lendingApplication.get().getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                  LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                log.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.get().getId(), lendingApplication.get().getMerchantId());
+            }
         } catch (Exception ex) {
             log.error("exception occurred while processing bre callback request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
 //            throw new RuntimeException("unable to ack kyc callback event" + request);
