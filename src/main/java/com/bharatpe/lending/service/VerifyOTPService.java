@@ -566,7 +566,6 @@ public class VerifyOTPService {
             lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
             lendingLedger.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
             lendingLedgerDao.save(lendingLedger);
-            lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
 
             LendingLedger negativeEntry = new LendingLedger();
             negativeEntry.setMerchantId(activeLoan.getMerchantId());
@@ -580,7 +579,6 @@ public class VerifyOTPService {
             negativeEntry.setAdjustmentMode(lendingApplication.getLoanType());
             negativeEntry.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
             lendingLedgerDao.save(negativeEntry);
-            lendingCollectionAuditService.sendCollectionAudit(negativeEntry);
 
             activeLoan.setStatus("CLOSED");
             activeLoan.setClosingDate(new Date());
