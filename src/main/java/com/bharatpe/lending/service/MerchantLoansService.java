@@ -6,6 +6,7 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
+import com.bharatpe.lending.common.entity.LmsFieldValues;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
@@ -131,6 +132,9 @@ public class MerchantLoansService {
 
     @Value("${whitelisted.topup.lenders}")
     String topupLenders;
+
+    @Autowired
+    LmsFieldValuesDao lmsFieldValuesDao;
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -635,9 +639,18 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
-                if (Objects.isNull(lendingGstDetail) || !"PERMANENT".equalsIgnoreCase(lendingGstDetail.getShopType())) {
-                    logger.info("No shop details/Not Permanent found for merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                String shopType = null;
+                LmsFieldValues lmsFieldValues = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(38L, lendingPaymentSchedule.getApplicationId());
+                if (!ObjectUtils.isEmpty(lmsFieldValues)) {
+                    shopType = lmsFieldValues.getFieldDropdownValue();
+                    logger.info("shop type found for merchant: {} from lms fields for last application: {}",shopType, lendingApplication.getMerchantId());
+                } else {
+                    LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+                    shopType = Objects.nonNull(lendingGstDetail) ? lendingGstDetail.getShopType() : null;
+                    logger.info("shop type found for merchant: {} for last application: {}",shopType, lendingApplication.getMerchantId());
+                }
+                if ("PHOTO_NOT_A_SHOP".equalsIgnoreCase(shopType)) {
+                    logger.info("Photo not of a shop found for merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                     return eligiblity;
                 }
             }
