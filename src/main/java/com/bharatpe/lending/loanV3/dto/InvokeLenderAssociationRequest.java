@@ -1,14 +1,14 @@
 package com.bharatpe.lending.loanV3.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Builder;
-import lombok.Data;
-import lombok.ToString;
+import lombok.*;
 
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class InvokeLenderAssociationRequest {
     Long applicationId;
     Boolean forceEnable;

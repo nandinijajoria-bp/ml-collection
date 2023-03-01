@@ -47,7 +47,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
 						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback",
 						"/assign/lender","/assign/rules", "/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility", "/lending/payment/ledger_entry",
-						"/lending/v3/modify/application", "/lending/v3/callback/bre", "/lending/v3/callback/kyc");
+						"/lending/v3/modify/application", "/lending/v3/callback/bre", "/lending/v3/callback/kyc", "/lending/v3/callback/drawdown", "/lending/v3/callback/sanction");
 
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
@@ -68,7 +68,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
         registry.addInterceptor(hmacForMIDInterceptorWithObject).addPathPatterns("/lending/payment/callback/v2");
 
 		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount","/lending/merchant_loans", "/lending/loanDetails/v2",
-				"/lending/loanDetails", "/lending/getLoanDashboardDetails", "/lending/v3/callback/bre", "/lending/v3/callback/kyc");
+				"/lending/loanDetails", "/lending/getLoanDashboardDetails", "/lending/v3/callback/bre", "/lending/v3/callback/kyc", "/lending/v3/callback/drawdown", "/lending/v3/callback/sanction");
 
 //		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");
 

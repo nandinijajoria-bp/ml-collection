@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -64,6 +65,7 @@ public class BreRequestKafka {
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
+    @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
@@ -160,13 +162,13 @@ public class BreRequestKafka {
             existingLendingApplicationLenderDetails.setStage(nextStage.name());
             existingLendingApplicationLenderDetails.setBreCompletionTimestamp(new Date());
             existingLendingApplicationLenderDetails.setNbfcBreAsyncId(data.getAsyncId());
-            existingLendingApplicationLenderDetails.setNbfcId(data.getAbflApplicationId());
+//            existingLendingApplicationLenderDetails.setNbfcId(data.getAbflApplicationId());
             existingLendingApplicationLenderDetails.setCccId(data.getCccId());
             existingLendingApplicationLenderDetails.setNbfcApprovedLoanOfferAmt(data.getLoanAmount());
             existingLendingApplicationLenderDetails.setRoi(Double.valueOf(data.getRoi()));
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-            lendingApplication.get().setNbfcId(data.getAbflApplicationId());
+//            lendingApplication.get().setNbfcId(data.getAbflApplicationId());
             lendingApplicationDao.save(lendingApplication.get());
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
                     lendingApplication.get().getLender(), LenderAssociationStages.BRE.name(),

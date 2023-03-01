@@ -22,7 +22,7 @@ public class KycCallbackResponseDto {
     @lombok.Data
     @NoArgsConstructor
     @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+//    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     public static class Data {
         String transactionId;
         String kycStatus;

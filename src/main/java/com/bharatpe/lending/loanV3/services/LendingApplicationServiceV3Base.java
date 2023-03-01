@@ -58,6 +58,13 @@ public abstract class LendingApplicationServiceV3Base {
             return new ApiResponse<>(false,"lending application details not found");
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
+            InvokeLenderAssociationRequest invokeLenderAssociationRequest = new InvokeLenderAssociationRequest();
+            invokeLenderAssociationRequest.setApplicationId(currentDraftApplication.getId());
+            invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
+            invokeLenderAssociationRequest.setForceEnable(false);
+            initLenderAssociation(invokeLenderAssociationRequest);
+        }
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
@@ -67,7 +74,7 @@ public abstract class LendingApplicationServiceV3Base {
                     .build());
         }
         else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            return new ApiResponse<>(false,"lending application lender details not found");
+            return new ApiResponse<>(false,"lead creation triggered ! Please retry for status in few minutes");
         } else {
             if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()

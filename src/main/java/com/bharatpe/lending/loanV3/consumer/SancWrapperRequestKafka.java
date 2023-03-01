@@ -76,8 +76,7 @@ public class SancWrapperRequestKafka {
             lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(sanctionWrapperApiRequestDto.getApplicationId(), Status.ACTIVE.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)  ||
                     (!sanctionWrapperApiRequestDto.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())
-                            // TODO: 25/11/22 todo final add this line
-//                            || !LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
+                            || !LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
                     )
             ) {
                 log.info("lender/stage mismatch while initiating sanction for application {}", sanctionWrapperApiRequestDto.getApplicationId());

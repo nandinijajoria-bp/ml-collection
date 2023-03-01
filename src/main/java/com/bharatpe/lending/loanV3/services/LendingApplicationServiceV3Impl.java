@@ -177,10 +177,12 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                 return;
             }
         }
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name());
-        if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            log.info("workflow already invoked for application  {}", applicationId);
-            return;
+        if (!"uat".equalsIgnoreCase(invokeEnv)) {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                log.info("workflow already invoked for application  {}", applicationId);
+                return;
+            }
         }
         if(Objects.nonNull(lendingApplication.get().getMerchantId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + lendingApplication.get().getMerchantId();

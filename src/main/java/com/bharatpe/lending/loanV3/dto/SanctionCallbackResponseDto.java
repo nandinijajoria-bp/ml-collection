@@ -38,7 +38,7 @@ public class SanctionCallbackResponseDto {
     @lombok.Data
     @NoArgsConstructor
     @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+//    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     public static class CallbackData {
         Data data;
         ErrorPayload errorPayload;

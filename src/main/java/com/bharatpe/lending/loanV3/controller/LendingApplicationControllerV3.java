@@ -40,9 +40,9 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.ok(null);
     }
 
-//    @PostMapping("/modify/application")
-//    public ResponseEntity<ApiResponse<?>> invokeLenderAssociation(@RequestBody ModifyAppRequest modifyRequest ) {
-//        log.info("modify app request {}", modifyRequest);
-//        return ResponseEntity.ok(lendingApplicationServiceV3.modifyAppDetails(modifyRequest));
-//    }
+    @PostMapping("/modify/application")
+    public ResponseEntity<ApiResponse<?>> invokeLenderAssociation(@RequestBody ModifyAppRequest modifyRequest ) {
+        log.info("modify app request {}", modifyRequest);
+        return ResponseEntity.ok(lendingApplicationServiceV3.modifyAppDetails(modifyRequest));
+    }
 }
