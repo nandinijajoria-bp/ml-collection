@@ -173,6 +173,8 @@ public class KycRequestKafka {
             log.info("kyc completed for the application {} ", lendingApplication.get().getId());
 
 
+            log.info("nach status for application {} is {}", lendingApplication.get().getId(), lendingApplication.get().getNachStatus());
+
             // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
             if ("APPROVED".equalsIgnoreCase(lendingApplication.get().getNachStatus())) {
