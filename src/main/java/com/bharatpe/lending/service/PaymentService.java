@@ -186,7 +186,7 @@ public class PaymentService {
             }
             Double netForeclosureAtLender = 0d;
             ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-                    .getLenderAssociationService(Lender.ABFL.name());
+                    .getLenderAssociationService(activeLoan.getNbfc());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
                 netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
             }
