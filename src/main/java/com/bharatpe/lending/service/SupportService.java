@@ -55,6 +55,7 @@ import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -893,7 +894,7 @@ public class SupportService {
         }
     }
 
-    private SupportLoanResponseDTO getLoanDetail(SupportLoanResponseDTO supportLoanResponseDTO, Long merchantId) {
+    private SupportLoanResponseDTO getLoanDetail(SupportLoanResponseDTO supportLoanResponseDTO, Long merchantId) throws ParseException {
         List<LendingApplicationSlave> applicationList = lendingApplicationDaoSlave.fetchApplicationHistory(merchantId);
         logger.info("fetching application List for merchant:{} of size:{}", merchantId, applicationList.size());
         if(!ObjectUtils.isEmpty(applicationList)){
@@ -954,7 +955,7 @@ public class SupportService {
                             lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule1.getMerchantId(),
                                     lendingPaymentSchedule1.getId(), "PF_CASHBACK");
                     if (!Objects.isNull(lendingPayouts) && !ObjectUtils.isEmpty(lendingPayouts)) {
-                        loanArrangerFee.setArrangerFeeRefundEligible(true);
+                        loanArrangerFee.setArrangerFeeRefundEligible(false);
                         loanArrangerFee.setArrangerFeeRefunded(true);
                         loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
                         loanArrangerFee.setInEligibleReason(SupportConstants.ALREADY_REFUNDED);
@@ -1063,9 +1064,13 @@ public class SupportService {
         return supportLoanResponseDTO;*/
 
     private void populateArrangerFeeEligible(LendingPaymentSchedule lendingPaymentSchedule,
-                                             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee) {
+                                             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee) throws ParseException {
         logger.info("populating arranger Fee eligibility for loan:{} of merchant:{}", lendingPaymentSchedule.getLoanApplication().getId(), lendingPaymentSchedule.getMerchantId());
-        if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D) {
+        boolean isClubV2 = apiGatewayService.checkClubV2(lendingPaymentSchedule.getMerchantId());
+        Date compareToDate = new SimpleDateFormat("dd/MM/yyyy").parse("16/07/2022");
+        if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null &&
+                lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D &&
+                (isClubV2 || lendingPaymentSchedule.getLoanApplication().getAgreementAt().before(compareToDate))) {
             BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
             long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
             LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
