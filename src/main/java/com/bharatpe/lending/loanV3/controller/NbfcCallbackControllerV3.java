@@ -1,10 +1,7 @@
 package com.bharatpe.lending.loanV3.controller;
 
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV3.consumer.BreRequestKafka;
-import com.bharatpe.lending.loanV3.consumer.DrawdownRequestKafka;
-import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
-import com.bharatpe.lending.loanV3.consumer.SancWrapperRequestKafka;
+import com.bharatpe.lending.loanV3.consumer.*;
 import com.bharatpe.lending.loanV3.dto.BreCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.DrawdownCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.KycCallbackResponseDto;
@@ -16,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("lending/v3/callback/")
@@ -33,6 +33,9 @@ public class NbfcCallbackControllerV3 {
 
     @Autowired
     SancWrapperRequestKafka sancWrapperRequestKafka;
+
+    @Autowired
+    DataUploadRequestKafka dataUploadRequestKafka;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -64,5 +67,19 @@ public class NbfcCallbackControllerV3 {
         log.info("drawdown callback received via controller {}", drawdownCallbackResponseDto);
         drawdownRequestKafka.drawdownEventListener(objectMapper.writeValueAsString(drawdownCallbackResponseDto));
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"drawdown event consumed successfully !"));
+    }
+
+    @PostMapping("invoke/dataUpload")
+    public ResponseEntity<String> dataUploadApi(@RequestBody Long applicationId) {
+        log.info("invoke data upload request for application id {}",applicationId);
+        Map<String,String> request = new HashMap(){{
+            put("application_id", applicationId.toString());
+        }};
+        try {
+            dataUploadRequestKafka.invokeDocUpload(objectMapper.writeValueAsString(request));
+        } catch (Exception e) {
+            log.error("error in parsing request for  {}", applicationId, e);
+        }
+        return ResponseEntity.ok().body("Data upload request has been initiated");
     }
 }

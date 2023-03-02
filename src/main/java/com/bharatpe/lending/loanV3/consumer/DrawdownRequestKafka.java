@@ -58,7 +58,9 @@ public class DrawdownRequestKafka {
             if (!drawdownCallbackResponseDto.getSuccess() ||
                     ObjectUtils.isEmpty(drawdownCallbackResponseDto.getData()) ||
                     ObjectUtils.isEmpty(drawdownCallbackResponseDto.getData().getData()) ||
-                    !drawdownCallbackResponseDto.getData().getData().getLan().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLan())
+                    // TODO: 02/03/23 removed as we dont have support for fetching lan on basis of account id
+                    (!ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getLan())
+                    && !drawdownCallbackResponseDto.getData().getData().getLan().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLan()))
             ) {
                 log.info("drawdown callback resulted in failure for  {}", lendingApplication.get().getId());
                 return;
