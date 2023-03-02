@@ -1167,6 +1167,10 @@ public class LoanUtil {
 				return Boolean.FALSE;
 			}
 
+			if (!"REPEAT".equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name())) {
+				return Boolean.FALSE;
+			}
+
 			Double settlementAmount = lendingLedgerDao.findSettlementAmount(lastLoan.getId());
 			double qrPaidRatio = (settlementAmount / lastLoan.getPaidAmount()) * 100;
 
