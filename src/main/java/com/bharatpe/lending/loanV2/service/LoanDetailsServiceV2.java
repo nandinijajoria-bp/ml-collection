@@ -717,19 +717,7 @@ public class LoanDetailsServiceV2 {
             }
 
             if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
-                if ("APPROVED".equalsIgnoreCase(openApplication.getNachStatus())) {
-                    applicationDetails.setEnachDone(true);
-                } else {
-                    if(loanUtil.isEligibleForNachSkip(openApplication)){
-                        log.info("Merchant is eligible for nach Skip.");
-                        applicationDetails.setEnachDone(true);
-                        openApplication.setNachStatus("APPROVED");
-                        openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
-                        lendingApplicationDao.save(openApplication);
-                    }else {
-                        applicationDetails.setEnachDone(false);
-                    }
-                }
+                applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
             }
 
             
@@ -912,6 +900,7 @@ public class LoanDetailsServiceV2 {
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
                     loanUtil.isEligibleForNachSkip(openApplication)) {
             openApplication.setNachStatus("APPROVED");
+            openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
             lendingApplicationDao.save(openApplication);
             return null;
         }
