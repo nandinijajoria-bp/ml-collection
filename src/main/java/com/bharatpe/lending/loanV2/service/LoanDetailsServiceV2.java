@@ -687,6 +687,7 @@ public class LoanDetailsServiceV2 {
             LendingApplicationDetails lendingApplicationDetails =
                     lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
             if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+                log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
                 applicationDetails.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
             }
             if ("approved".equalsIgnoreCase(openApplication.getStatus()) || "pending_verification".equalsIgnoreCase(openApplication.getStatus())) {

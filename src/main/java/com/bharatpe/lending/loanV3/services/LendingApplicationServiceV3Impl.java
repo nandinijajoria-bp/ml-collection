@@ -2,6 +2,8 @@ package com.bharatpe.lending.loanV3.services;
 
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.service.ILenderAssignService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -63,6 +65,9 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Value("${invoke.env:prod}")
     public String invokeEnv;
@@ -181,6 +186,11 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("workflow already invoked for application  {}", applicationId);
+                return;
+            }
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.get().getId());
+            if (!ObjectUtils.isEmpty(lendingApplicationDetails) && lendingApplicationDetails.getLenderAssc()) {
+                log.info("workflow already invoked for application as lender assc flag is set as {} for {}", lendingApplicationDetails.getLenderAssc(), applicationId);
                 return;
             }
         }

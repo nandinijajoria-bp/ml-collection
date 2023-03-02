@@ -144,7 +144,7 @@ public class LenderAssignService implements ILenderAssignService {
         if (loanUtil.isInternalMerchant(application.getMerchantId()) && ObjectUtils.isEmpty(application.getLender())
                 // TODO: 15/02/23 remove this checks later (only for temp roll out)
                 && !ObjectUtils.isEmpty(application.getExternalLoanId())
-                && application.getLoanAmount() > 10000) {
+                && application.getLoanAmount() >= 10000) {
             log.info("internal merchant or rollout {}", application.getMerchantId());
             decidedLender =  Lender.ABFL.name();
         } else {
