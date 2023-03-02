@@ -23,6 +23,7 @@ import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -42,6 +43,8 @@ import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -174,6 +177,9 @@ public class VerifyOTPService {
 
     @Autowired
     FunnelService funnelService;
+
+    @Autowired
+    NbfcUtils nbfcUtils;
 
     @Autowired
     LendingCollectionAuditService lendingCollectionAuditService;
@@ -402,6 +408,14 @@ public class VerifyOTPService {
                 }
                 lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
                 lendingApplication.setNachStatus("APPROVED");
+
+                // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
+                // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
+                if (Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                    logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+                }
             }
         }
 
