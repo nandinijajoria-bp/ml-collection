@@ -16,6 +16,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
@@ -58,9 +59,7 @@ public class DrawdownRequestKafka {
             if (!drawdownCallbackResponseDto.getSuccess() ||
                     ObjectUtils.isEmpty(drawdownCallbackResponseDto.getData()) ||
                     ObjectUtils.isEmpty(drawdownCallbackResponseDto.getData().getData()) ||
-                    // TODO: 02/03/23 removed as we dont have support for fetching lan on basis of account id
-                    (!ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getLan())
-                    && !drawdownCallbackResponseDto.getData().getData().getLan().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLan()))
+                    ObjectUtils.isEmpty(drawdownCallbackResponseDto.getData().getData().getLan())
             ) {
                 log.info("drawdown callback resulted in failure for  {}", lendingApplication.get().getId());
                 return;
@@ -71,6 +70,18 @@ public class DrawdownRequestKafka {
             existingLendingApplicationLenderDetails.setLoanCreationTimestamp(new Date());
             existingLendingApplicationLenderDetails.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_COMPLETED.name());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+
+
+            if (ObjectUtils.isEmpty(lendingApplication.get().getNbfcId())
+            && data.getAccountId().equalsIgnoreCase(lendingApplication.get().getExternalLoanId())
+            ) {
+                log.info("update forced NBFC id for application id: {}, {}", data.getLan(), lendingApplication.get().getId());
+                lendingApplication.get().setNbfcId(data.getLan());
+                lendingApplication.get().setSendToNbfc("YES");
+                lendingApplication.get().setNbfcSendDate(Calendar.getInstance().getTime());
+                lendingApplicationDao.save(lendingApplication.get());
+            }
+
             // TODO: 16/11/22  todo final update edi date and rest in liqui svc
             liquiloansService.populatePostPayoutSchedule(
                 PostPayoutRequestDto.builder()
