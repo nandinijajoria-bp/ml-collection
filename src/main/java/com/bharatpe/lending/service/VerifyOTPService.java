@@ -580,7 +580,6 @@ public class VerifyOTPService {
             lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
             lendingLedger.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
             lendingLedgerDao.save(lendingLedger);
-            lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
 
             LendingLedger negativeEntry = new LendingLedger();
             negativeEntry.setMerchantId(activeLoan.getMerchantId());
@@ -604,6 +603,7 @@ public class VerifyOTPService {
             activeLoan.setDuePrinciple(0D);
             activeLoan.setDueInterest(0D);
             lendingPaymentScheduleDao.save(activeLoan);
+            lendingCollectionAuditService.sendCollectionAudit(lendingLedger, activeLoan);
 
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             if (LoanType.IO_TOPUP.name().equals(lendingApplication.getLoanType())) {
