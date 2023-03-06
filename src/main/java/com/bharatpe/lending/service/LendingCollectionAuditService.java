@@ -13,6 +13,7 @@ import org.springframework.util.ObjectUtils;
 
 import javax.persistence.Column;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -26,7 +27,8 @@ public class LendingCollectionAuditService {
 
     public void sendCollectionAudit(LendingLedger lendingLedger){
         try {
-            if(ObjectUtils.isEmpty(lendingLedger) || lendingLedger.getAmount() <= 0)return;
+            if(ObjectUtils.isEmpty(lendingLedger) || lendingLedger.getAmount() <= 0 ||
+                    (Objects.nonNull(lendingLedger.getAdjustmentMode()) && "EXCEPTION-WAIVER".equalsIgnoreCase(lendingLedger.getAdjustmentMode())))return;
             Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
             if (!lendingApplicationSlave.isPresent()) {
                 return;
