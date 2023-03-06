@@ -30,6 +30,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
@@ -1010,7 +1011,7 @@ public class FosService {
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason);
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0);
         ResponseDTO responseDTO = new ResponseDTO();
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);
@@ -1261,7 +1262,7 @@ public class FosService {
         logger.info("Auditing lending Application Details changes for :{}", auditType);
         LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
         lendingAuditTrial.setApplicationId(lendingApplicationDetails.getApplicationId());
-        lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId())?"":lendingApplication.getExternalLoanId());
+        lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
         lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
         lendingAuditTrial.setType("NACH_TASK".equals(auditType) ?"REF_CODE_NACH_UPDATE":"REF_CODE_UPDATE");
         lendingAuditTrial.setOldStatus("NACH_TASK".equals(auditType) ? lendingApplicationDetails.getCpvReferralCodeNach() : lendingApplicationDetails.getCpvReferralCode());
