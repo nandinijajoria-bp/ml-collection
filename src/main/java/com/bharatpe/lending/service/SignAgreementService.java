@@ -733,6 +733,7 @@ public class SignAgreementService {
 		newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
 		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLoanType(eligibleLoan.getLoanType());
+		newApplication.setNachType("ENACH");
 		newApplication.setNachStatus("TOPUP".equals(eligibleLoan.getLoanType())?"APPROVED":null);
 
 		if("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {

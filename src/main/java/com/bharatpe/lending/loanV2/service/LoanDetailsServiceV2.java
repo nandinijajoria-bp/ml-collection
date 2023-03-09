@@ -901,6 +901,7 @@ public class LoanDetailsServiceV2 {
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
                     loanUtil.isEligibleForNachSkip(openApplication)) {
             openApplication.setNachStatus("APPROVED");
+            openApplication.setNachType("ENACH");
             openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
             lendingApplicationDao.save(openApplication);
             return null;
