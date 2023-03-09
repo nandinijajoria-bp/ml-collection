@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -13,6 +14,7 @@ import java.util.Date;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SanctionCallbackResponseDto {
     Boolean success;
     String applicationId;
@@ -25,6 +27,7 @@ public class SanctionCallbackResponseDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Data {
         String accountId;
         String accountState;
@@ -39,15 +42,17 @@ public class SanctionCallbackResponseDto {
     @NoArgsConstructor
     @AllArgsConstructor
 //    @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CallbackData {
         Data data;
-        ErrorPayload errorPayload;
+        ErrorPayload error;
         String responseStatus;
     }
 
     @lombok.Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ErrorPayload {
         private String code;
         private String description;
