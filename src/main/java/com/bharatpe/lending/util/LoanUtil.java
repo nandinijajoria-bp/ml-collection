@@ -1142,7 +1142,6 @@ public class LoanUtil {
 			lendingApplication.setLender(newLender);
 			lendingApplication.setNachStatus(null);
 			lendingApplication.setNachLender(null);
-			lendingApplication.setLmsStage("RESIGN_RENACH");
 			lendingApplication.setStatus("pending_verification");
 			lendingApplicationDao.save(lendingApplication);
 			lendingResubmitTaskDao.save(resubmitTask);
