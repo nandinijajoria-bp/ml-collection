@@ -237,6 +237,14 @@ public class S3BucketHandler {
 		        }
 		    }
 	}
+	public String getPreSignedPublicURLWithExceptionHandled(String key, String bucket1) {
+		try {
+			return getPreSignedPublicURL(key,bucket1);
+		} catch (Exception e) {
+			logger.error("error occurred {}", e);
+		}
+		return "";
+	}
 
 	public String getS3Url(String key, String bucket1)  {
 		try {
