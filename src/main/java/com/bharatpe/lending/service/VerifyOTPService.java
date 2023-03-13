@@ -414,6 +414,17 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
+        } else {
+
+            // if nach is not done don't move application to pending_verification
+
+            if (topupLoans.contains(lendingApplication.getLoanType())) {
+                finalResponse.put("success", false);
+                finalResponse.put("agreement_verified", false);
+                finalResponse.put("message", "Enach not done");
+                logger.error("Enach not done for topupapplicationId : {}", lendingApplication.getId());
+                return finalResponse;
+            }
         }
 
         if (topupLoans.contains(lendingApplication.getLoanType())) {
