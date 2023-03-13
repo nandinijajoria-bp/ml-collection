@@ -1178,10 +1178,10 @@ public class LoanUtil {
 			logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lastLoan.getMerchantId());
 			double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
 
-			if (isInternalMerchant(merchantId) && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())) {
-				logger.info("Nach Waiver is true for merchant:{}", merchantId);
-				return Boolean.TRUE;
-			}
+//			if (isInternalMerchant(merchantId) && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())) {
+//				logger.info("Nach Waiver is true for merchant:{}", merchantId);
+//				return Boolean.TRUE;
+//			}
 
 			if (qrPaidRatio > 80 && ediPaidRatio > 65 && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())
 					&& maxDpd <= 10) {

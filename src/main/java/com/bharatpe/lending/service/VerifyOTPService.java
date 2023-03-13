@@ -372,7 +372,8 @@ public class VerifyOTPService {
         }
 
         MerchantNachDetailsResponseDTO enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getId());
-        if(ObjectUtils.isEmpty(enachSuccess) && loanUtil.isEligibleForNachSkip(lendingApplication)){
+        boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication);
+        if(ObjectUtils.isEmpty(enachSuccess) && isNachSkippable){
             enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getLender());
         }
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantBasicDetailsDto.getId());
@@ -396,36 +397,26 @@ public class VerifyOTPService {
             lendingApplication.setLongitude(meta.getLongitude());
         }
         lendingApplication.setExternalLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId()) ? loanId : lendingApplication.getExternalLoanId());
-        
-        //skip nach check for topup loans
-        if(!"TOPUP".equals(lendingApplication.getLoanType())){
-            if (enachSuccess != null) {
-                lendingApplication.setNachType("ENACH");
-                if(!ObjectUtils.isEmpty(enachSuccess.getNachLender())){
-                    lendingApplication.setNachLender(enachSuccess.getNachLender());
-                }else{
-                    lendingApplication.setNachLender("BHARATPE");
-                }
-                lendingApplication.setNachReferenceNumber(enachSuccess.getReferenceNumber());
-                lendingApplication.setNachStatus("APPROVED");
+        if (enachSuccess != null || isNachSkippable) {
+            lendingApplication.setNachType("ENACH");
+            if((!ObjectUtils.isEmpty(enachSuccess) && !ObjectUtils.isEmpty(enachSuccess.getNachLender())) || isNachSkippable){
+                lendingApplication.setNachLender(ObjectUtils.isEmpty(enachSuccess)? loanUtil.enachServiceLenderMapper(lendingApplication.getLender()):enachSuccess.getNachLender());
+            }else{
+                lendingApplication.setNachLender("BHARATPE");
+            }
+            lendingApplication.setNachReferenceNumber(ObjectUtils.isEmpty(enachSuccess)?null:enachSuccess.getReferenceNumber());
+            lendingApplication.setNachStatus("APPROVED");
 
-                // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
-                // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
-                if (Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
-                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
-                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
-                    logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
-                }
+            // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
+            // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
+            if (Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                        LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
         }
 
         if (topupLoans.contains(lendingApplication.getLoanType())) {
-
-            // skip nach check for topup loans and set
-            lendingApplication.setNachType("ENACH");
-            lendingApplication.setNachStatus("APPROVED");
-            lendingApplication.setNachLender("SKIP_FOR_TOPUP");
-
             logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
             updateDocuments(lendingApplication, meta,merchantBasicDetailsDto);
             if (!topUpLoans(lendingApplication)) {
@@ -476,8 +467,7 @@ public class VerifyOTPService {
         logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
         sendLatLong(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 
-        // skip nach check for topup loans
-        if (Objects.nonNull(enachSuccess) || topupLoans.contains(lendingApplication.getLoanType())) {
+        if (Objects.nonNull(enachSuccess) || isNachSkippable) {
             logger.info("entered before sending to topic for post checks for application_id :  {}", lendingApplication.getId());
             sendDetailsForContactsVerification(merchantBasicDetailsDto.getId(), lendingApplication.getId());
         }

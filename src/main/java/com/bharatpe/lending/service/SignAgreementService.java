@@ -9,13 +9,9 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
-import com.bharatpe.lending.common.dao.LendingEkycDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.entity.LendingEkyc;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -121,6 +117,9 @@ public class SignAgreementService {
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
+
+	@Autowired
+	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -733,8 +732,6 @@ public class SignAgreementService {
 		newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
 		newApplication.setLoanAmount(eligibleLoan.getAmount());
 		newApplication.setLoanType(eligibleLoan.getLoanType());
-		newApplication.setNachType("ENACH");
-		newApplication.setNachStatus("TOPUP".equals(eligibleLoan.getLoanType())?"APPROVED":null);
 
 		if("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
 			newApplication.setCkycId(String.valueOf(merchant.getId()));
@@ -750,10 +747,6 @@ public class SignAgreementService {
 		loanUtil.publishApplicationEvent(newApplication);
 
 		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant);
-
-		newApplication.setNachLender("TOPUP".equals(eligibleLoan.getLoanType())? loanUtil.enachServiceLenderMapper(newApplication.getLender()):null);
-		lendingApplicationDao.save(newApplication);
-
 //		lenderMappingService.lenderMapping(newApplication);
 
 		if(newApplication.getId() != null) {
@@ -788,6 +781,10 @@ public class SignAgreementService {
 		LendingApplication finalNewApplication = newApplication;
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(finalNewApplication.getId());
+		if(!ObjectUtils.isEmpty(lendingApplicationDetails)){
+			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());lendingApplicationDetailsDao.save(lendingApplicationDetails);
+		}
 		response.put("success", true);
 		response.put("message","Application created Successfully");
 		return response;

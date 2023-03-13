@@ -721,6 +721,10 @@ public class LoanDetailsServiceV2 {
                 applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
             }
 
+            if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())){
+                applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
+            }
+
             
 //            if (LoanType.SMALL_TICKET.name().equalsIgnoreCase(openApplication.getLoanType())) {
 //                applicationDetails.setSkipEnach(Boolean.TRUE);
@@ -895,11 +899,11 @@ public class LoanDetailsServiceV2 {
     }
 
     private String getEnachDeeplink(LendingApplication openApplication, String token, boolean isIOS) {
-        if (!ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
+        if (!"TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && !ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             return null;
         }
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                    loanUtil.isEligibleForNachSkip(openApplication)) {
+                loanUtil.isEligibleForNachSkip(openApplication)) {
             openApplication.setNachStatus("APPROVED");
             openApplication.setNachType("ENACH");
             openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
@@ -913,6 +917,7 @@ public class LoanDetailsServiceV2 {
         if (isIOS) return Deeplink.TECHPROCESS;
         return apiGatewayService.getEnachProvider(token, openApplication.getLender(),openApplication.getMerchantId());
     }
+
 
 //    private boolean isCreditLineMerchant(BasicDetailsDto merchant) {
 //        CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchant.getId());

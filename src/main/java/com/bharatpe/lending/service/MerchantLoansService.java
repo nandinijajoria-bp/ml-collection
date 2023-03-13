@@ -681,7 +681,19 @@ public class MerchantLoansService {
 //                }
 //            }
 
+            Long experianId = null;
+
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+
+           if(loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())){
+               EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
+               internalMerchantLoan.setRateOfInterest(1.80);
+               internalMerchantLoan.setProcessingFee(2000);
+               internalMerchantLoan.setProcessingFeeRate(0.02D);
+               internalMerchantLoan.setId(544888920L);
+               eligibleLoanList.add(internalMerchantLoan);
+           }
+
             if (ObjectUtils.isEmpty(eligibleLoanList)) {
                 Double eligibleAmount = 0D;
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId());
@@ -689,7 +701,7 @@ public class MerchantLoansService {
                     logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
                     eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 }
-                if (eligibleAmount.equals(0D)) {
+                if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                     logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -704,12 +716,14 @@ public class MerchantLoansService {
                         return eligiblity;
                     }
                 }
+
                 loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
                 eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);
                 experian.setLoanType("TOPUP");
                 experianDao.save(experian);
+                experianId = experian.getId();
             }
             double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
             if (!eligibleLoanList.isEmpty()) {
