@@ -2178,7 +2178,7 @@ public class LendingApplicationServiceV2 {
         data.put("repayment_schedule", repaymentSchedule);
         if(timeStamp)data.put("date", new SimpleDateFormat("dd-MM-yyyy").format(dateTime));
         else data.put("date", "");
-        data.put("disbursal_date", new SimpleDateFormat("dd-MMM-yyyy").format(new Date()));
+        data.put("disbursal_date", new SimpleDateFormat("dd-MMM-yyyy").format(dateTime));
         data.put("mobile_number_for_otp", merchant.getMobile());
         data.put("platform", "BHARATPE");
         data.put("ip_address", ip);
@@ -2486,7 +2486,7 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong !");
     }
 
-    public Boolean generateWelcomeDocument(LendingApplication lendingApplication, LendingKfs lendingKfs, BasicDetailsDto merchant) throws Exception {
+    public Boolean generateWelcomeDocument(LendingApplication lendingApplication, LendingKfs lendingKfs, BasicDetailsDto merchant, Date dateTime) throws Exception {
         if (!Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
             log.info("no welcome format exists for the lender {} for app {}", lendingApplication.getLender(), lendingApplication.getId());
             return Boolean.FALSE;
@@ -2501,7 +2501,7 @@ public class LendingApplicationServiceV2 {
             log.info("lender not found for {}", lendingApplication.getId());
             return Boolean.FALSE;
         }
-        Map<String,Object> data = getApplicationDocData(lendingApplication.getId(), kfsDto, merchant, false, ApplicationDocType.WELCOME_LETTER_DOC, null, lendingApplication.getIp());
+        Map<String,Object> data = getApplicationDocData(lendingApplication.getId(), kfsDto, merchant, true, ApplicationDocType.WELCOME_LETTER_DOC, dateTime, lendingApplication.getIp());
 
         String lender = lendingApplication.getLender();
         String welcomeHtml = "";

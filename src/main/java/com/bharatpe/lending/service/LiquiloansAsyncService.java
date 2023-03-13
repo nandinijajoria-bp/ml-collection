@@ -33,7 +33,7 @@ public class LiquiloansAsyncService {
 
     @Async
     public void generateWelcomeDocAndNotify(LendingApplication finalLendingApplication, BasicDetailsDto finalBasicDetailDto, LendingKfs lendingKfs) throws Exception {
-        lendingApplicationServiceV2.generateWelcomeDocument(finalLendingApplication, lendingKfs, finalBasicDetailDto);
+        lendingApplicationServiceV2.generateWelcomeDocument(finalLendingApplication, lendingKfs, finalBasicDetailDto,null);
         if (ObjectUtils.isEmpty(lendingKfs.getWelcomeDocUrl())) {
             log.info("welcome letter generation failed for {}", finalBasicDetailDto.getId());
             return;
