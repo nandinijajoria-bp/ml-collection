@@ -16,8 +16,9 @@ public class ConverterUtils {
     public static String convertPreSignedUrlToBase64String(String selfiePresignedUrl) {
         try {
             return Base64.encodeBase64String(IOUtils.toByteArray(URI.create(selfiePresignedUrl).toURL().openConnection().getInputStream()));
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            log.error("error occurred while converting data {}", e.getMessage());
         }
         return "";
     }
