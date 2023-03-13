@@ -878,11 +878,11 @@ public class FosService {
                         if(Objects.nonNull(lendingApplicationDetails) && Objects.nonNull(lendingApplicationDetails.getCpvReferralCode())){
                             logger.info("Agreement for application:{} was done by FSE:{}", lendingApplication.getId(), lendingApplicationDetails.getCpvReferralCode());
                             if(Math.abs(dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date())) > 7){
-                                return computeEligibilityParams("eligible", "pending_nach", merchantId, "pending nach application");
+                                return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                             }
                         } else{
                             logger.info("Agreement not done by FSE and nach pending for application:{}", lendingApplication.getId());
-                            return computeEligibilityParams("eligible", "pending_nach", merchantId, "pending nach application");
+                            return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                         }
                     }
                     // pending applications
