@@ -422,7 +422,7 @@ public class AbflDataUploadServiceUtil {
             log.error("error occurred while uploading digital data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
         }
         try {
-            uploadDocuments(applicationId, Arrays.asList("KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK","WELCOME_LETTER"));
+            uploadDocuments(applicationId, Arrays.asList("KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"));
         } catch (Exception e) {
             log.error("error occurred while uploading docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
         }
