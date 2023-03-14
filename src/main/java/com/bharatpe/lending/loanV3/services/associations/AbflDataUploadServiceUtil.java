@@ -312,21 +312,20 @@ public class AbflDataUploadServiceUtil {
                                 .build())
                         .build();
                 DocUploadApiRequestDto.Payload payload = docUploadApiRequestDto.getPayload();
+                String docName = null;
                 if ("KFS".equalsIgnoreCase(docType) || "SANCTION_AGREEMENT".equalsIgnoreCase(docType) || "WELCOME_LETTER".equalsIgnoreCase(docType)) {
                     if (ObjectUtils.isEmpty(lendingKfs)) {
                         log.info("kfs not found for {}", applicationId);
                         continue;
                     }
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".pdf");
-                    String docUrl = null;
                     if ("SANCTION_AGREEMENT".equalsIgnoreCase(docType)) {
-                        docUrl = lendingKfs.getSanctionLoanAgreementDocUrl();
+                        docName = lendingKfs.getSanctionLoanAgreementDocFile();
                     } else if ("KFS".equalsIgnoreCase(docType)) {
-                        docUrl = lendingKfs.getKfsDocUrl();
+                        docName = lendingKfs.getKfsDocFile();
                     } else if ("WELCOME_LETTER".equalsIgnoreCase(docType)) {
-                        docUrl = lendingKfs.getWelcomeDocUrl();
+                        docName = lendingKfs.getWelcomeDocFile();
                     }
-                    payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(docUrl));
                 } else if ("SHOP-FRONT".equalsIgnoreCase(docType) || "SHOP-STOCK".equalsIgnoreCase(docType)) {
                     LendingShopDocuments lendingShopDocument = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), docType);
                     log.info("lending shop doc {} {}",docType, lendingShopDocument);
@@ -334,9 +333,10 @@ public class AbflDataUploadServiceUtil {
                         log.info("shop doc not found for {} {}", docType, applicationId);
                         continue;
                     }
+                    docName = lendingShopDocument.getProofFrontSide();
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".jpeg");
-                    payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingShopDocument.getProofFrontSide(),bucket)));
                 }
+                payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket)));
                 docUploadApiRequestDto.setPayload(payload);
                 docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
                 log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
