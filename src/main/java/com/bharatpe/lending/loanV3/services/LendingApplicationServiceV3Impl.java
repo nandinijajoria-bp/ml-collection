@@ -109,7 +109,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                 LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
                 try {
                     Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
-                    lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get());
+                    lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), null);
                     lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, null);
                     lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, null);
                     lendingKfsDao.save(lendingKfs);
@@ -143,6 +143,14 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                     put("application_id",lendingApplication.get().getId());
                 }};
                 try {
+                    if (invokeLenderAssociationRequest.getRegenerateDoc()) {
+                        LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
+                        Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
+                        lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
+                        lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                        lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
+                        lendingKfsDao.save(lendingKfs);
+                    }
                     kafkaTemplate.send("invoke_data_upload", payload);
                 } catch (Exception e) {
                     log.error("something went wrong for {}", lendingApplication.get().getId(), e);

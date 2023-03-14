@@ -44,7 +44,7 @@ public class LenderDocService {
         }
         try {
             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-            if (lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get())) {
+            if (lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get(), null)) {
                 return new ApiResponse<>(WelcomeDocDetailsDto.builder().s3URL(lendingKfs.getKfsDocUrl()).build());
             }
         } catch (Exception e) {

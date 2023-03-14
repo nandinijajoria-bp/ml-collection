@@ -22,4 +22,5 @@ public class InvokeLenderAssociationRequest {
     String mobile;
     String payload;
     Long ledgerId;
+    Boolean regenerateDoc;
 }

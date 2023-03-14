@@ -210,6 +210,12 @@ public class AbflDataUploadServiceUtil {
 //        }
         for (DocUploadPayload docUploadPayload: docUploadPayloadList) {
             try {
+                if (ObjectUtils.isEmpty(docUploadPayload.getDocUploadApiRequestDto().getPayload().getFileUpload())) {
+                    log.info("payload construct incomplete for {} {}", docUploadPayload.getDocType(), applicationId);
+                    failedDocs = failedDocs + docUploadPayload.getDocType() + ";";
+                    currentDocumentStatus = LenderAssociationStatus.DOC_UPLOAD_FAILED.name();
+                    continue;
+                }
                 Pair<String, String> resp = uploadDoc(docUploadPayload.getDocUploadApiRequestDto(),apiGatewayV3,docUploadPayload.getDocType());
                 if (ObjectUtils.isEmpty(resp) && LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(resp.getLeft())) {
                     failedDocs = failedDocs + resp.getRight() + ";";
@@ -331,10 +337,6 @@ public class AbflDataUploadServiceUtil {
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".jpeg");
                     payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingShopDocument.getProofFrontSide(),bucket)));
                 }
-                if (ObjectUtils.isEmpty(payload.getFileUpload())) {
-                    log.info("payload construct incomplete for {} {}", docType, applicationId);
-                    continue;
-                }
                 docUploadApiRequestDto.setPayload(payload);
                 docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
                 log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
@@ -420,7 +422,7 @@ public class AbflDataUploadServiceUtil {
             log.error("error occurred while uploading digital data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
         }
         try {
-            uploadDocuments(applicationId, Arrays.asList("KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"));
+            uploadDocuments(applicationId, Arrays.asList("KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK","WELCOME_LETTER"));
         } catch (Exception e) {
             log.error("error occurred while uploading docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
         }
