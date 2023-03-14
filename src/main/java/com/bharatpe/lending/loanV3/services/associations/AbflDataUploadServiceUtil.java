@@ -348,7 +348,7 @@ public class AbflDataUploadServiceUtil {
     }
 
     public void uploadDigitalData(Long applicationId) {
-        String response = LenderAssociationStatus.DGTL_UPLOAD_COMPLETED.name();
+        String response = LenderAssociationStatus.DGTL_UPLOAD_COMPLETE.name();
         INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(Lender.ABFL.name());
         DigitalDataUploadRequest digitalDataUploadRequest = createDigitalDataPayload(applicationId);
         if (ObjectUtils.isEmpty(digitalDataUploadRequest)) {
