@@ -91,6 +91,7 @@ public class DrawdownRequestKafka {
                         .loanDisbursalStatus("DISBURSED")
                         .nbfcId(lendingApplication.get().getNbfcId())
                         .disbursedAmount(Optional.ofNullable(data.getAmount()).orElse(lendingApplication.get().getDisbursalAmount()))
+                        .utr(data.getUtrNo())
                         .build());
         } catch (Exception e) {
             log.error("exception occurred while acknowledging drawdown event for app {}", request);
