@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.text.SimpleDateFormat;
@@ -309,6 +310,10 @@ public class KycHandler {
     }
 
     public String getPanName(String panNumber, Long merchantId) throws Exception {
+        if (ObjectUtils.isEmpty(panNumber)) {
+            log.info("PanNumber of merchantId : {} is empty", merchantId);
+            return null;
+        }
         HashMap<String, String> data;
         String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_NAME;
         Map<String, Object> payload = new HashMap<>();
