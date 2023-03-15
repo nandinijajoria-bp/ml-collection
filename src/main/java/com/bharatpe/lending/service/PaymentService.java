@@ -154,6 +154,9 @@ public class PaymentService {
     @Autowired
     LendingCollectionAuditService lendingCollectionAuditService;
 
+    @Autowired
+    LiquiloansService liquiloansService;
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -460,7 +463,7 @@ public class PaymentService {
                 return "OK";
             }
             adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
-                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, null);
+                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getBankReferenceNumber());
             order.setBankRefNo(request.getBankReferenceNumber());
             order.setStatus("SUCCESS");
             loanPaymentOrderDao.save(order);
@@ -1157,6 +1160,9 @@ public class PaymentService {
                     String orderId = "PF_CASHBACK" + System.currentTimeMillis();
                     LendingPayoutRequest lendingPayoutRequest = new LendingPayoutRequest(lendingPaymentSchedule.getId(), orderId, cashbackAmount, LendingPayoutType.LENDING_INCENTIVE, lendingPaymentSchedule.getMerchantId(), "PF_CASHBACK");
                     LendingPayoutResponse lendingPayoutResponse = apiGatewayService.lendingPayout(lendingPayoutRequest);
+                    if(Objects.nonNull(lendingPayoutResponse) && lendingPayoutResponse.isSuccess()){
+                        liquiloansService.pushRedemptionInKafka(lendingPaymentSchedule.getLoanApplication(), cashbackAmount);
+                    }
                     if (lendingPayoutResponse != null) {
                         String identifier = "LENDING_ARRANGER_REFUND_2_SMS";
                         Map<String,Object> templateParams = new HashMap<>();

@@ -439,7 +439,7 @@ public class LiquiloansService {
 //            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
 //        }
         executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchantId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
-        executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
+//        executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
         if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
             prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
         }
@@ -718,7 +718,7 @@ public class LiquiloansService {
 //            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
 //        }
         executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchantId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
-        executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
+//        executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
         if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
             prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
         }
@@ -765,7 +765,7 @@ public class LiquiloansService {
         return loanPaymentOrderDao.save(order);
     }
 
-    public void pushRedemptionInKafka(LendingApplication lendingApplication) {
+    public void pushRedemptionInKafka(LendingApplication lendingApplication, Double refundedAmount) {
 
         LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
         if (Objects.nonNull(selectedCategoriesData) && apiGatewayService.eligibleForProcessingFee(lendingApplication.getMerchantId())) {
@@ -783,20 +783,15 @@ public class LiquiloansService {
             }
         }
         if (apiGatewayService.checkClubV2(lendingApplication.getMerchantId())) {
-            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            Double actualLoanAmount = lendingRiskVariablesSnapshot.getFinalOffer() - lendingRiskVariablesSnapshot.getClubV2Amount();
-            Double clubAvailAmount = lendingApplication.getLoanAmount() - actualLoanAmount;
-            if (clubAvailAmount > 0) {
-                logger.info("redeeming club offer for merchant:{} and amount:{}", lendingApplication.getMerchantId(), clubAvailAmount);
-                Map<String, Object> body = new HashMap<>();
-                body.put("merchant_id", lendingApplication.getMerchantId());
-                body.put("ref_txn_id", lendingApplication.getId());
-                body.put("amount", clubAvailAmount);
-                body.put("narration", "Loan timely repayment cashback");
-                body.put("source_module", "LOAN");
+            logger.info("redeeming club offer for merchant:{} and amount:{}", lendingApplication.getMerchantId(), refundedAmount);
+            Map<String, Object> body = new HashMap<>();
+            body.put("merchant_id", lendingApplication.getMerchantId());
+            body.put("ref_txn_id", lendingApplication.getId());
+            body.put("amount", refundedAmount);
+            body.put("narration", "Loan timely repayment cashback");
+            body.put("source_module", "LOAN");
 
-                kafkaTemplate.send(TOPIC, body);
-            }
+            kafkaTemplate.send(TOPIC, body);
         }
     }
 

@@ -1768,7 +1768,7 @@ public class APIGatewayService {
         try {
             ResponseEntity<LendingPayoutResponse> responseEntity = restTemplate.exchange(Objects.requireNonNull(env.getProperty("lending.refund.endpoint")) + url, HttpMethod.POST, request, LendingPayoutResponse.class);
             logger.info("Lending payout response:{} for merchant:{}", responseEntity, lendingPayoutRequest.getMerchantId());
-            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess() && responseEntity.getBody().getData() != null && "SUCCESS".equals(responseEntity.getBody().getData().getTransactionStatus())) {
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess() && responseEntity.getBody().getData() != null && ("pending".equalsIgnoreCase(responseEntity.getBody().getData().getTransactionStatus()) || "success".equalsIgnoreCase(responseEntity.getBody().getData().getTransactionStatus()))) {
                 logger.info("Lending payout success for merchant:{}", lendingPayoutRequest.getMerchantId());
                 return responseEntity.getBody();
             } else {
