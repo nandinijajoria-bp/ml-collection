@@ -20,7 +20,7 @@ public class AbflKycServiceV2 {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Async
+//    @Async
     @Transactional
     public void invokeKycViaAsyncApi(Map<String,String> request) {
         try{

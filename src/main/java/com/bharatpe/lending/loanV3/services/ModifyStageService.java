@@ -8,9 +8,11 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.ModifyLenderDto;
+import com.bharatpe.lending.loanV3.dto.PushApplicationNextStageDto;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -46,5 +48,11 @@ public class ModifyStageService {
         log.info("Fetched the required details for modify lender {},{},{}",lendingApplication,
                 existingLendingApplicationLenderDetails,lenderAssociationStatus);
         nbfcUtils.modifyLender(lendingApplication.get(), existingLendingApplicationLenderDetails, lenderAssociationStatus);
+    }
+
+    @Async
+    public void pushToNextStageAsync(PushApplicationNextStageDto pushApplicationNextStageDto) {
+        nbfcUtils.pushApplicationToNextStage(pushApplicationNextStageDto.getApplicationId(),pushApplicationNextStageDto.getLender(),
+                pushApplicationNextStageDto.getLenderAssociationStage(),pushApplicationNextStageDto.getAutoInvoke());
     }
 }

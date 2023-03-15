@@ -65,8 +65,7 @@ public class LendingApplicationControllerV3 {
     @PostMapping("/nextStage")
     public ResponseEntity<PushApplicationNextStageDto> pushApplicationToNextStage(@RequestBody PushApplicationNextStageDto pushApplicationNextStageDto){
         log.info("initiated the push to next stage request {}",pushApplicationNextStageDto);
-        nbfcUtils.pushApplicationToNextStage(pushApplicationNextStageDto.getApplicationId(),pushApplicationNextStageDto.getLender(),
-                pushApplicationNextStageDto.getLenderAssociationStage(),pushApplicationNextStageDto.getAutoInvoke());
+        modifyStageService.pushToNextStageAsync(pushApplicationNextStageDto);
         return ResponseEntity.ok().body(pushApplicationNextStageDto);
     }
 }
