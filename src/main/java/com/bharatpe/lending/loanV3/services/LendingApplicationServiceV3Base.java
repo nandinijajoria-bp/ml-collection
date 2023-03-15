@@ -92,14 +92,14 @@ public abstract class LendingApplicationServiceV3Base {
                         .build());
             } else if (LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                        .status(LenderAssociationStatus.valueOf(lendingApplicationLenderDetails.getBreStatus()))
+                        .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getBreStatus()).orElse(LenderAssociationStatus.BRE_PENDING.name())))
                         .stage(LenderAssociationStages.BRE)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                        .status(LenderAssociationStatus.valueOf(lendingApplicationLenderDetails.getKycStatus()))
+                        .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                         .stage(LenderAssociationStages.KYC)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
