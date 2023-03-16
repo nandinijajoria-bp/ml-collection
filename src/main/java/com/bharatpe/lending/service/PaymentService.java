@@ -157,6 +157,13 @@ public class PaymentService {
     @Autowired
     LiquiloansService liquiloansService;
 
+    @Autowired
+    DateTimeUtil dateTimeUtil;
+
+
+    @Value("${loan.payment.order.pending.transaction.time.window:30}")
+    int loanPaymentOrderPendingTransactionTimeWindow;
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -230,6 +237,20 @@ public class PaymentService {
                 logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No dues left.");
             }
+
+
+            Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
+
+            // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
+            final LoanPaymentOrder pendingTransaction =
+              loanPaymentOrderDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(activeLoan.getId(), activeLoan.getMerchantId(),
+                checkPendingAfterTime);
+
+            if (!ObjectUtils.isEmpty(pendingTransaction)) {
+                logger.info("Already a pending transaction exist for loanId : {} with LPO id : {}", activeLoan.getId(), pendingTransaction.getId());
+                return new InitiatePaymentResponseDTO("Previous transaction is pending.");
+            }
+
             Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
             logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
             if (Objects.equals(request.getMeta().getClient(), "android")) {

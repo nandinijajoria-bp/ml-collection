@@ -8,6 +8,7 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigInteger;
+import java.util.Date;
 import java.util.List;
 
 public interface LoanPaymentOrderDao extends CrudRepository<LoanPaymentOrder, Long>{
@@ -34,4 +35,8 @@ public interface LoanPaymentOrderDao extends CrudRepository<LoanPaymentOrder, Lo
 
 	@Query(nativeQuery = true, value = "SELECT id FROM loan_payment_order WHERE status = 'PENDING' and source='SETTLEMENT' and id between :startOrderId and :endOrderId")
 	List<BigInteger> findPendingTransactionInRange(Long startOrderId, Long endOrderId);
+
+
+	@Query(nativeQuery = true, value = "select * from loan_payment_order where owner_id=:ownerId and merchant_id=:merchantId and status in ('PENDING', 'INIT') and created_at>= :createdAt order by id desc limit 1")
+	LoanPaymentOrder findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(Long ownerId, Long merchantId, Date createdAt);
 }
