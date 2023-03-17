@@ -116,11 +116,12 @@ public class CrmBulkContactsService {
                     List<LendingMerchantReferences> merchantReferences = lendingMerchantReferencesDao.findByMerchantId(basicDetailsDto.get().getId());
                     if (merchantReferences.isEmpty()){
                         LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(basicDetailsDto.get().getId());
+                        Long applicationId = basicDetailsDto.get().getId();
                         if(!ObjectUtils.isEmpty(lendingPaymentSchedule)){
-                            Long applicationId = lendingPaymentSchedule.getApplicationId();
-                            MerchantConfidenceScoreDTO merchantConfidenceScoreResponse = merchantScoreHandler.getMerchantConfidenceScore(basicDetailsDto.get().getId());
-                            merchantReferences = saveLendingMerchantReferencesFromMerchantConfidenceScore(merchantConfidenceScoreResponse, basicDetailsDto.get().getId(), applicationId);
+                            applicationId = lendingPaymentSchedule.getApplicationId();
                         }
+                        MerchantConfidenceScoreDTO merchantConfidenceScoreResponse = merchantScoreHandler.getMerchantConfidenceScore(basicDetailsDto.get().getId());
+                        merchantReferences = saveLendingMerchantReferencesFromMerchantConfidenceScore(merchantConfidenceScoreResponse, basicDetailsDto.get().getId(), applicationId);
                     }
                     if (merchantReferences.isEmpty() && ObjectUtils.isEmpty(phonebook)) {
                         emptyPhoneBookData.add(new String[]{contact, "no contacts found"});
