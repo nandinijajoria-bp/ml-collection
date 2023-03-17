@@ -38,7 +38,7 @@ public class LiquiloansAsyncService {
             log.info("welcome letter generation failed for {}", finalBasicDetailDto.getId());
             return;
         }
-        abflDataUploadServiceUtil.uploadDocuments(finalLendingApplication.getId(), Arrays.asList("WELCOME_LETTER"));
+        abflDataUploadServiceUtil.uploadDocuments(finalLendingApplication.getId(), Arrays.asList("WELCOME_LETTER"), true);
         String identifier = "LENDING_DISBURSAL_WELCOME_LETTER_SMS";
         Map<String, Object> templateParams = new HashMap<>();
         templateParams.put("beneficiary_name", finalBasicDetailDto.getBeneficiaryName());
