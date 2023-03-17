@@ -26,7 +26,9 @@ public class LendingApplicationControllerV3 {
     private NbfcUtils nbfcUtils;
 
     @Autowired
-    public LendingApplicationControllerV3(@Qualifier("lendingApplicationServiceV3Impl") LendingApplicationServiceV3Base lendingApplicationServiceV3, ModifyStageService modifyStageService,  NbfcUtils nbfcUtils) {
+    public LendingApplicationControllerV3(@Qualifier("lendingApplicationServiceV3Impl") LendingApplicationServiceV3Base lendingApplicationServiceV3,
+                                          ModifyStageService modifyStageService, NbfcUtils nbfcUtils
+    ) {
         this.lendingApplicationServiceV3 = lendingApplicationServiceV3;
         this.modifyStageService = modifyStageService;
         this.nbfcUtils = nbfcUtils;
@@ -49,23 +51,25 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.ok(null);
     }
 
+    //
     @PostMapping("/modify/application")
-    public ResponseEntity<ApiResponse<?>> invokeLenderAssociation(@RequestBody ModifyAppRequest modifyRequest ) {
+    public ResponseEntity<ApiResponse<?>> invokeLenderAssociation(@RequestBody ModifyAppRequest modifyRequest) {
         log.info("modify app request {}", modifyRequest);
         return ResponseEntity.ok(lendingApplicationServiceV3.modifyAppDetails(modifyRequest));
     }
 
     @PostMapping("/modifyLender")
-    public ResponseEntity<ModifyLenderDto> modifyLender(@RequestBody ModifyLenderDto modifyLenderDto){
-        log.info("Initiated the modify lender request {}",modifyLenderDto);
+    public ResponseEntity<ModifyLenderDto> modifyLender(@RequestBody ModifyLenderDto modifyLenderDto) {
+        log.info("Initiated the modify lender request {}", modifyLenderDto);
         modifyStageService.modifyLender(modifyLenderDto);
         return ResponseEntity.ok().body(modifyLenderDto);
     }
 
     @PostMapping("/nextStage")
-    public ResponseEntity<PushApplicationNextStageDto> pushApplicationToNextStage(@RequestBody PushApplicationNextStageDto pushApplicationNextStageDto){
-        log.info("initiated the push to next stage request {}",pushApplicationNextStageDto);
+    public ResponseEntity<PushApplicationNextStageDto> pushApplicationToNextStage(@RequestBody PushApplicationNextStageDto pushApplicationNextStageDto) {
+        log.info("initiated the push to next stage request {}", pushApplicationNextStageDto);
         modifyStageService.pushToNextStageAsync(pushApplicationNextStageDto);
         return ResponseEntity.ok().body(pushApplicationNextStageDto);
     }
+
 }
