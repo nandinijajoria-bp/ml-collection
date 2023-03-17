@@ -93,7 +93,7 @@ public class LendingCollectionAuditService {
                 nbfcId = lendingApplicationSlave.get().getNbfcId();
             }
             else{
-                HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingLedger.getLendingPaymentSchedule().getId());
+                HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingPaymentSchedule.getId());
                 if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
