@@ -8,15 +8,18 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.StatusCheckResponse;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
@@ -102,6 +105,9 @@ public class AbflDataUploadServiceUtil {
     @Autowired
     ConverterUtils converterUtils;
 
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
     public void uploadRegulatoryData(Long applicationId) {
         String response = LenderAssociationStatus.DATA_UPLOAD_COMPLETE.name();
         INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(Lender.ABFL.name());
@@ -177,57 +183,45 @@ public class AbflDataUploadServiceUtil {
         return null;
     }
 
-    public void uploadDocuments(Long applicationId, List<String> docs) {
-        String failedDocs = "";
-        String currentDocumentStatus = LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name();
-        Pair<String,String> response = Pair.of(LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name(),failedDocs);
-        List<DocUploadPayload> docUploadPayloadList = createPayload(applicationId,docs, failedDocs, currentDocumentStatus);
+    public void uploadDocuments(Long applicationId, List<String> docs, boolean systemMangedState) {
+        StringBuilder failedDocs = new StringBuilder("");
+        StringBuilder currentDocumentStatus = new StringBuilder(LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name());
+        List<DocUploadPayload> docUploadPayloadList = createPayload(applicationId,docs, failedDocs, currentDocumentStatus, systemMangedState);
         if (ObjectUtils.isEmpty(docUploadPayloadList)){
             log.info("no data found for {}", applicationId);
-            updateLenderDetailsRecord(applicationId,LenderAssociationStatus.DOC_UPLOAD_FAILED.name(), null, docs.stream().collect(Collectors.joining(";")), null);
+            log.info("app {} status {}  failed {}", applicationId,LenderAssociationStatus.DOC_UPLOAD_FAILED.name(), failedDocs + docs.stream().collect(Collectors.joining(";")));
+            updateLenderDetailsRecord(applicationId,LenderAssociationStatus.DOC_UPLOAD_FAILED.name(), null, failedDocs + docs.stream().collect(Collectors.joining(";")), null);
             return;
         }
-        log.info("doc payload size {} {}", docUploadPayloadList.size(), applicationId);
+        log.info("app {} status {}  failed {}", applicationId,currentDocumentStatus, failedDocs);
         for (DocUploadPayload docUploadPayload: docUploadPayloadList) {
-            log.info("{} found for {}",docUploadPayload.getDocType(), applicationId);
+            log.info("{} {} found for {}",docUploadPayload.getDocType(), docUploadPayload.getDocUploadApiRequestDto(), applicationId);
         }
         INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(Lender.ABFL.name());
-//        List<Future<Pair<String, String>>> docUploadFuture = new ArrayList<>();
-//        for (DocUploadPayload docUploadPayload: docUploadPayloadList) {
-//            docUploadFuture.add(executorService.submit(() -> uploadDoc(docUploadPayload.getDocUploadApiRequestDto(),apiGatewayV3,docUploadPayload.getDocType())));
-//        }
-//        for (Future<Pair<String, String>> future: docUploadFuture) {
-//            try {
-//                Pair<String, String> resp = future.get(10, TimeUnit.SECONDS);
-//                if (ObjectUtils.isEmpty(resp) && LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(resp.getLeft())) {
-//                    failedDocs = failedDocs + resp.getRight() + ";";
-//                    response = Pair.of(LenderAssociationStatus.DOC_UPLOAD_FAILED.name(),failedDocs);
-//                }
-//            } catch (Exception e) {
-//                log.error("exception occurred while invoking doc upload {} {}", applicationId, e.getMessage());
-//                response = Pair.of(LenderAssociationStatus.DOC_UPLOAD_FAILED.name(),failedDocs);
-//            }
-//        }
         for (DocUploadPayload docUploadPayload: docUploadPayloadList) {
             try {
                 if (ObjectUtils.isEmpty(docUploadPayload.getDocUploadApiRequestDto().getPayload().getFileUpload())) {
                     log.info("payload construct incomplete for {} {}", docUploadPayload.getDocType(), applicationId);
-                    failedDocs = failedDocs + docUploadPayload.getDocType() + ";";
-                    currentDocumentStatus = LenderAssociationStatus.DOC_UPLOAD_FAILED.name();
+                    failedDocs.append(docUploadPayload.getDocType() + ";");
+                    currentDocumentStatus.delete(0,currentDocumentStatus.length());
+                    currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                     continue;
                 }
                 Pair<String, String> resp = uploadDoc(docUploadPayload.getDocUploadApiRequestDto(),apiGatewayV3,docUploadPayload.getDocType());
-                if (ObjectUtils.isEmpty(resp) && LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(resp.getLeft())) {
-                    failedDocs = failedDocs + resp.getRight() + ";";
-                    currentDocumentStatus = LenderAssociationStatus.DOC_UPLOAD_FAILED.name();
+                if (ObjectUtils.isEmpty(resp) || LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(resp.getLeft())) {
+                    failedDocs.append(resp.getRight() + ";");
+                    currentDocumentStatus.delete(0,currentDocumentStatus.length());
+                    currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                 }
             } catch (Exception e) {
                 log.error("exception occurred while invoking doc upload {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
-                currentDocumentStatus = LenderAssociationStatus.DOC_UPLOAD_FAILED.name();
+                failedDocs.append(docUploadPayload.getDocType() + ";");
+                currentDocumentStatus.delete(0,currentDocumentStatus.length());
+                currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
             }
         }
-        response = Pair.of(currentDocumentStatus,failedDocs);
-        updateLenderDetailsRecord(applicationId,response.getLeft(), null, response.getRight(), null);
+        log.info("app {} status {}  failed {}", applicationId,currentDocumentStatus, failedDocs);
+        updateLenderDetailsRecord(applicationId,currentDocumentStatus.toString(), null, failedDocs.toString(), null);
     }
 
     public Pair<String, String> uploadDoc(DocUploadApiRequestDto docUploadApiRequestDto, INbfcLenderGateway apiGatewayV3, String docType) {
@@ -237,7 +231,7 @@ public class AbflDataUploadServiceUtil {
                 return Pair.of(LenderAssociationStatus.DOC_UPLOAD_FAILED.name(),docType);
             }
         } catch (Exception e) {
-            log.error("exception occurred while invoking doc upload event for app {} {}", docUploadApiRequestDto.getApplicationId(), e, Arrays.asList(e.getStackTrace()));
+            log.error("exception occurred while invoking doc upload event for app {} {} {}", docUploadApiRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return Pair.of(LenderAssociationStatus.DOC_UPLOAD_FAILED.name(),docType);
         }
         return  Pair.of(LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name(),"");
@@ -269,7 +263,7 @@ public class AbflDataUploadServiceUtil {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, Status.ACTIVE.name());
             lendingApplicationLenderDetails.setDocUploadStatus(ObjectUtils.isEmpty(docUploadStatus)? lendingApplicationLenderDetails.getDocUploadStatus(): docUploadStatus);
             lendingApplicationLenderDetails.setDataUploadStatus(ObjectUtils.isEmpty(dataUploadStatus)? lendingApplicationLenderDetails.getDataUploadStatus(): dataUploadStatus);
-            lendingApplicationLenderDetails.setFailedUpload(ObjectUtils.isEmpty(failedUploadDocs)? lendingApplicationLenderDetails.getFailedUpload(): failedUploadDocs);
+            lendingApplicationLenderDetails.setFailedUpload( null == failedUploadDocs ? lendingApplicationLenderDetails.getFailedUpload(): failedUploadDocs);
             lendingApplicationLenderDetails.setDigitalDataUploadStatus(ObjectUtils.isEmpty(digitalDataUploadStatus)? lendingApplicationLenderDetails.getDigitalDataUploadStatus(): digitalDataUploadStatus);
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         } catch (Exception e) {
@@ -277,7 +271,7 @@ public class AbflDataUploadServiceUtil {
         }
     }
 
-    public  List<DocUploadPayload> createPayload(Long applicationId, List<String> docTypes, String failedDocs, String currentDocumentStatus) {
+    public  List<DocUploadPayload> createPayload(Long applicationId, List<String> docTypes, StringBuilder failedDocs, StringBuilder currentDocumentStatus, boolean systemMangedState) {
         List<DocUploadPayload> docUploadPayloadList = new ArrayList<>();
         Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
         if (!lendingApplicationOptional.isPresent()) {
@@ -289,8 +283,11 @@ public class AbflDataUploadServiceUtil {
             log.info("lending application lender details not found for {}", applicationId);
             return docUploadPayloadList;
         }
-        failedDocs = ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload()) ? failedDocs : lendingApplicationLenderDetails.getFailedUpload();
-        currentDocumentStatus = ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDocUploadStatus()) ? currentDocumentStatus : lendingApplicationLenderDetails.getDocUploadStatus();
+        if (systemMangedState) {
+            failedDocs.append(ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload()) ? failedDocs : lendingApplicationLenderDetails.getFailedUpload());
+            currentDocumentStatus.delete(0,currentDocumentStatus.length());
+            currentDocumentStatus.append(ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDocUploadStatus()) ? currentDocumentStatus : lendingApplicationLenderDetails.getDocUploadStatus());
+        }
         log.info("fetching document data for {}", applicationId);
         LendingApplication lendingApplication = lendingApplicationOptional.get();
         LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
@@ -312,21 +309,35 @@ public class AbflDataUploadServiceUtil {
                                 .build())
                         .build();
                 DocUploadApiRequestDto.Payload payload = docUploadApiRequestDto.getPayload();
+                String docName = null;
                 if ("KFS".equalsIgnoreCase(docType) || "SANCTION_AGREEMENT".equalsIgnoreCase(docType) || "WELCOME_LETTER".equalsIgnoreCase(docType)) {
                     if (ObjectUtils.isEmpty(lendingKfs)) {
                         log.info("kfs not found for {}", applicationId);
                         continue;
                     }
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".pdf");
-                    String docUrl = null;
                     if ("SANCTION_AGREEMENT".equalsIgnoreCase(docType)) {
-                        docUrl = lendingKfs.getSanctionLoanAgreementDocUrl();
+                        docName = Optional.ofNullable(lendingKfs.getSanctionLoanAgreementDocFile()).orElse(KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId());
+                        if (!s3BucketHandler.doesS3ObjectExist( bucket, docName)) {
+                            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+                            lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication, merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                            lendingKfs = lendingKfsDao.save(lendingKfs);
+                        }
                     } else if ("KFS".equalsIgnoreCase(docType)) {
-                        docUrl = lendingKfs.getKfsDocUrl();
+                        docName = Optional.ofNullable(lendingKfs.getKfsDocFile()).orElse(KfsConstants.KFS_S3_KEY_PREFIX+ lendingApplication.getId());
+                        if (!s3BucketHandler.doesS3ObjectExist(bucket, docName)) {
+                            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+                            lendingApplicationServiceV2.generateKfsDocument(lendingApplication, merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
+                            lendingKfs = lendingKfsDao.save(lendingKfs);
+                        }
                     } else if ("WELCOME_LETTER".equalsIgnoreCase(docType)) {
-                        docUrl = lendingKfs.getWelcomeDocUrl();
+                        docName = Optional.ofNullable(lendingKfs.getWelcomeDocFile()).orElse(KfsConstants.WELCOME_S3_KEY_PREFIX+ lendingApplication.getId());
+                        if (!s3BucketHandler.doesS3ObjectExist(bucket, docName)) {
+                            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+                            lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
+                            lendingKfs = lendingKfsDao.save(lendingKfs);
+                        }
                     }
-                    payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(docUrl));
                 } else if ("SHOP-FRONT".equalsIgnoreCase(docType) || "SHOP-STOCK".equalsIgnoreCase(docType)) {
                     LendingShopDocuments lendingShopDocument = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), docType);
                     log.info("lending shop doc {} {}",docType, lendingShopDocument);
@@ -334,9 +345,10 @@ public class AbflDataUploadServiceUtil {
                         log.info("shop doc not found for {} {}", docType, applicationId);
                         continue;
                     }
+                    docName = lendingShopDocument.getProofFrontSide();
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".jpeg");
-                    payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingShopDocument.getProofFrontSide(),bucket)));
                 }
+                payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket)));
                 docUploadApiRequestDto.setPayload(payload);
                 docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
                 log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
@@ -410,19 +422,24 @@ public class AbflDataUploadServiceUtil {
     }
 
     @Async
-    public void pushDataToNbfc(Long applicationId) {
-        try {
-            uploadRegulatoryData(applicationId);
-        } catch (Exception e) {
-            log.error("error occurred while uploading regulatory data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+    public void pushDataToNbfc(Long applicationId, List<String> documents, boolean systemMangedState) {
+        if (systemMangedState) {
+            try {
+                log.info("invoking regulatory for {}", applicationId);
+                uploadRegulatoryData(applicationId);
+            } catch (Exception e) {
+                log.error("error occurred while uploading regulatory data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+            }
+            try {
+                log.info("invoking digital for {}", applicationId);
+                uploadDigitalData(applicationId);
+            } catch (Exception e) {
+                log.error("error occurred while uploading digital data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+            }
         }
         try {
-            uploadDigitalData(applicationId);
-        } catch (Exception e) {
-            log.error("error occurred while uploading digital data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
-        }
-        try {
-            uploadDocuments(applicationId, Arrays.asList("KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"));
+            log.info("invoking docs for {}", applicationId);
+            uploadDocuments(applicationId, documents, systemMangedState);
         } catch (Exception e) {
             log.error("error occurred while uploading docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
         }

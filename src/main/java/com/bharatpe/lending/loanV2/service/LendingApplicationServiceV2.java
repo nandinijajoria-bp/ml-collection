@@ -1916,7 +1916,7 @@ public class LendingApplicationServiceV2 {
         ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if(apiResponse.success){
             String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
-            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId();
+            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
@@ -1942,7 +1942,10 @@ public class LendingApplicationServiceV2 {
             String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
             String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
             if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
-            else lendingKfs.setSanctionLoanAgreementDocUrl(shortUrl);
+            else {
+                lendingKfs.setSanctionLoanAgreementDocFile(fileName);
+                lendingKfs.setSanctionLoanAgreementDocUrl(shortUrl);
+            }
         }
         else{
             log.error("Unable to store Sanction Cum Loan Agreement pdf doc for applicationId : {}", lendingApplication.getId());
@@ -2003,7 +2006,7 @@ public class LendingApplicationServiceV2 {
         apiResponse = generateKfs(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if (apiResponse.success) {
             String kfsHtml = (String) apiResponse.data;
-            fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId();
+            fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
@@ -2030,7 +2033,10 @@ public class LendingApplicationServiceV2 {
             String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
             if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
-            else lendingKfs.setKfsDocUrl(kfsShortUrl);
+            else {
+                lendingKfs.setKfsDocFile(fileName);
+                lendingKfs.setKfsDocUrl(kfsShortUrl);
+            }
         }
         else{
             log.error("Unable to store KFS pdf doc for applicationId : {}", lendingApplication.getId());
@@ -2521,7 +2527,7 @@ public class LendingApplicationServiceV2 {
             welcomeHtml = welcomeHtml.replace(key, val);
         }
         String fileName = "";
-        fileName = WELCOME_S3_KEY_PREFIX + lendingApplication.getId();
+        fileName = WELCOME_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(outStream);
         PdfDocument pdfDocument = new PdfDocument(writer);
@@ -2549,6 +2555,7 @@ public class LendingApplicationServiceV2 {
         if (welcomeShortUrl == null || welcomeShortUrl.isEmpty() || welcomeShortUrl.trim().isEmpty())
             throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
         else {
+            lendingKfs.setWelcomeDocFile(fileName);
             lendingKfs.setWelcomeDocUrl(welcomeShortUrl);
             lendingKfsDao.save(lendingKfs);
         }

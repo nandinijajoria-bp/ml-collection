@@ -74,7 +74,8 @@ public class DataUploadRequestKafka {
         }
         ILenderAssociationService iLenderAssociationService =
                 lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DATA_UPLOAD.name()).getLenderAssociationService(lendingApplication.get().getLender());
-        iLenderAssociationService.invoke(lendingApplication.get().getId(), null);
+
+        iLenderAssociationService.invoke(lendingApplication.get().getId(), docUploadRequestString);
     }
 
 }

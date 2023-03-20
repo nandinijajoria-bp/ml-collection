@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import javax.swing.text.html.Option;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -20,7 +21,17 @@ public class AbflDataUploadService implements ILenderAssociationService<Optional
 
     @Override
     public Optional invoke(Long applicationId, Map<String, Object> args) {
-        abflDataUploadServiceUtil.pushDataToNbfc(applicationId);
+        String[] documents = {"KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"};
+        boolean systemMangedState = true;
+        try {
+            if (args != null) {
+                documents = args.containsKey("documents") ? ((String) args.get("documents")).split(";") : documents;
+                systemMangedState = args.containsKey("systemManagedState") ? Boolean.parseBoolean((String) args.get("systemManagedState")) : systemMangedState;
+            }
+        } catch (Exception e) {
+           log.info("exception occurred while parsing args for {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        abflDataUploadServiceUtil.pushDataToNbfc(applicationId, Arrays.asList(documents), systemMangedState);
         return Optional.empty();
     }
 }

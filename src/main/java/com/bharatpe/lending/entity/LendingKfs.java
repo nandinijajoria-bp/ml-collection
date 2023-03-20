@@ -28,8 +28,14 @@ public class LendingKfs extends BaseEntity {
     @Column(name = "kfs_doc_url")
     private String kfsDocUrl;
 
+    @Column(name = "kfs_doc")
+    private String kfsDocFile;
+
     @Column(name = "sanction_loan_agreement_doc_url")
     private String sanctionLoanAgreementDocUrl;
+
+    @Column(name = "sanction_loan_agreement_doc")
+    private String sanctionLoanAgreementDocFile;
 
     @Column(name = "kfs_signed_at")
     private Date kfsSignedAt;
@@ -51,6 +57,9 @@ public class LendingKfs extends BaseEntity {
 
     @Column(name = "welcome_doc_url")
     private String welcomeDocUrl;
+
+    @Column(name = "welcome_doc")
+    private String welcomeDocFile;
 
     @Column(name = "nbfc_signed_at")
     private Date nbfcSignedAt;
