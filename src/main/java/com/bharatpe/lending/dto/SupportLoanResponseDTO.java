@@ -282,6 +282,16 @@ public class SupportLoanResponseDTO {
         private Date processingDate;
         private Date relevantDate;
 
+        private String lender;
+
+        public String getLender() {
+            return lender;
+        }
+
+        public void setLender(String lender) {
+            this.lender = lender;
+        }
+
         public Date getRelevantDate() {
             return relevantDate;
         }

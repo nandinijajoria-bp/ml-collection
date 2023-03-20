@@ -24,6 +24,7 @@ public class SupportApiResponseDto {
     //application
     String priority;
     String applicationStatus;
+    String lender;
     Integer remainingTat;
     Integer tat;
     Boolean applied;

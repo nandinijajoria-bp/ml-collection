@@ -351,6 +351,7 @@ public class SupportService {
             loanApplication.setTenure(lendingApplication.getTenure());
             loanApplication.setInterestRate(lendingApplication.getInterestRate());
             loanApplication.setRepayment(lendingApplication.getRepayment());
+            loanApplication.setLender(lendingApplication.getLender());
             if(!ObjectUtils.isEmpty(lendingApplicationPriority)){
                 loanApplication.setRelevantDate(lendingApplicationPriority.getRelevantTime());
             }
@@ -911,7 +912,7 @@ public class SupportService {
 
             for (LendingApplicationSlave application : applicationList) {
                 //applicationHistory
-                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc());
+                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc(), application.getLender());
                 String reason = null;
                 if("rejected".equalsIgnoreCase(application.getStatus())){
                     if ("REJECTED".equalsIgnoreCase(application.getManualCibil())) {
@@ -965,7 +966,7 @@ public class SupportService {
                         populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
                     }
                     // Loan details
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null);
+                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc());
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
                     loanDetailsDTO.setRepayment(application.getRepayment());
