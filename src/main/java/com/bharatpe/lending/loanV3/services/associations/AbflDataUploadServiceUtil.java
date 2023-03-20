@@ -284,9 +284,13 @@ public class AbflDataUploadServiceUtil {
             return docUploadPayloadList;
         }
         if (systemMangedState) {
-            failedDocs.append(ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload()) ? failedDocs : lendingApplicationLenderDetails.getFailedUpload());
-            currentDocumentStatus.delete(0,currentDocumentStatus.length());
-            currentDocumentStatus.append(ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDocUploadStatus()) ? currentDocumentStatus : lendingApplicationLenderDetails.getDocUploadStatus());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload())) {
+                failedDocs.append(lendingApplicationLenderDetails.getFailedUpload());
+            }
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDocUploadStatus())) {
+                currentDocumentStatus.delete(0,currentDocumentStatus.length());
+                currentDocumentStatus.append(lendingApplicationLenderDetails.getDocUploadStatus());
+            }
         }
         log.info("fetching document data for {}", applicationId);
         LendingApplication lendingApplication = lendingApplicationOptional.get();
