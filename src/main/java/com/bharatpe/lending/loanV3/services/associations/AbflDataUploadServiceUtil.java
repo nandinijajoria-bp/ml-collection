@@ -399,6 +399,7 @@ public class AbflDataUploadServiceUtil {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplicationOptional.get().getId(),Status.ACTIVE.name());
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplicationOptional.get().getMerchantId());
             String mobileNumber = ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "0" : cKycResponseDto.getMobile().substring(2);
+            String gst = ObjectUtils.isEmpty(lendingGstDetail.getGstNumber()) ? null : lendingGstDetail.getGstNumber();
             DigitalDataUploadRequest digitalDataUploadRequest = DigitalDataUploadRequest.builder()
                     .applicationId(lendingApplicationOptional.get().getId())
                     .lender(lendingApplicationOptional.get().getLender())
@@ -406,7 +407,7 @@ public class AbflDataUploadServiceUtil {
                     .payload(DigitalDataUploadRequest.Payload.builder()
                             .category(converterUtils.parseDataExtended(lendingMerchantDetails.getBusinessCategory()))
                             .companyCategory(lendingMerchantDetails.getBusinessSubCategory())
-                            .cabTransactionData(Optional.ofNullable(lendingGstDetail.getGstNumber()).orElse(null))
+                            .cabTransactionData(gst)
                             .courseTenure(lendingRiskVariablesSnapshot.getVintage().intValue())
                             .bureauScore(lendingRiskVariablesSnapshot.getBureauScore().intValue())
                             .accountId(lendingApplicationOptional.get().getExternalLoanId())
