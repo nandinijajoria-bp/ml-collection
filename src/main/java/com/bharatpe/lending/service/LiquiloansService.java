@@ -91,6 +91,9 @@ public class LiquiloansService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
     LoanAgreementDao loanAgreementDao;
 
 //    @Autowired
@@ -497,6 +500,13 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
+
+
+            // save the utr if the request contains it, saving beforehand so that in case of some error we have the UTR to keep track of it
+            if (!ObjectUtils.isEmpty(postPayoutRequestDto.getUtr())) {
+                saveDisbursalUtr(lendingApplication.getId(), postPayoutRequestDto.getLender(), postPayoutRequestDto.getUtr());
+            }
+
             Optional<BasicDetailsDto> basicDetailsDtoOptional = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
             if (!basicDetailsDtoOptional.isPresent()) {
                 logger.error("Merchant details or gst details not found for the merchant id {}  and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
@@ -1573,5 +1583,20 @@ public class LiquiloansService {
             }
             return extraDays - dayTwo.get(Calendar.DAY_OF_YEAR) + dayOneOriginalYearDays ;
         }
+    }
+
+    private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
+
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lender);
+
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            logger.info("lendingApplicationLenderDetails not found for applicationId : {} and lender : {}", applicationId, lender);
+            lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
+            lendingApplicationLenderDetails.setApplicationId(applicationId);
+            lendingApplicationLenderDetails.setLender(lender.toUpperCase());
+        }
+
+        lendingApplicationLenderDetails.setUtrNo(utr);
+        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
     }
 }
