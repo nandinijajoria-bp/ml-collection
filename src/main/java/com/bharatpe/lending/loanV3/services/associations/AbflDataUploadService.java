@@ -23,9 +23,13 @@ public class AbflDataUploadService implements ILenderAssociationService<Optional
     public Optional invoke(Long applicationId, Map<String, Object> args) {
         String[] documents = {"KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"};
         boolean systemMangedState = true;
-        if (args != null) {
-            documents = args.containsKey("documents") ? ((String) args.get("documents")).split(";") : documents;
-            systemMangedState = args.containsKey("systemManagedState") ? ((boolean) args.get("systemManagedState")) : systemMangedState;
+        try {
+            if (args != null) {
+                documents = args.containsKey("documents") ? ((String) args.get("documents")).split(";") : documents;
+                systemMangedState = args.containsKey("systemManagedState") ? Boolean.parseBoolean((String) args.get("systemManagedState")) : systemMangedState;
+            }
+        } catch (Exception e) {
+           log.info("exception occurred while parsing args for {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         abflDataUploadServiceUtil.pushDataToNbfc(applicationId, Arrays.asList(documents), systemMangedState);
         return Optional.empty();

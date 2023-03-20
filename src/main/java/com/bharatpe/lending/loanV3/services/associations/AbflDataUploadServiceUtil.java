@@ -348,7 +348,7 @@ public class AbflDataUploadServiceUtil {
                     docName = lendingShopDocument.getProofFrontSide();
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".jpeg");
                 }
-                payload.setFileUpload(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket));
+                payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket)));
                 docUploadApiRequestDto.setPayload(payload);
                 docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
                 log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
