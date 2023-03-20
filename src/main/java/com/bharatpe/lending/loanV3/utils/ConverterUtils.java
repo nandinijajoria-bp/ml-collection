@@ -53,6 +53,15 @@ public class ConverterUtils {
                 .replaceAll("\\*"," ").replaceAll("\\(", " ")
                 .replaceAll("\\)", " ").replaceAll("%", " ").replaceAll("`"," ");
     }
+    public String parseDataExtended(String data) {
+        return data.replaceAll("#", " ").replaceAll("‘", " ")
+                .replaceAll("\""," ").replaceAll("_", " ")
+                .replaceAll("-", " ").replaceAll("~"," ")
+                .replaceAll("/", " ").replaceAll("!", " ")
+                .replaceAll("\\*"," ").replaceAll("\\(", " ")
+                .replaceAll("\\)", " ").replaceAll("%", " ").replaceAll("`"," ")
+                .replaceAll("&"," ");
+    }
 
     public String parseNameData(String data) {
         return data.replaceAll("#", "").replaceAll("‘", "")
