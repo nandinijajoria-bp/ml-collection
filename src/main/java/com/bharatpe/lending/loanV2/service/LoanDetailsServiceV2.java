@@ -248,7 +248,7 @@ public class LoanDetailsServiceV2 {
             populateBusinessDetails(merchant.getId(), loanDetailsResponse);
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
-                LendingApplication topupApplication = lendingApplicationDao.findByMerchantIdAndLoanTypeAndNotStatus(merchant.getId(), "TOPUP", "deleted");
+                LendingApplication topupApplication = lendingApplicationDao.findOpenTopUpApplication(merchant.getId(), "TOPUP");
                 if(!ObjectUtils.isEmpty(topupApplication) && !"rejected".equals(topupApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(topupApplication.getLoanDisbursalStatus())){
                     Experian experian = experianDao.getByMerchantId(merchant.getId());
                     boolean isIOS = request != null && request.isIOS();
