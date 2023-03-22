@@ -335,7 +335,7 @@ public class AbflDataUploadServiceUtil {
                             lendingKfs = lendingKfsDao.save(lendingKfs);
                         }
                     } else if ("WELCOME_LETTER".equalsIgnoreCase(docType)) {
-                        docName = Optional.ofNullable(lendingKfs.getWelcomeDocFile()).orElse(KfsConstants.WELCOME_S3_KEY_PREFIX+ lendingApplication.getId());
+                        docName = Optional.ofNullable(lendingKfs.getWelcomeDocFile()).orElse(KfsConstants.WELCOME_S3_KEY_PREFIX+ lendingApplication.getId() + ".pdf");
                         if (!s3BucketHandler.doesS3ObjectExist(bucket, docName)) {
                             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
                             lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
