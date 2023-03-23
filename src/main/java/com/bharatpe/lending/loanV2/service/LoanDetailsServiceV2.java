@@ -269,6 +269,7 @@ public class LoanDetailsServiceV2 {
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
+                loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 return new ApiResponse<>(loanDetailsResponse);
             }
             LendingApplication draftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(),"draft");
