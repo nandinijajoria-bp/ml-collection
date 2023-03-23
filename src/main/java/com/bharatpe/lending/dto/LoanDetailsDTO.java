@@ -55,5 +55,7 @@ public class LoanDetailsDTO {
     private Double forClosureAmount;
     @JsonProperty("lender")
     private String lender;
+    @JsonProperty("disbursalUtr")
+    private  String disbursalUtr;
 
 }

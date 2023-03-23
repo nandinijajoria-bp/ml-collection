@@ -180,6 +180,9 @@ public class SupportService {
     @Autowired
     LendingKfsDao lendingKfsDao;
 
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -672,6 +675,7 @@ public class SupportService {
             supportApiResponseDto.setApplicationStatus(lendingApplication.getStatus());
             supportApiResponseDto.setAgreementAt(lendingApplication.getAgreementAt());
             supportApiResponseDto.setProcessingFee(lendingApplication.getProcessingFee());
+            supportApiResponseDto.setLender(lendingApplication.getLender());
             if ("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.DRAFT.getStage());
             }
@@ -742,6 +746,10 @@ public class SupportService {
             }
             supportApiResponseDto.setEligibleForTopUp(Boolean.FALSE);
             supportApiResponseDto.setActiveLoan(Boolean.FALSE);
+            if(Objects.nonNull(lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp()) && "DISBURSED".equals(lendingPaymentSchedule.getLoanApplication().getLoanDisbursalStatus())){
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+                supportApiResponseDto.setDisbursalUtr(lendingApplicationLenderDetails.getUtrNo());
+            }
             if ("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
                 supportApiResponseDto.setActiveLoan(Boolean.TRUE);
@@ -966,7 +974,11 @@ public class SupportService {
                         populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
                     }
                     // Loan details
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc());
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
+                    if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
+                        lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(application.getId(), application.getLender());
+                    }
+                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo());
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
                     loanDetailsDTO.setRepayment(application.getRepayment());

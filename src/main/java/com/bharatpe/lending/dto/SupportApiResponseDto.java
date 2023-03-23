@@ -48,6 +48,7 @@ public class SupportApiResponseDto {
     Boolean eligibleForRepeat;
     Boolean pfRefunded;
     Date closingDate;
+    String disbursalUtr;
 
     //additional Params
     List<LendingPaymentSchedule> closedLoans;
