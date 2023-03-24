@@ -164,7 +164,7 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
-        if(additionalChecksForLenders(application, Lender.valueOf(decidedLender), merchantDetails)){
+        if(additionalChecksFailed(application, Lender.valueOf(decidedLender), merchantDetails)){
             decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
             saveLenderChangeAudit(application, decidedLender);
         }
@@ -472,7 +472,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    public boolean additionalChecksForLenders(LendingApplication lendingApplication, Lender lender, BasicDetailsDto merchantDetails){
+    public boolean additionalChecksFailed(LendingApplication lendingApplication, Lender lender, BasicDetailsDto merchantDetails){
         log.info("Running additional checks for lender:{}", lender);
         boolean flag = false;
 
@@ -486,8 +486,11 @@ public class LenderAssignService implements ILenderAssignService {
             if(!ObjectUtils.isEmpty(merchantDetails)){
                 responseDTO = bureauHandler.getBureauData(merchantDetails.getPanNumber(), merchantDetails.getId(), merchantDetails.getMobile());
             }
-            flag = ObjectUtils.isEmpty(responseDTO) || ObjectUtils.isEmpty(responseDTO.getVariables()) || ObjectUtils.isEmpty(responseDTO.getVariables().getMaxDpd6Months()) ||
-                    responseDTO.getVariables().getMaxDpd6Months()>=30;
+            if(ObjectUtils.isEmpty(responseDTO) || ObjectUtils.isEmpty(responseDTO.getVariables()) || ObjectUtils.isEmpty(responseDTO.getVariables().getMaxDpd6Months())){
+                flag = false;
+            } else{
+                flag =  responseDTO.getVariables().getMaxDpd6Months()>=30;
+            }
         }
         return flag;
     }
