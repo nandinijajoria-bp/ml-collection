@@ -617,8 +617,8 @@ public class MerchantLoansService {
                 }
 
                 BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
-                if (maxDpd.intValue() > 10) {
-                    logger.info("Merchant Dpd Greater than 10 merchant:{}", lendingPaymentSchedule.getMerchantId());
+                if (maxDpd.intValue() > 15) {
+                    logger.info("Merchant Dpd Greater than 15 merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
@@ -634,8 +634,8 @@ public class MerchantLoansService {
 
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-                if (qrPaidRatio < 80) {
-                    logger.info("QR payment less than 80% for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                if (qrPaidRatio < 70) {
+                    logger.info("QR payment less than 70% for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 

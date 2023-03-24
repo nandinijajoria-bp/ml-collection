@@ -1166,7 +1166,7 @@ public class LoanUtil {
 				return Boolean.FALSE;
 			}
 
-			if (!"REPEAT".equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && !"TOPUP".equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name())) {
+			if (!"REPEAT".equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name())) {
 				return Boolean.FALSE;
 			}
 
