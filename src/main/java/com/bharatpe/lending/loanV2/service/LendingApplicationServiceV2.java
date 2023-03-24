@@ -1886,8 +1886,8 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setApplicationId(lendingApplication.getId());
         lendingKfs.setMerchantId(merchant.getId());
         lendingKfs.setLender(lendingApplication.getLender());
-        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getDisbursalAmount(), LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek());
-        if(ObjectUtils.isEmpty(apr))return null;
+        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek());
+        if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
         return lendingKfs;
@@ -1953,7 +1953,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public Double getApr(Long merchantId, Long applicationId, Double disbursalAmount, Integer ediModel){
+    public Double getApr(Long merchantId, Long applicationId, Double amountToCalculateAprOn, Integer ediModel){
         try{
             log.info("calculating APR for applicationId : {}", applicationId);
             Double guess = 0.01;
@@ -1969,7 +1969,7 @@ public class LendingApplicationServiceV2 {
                 log.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
                 return null;
             }
-            values.add(0-disbursalAmount);
+            values.add(0-amountToCalculateAprOn);
             for(int i = 0; i < ediSchedule.size(); i++){
                 if(ediSchedule.get(i).getSerialNumber() == 0)continue;
                 values.add(new Double(ediSchedule.get(i).getEdiAmount()));
