@@ -119,6 +119,12 @@ public class LoanUtil {
 	LendingRiskVariablesDao lendingRiskVariablesDao;
 
 	@Autowired
+	MerchantGstOfferDao merchantGstOfferDao;
+
+	@Autowired
+	MerchantGstOfferSnapshotDao merchantGstOfferSnapshotDao;
+
+	@Autowired
 	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
 	@Autowired
@@ -597,6 +603,23 @@ public class LoanUtil {
 		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
 		createBureauDrsSnapshot(lendingApplication, merchant);
+		createMerchantGstOfferSnapshot(lendingApplication);
+	}
+
+	private void createMerchantGstOfferSnapshot(LendingApplication lendingApplication) {
+		try {
+			List<MerchantGstOffer> merchantGstOfferList = merchantGstOfferDao.findByMerchantIdAndToBeConsidered(lendingApplication.getMerchantId(), true);
+			if(ObjectUtils.isEmpty(merchantGstOfferList)) {
+				return;
+			}
+			for(MerchantGstOffer merchantGstOffer : merchantGstOfferList) {
+				MerchantGstOfferSnapshot merchantGstOfferSnapshot = MerchantGstOfferSnapshot.createObject(merchantGstOffer);
+				merchantGstOfferSnapshot.setApplicationId(lendingApplication.getId());
+				merchantGstOfferSnapshotDao.save(merchantGstOfferSnapshot);
+			}
+		} catch (Exception e) {
+			logger.error("Exception occurred while creating merchantGstOfferSnapshot for applicationId: {}", lendingApplication.getId(), e);
+		}
 	}
 
 	// pushing data to DE team for creating snapshot
