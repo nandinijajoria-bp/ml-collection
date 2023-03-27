@@ -336,9 +336,9 @@ public class AbflDataUploadServiceUtil {
                         }
                     } else if ("WELCOME_LETTER".equalsIgnoreCase(docType)) {
                         docName = Optional.ofNullable(lendingKfs.getWelcomeDocFile()).orElse(KfsConstants.WELCOME_S3_KEY_PREFIX+ lendingApplication.getId() + ".pdf");
-                        if (!s3BucketHandler.doesS3ObjectExist(bucket, docName)) {
+                        if (!s3BucketHandler.doesS3ObjectExist(bucket, docName) && !ObjectUtils.isEmpty(lendingApplication.getDisburseTimestamp())) {
                             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-                            lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
+                            lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get(), lendingApplication.getDisburseTimestamp());
                             lendingKfs = lendingKfsDao.save(lendingKfs);
                         }
                     }
