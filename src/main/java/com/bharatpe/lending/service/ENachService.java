@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
 import com.bharatpe.lending.common.dao.LendingBulkNachDao;
 import com.bharatpe.lending.common.dao.LendingPennydropDao;
@@ -10,6 +11,7 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -92,6 +94,8 @@ public class ENachService {
     LendingAuditTrialDao lendingAuditTrialDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(50);
+    @Autowired
+    private LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -171,9 +175,12 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
-                    LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
-            logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                        LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
+            }
 //            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //            if (lendingPennydrop == null) {
 //                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
