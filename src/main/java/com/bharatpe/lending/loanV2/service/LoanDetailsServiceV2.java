@@ -168,6 +168,9 @@ public class LoanDetailsServiceV2 {
     @Value("${merchant.references.min.score}")
     Integer minScore;
 
+    @Value("${lender.assign.rollout}")
+    Integer lenderAssignmentNewFlowRollOutPercent;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
@@ -295,7 +298,27 @@ public class LoanDetailsServiceV2 {
             if (openApplication != null) {
                 log.info("open application for merchant:{}", merchant.getId());
                 //with validAfter timestamp
-                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(openApplication.getId());
+                LendingApplicationKycDetails lendingApplicationKycDetails = null;
+                if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
+                    lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
+                }
+                if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||
+                        (ObjectUtils.isEmpty(lendingApplicationKycDetails)
+                        )){
+                    lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(openApplication.getId());
+                } else {
+                    loanDetailsResponse.setKycDone(true);
+                    openApplication.setCkycStatus(KycStatus.APPROVED.name());
+                    openApplication.setCkycDate(new Date());
+                    lendingApplicationDao.save(openApplication);
+                    LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
+                    if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+                        lendingApplicationDetails = new LendingApplicationDetails();
+                        lendingApplicationDetails.setApplicationId(openApplication.getId());
+                    }
+                    lendingApplicationDetails.setIsKycSkip(Boolean.TRUE);
+                    lendingApplicationDetailsDao.save(lendingApplicationDetails);
+                }
                 Date validAfterDate;
                 if(ObjectUtils.isEmpty(lendingApplicationKycDetails)){
                     log.info("Unable to fetch entry from KYC table for {}", openApplication.getId());
@@ -904,7 +927,7 @@ public class LoanDetailsServiceV2 {
             return null;
         }
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
-                loanUtil.isEligibleForNachSkip(openApplication)) {
+                loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender())) {
             openApplication.setNachStatus("APPROVED");
             openApplication.setNachType("ENACH");
             openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));

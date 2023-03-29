@@ -12,15 +12,13 @@ import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.entity.LenderAssignmentRules;
-import com.bharatpe.lending.entity.LendingLenderQuota;
+import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,9 +42,6 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
-
-    @Value("${disbursal_target}")
-    Double WEEKLY_TARGET_AMOUNT;
 
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
@@ -84,6 +79,15 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Value("${gst_offer_lender}")
+    String gstOfferLender;
+
+    @Value("${lender.assign.rollout}")
+    Integer lenderAssignmentNewFlowRollOutPercent;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -96,11 +100,13 @@ public class LenderAssignService implements ILenderAssignService {
         String riskSegment = "";
         String riskGroupLike = null;
         String pincodeColor = null;
+        Boolean isGstOffer = null;
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
             riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
             riskGroupLike = Objects.nonNull(lendingRiskVariables.getRiskGroup()) ? "%" + lendingRiskVariables.getRiskGroup() + "%" : "";
             pincodeColor = Objects.nonNull(lendingRiskVariables.getPincodeColor()) ? "%"+lendingRiskVariables.getPincodeColor().name() + "%" : "";
+            isGstOffer = Objects.nonNull(lendingRiskVariables.getGstAffectedOffer())? lendingRiskVariables.getGstAffectedOffer() : Boolean.FALSE;
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
@@ -108,19 +114,15 @@ public class LenderAssignService implements ILenderAssignService {
                     application.getLoanAmount(), riskGroupLike, pincodeColor);
             List<String> lenders = new ArrayList<>();
             String decidedLender = null;
-            List<LenderAssignmentRules> defaultRules = lenderAssignmentRulesDao.findByIsDefaultAndIsActive(Boolean.TRUE, Boolean.TRUE);
-            List<LenderAssignmentRules> ruleList = lenderAssignmentRulesDao.fetchEligibleRules(application.getLoanAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
+            List<LenderAssignmentRules> ruleList;
+            ruleList = lenderAssignmentRulesDao.fetchEligibleRules(application.getLoanAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
             log.info("Fetched Rules:{}", ruleList);
-            if (ObjectUtils.isEmpty(ruleList)) {
-                log.info("Assigning default lender");
-                lenders = getLenderList(defaultRules, ediModel, application.getLender(), application.getMerchantId());
-                // assign default lender and EdiModel.
-            } else {
-                log.info("Found matching rules.");
-                lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId());
+            if(ObjectUtils.isEmpty(ruleList)){
+                return null;
             }
-            decidedLender = getLender(application, lenders, ediModel, defaultRules);
-            log.info("assigned lender {} {}", application.getLender(), application.getId());
+            lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId());
+            decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
+            log.info("lender to be assigned: {} {}", decidedLender, application.getId());
             return decidedLender;
         } catch(Exception ex){
             log.error("Exception occurred while assigning lender : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
@@ -187,38 +189,91 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
 
-    public String getLender(LendingApplication lendingApplication, List<String> lenders, EdiModel ediModel, List<LenderAssignmentRules> defaultRules){
+
+    public String getLender(LendingApplication lendingApplication, List<String> lenders, EdiModel ediModel, Boolean isGstOffer, String riskSegment){
+        boolean flag = false;
         log.info("Implementing logic for lender assignment.");
-        LendingLenderQuota assigneeLender = null;
+        LendingLenderQuota kycSkippableLender=null;
+        LendingLenderQuota nachSkippableLender=null;
+        LendingLenderQuota assignedLender = null;
         List<LendingLenderQuota> toBeAssignedLenders = new ArrayList<>();
         if(!ObjectUtils.isEmpty(lenders)){
             toBeAssignedLenders = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(lenders, lendingApplication.getLoanAmount());
         }
-        if(ObjectUtils.isEmpty(toBeAssignedLenders)){
-            log.info("Not enough balance remaining on eligible lenders. Fetching default Lenders");
-            lenders = getLenderList(defaultRules, ediModel, lendingApplication.getLender(), lendingApplication.getMerchantId());
-            if(!ObjectUtils.isEmpty(lenders)){
-                toBeAssignedLenders = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(lenders, lendingApplication.getLoanAmount());
-            }
-        }
+        log.info("Final eligible lenders:{}", toBeAssignedLenders);
         if(ObjectUtils.isEmpty(toBeAssignedLenders)){
             log.info("No Eligible lenders found. Changing ediModel.");
             return null;
         }
-        assigneeLender = toBeAssignedLenders.get(0);
-        log.info("Selected Lender : {}", assigneeLender);
-        EdiModel ediModel1 = LenderOffDays.valueOf(assigneeLender.getLender()).getEdiModel();
-        log.info("Selected EDI Model : {}", ediModel1);
-        ediModelAudit(lendingApplication, ediModel1);
+        //new flow
+        for(LendingLenderQuota lender: toBeAssignedLenders){
+            log.info("Lender:{}", lender.getLender());
 
-        //updating lender limits
-        LendingEnum.LENDER lender = LendingEnum.LENDER.valueOf(assigneeLender.getLender());
-        Double updatedAssignedAmount = assigneeLender.getAssignedAmount() + lendingApplication.getLoanAmount();
-        assigneeLender.setAssignedAmount(updatedAssignedAmount);
-        Double updatedBalance = ObjectUtils.isEmpty(assigneeLender.getRemainingBalance()) ? null:assigneeLender.getRemainingBalance() - lendingApplication.getLoanAmount();
-        assigneeLender.setRemainingBalance(updatedBalance);
-        lenderDisbursalLimitsDao.save(assigneeLender);
-        return lender.name();
+            if(isGstOffer){
+                log.info("Offer increased due to gst for merchant:{}", lendingApplication.getMerchantId());
+                if(!LenderOffDays.valueOf(gstOfferLender).getEdiModel().equals(ediModel)){
+                    modifyEdiModel(lendingApplication, LenderOffDays.valueOf(gstOfferLender).getEdiModel());
+                }
+                return gstOfferLender;
+            }
+
+            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
+            if("REPEAT".equalsIgnoreCase(riskSegment) && Objects.nonNull(kycDetails)){
+                //skip KYC
+                log.info("merchant {}  can skip KYC for lender:{}", lendingApplication.getMerchantId(), lender.getLender());
+                kycSkippableLender=lender;
+                flag=true;
+            }
+            if(loanUtil.isEligibleForNachSkip(lendingApplication, lender.getLender())){
+                //skip NACH
+                log.info("merchant {}  can skip NACH for lender:{}", lendingApplication.getMerchantId(), lender.getLender());
+                nachSkippableLender=lender;
+                flag = true;
+            }
+            
+            if(Objects.nonNull(nachSkippableLender) && Objects.nonNull(kycSkippableLender) && nachSkippableLender.equals(kycSkippableLender)){
+                log.info("merchant {} can skip both KYC and NACH for lender: {}", lendingApplication.getMerchantId(), kycSkippableLender);
+                break;
+            }
+        }
+
+        if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
+            //new flow
+            if(ObjectUtils.isEmpty(assignedLender)){
+                assignedLender = flag ? (ObjectUtils.isEmpty(nachSkippableLender)?kycSkippableLender:nachSkippableLender):toBeAssignedLenders.get(0);
+            }
+        } else{
+            assignedLender=toBeAssignedLenders.get(0);
+        }
+
+        updateLenderLimits(assignedLender, lendingApplication);
+        ediModelAudit(lendingApplication, LenderOffDays.valueOf(assignedLender.getLender()).getEdiModel());
+        return assignedLender.getLender();
+
+
+        //old flow
+//        assignedLender = toBeAssignedLenders.get(0);
+//        log.info("Selected Lender : {}", assignedLender);
+//        EdiModel ediModel1 = LenderOffDays.valueOf(assignedLender.getLender()).getEdiModel();
+//        log.info("Selected EDI Model : {}", ediModel1);
+//        ediModelAudit(lendingApplication, ediModel1);
+//
+//        //updating lender limits
+//        LendingEnum.LENDER lender = LendingEnum.LENDER.valueOf(assignedLender.getLender());
+//        Double updatedAssignedAmount = assignedLender.getAssignedAmount() + lendingApplication.getLoanAmount();
+//        assignedLender.setAssignedAmount(updatedAssignedAmount);
+//        Double updatedBalance = ObjectUtils.isEmpty(assignedLender.getRemainingBalance()) ? null:assignedLender.getRemainingBalance() - lendingApplication.getLoanAmount();
+//        assignedLender.setRemainingBalance(updatedBalance);
+//        lenderDisbursalLimitsDao.save(assignedLender);
+//        return lender.name();
+    }
+
+    public void updateLenderLimits(LendingLenderQuota lender, LendingApplication lendingApplication){
+        Double updatedAssignedAmount = lender.getAssignedAmount() + lendingApplication.getLoanAmount();
+        lender.setAssignedAmount(updatedAssignedAmount);
+        Double updatedBalance = ObjectUtils.isEmpty(lender.getRemainingBalance()) ? null:lender.getRemainingBalance() - lendingApplication.getLoanAmount();
+        lender.setRemainingBalance(updatedBalance);
+        lenderDisbursalLimitsDao.save(lender);
     }
 
     public void ediModelAudit(LendingApplication lendingApplication, EdiModel ediModel){
@@ -309,8 +364,10 @@ public class LenderAssignService implements ILenderAssignService {
     public String assignLenderAndEdiModel(Long applicationId, String ediModel){
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(lendingApplication.isPresent()){
-//            return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel)).getLender();
-            return null;
+
+            log.info("EDI MODEL -> {}", EdiModel.valueOf(ediModel));
+            return assignLender(lendingApplication.get(), EdiModel.valueOf(ediModel), null).getLender();
+//            return null;
         }
         return "Application Not Found.";
     }
@@ -437,9 +494,9 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public String lenderMapper(String prevLender){
-       if("LDC".equals(prevLender)) return "LDC";
-       if("LIQUILOANS_P2P".equals(prevLender) || "LIQUILOANS_P2P_OF".equals(prevLender) || "LIQUILOANS_NBFC".equals(prevLender)) return "LIQUILOANS_P2P";
-       return null;
+        if("LDC".equals(prevLender)) return "LDC";
+        if("LIQUILOANS_P2P".equals(prevLender) || "LIQUILOANS_P2P_OF".equals(prevLender) || "LIQUILOANS_NBFC".equals(prevLender)) return "LIQUILOANS_P2P";
+        return null;
     }
 
     public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {

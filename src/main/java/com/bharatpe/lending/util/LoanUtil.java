@@ -1079,28 +1079,34 @@ public class LoanUtil {
 	}
 
 
-	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication) {
+	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
-		if (ObjectUtils.isEmpty(lendingApplication.getLender())) return false;
+		if (ObjectUtils.isEmpty(lender)) return false;
 
 		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
+			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lendingApplication.getLender()));
-		if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lendingApplication.getLender())) &&
+		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
+		if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lender)) &&
 				responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
+			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
 		if (getExcludeNach(lendingApplication)) {
-			LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-			if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
-				lendingApplicationDetails.setIsNachSkip(Boolean.TRUE);
-				lendingApplicationDetailsDao.save(lendingApplicationDetails);
-			}
+			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
 
 		return Boolean.FALSE;
+	}
+
+	public void setIsNachSkip(LendingApplication lendingApplication){
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+			lendingApplicationDetails.setIsNachSkip(Boolean.TRUE);
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+		}
 	}
 
 	public MerchantNachDetailsResponseDTO getSuccessNach(Long merchantId, String lender) {
@@ -1154,19 +1160,31 @@ public class LoanUtil {
 
 	public Boolean getExcludeNach(LendingApplication lendingApplication) {
 
+		logger.info("Checking for nach Waiver:{}", lendingApplication.getId());
+
 		Long merchantId = lendingApplication.getMerchantId();
 		try {
 			LendingPaymentSchedule lastLoan =
 					lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusAndCreditLoanOrderByIdDesc(merchantId, "CLOSED", false);
 			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
 			Integer maxDpd = getMaxDpdInLastLoan(merchantId, lastLoan);
-			logger.info("recieved risk group in lending risk variable snapshot: {} and maxDpd: {}", lendingRiskVariablesSnapshot.getRiskGroup(), maxDpd);
+			String riskSegment=null;
+			String riskGroup=null;
+			if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
+				logger.info("No Snapshot for application:{}", lendingApplication.getId());
+				LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+				riskSegment=lendingRiskVariables.getRiskSegment();
+				riskGroup=lendingRiskVariables.getRiskGroup();
+			}
+			riskSegment=ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?riskSegment:lendingRiskVariablesSnapshot.getRiskSegment().name();
+			riskGroup=ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?riskGroup:lendingRiskVariablesSnapshot.getRiskGroup();
+			logger.info("recieved risk group in lending risk variable snapshot: {} and maxDpd: {} and riskSegment:{}", riskGroup, maxDpd, riskSegment);
 
 			if (ObjectUtils.isEmpty(lastLoan)) {
 				return Boolean.FALSE;
 			}
 
-			if (!"REPEAT".equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name())) {
+			if (!"REPEAT".equalsIgnoreCase(riskSegment)) {
 				return Boolean.FALSE;
 			}
 
@@ -1178,12 +1196,12 @@ public class LoanUtil {
 			logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lastLoan.getMerchantId());
 			double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
 
-//			if (isInternalMerchant(merchantId) && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())) {
+//			if (isInternalMerchant(merchantId) && allowedRiskGroupsNachWaiver.contains(riskGroup)) {
 //				logger.info("Nach Waiver is true for merchant:{}", merchantId);
 //				return Boolean.TRUE;
 //			}
 
-			if (qrPaidRatio > 80 && ediPaidRatio > 65 && allowedRiskGroupsNachWaiver.contains(lendingRiskVariablesSnapshot.getRiskGroup())
+			if (qrPaidRatio > 80 && ediPaidRatio > 65 && allowedRiskGroupsNachWaiver.contains(riskGroup)
 					&& maxDpd <= 10) {
 				logger.info("nach waiver is true for merchant:{}", merchantId);
 				return Boolean.TRUE;

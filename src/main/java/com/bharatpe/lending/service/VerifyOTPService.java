@@ -372,7 +372,7 @@ public class VerifyOTPService {
         }
 
         MerchantNachDetailsResponseDTO enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getId());
-        boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication);
+        boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender());
         if(ObjectUtils.isEmpty(enachSuccess) && isNachSkippable){
             enachSuccess = loanUtil.getSuccessNach(lendingApplication.getMerchantId(), lendingApplication.getLender());
         }

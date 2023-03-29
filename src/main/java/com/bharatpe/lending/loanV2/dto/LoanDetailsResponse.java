@@ -19,6 +19,7 @@ import java.util.Map;
 public class LoanDetailsResponse {
     private boolean hasExperian = false;
     private KycStatus kycStatus;
+    private boolean kycDone=false;
     private boolean activeLoan = false;
     private String pancard;
     private String pincode;

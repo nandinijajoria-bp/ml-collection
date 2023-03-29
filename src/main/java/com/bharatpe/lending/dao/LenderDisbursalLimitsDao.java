@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface LenderDisbursalLimitsDao extends JpaRepository<LendingLenderQuota, Long> {
 
-    @Query(value = "select * from easy_loan.lending_lender_quota where lender in :lenders and (remaining_balance >= :amount or remaining_balance is null) order by remaining_balance desc", nativeQuery = true)
+    @Query(value = "select * from easy_loan.lending_lender_quota where lender in :lenders and remaining_balance>=:amount order by remaining_balance desc", nativeQuery = true)
     List<LendingLenderQuota> fetchEligibleLenderLimits(List<String> lenders, Double amount);
 
     @Query(value = "select sum(assigned_amount) from easy_loan.lending_lender_quota", nativeQuery = true)

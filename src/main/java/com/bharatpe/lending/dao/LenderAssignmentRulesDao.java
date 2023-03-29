@@ -18,4 +18,8 @@ public interface LenderAssignmentRulesDao extends JpaRepository<LenderAssignment
 
     List<LenderAssignmentRules> findByIsActive(Boolean isActive);
 
+    @Query(value = "select * from easy_loan.lender_assignment_rules where min_amount<=:amount and max_amount>=:amount and min_bureau_score<=:bureauScore and max_bureau_score>=:bureauScore and loan_type like :loanType and tenure like :tenure and risk_group like :riskGroupLike and pincode_color like :pincodeColor and is_default = false and is_active = false", nativeQuery = true)
+    List<LenderAssignmentRules> fetchEligibleRulesForInternal(Double amount, Double bureauScore, String loanType, String tenure, String riskGroupLike, String pincodeColor);
+
+
 }
