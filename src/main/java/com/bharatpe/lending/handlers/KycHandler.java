@@ -201,6 +201,35 @@ public class KycHandler {
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
 
+    public KycStatusDTO getKycStatus(List<KycDoc> kycDocs, Long merchantId){
+
+        if(easyLoanUtil.isDummyMerchant(merchantId) || merchantId == 10407700L) {
+            log.info("Merchant is Dummy, return kyc status as approved");
+            return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+        }
+
+        try {
+            if (!CollectionUtils.isEmpty(kycDocs)) {
+                if (kycDocs.size() < kycMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+                    }
+                }
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.REJECTED) && !kycDoc.getStatus().equals(KycDocStatus.APPROVED)) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
+                    }
+                }
+
+                return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+            }
+        } catch (Exception e) {
+            log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
+        }
+        return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
+    }
+
     public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes) {
         log.info("Initiate kyc for merchant:{}", merchantId);
         Map<String, String> responseObj = new HashMap<>();

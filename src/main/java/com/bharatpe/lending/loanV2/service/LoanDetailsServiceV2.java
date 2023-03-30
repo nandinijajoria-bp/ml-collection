@@ -40,12 +40,11 @@ import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.loanV2.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
-import com.bharatpe.lending.service.APIGatewayService;
-import com.bharatpe.lending.service.EnachErrorHandingService;
-import com.bharatpe.lending.service.FosService;
+import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.*;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -183,8 +182,13 @@ public class LoanDetailsServiceV2 {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    CleverTapEventService cleverTapEventService;
+
     @Value("${abfl.rollout.percent:10}")
     Integer rolloutAbflPercent;
+
+    private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
         try {
@@ -332,7 +336,13 @@ public class LoanDetailsServiceV2 {
                 else{
                     validAfterDate = lendingApplicationKycDetails.getCreatedAt();
                 }
-                loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER).getKycStatus());
+                List<KycDoc> kycDocs = kycHandler.getKycDoc(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER);
+                loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(kycDocs, merchant.getId()).getKycStatus());
+
+                if(KycStatus.APPROVED.equals(loanDetailsResponse.getKycStatus())){
+                    updateKycDetails(merchant, validAfterDate, LendingConstants.POA_PROVIDER, lendingApplicationKycDetails, kycDocs);
+                }
+
                 updateCkycStatus(openApplication, experian);
                 if (!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
@@ -363,6 +373,57 @@ public class LoanDetailsServiceV2 {
         } catch (Exception e) {
             log.error("Exception in loan details service v2 for merchant: {} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
+    public void updateKycDetails(BasicDetailsDto merchant, Date validAfterDate, String provider, LendingApplicationKycDetails lendingApplicationKycDetails, List<KycDoc> kycDocs){
+        boolean selfieValid = false;
+        boolean aadharValid = false;
+        boolean aadharDigilocker = false;
+        boolean panCardApproved = false;
+        boolean panNoApproved = false;
+        try {
+            for (KycDoc kycDoc : kycDocs) {
+                // Updating Kyc Details if Doc Type is approved and approved_at is null
+                if (kycDoc.getDocType() != null && KycDocType.SELFIE.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
+                    if(Objects.isNull(lendingApplicationKycDetails.getSelfieApprovedAt()))lendingApplicationKycDetails.setSelfieApprovedAt(new Date());
+                    selfieValid=true;
+                    log.info("Selfie is valid for : {}", merchant.getId());
+                } else if (kycDoc.getDocType() != null && KycDocType.POA.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    aadharValid = true;
+                    log.info("Aadhar is valid for : {}", merchant.getId());
+                    if (kycDoc.getSubDocType() != null && KycDocType.EKYC.equals(kycDoc.getSubDocType())) {
+                        lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
+                        lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
+                        if(Objects.isNull(lendingApplicationKycDetails.getAadharApprovedAt()))lendingApplicationKycDetails.setAadharApprovedAt(new Date());
+                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+                        }
+                        aadharDigilocker = true;
+                        log.info("Aadhar is digilocker approved for : {}", merchant.getId());
+                    }
+                } else if (kycDoc.getDocType() != null && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
+                    if(Objects.isNull(lendingApplicationKycDetails.getPanApprovedAt()))lendingApplicationKycDetails.setPanApprovedAt(new Date());
+                    panCardApproved = true;
+                    log.info("Pan Card is valid for : {}", merchant.getId());
+                } else if (kycDoc.getDocType() != null && KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
+                    panNoApproved = true;
+                    log.info("Pan No is valid for : {}", merchant.getId());
+                }
+            }
+            if (selfieValid && aadharValid && aadharDigilocker && panCardApproved && panNoApproved) {
+                lendingApplicationKycDetails.setConsentDate(new Date());
+                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+                log.info("Kyc details verified for merchant : {}", merchant.getId());
+                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
+                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),
+                        FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+            }
+        } catch (Exception e) {
+            log.error("Exception in updating kyc details for merchant:{}", merchant.getId(), e);
         }
     }
 
@@ -418,7 +479,13 @@ public class LoanDetailsServiceV2 {
                 else{
                     validAfterDate = lendingApplicationKycDetails.getCreatedAt();
                 }
-                loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER).getKycStatus());
+                List<KycDoc> kycDocs = kycHandler.getKycDoc(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER);
+                loanDashBoardDTO.setKycStatus(kycHandler.getKycStatus(kycDocs, merchant.getId()).getKycStatus());
+
+                if(KycStatus.APPROVED.equals(loanDashBoardDTO.getKycStatus())){
+                    updateKycDetails(merchant, validAfterDate, LendingConstants.POA_PROVIDER, lendingApplicationKycDetails, kycDocs);
+                }
+
                 updateCkycStatus(openApplication, experian);
                 if (!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDashBoardDTO.getKycStatus());
