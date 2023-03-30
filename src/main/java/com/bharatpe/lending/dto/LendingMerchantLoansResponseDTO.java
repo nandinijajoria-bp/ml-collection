@@ -142,13 +142,14 @@ public class LendingMerchantLoansResponseDTO {
         private boolean showPaynow = true;
         @JsonProperty(value = "showCustomAmount")
         private boolean showCustomAmount = false;
+        private String settlementStatus;
 
         public Loan() {
         }
 
         public Loan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
-                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,Integer ediCount, String lender) {
+                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,Integer ediCount, String lender, String settlementStatus) {
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -167,6 +168,7 @@ public class LendingMerchantLoansResponseDTO {
             this.repaymentAmount = repaymentAmount;
             this.ediCount = ediCount;
             this.lender = lender;
+            this.settlementStatus = settlementStatus;
         }
 
         public Long getLoanId() {
@@ -532,8 +534,9 @@ public class LendingMerchantLoansResponseDTO {
         String tenure = application != null && application.getTenure() != null ? application.getTenure() : "";
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         String lender = lendingPaymentSchedule.getNbfc();
+        String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
         return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount(),lendingPaymentSchedule.getEdiCount(), lender);
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount(),lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
     }
 
     public boolean getSuccess() {
