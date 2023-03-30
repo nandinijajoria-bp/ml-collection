@@ -340,6 +340,14 @@ public class LendingMerchantLoansResponseDTO {
             this.lender = lender;
         }
 
+        public String getSettlementStatus() {
+            return settlementStatus;
+        }
+
+        public void setSettlementStatus(String settlementStatus) {
+            this.settlementStatus = settlementStatus;
+        }
+
         public Integer getDpd() {
             return dpd;
         }
