@@ -74,6 +74,7 @@ public class LendingCollectionAuditService {
                     .lender(lendingLedger.getLendingPaymentSchedule().getNbfc())
                     .loanStatus(lendingLedger.getLendingPaymentSchedule().getStatus())
                     .loanClosingDate(lendingLedger.getLendingPaymentSchedule().getClosingDate())
+                    .mobile(lendingLedger.getLendingPaymentSchedule().getMobile())
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
@@ -124,6 +125,7 @@ public class LendingCollectionAuditService {
                     .lender(lendingPaymentSchedule.getNbfc())
                     .loanStatus(lendingPaymentSchedule.getStatus())
                     .loanClosingDate(lendingPaymentSchedule.getClosingDate())
+                    .mobile(lendingLedger.getLendingPaymentSchedule().getMobile())
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
