@@ -2,7 +2,9 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.HightpvLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingCollectionAuditDao;
+import com.bharatpe.lending.common.entity.HightpvLenderDetails;
 import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
@@ -25,13 +27,27 @@ public class LendingCollectionAuditService {
     @Autowired
     LendingCollectionAuditDao lendingCollectionAuditDao;
 
+    @Autowired
+    HightpvLenderDetailsDao hightpvLenderDetailsDao;
+
     public void sendCollectionAudit(LendingLedger lendingLedger){
         try {
             if(ObjectUtils.isEmpty(lendingLedger) || lendingLedger.getAmount() <= 0 ||
                     (Objects.nonNull(lendingLedger.getAdjustmentMode()) && "EXCEPTION-WAIVER".equalsIgnoreCase(lendingLedger.getAdjustmentMode())))return;
+
+            String bpLoanId = null;
+            String nbfcId = null;
             Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
-            if (!lendingApplicationSlave.isPresent()) {
-                return;
+            if (lendingApplicationSlave.isPresent()) {
+                bpLoanId = lendingApplicationSlave.get().getExternalLoanId();
+                nbfcId = lendingApplicationSlave.get().getNbfcId();
+            }
+            else{
+                HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingLedger.getLendingPaymentSchedule().getId());
+                if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
+                    bpLoanId = hightpvLenderDetails.getExternalLoanId();
+                    nbfcId = hightpvLenderDetails.getNbfcId();
+                }
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                     .merchantId(lendingLedger.getMerchantId())
@@ -39,8 +55,8 @@ public class LendingCollectionAuditService {
                     .loanId(lendingLedger.getLendingPaymentSchedule().getId())
                     .ledgerId(lendingLedger.getId())
                     .applicationId(lendingLedger.getLendingPaymentSchedule().getApplicationId())
-                    .bpLoanId(lendingApplicationSlave.get().getExternalLoanId())
-                    .nbfcId(lendingApplicationSlave.get().getNbfcId())
+                    .bpLoanId(bpLoanId)
+                    .nbfcId(nbfcId)
                     .settlementId(lendingLedger.getSettlementId())
                     .txnType(lendingLedger.getTxnType())
                     .transferType(lendingLedger.getTransferType())
@@ -58,6 +74,7 @@ public class LendingCollectionAuditService {
                     .lender(lendingLedger.getLendingPaymentSchedule().getNbfc())
                     .loanStatus(lendingLedger.getLendingPaymentSchedule().getStatus())
                     .loanClosingDate(lendingLedger.getLendingPaymentSchedule().getClosingDate())
+                    .mobile(lendingLedger.getLendingPaymentSchedule().getMobile())
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
@@ -68,9 +85,20 @@ public class LendingCollectionAuditService {
     public void sendCollectionAudit(LendingLedger lendingLedger, LendingPaymentSchedule lendingPaymentSchedule){
         try {
             if(ObjectUtils.isEmpty(lendingLedger) || lendingLedger.getAmount() <= 0)return;
+
+            String bpLoanId = null;
+            String nbfcId = null;
             Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
-            if (!lendingApplicationSlave.isPresent()) {
-                return;
+            if (lendingApplicationSlave.isPresent()) {
+                bpLoanId = lendingApplicationSlave.get().getExternalLoanId();
+                nbfcId = lendingApplicationSlave.get().getNbfcId();
+            }
+            else{
+                HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingPaymentSchedule.getId());
+                if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
+                    bpLoanId = hightpvLenderDetails.getExternalLoanId();
+                    nbfcId = hightpvLenderDetails.getNbfcId();
+                }
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                     .merchantId(lendingLedger.getMerchantId())
@@ -78,8 +106,8 @@ public class LendingCollectionAuditService {
                     .loanId(lendingPaymentSchedule.getId())
                     .ledgerId(lendingLedger.getId())
                     .applicationId(lendingPaymentSchedule.getApplicationId())
-                    .bpLoanId(lendingApplicationSlave.get().getExternalLoanId())
-                    .nbfcId(lendingApplicationSlave.get().getNbfcId())
+                    .bpLoanId(bpLoanId)
+                    .nbfcId(nbfcId)
                     .settlementId(lendingLedger.getSettlementId())
                     .txnType(lendingLedger.getTxnType())
                     .transferType(lendingLedger.getTransferType())
@@ -97,6 +125,7 @@ public class LendingCollectionAuditService {
                     .lender(lendingPaymentSchedule.getNbfc())
                     .loanStatus(lendingPaymentSchedule.getStatus())
                     .loanClosingDate(lendingPaymentSchedule.getClosingDate())
+                    .mobile(lendingPaymentSchedule.getMobile())
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
