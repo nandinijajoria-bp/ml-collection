@@ -125,7 +125,7 @@ public class LendingCollectionAuditService {
                     .lender(lendingPaymentSchedule.getNbfc())
                     .loanStatus(lendingPaymentSchedule.getStatus())
                     .loanClosingDate(lendingPaymentSchedule.getClosingDate())
-                    .mobile(lendingLedger.getLendingPaymentSchedule().getMobile())
+                    .mobile(lendingPaymentSchedule.getMobile())
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
