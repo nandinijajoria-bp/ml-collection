@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.persistence.Column;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
@@ -78,7 +79,7 @@ public class LendingCollectionAuditService {
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
-            log.error("Error in creating collection audit for ledger id {}", lendingLedger.getId());
+            log.error("Error in creating collection audit for ledger id {}, {}", lendingLedger.getId(), Arrays.asList(e.getStackTrace()));
         }
     }
 
@@ -129,7 +130,7 @@ public class LendingCollectionAuditService {
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
-            log.error("Error in creating collection audit for ledger id {}", lendingLedger.getId());
+            log.error("Error in creating collection audit for ledger id {}, {}", lendingLedger.getId(), Arrays.asList(e.getStackTrace()));
         }
     }
 }
