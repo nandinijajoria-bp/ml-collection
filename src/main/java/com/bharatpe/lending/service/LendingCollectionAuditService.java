@@ -46,6 +46,7 @@ public class LendingCollectionAuditService {
             else{
                 HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingLedger.getLendingPaymentSchedule().getId());
                 if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
+                    log.info("fetching from hightpv lender details {}, {}", hightpvLenderDetails.getNbfcId(), hightpvLenderDetails.getExternalLoanId());
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
                 }
@@ -98,6 +99,7 @@ public class LendingCollectionAuditService {
             else{
                 HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingPaymentSchedule.getId());
                 if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
+                    log.info("fetching from hightpv lender details {}, {}", hightpvLenderDetails.getNbfcId(), hightpvLenderDetails.getExternalLoanId());
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
                 }
