@@ -2272,6 +2272,10 @@ public class SupportService {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if(!ObjectUtils.isEmpty(lendingApplication)){
+                if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
+                    logger.info("Application with id : {} and loan type : {} cannot be cancelled",lendingApplication.getId(), lendingApplication.getLoanType());
+                    return new ResponseDTO(false, "Application cannot be cancelled since, loan type is TOPUP");
+                }
                 String status = lendingApplication.getStatus();
                 logger.info("Found application with ID: {} and status: {}",lendingApplication.getId() ,status);
                 if(Objects.isNull(lendingApplication.getNbfcId()) && Objects.isNull(lendingApplication.getNbfcSendDate())
