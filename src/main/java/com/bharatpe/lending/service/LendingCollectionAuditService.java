@@ -49,6 +49,7 @@ public class LendingCollectionAuditService {
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
                 }
+                else return;
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                     .merchantId(lendingLedger.getMerchantId())
@@ -100,6 +101,7 @@ public class LendingCollectionAuditService {
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
                 }
+                else return;
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                     .merchantId(lendingLedger.getMerchantId())
