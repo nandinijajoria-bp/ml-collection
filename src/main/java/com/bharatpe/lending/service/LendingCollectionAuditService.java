@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.persistence.Column;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,8 +46,13 @@ public class LendingCollectionAuditService {
             else{
                 HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingLedger.getLendingPaymentSchedule().getId());
                 if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
+                    log.info("fetching from hightpv lender details {}, {}", hightpvLenderDetails.getNbfcId(), hightpvLenderDetails.getExternalLoanId());
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
+                }
+                else {
+                    log.info("nbfc details not found for ledger {}", lendingLedger.getId());
+                    return;
                 }
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
@@ -78,7 +84,7 @@ public class LendingCollectionAuditService {
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
-            log.error("Error in creating collection audit for ledger id {}", lendingLedger.getId());
+            log.error("Error in creating collection audit for ledger id {}, {}", lendingLedger.getId(), Arrays.asList(e.getStackTrace()));
         }
     }
 
@@ -96,8 +102,13 @@ public class LendingCollectionAuditService {
             else{
                 HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingPaymentSchedule.getId());
                 if(!ObjectUtils.isEmpty(hightpvLenderDetails)){
+                    log.info("fetching from hightpv lender details {}, {}", hightpvLenderDetails.getNbfcId(), hightpvLenderDetails.getExternalLoanId());
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
+                }
+                else{
+                    log.info("nbfc details not found for ledger {}", lendingLedger.getId());
+                    return;
                 }
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
@@ -129,7 +140,7 @@ public class LendingCollectionAuditService {
                     .build();
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
-            log.error("Error in creating collection audit for ledger id {}", lendingLedger.getId());
+            log.error("Error in creating collection audit for ledger id {}, {}", lendingLedger.getId(), Arrays.asList(e.getStackTrace()));
         }
     }
 }
