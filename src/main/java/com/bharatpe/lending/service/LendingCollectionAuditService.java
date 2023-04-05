@@ -50,7 +50,10 @@ public class LendingCollectionAuditService {
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
                 }
-                else return;
+                else {
+                    log.info("nbfc details not found for ledger {}", lendingLedger.getId());
+                    return;
+                }
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                     .merchantId(lendingLedger.getMerchantId())
@@ -103,7 +106,10 @@ public class LendingCollectionAuditService {
                     bpLoanId = hightpvLenderDetails.getExternalLoanId();
                     nbfcId = hightpvLenderDetails.getNbfcId();
                 }
-                else return;
+                else{
+                    log.info("nbfc details not found for ledger {}", lendingLedger.getId());
+                    return;
+                }
             }
             LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                     .merchantId(lendingLedger.getMerchantId())
