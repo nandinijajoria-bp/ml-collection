@@ -310,11 +310,13 @@ public class LoanDetailsServiceV2 {
                         (ObjectUtils.isEmpty(lendingApplicationKycDetails)
                         )){
                     lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(openApplication.getId());
-                } else if("draft".equalsIgnoreCase(openApplication.getStatus()) && !KycStatus.APPROVED.name().equalsIgnoreCase(openApplication.getCkycStatus())) {
+                } else if("draft".equalsIgnoreCase(openApplication.getStatus())) {
                     loanDetailsResponse.setKycDone(true);
-                    openApplication.setCkycStatus(KycStatus.APPROVED.name());
-                    openApplication.setCkycDate(new Date());
-                    lendingApplicationDao.save(openApplication);
+                    if(!KycStatus.APPROVED.name().equalsIgnoreCase(openApplication.getCkycStatus())){
+                        openApplication.setCkycStatus(KycStatus.APPROVED.name());
+                        openApplication.setCkycDate(new Date());
+                        lendingApplicationDao.save(openApplication);
+                    }
                     LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
                     if(ObjectUtils.isEmpty(lendingApplicationDetails)){
                         lendingApplicationDetails = new LendingApplicationDetails();
