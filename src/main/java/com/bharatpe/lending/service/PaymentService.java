@@ -4,22 +4,21 @@ import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.enums.LoyaltyTransactionType;
 import com.bharatpe.common.enums.Status;
-import com.bharatpe.common.objects.LoyaltyServiceRequest;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
-import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.dto.SettleLoanPaymentDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.PaymentSettlementService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -67,6 +66,8 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import javax.transaction.Transactional;
+
+import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 
 @Service
 public class PaymentService {
@@ -159,6 +160,12 @@ public class PaymentService {
 
     @Autowired
     DateTimeUtil dateTimeUtil;
+
+    @Autowired
+    PaymentSettlementService paymentSettlementService;
+
+    @Autowired
+    LendingRefundAuditDao lendingRefundAuditDao;
 
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
@@ -815,6 +822,13 @@ public class PaymentService {
     private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
                                    boolean advanceEdi, String transferType, String terminalOrderId) {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
+
+        if (EDI_BY_EDI.name().equalsIgnoreCase(activeLoan.getSettlementMechanism())) {
+            logger.info("Adjusting Mechanism for loanId: {} is {}", activeLoan.getId(), activeLoan.getSettlementMechanism());
+            adjustLoanBalanceEdiByEdi(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId);
+            return;
+        }
+
         LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
@@ -1520,6 +1534,103 @@ public class PaymentService {
             }));
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
+        }
+    }
+
+
+    private void adjustLoanBalanceEdiByEdi(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String transferType, String terminalOrderId) {
+        logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
+        Integer foreclosureAmount = loanUtil.getForeclosureAmount(activeLoan);
+        Double paidInterestAmount = 0D;
+        Double paidPrincipalAmount = 0D;
+        Double remainingBalance = amount;
+        boolean preclosure = false;
+
+        logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), foreclosureAmount);
+        logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
+
+
+        if(foreclosureAmount - amount <= 1D) {
+            logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
+            paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
+            paidPrincipalAmount = amount - paidInterestAmount;
+            remainingBalance = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
+
+            paymentSettlementService.settlePreclosureLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), amount);
+
+            logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
+            if(activeLoan.getDueAmount() >= 0) {
+                createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) ,
+                  -1 * Math.abs(amount - activeLoan.getDueAmount()),
+                  0d, "PREPAYMENT", source, transferType, terminalOrderId);
+            } else {
+                createLendingLedger(activeLoan, -1 * amount, -1 * amount,
+                  0d, "PREPAYMENT", source, transferType, terminalOrderId);
+            }
+
+            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount);
+            activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
+            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
+
+            activeLoan.setDueAmount(0D);
+            activeLoan.setDueInterest(0D);
+            activeLoan.setDuePrinciple(0D);
+
+            activeLoan.setStatus("CLOSED");
+            activeLoan.setClosingDate(new Date());
+            preclosure = true;
+        }
+        else {
+            final SettleLoanPaymentDTO settleLoanPaymentDTO = paymentSettlementService.settleLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), remainingBalance);
+            paidPrincipalAmount = settleLoanPaymentDTO.getPaidPrinciple();
+            paidInterestAmount = settleLoanPaymentDTO.getPaidInterest();
+            remainingBalance = settleLoanPaymentDTO.getRemainingBalance();
+
+            activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - paidPrincipalAmount);
+            activeLoan.setDueInterest(activeLoan.getDueInterest() - paidInterestAmount);
+            activeLoan.setDueAmount(activeLoan.getDueAmount() - (paidPrincipalAmount + paidInterestAmount));
+            activeLoan.setSettleAllPrinciple(settleLoanPaymentDTO.getSettleAllPrincipalFirst());
+
+            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
+            activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
+            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + paidPrincipalAmount + paidInterestAmount);
+        }
+
+        logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
+
+        LendingLedger lendingLedger = createLendingLedger(activeLoan, paidPrincipalAmount + paidInterestAmount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
+          preclosure), source, transferType, terminalOrderId);
+
+        if (Objects.nonNull(activeLoan.getSettleAllPrinciple()) && activeLoan.getSettleAllPrinciple()) {
+            // switch back to IPC if all due is paid
+            if (activeLoan.getDueAmount() <= 0) {
+                activeLoan.setSettleAllPrinciple(false);
+            }
+        }
+
+        lendingPaymentScheduleDao.save(activeLoan);
+
+        boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
+
+        Double finalAmount = amount;
+
+        notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
+
+        if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) && !ObjectUtils.isEmpty(lendingLedger)) {
+            sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+        }
+
+        if (remainingBalance > 0) {
+            logger.info("Received more amount than due for loanId : {} , extraAmount : {}", activeLoan.getId(), remainingBalance);
+            LendingRefundAudit lendingRefundAudit = new LendingRefundAudit();
+            lendingRefundAudit.setDueAmount(activeLoan.getDueAmount());
+            lendingRefundAudit.setLoanId(activeLoan.getId());
+            lendingRefundAudit.setMerchantId(activeLoan.getMerchantId());
+            lendingRefundAudit.setMode(source);
+            lendingRefundAudit.setBankRefNo(bankRefNo);
+            lendingRefundAudit.setRefundAmount(remainingBalance);
+            lendingRefundAudit.setOrderAmount(amount);
+            lendingRefundAuditDao.save(lendingRefundAudit);
         }
     }
 }
