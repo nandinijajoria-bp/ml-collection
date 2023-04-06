@@ -50,6 +50,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 
 @Component
@@ -609,14 +610,14 @@ public class LoanUtil {
 	private void createMerchantGstOfferSnapshot(LendingApplication lendingApplication) {
 		try {
 			List<MerchantGstOffer> merchantGstOfferList = merchantGstOfferDao.findByMerchantIdAndToBeConsidered(lendingApplication.getMerchantId(), true);
-			if(ObjectUtils.isEmpty(merchantGstOfferList)) {
+			if (ObjectUtils.isEmpty(merchantGstOfferList)) {
 				return;
 			}
-			for(MerchantGstOffer merchantGstOffer : merchantGstOfferList) {
-				MerchantGstOfferSnapshot merchantGstOfferSnapshot = MerchantGstOfferSnapshot.createObject(merchantGstOffer);
-				merchantGstOfferSnapshot.setApplicationId(lendingApplication.getId());
-				merchantGstOfferSnapshotDao.save(merchantGstOfferSnapshot);
-			}
+			List<MerchantGstOfferSnapshot> merchantGstOfferSnapshotList = merchantGstOfferList.stream()
+					.map(MerchantGstOfferSnapshot::createObject)
+					.peek(merchantGstOfferSnapshot -> merchantGstOfferSnapshot.setApplicationId(lendingApplication.getId()))
+					.collect(Collectors.toList());
+			merchantGstOfferSnapshotDao.saveAll(merchantGstOfferSnapshotList);
 		} catch (Exception e) {
 			logger.error("Exception occurred while creating merchantGstOfferSnapshot for applicationId: {}", lendingApplication.getId(), e);
 		}
