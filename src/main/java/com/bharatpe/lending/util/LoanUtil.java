@@ -50,6 +50,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 
 @Component
@@ -117,6 +118,12 @@ public class LoanUtil {
 
 	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
+
+	@Autowired
+	MerchantGstOfferDao merchantGstOfferDao;
+
+	@Autowired
+	MerchantGstOfferSnapshotDao merchantGstOfferSnapshotDao;
 
 	@Autowired
 	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
@@ -597,6 +604,23 @@ public class LoanUtil {
 		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
 		createBureauDrsSnapshot(lendingApplication, merchant);
+		createMerchantGstOfferSnapshot(lendingApplication);
+	}
+
+	private void createMerchantGstOfferSnapshot(LendingApplication lendingApplication) {
+		try {
+			List<MerchantGstOffer> merchantGstOfferList = merchantGstOfferDao.findByMerchantIdAndToBeConsidered(lendingApplication.getMerchantId(), true);
+			if (ObjectUtils.isEmpty(merchantGstOfferList)) {
+				return;
+			}
+			List<MerchantGstOfferSnapshot> merchantGstOfferSnapshotList = merchantGstOfferList.stream()
+					.map(MerchantGstOfferSnapshot::createObject)
+					.peek(merchantGstOfferSnapshot -> merchantGstOfferSnapshot.setApplicationId(lendingApplication.getId()))
+					.collect(Collectors.toList());
+			merchantGstOfferSnapshotDao.saveAll(merchantGstOfferSnapshotList);
+		} catch (Exception e) {
+			logger.error("Exception occurred while creating merchantGstOfferSnapshot for applicationId: {}", lendingApplication.getId(), e);
+		}
 	}
 
 	// pushing data to DE team for creating snapshot
