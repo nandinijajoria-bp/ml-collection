@@ -33,6 +33,7 @@ import com.bharatpe.lending.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -190,7 +191,7 @@ public class LoanDetailsServiceV2 {
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
-    public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) {
+    public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
         try {
             if (Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
                 if (Objects.nonNull(merchant.getId())) {
@@ -372,6 +373,8 @@ public class LoanDetailsServiceV2 {
             cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
             log.info("returning response from database");
             return new ApiResponse<>(loanDetailsResponse);
+        } catch (BureauCallMaskedApiException e) {
+            throw (e);
         } catch (Exception e) {
             log.error("Exception in loan details service v2 for merchant: {} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
@@ -552,7 +555,7 @@ public class LoanDetailsServiceV2 {
     }
 
     private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request,
-                                  Experian experian, BasicDetailsDto merchant) throws Exception {
+                                  Experian experian, BasicDetailsDto merchant) throws BureauCallMaskedApiException {
         String kycPancard = kycHandler.getPanNumber(merchant.getId());
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
@@ -642,7 +645,8 @@ public class LoanDetailsServiceV2 {
             log.info("after the date window for merchant: {}", merchant.getId());
         }
         MutableBoolean isDerog = new MutableBoolean(false);
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null, request.getAppVersion(), isClubV2);
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null,
+                request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(), request.getSkipBureau(), loanDetailsResponse);
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
@@ -1193,6 +1197,21 @@ public class LoanDetailsServiceV2 {
         }
         log.info("BureauDetails fetched successfully");
         return new ApiResponse<>(creditScoreDetails);
+    }
+
+    public ApiResponse<?> getMaskedMobileNos(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
+        log.info("getMaskedMobileNos");
+        String pan_card = commonAPIRequest.getPayload().get("pan_card") != null ? commonAPIRequest.getPayload().get("pan_card").toString() : null;
+        String stageOneHitId = commonAPIRequest.getPayload().get("stage_one_hit_id") != null ? commonAPIRequest.getPayload().get("stage_one_hit_id").toString() : null;
+        String stageTwoHitId = commonAPIRequest.getPayload().get("stage_two_hit_id") != null ? commonAPIRequest.getPayload().get("stage_two_hit_id").toString() : null;
+        String mobile = merchant.getMobile().substring(2);
+        Long merchantId = merchant.getId();
+        log.info("calling bureau handler");
+        BureauResponseDTO bureauResponseDTO = bureauHandler.getMaskedMobileNos(pan_card, merchantId, mobile, stageOneHitId, stageTwoHitId);
+        if (ObjectUtils.isEmpty(bureauResponseDTO) || Objects.isNull(bureauResponseDTO.getBureauData()))
+            return new ApiResponse<>(false, "Masked mobile details not found");
+        log.info("Masked Mobile details fetched successfully");
+        return new ApiResponse<>(bureauResponseDTO);
     }
 
     public ApiResponse<?> getLoanAndCreditCardDetail(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {

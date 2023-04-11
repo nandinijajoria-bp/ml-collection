@@ -1,17 +1,17 @@
 package com.bharatpe.lending.loanV2.controller;
 
-import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.dto.MerchantReference;
 import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.service.ExperianService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,7 +36,8 @@ public class LoanDetailsControllerV2 {
 
     @PostMapping(value = "/loanDetails/v2", produces="application/json")
     public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader(value = "token", required = false) String token, @RequestAttribute(required = false) BasicDetailsDto merchant,
-                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest, @RequestParam(required = false) Long merchantId){
+                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest,
+                                                         @RequestParam(required = false) Long merchantId) throws BureauCallMaskedApiException {
 
         if (ObjectUtils.isEmpty(merchant)) {
             final Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
@@ -52,6 +52,8 @@ public class LoanDetailsControllerV2 {
         ApiResponse<?> response;
         try {
             response = loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, token);
+        } catch (BureauCallMaskedApiException e){
+            throw (e);
         } catch (Exception e) {
             log.error("Exception in loan details v2 for merchant:{}", merchant.getId(), e);
             response = new ApiResponse<>(false, "Something went wrong");
@@ -80,6 +82,12 @@ public class LoanDetailsControllerV2 {
     @PostMapping(value="/getCreditScoreReportDetail")
     public ResponseEntity<ApiResponse<?>> getCreditScoreReportDetail(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
         ApiResponse<?> apiResponse= loanDetailsServiceV2.getCreditScoreReportDetail(merchant,commonAPIRequest);
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping(value="/getMaskedMobileNos")
+    public ResponseEntity<ApiResponse<?>> getMaskedMobileNos(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
+        ApiResponse<?> apiResponse= loanDetailsServiceV2.getMaskedMobileNos(merchant,commonAPIRequest);
         return ResponseEntity.ok(apiResponse);
     }
 
