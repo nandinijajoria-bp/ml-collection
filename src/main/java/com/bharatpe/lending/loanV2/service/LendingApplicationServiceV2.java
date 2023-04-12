@@ -1621,15 +1621,13 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
             }
 
-            List<LendingResubmitReasonCount> lendingResubmitReasonCountList = lendingResubmitReasonCountDao.findByApplicationIdAndMerchantIdAndResubmitCount(
-                    applicationId, merchantId, lendingResubmitTask.getResubmitCount());
+            List<LendingResubmitReasonCount> lendingResubmitReasonCountList = lendingResubmitReasonCountDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
             if(ObjectUtils.isEmpty(lendingResubmitReasonCountList)){
                 return new ApiResponse<>(false,"Unable to fetch resubmit reason entry.");
             }
             Boolean resubmitCompleted = true;
             List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
-                resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
                 for(String resubmitReason : resubmitReasonList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
@@ -1637,6 +1635,7 @@ public class LendingApplicationServiceV2 {
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
                     }
                 }
+                resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
             }
 
             if(resubmitCompleted){
