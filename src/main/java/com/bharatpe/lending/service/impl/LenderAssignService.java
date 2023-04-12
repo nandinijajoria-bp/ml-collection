@@ -17,6 +17,7 @@ import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
+import com.bharatpe.lending.loanV3.dto.ExtractedRulesAndLendersDTO;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
@@ -92,6 +93,10 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     DateTimeUtil dateTimeUtil;
 
+    @Autowired
+    AssignmentRuleUtils assignmentRuleUtils;
+
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -99,6 +104,7 @@ public class LenderAssignService implements ILenderAssignService {
 
     public String lenderAssignmentHandler(LendingApplication application, EdiModel ediModel) {
         refreshDisbursalLimitsForLender();
+        // Ensure rule util here: todo
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
         Double bureauScore = 0D;
         String riskSegment = "";
