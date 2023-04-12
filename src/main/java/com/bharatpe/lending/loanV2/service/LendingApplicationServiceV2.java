@@ -1633,6 +1633,8 @@ public class LendingApplicationServiceV2 {
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
                         lendingResubmitReasonCount.setResubmittedAt(new Date());
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
+                        funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
+                                FunnelEnums.StageEvent.COMPLETED, resubmitReason);
                     }
                 }
                 resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
@@ -1653,6 +1655,8 @@ public class LendingApplicationServiceV2 {
                     lendingApplicationPriorityDao.save(lendingApplicationPriority);
                 }
 
+                funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
+                        FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
                 lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
                 lendingAuditTrial.setApplicationId(lendingApplication.getId());
