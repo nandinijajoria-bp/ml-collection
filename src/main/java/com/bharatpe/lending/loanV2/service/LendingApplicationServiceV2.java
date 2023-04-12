@@ -205,6 +205,9 @@ public class LendingApplicationServiceV2 {
     @Autowired
     LoanDowngradeConfigDao loanDowngradeConfigDao;
 
+    @Autowired
+    LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
+
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
 
@@ -1602,7 +1605,7 @@ public class LendingApplicationServiceV2 {
         return (int)(limit/1000) * 1000;
     }
 
-    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId){
+    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId, String resubmitReasons){
         try{
             if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
                 return new ApiResponse<>(false,"Request is Invalid.");
@@ -1617,31 +1620,51 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone()){
                 return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
             }
-            lendingResubmitTask.setResubmitDone(Boolean.TRUE);
-            lendingResubmitTask.setResubmittedAt(new Date());
-            lendingResubmitTaskDao.save(lendingResubmitTask);
 
-            lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
-            lendingApplicationDao.save(lendingApplication);
-
-            // update tat start time on resubmit
-            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
-            if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
-                lendingApplicationPriority.setTatStartTime(new Date());
-                lendingApplicationPriorityDao.save(lendingApplicationPriority);
+            List<LendingResubmitReasonCount> lendingResubmitReasonCountList = lendingResubmitReasonCountDao.findByApplicationIdAndMerchantIdAndResubmitCount(
+                    applicationId, merchantId, lendingResubmitTask.getResubmitCount());
+            if(ObjectUtils.isEmpty(lendingResubmitReasonCountList)){
+                return new ApiResponse<>(false,"Unable to fetch resubmit reason entry.");
+            }
+            Boolean resubmitCompleted = true;
+            List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
+            for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
+                for(String resubmitReason : resubmitReasonList){
+                    if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
+                        lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
+                        lendingResubmitReasonCount.setResubmittedAt(new Date());
+                        lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
+                    }
+                }
             }
 
-            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-            lendingAuditTrial.setApplicationId(lendingApplication.getId());
-            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
-            lendingAuditTrial.setType("APP_STATUS");
-            lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
-            lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
-            lendingAuditTrial.setUserId(0L);
-            lendingAuditTrialDao.save(lendingAuditTrial);
-            loanUtil.publishDSData(lendingApplication);
+            if(resubmitCompleted){
+                lendingResubmitTask.setResubmitDone(Boolean.TRUE);
+                lendingResubmitTask.setResubmittedAt(new Date());
+                lendingResubmitTaskDao.save(lendingResubmitTask);
 
+                lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
+                lendingApplicationDao.save(lendingApplication);
+
+                // update tat start time on resubmit
+                LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
+                if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
+                    lendingApplicationPriority.setTatStartTime(new Date());
+                    lendingApplicationPriorityDao.save(lendingApplicationPriority);
+                }
+
+                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                lendingAuditTrial.setType("APP_STATUS");
+                lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
+                lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+                lendingAuditTrial.setUserId(0L);
+                lendingAuditTrialDao.save(lendingAuditTrial);
+                loanUtil.publishDSData(lendingApplication);
+            }
             return new ApiResponse<>(true,"Resubmit Done Succesfully.");
         }catch (Exception e){
             log.error("Exception in resubmit Done for application:{}", applicationId, e);
