@@ -46,6 +46,8 @@ public interface KfsConstants {
 
     Integer COOLING_OFF_DAYS = 3;
 
+    Double GST_PERCENTAGE = 18D;
+
     String LENDER_CORPORATE_NAME_ABFL = "Aditya Birla Finance Limited";
     String LENDER_BUSINESS_ADDRESS_ABFL = "Aditya Birla Finance Ltd. (A Subsidiary of Aditya Birla Capital Ltd.), One World Centre, Tower 1-C, 18th Floor, 841 Jupiter Mill Compound, Senapati Bapat Marg, Elphinstone Road, Mumbai - 400013";
     String LENDER_CONTACT_NAME_ABFL = "Ms. Smita Nadkarni";
