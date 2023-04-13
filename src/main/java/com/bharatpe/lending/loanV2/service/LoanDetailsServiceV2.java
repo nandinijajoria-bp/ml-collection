@@ -304,9 +304,11 @@ public class LoanDetailsServiceV2 {
                 log.info("open application for merchant:{}", merchant.getId());
                 //with validAfter timestamp
                 LendingApplicationKycDetails lendingApplicationKycDetails = null;
+
                 if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
                     lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
                 }
+
                 if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||
                         (ObjectUtils.isEmpty(lendingApplicationKycDetails)
                         )){
@@ -323,7 +325,6 @@ public class LoanDetailsServiceV2 {
                         lendingApplicationDetails = new LendingApplicationDetails();
                         lendingApplicationDetails.setApplicationId(openApplication.getId());
                     }
-                    lendingApplicationDetails.setIsKycSkip(Boolean.TRUE);
                     lendingApplicationDetailsDao.save(lendingApplicationDetails);
                 }
                 Date validAfterDate;
