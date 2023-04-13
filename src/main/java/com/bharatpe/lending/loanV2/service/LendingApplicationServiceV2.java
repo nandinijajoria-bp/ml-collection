@@ -2180,7 +2180,7 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
-        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount + " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees i.e. ");
+        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount + " + (kfsDto.getProcessingFee()==0?"":(KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = getRepaymentSchedule(applicationId, merchant);
         if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
