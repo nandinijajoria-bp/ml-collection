@@ -1857,6 +1857,7 @@ public class LendingApplicationServiceV2 {
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
                     .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeePercentageWithoutGst(Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee()*100D/(100D + GST_PERCENTAGE))/(lendingApplication.getLoanAmount()) * 100)))
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
                     .repaymentAmount(lendingApplication.getRepayment())
@@ -2149,6 +2150,7 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
         data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
         data.put("processing_percentage", kfsDto.getProcessingFeePercentage());
+        data.put("processing_percentage_without_gst", kfsDto.getProcessingFeePercentageWithoutGst());
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
@@ -2178,7 +2180,7 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
-        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentage()+"% of the loan Amount i.e. ");
+        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = getRepaymentSchedule(applicationId, merchant);
         if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
