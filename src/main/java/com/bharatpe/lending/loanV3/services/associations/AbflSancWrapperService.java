@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.AbflSanctionServiceV2
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,7 @@ public class AbflSancWrapperService implements ILenderAssociationService<Optiona
     private Boolean kafkaEnabled;
 
     @Autowired
+    @Lazy
     AbflSanctionServiceV2 abflSanctionServiceV2;
 
     @Override
