@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -640,8 +641,53 @@ public class LoanUtil {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
 			if (lendingRiskVariables != null) {
-				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = LendingRiskVariablesSnapshot.createObject(lendingRiskVariables);
+				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
+				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setBpScore(lendingRiskVariables.getBpScore());
+				lendingRiskVariablesSnapshot.setBbs(lendingRiskVariables.getBbs());
+				lendingRiskVariablesSnapshot.setVintage(lendingRiskVariables.getVintage());
+				lendingRiskVariablesSnapshot.setBureauScore(lendingRiskVariables.getBureauScore());
+				lendingRiskVariablesSnapshot.setRiskColor(lendingRiskVariables.getRiskColor());
+				logger.info("risk segment found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setRiskSegment(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()));
+				logger.info("risk segment found in lendingRiskVariablesSnapshot: {} for merchantId: {}", lendingRiskVariablesSnapshot.getRiskSegment(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setDecisionId(lendingRiskVariables.getDecisionId());
+				lendingRiskVariablesSnapshot.setPincode(lendingRiskVariables.getPincode());
+				lendingRiskVariablesSnapshot.setPincodeColor(lendingRiskVariables.getPincodeColor());
+				lendingRiskVariablesSnapshot.setTpvOffer(lendingRiskVariables.getTpvOffer());
+				lendingRiskVariablesSnapshot.setBureauOffer(lendingRiskVariables.getBureauOffer());
+				lendingRiskVariablesSnapshot.setRegularLimit(lendingRiskVariables.getRegularLimit());
+				lendingRiskVariablesSnapshot.setNtbLimit(lendingRiskVariables.getNtbLimit());
+				lendingRiskVariablesSnapshot.setFinalOffer(lendingRiskVariables.getFinalOffer());
+				lendingRiskVariablesSnapshot.setLoanType(lendingRiskVariables.getLoanType());
+				lendingRiskVariablesSnapshot.setRepeatLoan(lendingRiskVariables.getRepeatLoan());
+				lendingRiskVariablesSnapshot.setTpvRejection(lendingRiskVariables.getTpvRejection());
+				lendingRiskVariablesSnapshot.setBureauRejection(lendingRiskVariables.getBureauRejection());
+				lendingRiskVariablesSnapshot.setRiskRejection(lendingRiskVariables.getRiskRejection());
+				lendingRiskVariablesSnapshot.setExperianRejection(lendingRiskVariables.getExperianRejection());
+				lendingRiskVariablesSnapshot.setUnderwritingVersion(lendingRiskVariables.getUnderwritingVersion());
+				logger.info("risk group found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskColor(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setRiskGroup(lendingRiskVariables.getRiskGroup());
+				logger.info("risk group found in lendingRiskVariablesSnapshot: {} for merchantId: {}", lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setLoanSegment(lendingRiskVariables.getLoanSegment());
+				lendingRiskVariablesSnapshot.setClubV2Amount(lendingRiskVariables.getClubV2Amount());
+				lendingRiskVariablesSnapshot.setClubV2(lendingRiskVariables.getClubV2());
+				lendingRiskVariablesSnapshot.setDrsScore(lendingRiskVariables.getDrsScore());
+				lendingRiskVariablesSnapshot.setDrsScoreActive(lendingRiskVariables.getDrsScoreActive());
+				lendingRiskVariablesSnapshot.setSmallTicketLimit(lendingRiskVariables.getSmallTicketLimit());
+				lendingRiskVariablesSnapshot.setSmallTicketRejection(lendingRiskVariables.getSmallTicketRejection());
+				lendingRiskVariablesSnapshot.setMonthlyNfi(lendingRiskVariables.getMonthlyNfi());
+				lendingRiskVariablesSnapshot.setMonthlyTpv(lendingRiskVariables.getMonthlyTpv());
+				lendingRiskVariablesSnapshot.setReferenceCount(lendingRiskVariables.getReferenceCount());
+				lendingRiskVariablesSnapshot.setTenure(lendingRiskVariables.getTenure());
+				lendingRiskVariablesSnapshot.setRoi(lendingRiskVariables.getRoi());
+				lendingRiskVariablesSnapshot.setDsTpv(lendingRiskVariables.getDsTpv());
+				lendingRiskVariablesSnapshot.setSummaryTpv(lendingRiskVariables.getSummaryTpv());
+				lendingRiskVariablesSnapshot.setUniqueCustomer1mon(lendingRiskVariables.getUniqueCustomer1mon());
+				lendingRiskVariablesSnapshot.setGstOffer(lendingRiskVariables.getGstOffer());
+				lendingRiskVariablesSnapshot.setGstAffectedOffer(lendingRiskVariables.getGstAffectedOffer());
+
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
