@@ -667,7 +667,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setRiskRejection(lendingRiskVariables.getRiskRejection());
 				lendingRiskVariablesSnapshot.setExperianRejection(lendingRiskVariables.getExperianRejection());
 				lendingRiskVariablesSnapshot.setUnderwritingVersion(lendingRiskVariables.getUnderwritingVersion());
-				logger.info("risk group found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskColor(), lendingRiskVariables.getMerchantId());
+				logger.info("risk group found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskGroup(), lendingRiskVariables.getMerchantId());
 				lendingRiskVariablesSnapshot.setRiskGroup(lendingRiskVariables.getRiskGroup());
 				logger.info("risk group found in lendingRiskVariablesSnapshot: {} for merchantId: {}", lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariables.getMerchantId());
 				lendingRiskVariablesSnapshot.setLoanSegment(lendingRiskVariables.getLoanSegment());
