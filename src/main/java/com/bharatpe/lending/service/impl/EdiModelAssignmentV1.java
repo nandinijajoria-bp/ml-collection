@@ -21,12 +21,23 @@ public class EdiModelAssignmentV1 implements IEdiModelAssignment {
     @Override
     public EdiModel assignModel(Long merchantId) {
         ExtractedRulesAndLendersDTO extractedRulesAndLendersDTO = assignmentRuleUtils.extractRules(merchantId, null);
+        log.info("extracted response {}", extractedRulesAndLendersDTO);
+        log.info("extracted lrvs response {}", extractedRulesAndLendersDTO.getRiskParamsDTO());
+        log.info("extracted assignment rules response {}", extractedRulesAndLendersDTO.getLenderAssignmentRules());
         assignmentRuleUtils.filterLenders(extractedRulesAndLendersDTO);
+        log.info("extracted filtered  lenders response {}", extractedRulesAndLendersDTO.getFilteredLenders());
         Set<EdiModel> ediModels = assignmentRuleUtils.extractEdiModelFromFilteredLenders(extractedRulesAndLendersDTO);
+        log.info("ediModels derived {}", ediModels);
+        EdiModel assignedModel = null;
         if (ediModels.isEmpty()) {
 //            fallback lender here
-            return LenderOffDays.valueOf(assignmentRuleUtils.fetchFallbackLender()).getEdiModel();
+            String fallbackLender = assignmentRuleUtils.fetchFallbackLender();
+            assignedModel = LenderOffDays.valueOf(fallbackLender).getEdiModel();
+            log.info("assigned lender {} model {}", fallbackLender, assignedModel);
+            return LenderOffDays.valueOf(fallbackLender).getEdiModel();
         }
-        return ediModels.iterator().next();
+        assignedModel = ediModels.iterator().next();
+        log.info("assigned model {}", assignedModel);
+        return assignedModel;
     }
 }

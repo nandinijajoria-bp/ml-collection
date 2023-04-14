@@ -49,13 +49,14 @@ public class AssignmentRuleUtils {
             extractedRulesAndLendersDTO.setRunModelAssignmentOnly(extractModelOnly);
         }
         try {
-            List<LenderAssignmentRules> ruleList = null;
             log.info("Lender assignment parameters -> bureau:{}, loanType:{}, tenure:{}, loanAmount:{}, riskGroup:{}, pincodeColor:{}", riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(),
                     riskParamsDTO.getAmount(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
-            ruleList = lenderAssignmentRulesDao.fetchEligibleRules(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
-            log.info("fetched rule list {}", ruleList);
-            ruleList = lenderAssignmentRulesDao.fetchEligibleRulesForInternal(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
-            log.info("tweaked rule list {}", ruleList);
+            List<LenderAssignmentRules> derivedRuleList = lenderAssignmentRulesDao.fetchEligibleRules(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
+            log.info("fetched rule list {}", derivedRuleList);
+            // TODO: 14/04/23 disable later
+            derivedRuleList = lenderAssignmentRulesDao.fetchEligibleRulesForInternal(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
+            log.info("tweaked rule list {}", derivedRuleList);
+            extractedRulesAndLendersDTO.setLenderAssignmentRules(Optional.ofNullable(derivedRuleList).orElse(new ArrayList<>()));
         } catch (Exception ex) {
             log.error("Exception occurred while fetching rules : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
