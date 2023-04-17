@@ -1627,7 +1627,12 @@ public class LendingApplicationServiceV2 {
             }
             Boolean resubmitCompleted = true;
             List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
+            Integer maxCount = -1;
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                if(lendingResubmitReasonCount.getResubmitCount() > maxCount)maxCount = lendingResubmitReasonCount.getResubmitCount();
+            }
+            for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
                 for(String resubmitReason : resubmitReasonList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
