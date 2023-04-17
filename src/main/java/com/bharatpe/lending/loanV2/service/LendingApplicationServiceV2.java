@@ -448,8 +448,21 @@ public class LendingApplicationServiceV2 {
                         log.info("Application not found for id:{}", applicationRequest.getApplicationId());
                     }
                     lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    if (applicationRequest.getAddressDetails() != null) {
+                        AddressDetails addressDetails = applicationRequest.getAddressDetails();
+                        lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
+                        lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
+                        lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
+                        lendingApplication.setState(!StringUtils.isEmpty(addressDetails.getState()) ? addressDetails.getState() : lendingApplication.getState());
+                        lendingApplication.setShopNumber(!StringUtils.isEmpty(addressDetails.getAddress1()) ?
+                                addressDetails.getAddress1().substring(0, Math.min(addressDetails.getAddress1().length(), 98)) : lendingApplication.getShopNumber());
+                        lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
+                        lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
+                        log.info("shop address updated in lending_application: {}", applicationRequest.getApplicationId());
+                    }
+
                     lendingApplicationDao.save(lendingApplication);
-                    log.info("Application Resubmit With Business Name for application id:{}", applicationRequest.getApplicationId());
+                    log.info("Application Resubmit With Business Name, Shop Address for application id:{}", applicationRequest.getApplicationId());
                     return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
                 }
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
