@@ -1686,6 +1686,7 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrialDao.save(lendingAuditTrial);
                 loanUtil.publishDSData(lendingApplication);
             }
+            evictCache(merchantId);
             return new ApiResponse<>(true,"Resubmit Done Succesfully.");
         }catch (Exception e){
             log.error("Exception in resubmit Done for application:{}", applicationId, e);
