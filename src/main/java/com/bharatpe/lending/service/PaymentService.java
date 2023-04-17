@@ -1620,7 +1620,7 @@ public class PaymentService {
             sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
         }
 
-        if (remainingBalance > 0) {
+        if (remainingBalance > 0.05) {
             logger.info("Received more amount than due for loanId : {} , extraAmount : {}", activeLoan.getId(), remainingBalance);
             LendingRefundAudit lendingRefundAudit = new LendingRefundAudit();
             lendingRefundAudit.setDueAmount(activeLoan.getDueAmount());
