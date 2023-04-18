@@ -17,15 +17,14 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import javax.annotation.PostConstruct;
-import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
 @SpringBootApplication
 @ComponentScan(basePackages =  "com.bharatpe.*")
 @EntityScan(basePackages = "com.bharatpe.*")
 @PropertySources({
-		@PropertySource("file:/etc/bharatpe/key.properties"),
-		@PropertySource("file:/etc/bharatpe/production.properties")
+//		@PropertySource("file:/etc/bharatpe/key.properties"),
+//		@PropertySource("file:/etc/bharatpe/production.properties")
 })
 public class Application
 {

@@ -768,7 +768,9 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private LoanApplicationDetails setApplicationDetails(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, String token, boolean isIOS, Experian experian, BasicDetailsDto merchant) {
+    private LoanApplicationDetails setApplicationDetails
+            (LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication,
+             String token, boolean isIOS, Experian experian, BasicDetailsDto merchant) {
         try {
             LoanApplicationDetails applicationDetails = new LoanApplicationDetails();
             applicationDetails.setApplicationId(openApplication.getId());
@@ -825,7 +827,10 @@ public class LoanDetailsServiceV2 {
             applicationDetails.setAdditionalDetails(new AdditionalDetails(openApplication.getEmail(), openApplication.getAlternateMobile()));
             applicationDetails.setCurrentAddress(getCurrentAddress(openApplication));
             applicationDetails.setShopPhotoRequired(isShopPhotoRequired(openApplication));
-            if (applicationDetails.getEnachDeeplink() == null && (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus()) || ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()))) {
+            if (applicationDetails.getEnachDeeplink() == null &&
+                    (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase
+                            (openApplication.getStatus()) ||
+                            ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()))) {
                 int tat = loanUtil.getApplicationTAT(openApplication.getId());
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }

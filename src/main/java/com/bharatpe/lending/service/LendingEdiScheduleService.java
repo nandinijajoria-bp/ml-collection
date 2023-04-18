@@ -118,11 +118,13 @@ public class LendingEdiScheduleService {
     public CommonResponse getEdiScheduleV2(Long merchantId, Long applicationId) {
         logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
         try {
-            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            LendingApplication lendingApplication =
+                    lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (lendingApplication == null) {
                 return new CommonResponse(false, "Lending application not found");
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+            LendingPaymentSchedule lendingPaymentSchedule =
+                    lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
             int installmentNo = 1;
             int ediCount = lendingApplication.getPayableDays().intValue();
             Double openingBalance = lendingApplication.getLoanAmount();
@@ -141,7 +143,9 @@ public class LendingEdiScheduleService {
                     cal.setTime(lendingPaymentSchedule.getInterestOnlyStartDate());
                 }
                 while(ioInstallmentNo <= lendingApplication.getIoPayableDays()) {
-                    if(cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {
+                    if(cal.get(Calendar.DAY_OF_WEEK) ==
+                            liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay()))
+                    {
                         cal.add(Calendar.DAY_OF_MONTH, 1);
                         continue;
                     }
@@ -163,7 +167,8 @@ public class LendingEdiScheduleService {
                 cal.setTime(lendingPaymentSchedule.getStartDate());
             }
 
-            double reducingInterestRateDaily = Finance.rate(ediCount, lendingApplication.getEdi().intValue(), lendingApplication.getLoanAmount());
+            double reducingInterestRateDaily =
+                    Finance.rate(ediCount, lendingApplication.getEdi().intValue(), lendingApplication.getLoanAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
                 if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {

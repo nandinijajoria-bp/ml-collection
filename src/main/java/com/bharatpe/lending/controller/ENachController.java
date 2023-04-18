@@ -26,7 +26,11 @@ public class ENachController {
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestParam(name = "provider", required = false) String provider, @RequestParam(name = "app_version", required = false) String appVersion) {
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant,
+																	 @RequestHeader("token") String token,
+																	 @RequestParam(name = "provider", required = false) String provider,
+																	 @RequestParam(name = "app_version", required = false) String appVersion)
+	{
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
@@ -41,7 +45,9 @@ public class ENachController {
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestBody ENachSubmitRequestDTO body, @RequestHeader("token") String token) {
-		return new ResponseEntity<>(eNachService.submitEnach(merchant, body, token), HttpStatus.OK);
+		return new ResponseEntity<>(eNachService.subm
+
+				itEnach(merchant, body, token), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/skip",method = RequestMethod.GET, consumes="application/json", produces="application/json")

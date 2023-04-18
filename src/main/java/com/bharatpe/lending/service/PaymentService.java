@@ -320,7 +320,8 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
 
-            if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.pgPercent)) {
+            if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
+                    easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.pgPercent)) {
                 logger.info("pg flow enabling for internal merchants with app version for merchant: {}",merchantBasicDetails.getId());
                 if (Objects.equals(request.getMeta().getClient(), "android")) {
                     if (appVersion >= androidVersion) {
