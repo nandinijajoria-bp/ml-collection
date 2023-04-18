@@ -30,6 +30,7 @@ import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -86,6 +87,8 @@ import static com.bharatpe.lending.constant.KfsConstants.*;
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
+    @Autowired
+    private LmsStageHistoryDao lmsStageHistoryDao;
 
     @Autowired
     KycHandler kycHandler;
@@ -1663,7 +1666,13 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setResubmittedAt(new Date());
                 lendingResubmitTaskDao.save(lendingResubmitTask);
 
-                if("PENDING_QC".equalsIgnoreCase(lendingApplication.getLmsStage()))lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
+                List<LmsStageHistory> lmsStageHistoryList = lmsStageHistoryDao.findTop2ByLendingApplicationIdOrderByIdDesc(lendingApplication.getId());
+                log.info("LmsStageHistory for {}, {}", lendingApplication.getId(),lmsStageHistoryList);
+                String lmsStage = ObjectUtils.isEmpty(lmsStageHistoryList) ? "PENDING_KYC_ASSIGNMENT" : null;
+                for(LmsStageHistory lmsStageHistory : lmsStageHistoryList){
+                    if("PENDING_QC".equalsIgnoreCase(lmsStageHistory.getLmsStage()))lmsStage = "PENDING_QC_ASSIGNMENT";
+                }
+                if(Objects.nonNull(lmsStage))lendingApplication.setLmsStage(lmsStage);
                 else lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
