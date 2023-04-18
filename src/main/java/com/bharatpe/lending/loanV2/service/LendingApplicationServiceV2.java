@@ -1663,7 +1663,8 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setResubmittedAt(new Date());
                 lendingResubmitTaskDao.save(lendingResubmitTask);
 
-                lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
+                if("PENDING_QC".equalsIgnoreCase(lendingApplication.getLmsStage()))lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
+                else lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
                 // update tat start time on resubmit
