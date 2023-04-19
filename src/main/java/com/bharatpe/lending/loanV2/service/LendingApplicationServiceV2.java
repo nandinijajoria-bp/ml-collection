@@ -1621,7 +1621,7 @@ public class LendingApplicationServiceV2 {
         return (int)(limit/1000) * 1000;
     }
 
-    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId, String resubmitReasons){
+    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId, String resubmitReasons, String mid){
         try{
             if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
                 return new ApiResponse<>(false,"Request is Invalid.");
@@ -1656,6 +1656,11 @@ public class LendingApplicationServiceV2 {
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
                         funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
                                 FunnelEnums.StageEvent.COMPLETED, resubmitReason);
+                        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                            put("resubmitReason", lendingResubmitReasonCount.getResubmitReason());
+                            put("resubmitCount", lendingResubmitReasonCount.getResubmitCount().toString());
+                        }};
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_COMPLETED.name(), cleverTapEvtData, mid));
                     }
                 }
                 resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();

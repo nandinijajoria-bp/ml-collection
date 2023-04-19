@@ -74,7 +74,7 @@ public class LendingApplicationControllerV2 {
     @GetMapping(value = "/application/resubmitDone")
     public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestHeader("token") String token,@RequestParam Long applicationId, @RequestParam String resubmitReason, @RequestAttribute BasicDetailsDto merchant){
         log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchant.getId(),applicationId);
-        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId, resubmitReason);
+        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId, resubmitReason, merchant.getMid());
         log.info("Lending Resubmit done Application Response:{} for applicationId:{}",response,applicationId);
         return ResponseEntity.ok(response);
     }
