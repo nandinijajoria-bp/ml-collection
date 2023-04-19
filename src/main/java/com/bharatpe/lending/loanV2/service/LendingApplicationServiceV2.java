@@ -6,6 +6,9 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
@@ -30,6 +33,7 @@ import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -86,6 +90,8 @@ import static com.bharatpe.lending.constant.KfsConstants.*;
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
+    @Autowired
+    private LmsStageHistoryDao lmsStageHistoryDao;
 
     @Autowired
     KycHandler kycHandler;
@@ -204,6 +210,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LoanDowngradeConfigDao loanDowngradeConfigDao;
+
+    @Autowired
+    LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
 
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
@@ -445,8 +454,21 @@ public class LendingApplicationServiceV2 {
                         log.info("Application not found for id:{}", applicationRequest.getApplicationId());
                     }
                     lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    if (applicationRequest.getAddressDetails() != null) {
+                        AddressDetails addressDetails = applicationRequest.getAddressDetails();
+                        lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
+                        lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
+                        lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
+                        lendingApplication.setState(!StringUtils.isEmpty(addressDetails.getState()) ? addressDetails.getState() : lendingApplication.getState());
+                        lendingApplication.setShopNumber(!StringUtils.isEmpty(addressDetails.getAddress1()) ?
+                                addressDetails.getAddress1().substring(0, Math.min(addressDetails.getAddress1().length(), 98)) : lendingApplication.getShopNumber());
+                        lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
+                        lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
+                        log.info("shop address updated in lending_application: {}", applicationRequest.getApplicationId());
+                    }
+
                     lendingApplicationDao.save(lendingApplication);
-                    log.info("Application Resubmit With Business Name for application id:{}", applicationRequest.getApplicationId());
+                    log.info("Application Resubmit With Business Name, Shop Address for application id:{}", applicationRequest.getApplicationId());
                     return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
                 }
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
@@ -1426,6 +1448,16 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"Request is Invalid.");
             }
             LendingApplication lendingApplication = lendingApplicationDao.findById(resubmitApplicationDTO.getApplicationId()).get();
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT)){
+                MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(resubmitApplicationDTO.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.MERCHANT_USER));
+                BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+                if (!ObjectUtils.isEmpty(basicDetailsDto) && !ObjectUtils.isEmpty(basicDetailsDto.getMid())) {
+                    HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                        put("resubmitReason", resubmitApplicationDTO.getResubmitReason());
+                    }};
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_INITIATED.name(), cleverTapEvtData, basicDetailsDto.getMid()));
+                }
+            }
             if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT) && !"pending_verification".equalsIgnoreCase(lendingApplication.getStatus())){
                 return new ApiResponse<>(false,"application Not Eligible for resubmited");
             }
@@ -1602,7 +1634,7 @@ public class LendingApplicationServiceV2 {
         return (int)(limit/1000) * 1000;
     }
 
-    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId){
+    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId, String resubmitReasons, String mid){
         try{
             if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
                 return new ApiResponse<>(false,"Request is Invalid.");
@@ -1617,31 +1649,65 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone()){
                 return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
             }
-            lendingResubmitTask.setResubmitDone(Boolean.TRUE);
-            lendingResubmitTask.setResubmittedAt(new Date());
-            lendingResubmitTaskDao.save(lendingResubmitTask);
 
-            lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
-            lendingApplicationDao.save(lendingApplication);
-
-            // update tat start time on resubmit
-            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
-            if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
-                lendingApplicationPriority.setTatStartTime(new Date());
-                lendingApplicationPriorityDao.save(lendingApplicationPriority);
+            List<LendingResubmitReasonCount> lendingResubmitReasonCountList = lendingResubmitReasonCountDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+            if(ObjectUtils.isEmpty(lendingResubmitReasonCountList)){
+                return new ApiResponse<>(false,"Unable to fetch resubmit reason entry.");
+            }
+            Boolean resubmitCompleted = true;
+            List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
+            Integer maxCount = -1;
+            for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                if(lendingResubmitReasonCount.getResubmitCount() > maxCount)maxCount = lendingResubmitReasonCount.getResubmitCount();
+            }
+            for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
+                for(String resubmitReason : resubmitReasonList){
+                    if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
+                        lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
+                        lendingResubmitReasonCount.setResubmittedAt(new Date());
+                        lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
+                        funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
+                                FunnelEnums.StageEvent.COMPLETED, resubmitReason);
+                        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                            put("resubmitReason", lendingResubmitReasonCount.getResubmitReason());
+                            put("resubmitCount", lendingResubmitReasonCount.getResubmitCount().toString());
+                        }};
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_COMPLETED.name(), cleverTapEvtData, mid));
+                    }
+                }
+                resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
             }
 
-            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-            lendingAuditTrial.setApplicationId(lendingApplication.getId());
-            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
-            lendingAuditTrial.setType("APP_STATUS");
-            lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
-            lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
-            lendingAuditTrial.setUserId(0L);
-            lendingAuditTrialDao.save(lendingAuditTrial);
-            loanUtil.publishDSData(lendingApplication);
+            if(resubmitCompleted){
+                lendingResubmitTask.setResubmitDone(Boolean.TRUE);
+                lendingResubmitTask.setResubmittedAt(new Date());
+                lendingResubmitTaskDao.save(lendingResubmitTask);
 
+                lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
+                lendingApplicationDao.save(lendingApplication);
+
+                // update tat start time on resubmit
+                LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
+                if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
+                    lendingApplicationPriority.setTatStartTime(new Date());
+                    lendingApplicationPriorityDao.save(lendingApplicationPriority);
+                }
+
+                funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
+                        FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                lendingAuditTrial.setType("APP_STATUS");
+                lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
+                lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+                lendingAuditTrial.setUserId(0L);
+                lendingAuditTrialDao.save(lendingAuditTrial);
+                loanUtil.publishDSData(lendingApplication);
+            }
+            evictCache(merchantId);
             return new ApiResponse<>(true,"Resubmit Done Succesfully.");
         }catch (Exception e){
             log.error("Exception in resubmit Done for application:{}", applicationId, e);
