@@ -6,6 +6,9 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
@@ -1445,6 +1448,16 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"Request is Invalid.");
             }
             LendingApplication lendingApplication = lendingApplicationDao.findById(resubmitApplicationDTO.getApplicationId()).get();
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT)){
+                MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(resubmitApplicationDTO.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.MERCHANT_USER));
+                BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+                if (!ObjectUtils.isEmpty(basicDetailsDto) && !ObjectUtils.isEmpty(basicDetailsDto.getMid())) {
+                    HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                        put("resubmitReason", resubmitApplicationDTO.getResubmitReason());
+                    }};
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_INITIATED.name(), cleverTapEvtData, basicDetailsDto.getMid()));
+                }
+            }
             if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT) && !"pending_verification".equalsIgnoreCase(lendingApplication.getStatus())){
                 return new ApiResponse<>(false,"application Not Eligible for resubmited");
             }
