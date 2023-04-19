@@ -1684,14 +1684,15 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setResubmittedAt(new Date());
                 lendingResubmitTaskDao.save(lendingResubmitTask);
 
-                List<LmsStageHistory> lmsStageHistoryList = lmsStageHistoryDao.findTop2ByLendingApplicationIdOrderByIdDesc(lendingApplication.getId());
-                log.info("LmsStageHistory for {}, {}", lendingApplication.getId(),lmsStageHistoryList);
-                String lmsStage = ObjectUtils.isEmpty(lmsStageHistoryList) ? "PENDING_KYC_ASSIGNMENT" : null;
-                for(LmsStageHistory lmsStageHistory : lmsStageHistoryList){
-                    if("PENDING_QC".equalsIgnoreCase(lmsStageHistory.getLmsStage()))lmsStage = "PENDING_QC_ASSIGNMENT";
-                }
-                if(Objects.nonNull(lmsStage))lendingApplication.setLmsStage(lmsStage);
-                else lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
+//                List<LmsStageHistory> lmsStageHistoryList = lmsStageHistoryDao.findTop2ByLendingApplicationIdOrderByIdDesc(lendingApplication.getId());
+//                log.info("LmsStageHistory for {}, {}", lendingApplication.getId(),lmsStageHistoryList);
+//                String lmsStage = ObjectUtils.isEmpty(lmsStageHistoryList) ? "PENDING_KYC_ASSIGNMENT" : null;
+//                for(LmsStageHistory lmsStageHistory : lmsStageHistoryList){
+//                    if("PENDING_QC".equalsIgnoreCase(lmsStageHistory.getLmsStage()))lmsStage = "PENDING_QC_ASSIGNMENT";
+//                }
+//                if(Objects.nonNull(lmsStage))lendingApplication.setLmsStage(lmsStage);
+//                else lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
+                lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
                 // update tat start time on resubmit
