@@ -685,6 +685,9 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setDsTpv(lendingRiskVariables.getDsTpv());
 				lendingRiskVariablesSnapshot.setSummaryTpv(lendingRiskVariables.getSummaryTpv());
 				lendingRiskVariablesSnapshot.setUniqueCustomer1mon(lendingRiskVariables.getUniqueCustomer1mon());
+				lendingRiskVariablesSnapshot.setPilotIdentifier(lendingRiskVariables.getPilotIdentifier());
+				lendingRiskVariablesSnapshot.setDpd30Count(lendingRiskVariables.getDpd30Count());
+				lendingRiskVariablesSnapshot.setDpd60Count(lendingRiskVariables.getDpd60Count());
 				lendingRiskVariablesSnapshot.setGstOffer(lendingRiskVariables.getGstOffer());
 				lendingRiskVariablesSnapshot.setGstAffectedOffer(lendingRiskVariables.getGstAffectedOffer());
 
