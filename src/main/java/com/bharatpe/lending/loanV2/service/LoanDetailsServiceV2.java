@@ -649,7 +649,8 @@ public class LoanDetailsServiceV2 {
         }
         MutableBoolean isDerog = new MutableBoolean(false);
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null,
-                request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(), request.getSkipBureau(), loanDetailsResponse);
+                request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
+                request.getSkipBureau(), request.getSkipMaskedMobileException(), loanDetailsResponse);
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
