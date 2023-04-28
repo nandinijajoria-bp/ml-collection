@@ -1465,7 +1465,7 @@ public class APIGatewayService {
         if (!ObjectUtils.isEmpty(skipBureau)) {
             queryParams.append("&skipBureau=").append(skipBureau);
         }
-        if (skipMaskedMobileException) {
+        if (!ObjectUtils.isEmpty(skipMaskedMobileException)) {
             queryParams.append("&skipMaskedMobileException=").append(skipMaskedMobileException);
         }
         String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
