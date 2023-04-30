@@ -1594,7 +1594,7 @@ public class LiquiloansService {
 
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lender);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lender);
 
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             logger.info("lendingApplicationLenderDetails not found for applicationId : {} and lender : {}", applicationId, lender);
