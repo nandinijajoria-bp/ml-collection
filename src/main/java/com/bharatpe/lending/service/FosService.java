@@ -1020,7 +1020,7 @@ public class FosService {
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto(Arrays.asList("SMALL_TICKET","TOPUP").contains(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0);
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0);
         ResponseDTO responseDTO = new ResponseDTO();
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);
@@ -1052,9 +1052,12 @@ public class FosService {
                 return responseDTO;
             }
             MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
-            if (ObjectUtils.isEmpty(lendingApplication) || ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) ||
-                    lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp) ||
-                    lendingApplication.getAgreementAt().before(taskStartTimestamp) || lendingApplication.getAgreementAt().after(taskEndTimeStamp)) {
+            if (ObjectUtils.isEmpty(lendingApplication) ||
+                    ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
+                            (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
+                                    lendingApplication.getAgreementAt().after(taskEndTimeStamp))
+                                    && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
+                            ))) {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
                 fosTaskStatusDto.setMessage("no application found against this task");
@@ -1062,22 +1065,16 @@ public class FosService {
                 responseDTO.setSuccess(Boolean.TRUE);
                 logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
-            } else if (!ObjectUtils.isEmpty(bpEnach) && bpEnach.getUpdatedAt().after(taskStartTimestamp) && bpEnach.getUpdatedAt().before(taskEndTimeStamp)
-                        && "APPROVED".equals(lendingApplication.getNachStatus())){
-                fosTaskStatusDto.setStatus("COMPLETE");
-                fosTaskStatusDto.setMessage("task completed");
-                logger.info("nach done for merchant {}", lendingApplication.getMerchantId());
-                return responseDTO;
             } else {
-//                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED")) {
-//                    fosTaskStatusDto.setStatus("COMPLETE");
-//                    fosTaskStatusDto.setMessage("task completed");
-//                    logger.info("nach done for merchant {}", merchantId);
-//                } else {
-//                    fosTaskStatusDto.setStatus("INCOMPLETE");
-//                    fosTaskStatusDto.setMessage("Nach pending for the application");
-//                    logger.info("nach pending for merchant {}", merchantId);
-//                }
+                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED")) {
+                    fosTaskStatusDto.setStatus("COMPLETE");
+                    fosTaskStatusDto.setMessage("task completed");
+                    logger.info("nach done for merchant {}", merchantId);
+                } else {
+                    fosTaskStatusDto.setStatus("INCOMPLETE");
+                    fosTaskStatusDto.setMessage("Nach pending for the application");
+                    logger.info("nach pending for merchant {}", merchantId);
+                }
                 fosTaskStatusDto.setStatus("COMPLETE");
                 fosTaskStatusDto.setMessage("task completed");
                 logger.info("agreement done for merchant {}", lendingApplication.getMerchantId());
