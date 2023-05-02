@@ -698,6 +698,7 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
+
     public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
         try {
             return !(!ObjectUtils.isEmpty(applicationRequest.getAddressDetails()) &&
