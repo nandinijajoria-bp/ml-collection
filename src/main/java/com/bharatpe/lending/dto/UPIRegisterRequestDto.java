@@ -8,5 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UPIRegisterRequestDto {
 
+    Long loanId;
 
 }

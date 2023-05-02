@@ -18,14 +18,14 @@ public class AutoPayUPIController {
     @Autowired
     AutoPayUPIService autoPayUPIService;
 
-    @PostMapping(value = "/register")
+    @PostMapping(value = "/register-mandate")
     public UPIRegisterResponseDto registerAutoPayForMerchant(
-            @RequestAttribute BasicDetailsDto merchant, @RequestAttribute Long loanId,
+            @RequestAttribute BasicDetailsDto merchant,
             @RequestBody RequestDTO<UPIRegisterRequestDto> requestDTO) {
 //        BasicDetailsDto merchant = new BasicDetailsDto();
 //        Long applicationId = 7890L;
 //        merchant.setId(12344L);
-        return autoPayUPIService.registerUPI(merchant, loanId, requestDTO);
+        return autoPayUPIService.registerUPI(merchant,requestDTO.getPayload().getLoanId(), requestDTO);
 
     }
 

@@ -330,7 +330,7 @@ public class APIGatewayService {
                     logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
-                    logger.error("Exception in createVPA", e);
+                    logger.error("Exception in creation of mandate for the merchantId {}", merchantId);
                 }
                 retryCount++;
             }

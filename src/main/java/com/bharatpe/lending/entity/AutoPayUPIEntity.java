@@ -4,9 +4,7 @@ import com.bharatpe.lending.common.entity.BaseEntity;
 import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import lombok.Data;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @Data
@@ -21,5 +19,7 @@ public class AutoPayUPIEntity extends BaseEntity {
     private Double amount;
     @Column(name = "payment_url_deeplink")
     private String paymentURlDeepLink;
+
+    @Enumerated(EnumType.STRING)
     private AutoPayStatusEnum status;
 }
