@@ -19,7 +19,7 @@ public class AutoPayUPIEntity extends BaseEntity {
     private Long merchantId;
     private int frequency;
     private Double amount;
-    @Column(name = "payment_url_depplink")
+    @Column(name = "payment_url_deeplink")
     private String paymentURlDeepLink;
     private AutoPayStatusEnum status;
 }

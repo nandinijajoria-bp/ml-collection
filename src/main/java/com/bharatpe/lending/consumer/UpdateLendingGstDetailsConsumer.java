@@ -23,7 +23,7 @@ public class UpdateLendingGstDetailsConsumer {
     @Autowired
     ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "update_gst_details", autoStartup = "false")
+    @KafkaListener(topics = "update_gst_details")
     public void consume(String data) {
         log.info("Update Gst Details : {}", data);
         try {

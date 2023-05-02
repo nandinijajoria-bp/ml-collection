@@ -26,11 +26,7 @@ public class ENachController {
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant,
-																	 @RequestHeader("token") String token,
-																	 @RequestParam(name = "provider", required = false) String provider,
-																	 @RequestParam(name = "app_version", required = false) String appVersion)
-	{
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestParam(name = "provider", required = false) String provider, @RequestParam(name = "app_version", required = false) String appVersion) {
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
