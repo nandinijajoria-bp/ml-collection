@@ -1,7 +1,6 @@
 package com.bharatpe.lending.service;
 
-import com.amazonaws.services.cognitoidp.model.*;
-import com.amazonaws.services.xray.model.Http;
+
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingCitiesDao;
 import com.bharatpe.common.dao.LendingPancardDao;
@@ -105,6 +104,8 @@ public class APIGatewayService {
     @Value("${pg.percent:10}")
     Integer pgPercent;
 
+    @Value("${upi.percent}")
+    Integer upiPercent;
     @Autowired
     LendingHmacCalculator lendingHmacCalculator;
 
@@ -292,6 +293,56 @@ public class APIGatewayService {
         return null;
     }
 
+
+    public AutoPayRegisterPgResponseDto createPgTransaction(Long merchantId, AutoPayUPIRegisterPgRequestDto pgCreateTransactionRequestDTO) {
+        logger.info("UPI AutoPay registration merchant id {}", merchantId);
+        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
+        LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
+        logger.info("pg config related to mid for AutoPayUPI: {}", pgMidConfig);
+        try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("orderId", pgCreateTransactionRequestDTO.getOrderId());
+            requestParams.put("orderAmount", pgCreateTransactionRequestDTO.getOrderAmount());
+            requestParams.put("redirectURI", pgCreateTransactionRequestDTO.getRedirectURI());
+            requestParams.put("redirectURIDeeplink", pgCreateTransactionRequestDTO.getRedirectURIDeeplink());
+            requestParams.put("paymentPageHeaderText", pgCreateTransactionRequestDTO.getPaymentPageHeaderText());
+            requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
+            requestParams.put("allowedModes", pgCreateTransactionRequestDTO.getAllowedModes());
+            requestParams.put("checkout", pgCreateTransactionRequestDTO.getCheckout());
+
+            String hash = lendingHmacCalculator.calculateHmac
+                    (lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(),
+                            pgMidConfig, merchantId));
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getPgMid(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+
+            logger.info("Create pg transaction internal request: {}", mapper.writeValueAsString(request));
+            int retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    String pgCreateTxnURL = LendingConstants.CREATE_PG_TXN_V2;
+                    logger.info("pg create url: {}", pgCreateTxnURL);
+                    AutoPayRegisterPgResponseDto response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, AutoPayRegisterPgResponseDto.class);
+                    logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
+                    return response;
+                } catch (Exception e) {
+                    logger.error("Exception in createVPA", e);
+                }
+                retryCount++;
+            }
+        } catch (HttpClientErrorException ex) {
+            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+            logger.error("Error in api call to create pg transaction for merchant:{}", merchantId, ex);
+        } catch (Exception ex) {
+            logger.error("error processing txn for dynamic vpa for merchant id:{}", merchantId, ex);
+        }
+        return null;
+    }
+
     public PgCreateTransactionResponseDTO createPgTransaction(Long merchantId, PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO) {
         PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO = new PgCreateTransactionResponseDTO();
         logger.info("In Create pg transaction for merchnat id {}", merchantId);
@@ -348,6 +399,7 @@ public class APIGatewayService {
         return LendingConstants.CREATE_PG_TXN_V1;
     }
 
+
     private String getSecret() {
 //        Optional<Merchant> merchantOptional = merchantDao.findById(merchantId);
         Optional<BasicDetailsDto> merchantOptional = merchantService.fetchMerchantBasicDetails(merchantId);
@@ -388,7 +440,9 @@ public class APIGatewayService {
 
         if (Objects.nonNull(pgMidConfig) && Objects.nonNull(pgMidConfig.getSecret())) {
             pgSecret = pgMidConfig.getSecret();
+            logger.info("pgSecret {}",pgSecret);
             pgSecret = aesEncryptionUtil.decrypt(pgSecret);
+            logger.info("Decrypted pgSecret {}",pgSecret);
             logger.info("returning secret of new flow for merchant id: {}", merchantId);
         }
         return pgSecret;
@@ -2379,6 +2433,43 @@ public class APIGatewayService {
         return success;
     }
 
+
+
+    public PgStatusResponseMandate checkPgStatusForMandate(String orderId, Lender lender, Long merchantId) {
+        logger.info("Pg status check for  and orderId:{}", orderId);
+        try {
+            Map<String, String> requestBody = new HashMap<String, String>() {{
+                put("orderId", orderId);
+            }};
+            LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(lender.name(), "ACTIVE");
+            String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestBody), getPgSecret(lender, pgMidConfig, merchantId));
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getPgMid(lender, pgMidConfig, merchantId));
+            HttpEntity<Map> request = new HttpEntity<>(headers);
+
+            logger.info("Pg status Check internal request: {}", mapper.writeValueAsString(request));
+            int retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    ResponseEntity<PgStatusResponseMandate> response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponseMandate.class);
+                    logger.info("Response received from Pg status Check API {}", mapper.writeValueAsString(response));
+                    return response.getBody();
+                } catch (Exception e) {
+                    logger.error("Exception in Pg status for order_id:{} error ", orderId, e);
+                }
+                retryCount++;
+            }
+        } catch (HttpClientErrorException ex) {
+            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+            logger.error("Error in api call to Pg status Check for order id:{}, error:", orderId, ex);
+        } catch (Exception ex) {
+            logger.error("error in Pg status Check for order id:{}, error", orderId, ex);
+        }
+        return null;
+    }
     public PgStatusResponse checkPgStatus(String orderId, Lender lender, Long merchantId) {
         logger.info("Pg status check for  and orderId:{}", orderId);
         try {

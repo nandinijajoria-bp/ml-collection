@@ -24,6 +24,7 @@ import org.springframework.util.ObjectUtils;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@Data
 public class LendingMerchantLoansResponseDTO {
 
     private List<Loan> loans;
@@ -116,7 +117,8 @@ public class LendingMerchantLoansResponseDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 
-    public class Loan {
+    @Data
+    public static class Loan {
 
         private Long loanId;
         private Double loanAmount;
@@ -132,6 +134,8 @@ public class LendingMerchantLoansResponseDTO {
         private String endDate;
         private String loanType;
         private String status;
+        private Boolean autoPayEligibility;
+        private String autoPayMandateStatus;
         private Double paidAmount;
         private Double lastEdiPaid;
         private Double repaymentAmount;

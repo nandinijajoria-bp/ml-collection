@@ -6,19 +6,16 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
-import com.bharatpe.lending.common.entity.LmsFieldValues;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.entity.LendingContactSyncAudit;
-import com.bharatpe.lending.common.entity.LendingIoHalfTopup;
-import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.AutoPayUPIEntity;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.KycStatus;
-import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -48,6 +45,10 @@ public class MerchantLoansService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
@@ -284,6 +285,7 @@ public class MerchantLoansService {
             responseDTO.setSuccess(false);
         } else {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
+
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
                 LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
@@ -302,6 +304,20 @@ public class MerchantLoansService {
                 loan.setPaidAmount((ObjectUtils.isEmpty(loan.getPaidAmount()) ? 0 : loan.getPaidAmount()) + advanceEdiAmount);
                 loan.setPendingAmount((ObjectUtils.isEmpty(loan.getPendingAmount()) ? 0 : loan.getPendingAmount()) - advanceEdiAmount);
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
+
+                if (loan.getStatus().equals("ACTIVE")) {
+                    Long id = loan.getLoanId();
+                    logger.info("loan id is {}",id);
+                    AutoPayUPIEntity autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
+                    if (autoPayUPI != null) {
+                        loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.getStatus()));
+                    }
+                    Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
+                    if (loanDpd.get().getDpd()<3)
+                        loan.setAutoPayEligibility(true);
+                    else
+                        loan.setAutoPayEligibility(Boolean.FALSE);
+                }
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             if (lendingPaymentSchedule != null) {

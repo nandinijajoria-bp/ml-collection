@@ -45,9 +45,7 @@ public class ENachController {
 
 	@RequestMapping(value="/submit", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestBody ENachSubmitRequestDTO body, @RequestHeader("token") String token) {
-		return new ResponseEntity<>(eNachService.subm
-
-				itEnach(merchant, body, token), HttpStatus.OK);
+		return new ResponseEntity<>(eNachService.submitEnach(merchant, body, token), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/skip",method = RequestMethod.GET, consumes="application/json", produces="application/json")
