@@ -2308,14 +2308,14 @@ public class LendingApplicationServiceV2 {
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding_1.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.WELCOME_LETTER_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-welcome.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString())){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead.png";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-compressed.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-compressed_1.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";
