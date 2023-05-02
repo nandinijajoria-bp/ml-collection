@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Set;
 
 @Service
@@ -20,24 +21,29 @@ public class EdiModelAssignmentV1 implements IEdiModelAssignment {
 
     @Override
     public EdiModel assignModel(Long merchantId) {
-        ExtractedRulesAndLendersDTO extractedRulesAndLendersDTO = assignmentRuleUtils.extractRules(merchantId, null);
-        log.info("extracted response {}", extractedRulesAndLendersDTO);
-        log.info("extracted lrvs response {}", extractedRulesAndLendersDTO.getRiskParamsDTO());
-        log.info("extracted assignment rules response {}", extractedRulesAndLendersDTO.getLenderAssignmentRules());
-        assignmentRuleUtils.filterLenders(extractedRulesAndLendersDTO);
-        log.info("extracted filtered  lenders response {}", extractedRulesAndLendersDTO.getFilteredLenders());
-        Set<EdiModel> ediModels = assignmentRuleUtils.extractEdiModelFromFilteredLenders(extractedRulesAndLendersDTO);
-        log.info("ediModels derived {}", ediModels);
-        EdiModel assignedModel = null;
-        if (ediModels.isEmpty()) {
-//            fallback lender here
-            String fallbackLender = assignmentRuleUtils.fetchFallbackLender();
-            assignedModel = LenderOffDays.valueOf(fallbackLender).getEdiModel();
-            log.info("assigned lender {} model {}", fallbackLender, assignedModel);
-            return LenderOffDays.valueOf(fallbackLender).getEdiModel();
+        try {
+            ExtractedRulesAndLendersDTO extractedRulesAndLendersDTO = assignmentRuleUtils.extractRules(merchantId, null);
+            log.info("extracted response {}", extractedRulesAndLendersDTO);
+            log.info("extracted lrvs response {}", extractedRulesAndLendersDTO.getRiskParamsDTO());
+            log.info("extracted assignment rules response {}", extractedRulesAndLendersDTO.getLenderAssignmentRules());
+            assignmentRuleUtils.filterLenders(extractedRulesAndLendersDTO);
+            log.info("extracted filtered  lenders response {}", extractedRulesAndLendersDTO.getFilteredLenders());
+            Set<EdiModel> ediModels = assignmentRuleUtils.extractEdiModelFromFilteredLenders(extractedRulesAndLendersDTO);
+            log.info("ediModels derived {}", ediModels);
+            EdiModel assignedModel = null;
+            if (ediModels.isEmpty()) {
+    //            fallback lender here
+                String fallbackLender = assignmentRuleUtils.fetchFallbackLender();
+                assignedModel = LenderOffDays.valueOf(fallbackLender).getEdiModel();
+                log.info("assigned lender {} model {} for merchant {}", fallbackLender, assignedModel, merchantId);
+                return LenderOffDays.valueOf(fallbackLender).getEdiModel();
+            }
+            assignedModel = ediModels.iterator().next();
+            log.info("assigned model {} for merchant {}", assignedModel, merchantId);
+            return assignedModel;
+        } catch (Exception e) {
+            log.error("error occurred while computing edi Model for merchant {} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        assignedModel = ediModels.iterator().next();
-        log.info("assigned model {}", assignedModel);
-        return assignedModel;
+        return EdiModel.SEVEN_DAY_MODEL;
     }
 }

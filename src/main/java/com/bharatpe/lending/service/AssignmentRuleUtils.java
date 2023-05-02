@@ -12,6 +12,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.ExtractedRulesAndLendersDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -29,6 +30,9 @@ public class AssignmentRuleUtils {
 
     @Autowired
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
+
+    @Value("${edi.assignment.model:false}")
+    Boolean assignEdiModelFromModelAssignmentEngine;
 
     public ExtractedRulesAndLendersDTO extractRules(Long merchantId, Map<String, String> args) {
         ExtractedRulesAndLendersDTO extractedRulesAndLendersDTO = new ExtractedRulesAndLendersDTO();
@@ -49,13 +53,15 @@ public class AssignmentRuleUtils {
             extractedRulesAndLendersDTO.setRunModelAssignmentOnly(extractModelOnly);
         }
         try {
-            log.info("Lender assignment parameters -> bureau:{}, loanType:{}, tenure:{}, loanAmount:{}, riskGroup:{}, pincodeColor:{}", riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(),
+            log.info("Lender assignment parameters -> merchant : {} , bureau:{}, loanType:{}, tenure:{}, loanAmount:{}, riskGroup:{}, pincodeColor:{}", merchantId, riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(),
                     riskParamsDTO.getAmount(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
             List<LenderAssignmentRules> derivedRuleList = lenderAssignmentRulesDao.fetchEligibleRules(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
             log.info("fetched rule list {}", derivedRuleList);
-            // TODO: 14/04/23 disable later
-            derivedRuleList = lenderAssignmentRulesDao.fetchEligibleRulesForInternal(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
-            log.info("tweaked rule list {}", derivedRuleList);
+//            if (assignEdiModelFromModelAssignmentEngine) {
+//                // TODO: 14/04/23 disable later
+//                derivedRuleList = lenderAssignmentRulesDao.fetchEligibleRulesForInternal(riskParamsDTO.getAmount(), riskParamsDTO.getBureauScore(), riskParamsDTO.getRiskSegment(), riskParamsDTO.getTenureInMonths(), riskParamsDTO.getRiskGroupLike(), riskParamsDTO.getPincodeColor());
+//                log.info("tweaked rule list {}", derivedRuleList);
+//            }
             extractedRulesAndLendersDTO.setLenderAssignmentRules(Optional.ofNullable(derivedRuleList).orElse(new ArrayList<>()));
         } catch (Exception ex) {
             log.error("Exception occurred while fetching rules : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));

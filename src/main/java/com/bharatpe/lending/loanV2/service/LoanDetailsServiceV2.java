@@ -632,7 +632,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setEdiDaysModel(7);
         }
 
-        if (assignEdiModelFromModelAssignmentEngine) {
+        if (loanUtil.isInternalMerchant(merchant.getId()) || assignEdiModelFromModelAssignmentEngine) {
             loanDetailsResponse.setEdiDaysModel(iEdiModelAssignment.assignModel(merchant.getId()).getNoOfEdiDaysInAWeek());
         }
 
