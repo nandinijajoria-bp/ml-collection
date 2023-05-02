@@ -320,7 +320,7 @@ public class APIGatewayService {
             headers.set("mid", getPgMid(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
-            logger.info("Create pg transaction internal request: {}", mapper.writeValueAsString(request));
+            logger.info("Create pg mandate internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
             while (retryCount < 3) {
                 try {
@@ -335,7 +335,7 @@ public class APIGatewayService {
                 retryCount++;
             }
         } catch (HttpClientErrorException ex) {
-            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+            logger.info("Response from API Gateway : {}", ex.getResponseBodyAsString());
             logger.error("Error in api call to create pg transaction for merchant:{}", merchantId, ex);
         } catch (Exception ex) {
             logger.error("error processing txn for dynamic vpa for merchant id:{}", merchantId, ex);
@@ -345,7 +345,7 @@ public class APIGatewayService {
 
     public PgCreateTransactionResponseDTO createPgTransaction(Long merchantId, PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO) {
         PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO = new PgCreateTransactionResponseDTO();
-        logger.info("In Create pg transaction for merchnat id {}", merchantId);
+        logger.info("In Create pg transaction for merchant id {}", merchantId);
         InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
         logger.info("pg config related to mid: {}", pgMidConfig);
@@ -382,11 +382,13 @@ public class APIGatewayService {
                 }
                 retryCount++;
             }
-        } catch (HttpClientErrorException ex) {
-            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+        }
+        catch (HttpClientErrorException ex) {
+            logger.info("Response from API Gateway : {}", ex.getResponseBodyAsString());
             logger.error("Error in api call to create pg transaction for merchant:{}", merchantId, ex);
-        } catch (Exception ex) {
-            logger.error("error processing txn for dynamic vpa for merchant id:{}", merchantId, ex);
+        }
+        catch (Exception ex) {
+            logger.error("error processing registration for merchant id:{}", merchantId, ex);
         }
         return null;
     }
@@ -2435,7 +2437,7 @@ public class APIGatewayService {
 
 
 
-    public PgStatusResponseMandate checkPgStatusForMandate(String orderId, Lender lender, Long merchantId) {
+    public PgStatusResponse checkPgStatusForMandate(String orderId, Lender lender, Long merchantId) {
         logger.info("Pg status check for  and orderId:{}", orderId);
         try {
             Map<String, String> requestBody = new HashMap<String, String>() {{
@@ -2454,7 +2456,7 @@ public class APIGatewayService {
             int retryCount = 0;
             while (retryCount < 3) {
                 try {
-                    ResponseEntity<PgStatusResponseMandate> response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponseMandate.class);
+                    ResponseEntity<PgStatusResponse> response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
                     logger.info("Response received from Pg status Check API {}", mapper.writeValueAsString(response));
                     return response.getBody();
                 } catch (Exception e) {

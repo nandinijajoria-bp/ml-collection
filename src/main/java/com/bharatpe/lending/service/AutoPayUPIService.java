@@ -51,7 +51,7 @@ public class AutoPayUPIService {
     APIGatewayService apiGatewayService;
 
 
-    public String handleMandatePgCallback(PgPaymentCallbackMandateDTO request) {
+    public String handleMandatePgCallback(PgPaymentCallbackDTO request) {
         log.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
         if (Objects.nonNull(request) && Objects.isNull(request.getPayments())) {
             log.info("null payments object in pg callback for request: {}", request);
@@ -98,7 +98,7 @@ public class AutoPayUPIService {
             log.info("pg status check for mandate register for merchant id {} application id {}",
                     mandateApplication.getMerchantId(), mandateApplication.getApplicationId());
 
-            PgStatusResponseMandate response =
+            PgStatusResponse response =
                     apiGatewayService.checkPgStatusForMandate
                             (mandateApplication.getOrderId(),
                                     Lender.valueOf(mandateApplication.getLender()), mandateApplication.getMerchantId());

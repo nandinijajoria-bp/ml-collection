@@ -39,13 +39,8 @@ public class AutoPayUPIController {
 //        merchant.setId(1234L);
 //        orderId="Auto-UPI12";
         return autoPayUPIService.checkStatus(merchant,orderId);
-
     }
 
-    @RequestMapping(value="/callback/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
-    public ResponseEntity<String> callbackV2(@RequestBody PgPaymentCallbackMandateDTO requestDTO) {
-        return new ResponseEntity<>(autoPayUPIService.handleMandatePgCallback(requestDTO), HttpStatus.OK);
-    }
 
 
 

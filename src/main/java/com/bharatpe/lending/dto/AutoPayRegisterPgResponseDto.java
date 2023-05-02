@@ -9,7 +9,7 @@ public class AutoPayRegisterPgResponseDto {
 
     private String statusCode;
     private String message;
-    private PgCreateTransactionResponseDTO.Data data;
+    private Data data;
 
     @lombok.Data
     @AllArgsConstructor

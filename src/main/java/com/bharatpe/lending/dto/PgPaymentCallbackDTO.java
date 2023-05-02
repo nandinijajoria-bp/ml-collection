@@ -20,8 +20,28 @@ public class PgPaymentCallbackDTO {
     private String redirectURI;
     private String checkoutType;
     private List<Payments> payments;
+    private Mandate mandate;
+
+
+    @Data
+    public static class Mandate {
+        private String type;
+        private String orderId;
+        private String paymentMode;
+        private Double maxAmount;
+        private String mandateId;
+        private Long customerId;
+        private Long customerSubId;
+        private String status;
+        private Long startDate;
+        private Long endDate;
+        private Long activatedAt;
+        private Long createdAt;
+        private String metaData;
+    }
 
     @ToString
+    @Data
     public static class Payments{
         private Double amount;
         private String mode;

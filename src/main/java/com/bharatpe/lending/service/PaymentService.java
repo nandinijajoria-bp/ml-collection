@@ -92,6 +92,8 @@ public class PaymentService {
 //	MerchantDao merchantDao;
 
     @Autowired
+    AutoPayUPIService autoPayUPIService;
+    @Autowired
     LoanPaymentOrderDao loanPaymentOrderDao;
 
     @Autowired
@@ -496,85 +498,90 @@ public class PaymentService {
     }
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
-        logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
-        if (Objects.nonNull(request) && Objects.isNull(request.getPayments())) {
-            logger.info("null payments object in pg callback for request: {}", request);
-            return "OK";
-        }
-        LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
-        try {
-            if(order == null) {
-                logger.error("No order for order id {}", request.getOrderId());
+        if (request.getMandate() != null) {
+            logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
+            return autoPayUPIService.handleMandatePgCallback(request);
+        } else {
+            logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
+            if (Objects.nonNull(request) && Objects.isNull(request.getPayments())) {
+                logger.info("null payments object in pg callback for request: {}", request);
                 return "OK";
             }
-            logger.info("status of order saved in DB: {} for orderId: {}", order.getOrderId(), order.getStatus());
-            if(!"PENDING".equalsIgnoreCase(order.getStatus())) {
-                logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchantId(), request.getOrderId());
-                return "OK";
-            }
+            LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
+            try {
+                if (order == null) {
+                    logger.error("No order for order id {}", request.getOrderId());
+                    return "OK";
+                }
+                logger.info("status of order saved in DB: {} for orderId: {}", order.getOrderId(), order.getStatus());
+                if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
+                    logger.info("Payment for merchant id {} and order id {} is already processed", order.getMerchantId(), request.getOrderId());
+                    return "OK";
+                }
 
-            int lockTxn = loanPaymentOrderDao.updateStatusForPendingTxn(CreditConstants.PaymentStatus.CALLBACK_RECEIVED.name(), order.getId());
-            if (lockTxn != 1) {
-                logger.info("Unable to take lock on loan payment order:{} ", order.getId());
-                return "OK";
-            }
+                int lockTxn = loanPaymentOrderDao.updateStatusForPendingTxn(CreditConstants.PaymentStatus.CALLBACK_RECEIVED.name(), order.getId());
+                if (lockTxn != 1) {
+                    logger.info("Unable to take lock on loan payment order:{} ", order.getId());
+                    return "OK";
+                }
 
-            if(request.getPaymentAmount() == null || request.getPaymentAmount() <= 0D) {
-                logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchantId(), request.getPaymentAmount());
-                return "OK";
-            }
-            Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId());
-            if(!activeLoan.isPresent()) {
-                logger.error("No active loan found for id {}", order.getOwnerId());
-                return "OK";
-            }
-            if(order.getAmount()  - request.getPaymentAmount() < -1 || order.getAmount() - request.getPaymentAmount() > 1) {
-                logger.error("Amount mismatch for the merchant {} and order id {}", order.getMerchantId(), request.getOrderId());
-                order.setStatus("FAILED");
-                order.setDescription("Amount mismatch");
-                loanPaymentOrderDao.save(order);
-                return "OK";
-            }
-            if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())){
-                order.setSource(request.getPayments().get(0).getMode());
-            }
-            if (request.getPaymentStatus() != null && Objects.nonNull(request.getPayments())) {
-                if ("FAILURE".equalsIgnoreCase(request.getPaymentStatus())) {
-                    order.setStatus(Status.TransactionStatus.FAILED.name());
+                if (request.getPaymentAmount() == null || request.getPaymentAmount() <= 0D) {
+                    logger.error("Invalid amount received for merchant {} and amount {}", order.getMerchantId(), request.getPaymentAmount());
+                    return "OK";
+                }
+                Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId());
+                if (!activeLoan.isPresent()) {
+                    logger.error("No active loan found for id {}", order.getOwnerId());
+                    return "OK";
+                }
+                if (order.getAmount() - request.getPaymentAmount() < -1 || order.getAmount() - request.getPaymentAmount() > 1) {
+                    logger.error("Amount mismatch for the merchant {} and order id {}", order.getMerchantId(), request.getOrderId());
+                    order.setStatus("FAILED");
+                    order.setDescription("Amount mismatch");
+                    loanPaymentOrderDao.save(order);
+                    return "OK";
+                }
+                if (Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getMode())) {
+                    order.setSource(request.getPayments().get(0).getMode());
+                }
+                if (request.getPaymentStatus() != null && Objects.nonNull(request.getPayments())) {
+                    if ("FAILURE".equalsIgnoreCase(request.getPaymentStatus())) {
+                        order.setStatus(Status.TransactionStatus.FAILED.name());
 //                    order.setDescription(response.getData().getErrorDescription());
-                } else {
-                    order.setStatus(request.getPaymentStatus());
+                    } else {
+                        order.setStatus(request.getPaymentStatus());
+                    }
+                    if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
+                        String accountType = null;
+                        String terminalOrderId = null;
+                        if (Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getAccountType())) {
+                            accountType = request.getPayments().get(0).getAccountType();
+                        }
+
+                        if (Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getFinalGateway())) {
+                            order.setFinalGateway(request.getPayments().get(0).getFinalGateway());
+                        }
+                        if (Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getTerminalOrderId())) {
+                            terminalOrderId = request.getPayments().get(0).getTerminalOrderId();
+                            order.setTerminalOrderId(terminalOrderId);
+                        }
+
+                        order.setCheckoutType(request.getCheckoutType());
+                        order.setBankRefNo(request.getPaymentRefId());
+
+                        adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
+                                PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId);
+
+                    }
                 }
-                if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
-                    String accountType = null;
-                    String terminalOrderId = null;
-                    if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getAccountType())){
-                        accountType = request.getPayments().get(0).getAccountType();
-                    }
-
-                    if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getFinalGateway())){
-                        order.setFinalGateway(request.getPayments().get(0).getFinalGateway());
-                    }
-                    if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getTerminalOrderId())){
-                        terminalOrderId = request.getPayments().get(0).getTerminalOrderId();
-                        order.setTerminalOrderId(terminalOrderId);
-                    }
-
-                    order.setCheckoutType(request.getCheckoutType());
-                    order.setBankRefNo(request.getPaymentRefId());
-
-                    adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
-                            PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId);
-
-                }
-            }
-            loanPaymentOrderDao.save(order);
-        } catch(Exception ex) {
-            if (order != null) {
-                order.setStatus("PENDING");
                 loanPaymentOrderDao.save(order);
+            } catch (Exception ex) {
+                if (order != null) {
+                    order.setStatus("PENDING");
+                    loanPaymentOrderDao.save(order);
+                }
+                logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
             }
-            logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
         }
         return "OK";
     }
