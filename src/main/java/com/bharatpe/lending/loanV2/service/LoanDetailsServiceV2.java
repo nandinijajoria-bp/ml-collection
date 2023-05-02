@@ -191,6 +191,12 @@ public class LoanDetailsServiceV2 {
     @Value("${abfl.rollout.percent:10}")
     Integer rolloutAbflPercent;
 
+    @Value("${edi.assignment.model:false}")
+    Boolean assignEdiModelFromModelAssignmentEngine;
+
+    @Autowired
+    IEdiModelAssignment iEdiModelAssignment;
+
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
@@ -625,6 +631,11 @@ public class LoanDetailsServiceV2 {
         if (loanUtil.isInternalMerchant(merchant.getId()) || easyLoanUtil.percentScaleUp(merchant.getId(), rolloutAbflPercent)) {
             loanDetailsResponse.setEdiDaysModel(7);
         }
+
+        if (loanUtil.isInternalMerchant(merchant.getId()) || assignEdiModelFromModelAssignmentEngine) {
+            loanDetailsResponse.setEdiDaysModel(iEdiModelAssignment.assignModel(merchant.getId()).getNoOfEdiDaysInAWeek());
+        }
+
         EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
