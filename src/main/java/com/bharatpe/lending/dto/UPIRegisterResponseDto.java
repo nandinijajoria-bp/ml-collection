@@ -8,13 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UPIRegisterResponseDto {
 
-    private String message;
     private boolean success;
     private UPIRegisterResponseDto.Data data;
-
-    public UPIRegisterResponseDto(String msg) {
-        this.message = msg;
-    }
 
     public UPIRegisterResponseDto(Data data) {
         this.success = true;

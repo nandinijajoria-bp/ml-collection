@@ -296,7 +296,6 @@ public class APIGatewayService {
 
     public AutoPayRegisterPgResponseDto createPgTransaction(Long merchantId, AutoPayUPIRegisterPgRequestDto pgCreateTransactionRequestDTO) {
         logger.info("UPI AutoPay registration merchant id {}", merchantId);
-        InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
         logger.info("pg config related to mid for AutoPayUPI: {}", pgMidConfig);
         try {
@@ -307,7 +306,6 @@ public class APIGatewayService {
             requestParams.put("redirectURIDeeplink", pgCreateTransactionRequestDTO.getRedirectURIDeeplink());
             requestParams.put("paymentPageHeaderText", pgCreateTransactionRequestDTO.getPaymentPageHeaderText());
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
-            requestParams.put("allowedModes", pgCreateTransactionRequestDTO.getAllowedModes());
             requestParams.put("checkout", pgCreateTransactionRequestDTO.getCheckout());
 
             String hash = lendingHmacCalculator.calculateHmac
@@ -327,10 +325,10 @@ public class APIGatewayService {
                     String pgCreateTxnURL = LendingConstants.CREATE_PG_TXN_V2;
                     logger.info("pg create url: {}", pgCreateTxnURL);
                     AutoPayRegisterPgResponseDto response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, AutoPayRegisterPgResponseDto.class);
-                    logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
+                    logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
-                    logger.error("Exception in creation of mandate for the merchantId {}", merchantId);
+                    logger.error("Exception in creation of mandate for the merchantId {} and exception e{} is ", merchantId, e);
                 }
                 retryCount++;
             }

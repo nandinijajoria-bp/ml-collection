@@ -85,7 +85,7 @@ public class AutoPayUPIService {
         return "OK";
     }
 
-    public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant,String orderId ) {
+    public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant, String orderId) {
         log.info("Status check request for mandate register");
         AutoPayUPIEntity mandateApplication =
                 autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId);
@@ -108,8 +108,7 @@ public class AutoPayUPIService {
                     && "SUCCESS".equalsIgnoreCase(response.getData().getPaymentStatus())) {
                 log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
                 handleMandatePgCallback(response.getData());
-            }
-            else if (response != null && response.getStatusCode() != null
+            } else if (response != null && response.getStatusCode() != null
                     && "200".equalsIgnoreCase(response.getStatusCode()) &&
                     Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
                     || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
@@ -118,7 +117,7 @@ public class AutoPayUPIService {
                 log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
             }
         }
-        return new MandateUPIStatusResponse(mandateApplication.getOrderId(),mandateApplication.getApplicationId(),
+        return new MandateUPIStatusResponse(mandateApplication.getOrderId(), mandateApplication.getApplicationId(),
                 mandateApplication.getStatus());
     }
 
@@ -127,74 +126,73 @@ public class AutoPayUPIService {
         log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
         Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanId);
 
-        if (activeLoan == null) {
+        if (!activeLoan.isPresent()) {
             log.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
-            throw new InvalidRequestException(String.format("Invalid merchantId : %s", merchantBasicDetails.getId()));
-        }
+            throw new InvalidRequestException(String.format("Invalid loan Id : %s", loanId));
+        } else {
+            UPIRegisterResponseDto.Data data = null;
+            log.info("merchant basic details merchantBasicDetails.getId(){}", merchantBasicDetails.getId());
+            log.info("active loan merchantId {}", activeLoan.get().getMerchantId());
+            if (activeLoan.isPresent() && (merchantBasicDetails.getId().equals(activeLoan.get().getMerchantId()))) {
+                AutoPayUPIEntity autoPayUPI = new AutoPayUPIEntity();
+                autoPayUPI.setAmount(1D);
+                autoPayUPI.setMerchantId(merchantBasicDetails.getId());
+                autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());
+//                autoPayUPI.setLender("LDC");
+                autoPayUPI.setStatus(AutoPayStatusEnum.init);
+                autoPayUPI.setApplicationId(activeLoan.get().getApplicationId());
+                autoPayUPI = autoPayUPIDao.save(autoPayUPI);
+                autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
-        UPIRegisterResponseDto.Data data = null;
-        if (activeLoan.isPresent() && (merchantBasicDetails.getId().equals(activeLoan.get().getMerchantId()))) {
-            AutoPayUPIEntity autoPayUPI = new AutoPayUPIEntity();
-            autoPayUPI.setAmount(1D);
-            autoPayUPI.setMerchantId(merchantBasicDetails.getId());
-            autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());
-//            autoPayUPI.setLender("P2P");
-            autoPayUPI.setStatus(AutoPayStatusEnum.init);
-            autoPayUPI.setApplicationId(activeLoan.get().getApplicationId());
-            autoPayUPI = autoPayUPIDao.save(autoPayUPI);
-            autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
+                AutoPayUPIRegisterPgRequestDto registerPgRequest = new AutoPayUPIRegisterPgRequestDto();
+//                registerPgRequest.setLender(Lender.valueOf("LDC"));
+                registerPgRequest.setLender(Lender.valueOf(activeLoan.get().getNbfc()));
+                registerPgRequest.setPaymentPageHeaderText("Select Payment Mode");
+                registerPgRequest.setOrderAmount(1D);
+                registerPgRequest.setOrderType("MANDATE");
+                registerPgRequest.setCustomerId(merchantBasicDetails.getId());
+                registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
+                registerPgRequest.setMandateStartDate(LocalDate.now());
+                registerPgRequest.setRedirectURIDeeplink("");
+                registerPgRequest.setNarration("Payment for Order No" + autoPayUPI.getOrderId());
+                registerPgRequest.setOrderId(autoPayUPI.getOrderId());
 
-            AutoPayUPIRegisterPgRequestDto registerPgRequest = new AutoPayUPIRegisterPgRequestDto();
-//            registerPgRequest.setLender(Lender.valueOf("LDC"));
-            registerPgRequest.setLender(Lender.valueOf(activeLoan.get().getNbfc()));
-            registerPgRequest.setPaymentPageHeaderText("Select Payment Mode");
-            registerPgRequest.setOrderAmount(1D);
-            registerPgRequest.setOrderType("MANDATE");
-            registerPgRequest.setCustomerId(merchantBasicDetails.getId());
-            registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
-//            registerPgRequest.setCustomerSubId(287328L);
-            registerPgRequest.setAllowedModes("UPI");
-            registerPgRequest.setMandateStartDate(LocalDate.now());
-            registerPgRequest.setRedirectURIDeeplink("");
-            registerPgRequest.setNarration("Payment for Order No" + autoPayUPI.getOrderId());
-            registerPgRequest.setOrderId(autoPayUPI.getOrderId());
+                if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
+                        easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
+                    log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
 
-            if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
-                    easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
-                log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
+                    Long appVersion = Objects.nonNull(requestDto.getMeta().getDeviceInfo().getAppVersion()) ?
+                            Long.parseLong(requestDto.getMeta().getDeviceInfo().getAppVersion()) : 100L;
 
-                Long appVersion = Objects.nonNull(requestDto.getMeta().getDeviceInfo().getAppVersion()) ?
-                        Long.parseLong(requestDto.getMeta().getDeviceInfo().getAppVersion()) : 100L;
-
-                if (Objects.equals(requestDto.getMeta().getClient(), "android")) {
-                    if (appVersion >= androidVersion) {
-                        registerPgRequest.setCheckout("JUSPAY");
+                    if (Objects.equals(requestDto.getMeta().getClient(), "android")) {
+                        if (appVersion >= androidVersion) {
+                            registerPgRequest.setCheckout("JUSPAY");
+                        } else {
+                            registerPgRequest.setCheckout("BHARATPE");
+                        }
                     } else {
-                        registerPgRequest.setCheckout("BHARATPE");
+                        if (appVersion >= iosVersion) {
+                            registerPgRequest.setCheckout("JUSPAY");
+                        } else {
+                            registerPgRequest.setCheckout("BHARATPE");
+                        }
                     }
                 } else {
-                    if (appVersion >= iosVersion) {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    } else {
-                        registerPgRequest.setCheckout("BHARATPE");
-                    }
+                    registerPgRequest.setCheckout("BHARATPE");
                 }
-            } else {
-                registerPgRequest.setCheckout("BHARATPE");
-            }
-            AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
+                AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
 
-            if (registerPgResponseDto != null && registerPgResponseDto.getStatusCode() != null
-                    && "200".equalsIgnoreCase(registerPgResponseDto.getStatusCode())) {
-                autoPayUPI.setStatus(AutoPayStatusEnum.pending);
-                autoPayUPI.setPaymentURlDeepLink(registerPgResponseDto.getData().getPaymentURIDeeplink());
-                autoPayUPIDao.save(autoPayUPI);
+                if (registerPgResponseDto != null && registerPgResponseDto.getStatusCode() != null
+                        && "200".equalsIgnoreCase(registerPgResponseDto.getStatusCode())) {
+                    autoPayUPI.setStatus(AutoPayStatusEnum.pending);
+                    autoPayUPI.setPaymentURlDeepLink(registerPgResponseDto.getData().getPaymentURIDeeplink());
+                    autoPayUPIDao.save(autoPayUPI);
+                }
+                data = new UPIRegisterResponseDto.Data(autoPayUPI.getAmount(), autoPayUPI.getOrderId(),
+                        autoPayUPI.getPaymentURlDeepLink());
             }
-            data = new UPIRegisterResponseDto.Data(autoPayUPI.getAmount(), autoPayUPI.getOrderId(),
-                    autoPayUPI.getPaymentURlDeepLink());
+
+            return new UPIRegisterResponseDto(data);
         }
-
-        return new UPIRegisterResponseDto(data);
-
     }
 }
