@@ -753,7 +753,7 @@ public class SupportService {
             supportApiResponseDto.setActiveLoan(Boolean.FALSE);
             if(Objects.nonNull(lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp()) && "DISBURSED".equals(lendingPaymentSchedule.getLoanApplication().getLoanDisbursalStatus())){
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
-                supportApiResponseDto.setDisbursalUtr(lendingApplicationLenderDetails.getUtrNo());
+                supportApiResponseDto.setDisbursalUtr(ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo());
             }
             if ("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
