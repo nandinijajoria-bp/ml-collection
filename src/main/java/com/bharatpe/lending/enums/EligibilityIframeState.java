@@ -1,0 +1,5 @@
+package com.bharatpe.lending.enums;
+
+public enum EligibilityIframeState {
+    BANNER_OFFER_NOT_CHECKED, BANNER_ELIGIBLE, BANNER_DRAFT_APPLICATION, BANNER_PENDING_ENACH, BANNER_NOT_APPLICABLE
+}

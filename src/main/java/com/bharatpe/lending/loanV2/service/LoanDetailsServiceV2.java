@@ -12,10 +12,12 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -45,11 +47,9 @@ import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.*;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -65,6 +65,10 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class LoanDetailsServiceV2 {
+    @Autowired
+    private LendingRiskVariablesDaoSlave lendingRiskVariablesDaoSlave;
+    @Autowired
+    private LendingApplicationDaoSlave lendingApplicationDaoSlave;
     @Autowired
     private LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
 
@@ -191,11 +195,22 @@ public class LoanDetailsServiceV2 {
     @Value("${abfl.rollout.percent:10}")
     Integer rolloutAbflPercent;
 
+
+    @Value("${eligiblity.iframe.cache.time.minutes:5}")
+    Integer eligibilityIframeCachTtl;
+
+    @Value("${eligiblity.iframe.enabled:false}")
+    Boolean eligibilityIframeEnabled;
+
+    @Value("${eligiblity.iframe.debug:false}")
+    Boolean eligibilityIframeDebug;
+
     @Value("${edi.assignment.model:false}")
     Boolean assignEdiModelFromModelAssignmentEngine;
 
     @Autowired
     IEdiModelAssignment iEdiModelAssignment;
+
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
@@ -1558,5 +1573,104 @@ public class LoanDetailsServiceV2 {
             log.error("Error occurred while updating merchant permissions of merchantId: {} {}", merchant.getId(), e);
         }
         return new ApiResponse<>(false, "Something Went Wrong while updating merchant permissions.");
+    }
+
+    public ApiResponse<?> getIframeDetails(Long merchantId, String client) {
+        try {
+            EligibilityIframeResponseDTO responseDTO = new EligibilityIframeResponseDTO();
+            if(!eligibilityIframeEnabled){
+                responseDTO.setState(EligibilityIframeState.BANNER_NOT_APPLICABLE);
+                return new ApiResponse<>(responseDTO);
+            }
+            String iframeCacheKey = LendingConstants.ELIGIBILITY_IFRAME_KYC_CACHE_KEYWORD + merchantId;
+            Object iframeCacheResponse = lendingCache.get(iframeCacheKey);
+            if (Objects.nonNull(iframeCacheResponse)) {
+                responseDTO = objectMapper.readValue((String) iframeCacheResponse, EligibilityIframeResponseDTO.class);
+                if(Objects.nonNull(responseDTO.getState()) && (responseDTO.getState() != EligibilityIframeState.BANNER_NOT_APPLICABLE)
+                && !eligibilityIframeDebug){
+                    funnelService.submitEvent(merchantId, null, null,
+                            FunnelEnums.StageId.IFRAME_BANNER, FunnelEnums.StageEvent.LOADED, responseDTO.getState().name(), client);
+                }
+                log.info("Iframe responseDTO from cache for {}, {}", merchantId, responseDTO);
+                return new ApiResponse<>(responseDTO);
+            }
+            LendingApplicationSlave lendingApplicationSlave = lendingApplicationDaoSlave.findTop1ByMerchantIdOrderByIdDesc(
+                    merchantId);
+            if(!ObjectUtils.isEmpty(lendingApplicationSlave)){
+                if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())
+                        && Objects.isNull(lendingApplicationSlave.getNachStatus())){
+                    responseDTO.setState(EligibilityIframeState.BANNER_PENDING_ENACH);
+                    responseDTO.setLoanAmount(lendingApplicationSlave.getLoanAmount());
+                    responseDTO.setInterestRate(lendingApplicationSlave.getInterestRate());
+                }
+                else if(ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())){
+                    responseDTO.setState(EligibilityIframeState.BANNER_DRAFT_APPLICATION);
+                    responseDTO.setLoanAmount(lendingApplicationSlave.getLoanAmount());
+                    responseDTO.setInterestRate(lendingApplicationSlave.getInterestRate());
+                }
+                else if(ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())
+                        || ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())){
+                    checkEligibilityIframeOffer(responseDTO, merchantId);
+                }
+                else responseDTO.setState(EligibilityIframeState.BANNER_NOT_APPLICABLE);
+            }
+            else checkEligibilityIframeOffer(responseDTO, merchantId);
+
+            if(Objects.nonNull(responseDTO.getState()) && (responseDTO.getState() != EligibilityIframeState.BANNER_NOT_APPLICABLE)
+                    && !eligibilityIframeDebug){
+                funnelService.submitEvent(merchantId, null, null,
+                        FunnelEnums.StageId.IFRAME_BANNER, FunnelEnums.StageEvent.LOADED, responseDTO.getState().name(), client);
+            }
+            log.info("Iframe responseDTO for {}, {}", merchantId, responseDTO);
+            cacheIframeDetails(merchantId, responseDTO, eligibilityIframeCachTtl);
+            return new ApiResponse<>(responseDTO);
+        } catch (Exception e) {
+            log.error("Error occurred while fetching iframe details for merchantId: {} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while getting iframe details.");
+    }
+
+    private void checkEligibilityIframeOffer(EligibilityIframeResponseDTO responseDTO, Long merchantId){
+        LendingRiskVariablesSlave lendingRiskVariablesSlave = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if(ObjectUtils.isEmpty(lendingRiskVariablesSlave))responseDTO.setState(EligibilityIframeState.BANNER_OFFER_NOT_CHECKED);
+        else{
+            if(Objects.nonNull(lendingRiskVariablesSlave.getFinalOffer()) && lendingRiskVariablesSlave.getFinalOffer() > 0 &&
+                    Objects.isNull(lendingRiskVariablesSlave.getExperianRejection())){
+                responseDTO.setState(EligibilityIframeState.BANNER_ELIGIBLE);
+                responseDTO.setOfferAmount(lendingRiskVariablesSlave.getFinalOffer());
+                responseDTO.setOfferInterestRate(lendingRiskVariablesSlave.getRoi());
+            }
+            else responseDTO.setState(EligibilityIframeState.BANNER_NOT_APPLICABLE);
+        }
+    }
+
+    private void cacheIframeDetails(Long merchantId, EligibilityIframeResponseDTO iframeResponseDTO, int ttl){
+        try{
+            AddCacheDto addCacheDto = new AddCacheDto();
+            String key = LendingConstants.ELIGIBILITY_IFRAME_KYC_CACHE_KEYWORD + merchantId;
+            addCacheDto.setKey(key);
+            addCacheDto.setValue(objectMapper.writeValueAsString(iframeResponseDTO));
+            addCacheDto.setTtl(ttl);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+            log.info("Iframe call cached with Key : {}", key);
+        } catch (Exception e) {
+            log.error("exception occured while caching loan details for {} {} {}!!", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public ApiResponse<?> iframeBannerConsumption(Long merchantId, EligibilityIframeConsumptionDTO requestDTO) {
+        try {
+            if(Objects.nonNull(requestDTO.getIframeBanner()) && Objects.nonNull(requestDTO.getClient())){
+                if(eligibilityIframeDebug)return new ApiResponse<>(true, "Skipping event posting in debug mode");
+                funnelService.submitEvent(merchantId, null, null,
+                        FunnelEnums.StageId.IFRAME_BANNER, FunnelEnums.StageEvent.CLICKED, requestDTO.getIframeBanner(), requestDTO.getClient());
+                log.info("Iframe consumed successfully for {}", merchantId);
+                return new ApiResponse<>(true, "Successfully posted iframe consumption event");
+            }
+            else return new ApiResponse<>(false, "Invalid request");
+        } catch (Exception e) {
+            log.error("Error occurred while posting iframe consumption event for : {} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while posting iframe consumption event");
     }
 }
