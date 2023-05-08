@@ -62,7 +62,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/common/lending_pincode" , "/lending/common/lending_pancard", "/lending/application", "/lending/liquiloan/postPayout/callback",
 		"/lending/liquiloan/postPayout/callback", "/lending/nbfc/mamta/decision/callback","/assign/rules","/assign/limit","/assign/update-rule","/assign/update-limit",
 				"/support/computeEligibility", "/lending/payment/ledger_entry", "/lending/v3/modifyLender", "/lending/v3/nextStage", "/lending/v3/callback/invoke/dataUpload", "/support/sendArcCommunication",
-				"lms/payment/**");
+				"/lms/payment/details");
 
 
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");

@@ -12,13 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("lms/payment/**")
 public class LMSController {
 
     @Autowired
     private PaymentService paymentService;
 
-    @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
+    @RequestMapping(value="/lms/payment/details", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestParam(name = "merchant_id", required = false) Long merchant_id) {
         if (ObjectUtils.isEmpty(merchant_id)) {
             PaymentDetailsResponseDTO paymentDetailsResponseDTO = new PaymentDetailsResponseDTO();
