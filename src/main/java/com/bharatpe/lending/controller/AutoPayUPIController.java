@@ -6,7 +6,6 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.AutoPayUPIService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,27 +22,39 @@ public class AutoPayUPIController {
             @RequestAttribute BasicDetailsDto merchant,
             @RequestBody RequestDTO<UPIRegisterRequestDto> requestDTO) {
 //        BasicDetailsDto merchant = new BasicDetailsDto();
-//        Long applicationId = 7890L;
 //        merchant.setId(12344L);
-        return autoPayUPIService.registerUPI(merchant,requestDTO.getPayload().getLoanId(), requestDTO);
+        return autoPayUPIService.registerUPI(merchant, requestDTO.getPayload().getLoanId(), requestDTO);
 
     }
 
 
-    @GetMapping(value="/status-check/mandate")
+    @GetMapping(value = "/status-check/mandate")
     public MandateUPIStatusResponse statusCheckMandate(
             @RequestAttribute BasicDetailsDto merchant,
-           @RequestParam String orderId)
+            @RequestParam String orderId
+    )
     {
-//        BasicDetailsDto merchant = new BasicDetailsDto();
-//        merchant.setId(1234L);
-//        orderId="Auto-UPI12";
-        return autoPayUPIService.checkStatus(merchant,orderId);
+        /*BasicDetailsDto merchant = new BasicDetailsDto();
+        merchant.setId(1234L);
+        orderId="Auto-UPI12";*/
+        return autoPayUPIService.checkStatus( merchant,orderId);
     }
 
+    @GetMapping(value = "/fetch-transaction")
+    public FetchTxnResponseDto fetchTransaction(
+            @RequestAttribute BasicDetailsDto merchant,
+            @RequestParam Long loanId) {
+//        BasicDetailsDto merchant = new BasicDetailsDto();
+//        merchant.setId(1234L);
+        return autoPayUPIService.fetchTransaction(merchant, loanId);
 
+    }
 
-
+    @PutMapping(value = "/update/frequency")
+    public ResponseEntity<Boolean> updateFrequency(@RequestParam BasicDetailsDto merchant, @RequestBody UpdateFrequencyRequestDto dto) {
+        Boolean response = autoPayUPIService.updateFrequencyForMandate(merchant, dto);
+        return ResponseEntity.ok(response);
+    }
 
 
 }
