@@ -1130,15 +1130,8 @@ public class LoanUtil {
 		return finalLender;
 	}
 
-	public boolean isNachToBeRefunded(Long merchantId, Long applicationId) {
-		boolean flag = false;
-		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findSuccessEnach(merchantId);
-		if (!ObjectUtils.isEmpty(responseDTO)) {
-			if (responseDTO.getNachLender().equals("BHARATPE")) {
-				flag = true;
-			}
-		}
-		return flag;
+	public boolean isNachToBeRefunded(LendingApplication lendingApplication) {
+		return lendingApplication.getNachLender().equals("BHARATPE");
 	}
 
 	public static double roundUp(double loanAmount) {

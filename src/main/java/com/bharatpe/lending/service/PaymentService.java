@@ -649,7 +649,7 @@ public class PaymentService {
 
         if(!ObjectUtils.isEmpty(source) && source.equals("BHARATPE_NACH")){
             Boolean isBpNachDone = false;
-            isBpNachDone = loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId());
+            isBpNachDone = loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getLoanApplication());
             if(!isBpNachDone){
                 transferType = "EXTERNAL";
             }
