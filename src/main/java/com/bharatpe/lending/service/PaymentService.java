@@ -174,9 +174,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
-
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
-
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchant.getId());
                 return new PaymentDetailsResponseDTO("No active loan found.");
