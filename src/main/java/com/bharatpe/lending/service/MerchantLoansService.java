@@ -137,6 +137,9 @@ public class MerchantLoansService {
     @Autowired
     LmsFieldValuesDao lmsFieldValuesDao;
 
+    @Autowired
+    LendingPullPaymentDao pullPaymentDao;
+
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
     private final DecimalFormat df = new DecimalFormat("#.##");
@@ -285,7 +288,6 @@ public class MerchantLoansService {
             responseDTO.setSuccess(false);
         } else {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
-
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
                 LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
@@ -306,9 +308,16 @@ public class MerchantLoansService {
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
 
                 if (loan.getStatus().equals("ACTIVE")) {
+                    LendingPullPayment pullPayment = pullPaymentDao.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
+                    Double amount = pullPayment.getDeductedAmount();
+                    String status = pullPayment.getStatus();
                     Long id = loan.getLoanId();
                     logger.info("loan id is {}",id);
-                    AutoPayUPIEntity autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
+
+                    loan.setPresentmentStatus(status);
+                    loan.setPresentmentAmount(amount);
+
+                    AutoPayUPIEntity autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
                     if (autoPayUPI != null) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.getStatus()));
                     }
