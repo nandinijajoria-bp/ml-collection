@@ -317,9 +317,9 @@ public class MerchantLoansService {
                     loan.setPresentmentStatus(status);
                     loan.setPresentmentAmount(amount);
 
-                    AutoPayUPIEntity autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
-                    if (autoPayUPI != null) {
-                        loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.getStatus()));
+                    Optional<AutoPayUPIEntity> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
+                    if (autoPayUPI.isPresent()) {
+                        loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
                     if (loanDpd.get().getDpd()<3)
