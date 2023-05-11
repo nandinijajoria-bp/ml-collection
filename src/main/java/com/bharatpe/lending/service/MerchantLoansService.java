@@ -13,7 +13,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.AutoPayUPIEntity;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -309,15 +309,17 @@ public class MerchantLoansService {
 
                 if (loan.getStatus().equals("ACTIVE")) {
                     LendingPullPayment pullPayment = pullPaymentDao.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
-                    Double amount = pullPayment.getDeductedAmount();
-                    String status = pullPayment.getStatus();
-                    Long id = loan.getLoanId();
-                    logger.info("loan id is {}",id);
+                    if (pullPayment != null) {
+                        Double amount = pullPayment.getDeductedAmount();
+                        String status = pullPayment.getStatus();
+                        Long id = loan.getLoanId();
+                        logger.info("loan id is {}", id);
 
-                    loan.setPresentmentStatus(status);
-                    loan.setPresentmentAmount(amount);
+                        loan.setPresentmentStatus(status);
+                        loan.setPresentmentAmount(amount);
+                    }
 
-                    Optional<AutoPayUPIEntity> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
                     if (autoPayUPI.isPresent()) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }

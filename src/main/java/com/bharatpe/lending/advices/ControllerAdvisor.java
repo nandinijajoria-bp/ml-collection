@@ -34,12 +34,6 @@ public class ControllerAdvisor {
         return ResponseEntity.status(responseStatusException.getStatus()).body(baseApiResponse);
     }
 
-//    @ExceptionHandler(FeatureNotEnabledException.class)
-//    public ResponseEntity<BaseApiResponse> handleFeatureNotFound(FeatureNotEnabledException exception){
-//        BaseApiResponse baseApiResponse = new BaseApiResponse("UDS-403", exception.getMessage());
-//        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(baseApiResponse);
-//    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGenericException(Exception e) {
         log.error("Exception: ", e);

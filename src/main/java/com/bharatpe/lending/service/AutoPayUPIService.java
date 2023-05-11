@@ -11,14 +11,17 @@ import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.dao.AutoPayUPIDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.AutoPayUPIEntity;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,14 +60,20 @@ public class AutoPayUPIService {
     APIGatewayService apiGatewayService;
 
 
-    public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId) {
+    public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
+                                                int pageNo, int pageSize) {
+
+        final Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("id").descending());
 
         FetchTxnResponseDto responseDto = new FetchTxnResponseDto();
-        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByLoanId(loanId);
+        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(),loanId,pageable);
         List<FetchTxnResponseDto.Presentment> presentments = new ArrayList<>();
 
         for (int i = 0; i < fetchTxn.size(); i++) {
-            if (fetchTxn.get(i).getMerchantId() == merchant.getId()) {
+            log.info("fetchTxn.get(i).getMerchantId() {} ",fetchTxn.get(i).getMerchantId());
+            log.info("merchant.getId() {} ",merchant.getId());
+
+            if (fetchTxn.get(i).getMerchantId() .equals( merchant.getId())) {
                 FetchTxnResponseDto.Presentment presentmentData = new FetchTxnResponseDto.Presentment();
                 presentmentData.setDate(fetchTxn.get(i).getTxnDate());
                 presentmentData.setPresentmentAmt(fetchTxn.get(i).getDeductedAmount());
@@ -78,13 +87,15 @@ public class AutoPayUPIService {
 
     public Boolean updateFrequencyForMandate(BasicDetailsDto merchant, UpdateFrequencyRequestDto dto) {
         boolean flag = false;
-        Long loanId = dto.getLoanId();
-        AutoPayUPIEntity entity = autoPayUPIDao.findByApplicationId(loanId);
-        log.info("entity application Id is {} ", entity.getApplicationId());
-        if (entity.getMerchantId() == merchant.getId()) {
-            entity.setFrequency(dto.getFrequency());
-            autoPayUPIDao.save(entity);
-            flag = true;
+        Long applicationId = dto.getLoanId();
+        AutoPayUPI entity = autoPayUPIDao.findByApplicationId(applicationId);
+        if (entity != null) {
+            log.info("entity application Id is {} ", entity.getApplicationId());
+            if (entity.getMerchantId() == merchant.getId() && entity.getMandateId()!=null) {
+                entity.setFrequency(dto.getFrequency());
+                autoPayUPIDao.save(entity);
+                flag = true;
+            }
         }
         return flag;
     }
@@ -95,7 +106,7 @@ public class AutoPayUPIService {
             log.info("null payments object in pg callback for request: {}", request);
             return "OK";
         }
-        AutoPayUPIEntity autoPayUPI = autoPayUPIDao.findByOrderId(request.getOrderId());
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findByOrderId(request.getOrderId());
         try {
             if (autoPayUPI == null) {
                 log.error("No order for order id {}", request.getOrderId());
@@ -125,7 +136,7 @@ public class AutoPayUPIService {
 
     public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant, String orderId) {
         log.info("Status check request for mandate register");
-        AutoPayUPIEntity mandateApplication =
+        AutoPayUPI mandateApplication =
                 autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId);
 
         if (mandateApplication == null)
@@ -169,7 +180,7 @@ public class AutoPayUPIService {
             throw new InvalidRequestException(String.format("Invalid loan Id : %s", loanId));
         }
 
-        AutoPayUPIEntity entity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(activeLoan.get().getId());
+        AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(activeLoan.get().getId());
         if (entity != null) {
             log.info("For this application Id, mandate is already in progress {} ", activeLoan.get().getApplicationId());
             throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", activeLoan.get().getApplicationId()));
@@ -180,7 +191,7 @@ public class AutoPayUPIService {
         log.info("active loan merchantId {}", activeLoan.get().getMerchantId());
 
         if (merchantBasicDetails.getId().equals(activeLoan.get().getMerchantId())) {
-            AutoPayUPIEntity autoPayUPI = new AutoPayUPIEntity();
+            AutoPayUPI autoPayUPI = new AutoPayUPI();
             autoPayUPI.setAmount(1D);
             autoPayUPI.setMerchantId(merchantBasicDetails.getId());
             autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());

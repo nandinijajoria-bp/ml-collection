@@ -9,7 +9,7 @@ import javax.persistence.*;
 @Entity
 @Data
 @Table(name = "autopay_upi")
-public class AutoPayUPIEntity extends BaseEntity {
+public class AutoPayUPI extends BaseEntity {
     @Column(name="order_id")
     private String orderId;
 
