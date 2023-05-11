@@ -1291,5 +1291,22 @@ public class LoanUtil {
 		}
 		return 0;
 	}
+
+	public Double calculateLatLonDistance(Double lat1, Double lon1 , Double lat2, Double lon2){
+		logger.info("lat1:{} | lon1:{} | lat2:{} | lon2:{}", lat1, lon1, lat2, lon2);
+		if(lat1 == -1 || lat2 == -1 || lon1 == -1 || lon2 == -1){
+			return -1D;
+		}else if (lat1 == 0D || lat2 == 0D || lon1 == 0D || lon2 == 0D){
+			return  -1D;
+		}
+
+		int r = 6371;
+		double x = Math.pow(Math.sin(Math.toRadians(lat2-lat1)/2), 2) + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.pow(Math.sin(Math.toRadians(lon2-lon1))/2,2);
+		double result = r * (2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))) * 1000;
+		if(result<3000000){
+			int n = 2;
+			return Math.round(result * Math.pow(10, n)) / Math.pow(10, n);
+		} else return -1D;
+	}
 }
 
