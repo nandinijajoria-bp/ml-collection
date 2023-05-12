@@ -319,7 +319,7 @@ public class MerchantLoansService {
                         loan.setPresentmentAmount(amount);
                     }
 
-                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
                     if (autoPayUPI.isPresent()) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
