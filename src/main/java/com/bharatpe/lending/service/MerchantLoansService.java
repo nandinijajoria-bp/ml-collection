@@ -25,6 +25,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class MerchantLoansService {
 
     private Logger logger = LoggerFactory.getLogger(MerchantLoansService.class);
@@ -319,6 +321,12 @@ public class MerchantLoansService {
                     }
 
                     Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
+
+                    log.info("loan.getLoanId()");
+                    log.info("autoPayUPI is {}  ",autoPayUPI.get());
+                    log.info("autoPayUPI.get().getMerchantId {}  ",autoPayUPI.get().getMerchantId());
+                    log.info("autoPayUPI.get().getApplicationId {}  ",autoPayUPI.get().getApplicationId());
+
                     if (autoPayUPI.isPresent()) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
