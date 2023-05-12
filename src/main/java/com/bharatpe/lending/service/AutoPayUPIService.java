@@ -173,10 +173,12 @@ public class AutoPayUPIService {
 
     public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, Long loanId, RequestDTO<UPIRegisterRequestDto> requestDto) {
 
-        log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
+        merchantBasicDetails.setId(12344L);
+        log.info("Received initiate UPI Register request  for merchant {} : {}", 12344L, requestDto);
         Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanId);
 
         if (!activeLoan.isPresent()) {
+//            log.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
             log.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
             throw new InvalidRequestException(String.format("Invalid loan Id : %s", loanId));
         }
@@ -195,6 +197,7 @@ public class AutoPayUPIService {
             AutoPayUPI autoPayUPI = new AutoPayUPI();
             autoPayUPI.setAmount(1D);
             autoPayUPI.setMerchantId(merchantBasicDetails.getId());
+//            autoPayUPI.setLender("LDC");
             autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());
             autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
             autoPayUPI.setApplicationId(activeLoan.get().getId());
@@ -210,7 +213,6 @@ public class AutoPayUPIService {
             registerPgRequest.setCustomerId(merchantBasicDetails.getId());
             registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
             registerPgRequest.setMandateStartDate(LocalDate.now());
-            registerPgRequest.setRedirectURIDeeplink("");
             registerPgRequest.setNarration("Payment for Order No" + autoPayUPI.getOrderId());
             registerPgRequest.setOrderId(autoPayUPI.getOrderId());
             String currentDate = String.valueOf(LocalDate.now());
@@ -220,29 +222,30 @@ public class AutoPayUPIService {
             long epoch = mandateEndDate.atStartOfDay(zoneId).toEpochSecond();
 
             registerPgRequest.setMandateEndDate(epoch);
-            if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
-                    easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
-                log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
-
-                Long appVersion = Objects.nonNull(requestDto.getMeta().getDeviceInfo().getAppVersion()) ?
-                        Long.parseLong(requestDto.getMeta().getDeviceInfo().getAppVersion()) : 100L;
-
-                if (Objects.equals(requestDto.getMeta().getClient(), "android")) {
-                    if (appVersion >= androidVersion) {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    } else {
-                        registerPgRequest.setCheckout("BHARATPE");
-                    }
-                } else {
-                    if (appVersion >= iosVersion) {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    } else {
-                        registerPgRequest.setCheckout("BHARATPE");
-                    }
-                }
-            } else {
-                registerPgRequest.setCheckout("BHARATPE");
-            }
+            registerPgRequest.setCheckout("JUSPAY");
+//            if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
+//                    easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
+//                log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
+//
+//                Long appVersion = Objects.nonNull(requestDto.getMeta().getDeviceInfo().getAppVersion()) ?
+//                        Long.parseLong(requestDto.getMeta().getDeviceInfo().getAppVersion()) : 100L;
+//
+//                if (Objects.equals(requestDto.getMeta().getClient(), "android")) {
+//                    if (appVersion >= androidVersion) {
+//                        registerPgRequest.setCheckout("JUSPAY");
+//                    } else {
+//                        registerPgRequest.setCheckout("BHARATPE");
+//                    }
+//                } else {
+//                    if (appVersion >= iosVersion) {
+//                        registerPgRequest.setCheckout("JUSPAY");
+//                    } else {
+//                        registerPgRequest.setCheckout("BHARATPE");
+//                    }
+//                }
+//            } else {
+//                registerPgRequest.setCheckout("BHARATPE");
+//            }
             AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
 
             if (registerPgResponseDto != null && registerPgResponseDto.getStatusCode() != null
