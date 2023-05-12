@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -66,14 +67,14 @@ public class AutoPayUPIService {
         final Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("id").descending());
 
         FetchTxnResponseDto responseDto = new FetchTxnResponseDto();
-        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(),loanId,pageable);
+        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(), loanId, pageable);
         List<FetchTxnResponseDto.Presentment> presentments = new ArrayList<>();
 
         for (int i = 0; i < fetchTxn.size(); i++) {
-            log.info("fetchTxn.get(i).getMerchantId() {} ",fetchTxn.get(i).getMerchantId());
-            log.info("merchant.getId() {} ",merchant.getId());
+            log.info("fetchTxn.get(i).getMerchantId() {} ", fetchTxn.get(i).getMerchantId());
+            log.info("merchant.getId() {} ", merchant.getId());
 
-            if (fetchTxn.get(i).getMerchantId() .equals( merchant.getId())) {
+            if (fetchTxn.get(i).getMerchantId().equals(merchant.getId())) {
                 FetchTxnResponseDto.Presentment presentmentData = new FetchTxnResponseDto.Presentment();
                 presentmentData.setDate(fetchTxn.get(i).getTxnDate());
                 presentmentData.setPresentmentAmt(fetchTxn.get(i).getDeductedAmount());
@@ -91,7 +92,7 @@ public class AutoPayUPIService {
         AutoPayUPI entity = autoPayUPIDao.findByApplicationId(applicationId);
         if (entity != null) {
             log.info("entity application Id is {} ", entity.getApplicationId());
-            if (entity.getMerchantId() == merchant.getId() && entity.getMandateId()!=null) {
+            if (entity.getMerchantId() == merchant.getId() && entity.getMandateId() != null) {
                 entity.setFrequency(dto.getFrequency());
                 autoPayUPIDao.save(entity);
                 flag = true;
@@ -195,25 +196,30 @@ public class AutoPayUPIService {
             autoPayUPI.setAmount(1D);
             autoPayUPI.setMerchantId(merchantBasicDetails.getId());
             autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());
-//                autoPayUPI.setLender("LDC");
             autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
             autoPayUPI.setApplicationId(activeLoan.get().getApplicationId());
             autoPayUPI = autoPayUPIDao.save(autoPayUPI);
             autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
             AutoPayUPIRegisterPgRequestDto registerPgRequest = new AutoPayUPIRegisterPgRequestDto();
-            registerPgRequest.setLender(Lender.valueOf("LDC"));
-//                registerPgRequest.setLender(Lender.valueOf(activeLoan.get().getNbfc()));
+//                registerPgRequest.setLender(Lender.valueOf("LDC"));
+            registerPgRequest.setLender(Lender.valueOf(activeLoan.get().getNbfc()));
             registerPgRequest.setPaymentPageHeaderText("Select Payment Mode");
             registerPgRequest.setOrderAmount(1D);
             registerPgRequest.setOrderType("MANDATE");
             registerPgRequest.setCustomerId(merchantBasicDetails.getId());
             registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
             registerPgRequest.setMandateStartDate(LocalDate.now());
-//                registerPgRequest.setRedirectURIDeeplink("");
+            registerPgRequest.setRedirectURIDeeplink("");
             registerPgRequest.setNarration("Payment for Order No" + autoPayUPI.getOrderId());
             registerPgRequest.setOrderId(autoPayUPI.getOrderId());
+            String currentDate = String.valueOf(LocalDate.now());
+            LocalDate mandateEndDate = LocalDate.parse(currentDate).plusYears(10);
 
+            ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/Oslo");
+            long epoch = mandateEndDate.atStartOfDay(zoneId).toEpochSecond();
+
+            registerPgRequest.setMandateEndDate(epoch);
             if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
                     easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
                 log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
@@ -250,5 +256,5 @@ public class AutoPayUPIService {
         }
 
         return new UPIRegisterResponseDto(data);
-    }
+}
 }

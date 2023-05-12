@@ -18,7 +18,7 @@ import java.util.Map;
 
 @Configuration
 @EnableKafka
-//@ConditionalOnProperty(value = "false", matchIfMissing = false)
+@ConditionalOnProperty(value = "false", matchIfMissing = false)
 //${kafka.enabled:false}
 public class ReceiverConfig {
 

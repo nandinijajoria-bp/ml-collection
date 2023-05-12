@@ -72,7 +72,7 @@ public class KycRequestKafka {
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
-    @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
+    @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5",autoStartup = "false")
     public void kycRequestListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
@@ -132,7 +132,7 @@ public class KycRequestKafka {
         }
     }
 
-    @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
+    @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}",autoStartup = "false")
     public void kycCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;
