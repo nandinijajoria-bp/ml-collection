@@ -120,6 +120,9 @@ public class LendingMerchantLoansResponseDTO {
     @Data
     public static class Loan {
 
+        private String presentmentStatus;
+        private Double presentmentAmount;
+        private Long applicationId;
         private Long loanId;
         private Double loanAmount;
         private Double ediAmount;
@@ -151,7 +154,7 @@ public class LendingMerchantLoansResponseDTO {
         public Loan() {
         }
 
-        public Loan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
+        public Loan(Long applicationId,Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
                 String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,Integer ediCount, String lender, String settlementStatus) {
             this.loanId = loanId;
@@ -547,7 +550,8 @@ public class LendingMerchantLoansResponseDTO {
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         String lender = lendingPaymentSchedule.getNbfc();
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
-        return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
+        Long applicationId=lendingPaymentSchedule.getApplicationId();
+        return new Loan(applicationId,lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
                 disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount(),lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
     }
 

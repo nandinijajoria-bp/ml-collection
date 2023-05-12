@@ -13,7 +13,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.AutoPayUPIEntity;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -136,6 +136,9 @@ public class MerchantLoansService {
 
     @Autowired
     LmsFieldValuesDao lmsFieldValuesDao;
+
+    @Autowired
+    LendingPullPaymentDao pullPaymentDao;
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -285,7 +288,6 @@ public class MerchantLoansService {
             responseDTO.setSuccess(false);
         } else {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
-
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
                 LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
@@ -306,11 +308,20 @@ public class MerchantLoansService {
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
 
                 if (loan.getStatus().equals("ACTIVE")) {
-                    Long id = loan.getLoanId();
-                    logger.info("loan id is {}",id);
-                    AutoPayUPIEntity autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
-                    if (autoPayUPI != null) {
-                        loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.getStatus()));
+                    LendingPullPayment pullPayment = pullPaymentDao.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
+                    if (pullPayment != null) {
+                        Double amount = pullPayment.getDeductedAmount();
+                        String status = pullPayment.getStatus();
+                        Long id = loan.getLoanId();
+                        logger.info("loan id is {}", id);
+
+                        loan.setPresentmentStatus(status);
+                        loan.setPresentmentAmount(amount);
+                    }
+
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
+                    if (autoPayUPI.isPresent()) {
+                        loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
                     if (loanDpd.get().getDpd()<3)
