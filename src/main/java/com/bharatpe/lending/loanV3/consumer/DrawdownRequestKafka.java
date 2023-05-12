@@ -39,7 +39,7 @@ public class DrawdownRequestKafka {
     LiquiloansService liquiloansService;
 
 
-    @KafkaListener(topics = "${abfl.drawdown.callback.topic:drawdown-callback}", concurrency = "5",autoStartup = "false")
+    @KafkaListener(topics = "${abfl.drawdown.callback.topic:drawdown-callback}", concurrency = "5")
     public void drawdownEventListener(String request) {
         try {
             MDC.put("requestId", UUID.randomUUID().toString());
