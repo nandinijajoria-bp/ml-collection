@@ -1725,11 +1725,12 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setOrderId(orderId);
             pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
             pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
-            if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
+            // to check if deep link is required in web mode
+            /*if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
                 pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=easy-loans&wroute=payment-status&wid="+orderId);
             } else {
                 pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID=" + orderId);
-            }
+            }*/
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
             pgCreateTransactionRequestDTO.setRedirectURI("sample url");
