@@ -282,7 +282,7 @@ public class MerchantLoansService {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentSchedule> merchantLoans = lendingPaymentScheduleDao.findByMerchantIdAndCreditLoan(merchantId, false);
-        responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
+//        responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
             responseDTO.setLoans(Collections.emptyList());
@@ -320,15 +320,11 @@ public class MerchantLoansService {
                         loan.setPresentmentAmount(amount);
                     }
 
+                    log.info("loan id is {} ", loan.getLoanId());
+
                     Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
 
-
-
                     if (autoPayUPI.isPresent()) {
-                        log.info("loan.getLoanId()");
-                        log.info("autoPayUPI is {}  ",autoPayUPI.get());
-                        log.info("autoPayUPI.get().getMerchantId {}  ",autoPayUPI.get().getMerchantId());
-                        log.info("autoPayUPI.get().getApplicationId {}  ",autoPayUPI.get().getApplicationId());
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
@@ -338,60 +334,60 @@ public class MerchantLoansService {
                         loan.setAutoPayEligibility(Boolean.FALSE);
                 }
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-            if (lendingPaymentSchedule != null) {
-                Date date = new Date();
-                if (date.after(lendingPaymentSchedule.getStartDate())) {
-                    responseDTO.setEdiStarted(Boolean.TRUE);
-                } else {
-                    responseDTO.setEdiStarted(Boolean.FALSE);
-                }
-                List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
-                List<LoanPaymentOrder> loanPaymentOrderList = loanPaymentOrderDao.findRecentTransactions(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId());
-                if (loanPaymentOrderList != null) {
-                    for (LoanPaymentOrder loanPaymentOrder : loanPaymentOrderList) {
-                        LendingMerchantLoansResponseDTO.RepaymentDetails repaymentDetails = new LendingMerchantLoansResponseDTO.RepaymentDetails();
-                        repaymentDetails.setAmount(loanPaymentOrder.getAmount());
-                        repaymentDetails.setDate(loanPaymentOrder.getCreatedAt());
-                        repaymentDetails.setMode(LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"));
-                        repaymentDetails.setStatus(loanPaymentOrder.getStatus());
-                        repaymentDetails.setOrderId(loanPaymentOrder.getOrderId());
-                        repaymentDetailsList.add(repaymentDetails);
-                    }
-                    responseDTO.setRepaymentDetails(repaymentDetailsList);
-                }
-                boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchantId());
-                if (pennyDrop) {
-                    try {
-                        List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
-                        if (!loans.isEmpty()) {
-                            responseDTO.setEligibility(loans);
-                            responseDTO.setTopup(Boolean.TRUE);
-//                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
-                            responseDTO.setTopupLender(lendingPaymentSchedule.getNbfc());
-                        }
-                    } catch (Exception e) {
-                        logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
-                    }
-                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule, responseDTO)) {
-                        logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
-                        LendingIoHalfTopup lendingIoHalfTopup = lendingIoHalfTopupDao.findByLoanId(lendingPaymentSchedule.getId());
-                        LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
-                        if (lendingIoHalfTopup != null && LoanType.IO_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
-                            logger.info("merchant:{} eligible for io loan", merchantId);
-                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
-                            responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
-                        } else if (lendingIoHalfTopup != null && LoanType.HALF_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
-                            logger.info("merchant:{} eligible for half loan", merchantId);
-                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
-                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
-                        } else {
-                            logger.info("Entry not found in lending_io_half_topup for merchant:{}", merchantId);
-                        }
-                    }
-                }
-                responseDTO.setContactSync(isContactSyncRequired(lendingPaymentSchedule));
-            }
+//            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+//            if (lendingPaymentSchedule != null) {
+//                Date date = new Date();
+//                if (date.after(lendingPaymentSchedule.getStartDate())) {
+//                    responseDTO.setEdiStarted(Boolean.TRUE);
+//                } else {
+//                    responseDTO.setEdiStarted(Boolean.FALSE);
+//                }
+//                List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
+//                List<LoanPaymentOrder> loanPaymentOrderList = loanPaymentOrderDao.findRecentTransactions(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId());
+//                if (loanPaymentOrderList != null) {
+//                    for (LoanPaymentOrder loanPaymentOrder : loanPaymentOrderList) {
+//                        LendingMerchantLoansResponseDTO.RepaymentDetails repaymentDetails = new LendingMerchantLoansResponseDTO.RepaymentDetails();
+//                        repaymentDetails.setAmount(loanPaymentOrder.getAmount());
+//                        repaymentDetails.setDate(loanPaymentOrder.getCreatedAt());
+//                        repaymentDetails.setMode(LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"));
+//                        repaymentDetails.setStatus(loanPaymentOrder.getStatus());
+//                        repaymentDetails.setOrderId(loanPaymentOrder.getOrderId());
+//                        repaymentDetailsList.add(repaymentDetails);
+//                    }
+//                    responseDTO.setRepaymentDetails(repaymentDetailsList);
+//                }
+//                boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchantId());
+//                if (pennyDrop) {
+//                    try {
+//                        List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
+//                        if (!loans.isEmpty()) {
+//                            responseDTO.setEligibility(loans);
+//                            responseDTO.setTopup(Boolean.TRUE);
+////                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
+//                            responseDTO.setTopupLender(lendingPaymentSchedule.getNbfc());
+//                        }
+//                    } catch (Exception e) {
+//                        logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
+//                    }
+//                    if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule, responseDTO)) {
+//                        logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
+//                        LendingIoHalfTopup lendingIoHalfTopup = lendingIoHalfTopupDao.findByLoanId(lendingPaymentSchedule.getId());
+//                        LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
+//                        if (lendingIoHalfTopup != null && LoanType.IO_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
+//                            logger.info("merchant:{} eligible for io loan", merchantId);
+//                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
+//                            responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
+//                        } else if (lendingIoHalfTopup != null && LoanType.HALF_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
+//                            logger.info("merchant:{} eligible for half loan", merchantId);
+//                            loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
+//                            responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
+//                        } else {
+//                            logger.info("Entry not found in lending_io_half_topup for merchant:{}", merchantId);
+//                        }
+//                    }
+//                }
+//                responseDTO.setContactSync(isContactSyncRequired(lendingPaymentSchedule));
+//            }
 
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
             responseDTO.setMessage("Successfully fetched merchant loans");
