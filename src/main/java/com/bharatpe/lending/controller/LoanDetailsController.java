@@ -33,7 +33,7 @@ import java.util.Optional;
 @RequestMapping("lending")
 public class LoanDetailsController {
 	Logger logger = LoggerFactory.getLogger(LoanDetailsController.class);
-	
+
 	@Autowired
 	LoanDetailsService loanDetailsService;
 
@@ -48,7 +48,7 @@ public class LoanDetailsController {
 
 	@Autowired
 	MerchantLoansService merchantLoansService;
-	
+
 	@Autowired
 	VerifyDocService verifyDocService;
 
@@ -222,7 +222,7 @@ public class LoanDetailsController {
 		}
 		return new ResponseEntity<>(responseDTO, HttpStatus.BAD_REQUEST);
 	}
-	
+
 	@RequestMapping(value = "/derog_application", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ApplicationDerogResponseDTO> derogMerchantExperian(@RequestParam(name = "merchant_id") Long merchantId,
 	@RequestParam(name = "application_id") Long applicationId) {
@@ -231,7 +231,10 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestParam(required = false) Long merchantId) {
+	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(
+			@RequestAttribute(required = false) BasicDetailsDto merchant,
+			@RequestParam(required = false) Long merchantId
+	) {
 		if (!ObjectUtils.isEmpty(merchant)){
 			merchantId = merchant.getId();
 		}
