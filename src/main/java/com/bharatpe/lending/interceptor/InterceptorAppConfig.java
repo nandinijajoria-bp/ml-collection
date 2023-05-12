@@ -28,6 +28,9 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 	@Autowired
 	RequestLoggingInterceptor requestLoggingInterceptor;
+
+	@Autowired
+	private PaymentLinkInterceptor paymentLinkInterceptor;
 //	@Autowired
 //	ExternalClientHmacInterceptor externalClientHmacInterceptor;
 
@@ -76,5 +79,6 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 		registry.addInterceptor(requestLoggingInterceptor).addPathPatterns("/lending/loanDetails/v2");
 
 		registry.addInterceptor(liquiloanInterceptor).addPathPatterns("/lending/liquiloan/nbfc/postPayout/callback", "/lending/liquiloan/p2p/postPayout/callback","/lending/liquiloan/p2p_of/postPayout/callback");
+		registry.addInterceptor(paymentLinkInterceptor).addPathPatterns("/lending/payment_link/**");
     }
 }

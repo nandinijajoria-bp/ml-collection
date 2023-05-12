@@ -15,6 +15,8 @@ public class PgCreateTransactionRequestDTO {
     private Lender lender;
     private String checkout;
 
+    private boolean isPgWebMode;
+
     public String getCheckout() {
         return checkout;
     }
@@ -85,5 +87,13 @@ public class PgCreateTransactionRequestDTO {
 
     public void setAllowedModes(List<String> allowedModes) {
         this.allowedModes = allowedModes;
+    }
+
+    public boolean isPgWebMode() {
+        return isPgWebMode;
+    }
+
+    public void setPgWebMode(boolean pgWebMode) {
+        isPgWebMode = pgWebMode;
     }
 }

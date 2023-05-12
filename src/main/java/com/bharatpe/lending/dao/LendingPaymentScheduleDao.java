@@ -68,4 +68,8 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	LendingPaymentSchedule findByApplicationId(Long applicationId);
 
 	LendingPaymentSchedule findByApplicationIdAndCreditLoan(Long applicationId, Boolean creditLoan);
+
+
+	@Query(value="SELECT lps.* FROM lending_payment_schedule lps join lending_application la on lps.application_id=la.id WHERE lps.merchant_id = :merchantId and la.external_loan_id=:externalLoanId and lps.status= :status", nativeQuery=true)
+	LendingPaymentSchedule findByMerchantIdAndExternalLoanIdAndStatus(Long merchantId,String externalLoanId,String status);
 }

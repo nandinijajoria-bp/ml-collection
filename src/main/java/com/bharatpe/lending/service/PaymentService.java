@@ -27,6 +27,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -174,52 +175,53 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
-
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
-
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchant.getId());
                 return new PaymentDetailsResponseDTO("No active loan found.");
             }
-            LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());
-            double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
-            Integer loanAmount = activeLoan.getLoanAmount().intValue();
-            Integer overdueAmount = activeLoan.getDueAmount().intValue();
-            Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
-            Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
-            Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
-
-            boolean isPayable = true;
-            if(overdueDays < 2) {
-                isPayable = false;
-            }
-            if (activeLoan.getTentativeClosingDate().before(new Date())) {
-                double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
-                int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount + advanceEdiAmount));
-                if (extraAmount > 0d) {
-                    logger.info("Need to get extra amount:{} for loanId:{}", extraAmount, activeLoan.getId());
-                    principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
-                }
-            }
-            Double netForeclosureAtLender = 0d;
-            ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-                    .getLenderAssociationService(activeLoan.getNbfc());
-            if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
-            }
-            principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
-            logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
-            principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
-            logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
-            PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount(), netForeclosureAtLender);
-            logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
-            return new PaymentDetailsResponseDTO(data);
-
+            return getPaymentDetailsForActiveLoan(activeLoan);
         } catch(Exception ex) {
             logger.error("Execption while fetching payment details for merchant id {}, Exception is {}", merchant.getId(), ex);
         }
-
         return new PaymentDetailsResponseDTO("Something went wrong.");
+    }
+
+
+    public PaymentDetailsResponseDTO getPaymentDetailsForActiveLoan(LendingPaymentSchedule activeLoan){
+        LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());
+        double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+        Integer loanAmount = activeLoan.getLoanAmount().intValue();
+        Integer overdueAmount = activeLoan.getDueAmount().intValue();
+        Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
+        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
+        Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
+
+        boolean isPayable = true;
+        if(overdueDays < 2) {
+            isPayable = false;
+        }
+        if (activeLoan.getTentativeClosingDate().before(new Date())) {
+            double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
+            int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount + advanceEdiAmount));
+            if (extraAmount > 0d) {
+                logger.info("Need to get extra amount:{} for loanId:{}", extraAmount, activeLoan.getId());
+                principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
+            }
+        }
+        Double netForeclosureAtLender = 0d;
+        ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
+                .getLenderAssociationService(activeLoan.getNbfc());
+        if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
+            netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+        }
+        principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
+        logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
+        principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
+        logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
+        PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount(), netForeclosureAtLender);
+        logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
+        return new PaymentDetailsResponseDTO(data);
     }
 
     public InitiatePaymentResponseDTO initiatePaymentV2(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request) {
@@ -298,7 +300,7 @@ public class PaymentService {
             order.setOwner("lending_payment_schedule");
             order.setOwnerId(activeLoan.getId());
             order.setAmount(Double.valueOf(amount));
-            order.setStatus("INIT");
+            order.setStatus(CreditConstants.PaymentStatus.INIT.name());
             if (request.getPayload().getSource() != null) {
                 order.setSource(request.getPayload().getSource().name());
             }
@@ -318,7 +320,7 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setOrderAmount(amount.doubleValue());
             pgCreateTransactionRequestDTO.setOrderId(orderId);
             pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
-            pgCreateTransactionRequestDTO.setPaymentPageHeaderText("Select Payment Mode");
+            pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
             if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
                 pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=easy-loans&wroute=payment-status&wid="+orderId);
             } else {
@@ -352,12 +354,12 @@ public class PaymentService {
                 paymentSuccess = true;
             }
             if (!paymentSuccess) {
-                order.setStatus("FAILED");
+                order.setStatus(CreditConstants.PaymentStatus.FAILED.name());
                 order.setDescription("Unable to initiate txn");
                 loanPaymentOrderDao.save(order);
                 return new InitiatePaymentResponseDTO("Something went wrong.");
             }
-            order.setStatus("PENDING");
+            order.setStatus(CreditConstants.PaymentStatus.PENDING.name());
             loanPaymentOrderDao.save(order);
             InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
             data.setPaymentLink(response.getData().getPaymentURIDeeplink());
@@ -1632,5 +1634,125 @@ public class PaymentService {
             lendingRefundAudit.setOrderAmount(amount);
             lendingRefundAuditDao.save(lendingRefundAudit);
         }
+    }
+
+    public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId,String externalLoanId) {
+        logger.info("Received payment details request for merchant id:{} and externalLoanId:{}", merchantId,externalLoanId);
+        try {
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
+            if(activeLoan == null) {
+                logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
+                return new PaymentDetailsResponseDTO("No active loan found.");
+            }
+            return getPaymentDetailsForActiveLoan(activeLoan);
+        } catch(Exception ex) {
+            logger.error("Exception while fetching payment details for merchant id {}, Exception is {}",merchantId, ex);
+        }
+        return new PaymentDetailsResponseDTO("Something went wrong.");
+    }
+
+    public InitiatePaymentResponseDTO initiatePaymentThroughLink(Long merchantId,String externalLoanId, RequestDTO<InitiatePaymentRequestDTO> request) {
+        logger.info("Received initiate payment request  for merchantId {} : {}", merchantId, request);
+        try {
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
+            if(activeLoan == null) {
+                logger.info("No active loan found for merchant id {}", merchantId);
+                return new InitiatePaymentResponseDTO("No active loan found.");
+            }
+            Integer amount = request.getPayload().getAmount();
+            if(amount < 1 ) {
+                logger.info("Amount is less than 1 for merchant id {}", merchantId);
+                return new InitiatePaymentResponseDTO("Amount is less than 1");
+            }
+            String paymentType = request.getPayload().getPaymentType();
+            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
+                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
+            }
+            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
+                return new InitiatePaymentResponseDTO("No dues left.");
+            }
+
+
+            Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
+
+            // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
+            final LoanPaymentOrder pendingTransaction =
+                    loanPaymentOrderDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(activeLoan.getId(), activeLoan.getMerchantId(),
+                            checkPendingAfterTime);
+
+            if (!ObjectUtils.isEmpty(pendingTransaction)) {
+                logger.info("Already a pending transaction exist for loanId : {} with LPO id : {}", activeLoan.getId(), pendingTransaction.getId());
+                return new InitiatePaymentResponseDTO("Previous transaction is pending.");
+            }
+
+            if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
+                Integer advanceEdiCount = request.getPayload().getAdvanceEdiCount();
+                if (advanceEdiCount == null) {
+                    logger.info("advance edi count is not present for merchant:{}", merchantId);
+                    return new InitiatePaymentResponseDTO("Advance edi count not present");
+                }
+                if (advanceEdiCount > activeLoan.getEdiRemainingCount()) {
+                    logger.info("advance edi count is more than remaining edi count for merchant:{}", merchantId);
+                    return new InitiatePaymentResponseDTO("Advance edi count should be less than remaining edi count");
+                }
+                Integer advanceEdiAmount = activeLoan.getDueAmount().intValue() + (request.getPayload().getAdvanceEdiCount() * activeLoan.getEdiAmount().intValue());
+                if (!amount.equals(advanceEdiAmount)) {
+                    logger.info("advance edi amount:{} is not matching for merchant:{}", advanceEdiAmount, merchantId);
+                    return new InitiatePaymentResponseDTO("Advance edi amount is not correct");
+                }
+            }
+            LoanPaymentOrder order = new LoanPaymentOrder();
+            order.setMerchantId(merchantId);
+            order.setOwner("lending_payment_schedule");
+            order.setOwnerId(activeLoan.getId());
+            order.setAmount(Double.valueOf(amount));
+            order.setStatus(CreditConstants.PaymentStatus.INIT.name());
+            if (request.getPayload().getSource() != null) {
+                order.setSource(request.getPayload().getSource().name());
+            }
+            if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
+                order.setDescription(PaymentType.ADVANCE_EDI.name());
+            }
+
+            order = loanPaymentOrderDao.save(order);
+            String orderId = "LOAN" + (10000000L + order.getId());
+            order.setOrderId(orderId);
+            boolean paymentSuccess = false;
+            PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO = new PgCreateTransactionRequestDTO();
+            pgCreateTransactionRequestDTO.setOrderAmount(amount.doubleValue());
+            pgCreateTransactionRequestDTO.setOrderId(orderId);
+            pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
+            pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
+            if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
+                pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=easy-loans&wroute=payment-status&wid="+orderId);
+            } else {
+                pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID=" + orderId);
+            }
+            pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
+            pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
+            pgCreateTransactionRequestDTO.setRedirectURI("sample url");
+            pgCreateTransactionRequestDTO.setPgWebMode(true);
+            pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
+            PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantId, pgCreateTransactionRequestDTO);
+            if(response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode())) {
+                paymentSuccess = true;
+            }
+            if (!paymentSuccess) {
+                order.setStatus(CreditConstants.PaymentStatus.FAILED.name());
+                order.setDescription("Unable to initiate txn");
+                loanPaymentOrderDao.save(order);
+                return new InitiatePaymentResponseDTO("Something went wrong.");
+            }
+            order.setStatus(CreditConstants.PaymentStatus.PENDING.name());
+            loanPaymentOrderDao.save(order);
+            InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), null, null, null, null, null);
+            data.setPaymentLink(response.getData().getPaymentURI());
+            return new InitiatePaymentResponseDTO(data);
+        } catch(Exception ex) {
+            logger.error("Exception while initiating payment for merchant id {}", merchantId, ex);
+        }
+        return new InitiatePaymentResponseDTO("Something went wrong.");
     }
 }
