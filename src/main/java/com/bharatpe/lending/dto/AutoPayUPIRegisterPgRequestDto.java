@@ -23,6 +23,6 @@ public class AutoPayUPIRegisterPgRequestDto {
 	private Long customerId;
 	private Long customerSubId;
 	private LocalDate mandateStartDate;
-	private LocalDate mandateEndDate;
+	private Long mandateEndDate;
 
 }

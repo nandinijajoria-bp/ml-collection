@@ -307,6 +307,11 @@ public class APIGatewayService {
             requestParams.put("paymentPageHeaderText", pgCreateTransactionRequestDTO.getPaymentPageHeaderText());
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
             requestParams.put("checkout", pgCreateTransactionRequestDTO.getCheckout());
+            requestParams.put("orderType", pgCreateTransactionRequestDTO.getOrderType());
+            requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
+            requestParams.put("mandateEndDate",pgCreateTransactionRequestDTO.getMandateEndDate());
+            requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
+
 
             String hash = lendingHmacCalculator.calculateHmac
                     (lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(),
@@ -2436,7 +2441,7 @@ public class APIGatewayService {
 
 
     public PgStatusResponse checkPgStatusForMandate(String orderId, Lender lender, Long merchantId) {
-        logger.info("Pg status check for  and orderId:{}", orderId);
+        logger.info("Pg status check for orderId:{}", orderId);
         try {
             Map<String, String> requestBody = new HashMap<String, String>() {{
                 put("orderId", orderId);

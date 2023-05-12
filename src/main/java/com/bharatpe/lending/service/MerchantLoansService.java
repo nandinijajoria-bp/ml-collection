@@ -313,13 +313,12 @@ public class MerchantLoansService {
                         Double amount = pullPayment.getDeductedAmount();
                         String status = pullPayment.getStatus();
                         Long id = loan.getLoanId();
-                        logger.info("loan id is {}", id);
-
+                        logger.info("loan id is {}",id);
                         loan.setPresentmentStatus(status);
                         loan.setPresentmentAmount(amount);
                     }
 
-                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getApplicationId());
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
                     if (autoPayUPI.isPresent()) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
