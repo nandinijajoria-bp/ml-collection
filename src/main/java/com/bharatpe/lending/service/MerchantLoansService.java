@@ -322,12 +322,13 @@ public class MerchantLoansService {
 
                     Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
 
-                    log.info("loan.getLoanId()");
-                    log.info("autoPayUPI is {}  ",autoPayUPI.get());
-                    log.info("autoPayUPI.get().getMerchantId {}  ",autoPayUPI.get().getMerchantId());
-                    log.info("autoPayUPI.get().getApplicationId {}  ",autoPayUPI.get().getApplicationId());
+
 
                     if (autoPayUPI.isPresent()) {
+                        log.info("loan.getLoanId()");
+                        log.info("autoPayUPI is {}  ",autoPayUPI.get());
+                        log.info("autoPayUPI.get().getMerchantId {}  ",autoPayUPI.get().getMerchantId());
+                        log.info("autoPayUPI.get().getApplicationId {}  ",autoPayUPI.get().getApplicationId());
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
