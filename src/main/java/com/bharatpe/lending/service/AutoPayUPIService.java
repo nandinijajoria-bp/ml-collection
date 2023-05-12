@@ -197,7 +197,7 @@ public class AutoPayUPIService {
             autoPayUPI.setMerchantId(merchantBasicDetails.getId());
             autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());
             autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
-            autoPayUPI.setApplicationId(activeLoan.get().getApplicationId());
+            autoPayUPI.setApplicationId(activeLoan.get().getId());
             autoPayUPI = autoPayUPIDao.save(autoPayUPI);
             autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
