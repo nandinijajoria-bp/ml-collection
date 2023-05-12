@@ -320,8 +320,10 @@ public class MerchantLoansService {
                         loan.setPresentmentAmount(amount);
                     }
 
+                    LendingPaymentSchedule lendingPaymentSchedule=lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+                    Long lpsId = lendingPaymentSchedule.getId();
                     log.info("loan application id is loan.getApplicationId{}", loan.getApplicationId());
-                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLpsId());
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,lpsId);
                     if (autoPayUPI.isPresent()) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
