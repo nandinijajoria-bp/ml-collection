@@ -306,7 +306,6 @@ public class APIGatewayService {
             requestParams.put("redirectURIDeeplink", pgCreateTransactionRequestDTO.getRedirectURIDeeplink());
             requestParams.put("paymentPageHeaderText", pgCreateTransactionRequestDTO.getPaymentPageHeaderText());
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
-            requestParams.put("checkout", pgCreateTransactionRequestDTO.getCheckout());
             requestParams.put("orderType", pgCreateTransactionRequestDTO.getOrderType());
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateEndDate",pgCreateTransactionRequestDTO.getMandateEndDate());
