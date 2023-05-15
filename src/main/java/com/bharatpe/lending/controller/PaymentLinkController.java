@@ -27,7 +27,7 @@ public class PaymentLinkController {
     }
 
     @PostMapping(value = "/v1/payment_initiate")
-    public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV1(
+    public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(
             @RequestAttribute(name = "merchant_id") Long merchantId,
             @RequestAttribute(name = "external_loan_id") String externalLoanId,@RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO)
     {
@@ -36,7 +36,7 @@ public class PaymentLinkController {
     }
 
     @RequestMapping(value="v1/status", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatusV2( @RequestAttribute(name = "merchant_id") Long merchantId, @RequestParam String orderId) {
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus( @RequestAttribute(name = "merchant_id") Long merchantId, @RequestParam String orderId) {
         PaymentStatusResponseDTO responseDTO = paymentService.getPaymentStatus(orderId, merchantId);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
