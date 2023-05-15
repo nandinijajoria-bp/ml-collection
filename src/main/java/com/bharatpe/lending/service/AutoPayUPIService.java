@@ -88,11 +88,12 @@ public class AutoPayUPIService {
 
     public Boolean updateFrequencyForMandate(BasicDetailsDto merchant, UpdateFrequencyRequestDto dto) {
         boolean flag = false;
-        Long applicationId = dto.getLoanId();
+        LendingPaymentSchedule lps = lendingPaymentScheduleDao.findById(dto.getLoanId()).get();
+        Long applicationId = lps.getId();
         AutoPayUPI entity = autoPayUPIDao.findByApplicationId(applicationId);
         if (entity != null) {
             log.info("entity application Id is {} ", entity.getApplicationId());
-            if (entity.getMerchantId() == merchant.getId() && entity.getMandateId() != null) {
+            if (entity.getMandateId() != null && Objects.equals(entity.getMerchantId(), merchant.getId())) {
                 entity.setFrequency(dto.getFrequency());
                 autoPayUPIDao.save(entity);
                 flag = true;
@@ -173,7 +174,6 @@ public class AutoPayUPIService {
 
     public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, Long loanId, RequestDTO<UPIRegisterRequestDto> requestDto) {
 
-//
         log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
         Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanId);
 
@@ -205,7 +205,7 @@ public class AutoPayUPIService {
             autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
             AutoPayUPIRegisterPgRequestDto registerPgRequest = new AutoPayUPIRegisterPgRequestDto();
-//                registerPgRequest.setLender(Lender.valueOf("LDC"));
+//            registerPgRequest.setLender(Lender.valueOf("LDC"));
             registerPgRequest.setLender(Lender.valueOf(activeLoan.get().getNbfc()));
             registerPgRequest.setPaymentPageHeaderText("Select Payment Mode");
             registerPgRequest.setOrderAmount(1D);
@@ -217,10 +217,11 @@ public class AutoPayUPIService {
             registerPgRequest.setOrderId(autoPayUPI.getOrderId());
             String currentDate = String.valueOf(LocalDate.now());
             LocalDate mandateEndDate = LocalDate.parse(currentDate).plusYears(10);
-            registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard-dev&openfrom=pg&orderId=" +autoPayUPI.getOrderId());
+            log.info("mandate end date is {}", mandateEndDate);
+            registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard-dev&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
 
             ZoneId zoneId = ZoneId.systemDefault();
-            long epoch = mandateEndDate.atStartOfDay(zoneId).toEpochSecond();
+            long epoch = mandateEndDate.atStartOfDay(zoneId).toEpochSecond() * 1000L;
             registerPgRequest.setMandateEndDate(epoch);
 
             if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
