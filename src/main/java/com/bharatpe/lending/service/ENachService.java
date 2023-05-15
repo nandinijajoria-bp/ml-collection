@@ -3,10 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.LendingBulkDisbursalDao;
-import com.bharatpe.lending.common.dao.LendingBulkNachDao;
-import com.bharatpe.lending.common.dao.LendingPennydropDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
@@ -97,6 +94,9 @@ public class ENachService {
     @Autowired
     private LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Autowired
+    private LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -138,6 +138,7 @@ public class ENachService {
         if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
             lendingCache.delete(loanDetailsCacheKey);
         }
+        LendingApplicationDetails lendingApplicationDetails = null;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
@@ -167,6 +168,22 @@ public class ENachService {
             lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
 //            lendingApplicationDao.save(lendingApplication);
+
+            lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            if(!ObjectUtils.isEmpty(lendingApplicationDetails)){
+                lendingApplicationDetails.setLeadAcceptanceTime(new Date());
+                if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){
+                    logger.info("Auditing lead acceptance timestamp update for :{}", lendingApplication.getId());
+                    LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                    lendingAuditTrial.setApplicationId(lendingApplicationDetails.getApplicationId());
+                    lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                    lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+                    lendingAuditTrial.setType("UPDATE_LEAD_ACCEPTANCE_TIME");
+                    logger.info("lendingAuditTrial -> {}", lendingAuditTrial);
+                    lendingAuditTrialDao.save(lendingAuditTrial);
+                }
+            }
+
 
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
@@ -221,6 +238,7 @@ public class ENachService {
             lendingAuditTrialDao.save(lendingAuditTrial);
             lendingAuditTrialDao.save(lendingAuditTrial1);
         }
+        if(!ObjectUtils.isEmpty(lendingApplicationDetails))lendingApplicationDetailsDao.save(lendingApplicationDetails);
         lendingApplicationDao.save(lendingApplication);
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);

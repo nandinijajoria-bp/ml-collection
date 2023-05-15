@@ -12,12 +12,14 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
@@ -184,6 +186,9 @@ public class VerifyOTPService {
     @Autowired
     LendingCollectionAuditService lendingCollectionAuditService;
 
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -286,6 +291,8 @@ public class VerifyOTPService {
 
                 lendingApplication.setAgreementAt(new Date());
                 lendingApplicationDao.save(lendingApplication);
+
+                if (!"RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage()))updateLeadAcceptanceTime(lendingApplication);
 
                 final LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
                 lendingKfs.setKfsSignedAt(new Date());
@@ -844,6 +851,22 @@ public class VerifyOTPService {
             logger.info("Pushed " + detailMap + " to topic check_duplicate_pancard");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_duplicate_pancard", e);
+        }
+    }
+
+    public void updateLeadAcceptanceTime(LendingApplication lendingApplication){
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            lendingApplicationDetails.setLeadAcceptanceTime(lendingApplication.getAgreementAt());
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            logger.info("Auditing lead acceptance timestamp update for :{}", lendingApplication.getId());
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setApplicationId(lendingApplicationDetails.getApplicationId());
+            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial.setType("UPDATE_LEAD_ACCEPTANCE_TIME");
+            logger.info("lendingAuditTrial -> {}", lendingAuditTrial);
+            lendingAuditTrialDao.save(lendingAuditTrial);
         }
     }
 }

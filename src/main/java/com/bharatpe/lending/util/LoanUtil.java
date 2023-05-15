@@ -1171,6 +1171,8 @@ public class LoanUtil {
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
 			lendingApplicationDetails.setIsNachSkip(Boolean.TRUE);
+			if(!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())
+			&& ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime()))lendingApplicationDetails.setLeadAcceptanceTime(lendingApplication.getAgreementAt());
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
 		}
 	}
