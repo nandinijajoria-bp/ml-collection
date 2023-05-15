@@ -650,7 +650,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setBureauScore(lendingRiskVariables.getBureauScore());
 				lendingRiskVariablesSnapshot.setRiskColor(lendingRiskVariables.getRiskColor());
 				logger.info("risk segment found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getMerchantId());
-				lendingRiskVariablesSnapshot.setRiskSegment(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()));
+				lendingRiskVariablesSnapshot.setRiskSegment(Objects.nonNull(lendingRiskVariables.getRiskSegment())?RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()):null);
 				logger.info("risk segment found in lendingRiskVariablesSnapshot: {} for merchantId: {}", lendingRiskVariablesSnapshot.getRiskSegment(), lendingRiskVariables.getMerchantId());
 				lendingRiskVariablesSnapshot.setDecisionId(lendingRiskVariables.getDecisionId());
 				lendingRiskVariablesSnapshot.setPincode(lendingRiskVariables.getPincode());
