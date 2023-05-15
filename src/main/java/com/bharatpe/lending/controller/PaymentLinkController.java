@@ -1,10 +1,8 @@
 package com.bharatpe.lending.controller;
 
 
-import com.bharatpe.lending.dto.InitiatePaymentRequestDTO;
-import com.bharatpe.lending.dto.InitiatePaymentResponseDTO;
-import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
-import com.bharatpe.lending.dto.RequestDTO;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.service.PaymentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,5 +33,11 @@ public class PaymentLinkController {
     {
         return new ResponseEntity<>(paymentService.initiatePaymentThroughLink(merchantId,externalLoanId,requestDTO),HttpStatus.OK);
 
+    }
+
+    @RequestMapping(value="v1/status", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatusV2( @RequestAttribute(name = "merchant_id") Long merchantId, @RequestParam String orderId) {
+        PaymentStatusResponseDTO responseDTO = paymentService.getPaymentStatus(orderId, merchantId);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
 }
