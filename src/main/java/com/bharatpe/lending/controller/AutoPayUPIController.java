@@ -46,11 +46,12 @@ public class AutoPayUPIController {
             @RequestParam Long loanId
     ) {
         return autoPayUPIService.fetchTransaction(merchant, loanId, pageNum, pageSize);
-
     }
 
     @PutMapping(value = "/update/frequency")
-    public ResponseEntity<Boolean> updateFrequency(@RequestParam BasicDetailsDto merchant, @RequestBody UpdateFrequencyRequestDto dto) {
+    public ResponseEntity<Boolean> updateFrequency(
+            @RequestAttribute BasicDetailsDto merchant,
+            @RequestBody UpdateFrequencyRequestDto dto) {
         Boolean response = autoPayUPIService.updateFrequencyForMandate(merchant, dto);
         return ResponseEntity.ok(response);
     }
