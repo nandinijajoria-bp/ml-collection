@@ -70,7 +70,7 @@ public class AutoPayUPIService {
         final Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("id").descending());
 
         FetchTxnResponseDto responseDto = new FetchTxnResponseDto();
-        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanIdAndMode(merchant.getId(), loanId,"AUTOPAYUPI" ,pageable);
+        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(), loanId ,pageable);
         List<FetchTxnResponseDto.Presentment> presentments = new ArrayList<>();
 
         for (int i = 0; i < fetchTxn.size(); i++) {
@@ -94,8 +94,12 @@ public class AutoPayUPIService {
         LendingPaymentSchedule lps = lendingPaymentScheduleDao.findById(dto.getLoanId()).get();
         Long applicationId = lps.getApplicationId();
         AutoPayUPI entity = autoPayUPIDao.findByApplicationId(applicationId);
+        log.info("entity is {}", entity);
+        log.info("Objects.equals(entity.getMerchantId(), merchant.getId() {}",Objects.equals(entity.getMerchantId(), merchant.getId()));
+
         if (entity != null) {
             log.info("entity application Id is {} ", entity.getApplicationId());
+
             if (entity.getMandateId() != null && Objects.equals(entity.getMerchantId(), merchant.getId())) {
                 entity.setFrequency(dto.getFrequency());
                 autoPayUPIDao.save(entity);
