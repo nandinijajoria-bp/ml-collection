@@ -57,6 +57,7 @@ import java.util.concurrent.Executors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,6 +70,7 @@ import org.springframework.util.StringUtils;
 import javax.transaction.Transactional;
 
 @Service
+@Slf4j
 public class PaymentService {
 
     Logger logger = LoggerFactory.getLogger(PaymentService.class);
@@ -165,6 +167,8 @@ public class PaymentService {
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
     int loanPaymentOrderPendingTransactionTimeWindow;
+    @Autowired
+    private LendingPullPaymentDao lendingPullPaymentDao;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -497,11 +501,42 @@ public class PaymentService {
         return "OK";
     }
 
+    private void mandateTransactionSuccess(PgPaymentCallbackDTO request)
+    {
+        LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
+        lendingPullPayment.setStatus("SUCCESS");
+        lendingPullPaymentDao.save(lendingPullPayment);
+        Long loanId = lendingPullPayment.getLoanId();
+        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId).get();
+        createOrder(lendingPaymentSchedule,request.getOrderAmount(),request.getPaymentRefId(),"AUTOPAYUPI");
+    }
+
+    private LoanPaymentOrder createOrder(LendingPaymentSchedule lendingPaymentSchedule, Double amount, String bankRefNo, String source) {
+        LoanPaymentOrder order = new LoanPaymentOrder();
+        order.setMerchantId(lendingPaymentSchedule.getMerchantId());
+        order.setOwner("lending_payment_schedule");
+        order.setOwnerId(lendingPaymentSchedule.getId());
+        order.setAmount(amount);
+        order.setStatus("PENDING");
+        order.setSource(source);
+        order.setBankRefNo(bankRefNo);
+        order = loanPaymentOrderDao.save(order);
+        String orderId = "LOAN" + (10000000L + order.getId());
+        order.setOrderId(orderId);
+        return loanPaymentOrderDao.save(order);
+    }
+
     public String handlePgCallback(PgPaymentCallbackDTO request) {
-        if (request.getMandate() != null) {
+        if (request.getEvent().equalsIgnoreCase("MANDATE") && request.getMandate() != null) {
             logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
             return autoPayUPIService.handleMandatePgCallback(request);
-        } else {
+        }
+        else if (request.getEvent().equalsIgnoreCase("transaction")
+                && request.getMandate() != null ) {
+            mandateTransactionSuccess(request);
+        }
+
+        else {
             logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
             if (Objects.nonNull(request) && Objects.isNull(request.getPayments())) {
                 logger.info("null payments object in pg callback for request: {}", request);

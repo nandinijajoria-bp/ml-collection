@@ -229,7 +229,7 @@ public class AutoPayUPIService {
             String currentDate = String.valueOf(LocalDate.now());
             LocalDate mandateEndDate = LocalDate.parse(currentDate).plusYears(10);
             log.info("mandate end date is {}", mandateEndDate);
-            registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard-qa&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
+            registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard-dev&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
 
             ZoneId zoneId = ZoneId.systemDefault();
             long epoch = mandateEndDate.atStartOfDay(zoneId).toEpochSecond() * 1000L;
