@@ -20,6 +20,7 @@ public class PgPaymentCallbackDTO {
     private String redirectURI;
     private String checkoutType;
     private List<Payments> payments;
+    private String event;
     private Mandate mandate;
 
 

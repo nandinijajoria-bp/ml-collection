@@ -2453,16 +2453,17 @@ public class APIGatewayService {
             headers.set("hash", hash);
             headers.set("mid", getPgMid(lender, pgMidConfig, merchantId));
             HttpEntity<Map> request = new HttpEntity<>(headers);
+            ResponseEntity<PgStatusResponse> response=null;
 
             logger.info("Pg status Check internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
             while (retryCount < 3) {
                 try {
-                    ResponseEntity<PgStatusResponse> response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
+                     response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
                     logger.info("Response received from Pg status Check API {}", mapper.writeValueAsString(response));
                     return response.getBody();
                 } catch (Exception e) {
-                    logger.error("Exception in Pg status for order_id:{} error ", orderId, e);
+                    logger.error("Exception in Pg status for order_id:{} error {} response {}", orderId, e,mapper.writeValueAsString(response));
                 }
                 retryCount++;
             }
