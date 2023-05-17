@@ -24,8 +24,9 @@ import java.util.TimeZone;
 @ComponentScan(basePackages =  "com.bharatpe.*")
 @EntityScan(basePackages = "com.bharatpe.*")
 @PropertySources({
-		@PropertySource("file:/etc/bharatpe/key.properties"),
-		@PropertySource("file:/etc/bharatpe/production.properties")
+		@PropertySource("application-dev.properties")
+	/*	@PropertySource("file:/etc/bharatpe/key.properties"),
+		@PropertySource("file:/etc/bharatpe/production.properties")*/
 })
 public class Application
 {
