@@ -9,7 +9,7 @@
 	<springProfile name="!dev">
 		<property name="LOG.APPENDER" value="Console" />
         <property name="SENTRY.APPENDER.LEVEL" value="ERROR" />
-		<property name="LOG.FILE" value="/Users/yogenderyadav/bp_workspace/lending-logs/lending-java.log" />
+		<property name="LOG.FILE" value="/data/logs/lending-java.log" />
 	</springProfile>
 	
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
