@@ -109,6 +109,12 @@ public class MerchantLoansService {
     @Value("${due.amount.caching.window:60}")
     int dueAmountCachingWindow;
 
+    @Value("${cc.due.amount.caching.window:60}")
+    int ccDueAmountCachingWindow;
+
+    @Value("${gold.loan.due.amount.caching.window:60}")
+    int goldLoanDueAmountCachingWindow;
+
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
@@ -836,11 +842,16 @@ public class MerchantLoansService {
                 dueAmount += activeLoan.getDueAmount();
             }
         }
-        Double creditCardDueAmount = apiGatewayService.getCreditCardDueAmount(basicDetailsDto.getId());
-        Double goldLoanDueAmount = apiGatewayService.getGoldLoanDueAmount(basicDetailsDto.getId());
+
+        Double creditCardDueAmount = getCreditCardDueAmount(basicDetailsDto, merchantStoreId);
+
+        Double goldLoanDueAmount = getGoldLoanDueAmount(basicDetailsDto, merchantStoreId);
+
+        logger.info("dueAmount : {}, creditCardDueAmount : {}, goldLoanDueAmount : {} for merchantId : {}", dueAmount, creditCardDueAmount, goldLoanDueAmount, basicDetailsDto.getId());
+
         dueAmount += creditCardDueAmount + goldLoanDueAmount;
         responseMap.put("due_amount", dueAmount);
-        cacheDueAmtData(dueAmount,dueAmountCacheKey,dueAmountCachingWindow);
+        cacheDueAmtData(dueAmount,dueAmountCacheKey, dueAmountCachingWindow);
         return new CommonResponse(responseMap);
     }
 
@@ -854,6 +865,48 @@ public class MerchantLoansService {
         } catch (Exception e) {
             logger.error("exception occured while caching loan details for {} !!", key);
         }
+    }
+
+    private Double getCreditCardDueAmount(BasicDetailsDto basicDetailsDto, Long merchantStoreId) {
+        Double creditCardDueAmount = null;
+        String ccDueAmountCacheKey = "CC_DUE_AMT_" + basicDetailsDto.getId() + (ObjectUtils.isEmpty(merchantStoreId) ? "" : ("_" + merchantStoreId));
+        try {
+            Object ccDueAmountCached = lendingCache.get(ccDueAmountCacheKey);
+            if (!ObjectUtils.isEmpty(ccDueAmountCached)) {
+                creditCardDueAmount = (Double) ccDueAmountCached;
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while retrieving creditCardDueAmount from redis for: {} {}", basicDetailsDto.getId(), Arrays.asList(e.getStackTrace()));
+        }
+
+        if (ObjectUtils.isEmpty(creditCardDueAmount)) {
+            logger.info("fetching creditCardDueAmount from api for merchantId {} and merchantStoreId {}", basicDetailsDto.getId(),  merchantStoreId);
+            creditCardDueAmount = apiGatewayService.getCreditCardDueAmount(basicDetailsDto.getId());
+            logger.info("creditCardDueAmount from api for merchantId {} and merchantStoreId {} is {}", basicDetailsDto.getId(),  merchantStoreId, creditCardDueAmount);
+            cacheDueAmtData(creditCardDueAmount, ccDueAmountCacheKey, ccDueAmountCachingWindow);
+        }
+        return creditCardDueAmount;
+    }
+
+    private Double getGoldLoanDueAmount(BasicDetailsDto basicDetailsDto, Long merchantStoreId) {
+        Double goldLoanDueAmount = null;
+        String goldLoanDueAmountCacheKey = "GOLD_LOAN_DUE_AMT_" + basicDetailsDto.getId() + (ObjectUtils.isEmpty(merchantStoreId) ? "" : ("_" + merchantStoreId));
+        try {
+            Object goldLoanDueAmountCached = lendingCache.get(goldLoanDueAmountCacheKey);
+            if (!ObjectUtils.isEmpty(goldLoanDueAmountCached)) {
+                goldLoanDueAmount = (Double) goldLoanDueAmountCached;
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while retrieving goldLoanDueAmount from redis for: {} {}", basicDetailsDto.getId(), Arrays.asList(e.getStackTrace()));
+        }
+
+        if (ObjectUtils.isEmpty(goldLoanDueAmount)) {
+            logger.info("fetching goldLoanDueAmount from api for merchantId {} and merchantStoreId {}", basicDetailsDto.getId(),  merchantStoreId);
+            goldLoanDueAmount = apiGatewayService.getGoldLoanDueAmount(basicDetailsDto.getId());
+            logger.info("goldLoanDueAmount from api for merchantId {} and merchantStoreId {} is {}", basicDetailsDto.getId(),  merchantStoreId, goldLoanDueAmount);
+            cacheDueAmtData(goldLoanDueAmount, goldLoanDueAmountCacheKey, goldLoanDueAmountCachingWindow);
+        }
+        return goldLoanDueAmount;
     }
 
     public CommonResponse checkMerchant(String mobile, String pancard) {
