@@ -325,7 +325,7 @@ public class MerchantLoansService {
                     if (autoPayUPI.isPresent()) {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
-                    Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
+                    Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
                     if (loanDpd.get().getDpd()<3)
                         loan.setAutoPayEligibility(true);
                     else
