@@ -19,8 +19,8 @@ public class PaymentLinkController {
     private PaymentService paymentService;
     @GetMapping(value = "/v1/payment_details")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentLinkDetails(
-            @RequestAttribute(name = "merchant_id") Long merchantId,
-            @RequestAttribute(name = "external_loan_id") String externalLoanId)
+            @RequestAttribute(name = "merchantId") Long merchantId,
+            @RequestAttribute(name = "externalLoanId") String externalLoanId)
     {
         return new ResponseEntity<>(paymentService.getPaymentDetails(merchantId,externalLoanId), HttpStatus.OK);
 
@@ -28,15 +28,15 @@ public class PaymentLinkController {
 
     @PostMapping(value = "/v1/payment_initiate")
     public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(
-            @RequestAttribute(name = "merchant_id") Long merchantId,
-            @RequestAttribute(name = "external_loan_id") String externalLoanId,@RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO)
+            @RequestAttribute(name = "merchantId") Long merchantId,
+            @RequestAttribute(name = "externalLoanId") String externalLoanId,@RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO)
     {
         return new ResponseEntity<>(paymentService.initiatePaymentThroughLink(merchantId,externalLoanId,requestDTO),HttpStatus.OK);
 
     }
 
     @RequestMapping(value="v1/status", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus( @RequestAttribute(name = "merchant_id") Long merchantId, @RequestParam String orderId) {
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus( @RequestAttribute(name = "merchantId") Long merchantId, @RequestParam String orderId) {
         PaymentStatusResponseDTO responseDTO = paymentService.getPaymentStatus(orderId, merchantId);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
