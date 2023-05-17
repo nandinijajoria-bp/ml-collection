@@ -1668,11 +1668,6 @@ public class LendingApplicationServiceV2 {
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
                         funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
                                 FunnelEnums.StageEvent.COMPLETED, resubmitReason);
-                        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
-                            put("resubmitReason", lendingResubmitReasonCount.getResubmitReason());
-                            put("resubmitCount", lendingResubmitReasonCount.getResubmitCount().toString());
-                        }};
-                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_COMPLETED.name(), cleverTapEvtData, mid));
                     }
                 }
                 resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
@@ -1695,6 +1690,12 @@ public class LendingApplicationServiceV2 {
 
                 funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
                         FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                Integer finalMaxCount = maxCount;
+                HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                    put("resubmitReason", lendingResubmitTask.getResubmitReason());
+                    put("resubmitCount", finalMaxCount.toString());
+                }};
+                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_COMPLETED.name(), cleverTapEvtData, mid));
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
                 lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
                 lendingAuditTrial.setApplicationId(lendingApplication.getId());
