@@ -571,11 +571,24 @@ public class MerchantLoansService {
     public boolean excludeTopUpBaseChecks(Long merchantId) {
         return loanUtil.isInternalMerchant(merchantId);
     }
+    List<Long> derogMerchants = new ArrayList();
+
+    private boolean derogTopUpEnable(Long merchantId) {
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        logger.info("DEROG_EFFECTED_MERCHANT_FLOW: merchant_id: {} application_id: {} type: {}", merchantId, lendingApplication.getId(), lendingApplication.getLoanType());
+        return !LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
+    }
+
+    private void loadDerogEffectedMerchants() {
+        if (!ObjectUtils.isEmpty(derogMerchants)) {
+            return;
+        }
+        derogMerchants = readCsvFile();
+    }
 
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
-
-        List<Long> derogMerchants = readCsvFile();
-        if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId())) {
+        loadDerogEffectedMerchants();
+        if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
             return derogTestEligibility(lendingPaymentSchedule);
         }
 
