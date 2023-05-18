@@ -36,6 +36,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -138,6 +141,9 @@ public class MerchantLoansService {
 
     @Value("${whitelisted.topup.lenders}")
     String topupLenders;
+
+    @Value(("${pilot.test.enabled:true}"))
+    Boolean pilotTestEnabled;
 
     @Autowired
     LmsFieldValuesDao lmsFieldValuesDao;
@@ -571,8 +577,26 @@ public class MerchantLoansService {
     public boolean excludeTopUpBaseChecks(Long merchantId) {
         return loanUtil.isInternalMerchant(merchantId);
     }
+    List<Long> derogMerchants = new ArrayList();
+
+    private boolean derogTopUpEnable(Long merchantId) {
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        logger.info("DEROG_EFFECTED_MERCHANT_FLOW: merchant_id: {} application_id: {} type: {}", merchantId, lendingApplication.getId(), lendingApplication.getLoanType());
+        return !LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
+    }
+
+    private void loadDerogEffectedMerchants() {
+        if (!ObjectUtils.isEmpty(derogMerchants)) {
+            return;
+        }
+        derogMerchants = readCsvFile();
+    }
 
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
+        loadDerogEffectedMerchants();
+        if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
+            return derogTestEligibility(lendingPaymentSchedule);
+        }
 
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         LendingApplication lendingApplication =
@@ -959,5 +983,96 @@ public class MerchantLoansService {
             logger.error("Exception while checking merchant", e);
         }
         return new CommonResponse(false, "merchant not found");
+    }
+
+    private List<Long> readCsvFile() {
+        List<Long> merchantList = new ArrayList<>();
+        try {
+
+            String filePath = "/MerchantList/derog_merchant";
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner sc = new Scanner(inputStream);
+            sc.useDelimiter(",");
+            while (sc.hasNext())
+            {
+                String value = sc.next();
+                merchantList.add(Long.parseLong(value));
+            }
+            sc.close();  //closes the scanner
+        } catch (Exception e) {
+            logger.info("exception while reading derog csv file: {} {}", e, e.getMessage());
+        }
+        return merchantList;
+    }
+
+    private List<LoanEligibilityDTO> derogTestEligibility(LendingPaymentSchedule lendingPaymentSchedule) {
+        List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
+
+        try {
+
+            if(!topupLenders.contains(lendingPaymentSchedule.getNbfc())){
+                logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
+                return eligiblity;
+            }
+
+            Long experianId = null;
+
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+
+            if (ObjectUtils.isEmpty(eligibleLoanList)) {
+                Double eligibleAmount = 0D;
+                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId());
+                if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+                    logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
+                    eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+                }
+                if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                    logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
+                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+                Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
+                experian.setEligibleAmount(eligibleAmount);
+                experian.setLoanType("TOPUP");
+                experianDao.save(experian);
+                experianId = experian.getId();
+            }
+            double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
+            if (!eligibleLoanList.isEmpty()) {
+                Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
+                EligibleLoan eligibleLoan = eligibleLoanList.get(0);
+                logger.info("eligible loan: {}", eligibleLoan);
+                LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+                loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
+                loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
+                loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
+                loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
+                loanEligibilityDTO.setCategory(eligibleLoan.getCategory());
+                loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
+                loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
+                loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
+                loanEligibilityDTO.setConstruct(eligibleLoan.getLoanConstruct());
+                loanEligibilityDTO.setOptionEnable(true);
+                loanEligibilityDTO.setInterestAmount(eligibleLoan.getRepayment() - eligibleLoan.getAmount().intValue());
+                loanEligibilityDTO.setIoEdiCount(eligibleLoan.getIoEdiDays());
+                loanEligibilityDTO.setIoEdi(eligibleLoan.getIoEdi());
+                loanEligibilityDTO.setTenureInMonths(eligibleLoan.getTenureInMonths());
+//              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+//              loanEligibilityDTO.setType();
+                loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
+                loanEligibilityDTO.setProcessingFee((int)Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
+                loanEligibilityDTO.setLoanType("TOPUP");
+                loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
+                loanEligibilityDTO.setId(eligibleLoan.getId());
+                eligiblity.add(loanEligibilityDTO);
+            }
+
+        } catch (Exception ex) {
+            logger.info("Exception Occured while checking derog test eligibilty for topup");
+        }
+        return eligiblity;
     }
 }
