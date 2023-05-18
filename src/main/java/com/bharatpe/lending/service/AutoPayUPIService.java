@@ -150,6 +150,7 @@ public class AutoPayUPIService {
         SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
         long diffMinutes=0l;
         Date date = new Date();
+        log.info("date is {}", date);
         format.format(date);
         String currentDateTime = format.format(date);
 
@@ -158,7 +159,12 @@ public class AutoPayUPIService {
             d1 = format.parse((currentDateTime));
 
             log.info("d1 {}", d1);
-            long diff = createdMandateDate.getTime() - d1.getTime();
+            long diff;
+            diff = createdMandateDate.getTime() - d1.getTime();
+            if (diff<0)
+            {
+                diff = Math.abs(diff);
+            }
             log.info("diff is {}", diff);
              diffMinutes = diff / (60 * 1000);
             log.info("diff minutes is {}", diffMinutes);
@@ -175,16 +181,19 @@ public class AutoPayUPIService {
         AutoPayUPI mandateApplication =
                 autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId);
 
+        log.info("mandate application is {} ",mandateApplication);
         if (mandateApplication == null) {
             throw new
                     InvalidRequestException
                     (String.format("Invalid application : %s", orderId));
         }
+
         else if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
             Date createdMandateDate = mandateApplication.getCreatedAt();
+            log.info("createMandateDate {}",createdMandateDate);
             long diffMinutes = calculateTimeDiff(createdMandateDate);
             log.info("diffMinutes is {}", diffMinutes);
-            if (diffMinutes <= 30L) {
+            if (diffMinutes >= 30L) {
                 mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
                 autoPayUPIDao.save(mandateApplication);
                 log.info("status for mandate register marked as failed for merchant id {} application id {}",
