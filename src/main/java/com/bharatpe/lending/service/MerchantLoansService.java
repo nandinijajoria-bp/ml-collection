@@ -1031,6 +1031,12 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
+                int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+                if (eligibleAmount - posAmount < 10000) {
+                    logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
                 loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
                 eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
