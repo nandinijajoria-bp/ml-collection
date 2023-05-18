@@ -10,6 +10,8 @@ public interface AutoPayUPIDao extends JpaRepository<AutoPayUPI, Long> {
 
     Optional<AutoPayUPI> findByMerchantIdAndApplicationId(Long merchantId, Long applicationId);
 
+    Optional<AutoPayUPI> findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(Long merchantId, Long applicationId);
+
     AutoPayUPI findByMerchantIdAndOrderId(Long merchantId, String orderId);
 
     AutoPayUPI findByOrderId(String orderId);
