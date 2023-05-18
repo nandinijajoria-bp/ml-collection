@@ -23,12 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -146,6 +145,31 @@ public class AutoPayUPIService {
         return "OK";
     }
 
+    public long calculateTimeDiff(Date createdMandateDate) {
+        log.info("createdMandateDate is {}", createdMandateDate);
+        SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
+        long diffMinutes=0l;
+        Date date = new Date();
+        format.format(date);
+        String currentDateTime = format.format(date);
+
+        Date d1 = null;
+        try {
+            d1 = format.parse((currentDateTime));
+
+            log.info("d1 {}", d1);
+            long diff = createdMandateDate.getTime() - d1.getTime();
+            log.info("diff is {}", diff);
+             diffMinutes = diff / (60 * 1000);
+            log.info("diff minutes is {}", diffMinutes);
+            return diffMinutes;
+
+        }
+        catch (ParseException e) {
+            log.error("e is {}", e);
+        }
+        return diffMinutes;
+    }
     public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant, String orderId) {
         log.info("Status check request for mandate register");
         AutoPayUPI mandateApplication =
@@ -156,6 +180,14 @@ public class AutoPayUPIService {
                     InvalidRequestException
                     (String.format("Invalid application : %s", orderId));
         if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
+            Date createdMandateDate = mandateApplication.getCreatedAt();
+            long diffMinutes = calculateTimeDiff(createdMandateDate);
+            log.info("diffMinutes is {}", diffMinutes);
+                if (diffMinutes >= 30L) {
+                        mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
+                        autoPayUPIDao.save(mandateApplication);
+                }
+
             log.info("pg status check for mandate register for merchant id {} application id {}",
                     mandateApplication.getMerchantId(), mandateApplication.getApplicationId());
 
