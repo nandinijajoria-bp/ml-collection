@@ -175,41 +175,41 @@ public class AutoPayUPIService {
         AutoPayUPI mandateApplication =
                 autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId);
 
-        if (mandateApplication == null)
+        if (mandateApplication == null) {
             throw new
                     InvalidRequestException
                     (String.format("Invalid application : %s", orderId));
-        if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
+        }
+        else if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
             Date createdMandateDate = mandateApplication.getCreatedAt();
             long diffMinutes = calculateTimeDiff(createdMandateDate);
             log.info("diffMinutes is {}", diffMinutes);
-                if (diffMinutes >= 30L) {
-                        mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
-                        autoPayUPIDao.save(mandateApplication);
-                }
-
-            log.info("pg status check for mandate register for merchant id {} application id {}",
-                    mandateApplication.getMerchantId(), mandateApplication.getApplicationId());
-
-            PgStatusResponse response =
-                    apiGatewayService.checkPgStatusForMandate
-                            (mandateApplication.getOrderId(),
-                                    Lender.valueOf(mandateApplication.getLender()), mandateApplication.getMerchantId());
-
-            log.info("response is {}", response.getData());
-
-            if (response != null && response.getStatusCode() != null
-                    && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData())
-                    && "ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
-                log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
-                handleMandatePgCallback(response.getData());
-            } else if (response != null && response.getStatusCode() != null
-                    && "200".equalsIgnoreCase(response.getStatusCode()) &&
-                    Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
-                    || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
-                mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
+            if (diffMinutes <= 30L) {
+                mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
                 autoPayUPIDao.save(mandateApplication);
-                log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
+                log.info("status for mandate register marked as failed for merchant id {} application id {}",
+                        mandateApplication.getMerchantId(), mandateApplication.getApplicationId());
+            } else {
+                PgStatusResponse response =
+                        apiGatewayService.checkPgStatusForMandate
+                                (mandateApplication.getOrderId(),
+                                        Lender.valueOf(mandateApplication.getLender()), mandateApplication.getMerchantId());
+
+                log.info(" PG response is {}", response.getData());
+
+                if (response != null && response.getStatusCode() != null
+                        && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData())
+                        && "ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
+                    log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
+                    handleMandatePgCallback(response.getData());
+                } else if (response != null && response.getStatusCode() != null
+                        && "200".equalsIgnoreCase(response.getStatusCode()) &&
+                        Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
+                        || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+                    mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
+                    autoPayUPIDao.save(mandateApplication);
+                    log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
+                }
             }
         }
         return new MandateUPIStatusResponse(mandateApplication.getOrderId(), mandateApplication.getApplicationId(),
