@@ -577,7 +577,6 @@ public class MerchantLoansService {
     public boolean excludeTopUpBaseChecks(Long merchantId) {
         return loanUtil.isInternalMerchant(merchantId);
     }
-    List<Long> derogMerchants = new ArrayList();
 
     private boolean derogTopUpEnable(Long merchantId) {
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
@@ -585,15 +584,8 @@ public class MerchantLoansService {
         return !LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
     }
 
-    private void loadDerogEffectedMerchants() {
-        if (!ObjectUtils.isEmpty(derogMerchants)) {
-            return;
-        }
-        derogMerchants = readCsvFile();
-    }
-
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
-        loadDerogEffectedMerchants();
+        List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
         if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
             return derogTestEligibility(lendingPaymentSchedule);
         }
@@ -983,26 +975,6 @@ public class MerchantLoansService {
             logger.error("Exception while checking merchant", e);
         }
         return new CommonResponse(false, "merchant not found");
-    }
-
-    private List<Long> readCsvFile() {
-        List<Long> merchantList = new ArrayList<>();
-        try {
-
-            String filePath = "/MerchantList/derog_merchant";
-            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
-            Scanner sc = new Scanner(inputStream);
-            sc.useDelimiter(",");
-            while (sc.hasNext())
-            {
-                String value = sc.next();
-                merchantList.add(Long.parseLong(value));
-            }
-            sc.close();  //closes the scanner
-        } catch (Exception e) {
-            logger.info("exception while reading derog csv file: {} {}", e, e.getMessage());
-        }
-        return merchantList;
     }
 
     private List<LoanEligibilityDTO> derogTestEligibility(LendingPaymentSchedule lendingPaymentSchedule) {

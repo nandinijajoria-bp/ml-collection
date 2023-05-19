@@ -17,12 +17,12 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.config.AsyncConfig;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.MerchantScoreException;
@@ -32,20 +32,17 @@ import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -172,6 +169,22 @@ public class LoanUtil {
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
+
+	List<Long> derogMerchants = new ArrayList();
+
+	public List<Long> loadDerogEffectedMerchants() {
+		if (!ObjectUtils.isEmpty(derogMerchants)) {
+			return derogMerchants;
+		}
+		derogMerchants = readCsvFile();
+		return derogMerchants;
+	}
+
+	private boolean derogTopUpEnable(Long merchantId) {
+		LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+		logger.info("DEROG_EFFECTED_MERCHANT_FLOW: merchant_id: {} application_id: {} type: {}", merchantId, lendingApplication.getId(), lendingApplication.getLoanType());
+		return LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
+	}
 
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
@@ -1144,7 +1157,6 @@ public class LoanUtil {
 		}
 	}
 
-
 	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
@@ -1154,12 +1166,29 @@ public class LoanUtil {
 			return Boolean.TRUE;
 		}
 		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
-		if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lender)) &&
-				responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
+
+
+		if (ObjectUtils.isEmpty(responseDTO)) {
+			return Boolean.FALSE;
+		}
+
+		if (responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		if (getExcludeNach(lendingApplication)) {
+
+		//Todo: remove this condition after derog after merchants cases are over
+		List<Long> derogMerchants = loadDerogEffectedMerchants();
+		if (derogMerchants.contains(lendingApplication.getMerchantId()) && derogTopUpEnable(lendingApplication.getMerchantId())) {
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+		if (skipNachForRepeatLoans(lendingApplication)) {
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+
+		if (skipNachForTopUpLoans(lendingApplication, responseDTO)) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
@@ -1226,7 +1255,7 @@ public class LoanUtil {
 		return false;
 	}
 
-	public Boolean getExcludeNach(LendingApplication lendingApplication) {
+	public Boolean skipNachForRepeatLoans(LendingApplication lendingApplication) {
 
 		logger.info("Checking for nach Waiver:{}", lendingApplication.getId());
 
@@ -1281,6 +1310,60 @@ public class LoanUtil {
 		return Boolean.FALSE;
 	}
 
+	public Boolean skipNachForTopUpLoans(LendingApplication lendingApplication, MerchantNachDetailsResponseDTO approvedNachDetails) {
+
+		logger.info("Checking for nach Waiver on topup application:{}", lendingApplication.getId());
+
+		Long merchantId = lendingApplication.getMerchantId();
+		try {
+			if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+				return Boolean.FALSE;
+			}
+
+			if (!ObjectUtils.isEmpty(approvedNachDetails) && !approvedNachDetails.getNachLender().equals(enachServiceLenderMapper(lendingApplication.getLender()))) {
+				logger.info("approvedNachDetails:{} and are not same as the required nachLender for applicationId : {}", approvedNachDetails.getNachLender(), lendingApplication.getId());
+				return Boolean.FALSE;
+			}
+
+			LendingPaymentSchedule lastLoan =
+			lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusAndCreditLoanOrderByIdDesc(merchantId, "ACTIVE", false);
+			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			String riskSegment=null;
+			String riskGroup=null;
+			if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
+				logger.info("No Snapshot for application:{}", lendingApplication.getId());
+				LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+				riskSegment=lendingRiskVariables.getRiskSegment();
+				riskGroup=lendingRiskVariables.getRiskGroup();
+			}
+			riskSegment=ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?riskSegment:lendingRiskVariablesSnapshot.getRiskSegment().name();
+			riskGroup=ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?riskGroup:lendingRiskVariablesSnapshot.getRiskGroup();
+
+
+			if (ObjectUtils.isEmpty(lastLoan)) {
+				logger.info("no lastLoan found for applicationId : {}", lendingApplication.getId());
+				return Boolean.FALSE;
+			}
+
+			Double topupLoanAmountToActiveLoanAmountRatio = lendingApplication.getLoanAmount()/lastLoan.getLoanAmount();
+
+			logger.info("recieved risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, topupLoanAmountToActiveLoanAmountRatio ,lendingApplication.getId());
+
+			if (Arrays.asList("R1", "R2").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio >= 1.5) {
+				return Boolean.TRUE;
+			}
+
+			if (Arrays.asList("R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio >= 1.3) {
+				return Boolean.TRUE;
+			}
+
+		} catch (Exception e) {
+			logger.error("Exception while check nach waiver for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+		return Boolean.FALSE;
+	}
+
+
 	public Integer getMaxDpdInLastLoan(Long merchantId, LendingPaymentSchedule lastLoan) {
 		try {
 
@@ -1310,5 +1393,26 @@ public class LoanUtil {
 			return Math.round(result * Math.pow(10, n)) / Math.pow(10, n);
 		} else return -1D;
 	}
+
+	private List<Long> readCsvFile() {
+		List<Long> merchantList = new ArrayList<>();
+		try {
+
+			String filePath = "/MerchantList/derog_merchant";
+			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+			Scanner sc = new Scanner(inputStream);
+			sc.useDelimiter(",");
+			while (sc.hasNext())
+			{
+				String value = sc.next();
+				merchantList.add(Long.parseLong(value));
+			}
+			sc.close();  //closes the scanner
+		} catch (Exception e) {
+			logger.info("exception while reading derog csv file: {} {}", e, e.getMessage());
+		}
+		return merchantList;
+	}
+
 }
 
