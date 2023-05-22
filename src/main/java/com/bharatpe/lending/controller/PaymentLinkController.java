@@ -36,8 +36,7 @@ public class PaymentLinkController {
     }
 
     @RequestMapping(value="v1/status", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus( @RequestAttribute(name = "merchantId") Long merchantId, @RequestParam String orderId) {
-        PaymentStatusResponseDTO responseDTO = paymentService.getPaymentStatus(orderId, merchantId);
-        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+    public ResponseEntity<PaymentStatusV3ResponseDTO> getPaymentStatus( @RequestAttribute(name = "merchantId") Long merchantId, @RequestParam String orderId) {
+        return new ResponseEntity<>(paymentService.getPaymentStatusForPaymentLink(orderId,merchantId), HttpStatus.OK);
     }
 }

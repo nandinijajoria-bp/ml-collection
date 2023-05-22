@@ -1767,13 +1767,14 @@ public class PaymentService {
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
 
-    public PaymentStatusResponseDTO getPaymentStatus(String orderId, Long merchantId) {
+    public PaymentStatusV3ResponseDTO getPaymentStatusForPaymentLink(String orderId, Long merchantId) {
         logger.info("Received status check request for orderId:{}", orderId);
         try {
+            dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
             LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(orderId);
             if (order == null || !order.getMerchantId().equals(merchantId)) {
                 logger.info("No order found for orderId:{}", orderId);
-                return new PaymentStatusResponseDTO(false, "Order not found");
+                return new PaymentStatusV3ResponseDTO(false, "Order not found");
             }
             Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId());
             Lender lender = Lender.valueOf(activeLoan.get().getNbfc());
@@ -1784,17 +1785,25 @@ public class PaymentService {
                     logger.info("Pg txn Status SUCCESS for orderId:{}", order.getOrderId());
                     handlePgCallback(response.getData());
                     order = loanPaymentOrderDao.findByOrderId(orderId);
-                } else if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus()) || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+                } else if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
+                        || Status.TransactionStatus.FAILURE.name().equalsIgnoreCase(response.getData().getPaymentStatus())
+                        || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
                     order.setStatus(response.getData().getPaymentStatus());
                     loanPaymentOrderDao.save(order);
                     logger.info("Pg txn Status FAILED/CANCELLED for orderId:{}", order.getOrderId());
                 }
             }
-
-            return new PaymentStatusResponseDTO(order.getStatus(), orderId, order.getAmount(), order.getBankRefNo(), order.getUpdatedAt());
+            PaymentStatusV3ResponseDTO.Data data = new PaymentStatusV3ResponseDTO.Data();
+            data.setPaymentMode(order.getSource());
+            data.setPaymentStatus(order.getStatus());
+            data.setReferenceNumber(order.getBankRefNo());
+            data.setTransferTime(dateFormat.format(order.getUpdatedAt()));
+            data.setAmount(order.getAmount());
+            data.setOrderId(orderId);
+            return new PaymentStatusV3ResponseDTO(true, null, data);
         } catch (Exception e) {
             logger.error("Exception in payment status check", e);
-            return new PaymentStatusResponseDTO(false, "Something went wrong");
+            return new PaymentStatusV3ResponseDTO(false, "Something went wrong");
         }
     }
 }
