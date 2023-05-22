@@ -639,8 +639,8 @@ public class MerchantLoansService {
                 }
 
                 BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
-                if (maxDpd.intValue() > 15) {
-                    logger.info("Merchant Dpd Greater than 15 merchant:{}", lendingPaymentSchedule.getMerchantId());
+                if (maxDpd.intValue() > 30) {
+                    logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
