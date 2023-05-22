@@ -92,7 +92,7 @@ public class AutoPayUPIService {
         boolean flag = false;
         LendingPaymentSchedule lps = lendingPaymentScheduleDao.findById(dto.getLoanId()).get();
         Long applicationId = lps.getApplicationId();
-        AutoPayUPI entity = autoPayUPIDao.findByApplicationId(applicationId);
+        AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
         log.info("entity is {}", entity);
         log.info("Objects.equals(entity.getMerchantId(), merchant.getId() {}",Objects.equals(entity.getMerchantId(), merchant.getId()));
 
