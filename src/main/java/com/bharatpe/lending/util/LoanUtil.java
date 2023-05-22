@@ -1165,14 +1165,14 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
+		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
 
 
-		if (ObjectUtils.isEmpty(responseDTO)) {
+		if (ObjectUtils.isEmpty(approvedNachDetails)) {
 			return Boolean.FALSE;
 		}
 
-		if (responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
+		if (approvedNachDetails.getNachAmount() >= lendingApplication.getLoanAmount()) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
@@ -1183,12 +1183,12 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		if (skipNachForRepeatLoans(lendingApplication)) {
+		if (skipNachForRepeatLoans(lendingApplication, approvedNachDetails)) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
 
-		if (skipNachForTopUpLoans(lendingApplication, responseDTO)) {
+		if (skipNachForTopUpLoans(lendingApplication, approvedNachDetails)) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
@@ -1255,7 +1255,7 @@ public class LoanUtil {
 		return false;
 	}
 
-	public Boolean skipNachForRepeatLoans(LendingApplication lendingApplication) {
+	public Boolean skipNachForRepeatLoans(LendingApplication lendingApplication, MerchantNachDetailsResponseDTO approvedNachDetails) {
 
 		logger.info("Checking for nach Waiver:{}", lendingApplication.getId());
 
@@ -1283,6 +1283,14 @@ public class LoanUtil {
 
 			if (!"REPEAT".equalsIgnoreCase(riskSegment)) {
 				return Boolean.FALSE;
+			}
+
+			Double loanApplicationAmountTolastLoanAmountRatio = lendingApplication.getLoanAmount() / approvedNachDetails.getNachAmount();
+
+			logger.info("received risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, loanApplicationAmountTolastLoanAmountRatio ,lendingApplication.getId());
+
+			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.5) {
+				return Boolean.TRUE;
 			}
 
 			Double settlementAmount = lendingLedgerDao.findSettlementAmount(lastLoan.getId());
@@ -1345,15 +1353,11 @@ public class LoanUtil {
 				return Boolean.FALSE;
 			}
 
-			Double topupLoanAmountToActiveLoanAmountRatio = lendingApplication.getLoanAmount()/lastLoan.getLoanAmount();
+			Double topupLoanAmountToActiveLoanAmountRatio = lendingApplication.getLoanAmount() / approvedNachDetails.getNachAmount();
 
 			logger.info("recieved risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, topupLoanAmountToActiveLoanAmountRatio ,lendingApplication.getId());
 
-			if (Arrays.asList("R1", "R2").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio >= 1.5) {
-				return Boolean.TRUE;
-			}
-
-			if (Arrays.asList("R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio >= 1.3) {
+			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.5) {
 				return Boolean.TRUE;
 			}
 
