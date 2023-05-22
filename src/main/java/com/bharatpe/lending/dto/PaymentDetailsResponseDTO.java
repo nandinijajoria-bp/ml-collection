@@ -73,6 +73,8 @@ public class PaymentDetailsResponseDTO {
 		private Double pendingAmount;
 
 		private Double paidPrinciple;
+
+		private Double repaymentAmount;
 		
 		public Data() {
 			

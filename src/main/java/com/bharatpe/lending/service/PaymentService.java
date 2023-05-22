@@ -228,6 +228,7 @@ public class PaymentService {
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
         data.setPaidPrinciple(paidPrinciple);
+        data.setRepaymentAmount(activeLoan.getTotalPayableAmount());
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
         return new PaymentDetailsResponseDTO(data);
     }
@@ -1742,7 +1743,7 @@ public class PaymentService {
             }*/
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
-            pgCreateTransactionRequestDTO.setRedirectURI("sample url");
+            pgCreateTransactionRequestDTO.setRedirectURI("sample url"+"?resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId);
             pgCreateTransactionRequestDTO.setPgWebMode(true);
             pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
             PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantId, pgCreateTransactionRequestDTO);
