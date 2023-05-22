@@ -196,7 +196,6 @@ public class PaymentService {
         Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
-
         boolean isPayable = true;
         if(overdueDays < 2) {
             isPayable = false;
@@ -220,6 +219,14 @@ public class PaymentService {
         principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
         logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
         PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount(), netForeclosureAtLender);
+        Double paidPrinciple = activeLoan.getPaidPrinciple() != null
+                ? activeLoan.getPaidPrinciple()
+                : 0d;
+        Double dueInterest = activeLoan.getDueInterest() != null ? activeLoan.getDueInterest()
+                : 0d;
+        Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
+        data.setPaidAmount(activeLoan.getPaidAmount());
+        data.setPendingAmount(pendingAmount);
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
         return new PaymentDetailsResponseDTO(data);
     }
@@ -1644,7 +1651,8 @@ public class PaymentService {
                 logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
                 return new PaymentDetailsResponseDTO("No active loan found.");
             }
-            return getPaymentDetailsForActiveLoan(activeLoan);
+           return getPaymentDetailsForActiveLoan(activeLoan);
+
         } catch(Exception ex) {
             logger.error("Exception while fetching payment details for merchant id {}, Exception is {}",merchantId, ex);
         }
