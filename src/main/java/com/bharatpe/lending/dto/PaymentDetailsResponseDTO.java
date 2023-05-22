@@ -71,6 +71,8 @@ public class PaymentDetailsResponseDTO {
 		private Double paidAmount;
 
 		private Double pendingAmount;
+
+		private Double paidPrinciple;
 		
 		public Data() {
 			

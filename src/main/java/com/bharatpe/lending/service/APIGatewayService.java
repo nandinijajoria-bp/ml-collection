@@ -289,8 +289,7 @@ public class APIGatewayService {
     }
 
     public PgCreateTransactionResponseDTO createPgTransaction(Long merchantId, PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO) {
-        PgCreateTransactionResponseDTO pgCreateTransactionResponseDTO = new PgCreateTransactionResponseDTO();
-        logger.info("In Create pg transaction for merchnat id {}", merchantId);
+        logger.info("In Create pg transaction for merchant id {}", merchantId);
         InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
         logger.info("pg config related to mid: {}", pgMidConfig);
@@ -304,6 +303,7 @@ public class APIGatewayService {
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
             requestParams.put("allowedModes", pgCreateTransactionRequestDTO.getAllowedModes());
             requestParams.put("checkout", pgCreateTransactionRequestDTO.getCheckout());
+            requestParams.put("isPgWebMode",pgCreateTransactionRequestDTO.isPgWebMode());
 
             String hash = lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
             HttpHeaders headers = new HttpHeaders();

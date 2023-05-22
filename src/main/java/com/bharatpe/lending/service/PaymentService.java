@@ -227,6 +227,7 @@ public class PaymentService {
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
+        data.setPaidPrinciple(paidPrinciple);
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
         return new PaymentDetailsResponseDTO(data);
     }
