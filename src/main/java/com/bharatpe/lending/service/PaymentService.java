@@ -1735,12 +1735,6 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setOrderId(orderId);
             pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
             pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
-            // to check if deep link is required in web mode
-            /*if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
-                pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=easy-loans&wroute=payment-status&wid="+orderId);
-            } else {
-                pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID=" + orderId);
-            }*/
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
             pgCreateTransactionRequestDTO.setRedirectURI("sample url"+"?resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId);
@@ -1778,7 +1772,7 @@ public class PaymentService {
             }
             Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(order.getOwnerId());
             Lender lender = Lender.valueOf(activeLoan.get().getNbfc());
-            if("PENDING".equalsIgnoreCase(order.getStatus())) {
+            if(CreditConstants.PaymentStatus.PENDING.name().equalsIgnoreCase(order.getStatus())) {
                 logger.info("pg status check for merchant id {} and order id {}", order.getMerchantId(), order.getOrderId());
                 PgStatusResponse response = apiGatewayService.checkPgStatus(order.getOrderId(), lender, order.getMerchantId());
                 if (response != null && response.getStatusCode() != null && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData()) && "SUCCESS".equalsIgnoreCase(response.getData().getPaymentStatus())) {
