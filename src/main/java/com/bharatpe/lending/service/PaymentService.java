@@ -501,30 +501,6 @@ public class PaymentService {
         return "OK";
     }
 
-    private void mandateTransactionSuccess(PgPaymentCallbackDTO request)
-    {
-        LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
-        lendingPullPayment.setStatus("SUCCESS");
-        lendingPullPaymentDao.save(lendingPullPayment);
-        Long loanId = lendingPullPayment.getLoanId();
-        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId).get();
-        createOrder(lendingPaymentSchedule,request.getOrderAmount(),request.getPaymentRefId(),"AUTOPAYUPI");
-    }
-
-    private LoanPaymentOrder createOrder(LendingPaymentSchedule lendingPaymentSchedule, Double amount, String bankRefNo, String source) {
-        LoanPaymentOrder order = new LoanPaymentOrder();
-        order.setMerchantId(lendingPaymentSchedule.getMerchantId());
-        order.setOwner("lending_payment_schedule");
-        order.setOwnerId(lendingPaymentSchedule.getId());
-        order.setAmount(amount);
-        order.setStatus("PENDING");
-        order.setSource(source);
-        order.setBankRefNo(bankRefNo);
-        order = loanPaymentOrderDao.save(order);
-        String orderId = "LOAN" + (10000000L + order.getId());
-        order.setOrderId(orderId);
-        return loanPaymentOrderDao.save(order);
-    }
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
         if (request.getEvent().equalsIgnoreCase("MANDATE") && request.getMandate() != null) {
@@ -533,7 +509,8 @@ public class PaymentService {
         }
         else if (request.getEvent().equalsIgnoreCase("transaction")
                 && request.getMandate() != null ) {
-            mandateTransactionSuccess(request);
+          log.info("mandate presentment transaction {}",request.getMandate().getOrderId());
+            return "OK" ;
         }
 
         else {

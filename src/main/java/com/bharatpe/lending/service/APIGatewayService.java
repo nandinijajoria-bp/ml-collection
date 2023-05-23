@@ -2437,8 +2437,6 @@ public class APIGatewayService {
         return success;
     }
 
-
-
     public PgStatusResponse checkPgStatusForMandate(String orderId, Lender lender, Long merchantId) {
         logger.info("Pg status check for orderId:{}", orderId);
         try {
@@ -2460,10 +2458,10 @@ public class APIGatewayService {
             while (retryCount < 3) {
                 try {
                      response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
-                    logger.info("Response received from Pg status Check API {}", mapper.writeValueAsString(response));
+                    logger.info("Response received from create mandate status Check PG API {}", mapper.writeValueAsString(response));
                     return response.getBody();
                 } catch (Exception e) {
-                    logger.error("Exception in Pg status for order_id:{} error {} response {}", orderId, e,mapper.writeValueAsString(response));
+                    logger.error("Exception in Pg status for mandate order_id:{} error {} response {}", orderId, e,mapper.writeValueAsString(response));
                 }
                 retryCount++;
             }
