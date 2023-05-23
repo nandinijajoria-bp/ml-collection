@@ -70,6 +70,9 @@ public class AutoPayUPIService {
 
         FetchTxnResponseDto responseDto = new FetchTxnResponseDto();
         List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(), loanId ,pageable);
+        if (fetchTxn.size() == 0) {
+            throw new InvalidRequestException(String.format("data not found %s: %s:", merchant.getId(),loanId));
+        }
         List<FetchTxnResponseDto.Presentment> presentments = new ArrayList<>();
 
         for (int i = 0; i < fetchTxn.size(); i++) {
@@ -178,6 +181,9 @@ public class AutoPayUPIService {
     }
     public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant, String orderId) {
         log.info("Status check request for mandate register");
+        if (orderId == null || orderId.equals("")) {
+            throw new InvalidRequestException("Order id is not present");
+        }
         AutoPayUPI mandateApplication =
                 autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId);
 
@@ -226,6 +232,11 @@ public class AutoPayUPIService {
     }
 
     public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, Long loanId, RequestDTO<UPIRegisterRequestDto> requestDto) {
+
+        if (loanId==null)
+        {
+            throw new InvalidRequestException(String.format("LoanId is not present"));
+        }
 
         log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
         Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanId);

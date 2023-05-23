@@ -3,11 +3,15 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.service.AutoPayUPIService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/auto-pay")
@@ -41,11 +45,15 @@ public class AutoPayUPIController {
     @GetMapping(value = "/fetch-transaction")
     public FetchTxnResponseDto fetchTransaction(
             @RequestAttribute BasicDetailsDto merchant,
-            @RequestParam(name = "page_num") Integer pageNum,
-            @RequestParam(name = "page_size") Integer pageSize,
+            @RequestParam(name = "page_num") Optional<Integer> pageNum,
+            @RequestParam(name = "page_size") Optional<Integer> pageSize,
             @RequestParam Long loanId
     ) {
-        return autoPayUPIService.fetchTransaction(merchant, loanId, pageNum, pageSize);
+        if (ObjectUtils.isEmpty(pageNum)|| ObjectUtils.isEmpty(pageSize)
+                || !pageNum.isPresent() || !pageNum.isPresent() ) {
+        throw new InvalidRequestException("pageNum and page size not found");
+        }
+        return autoPayUPIService.fetchTransaction(merchant, loanId, pageNum.get(), pageSize.get());
     }
 
     @PutMapping(value = "/update/frequency")
