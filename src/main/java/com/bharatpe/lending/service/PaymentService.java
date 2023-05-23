@@ -55,6 +55,7 @@ import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.bharatpe.lending.util.PaymentLinkUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -167,6 +168,9 @@ public class PaymentService {
 
     @Autowired
     LendingRefundAuditDao lendingRefundAuditDao;
+
+    @Autowired
+    private PaymentLinkUtil paymentLinkUtil;
 
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
@@ -1737,7 +1741,7 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
-            pgCreateTransactionRequestDTO.setRedirectURI("sample url"+"?resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId);
+            pgCreateTransactionRequestDTO.setRedirectURI("https://easy-loans-payment.bharatpe.io/payment-status"+"?merchant_id="+merchantId+"&external_loan_id="+externalLoanId+"&hash_id="+paymentLinkUtil.getHashId(String.valueOf(merchantId),externalLoanId)+"&resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId);
             pgCreateTransactionRequestDTO.setPgWebMode(true);
             pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
             PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantId, pgCreateTransactionRequestDTO);

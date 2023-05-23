@@ -1,19 +1,16 @@
 package com.bharatpe.lending.interceptor;
 
 import com.bharatpe.common.constants.ResponseCode;
-import com.bharatpe.lending.common.util.PaymentLinkUtil;
+import com.bharatpe.lending.util.PaymentLinkUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 @Service
 public class PaymentLinkInterceptor  implements HandlerInterceptor {
