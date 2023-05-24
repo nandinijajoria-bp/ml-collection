@@ -1680,6 +1680,7 @@ public class PaymentService {
             catch (Exception e){
                 logger.error("Exception in submitting funnel service event for merchantId:{},Exception:{}",merchantId,e.getMessage());
             }
+            return paymentDetailsResponseDTO;
         } catch(Exception ex) {
             logger.error("Exception while fetching payment details for merchantId:{},Exception is:{}",merchantId, ex);
         }
