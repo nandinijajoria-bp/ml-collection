@@ -148,37 +148,6 @@ public class AutoPayUPIService {
         return "OK";
     }
 
-    public long calculateTimeDiff(Date createdMandateDate) {
-        log.info("createdMandateDate is {}", createdMandateDate);
-        SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
-        long diffMinutes=0l;
-        Date date = new Date();
-        log.info("date is {}", date);
-        format.format(date);
-        String currentDateTime = format.format(date);
-
-        Date d1 = null;
-        try {
-            d1 = format.parse((currentDateTime));
-
-            log.info("d1 {}", d1);
-            long diff;
-            diff = createdMandateDate.getTime() - d1.getTime();
-            if (diff<0)
-            {
-                diff = Math.abs(diff);
-            }
-            log.info("diff is {}", diff);
-             diffMinutes = diff / (60 * 1000);
-            log.info("diff minutes is {}", diffMinutes);
-            return diffMinutes;
-
-        }
-        catch (ParseException e) {
-            log.error("e is {}", e);
-        }
-        return diffMinutes;
-    }
     public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant, String orderId) {
         log.info("Status check request for mandate register");
         if (orderId == null || orderId.equals("")) {
@@ -194,17 +163,8 @@ public class AutoPayUPIService {
                     (String.format("Invalid application : %s", orderId));
         }
 
-        else if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
-            Date createdMandateDate = mandateApplication.getCreatedAt();
-            log.info("createMandateDate {}",createdMandateDate);
-            long diffMinutes = calculateTimeDiff(createdMandateDate);
-            log.info("diffMinutes is {}", diffMinutes);
-            if (diffMinutes >= 30L) {
-                mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
-                autoPayUPIDao.save(mandateApplication);
-                log.info("status for mandate register marked as failed for merchant id {} application id {}",
-                        mandateApplication.getMerchantId(), mandateApplication.getApplicationId());
-            } else {
+         if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
+            log.info("status of application {} ",mandateApplication.getStatus());
                 PgStatusResponse response =
                         apiGatewayService.checkPgStatusForMandate
                                 (mandateApplication.getOrderId(),
@@ -226,7 +186,7 @@ public class AutoPayUPIService {
                     log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
                 }
             }
-        }
+
         return new MandateUPIStatusResponse(mandateApplication.getOrderId(), mandateApplication.getApplicationId(),
                 mandateApplication.getStatus());
     }

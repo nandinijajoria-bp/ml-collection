@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.AutoPayUPI;
@@ -36,6 +37,8 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigInteger;
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -278,6 +281,38 @@ public class MerchantLoansService {
     }
 
 
+    public long calculateTimeDiff(Date createdMandateDate) {
+        log.info("createdMandateDate is {}", createdMandateDate);
+        SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
+        long diffMinutes=0l;
+        Date date = new Date();
+        log.info("date is {}", date);
+        format.format(date);
+        String currentDateTime = format.format(date);
+
+        Date d1 = null;
+        try {
+            d1 = format.parse((currentDateTime));
+
+            log.info("d1 {}", d1);
+            long diff;
+            diff = createdMandateDate.getTime() - d1.getTime();
+            if (diff<0)
+            {
+                diff = Math.abs(diff);
+            }
+            log.info("diff is {}", diff);
+            diffMinutes = diff / (60 * 1000);
+            log.info("diff minutes is {}", diffMinutes);
+            return diffMinutes;
+
+        }
+        catch (ParseException e) {
+            log.error("e is {}", e);
+        }
+        return diffMinutes;
+    }
+
     public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
@@ -323,6 +358,19 @@ public class MerchantLoansService {
                     log.info("loan application id is loan.getApplicationId{}", loan.getApplicationId());
                     Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, loan.getApplicationId());
                     if (autoPayUPI.isPresent()) {
+                        if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING))
+                        {
+                            Date createdMandateDate = autoPayUPI.get().getCreatedAt();
+                            log.info("createMandateDate {}",createdMandateDate);
+                            long diffMinutes = calculateTimeDiff(createdMandateDate);
+                            log.info("diffMinutes is {}", diffMinutes);
+                            if (diffMinutes >= 30L) {
+                                autoPayUPI.get().setStatus(AutoPayStatusEnum.FAILED);
+                                autoPayUPIDao.save(autoPayUPI.get());
+                                log.info("status for mandate register marked as failed for merchant id {} application id {}",
+                                        autoPayUPI.get().getMerchantId(), autoPayUPI.get().getApplicationId());
+                            }
+                        }
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
