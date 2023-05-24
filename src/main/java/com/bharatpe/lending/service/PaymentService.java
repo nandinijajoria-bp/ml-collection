@@ -9,14 +9,13 @@ import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.FunnelEventDto;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.dto.SettleLoanPaymentDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
-import com.bharatpe.lending.common.enums.TransferTypeModes;
+import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.PaymentSettlementService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
@@ -40,6 +39,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.util.LoanUtil;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -171,6 +171,11 @@ public class PaymentService {
 
     @Autowired
     private PaymentLinkUtil paymentLinkUtil;
+
+    @Autowired
+    private FunnelService funnelService;
+
+
 
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
@@ -1657,10 +1662,26 @@ public class PaymentService {
                 logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
                 return new PaymentDetailsResponseDTO("No active loan found.");
             }
-           return getPaymentDetailsForActiveLoan(activeLoan);
-
+            PaymentDetailsResponseDTO paymentDetailsResponseDTO=getPaymentDetailsForActiveLoan(activeLoan);
+            // add mobile number of merchant
+            Optional<BasicDetailsDto> merchantBasicDetails=merchantService.fetchMerchantBasicDetails(merchantId);
+            merchantBasicDetails.ifPresent(basicDetailsDto -> paymentDetailsResponseDTO.getData().setMobile(basicDetailsDto.getMobile()));
+            //Record event through funnel service
+            try {
+                FunnelEventDto funnelEventDto = FunnelEventDto.builder()
+                        .merchantId(merchantId)
+                        .stageId(FunnelEnums.StageId.PAYMENT_LINK)
+                        .stageEvent(FunnelEnums.StageEvent.PAYMENT_LINK_TRIGGERED)
+                        .eventSubmissionTime(LocalDateTime.now().withNano(0))
+                        .source(FunnelEnums.Source.BACKEND)
+                        .build();
+                notificationExecutor.execute(() -> funnelService.submitEvent(funnelEventDto));
+            }
+            catch (Exception e){
+                logger.error("Exception in submitting funnel service event for merchantId:{},Exception:{}",merchantId,e.getMessage());
+            }
         } catch(Exception ex) {
-            logger.error("Exception while fetching payment details for merchant id {}, Exception is {}",merchantId, ex);
+            logger.error("Exception while fetching payment details for merchantId:{},Exception is:{}",merchantId, ex);
         }
         return new PaymentDetailsResponseDTO("Something went wrong.");
     }
@@ -1741,7 +1762,7 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
-            pgCreateTransactionRequestDTO.setRedirectURI("https://easy-loans-payment.bharatpe.io/payment-status"+"?merchant_id="+merchantId+"&external_loan_id="+externalLoanId+"&hash_id="+paymentLinkUtil.getHashId(String.valueOf(merchantId),externalLoanId)+"&resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId);
+            pgCreateTransactionRequestDTO.setRedirectURI(paymentLinkUtil.getPGRedirectionUrl(merchantId,externalLoanId,orderId));
             pgCreateTransactionRequestDTO.setPgWebMode(true);
             pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
             PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantId, pgCreateTransactionRequestDTO);
@@ -1758,9 +1779,25 @@ public class PaymentService {
             loanPaymentOrderDao.save(order);
             InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), null, null, null, null, null);
             data.setPaymentLink(response.getData().getPaymentURI());
+
+            // send funnel Event for pg web view initiation
+            try {
+                FunnelEventDto funnelEventDto = FunnelEventDto.builder()
+                        .merchantId(merchantId)
+                        .stageId(FunnelEnums.StageId.PAYMENT_LINK)
+                        .stageEvent(FunnelEnums.StageEvent.PG_WEB_VIEW_TRIGGERED)
+                        .eventSubmissionTime(LocalDateTime.now().withNano(0))
+                        .orderId(orderId)
+                        .source(FunnelEnums.Source.BACKEND)
+                        .build();
+                notificationExecutor.execute(() -> funnelService.submitEvent(funnelEventDto));
+            }
+            catch (Exception e){
+                logger.error("Exception in submitting funnel service event for merchantId:{},Exception:{}",merchantId,e.getMessage());
+            }
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id {}", merchantId, ex);
+            logger.error("Exception while initiating payment for merchant id:{},Exception:{}",merchantId, ex);
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
@@ -1804,4 +1841,6 @@ public class PaymentService {
             return new PaymentStatusV3ResponseDTO(false, "Something went wrong");
         }
     }
+
+
 }

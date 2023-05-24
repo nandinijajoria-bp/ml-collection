@@ -75,6 +75,8 @@ public class PaymentDetailsResponseDTO {
 		private Double paidPrinciple;
 
 		private Double repaymentAmount;
+
+		private String mobile;
 		
 		public Data() {
 			

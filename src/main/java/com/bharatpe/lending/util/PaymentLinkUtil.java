@@ -11,6 +11,13 @@ public class PaymentLinkUtil {
     @Value("${payment.link.secret.key:secretKey}")
     private String paymentLinkSecretKey;
 
+    @Value("${payment.link.pg.redirection.url:https://easy-loans-payment.bharatpe.io/#/payment-status}")
+    private String paymentLinkPGRedirectionUrl;
+
+
+    public String getPGRedirectionUrl(Long merchantId,String externalLoanId,String orderId){
+        return "paymentLinkPGRedirectionUrl"+"?merchant_id="+merchantId+"&external_loan_id="+externalLoanId+"&hash_id="+getHashId(String.valueOf(merchantId),externalLoanId)+"&resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId;
+    }
     public String getHashId(String merchantId,String externalLoanId) {
         {
             // Do not change this logic,as this being used while generating the url.
