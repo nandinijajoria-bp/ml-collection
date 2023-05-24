@@ -1660,7 +1660,7 @@ public class PaymentService {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
-                return new PaymentDetailsResponseDTO("No active loan found.");
+                return new PaymentDetailsResponseDTO("NO ACTIVE LOAN");
             }
             PaymentDetailsResponseDTO paymentDetailsResponseDTO=getPaymentDetailsForActiveLoan(activeLoan);
             // add mobile number of merchant
@@ -1693,7 +1693,7 @@ public class PaymentService {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantId);
-                return new InitiatePaymentResponseDTO("No active loan found.");
+                return new InitiatePaymentResponseDTO("NO ACTIVE LOAN");
             }
             Integer amount = request.getPayload().getAmount();
             if(amount < 1 ) {
