@@ -11,7 +11,7 @@ public class PaymentLinkUtil {
     @Value("${payment.link.secret.key:secretKey}")
     private String paymentLinkSecretKey;
 
-    @Value("${payment.link.pg.redirection.url:https://easy-loans-payment.bharatpe.io/#/payment-status}")
+    @Value("${payment.link.pg.redirection.url:https://easy-loans-payment.bharatpe.io/payment-status}")
     private String paymentLinkPGRedirectionUrl;
 
 

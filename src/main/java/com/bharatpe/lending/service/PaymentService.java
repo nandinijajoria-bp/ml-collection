@@ -1763,7 +1763,7 @@ public class PaymentService {
             pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
             pgCreateTransactionRequestDTO.setAllowedModes(Arrays.asList("CC", "DC","NB","BP","UPI","FP"));
             pgCreateTransactionRequestDTO.setLender(Lender.valueOf(activeLoan.getNbfc()));
-            pgCreateTransactionRequestDTO.setRedirectURI("https://easy-loans-payment.bharatpe.io/#/payment-status"+"?merchant_id="+merchantId+"&external_loan_id="+externalLoanId+"&hash_id="+paymentLinkUtil.getHashId(String.valueOf(merchantId),externalLoanId)+"&resultCode=true&pageRoute=transactionStatus&isPgWebMode=true"+"&txnId="+orderId);
+            pgCreateTransactionRequestDTO.setRedirectURI(paymentLinkUtil.getPGRedirectionUrl(merchantId,externalLoanId,orderId));
             pgCreateTransactionRequestDTO.setPgWebMode(true);
             pgCreateTransactionRequestDTO.setCheckout("JUSPAY");
             PgCreateTransactionResponseDTO response = apiGatewayService.createPgTransaction(merchantId, pgCreateTransactionRequestDTO);
