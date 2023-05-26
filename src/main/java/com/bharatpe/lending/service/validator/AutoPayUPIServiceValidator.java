@@ -16,7 +16,7 @@ public class AutoPayUPIServiceValidator {
 
 
     public void validatePageData(Optional<Integer> pageNum,
-                                 @RequestParam(name = "page_size") Optional<Integer> pageSize)
+                                 Optional<Integer> pageSize)
     {
         if (ObjectUtils.isEmpty(pageNum) || ObjectUtils.isEmpty(pageSize)
                 || !pageNum.isPresent() || !pageNum.isPresent()) {
