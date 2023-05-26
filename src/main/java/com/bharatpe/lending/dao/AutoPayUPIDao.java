@@ -1,9 +1,11 @@
 package com.bharatpe.lending.dao;
 
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.entity.AutoPayUPI;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface AutoPayUPIDao extends JpaRepository<AutoPayUPI, Long> {
@@ -12,7 +14,7 @@ public interface AutoPayUPIDao extends JpaRepository<AutoPayUPI, Long> {
 
     Optional<AutoPayUPI> findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(Long merchantId, Long applicationId);
 
-    AutoPayUPI findByMerchantIdAndOrderId(Long merchantId, String orderId);
+    Optional<AutoPayUPI> findByMerchantIdAndOrderId(Long merchantId, String orderId);
 
     AutoPayUPI findByOrderId(String orderId);
 
@@ -20,8 +22,8 @@ public interface AutoPayUPIDao extends JpaRepository<AutoPayUPI, Long> {
 
     AutoPayUPI findTop1ByApplicationIdOrderByIdDesc(Long applicationId);
 
-    @Query(nativeQuery = true, value= "select * from autopay_upi where application_id =:applicationId and status IN ('PENDING','SUCCESS') order by id desc limit 1")
-    AutoPayUPI findTop1ByApplicationIdAndStatusOrderByIdDesc(long applicationId);
+    @Query(nativeQuery = true, value= "select * from autopay_upi where application_id =:applicationId and status IN (:status) order by id desc limit 1")
+    AutoPayUPI findTop1ByApplicationIdAndStatusOrderByIdDesc(long applicationId, List<String> status);
 
 
 }

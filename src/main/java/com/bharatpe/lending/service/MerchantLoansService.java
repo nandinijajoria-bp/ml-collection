@@ -361,7 +361,6 @@ public class MerchantLoansService {
                         if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING))
                         {
                             Date createdMandateDate = autoPayUPI.get().getCreatedAt();
-                            log.info("createMandateDate {}",createdMandateDate);
                             long diffMinutes = calculateTimeDiff(createdMandateDate);
                             log.info("diffMinutes is {}", diffMinutes);
                             if (diffMinutes >= 30L) {

@@ -14,6 +14,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
+import com.bharatpe.lending.service.validator.AutoPayUPIServiceValidator;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,21 +70,18 @@ public class AutoPayUPIService {
         final Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("id").descending());
 
         FetchTxnResponseDto responseDto = new FetchTxnResponseDto();
-        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(), loanId ,pageable);
+        List<LendingPullPayment> fetchTxn = lendingPullPaymentDao.findByMerchantIdAndLoanId(merchant.getId(), loanId, pageable);
         if (fetchTxn.size() == 0) {
-            throw new InvalidRequestException(String.format("data not found %s: %s:", merchant.getId(),loanId));
+            return new FetchTxnResponseDto();
         }
         List<FetchTxnResponseDto.Presentment> presentments = new ArrayList<>();
 
-        for (int i = 0; i < fetchTxn.size(); i++) {
-            log.info("fetchTxn.get(i).getMerchantId() {} ", fetchTxn.get(i).getMerchantId());
-            log.info("merchant.getId() {} ", merchant.getId());
-
-            if (fetchTxn.get(i).getMerchantId().equals(merchant.getId())) {
+        for (int pullPayment = 0; pullPayment < fetchTxn.size(); pullPayment++) {
+            if (fetchTxn.get(pullPayment).getMerchantId().equals(merchant.getId())) {
                 FetchTxnResponseDto.Presentment presentmentData = new FetchTxnResponseDto.Presentment();
-                presentmentData.setDate(fetchTxn.get(i).getTxnDate());
-                presentmentData.setPresentmentAmt(fetchTxn.get(i).getDeductedAmount());
-                presentmentData.setStatus(fetchTxn.get(i).getStatus());
+                presentmentData.setDate(fetchTxn.get(pullPayment).getTxnDate());
+                presentmentData.setPresentmentAmt(fetchTxn.get(pullPayment).getDeductedAmount());
+                presentmentData.setStatus(fetchTxn.get(pullPayment).getStatus());
                 presentments.add(presentmentData);
             }
             responseDto.setData(presentments);
@@ -95,14 +93,11 @@ public class AutoPayUPIService {
         boolean flag = false;
         LendingPaymentSchedule lps = lendingPaymentScheduleDao.findById(dto.getLoanId()).get();
         Long applicationId = lps.getApplicationId();
-        AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
-        log.info("entity is {}", entity);
-        log.info("Objects.equals(entity.getMerchantId(), merchant.getId() {}",Objects.equals(entity.getMerchantId(), merchant.getId()));
-
+        AutoPayUPI entity = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchant.getId(), applicationId).get();
         if (entity != null) {
             log.info("entity application Id is {} ", entity.getApplicationId());
 
-            if (entity.getMandateId() != null && Objects.equals(entity.getMerchantId(), merchant.getId())) {
+            if (entity.getMandateId() != null) {
                 entity.setFrequency(dto.getFrequency());
                 autoPayUPIDao.save(entity);
                 flag = true;
@@ -112,11 +107,7 @@ public class AutoPayUPIService {
     }
 
     public String handleMandatePgCallback(PgPaymentCallbackDTO request) {
-        log.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
-        if (Objects.nonNull(request) && Objects.isNull(request.getMandate())) {
-            log.info("null payments object in pg callback for request: {}", request);
-            return "OK";
-        }
+        log.info("Received mandate callback request for order ID {} : {}", request.getOrderId(), request);
         AutoPayUPI autoPayUPI = autoPayUPIDao.findByOrderId(request.getOrderId());
         try {
             if (autoPayUPI == null) {
@@ -124,7 +115,7 @@ public class AutoPayUPIService {
                 return "OK";
             }
             if (!"PENDING".equalsIgnoreCase(String.valueOf(autoPayUPI.getStatus()))) {
-                log.info("Payment for merchant id {} and order id {} is already processed", autoPayUPI.getMerchantId(), request.getOrderId());
+                log.info("Mandate for merchant id {} and order id {} is already processed", autoPayUPI.getMerchantId(), request.getOrderId());
                 return "OK";
             }
             if (request.getPaymentStatus() != null) {
@@ -140,7 +131,6 @@ public class AutoPayUPIService {
             }
         } catch (Exception ex) {
             if (autoPayUPI != null) {
-                autoPayUPI.setStatus(AutoPayStatusEnum.PENDING);
                 autoPayUPIDao.save(autoPayUPI);
             }
             log.error("Exception in register callback for order id {}", request.getOrderId(), ex);
@@ -150,70 +140,61 @@ public class AutoPayUPIService {
 
     public MandateUPIStatusResponse checkStatus(BasicDetailsDto merchant, String orderId) {
         log.info("Status check request for mandate register");
-        if (orderId == null || orderId.equals("")) {
-            throw new InvalidRequestException("Order id is not present");
-        }
         AutoPayUPI mandateApplication =
-                autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId);
+                autoPayUPIDao.findByMerchantIdAndOrderId(merchant.getId(), orderId).get();
 
-        log.info("mandate application is {} ",mandateApplication);
+        log.info("mandate application is {} ", mandateApplication);
         if (mandateApplication == null) {
             throw new
                     InvalidRequestException
                     (String.format("Invalid application : %s", orderId));
         }
 
-         if ("PENDING".equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
-            log.info("status of application {} ",mandateApplication.getStatus());
-                PgStatusResponse response =
-                        apiGatewayService.checkPgStatusForMandate
-                                (mandateApplication.getOrderId(),
-                                        Lender.valueOf(mandateApplication.getLender()), mandateApplication.getMerchantId());
+        if (AutoPayStatusEnum.PENDING.name().equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
+            log.info("status of application {} ", mandateApplication.getStatus());
+            PgStatusResponse response =
+                    apiGatewayService.checkPgStatusForMandate
+                            (mandateApplication.getOrderId(),
+                                    Lender.valueOf(mandateApplication.getLender()), mandateApplication.getMerchantId());
 
-                log.info(" PG response is {}", response.getData());
+            log.info(" PG response is {}", response.getData());
 
-                if (response != null && response.getStatusCode() != null
-                        && "200".equalsIgnoreCase(response.getStatusCode()) && Objects.nonNull(response.getData())
-                        && "ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
-                    log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
-                    handleMandatePgCallback(response.getData());
-                } else if (response != null && response.getStatusCode() != null
-                        && "200".equalsIgnoreCase(response.getStatusCode()) &&
-                        Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
-                        || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
-                    mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
-                    autoPayUPIDao.save(mandateApplication);
-                    log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
-                }
+            if ("ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
+                log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
+                mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
+                handleMandatePgCallback(response.getData());
+            } else if (Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
+                    || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+                mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
+                log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
             }
+            autoPayUPIDao.save(mandateApplication);
+        }
 
         return new MandateUPIStatusResponse(mandateApplication.getOrderId(), mandateApplication.getApplicationId(),
                 mandateApplication.getStatus());
     }
 
-    public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, Long loanId, RequestDTO<UPIRegisterRequestDto> requestDto) {
 
-        if (loanId==null)
-        {
-            throw new InvalidRequestException(String.format("LoanId is not present"));
-        }
-
+    public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, RequestDTO<UPIRegisterRequestDto> requestDto) {
         log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
-        Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findById(loanId);
+        Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndIdAndStatus(merchantBasicDetails.getId(),requestDto.getPayload().getLoanId(),"ACTIVE");
 
         if (!activeLoan.isPresent()) {
             log.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
-            throw new InvalidRequestException(String.format("Invalid loan Id : %s", loanId));
+            return new UPIRegisterResponseDto();
         }
 
-        AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(activeLoan.get().getApplicationId());
+        List<String> statusList = new ArrayList<>();
+        statusList.add(AutoPayStatusEnum.PENDING.name());
+        statusList.add(AutoPayStatusEnum.SUCCESS.name());
+        AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(activeLoan.get().getApplicationId(),statusList);
         if (entity != null) {
             log.info("For this application Id, mandate is already in progress {} ", activeLoan.get().getApplicationId());
             throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", activeLoan.get().getApplicationId()));
         }
 
         UPIRegisterResponseDto.Data data = null;
-        log.info("merchant basic details merchantBasicDetails.getId(){}", merchantBasicDetails.getId());
         log.info("active loan merchantId {}", activeLoan.get().getMerchantId());
 
         if (merchantBasicDetails.getId().equals(activeLoan.get().getMerchantId())) {
@@ -234,7 +215,7 @@ public class AutoPayUPIService {
             registerPgRequest.setCustomerId(merchantBasicDetails.getId());
             registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
             registerPgRequest.setMandateStartDate(LocalDate.now());
-            registerPgRequest.setNarration("Register mandate with orderId" + autoPayUPI.getOrderId());
+            registerPgRequest.setNarration("Register mandate with orderId"+autoPayUPI.getOrderId());
             registerPgRequest.setOrderId(autoPayUPI.getOrderId());
 
             //mandate date is set of 10 years ahead, since till that time loan will be closed.
@@ -250,27 +231,8 @@ public class AutoPayUPIService {
             if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
                     easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
                 log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
-
-                Long appVersion = Objects.nonNull(requestDto.getMeta().getDeviceInfo().getAppVersion()) ?
-                        Long.parseLong(requestDto.getMeta().getDeviceInfo().getAppVersion()) : 100L;
-
-                if (Objects.equals(requestDto.getMeta().getClient(), "android")) {
-                    if (appVersion >= androidVersion) {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    } else {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    }
-                } else {
-                    if (appVersion >= iosVersion) {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    } else {
-                        registerPgRequest.setCheckout("JUSPAY");
-                    }
-                }
-            } else {
                 registerPgRequest.setCheckout("JUSPAY");
             }
-
             AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
 
             if (registerPgResponseDto != null && registerPgResponseDto.getStatusCode() != null
@@ -284,5 +246,5 @@ public class AutoPayUPIService {
         }
 
         return new UPIRegisterResponseDto(data);
-}
+    }
 }

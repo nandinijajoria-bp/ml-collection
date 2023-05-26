@@ -371,26 +371,18 @@ public class APIGatewayService {
             HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
 
             logger.info("Create pg transaction internal request: {}", mapper.writeValueAsString(request));
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                    String pgCreateTxnURL = getPgCreateTxnUrl(merchantId);
-                    logger.info("pg create url: {}", pgCreateTxnURL);
-                    PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, PgCreateTransactionResponseDTO.class);
-                    logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
-                    return response;
-                } catch (Exception e) {
-                    logger.error("Exception in createVPA", e);
-                }
-                retryCount++;
+            try {
+                String pgCreateTxnURL = getPgCreateTxnUrl(merchantId);
+                logger.info("pg create url: {}", pgCreateTxnURL);
+                PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, PgCreateTransactionResponseDTO.class);
+                logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
+                return response;
+            } catch (HttpClientErrorException ex) {
+                logger.info("Response from API Gateway : {}", ex.getResponseBodyAsString());
+                logger.error("Error in api call to create pg transaction for merchant:{} ex {}", merchantId, ex);
             }
-        }
-        catch (HttpClientErrorException ex) {
-            logger.info("Response from API Gateway : {}", ex.getResponseBodyAsString());
-            logger.error("Error in api call to create pg transaction for merchant:{}", merchantId, ex);
-        }
-        catch (Exception ex) {
-            logger.error("error processing registration for merchant id:{}", merchantId, ex);
+        } catch (Exception ex) {
+            logger.error("error processing registration for merchant id:{} and exception {}", merchantId, ex);
         }
         return null;
     }
@@ -2454,22 +2446,18 @@ public class APIGatewayService {
             ResponseEntity<PgStatusResponse> response=null;
 
             logger.info("Pg status Check internal request: {}", mapper.writeValueAsString(request));
-            int retryCount = 0;
-            while (retryCount < 3) {
-                try {
-                     response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
-                    logger.info("Response received from create mandate status Check PG API {}", mapper.writeValueAsString(response));
+            try {
+                response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
+                logger.info("Response received from create mandate status Check PG API {}", mapper.writeValueAsString(response));
+                if (response.getBody() != null && !response.getStatusCode().is2xxSuccessful()) {
                     return response.getBody();
-                } catch (Exception e) {
-                    logger.error("Exception in Pg status for mandate order_id:{} error {} response {}", orderId, e,mapper.writeValueAsString(response));
                 }
-                retryCount++;
+            } catch (HttpClientErrorException ex) {
+                logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+                logger.error("Error in api call to Pg status Check for order id:{}, error {}:", orderId, ex);
             }
-        } catch (HttpClientErrorException ex) {
-            logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
-            logger.error("Error in api call to Pg status Check for order id:{}, error:", orderId, ex);
         } catch (Exception ex) {
-            logger.error("error in Pg status Check for order id:{}, error", orderId, ex);
+            logger.error("error in Pg status Check for Mandate order id:{}, error {}", orderId, ex);
         }
         return null;
     }
