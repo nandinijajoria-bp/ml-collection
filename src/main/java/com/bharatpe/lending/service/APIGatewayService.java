@@ -1187,7 +1187,7 @@ public class APIGatewayService {
             if(!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody()!= null){
                 Map<String, String> responseData = (Map<String, String>) ((Map<String, Object>) responseEntity.getBody()).get("data");
                 if(!ObjectUtils.isEmpty(responseData.get("deep_link")) && !ObjectUtils.isEmpty(responseData.get("enach_provider"))){
-                    return responseData.get("deep_link") + "?platform=bp_nach&client_name=LENDING";
+                    return responseData.get("deep_link");
                 }
             }
         }catch(HttpClientErrorException | HttpServerErrorException ex){
@@ -1218,7 +1218,6 @@ public class APIGatewayService {
             put("nach_amount", requestDTO.getNachAmount());
             put("enach_provider", requestDTO.getEnachProvider());
             put("lender", finalLender);
-            put("mode", requestDTO.getNachMode());
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {

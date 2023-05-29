@@ -7,7 +7,6 @@ import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -15,11 +14,9 @@ import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.EnachInitiateRequestDTO;
-import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,58 +65,46 @@ public class BPEnachService {
     @Autowired
     APIGatewayService apiGatewayService;
 
-    @Value("${enach.provider:techprocess}")
+    @Value("${enach.provider}")
     String enachProvider;
-
-    @Autowired
-    LendingApplicationDao lendingApplicationDao;
-
-    @Autowired
-    LoanUtil loanUtil;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
     private static String drfDeepLinkStr = "drf-onboard";
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token ,String appVersion,
-                                                     String module, String amt,
+                                                     String module, Double nachAmount,
                                                      String type, String referenceNumber,
-                                                     String ownerId, String clientName, String nachMode) {
-
+                                                     String ownerId, String clientName) {
+        final double LOAN_AMOUNT = nachAmount;
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-
-
-        if(clientName.equalsIgnoreCase("LENDING")) {
-
-            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
-            if(lendingApplication == null) {
-                responseDTO.setResponse(false);
-                responseDTO.setMessage("Loan Application not found");
-                logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
-                return responseDTO;
-            }
-
-            if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())){
-                responseDTO.setResponse(false);
-                responseDTO.setMessage("Nach can be skipped");
-                logger.info("nach can be skipped for application:{}", lendingApplication.getId());
-                return responseDTO;
-            }
-
-            Double nachAmount = ("ADHAAR".equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D)
-                    ? 100000D : lendingApplication.getLoanAmount();
-            String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
-            String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
-
-            return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                    String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
-
-        } else {
-            final double LOAN_AMOUNT = Double.parseDouble(amt); ;
-            final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
-            enachInitiateRequestDTO.setClientName(clientName);
-            return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        if (!bankDetailsDtoOptional.isPresent()) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Active Bank not found");
+            logger.error("No Bank detail found for Merchant - {}", merchant.getId());
+            return responseDTO;
         }
+        BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.get();
+
+        String bankCode;
+        if (appVersion != null && Integer.parseInt(appVersion) >= 238) {
+            bankCode = fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "BOTH");
+        } else {
+            bankCode = fetchBankCode(merchantBankDetail.getIfsc().substring(0, 4), "NET");
+        }
+        if (bankCode == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Bank not supported for Enach");
+            logger.info("Merchant Bank not supported for Enach - {}", merchant);
+            return responseDTO;
+        }
+
+        final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
+
+        enachInitiateRequestDTO.setClientName(clientName);
+
+        return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
     }
 
 

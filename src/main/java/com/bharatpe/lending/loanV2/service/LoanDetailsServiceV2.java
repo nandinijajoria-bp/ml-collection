@@ -208,9 +208,6 @@ public class LoanDetailsServiceV2 {
     @Value("${edi.assignment.model:false}")
     Boolean assignEdiModelFromModelAssignmentEngine;
 
-    @Value("${aadharNach.rollout.percent:10}")
-    Integer aadharNachRolloutPercent;
-
     @Autowired
     IEdiModelAssignment iEdiModelAssignment;
 
@@ -848,34 +845,10 @@ public class LoanDetailsServiceV2 {
             
             if (applicationDetails.getEnachBank()) {
                 applicationDetails.setEnachDeeplink(getEnachDeeplink(openApplication, token, isIOS));
-                if(loanUtil.isInternalMerchant(openApplication.getMerchantId()) || easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), aadharNachRolloutPercent)){
-                    String lender = openApplication.getLender();
-                    if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
-                            Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
-                        applicationDetails.setEnachMode("NB_DC");
-                    }
-                    else{
-                        String enachMode = loanUtil.getEnachBankMode(openApplication.getMerchantId());
-                        if("BOTH".equalsIgnoreCase(enachMode) || "NB_DC".equalsIgnoreCase(enachMode))applicationDetails.setEnachMode("NB_DC");
-                        else if("ADHAAR".equalsIgnoreCase(enachMode))applicationDetails.setEnachMode("ADHAAR");
-                    }
-                    BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
-                    if(ObjectUtils.isEmpty(bharatPeEnach)){
-                        applicationDetails.setNachStartedAt(null);
-                        applicationDetails.setNachSessionStatus(null);
-                        applicationDetails.setNachSessionMode(null);
-                    }
-                    else{
-                        Long nachStartedAtEpoch = bharatPeEnach.getCreatedAt().getTime();
-                        applicationDetails.setNachStartedAt(nachStartedAtEpoch);
-                        applicationDetails.setNachSessionStatus(bharatPeEnach.getSessionStatus());
-                        applicationDetails.setNachSessionMode(bharatPeEnach.getMode());
-                    }
-                }
             }
 
             if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
-                applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()) || "PENDING_VERIFICATION".equalsIgnoreCase(openApplication.getNachStatus()));
+                applicationDetails.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
             }
 
             if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())){
@@ -1081,7 +1054,6 @@ public class LoanDetailsServiceV2 {
         }
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
                 loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender())) {
-            log.info("marking nach status approved for {}, {}", openApplication.getMerchantId(), openApplication.getId());
             openApplication.setNachStatus("APPROVED");
             openApplication.setNachType("ENACH");
             openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));

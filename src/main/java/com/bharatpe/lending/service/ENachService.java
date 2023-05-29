@@ -97,7 +97,7 @@ public class ENachService {
     @Autowired
     private LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
-    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider, String nachMode){
+    public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         if(lendingApplication == null) {
@@ -126,13 +126,10 @@ public class ENachService {
                 return responseDTO;
             }
         }
-        Double nachAmount = lendingApplication.getLoanAmount();
-        if("ADHAAR".equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D) nachAmount = 100000D;
 
         String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
         String providerName = deep_link.equals("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
-        return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
+        return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(), String.valueOf(lendingApplication.getLoanAmount()), providerName, lendingApplication.getLender()));
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token){
@@ -168,9 +165,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
 //            lendingApplication.setNachLender("BHARATPE");
-            if("ADHAAR".equalsIgnoreCase(bharatPeEnach.getMode()))lendingApplication.setNachStatus("PENDING_VERIFICATION");
-            else lendingApplication.setNachStatus("APPROVED");
-            logger.info("nach status for {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getNachStatus());
+            lendingApplication.setNachStatus("APPROVED");
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
 //            lendingApplicationDao.save(lendingApplication);
 

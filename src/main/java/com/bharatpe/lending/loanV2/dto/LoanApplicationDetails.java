@@ -8,8 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.util.Date;
-
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -37,8 +35,4 @@ public class LoanApplicationDetails {
     private Long reapplyTimeEpoch;
     private Boolean lenderAssc;
     private Boolean enachDone;
-    private String enachMode;
-    private String nachSessionStatus;
-    private String nachSessionMode;
-    private Long nachStartedAt;
 }

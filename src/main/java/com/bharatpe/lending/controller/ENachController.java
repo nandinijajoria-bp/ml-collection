@@ -26,15 +26,11 @@ public class ENachController {
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 	@RequestMapping(value="/initiate", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token,
-																	 @RequestParam(name = "provider", required = false) String provider,
-																	 @RequestParam(name = "nach_mode", required = false) String nachMode,
-																	 @RequestParam(name = "app_version", required = false) String appVersion) {
-		logger.info("enach initiate request for : {}, {}, {}", merchant.getId(), nachMode, provider);
+	public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestParam(name = "provider", required = false) String provider, @RequestParam(name = "app_version", required = false) String appVersion) {
 		ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
 		responseDTO.setResponse(false);
 		try {
-			return new ResponseEntity<>(eNachService.eNachInitiate(merchant, token, provider, nachMode), HttpStatus.OK);
+			return new ResponseEntity<>(eNachService.eNachInitiate(merchant, token, provider), HttpStatus.OK);
 		}
 		catch (Exception e) {
 			logger.error("Exception while initiating enach", e);
