@@ -899,6 +899,18 @@ public class LoanUtil {
 		return lendingNachBank != null;
 	}
 
+	public String getEnachBankMode(Long merchantId) {
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
+		if (merchantBankDetail == null) return null;
+		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
+		logger.info("lendingNachBank for {} : {}", merchantId, lendingNachBank);
+		if(!ObjectUtils.isEmpty(lendingNachBank))return lendingNachBank.getMode();
+		return null;
+	}
+
 	public boolean isNachSkipped(Long merchantId, Long applicationId) {
 		BharatPeEnachResponseDTO bharatPeEnach = enachHandler.isSkipped(merchantId, applicationId);
 		return bharatPeEnach != null;

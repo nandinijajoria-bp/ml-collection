@@ -924,19 +924,28 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchantBasicDetailsDto.getId())) {
-                applicationDTO2.setStatus("PENDING");
-                applicationDTO2.setText("e-NACH Pending");
-                applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
-                ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
-                buttonContextDTO.setAction("Enach");
-                buttonContextDTO.setText("Do eNACH");
-                if (BooleanUtils.isTrue(isIOS)) {
-                    buttonContextDTO.setDeeplink("bharatpe://enachtp");
-                } else {
-                    buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId()));
+                if("PENDING_VERIFICATION".equalsIgnoreCase(lendingApplication.getNachStatus())){
+                    applicationDTO2.setStatus("PENDING_VERIFICATION");
+                    applicationDTO2.setText("e-NACH Verification Pending");
+                    applicationDTO2.setButtonContextDTO(null);
+                    applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
+                    applicationDTO.add(applicationDTO2);
                 }
-                applicationDTO2.setButtonContextDTO(buttonContextDTO);
-                applicationDTO.add(applicationDTO2);
+                else{
+                    applicationDTO2.setStatus("PENDING");
+                    applicationDTO2.setText("e-NACH Pending");
+                    applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
+                    ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
+                    buttonContextDTO.setAction("Enach");
+                    buttonContextDTO.setText("Do eNACH");
+                    if (BooleanUtils.isTrue(isIOS)) {
+                        buttonContextDTO.setDeeplink("bharatpe://enachtp");
+                    } else {
+                        buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId()));
+                    }
+                    applicationDTO2.setButtonContextDTO(buttonContextDTO);
+                    applicationDTO.add(applicationDTO2);
+                }
             }
             boolean enachMandatory = true; //TODO when enach skip is true then uncomment below code
             boolean enachSkipped = loanUtil.isNachSkipped(merchantBasicDetailsDto.getId(), lendingApplication.getId());
@@ -1088,8 +1097,14 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO.HeaderDTO headerDTO = new ApplicationStatusResponseDTO.HeaderDTO();
             if (successEnach == null && ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 if(!"APPROVED".equals(lendingApplication.getNachStatus())) {
-                    headerDTO.setTitle("Bank A/c Linking Pending");
-                    headerDTO.setComment("Complete eNACH to process you loan");
+                    if("PENDING_VERIFICATION".equalsIgnoreCase(lendingApplication.getNachStatus())){
+                        headerDTO.setTitle("eNach Verification Pending");
+                        headerDTO.setComment("We are verifying your eNach application");
+                    }
+                    else{
+                        headerDTO.setTitle("Bank A/c Linking Pending");
+                        headerDTO.setComment("Complete eNACH to process you loan");
+                    }
                 }
             } else if (lendingApplication.getCkycStatus() != null && lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.PENDING.name())) {
                 headerDTO.setTitle("KYC Verification Pending");
