@@ -13,6 +13,7 @@ public class LoanDetailsRequest {
     private String stageOneHitId;
     private String stageTwoHitId;
     private Boolean skipBureau;
+    private Boolean skipMaskedMobileException;
     private boolean isIOS = false;
 //    private boolean cachedData;
 }

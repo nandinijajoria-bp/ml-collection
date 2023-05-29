@@ -26,7 +26,12 @@ import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.FileUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.pdf.PdfReader;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.pdf.PdfCopy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.DateTimeUtils;
@@ -36,7 +41,16 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -107,6 +121,8 @@ public class AbflDataUploadServiceUtil {
 
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public void uploadRegulatoryData(Long applicationId) {
         String response = LenderAssociationStatus.DATA_UPLOAD_COMPLETE.name();
@@ -183,6 +199,12 @@ public class AbflDataUploadServiceUtil {
         return null;
     }
 
+    private String getFailedDocMapping(String docType) {
+        if ("KFS_SANCTION_AGREEMENT".equalsIgnoreCase(docType))
+            return "KFS;SANCTION_AGREEMENT";
+        return docType;
+    }
+
     public void uploadDocuments(Long applicationId, List<String> docs, boolean systemMangedState) {
         StringBuilder failedDocs = new StringBuilder("");
         StringBuilder currentDocumentStatus = new StringBuilder(LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name());
@@ -194,28 +216,27 @@ public class AbflDataUploadServiceUtil {
             return;
         }
         log.info("app {} status {}  failed {}", applicationId,currentDocumentStatus, failedDocs);
-        for (DocUploadPayload docUploadPayload: docUploadPayloadList) {
-            log.info("{} {} found for {}",docUploadPayload.getDocType(), docUploadPayload.getDocUploadApiRequestDto(), applicationId);
-        }
+
         INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(Lender.ABFL.name());
         for (DocUploadPayload docUploadPayload: docUploadPayloadList) {
             try {
+                log.info("{} {} found for {}",docUploadPayload.getDocType(), docUploadPayload.getDocUploadApiRequestDto(), applicationId);
                 if (ObjectUtils.isEmpty(docUploadPayload.getDocUploadApiRequestDto().getPayload().getFileUpload())) {
                     log.info("payload construct incomplete for {} {}", docUploadPayload.getDocType(), applicationId);
-                    failedDocs.append(docUploadPayload.getDocType() + ";");
+                    failedDocs.append(getFailedDocMapping(docUploadPayload.getDocType()) + ";");
                     currentDocumentStatus.delete(0,currentDocumentStatus.length());
                     currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                     continue;
                 }
                 Pair<String, String> resp = uploadDoc(docUploadPayload.getDocUploadApiRequestDto(),apiGatewayV3,docUploadPayload.getDocType());
                 if (ObjectUtils.isEmpty(resp) || LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(resp.getLeft())) {
-                    failedDocs.append(resp.getRight() + ";");
+                    failedDocs.append(getFailedDocMapping(resp.getRight()) + ";");
                     currentDocumentStatus.delete(0,currentDocumentStatus.length());
                     currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                 }
             } catch (Exception e) {
                 log.error("exception occurred while invoking doc upload {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
-                failedDocs.append(docUploadPayload.getDocType() + ";");
+                failedDocs.append(getFailedDocMapping(docUploadPayload.getDocType()) + ";");
                 currentDocumentStatus.delete(0,currentDocumentStatus.length());
                 currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
             }
@@ -314,26 +335,32 @@ public class AbflDataUploadServiceUtil {
                         .build();
                 DocUploadApiRequestDto.Payload payload = docUploadApiRequestDto.getPayload();
                 String docName = null;
-                if ("KFS".equalsIgnoreCase(docType) || "SANCTION_AGREEMENT".equalsIgnoreCase(docType) || "WELCOME_LETTER".equalsIgnoreCase(docType)) {
+                if ("KFS".equalsIgnoreCase(docType) || "KFS_SANCTION_AGREEMENT".equalsIgnoreCase(docType) || "SANCTION_AGREEMENT".equalsIgnoreCase(docType) || "WELCOME_LETTER".equalsIgnoreCase(docType)) {
                     if (ObjectUtils.isEmpty(lendingKfs)) {
                         log.info("kfs not found for {}", applicationId);
                         continue;
                     }
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".pdf");
-                    if ("SANCTION_AGREEMENT".equalsIgnoreCase(docType)) {
-                        docName = Optional.ofNullable(lendingKfs.getSanctionLoanAgreementDocFile()).orElse(KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId());
-                        if (!s3BucketHandler.doesS3ObjectExist( bucket, docName)) {
-                            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-                            lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication, merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
-                            lendingKfs = lendingKfsDao.save(lendingKfs);
-                        }
-                    } else if ("KFS".equalsIgnoreCase(docType)) {
-                        docName = Optional.ofNullable(lendingKfs.getKfsDocFile()).orElse(KfsConstants.KFS_S3_KEY_PREFIX+ lendingApplication.getId());
-                        if (!s3BucketHandler.doesS3ObjectExist(bucket, docName)) {
+
+                    if ("KFS_SANCTION_AGREEMENT".equalsIgnoreCase(docType)) {
+
+                        String docKfsName = Optional.ofNullable(lendingKfs.getKfsDocFile()).orElse(KfsConstants.KFS_S3_KEY_PREFIX + lendingApplication.getId());
+                        if (!s3BucketHandler.doesS3ObjectExist(bucket, docKfsName)) {
                             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
                             lendingApplicationServiceV2.generateKfsDocument(lendingApplication, merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
                             lendingKfs = lendingKfsDao.save(lendingKfs);
                         }
+
+                        String docSanctionName = Optional.ofNullable(lendingKfs.getSanctionLoanAgreementDocFile()).orElse(KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId());
+                        if (!s3BucketHandler.doesS3ObjectExist( bucket, docSanctionName)) {
+                            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+                            lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication, merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                            lendingKfs = lendingKfsDao.save(lendingKfs);
+                        }
+
+                        this.processKfsSanctionDocument(docType, payload, lendingApplication, docKfsName, docSanctionName);
+                        docUploadApiRequestDto.setPayload(payload);
+
                     } else if ("WELCOME_LETTER".equalsIgnoreCase(docType)) {
                         docName = Optional.ofNullable(lendingKfs.getWelcomeDocFile()).orElse(KfsConstants.WELCOME_S3_KEY_PREFIX+ lendingApplication.getId() + ".pdf");
                         if (!s3BucketHandler.doesS3ObjectExist(bucket, docName) && !ObjectUtils.isEmpty(lendingApplication.getDisburseTimestamp())) {
@@ -341,6 +368,8 @@ public class AbflDataUploadServiceUtil {
                             lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication,lendingKfs,merchant.get(), lendingApplication.getDisburseTimestamp());
                             lendingKfs = lendingKfsDao.save(lendingKfs);
                         }
+                        payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket)));
+                        docUploadApiRequestDto.setPayload(payload);
                     }
                 } else if ("SHOP-FRONT".equalsIgnoreCase(docType) || "SHOP-STOCK".equalsIgnoreCase(docType)) {
                     LendingShopDocuments lendingShopDocument = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), docType);
@@ -351,9 +380,10 @@ public class AbflDataUploadServiceUtil {
                     }
                     docName = lendingShopDocument.getProofFrontSide();
                     payload.setFileName(docType + "_" + lendingApplication.getId() + ".jpeg");
+                    payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket)));
+                    docUploadApiRequestDto.setPayload(payload);
                 }
-                payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docName,bucket)));
-                docUploadApiRequestDto.setPayload(payload);
+
                 docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
                 log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
             } catch (Exception e) {
@@ -361,6 +391,69 @@ public class AbflDataUploadServiceUtil {
             }
         }
         return docUploadPayloadList;
+    }
+
+    /**
+     * processKfsSanctionDocument
+     * @param docType docType
+     * @param payload payload
+     * @param lendingApplication lendingApplication
+     * @param docKfsName docKfsName
+     * @param docSanctionName docSanctionName
+     * @throws IOException IOException
+     * @throws DocumentException DocumentException
+     */
+    private void processKfsSanctionDocument(String docType,
+                                            DocUploadApiRequestDto.Payload payload,
+                                            LendingApplication lendingApplication,
+                                            String docKfsName, String docSanctionName) throws IOException, DocumentException {
+        /*
+            1. download file from bucket to local storage
+            2. merge both file in new merged file using ipdf
+            3. set base64 payload to payload object
+            4. delete file from local storage
+         */
+
+        String mergedFileName = "KFS_SANCTION_AGREEMENT_MERGED_"+ lendingApplication.getId() + ".pdf";
+
+
+        // Download the first PDF file
+        URL url1 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName,bucket));
+        URLConnection connection1 = url1.openConnection();
+        InputStream inputStream1 = connection1.getInputStream();
+        PdfReader reader1 = new PdfReader(inputStream1);
+
+        // Download the second PDF file
+        URL url2 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docSanctionName,bucket));
+        URLConnection connection2 = url2.openConnection();
+        InputStream inputStream2 = connection2.getInputStream();
+        PdfReader reader2 = new PdfReader(inputStream2);
+
+        // Create the output file
+        Document document = new Document();
+        PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get(mergedFileName)));
+        copy.setCompressionLevel(9);
+        document.open();
+
+        // Merge the PDF files
+        copy.addDocument(reader1);
+        copy.addDocument(reader2);
+
+        // Close the document
+        document.close();
+
+        File mergedFile = new File(mergedFileName);
+        s3BucketHandler.uploadFileToS3(mergedFile,"loan-document",mergedFileName);
+        String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName,bucket);
+
+        log.info("pre-signed url for merged doc: {}, {}", lendingApplication.getId(),  mergeDocumentPresignedUrl);
+
+        payload.setFileName(docType + "_" + lendingApplication.getId() + ".pdf");
+        payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(mergeDocumentPresignedUrl));
+
+        Path uploadedFilePath = Paths.get(CURRENT_DIR + "/" + mergedFileName);
+        FileUtil.deleteFile(uploadedFilePath);
+
     }
 
     public void uploadDigitalData(Long applicationId) {

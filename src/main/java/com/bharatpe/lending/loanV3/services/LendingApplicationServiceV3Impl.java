@@ -19,6 +19,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.InvokeLenderAssociationRequest;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.services.associations.AbflDataUploadServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.PaymentService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -68,6 +69,9 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
+    AbflDataUploadServiceUtil abflDataUploadServiceUtil;
 
     @Value("${invoke.env:prod}")
     public String invokeEnv;
@@ -152,6 +156,22 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                         lendingKfsDao.save(lendingKfs);
                     }
                     kafkaTemplate.send("invoke_data_upload", payload);
+                } catch (Exception e) {
+                    log.error("something went wrong for {}", lendingApplication.get().getId(), e);
+                }
+                return;
+            }
+            if ("DOC_UPLOAD_TEST".equalsIgnoreCase(stage)){
+                try {
+                    if (invokeLenderAssociationRequest.getRegenerateDoc()) {
+                        LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
+                        Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
+                        lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
+                        lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+                        lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
+                        lendingKfsDao.save(lendingKfs);
+                    }
+                    abflDataUploadServiceUtil.uploadDocuments(lendingApplication.get().getId(), Arrays.asList("KFS_SANCTION_AGREEMENT"), true);
                 } catch (Exception e) {
                     log.error("something went wrong for {}", lendingApplication.get().getId(), e);
                 }

@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.service.ILenderAssignService;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.Lender;
@@ -87,6 +88,9 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${lender.assign.rollout}")
     Integer lenderAssignmentNewFlowRollOutPercent;
+
+    @Autowired
+    DateTimeUtil dateTimeUtil;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -220,7 +224,7 @@ public class LenderAssignService implements ILenderAssignService {
             LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
             if("REPEAT".equalsIgnoreCase(riskSegment) && Objects.nonNull(kycDetails)){
                 //skip KYC
-                log.info("merchant {}  can skip KYC for lender:{}", lendingApplication.getMerchantId(), lender.getLender());
+                log.info("merchant {}  can skip KYC done on:{} for lender:{}", lendingApplication.getMerchantId(),kycDetails.getConsentDate() ,lender.getLender());
                 kycSkippableLender=lender;
                 flag=true;
             }
@@ -241,6 +245,12 @@ public class LenderAssignService implements ILenderAssignService {
             //new flow
             if(ObjectUtils.isEmpty(assignedLender)){
                 assignedLender = flag ? (ObjectUtils.isEmpty(nachSkippableLender)?kycSkippableLender:nachSkippableLender):toBeAssignedLenders.get(0);
+                LendingApplicationDetails lendingApplicationDetails=lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+                if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+                    lendingApplicationDetails = new LendingApplicationDetails();
+                    lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+                }
+                lendingApplicationDetails.setIsKycSkip(Objects.nonNull(kycSkippableLender) && assignedLender.equals(kycSkippableLender));
             }
         } else{
             assignedLender=toBeAssignedLenders.get(0);
@@ -532,8 +542,6 @@ public class LenderAssignService implements ILenderAssignService {
     public boolean additionalChecksFailed(LendingApplication lendingApplication, Lender lender, BasicDetailsDto merchantDetails){
         log.info("Running additional checks for lender:{}", lender);
         boolean flag = false;
-
-        // ABFL
         if(Lender.ABFL.equals(lender)){
             flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
             if(ObjectUtils.isEmpty(merchantDetails)){

@@ -1,6 +1,7 @@
 package com.bharatpe.lending.handlers;
 
 import com.bharatpe.lending.common.dto.KafkaAudit;
+import com.bharatpe.lending.dto.DSMainResponse;
 import com.bharatpe.lending.dto.DeGetMerchantReferencesAudit;
 import com.bharatpe.lending.dto.MerchantReference;
 import com.bharatpe.lending.dto.PostPayoutAuditDto;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -31,6 +33,10 @@ public class DsHandler {
 
     @Value("${de.reference.base.url}")
     String deBaseUrl;
+
+    @Value("${ds.api.url}")
+    String dsApiUrl;
+
 
     public List<MerchantReference> validateMerchantReferences(Long merchantId, List<ValidateMerchantReferencesRequestDto> referenceList) {
         log.info("Start validating merchant references: {} of merchantId: {} from DS", referenceList, merchantId);
@@ -105,5 +111,49 @@ public class DsHandler {
             log.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
         }
     }
+
+    public Map<String, Double> fetchDsLocation(Long merchantId) {
+        Map<String, Double> responseMap = new HashMap<>();
+        try {
+            DSMainResponse response = fetchDSMainVariables(merchantId, null);
+            if(Objects.nonNull(response) && Objects.nonNull(response.getLocation()) && Objects.nonNull(response.getLocation().getInferredLat()) && Objects.nonNull(response.getLocation().getInferredLon())){
+                responseMap.put("latitude", Double.valueOf(response.getLocation().getInferredLat()));
+                responseMap.put("longitude", Double.valueOf(response.getLocation().getInferredLon()));
+                log.info("DSApiService: fetchDsLocation: responseMap: {}", responseMap);
+                return responseMap;
+            }
+        }
+        catch(Exception e){
+            log.info("Error in fetching Inferred Location from DS API for merchant:{}, {}, {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return responseMap;
+    }
+
+    public DSMainResponse fetchDSMainVariables(Long merchantId, Long applicationId) {
+        try {
+            log.info("Request to fetch DS main variables for merchant:{}", merchantId);
+            String url = dsApiUrl + "/" + merchantId;
+            if(Objects.nonNull(applicationId)) {
+                url += "?application_id=" + applicationId;
+            }
+            long start = System.currentTimeMillis();
+            ResponseEntity<DSMainResponse> responseEntity = restTemplate.getForEntity(url, DSMainResponse.class);
+            long end = System.currentTimeMillis();
+
+            log.info("fetchDSMainVariables responseEntity : {}", responseEntity);
+
+            log.info("DS main service response time {}ms", end - start);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
+                log.info("Found DS main variables:{} for merchant:{}", responseEntity.getBody(), merchantId);
+                return responseEntity.getBody();
+            }
+        } catch (HttpClientErrorException e) {
+            log.info("Exception while fetching DS main variables for merchant:{}", merchantId, e);
+        } catch (Exception e) {
+            log.error("Exception while fetching DS main variables for merchant:{}", merchantId, e);
+        }
+        return null;
+    }
+
 
 }

@@ -29,6 +29,7 @@ public class EligibilityComputationService {
             loanDetailsRequest.setPancard(dto.getPan());
             loanDetailsRequest.setPincode(dto.getPincode().toString());
             loanDetailsRequest.setAppVersion(318);
+            loanDetailsRequest.setSkipMaskedMobileException(true);
             final Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(dto.getMerchantId());
             BasicDetailsDto merchant;
             if (!basicDetailsDto.isPresent())

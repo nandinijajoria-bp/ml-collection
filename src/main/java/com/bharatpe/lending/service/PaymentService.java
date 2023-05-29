@@ -527,6 +527,12 @@ public class PaymentService {
             logger.info("null payments object in pg callback for request: {}", request);
             return "OK";
         }
+        if (!ObjectUtils.isEmpty(request.getPayments()) && request.getPayments().get(0).getStatus().equalsIgnoreCase("SUCCESS") &&
+                request.getPayments().get(0).getAccountType().equalsIgnoreCase("UNKNOWN")) {
+            logger.info("unknown account type in pg callback for request: {}", request);
+            return "OK";
+        }
+
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(request.getOrderId());
         try {
             if(order == null) {
@@ -565,13 +571,13 @@ public class PaymentService {
                 order.setSource(request.getPayments().get(0).getMode());
             }
             if (request.getPaymentStatus() != null && Objects.nonNull(request.getPayments())) {
-                if ("FAILURE".equalsIgnoreCase(request.getPaymentStatus())) {
+                if ("FAILURE".equalsIgnoreCase(request.getPayments().get(0).getStatus())) {
                     order.setStatus(Status.TransactionStatus.FAILED.name());
 //                    order.setDescription(response.getData().getErrorDescription());
                 } else {
-                    order.setStatus(request.getPaymentStatus());
+                    order.setStatus(request.getPayments().get(0).getStatus());
                 }
-                if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
+                if ("SUCCESS".equalsIgnoreCase(request.getPayments().get(0).getStatus())) {
                     String accountType = null;
                     String terminalOrderId = null;
                     if(Objects.nonNull(request.getPayments()) && !request.getPayments().isEmpty() && Objects.nonNull(request.getPayments().get(0)) && Objects.nonNull(request.getPayments().get(0).getAccountType())){
@@ -671,7 +677,7 @@ public class PaymentService {
 
         if(!ObjectUtils.isEmpty(source) && source.equals("BHARATPE_NACH")){
             Boolean isBpNachDone = false;
-            isBpNachDone = loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId());
+            isBpNachDone = loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getLoanApplication());
             if(!isBpNachDone){
                 transferType = "EXTERNAL";
             }
@@ -1640,7 +1646,7 @@ public class PaymentService {
             sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
         }
 
-        if (remainingBalance > 0) {
+        if (remainingBalance > 0.05) {
             logger.info("Received more amount than due for loanId : {} , extraAmount : {}", activeLoan.getId(), remainingBalance);
             LendingRefundAudit lendingRefundAudit = new LendingRefundAudit();
             lendingRefundAudit.setDueAmount(activeLoan.getDueAmount());

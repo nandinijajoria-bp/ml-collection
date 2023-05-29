@@ -21,7 +21,7 @@ public class AbflDataUploadService implements ILenderAssociationService<Optional
 
     @Override
     public Optional invoke(Long applicationId, Map<String, Object> args) {
-        String[] documents = {"KFS", "SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"};
+        String[] documents = {"KFS_SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"};
         boolean systemMangedState = true;
         try {
             if (args != null) {

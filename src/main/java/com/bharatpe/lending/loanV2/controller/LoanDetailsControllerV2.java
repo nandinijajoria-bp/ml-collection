@@ -8,10 +8,10 @@ import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.loanV2.dto.EligibilityIframeConsumptionDTO;
 import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
-import com.bharatpe.lending.service.ExperianService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -161,5 +162,25 @@ public class LoanDetailsControllerV2 {
         }
         log.info("Updating merchant references of merchantId: {}", merchant.getId());
         return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantReferences(merchant, requestDto));
+    }
+
+    @GetMapping(value = "/getEligibilityIframe")
+    public ResponseEntity<ApiResponse<?>> getIframeDetails(@RequestAttribute(required = true) BasicDetailsDto merchant, @RequestParam String client) {
+        if (Objects.isNull(merchant)  || Objects.isNull(merchant.getId()) || Objects.isNull(client)) {
+            log.info("Incorrect request details");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Fetching Iframe details for merchant : {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.getIframeDetails(merchant.getId(), client));
+    }
+
+    @PostMapping(value = "/iframeBannerConsumed")
+    public ResponseEntity<ApiResponse<?>> iframeBannerConsumed(@RequestAttribute(required = true) BasicDetailsDto merchant, @Valid @RequestBody EligibilityIframeConsumptionDTO requestDto) {
+        if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("posting iframe consumption event for merchantId: {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.iframeBannerConsumption(merchant.getId(), requestDto));
     }
 }

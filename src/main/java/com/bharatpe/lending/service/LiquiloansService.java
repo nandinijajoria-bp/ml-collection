@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -25,12 +26,14 @@ import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofOcrSlave;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.SettlementType;
@@ -621,6 +624,10 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setCreatedAt(new Date());
                 lendingPaymentSchedule.setUpdatedAt(new Date());
                 lendingPaymentSchedule.setOffDay(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay());
+
+                if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                    lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
+                }
 
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
 
@@ -1587,7 +1594,7 @@ public class LiquiloansService {
 
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lender);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lender);
 
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             logger.info("lendingApplicationLenderDetails not found for applicationId : {} and lender : {}", applicationId, lender);

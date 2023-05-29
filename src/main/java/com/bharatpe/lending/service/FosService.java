@@ -1271,7 +1271,7 @@ public class FosService {
         logger.info("Auditing lending Application Details changes for :{}", auditType);
         LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
         lendingAuditTrial.setApplicationId(lendingApplicationDetails.getApplicationId());
-        lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+        lendingAuditTrial.setLoanId(Objects.nonNull(lendingApplication.getExternalLoanId())?lendingApplication.getExternalLoanId():"");
         lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
         lendingAuditTrial.setType("NACH_TASK".equals(auditType) ?"REF_CODE_NACH_UPDATE":"REF_CODE_UPDATE");
         lendingAuditTrial.setOldStatus("NACH_TASK".equals(auditType) ? lendingApplicationDetails.getCpvReferralCodeNach() : lendingApplicationDetails.getCpvReferralCode());

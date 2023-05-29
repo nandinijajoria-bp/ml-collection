@@ -10,6 +10,10 @@ public class EnachInitiateRequestDTO {
     private String enachProvider;
     private String lender;
 
+
+
+    private String nachMode;
+
     public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider) {
         this.token = token;
         this.merchantId = merchantId;
@@ -18,13 +22,14 @@ public class EnachInitiateRequestDTO {
         this.enachProvider = enachProvider;
     }
 
-    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider, String lender) {
+    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider, String lender, String nachMode) {
         this.token = token;
         this.merchantId = merchantId;
         this.applicationId = applicationId;
         this.nachAmount = nachAmount;
         this.enachProvider = enachProvider;
         this.lender = lender;
+        this.nachMode = nachMode;
     }
 
     public String getToken() {
@@ -83,6 +88,14 @@ public class EnachInitiateRequestDTO {
         this.enachProvider = enachProvider;
     }
 
+    public String getNachMode() {
+        return nachMode;
+    }
+
+    public void setNachMode(String nachMode) {
+        this.nachMode = nachMode;
+    }
+
     @Override
     public String toString() {
         return "EnachInitiateRequestDTO{" +
@@ -93,6 +106,7 @@ public class EnachInitiateRequestDTO {
                 ", nachAmount='" + nachAmount + '\'' +
                 ", enachProvider='" + enachProvider + '\'' +
                 ", lender='" + lender + '\'' +
+                ", nachMode='" + nachMode + '\'' +
                 '}';
     }
 }

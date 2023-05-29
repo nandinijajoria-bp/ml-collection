@@ -114,8 +114,7 @@ public class KycRequestKafka {
             log.info("kyc api response {}", kycApiResponseDto);
             if (ObjectUtils.isEmpty(kycApiResponseDto) || !(kycApiResponseDto.getSuccess())
                     || (ObjectUtils.isEmpty(kycApiResponseDto.getData()))
-//                    || !"SUCCESS".equalsIgnoreCase(kycApiResponseDto.getData().getResponseStatus())
-            ) {
+                        || lendingApplicationLenderDetails.getAnnualRoi() > 50) {
                 log.info("request resulted in kyc failure, modifying lender for {}", request);
                 nbfcUtils.modifyLender(lendingApplication.get(),lendingApplicationLenderDetails,LenderAssociationStatus.KYC_FAILED);
             }
