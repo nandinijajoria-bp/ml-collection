@@ -542,8 +542,6 @@ public class LenderAssignService implements ILenderAssignService {
     public boolean additionalChecksFailed(LendingApplication lendingApplication, Lender lender, BasicDetailsDto merchantDetails){
         log.info("Running additional checks for lender:{}", lender);
         boolean flag = false;
-
-        // ABFL
         if(Lender.ABFL.equals(lender)){
             flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
             if(ObjectUtils.isEmpty(merchantDetails)){
