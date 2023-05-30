@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.Getter;
+import lombok.Setter;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -54,6 +56,8 @@ public class PaymentDetailsResponseDTO {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+	@Getter
+	@Setter
 	public static class Data { 
 		private Integer loanAmount;
 		private Integer overdueAmount;
@@ -63,6 +67,16 @@ public class PaymentDetailsResponseDTO {
 		private Boolean isEligibleForPayment;
 		private Integer remainingEdiCount;
 		private Double ediAmount;
+
+		private Double paidAmount;
+
+		private Double pendingAmount;
+
+		private Double paidPrinciple;
+
+		private Double repaymentAmount;
+
+		private String mobile;
 		
 		public Data() {
 			
