@@ -68,7 +68,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(hmacForMIDInterceptorWithObject).addPathPatterns("/lending/payment/callback/v2");
 
-		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount","/lending/merchant_loans", "/lending/loanDetails/v2",
+		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount", "/lending/loanDetails/v2",
 				"/lending/loanDetails", "/lending/getLoanDashboardDetails", "/lending/v3/callback/bre", "/lending/v3/callback/kyc", "/lending/v3/callback/drawdown", "/lending/v3/callback/sanction");
 
 //		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");

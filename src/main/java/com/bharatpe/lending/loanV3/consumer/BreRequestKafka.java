@@ -130,7 +130,7 @@ public class BreRequestKafka {
 
 
     // for callback kafka event from nbfc service
-    @KafkaListener(topics = "${abfl.bre.callback.topic:bureau-callback}", concurrency = "5")
+    //@KafkaListener(topics = "${abfl.bre.callback.topic:bureau-callback}", concurrency = "5")
     public void breCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;

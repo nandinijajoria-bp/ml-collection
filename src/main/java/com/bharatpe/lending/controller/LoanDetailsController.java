@@ -65,8 +65,8 @@ public class LoanDetailsController {
 	MerchantService merchantService;
 
 //	 for testing - to be removed in future
-	@Value("${lending.edi.model:7}")
-	Integer lendingEdiModel;
+@Value("${lending.edi.model:7}")
+Integer lendingEdiModel;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestAttribute(required = false) String clientIp

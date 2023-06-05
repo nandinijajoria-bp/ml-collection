@@ -132,7 +132,7 @@ public class KycRequestKafka {
         }
     }
 
-    @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
+    //@KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
     public void kycCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;
