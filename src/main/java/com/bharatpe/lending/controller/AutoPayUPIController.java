@@ -3,13 +3,11 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.service.AutoPayUPIService;
 import com.bharatpe.lending.service.validator.AutoPayUPIServiceValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
