@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.services.gateway;
 
+import com.bharatpe.lending.common.dto.RepaymentRequestDto;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.loanV3.dto.*;
@@ -48,6 +49,9 @@ public class AbflApiGateway extends INbfcLenderGateway {
 
     @Value("${nbfc.foreclosureamt.api:api/v3/lender/foreclosure-details}")
     String nbfcForeClosureAmtUrl;
+
+    @Value("${nbfc.loan.receipt.api:api/v3/lender/abfl/post-loan-receipt}")
+    String nbfcLoanReceiptApiUrl;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -115,6 +119,15 @@ public class AbflApiGateway extends INbfcLenderGateway {
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class,nbfcBaseUrl+nbfcForeClosureAmtUrl);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
+        }
+        return null;
+    }
+
+    public LoanReceiptResponseDTO postLoanReceipt(RepaymentRequestDto repaymentRequestDto) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(repaymentRequestDto), LoanReceiptResponseDTO.class,nbfcBaseUrl+nbfcLoanReceiptApiUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while posting repayment amt to nbfc svc for {}",repaymentRequestDto, e);
         }
         return null;
     }

@@ -1,6 +1,8 @@
 package com.bharatpe.lending.loanV3.controller;
 
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.dto.LoanReceiptResponseDTO;
+import com.bharatpe.lending.loanV3.services.associations.AbflReceiptService;
 import com.bharatpe.lending.service.impl.EdiModelAssignmentV1;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,10 +18,18 @@ public class TestControllerDemo {
     @Autowired
     EdiModelAssignmentV1 ediModelAssignmentV1;
 
+    @Autowired
+    AbflReceiptService abflReceiptService;
+
     @GetMapping("ediModel")
     public ResponseEntity<ApiResponse<?>> getEdiModel(@RequestParam Long merchantId) {
         log.info(" received via controller {}", merchantId);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,ediModelAssignmentV1.assignModel(merchantId).name()));
+    }
 
+    @GetMapping("/postAbflReceipts")
+    public ResponseEntity<LoanReceiptResponseDTO> postAbflRepaymentReceipts(@RequestParam Long ledgerId) {
+        log.info("postAbflReceipts for ledgerId {}", ledgerId);
+        return ResponseEntity.ok(abflReceiptService.sendReceipt(ledgerId));
     }
 }
