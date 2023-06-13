@@ -2449,7 +2449,7 @@ public class APIGatewayService {
             try {
                 response = restTemplate.exchange(PG_URL + LendingConstants.PG_STATUS_CHECK + orderId, HttpMethod.GET, request, PgStatusResponse.class);
                 logger.info("Response received from create mandate status Check PG API {}", mapper.writeValueAsString(response));
-                if (response.getBody() != null && !response.getStatusCode().is2xxSuccessful()) {
+                if (response.getBody() != null && response.getStatusCode().is2xxSuccessful()) {
                     return response.getBody();
                 }
             } catch (HttpClientErrorException ex) {
