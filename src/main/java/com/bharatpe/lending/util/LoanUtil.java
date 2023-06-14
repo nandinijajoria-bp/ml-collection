@@ -705,6 +705,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setDpd60Count(lendingRiskVariables.getDpd60Count());
 				lendingRiskVariablesSnapshot.setGstOffer(lendingRiskVariables.getGstOffer());
 				lendingRiskVariablesSnapshot.setGstAffectedOffer(lendingRiskVariables.getGstAffectedOffer());
+				lendingRiskVariablesSnapshot.setInferredPincodeOffer(lendingRiskVariables.getInferredPincodeOffer());
 				lendingRiskVariablesSnapshot.setBankBasedOffer(lendingRiskVariables.getBankBasedOffer());
 				lendingRiskVariablesSnapshot.setGst3bBasedOffer(lendingRiskVariables.getGst3bBasedOffer());
 
