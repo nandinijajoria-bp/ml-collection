@@ -561,26 +561,6 @@ public class LiquiloansService {
             }
 
             if ("DISBURSED".equalsIgnoreCase(disbursalStage)) {
-                logger.info("Changing loan_disbursal_status to 'DISBURSED'");
-                lendingApplication.setLoanDisbursalStatus("DISBURSED");
-                lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
-                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
-
-                // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
-                if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10) {
-                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
-                    lendingApplicationDao.save(lendingApplication);
-                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
-                    postPayoutResponseDto.setStatus("FAILED");
-                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
-                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
-                    kafkaAudit.setData(postPayoutAuditDto);
-                    pushKafkaAudit(kafkaAudit);
-                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
-                }
-                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                        FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
-//            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
 
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (lendingPaymentSchedule != null) {
@@ -595,7 +575,30 @@ public class LiquiloansService {
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
 
+                // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
+                if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10) {
+                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
+                    lendingApplicationDao.save(lendingApplication);
+                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
+                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
+                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                    kafkaAudit.setData(postPayoutAuditDto);
+                    pushKafkaAudit(kafkaAudit);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                }
+
+                logger.info("Changing loan_disbursal_status to 'DISBURSED' application_id : {}", lendingApplication.getId());
+
+                lendingApplication.setLoanDisbursalStatus("DISBURSED");
+                lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
+                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
+
                 lendingApplicationDao.save(lendingApplication);
+
+                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                  FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+
                 lendingPaymentSchedule = new LendingPaymentSchedule();
 
                 logger.info("Populating data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
