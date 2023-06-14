@@ -17,6 +17,7 @@ public class KfsDto {
     private Double loanAmount;
     private Double processingFee;
     private Double processingFeePercentage;
+    private Double processingFeePercentageWithoutGst;
     private Integer tenureInMonths;
     private Double disbursalAmount;
     private Double repaymentAmount;

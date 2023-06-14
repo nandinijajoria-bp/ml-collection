@@ -57,5 +57,9 @@ public class LoanDetailsDTO {
     private String lender;
     @JsonProperty("disbursalUtr")
     private  String disbursalUtr;
+    @JsonProperty("ediModel")
+    private String ediModel;
+    @JsonProperty("refundDetails")
+    private List<Map<String, Object>> refundDetails;
 
 }

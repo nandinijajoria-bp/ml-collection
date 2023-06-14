@@ -21,6 +21,7 @@ public interface ExperianConstants {
     String CLIENT_NAME = "BHARATPE_EM";
 //    String VOUCHER_CODE = "BharatPebxIYY";
     String VOUCHER_CODE = "BharatPeOVaSv";
+    String AUTHORIZED_TO_CALL_MASK_MOBILE_API= "Authorized to Call Masked Mobile API";
     String CREDIT_LINE_CATEGORY = "CREDIT_LINE_CATEGORY";
     String INVALID_PANCARD = "INVALID_PANCARD";
     String LOW_BP_SCORE = "LOW_BP_SCORE";

@@ -73,6 +73,10 @@ public class ENachIntitiationResponseDTO {
 
         private EnachProvider enachProvider;
 
+        private String accessToken;
+
+        private String accessTokenExpiryDate;
+
         public Data(String transactionIdentifier, Long transactionReferenceNumber, String bankCode, Double loanAmount, String loanStartDate, Long applicationId, String accountNumber, String beneficiaryName, String ifscCode, String mid, String lender, EnachProvider enachProvider) {
             this.transactionIdentifier = transactionIdentifier;
             this.transactionReferenceNumber = transactionReferenceNumber;
@@ -133,6 +137,22 @@ public class ENachIntitiationResponseDTO {
 
         public void setCustomer_identifier(String customer_identifier) {
             this.customer_identifier = customer_identifier;
+        }
+
+        public String getAccessToken() {
+            return accessToken;
+        }
+
+        public void setAccessToken(String accessToken) {
+            this.accessToken = accessToken;
+        }
+
+        public String getAccessTokenExpiryDate() {
+            return accessTokenExpiryDate;
+        }
+
+        public void setAccessTokenExpiryDate(String accessTokenExpiryDate) {
+            this.accessTokenExpiryDate = accessTokenExpiryDate;
         }
 
 
@@ -305,7 +325,8 @@ public class ENachIntitiationResponseDTO {
                     + ", bankCode=" + bankCode + ", loanAmount=" + loanAmount + ", loanStartDate=" + loanStartDate
                     + ", applicationId=" + applicationId + ", accountNumber=" + accountNumber + ", beneficiaryName="
                     + beneficiaryName + ", ifscCode=" + ifscCode + ", mandate_id=" + mandate_id
-                    + ", customer_identifier=" + customer_identifier + "]";
+                    + ", customer_identifier=" + customer_identifier + ", lender=" + lender
+                    + ", accessToken=" + accessToken + ", accessTokenExpiryDate=" + accessTokenExpiryDate +"]";
         }
 
 

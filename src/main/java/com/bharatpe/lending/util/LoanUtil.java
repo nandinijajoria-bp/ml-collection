@@ -12,16 +12,17 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.config.AsyncConfig;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.MerchantScoreException;
@@ -31,25 +32,23 @@ import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 
 @Component
@@ -119,6 +118,12 @@ public class LoanUtil {
 	LendingRiskVariablesDao lendingRiskVariablesDao;
 
 	@Autowired
+	MerchantGstOfferDao merchantGstOfferDao;
+
+	@Autowired
+	MerchantGstOfferSnapshotDao merchantGstOfferSnapshotDao;
+
+	@Autowired
 	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
 	@Autowired
@@ -164,6 +169,22 @@ public class LoanUtil {
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
+
+	List<Long> derogMerchants = new ArrayList();
+
+	public List<Long> loadDerogEffectedMerchants() {
+		if (!ObjectUtils.isEmpty(derogMerchants)) {
+			return derogMerchants;
+		}
+		derogMerchants = readCsvFile();
+		return derogMerchants;
+	}
+
+	private boolean derogTopUpEnable(Long merchantId) {
+		LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+		logger.info("DEROG_EFFECTED_MERCHANT_FLOW: merchant_id: {} application_id: {} type: {}", merchantId, lendingApplication.getId(), lendingApplication.getLoanType());
+		return LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
+	}
 
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
@@ -597,6 +618,23 @@ public class LoanUtil {
 		createMerchantScoreSnapshot(lendingApplication);
 		createRiskVariablesSnapshot(lendingApplication);
 		createBureauDrsSnapshot(lendingApplication, merchant);
+		createMerchantGstOfferSnapshot(lendingApplication);
+	}
+
+	private void createMerchantGstOfferSnapshot(LendingApplication lendingApplication) {
+		try {
+			List<MerchantGstOffer> merchantGstOfferList = merchantGstOfferDao.findByMerchantIdAndToBeConsidered(lendingApplication.getMerchantId(), true);
+			if (ObjectUtils.isEmpty(merchantGstOfferList)) {
+				return;
+			}
+			List<MerchantGstOfferSnapshot> merchantGstOfferSnapshotList = merchantGstOfferList.stream()
+					.map(MerchantGstOfferSnapshot::createObject)
+					.peek(merchantGstOfferSnapshot -> merchantGstOfferSnapshot.setApplicationId(lendingApplication.getId()))
+					.collect(Collectors.toList());
+			merchantGstOfferSnapshotDao.saveAll(merchantGstOfferSnapshotList);
+		} catch (Exception e) {
+			logger.error("Exception occurred while creating merchantGstOfferSnapshot for applicationId: {}", lendingApplication.getId(), e);
+		}
 	}
 
 	// pushing data to DE team for creating snapshot
@@ -616,8 +654,56 @@ public class LoanUtil {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
 			if (lendingRiskVariables != null) {
-				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = LendingRiskVariablesSnapshot.createObject(lendingRiskVariables);
+				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
+				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setBpScore(lendingRiskVariables.getBpScore());
+				lendingRiskVariablesSnapshot.setBbs(lendingRiskVariables.getBbs());
+				lendingRiskVariablesSnapshot.setVintage(lendingRiskVariables.getVintage());
+				lendingRiskVariablesSnapshot.setBureauScore(lendingRiskVariables.getBureauScore());
+				lendingRiskVariablesSnapshot.setRiskColor(lendingRiskVariables.getRiskColor());
+				logger.info("risk segment found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setRiskSegment(Objects.nonNull(lendingRiskVariables.getRiskSegment())?RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()):null);
+				logger.info("risk segment found in lendingRiskVariablesSnapshot: {} for merchantId: {}", lendingRiskVariablesSnapshot.getRiskSegment(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setDecisionId(lendingRiskVariables.getDecisionId());
+				lendingRiskVariablesSnapshot.setPincode(lendingRiskVariables.getPincode());
+				lendingRiskVariablesSnapshot.setPincodeColor(lendingRiskVariables.getPincodeColor());
+				lendingRiskVariablesSnapshot.setTpvOffer(lendingRiskVariables.getTpvOffer());
+				lendingRiskVariablesSnapshot.setBureauOffer(lendingRiskVariables.getBureauOffer());
+				lendingRiskVariablesSnapshot.setRegularLimit(lendingRiskVariables.getRegularLimit());
+				lendingRiskVariablesSnapshot.setNtbLimit(lendingRiskVariables.getNtbLimit());
+				lendingRiskVariablesSnapshot.setFinalOffer(lendingRiskVariables.getFinalOffer());
+				lendingRiskVariablesSnapshot.setLoanType(lendingRiskVariables.getLoanType());
+				lendingRiskVariablesSnapshot.setRepeatLoan(lendingRiskVariables.getRepeatLoan());
+				lendingRiskVariablesSnapshot.setTpvRejection(lendingRiskVariables.getTpvRejection());
+				lendingRiskVariablesSnapshot.setBureauRejection(lendingRiskVariables.getBureauRejection());
+				lendingRiskVariablesSnapshot.setRiskRejection(lendingRiskVariables.getRiskRejection());
+				lendingRiskVariablesSnapshot.setExperianRejection(lendingRiskVariables.getExperianRejection());
+				lendingRiskVariablesSnapshot.setUnderwritingVersion(lendingRiskVariables.getUnderwritingVersion());
+				logger.info("risk group found in lendingRiskVariables: {} for merchantId: {}", lendingRiskVariables.getRiskGroup(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setRiskGroup(lendingRiskVariables.getRiskGroup());
+				logger.info("risk group found in lendingRiskVariablesSnapshot: {} for merchantId: {}", lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariables.getMerchantId());
+				lendingRiskVariablesSnapshot.setLoanSegment(lendingRiskVariables.getLoanSegment());
+				lendingRiskVariablesSnapshot.setClubV2Amount(lendingRiskVariables.getClubV2Amount());
+				lendingRiskVariablesSnapshot.setClubV2(lendingRiskVariables.getClubV2());
+				lendingRiskVariablesSnapshot.setDrsScore(lendingRiskVariables.getDrsScore());
+				lendingRiskVariablesSnapshot.setDrsScoreActive(lendingRiskVariables.getDrsScoreActive());
+				lendingRiskVariablesSnapshot.setSmallTicketLimit(lendingRiskVariables.getSmallTicketLimit());
+				lendingRiskVariablesSnapshot.setSmallTicketRejection(lendingRiskVariables.getSmallTicketRejection());
+				lendingRiskVariablesSnapshot.setMonthlyNfi(lendingRiskVariables.getMonthlyNfi());
+				lendingRiskVariablesSnapshot.setMonthlyTpv(lendingRiskVariables.getMonthlyTpv());
+				lendingRiskVariablesSnapshot.setReferenceCount(lendingRiskVariables.getReferenceCount());
+				lendingRiskVariablesSnapshot.setTenure(lendingRiskVariables.getTenure());
+				lendingRiskVariablesSnapshot.setRoi(lendingRiskVariables.getRoi());
+				lendingRiskVariablesSnapshot.setDsTpv(lendingRiskVariables.getDsTpv());
+				lendingRiskVariablesSnapshot.setSummaryTpv(lendingRiskVariables.getSummaryTpv());
+				lendingRiskVariablesSnapshot.setUniqueCustomer1mon(lendingRiskVariables.getUniqueCustomer1mon());
+				lendingRiskVariablesSnapshot.setPilotIdentifier(lendingRiskVariables.getPilotIdentifier());
+				lendingRiskVariablesSnapshot.setDpd30Count(lendingRiskVariables.getDpd30Count());
+				lendingRiskVariablesSnapshot.setDpd60Count(lendingRiskVariables.getDpd60Count());
+				lendingRiskVariablesSnapshot.setGstOffer(lendingRiskVariables.getGstOffer());
+				lendingRiskVariablesSnapshot.setGstAffectedOffer(lendingRiskVariables.getGstAffectedOffer());
+
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -811,6 +897,18 @@ public class LoanUtil {
 		if (merchantBankDetail == null) return true;
 		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
 		return lendingNachBank != null;
+	}
+
+	public String getEnachBankMode(Long merchantId) {
+		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+		BankDetailsDto merchantBankDetail = null;
+		if (bankDetailsDtoOptional.isPresent())
+			merchantBankDetail = bankDetailsDtoOptional.get();
+		if (merchantBankDetail == null) return null;
+		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
+		logger.info("lendingNachBank for {} : {}", merchantId, lendingNachBank);
+		if(!ObjectUtils.isEmpty(lendingNachBank))return lendingNachBank.getMode();
+		return null;
 	}
 
 	public boolean isNachSkipped(Long merchantId, Long applicationId) {
@@ -1057,15 +1155,8 @@ public class LoanUtil {
 		return finalLender;
 	}
 
-	public boolean isNachToBeRefunded(Long merchantId, Long applicationId) {
-		boolean flag = false;
-		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findSuccessEnach(merchantId);
-		if (!ObjectUtils.isEmpty(responseDTO)) {
-			if (responseDTO.getNachLender().equals("BHARATPE")) {
-				flag = true;
-			}
-		}
-		return flag;
+	public boolean isNachToBeRefunded(LendingApplication lendingApplication) {
+		return lendingApplication.getNachLender().equals("BHARATPE");
 	}
 
 	public static double roundUp(double loanAmount) {
@@ -1078,7 +1169,6 @@ public class LoanUtil {
 		}
 	}
 
-
 	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
@@ -1087,13 +1177,30 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		MerchantNachDetailsResponseDTO responseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
-		if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getNachLender().equals(enachServiceLenderMapper(lender)) &&
-				responseDTO.getNachAmount() >= lendingApplication.getLoanAmount()) {
+		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
+
+
+		if (ObjectUtils.isEmpty(approvedNachDetails)) {
+			return Boolean.FALSE;
+		}
+
+		if (approvedNachDetails.getNachAmount() >= lendingApplication.getLoanAmount()) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		if (getExcludeNach(lendingApplication)) {
+
+		//Todo: remove this condition after derog after merchants cases are over
+		List<Long> derogMerchants = loadDerogEffectedMerchants();
+		if (derogMerchants.contains(lendingApplication.getMerchantId()) && derogTopUpEnable(lendingApplication.getMerchantId())) {
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+		if (skipNachForRepeatLoans(lendingApplication, approvedNachDetails)) {
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+
+		if (skipNachForTopUpLoans(lendingApplication, approvedNachDetails)) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
@@ -1105,6 +1212,8 @@ public class LoanUtil {
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
 			lendingApplicationDetails.setIsNachSkip(Boolean.TRUE);
+			if(!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())
+			&& ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime()))lendingApplicationDetails.setLeadAcceptanceTime(lendingApplication.getAgreementAt());
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
 		}
 	}
@@ -1158,7 +1267,7 @@ public class LoanUtil {
 		return false;
 	}
 
-	public Boolean getExcludeNach(LendingApplication lendingApplication) {
+	public Boolean skipNachForRepeatLoans(LendingApplication lendingApplication, MerchantNachDetailsResponseDTO approvedNachDetails) {
 
 		logger.info("Checking for nach Waiver:{}", lendingApplication.getId());
 
@@ -1188,6 +1297,14 @@ public class LoanUtil {
 				return Boolean.FALSE;
 			}
 
+			Double loanApplicationAmountTolastLoanAmountRatio = lendingApplication.getLoanAmount() / approvedNachDetails.getNachAmount();
+
+			logger.info("received risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, loanApplicationAmountTolastLoanAmountRatio ,lendingApplication.getId());
+
+			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.5) {
+				return Boolean.TRUE;
+			}
+
 			Double settlementAmount = lendingLedgerDao.findSettlementAmount(lastLoan.getId());
 			double qrPaidRatio = (settlementAmount / lastLoan.getPaidAmount()) * 100;
 
@@ -1213,6 +1330,56 @@ public class LoanUtil {
 		return Boolean.FALSE;
 	}
 
+	public Boolean skipNachForTopUpLoans(LendingApplication lendingApplication, MerchantNachDetailsResponseDTO approvedNachDetails) {
+
+		logger.info("Checking for nach Waiver on topup application:{}", lendingApplication.getId());
+
+		Long merchantId = lendingApplication.getMerchantId();
+		try {
+			if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+				return Boolean.FALSE;
+			}
+
+			if (!ObjectUtils.isEmpty(approvedNachDetails) && !approvedNachDetails.getNachLender().equals(enachServiceLenderMapper(lendingApplication.getLender()))) {
+				logger.info("approvedNachDetails:{} and are not same as the required nachLender for applicationId : {}", approvedNachDetails.getNachLender(), lendingApplication.getId());
+				return Boolean.FALSE;
+			}
+
+			LendingPaymentSchedule lastLoan =
+			lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusAndCreditLoanOrderByIdDesc(merchantId, "ACTIVE", false);
+			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			String riskSegment=null;
+			String riskGroup=null;
+			if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
+				logger.info("No Snapshot for application:{}", lendingApplication.getId());
+				LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+				riskSegment=lendingRiskVariables.getRiskSegment();
+				riskGroup=lendingRiskVariables.getRiskGroup();
+			}
+			riskSegment=ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?riskSegment:lendingRiskVariablesSnapshot.getRiskSegment().name();
+			riskGroup=ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?riskGroup:lendingRiskVariablesSnapshot.getRiskGroup();
+
+
+			if (ObjectUtils.isEmpty(lastLoan)) {
+				logger.info("no lastLoan found for applicationId : {}", lendingApplication.getId());
+				return Boolean.FALSE;
+			}
+
+			Double topupLoanAmountToActiveLoanAmountRatio = lendingApplication.getLoanAmount() / approvedNachDetails.getNachAmount();
+
+			logger.info("recieved risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, topupLoanAmountToActiveLoanAmountRatio ,lendingApplication.getId());
+
+			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.5) {
+				return Boolean.TRUE;
+			}
+
+		} catch (Exception e) {
+			logger.error("Exception while check nach waiver for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+		return Boolean.FALSE;
+	}
+
+
 	public Integer getMaxDpdInLastLoan(Long merchantId, LendingPaymentSchedule lastLoan) {
 		try {
 
@@ -1225,5 +1392,43 @@ public class LoanUtil {
 		}
 		return 0;
 	}
+
+	public Double calculateLatLonDistance(Double lat1, Double lon1 , Double lat2, Double lon2){
+		logger.info("lat1:{} | lon1:{} | lat2:{} | lon2:{}", lat1, lon1, lat2, lon2);
+		if(lat1 == -1 || lat2 == -1 || lon1 == -1 || lon2 == -1){
+			return -1D;
+		}else if (lat1 == 0D || lat2 == 0D || lon1 == 0D || lon2 == 0D){
+			return  -1D;
+		}
+
+		int r = 6371;
+		double x = Math.pow(Math.sin(Math.toRadians(lat2-lat1)/2), 2) + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.pow(Math.sin(Math.toRadians(lon2-lon1))/2,2);
+		double result = r * (2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))) * 1000;
+		if(result<3000000){
+			int n = 2;
+			return Math.round(result * Math.pow(10, n)) / Math.pow(10, n);
+		} else return -1D;
+	}
+
+	private List<Long> readCsvFile() {
+		List<Long> merchantList = new ArrayList<>();
+		try {
+
+			String filePath = "/MerchantList/derog_merchant";
+			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+			Scanner sc = new Scanner(inputStream);
+			sc.useDelimiter(",");
+			while (sc.hasNext())
+			{
+				String value = sc.next();
+				merchantList.add(Long.parseLong(value));
+			}
+			sc.close();  //closes the scanner
+		} catch (Exception e) {
+			logger.info("exception while reading derog csv file: {} {}", e, e.getMessage());
+		}
+		return merchantList;
+	}
+
 }
 

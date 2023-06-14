@@ -1,14 +1,14 @@
 package com.bharatpe.lending.loanV2.controller;
 
-import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.dto.MerchantReference;
 import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.loanV2.dto.EligibilityIframeConsumptionDTO;
 import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
@@ -19,7 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,7 +37,8 @@ public class LoanDetailsControllerV2 {
 
     @PostMapping(value = "/loanDetails/v2", produces="application/json")
     public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestHeader(value = "token", required = false) String token, @RequestAttribute(required = false) BasicDetailsDto merchant,
-                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest, @RequestParam(required = false) Long merchantId){
+                                                         @RequestBody(required = false) LoanDetailsRequest loanDetailsRequest,
+                                                         @RequestParam(required = false) Long merchantId) throws BureauCallMaskedApiException {
 
         if (ObjectUtils.isEmpty(merchant)) {
             final Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
@@ -52,6 +53,8 @@ public class LoanDetailsControllerV2 {
         ApiResponse<?> response;
         try {
             response = loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, token);
+        } catch (BureauCallMaskedApiException e){
+            throw (e);
         } catch (Exception e) {
             log.error("Exception in loan details v2 for merchant:{}", merchant.getId(), e);
             response = new ApiResponse<>(false, "Something went wrong");
@@ -80,6 +83,12 @@ public class LoanDetailsControllerV2 {
     @PostMapping(value="/getCreditScoreReportDetail")
     public ResponseEntity<ApiResponse<?>> getCreditScoreReportDetail(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
         ApiResponse<?> apiResponse= loanDetailsServiceV2.getCreditScoreReportDetail(merchant,commonAPIRequest);
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping(value="/getMaskedMobileNos")
+    public ResponseEntity<ApiResponse<?>> getMaskedMobileNos(@RequestAttribute BasicDetailsDto merchant, @RequestBody CommonAPIRequest commonAPIRequest){
+        ApiResponse<?> apiResponse= loanDetailsServiceV2.getMaskedMobileNos(merchant,commonAPIRequest);
         return ResponseEntity.ok(apiResponse);
     }
 
@@ -153,5 +162,25 @@ public class LoanDetailsControllerV2 {
         }
         log.info("Updating merchant references of merchantId: {}", merchant.getId());
         return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantReferences(merchant, requestDto));
+    }
+
+    @GetMapping(value = "/getEligibilityIframe")
+    public ResponseEntity<ApiResponse<?>> getIframeDetails(@RequestAttribute(required = true) BasicDetailsDto merchant, @RequestParam String client) {
+        if (Objects.isNull(merchant)  || Objects.isNull(merchant.getId()) || Objects.isNull(client)) {
+            log.info("Incorrect request details");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Fetching Iframe details for merchant : {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.getIframeDetails(merchant.getId(), client));
+    }
+
+    @PostMapping(value = "/iframeBannerConsumed")
+    public ResponseEntity<ApiResponse<?>> iframeBannerConsumed(@RequestAttribute(required = true) BasicDetailsDto merchant, @Valid @RequestBody EligibilityIframeConsumptionDTO requestDto) {
+        if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
+            log.info("merchant not found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("posting iframe consumption event for merchantId: {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.iframeBannerConsumption(merchant.getId(), requestDto));
     }
 }

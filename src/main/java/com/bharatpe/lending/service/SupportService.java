@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
@@ -26,6 +27,7 @@ import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.entity.LendingRefundLedger;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -179,6 +181,9 @@ public class SupportService {
 
     @Autowired
     LendingKfsDao lendingKfsDao;
+
+    @Autowired
+    LendingRefundLedgerDao lendingRefundLedgerDao;
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
@@ -748,7 +753,7 @@ public class SupportService {
             supportApiResponseDto.setActiveLoan(Boolean.FALSE);
             if(Objects.nonNull(lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp()) && "DISBURSED".equals(lendingPaymentSchedule.getLoanApplication().getLoanDisbursalStatus())){
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
-                supportApiResponseDto.setDisbursalUtr(lendingApplicationLenderDetails.getUtrNo());
+                supportApiResponseDto.setDisbursalUtr(ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo());
             }
             if ("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
@@ -973,12 +978,29 @@ public class SupportService {
                     } else {
                         populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
                     }
+                    //refund details
+                    List<LendingRefundLedger> lendingRefundLedgerList = lendingRefundLedgerDao.findByMerchantIdAndLoanIdAndStatus(lendingPaymentSchedule1.getMerchantId(),
+                            lendingPaymentSchedule1.getId(), "SUCCESS");
+                    List<Map<String, Object>> refundDetails = new ArrayList<>();
+                    if(!ObjectUtils.isEmpty(lendingRefundLedgerList)){
+                        for(LendingRefundLedger lendingRefundLedger: lendingRefundLedgerList){
+                            Map<String, Object> refundData = new HashMap<String, Object>(){{
+                                put("refundDate", lendingRefundLedger.getSettlementDate());
+                                put("refundType", lendingRefundLedger.getAdjustmentMode());
+                                put("amount", lendingRefundLedger.getAmount());
+                                put("utr", lendingRefundLedger.getReferenceNo());
+                            }};
+
+                            refundDetails.add(refundData);
+                        }
+                    }
+
                     // Loan details
                     LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
                     if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
                         lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(application.getId(), application.getLender());
                     }
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo());
+                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LenderOffDays.valueOf(lendingPaymentSchedule1.getNbfc()).getEdiModel().name(), refundDetails);
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
                     loanDetailsDTO.setRepayment(application.getRepayment());

@@ -112,7 +112,8 @@ public class BreRequestKafka {
             if (ObjectUtils.isEmpty(breApiResponseDto) ||
                     !breApiResponseDto.getSuccess() ||
                     ObjectUtils.isEmpty(breApiResponseDto.getData()) ||
-                    !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(breApiResponseDto.getData().getResponseStatus())) {
+                    !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(breApiResponseDto.getData().getResponseStatus())
+                    || lendingApplicationLenderDetails.getAnnualRoi() > 50) {
                 log.info("request resulted in bre failure, modifying lender for {}", request);
                 nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
             }

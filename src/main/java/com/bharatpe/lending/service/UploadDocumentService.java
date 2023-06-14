@@ -10,16 +10,22 @@ import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
 //import com.bharatpe.lending.util.UploadDocumentUtil;
+import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +92,24 @@ public class UploadDocumentService {
 	@Autowired
 	FunnelService funnelService;
 
+	@Autowired
+	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+	@Autowired
+	LoanUtil loanUtil;
+
+    @Autowired
+    DsHandler dsHandler;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${sid.threshold}")
+    Double sidThreshold;
+
+    @Value("${sid.rollout.percent}")
+    Integer sidRolloutPercent;
+
 //	@Autowired
 //	MerchantDao merchantDao;
 
@@ -104,8 +128,7 @@ public class UploadDocumentService {
 			return uploadDocumentResponse;
 		}
 
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
-		merchant.getId(), "draft");
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId, merchant.getId(), "draft");
 		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(requestDTO.getPayload().getApplicationId());
 		if(lendingApplication ==  null && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
 			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
@@ -117,8 +140,21 @@ public class UploadDocumentService {
 		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        if(!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())){
+            Double SID = calculateShopInferredDistance(requestDTO.getMeta(), lendingApplication.getMerchantId());
+            logger.info("Calculated Shop Inferred Distance for merchant:{} and application:{} is:{}", lendingApplication.getMerchantId(), lendingApplication.getId(), SID);
+            if (SID != null && SID > sidThreshold && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent)) {
+                logger.info("SID iS greater than 2.5KM for merchant:{} and application:{}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                uploadDocumentResponse.setSidGreaterThanRequired(true);
+
+                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                        FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN, String.valueOf(SID));
+            }
+        }
+
 		List<DocumentsIdProofMaster> documentsIdProofList =
-		documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
+				documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
 		List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
 		Boolean isUpdateDocument = false;
 		Boolean isUpdateMoreDocument = false;
@@ -359,11 +395,43 @@ public class UploadDocumentService {
 				lendingShopDocuments.setIp(meta.getIp());
 			}
 			lendingShopDocumentsDao.save(lendingShopDocuments);
+
+			funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.UPLOADED_AGAIN, lendingShopDocuments.getProofType());
 		} else {
 			lendingShopDocuments = insertShopDocuments(proofType, frontSide, backSide, merchant, lendingApplication, meta);
 		}
 		return lendingShopDocuments;
 	}
+
+    public Double calculateShopInferredDistance(MetaDTO meta, Long merchantId){
+        logger.info("Calculating shop inferred distance for merchant:{}", merchantId);
+        try{
+            // send more than 2500 for internal merchant
+            if(loanUtil.isInternalMerchant(merchantId)){
+                return 3000D;
+            }
+
+            Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
+            if(ObjectUtils.isEmpty(meta) || ObjectUtils.isEmpty(meta.getLatitude()) || ObjectUtils.isEmpty(meta.getLongitude()) || ObjectUtils.isEmpty(dsResponse)
+                    || !dsResponse.containsKey("latitude") || ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") || ObjectUtils.isEmpty(dsResponse.get("longitude"))){
+                return null;
+            }
+            Double lat1 = Double.valueOf(meta.getLatitude());
+            Double lon1 = Double.valueOf(meta.getLongitude());
+            Double lat2 = dsResponse.get("latitude");
+            Double lon2 = dsResponse.get("longitude");
+
+            Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
+            logger.info("SID:{}", inferredDistance);
+
+            return (inferredDistance == -1D) ? null:inferredDistance;
+
+        }catch (Exception ex){
+            logger.error("Exception occurred while calculating inferred distance for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
 
 //	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 //		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("aadharcard") || proofType.equals("votercard") || proofType.equals("passport")) {

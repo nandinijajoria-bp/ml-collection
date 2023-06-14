@@ -187,7 +187,8 @@ public class S3BucketHandler {
 				s3client.putObject(bucket, fileName, fis, metadata);
 			}
 		}catch(Exception e) {
-			logger.info("Exception while Uploading doc to S3 bucket message : {}",e.getMessage());
+			logger.error("Exception while Uploading doc to S3 bucket message : {}",e.getMessage());
+			throw e;
 		}
 		Instant end = Instant.now();
 		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
@@ -237,6 +238,7 @@ public class S3BucketHandler {
 		        }
 		    }
 	}
+
 	public String getPreSignedPublicURLWithExceptionHandled(String key, String bucket1) {
 		try {
 			return getPreSignedPublicURL(key,bucket1);
@@ -275,8 +277,8 @@ public class S3BucketHandler {
 		}
 		catch(Exception e) {
 			logger.error("Exception while fetching object from s3", e);
+			throw e;
 		}
-		return null;
 	}
 
 	public boolean doesS3ObjectExist(String bucketName, String objectKey) {
@@ -310,7 +312,8 @@ public class S3BucketHandler {
 				s3client.putObject(bucket, fileName, file);
 			}
 		}catch(Exception e) {
-			logger.info("Exception while uploading file to S3", e);
+			logger.error("Exception while uploading file to S3", e);
+			throw e;
 		}
 		Instant end = Instant.now();
 		logger.info("Time Taken by AWS S3 File upload API : {} miliseconds", Duration.between(start, end).toMillis());
@@ -345,7 +348,8 @@ public class S3BucketHandler {
 				s3client.putObject(bucket, fileName, pdfStream, metadata);
 			}
 		}catch(Exception e) {
-			logger.info("Exception while Uploading doc to S3 bucket message : {}",e.getMessage());
+			logger.error("Exception while Uploading doc to S3 bucket message : {}",e.getMessage());
+			throw e;
 		}
 		Instant end = Instant.now();
 		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());

@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
@@ -25,12 +26,14 @@ import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.slave.entity.IfscSlave;
 import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofOcrSlave;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.SettlementType;
@@ -558,26 +561,6 @@ public class LiquiloansService {
             }
 
             if ("DISBURSED".equalsIgnoreCase(disbursalStage)) {
-                logger.info("Changing loan_disbursal_status to 'DISBURSED'");
-                lendingApplication.setLoanDisbursalStatus("DISBURSED");
-                lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
-                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
-
-                // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
-                if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10) {
-                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
-                    lendingApplicationDao.save(lendingApplication);
-                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
-                    postPayoutResponseDto.setStatus("FAILED");
-                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
-                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
-                    kafkaAudit.setData(postPayoutAuditDto);
-                    pushKafkaAudit(kafkaAudit);
-                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
-                }
-                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                        FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
-//            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
 
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (lendingPaymentSchedule != null) {
@@ -592,7 +575,30 @@ public class LiquiloansService {
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
 
+                // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
+                if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10) {
+                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
+                    lendingApplicationDao.save(lendingApplication);
+                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
+                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
+                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                    kafkaAudit.setData(postPayoutAuditDto);
+                    pushKafkaAudit(kafkaAudit);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                }
+
+                logger.info("Changing loan_disbursal_status to 'DISBURSED' application_id : {}", lendingApplication.getId());
+
+                lendingApplication.setLoanDisbursalStatus("DISBURSED");
+                lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
+                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
+
                 lendingApplicationDao.save(lendingApplication);
+
+                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                  FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+
                 lendingPaymentSchedule = new LendingPaymentSchedule();
 
                 logger.info("Populating data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
@@ -621,6 +627,10 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setCreatedAt(new Date());
                 lendingPaymentSchedule.setUpdatedAt(new Date());
                 lendingPaymentSchedule.setOffDay(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay());
+
+                if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                    lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
+                }
 
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
 
@@ -1587,7 +1597,7 @@ public class LiquiloansService {
 
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lender);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lender);
 
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             logger.info("lendingApplicationLenderDetails not found for applicationId : {} and lender : {}", applicationId, lender);

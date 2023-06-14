@@ -88,7 +88,7 @@ public class RefundService {
             boolean success = false;
             Double refundAmount = 0D;
             if (refundRequest.getAmount() != null) {
-                if(loanUtil.isNachToBeRefunded(refundRequest.getMerchantId(), lendingPaymentSchedule.getApplicationId())){
+                if(loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getLoanApplication())){
                     logger.info("Manual refund amount:{} for loanId:{}", refundRequest.getAmount(), refundRequest.getLoanId());
                     String orderId = "REFUND" + System.currentTimeMillis();
                     refundAmount = refundRequest.getAmount();
@@ -106,7 +106,7 @@ public class RefundService {
                     }
                 }
             } else if (lendingPaymentSchedule.getStatus().equals("INACTIVE") && lendingPaymentSchedule.getPaidAmount() > 0D) {
-                if(loanUtil.isNachToBeRefunded(refundRequest.getMerchantId(), lendingPaymentSchedule.getApplicationId())){
+                if(loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getLoanApplication())){
                     logger.info("Refund paid amount:{} for inactive loan:{}",lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getId());
                     String orderId = "INACTIVE_REFUND" + System.currentTimeMillis();
                     refundAmount = lendingPaymentSchedule.getPaidAmount();
@@ -126,7 +126,7 @@ public class RefundService {
                     }
                 }
             } else if (lendingPaymentSchedule.getDueAmount() < 0D && lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-                if(loanUtil.isNachToBeRefunded(refundRequest.getMerchantId(), lendingPaymentSchedule.getApplicationId())){
+                if(loanUtil.isNachToBeRefunded(lendingPaymentSchedule.getLoanApplication())){
                     logger.info("Refund due amount:{} for loan:{}",lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
                     String orderId = "NACH_REFUND" + System.currentTimeMillis();
                     refundAmount = -1 * lendingPaymentSchedule.getDueAmount();
