@@ -308,7 +308,7 @@ public class APIGatewayService {
             requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
             requestParams.put("orderType", pgCreateTransactionRequestDTO.getOrderType());
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
-            requestParams.put("mandateEndDate",pgCreateTransactionRequestDTO.getMandateEndDate());
+            requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
 
 

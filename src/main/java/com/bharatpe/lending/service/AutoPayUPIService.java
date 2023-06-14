@@ -28,7 +28,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -216,19 +219,17 @@ public class AutoPayUPIService {
                 registerPgRequest.setOrderType(MANDATE_ORDER_TYPE);
                 registerPgRequest.setCustomerId(merchantBasicDetails.getId());
                 registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
-                registerPgRequest.setMandateStartDate(LocalDate.now());
+
                 registerPgRequest.setNarration("Register mandate with orderId" + autoPayUPI.getOrderId());
                 registerPgRequest.setOrderId(autoPayUPI.getOrderId());
 
-                //mandate date is set of 10 years ahead, since till that time loan will be closed.
-                String currentDate = String.valueOf(LocalDate.now());
-                LocalDate mandateEndDate = LocalDate.parse(currentDate).plusYears(10);
-                log.info("mandate end date is {}", mandateEndDate);
+                Calendar currentTimeNow = Calendar.getInstance();
+                System.out.println("Current time now : " + currentTimeNow.getTime());
+                currentTimeNow.add(Calendar.MINUTE, 10);
+                Date tenMinsFromNow = currentTimeNow.getTime();
+                long epochMandateStartDate = tenMinsFromNow.getTime();
+                registerPgRequest.setMandateStartDate(epochMandateStartDate);
                 registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard-dev&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
-
-                ZoneId zoneId = ZoneId.systemDefault();
-                long epoch = mandateEndDate.atStartOfDay(zoneId).toEpochSecond() * 1000L;
-                registerPgRequest.setMandateEndDate(epoch);
 
                 if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
                         easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
