@@ -43,9 +43,6 @@ public class MerchantLoansService {
     private Logger logger = LoggerFactory.getLogger(MerchantLoansService.class);
 
     @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
-
-    @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
