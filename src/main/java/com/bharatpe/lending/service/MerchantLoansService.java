@@ -683,11 +683,6 @@ public class MerchantLoansService {
                 logger.info("Photo shop is not permanent of merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return eligiblity;
             }
-//            LendingRiskVariablesSnapshot lrvs = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-//            if (!ObjectUtils.isEmpty(lrvs) && !ObjectUtils.isEmpty(lrvs.getRiskGroup()) && !allowedRiskGroupsStp.contains(lrvs.getRiskGroup())) {
-//                logger.info("Risk group is not R1 or R2 of merchant: {}, application: {}", lrvs.getMerchantId(), lrvs.getApplicationId());
-//                return eligiblity;
-//            }
             Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
             int paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
             logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchantId());
