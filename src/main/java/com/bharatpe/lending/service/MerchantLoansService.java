@@ -673,11 +673,11 @@ public class MerchantLoansService {
             LmsFieldValues lmsFieldValues = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(38L, lendingPaymentSchedule.getApplicationId());
             if (!ObjectUtils.isEmpty(lmsFieldValues)) {
                 shopType = lmsFieldValues.getFieldDropdownValue();
-                logger.info("shop type found for merchant: {} from lms fields for last application: {}", shopType, lendingApplication.getMerchantId());
+                logger.info("shop type found for merchant: {} from lms fields for last application: {}", shopType, lendingApplication.getId());
             } else {
                 LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
                 shopType = Objects.nonNull(lendingGstDetail) ? lendingGstDetail.getShopType() : null;
-                logger.info("shop type found for merchant: {} from lending_gst_detail for last application: {}", shopType, lendingApplication.getMerchantId());
+                logger.info("shop type found for merchant: {} from lending_gst_detail for last application: {}", shopType, lendingApplication.getId());
             }
             if (ObjectUtils.isEmpty(shopType) || !"PERMANENT".equalsIgnoreCase(shopType)) {
                 logger.info("Photo shop is not permanent of merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
