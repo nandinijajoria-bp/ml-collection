@@ -10,4 +10,11 @@ public class EligibilityIframeResponseDTO {
     private Double offerInterestRate;
     private Double loanAmount;
     private Double interestRate;
+    private String title;
+    private String subTitle;
+    private String buttonText;
+    private String alertIcon;
+    private String alertText;
+    private String bannerImg;
+    private String deeplink;
 }

@@ -26,6 +26,7 @@ import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
+import com.bharatpe.lending.constant.EligibilityIframeConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -1631,13 +1632,11 @@ public class LoanDetailsServiceV2 {
                 if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())
                         && Objects.isNull(lendingApplicationSlave.getNachStatus())){
                     responseDTO.setState(EligibilityIframeState.BANNER_PENDING_ENACH);
-                    responseDTO.setLoanAmount(lendingApplicationSlave.getLoanAmount());
-                    responseDTO.setInterestRate(lendingApplicationSlave.getInterestRate());
+                    populateEligibilityIframeResponseData(responseDTO, lendingApplicationSlave.getLoanAmount(), lendingApplicationSlave.getInterestRate());
                 }
                 else if(ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())){
                     responseDTO.setState(EligibilityIframeState.BANNER_DRAFT_APPLICATION);
-                    responseDTO.setLoanAmount(lendingApplicationSlave.getLoanAmount());
-                    responseDTO.setInterestRate(lendingApplicationSlave.getInterestRate());
+                    populateEligibilityIframeResponseData(responseDTO, lendingApplicationSlave.getLoanAmount(), lendingApplicationSlave.getInterestRate());
                 }
                 else if(ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())
                         || ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplicationSlave.getStatus())){
@@ -1663,16 +1662,70 @@ public class LoanDetailsServiceV2 {
 
     private void checkEligibilityIframeOffer(EligibilityIframeResponseDTO responseDTO, Long merchantId){
         LendingRiskVariablesSlave lendingRiskVariablesSlave = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-        if(ObjectUtils.isEmpty(lendingRiskVariablesSlave))responseDTO.setState(EligibilityIframeState.BANNER_OFFER_NOT_CHECKED);
+        if(ObjectUtils.isEmpty(lendingRiskVariablesSlave)){
+            responseDTO.setState(EligibilityIframeState.BANNER_OFFER_NOT_CHECKED);
+            populateEligibilityIframeResponseData(responseDTO, null, null);
+        }
         else{
             if(Objects.nonNull(lendingRiskVariablesSlave.getFinalOffer()) && lendingRiskVariablesSlave.getFinalOffer() > 0 &&
                     Objects.isNull(lendingRiskVariablesSlave.getExperianRejection())){
                 responseDTO.setState(EligibilityIframeState.BANNER_ELIGIBLE);
-                responseDTO.setOfferAmount(lendingRiskVariablesSlave.getFinalOffer());
-                responseDTO.setOfferInterestRate(lendingRiskVariablesSlave.getRoi());
+                populateEligibilityIframeResponseData(responseDTO, lendingRiskVariablesSlave.getFinalOffer(), lendingRiskVariablesSlave.getRoi());
             }
             else responseDTO.setState(EligibilityIframeState.BANNER_NOT_APPLICABLE);
         }
+    }
+
+    private void populateEligibilityIframeResponseData(EligibilityIframeResponseDTO responseDTO, Double loanAmount, Double interestRate){
+        String title = null;
+        String subtitle = null;
+        String buttonText = null;
+        String bannerImg = null;
+        String loanAmountString = null;
+        if(Objects.nonNull(loanAmount))loanAmountString = (loanAmount < 100000) ? String.format("%.0f",loanAmount) : String.format("%.2f", loanAmount/100000) + " Lakh";
+        if(EligibilityIframeState.BANNER_OFFER_NOT_CHECKED.equals(responseDTO.getState())){
+            title = EligibilityIframeConstants.BANNER_OFFER_NOT_CHECKED.TITLE;
+            subtitle = EligibilityIframeConstants.BANNER_OFFER_NOT_CHECKED.SUB_TITLE;
+            buttonText = EligibilityIframeConstants.BANNER_OFFER_NOT_CHECKED.BUTTON_TEXT;
+            bannerImg = EligibilityIframeConstants.BANNER_OFFER_NOT_CHECKED.BANNER_IMG;
+        }
+        else if(EligibilityIframeState.BANNER_ELIGIBLE.equals(responseDTO.getState())){
+            title = EligibilityIframeConstants.BANNER_ELIGIBLE.TITLE;
+            title = title.replace("{{offerAmount}}", loanAmountString);
+            subtitle = EligibilityIframeConstants.BANNER_ELIGIBLE.SUB_TITLE;
+            subtitle = subtitle.replace("{{offerInterestRate}}", interestRate.toString());
+            buttonText = EligibilityIframeConstants.BANNER_ELIGIBLE.BUTTON_TEXT;
+            bannerImg = EligibilityIframeConstants.BANNER_ELIGIBLE.BANNER_IMG;
+            responseDTO.setOfferAmount(loanAmount);
+            responseDTO.setOfferInterestRate(interestRate);
+        }
+        else if(EligibilityIframeState.BANNER_DRAFT_APPLICATION.equals(responseDTO.getState())){
+            title = EligibilityIframeConstants.BANNER_DRAFT_APPLICATION.TITLE;
+            title = title.replace("{{loanAmount}}", loanAmountString);
+            subtitle = EligibilityIframeConstants.BANNER_DRAFT_APPLICATION.SUB_TITLE;
+            subtitle = subtitle.replace("{{interestRate}}", interestRate.toString());
+            buttonText = EligibilityIframeConstants.BANNER_DRAFT_APPLICATION.BUTTON_TEXT;
+            bannerImg = EligibilityIframeConstants.BANNER_DRAFT_APPLICATION.BANNER_IMG;
+            responseDTO.setLoanAmount(loanAmount);
+            responseDTO.setInterestRate(interestRate);
+        }
+        else if(EligibilityIframeState.BANNER_PENDING_ENACH.equals(responseDTO.getState())){
+            title = EligibilityIframeConstants.BANNER_PENDING_ENACH.TITLE;
+            title = title.replace("{{loanAmount}}", loanAmountString);
+            subtitle = EligibilityIframeConstants.BANNER_PENDING_ENACH.SUB_TITLE;
+            subtitle = subtitle.replace("{{interestRate}}", interestRate.toString());
+            buttonText = EligibilityIframeConstants.BANNER_PENDING_ENACH.BUTTON_TEXT;
+            bannerImg = EligibilityIframeConstants.BANNER_PENDING_ENACH.BANNER_IMG;
+            responseDTO.setLoanAmount(loanAmount);
+            responseDTO.setInterestRate(interestRate);
+        }
+        responseDTO.setTitle(title);
+        responseDTO.setSubTitle(subtitle);
+        responseDTO.setButtonText(buttonText);
+        responseDTO.setBannerImg(bannerImg);
+        responseDTO.setAlertIcon(EligibilityIframeConstants.ALERT_ICON);
+        responseDTO.setAlertText(EligibilityIframeConstants.ALERT_TEXT);
+        responseDTO.setDeeplink(EligibilityIframeConstants.DEEPLINK);
     }
 
     private void cacheIframeDetails(Long merchantId, EligibilityIframeResponseDTO iframeResponseDTO, int ttl){
