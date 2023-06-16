@@ -39,6 +39,7 @@ public class AutoPayUPIService {
     private static final String MANDATE_ORDER_TYPE = "MANDATE";
     private static final Double MANDATE_ORDER_AMOUNT = 1D;
     private static final String PAYMENT_MODE_TEXT = "Select Payment Mode";
+    private static final int DEFAULT_FREQUENCY = 2;
     @Autowired
     private LendingPullPaymentDao lendingPullPaymentDao;
 
@@ -99,7 +100,6 @@ public class AutoPayUPIService {
         AutoPayUPI entity = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchant.getId(), applicationId).get();
         if (entity != null) {
             log.info("entity application Id is {} ", entity.getApplicationId());
-
             if (entity.getMandateId() != null) {
                 entity.setFrequency(dto.getFrequency());
                 autoPayUPIDao.save(entity);
@@ -181,7 +181,7 @@ public class AutoPayUPIService {
 
     public UPIRegisterResponseDto registerUPI(BasicDetailsDto merchantBasicDetails, RequestDTO<UPIRegisterRequestDto> requestDto) {
         log.info("Received initiate UPI Register request  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
-        Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndIdAndStatus(merchantBasicDetails.getId(),requestDto.getPayload().getLoanId(),"ACTIVE");
+        Optional<LendingPaymentSchedule> activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndIdAndStatus(merchantBasicDetails.getId(), requestDto.getPayload().getLoanId(), "ACTIVE");
 
         UPIRegisterResponseDto.Data data = null;
         if (!activeLoan.isPresent()) {
@@ -189,7 +189,7 @@ public class AutoPayUPIService {
             return new UPIRegisterResponseDto();
         }
 
-        if(activeLoan.get().getNbfc().equalsIgnoreCase(Lender.LDC.name())) {
+        if (activeLoan.get().getNbfc().equalsIgnoreCase(Lender.LDC.name())) {
             List<String> statusList = new ArrayList<>();
             statusList.add(AutoPayStatusEnum.PENDING.name());
             statusList.add(AutoPayStatusEnum.SUCCESS.name());
@@ -209,6 +209,7 @@ public class AutoPayUPIService {
                 autoPayUPI.setLender(activeLoan.get().getLoanApplication().getLender());
                 autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
                 autoPayUPI.setApplicationId(activeLoan.get().getApplicationId());
+                autoPayUPI.setFrequency(DEFAULT_FREQUENCY);
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
                 autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
