@@ -117,7 +117,7 @@ public class AutoPayUPIService {
                 log.error("No order for order id {}", request.getOrderId());
                 return "OK";
             }
-            if ("PENDING".equalsIgnoreCase(String.valueOf(autoPayUPI.getStatus()))) {
+            if (AutoPayStatusEnum.PENDING == autoPayUPI.getStatus()) {
                 log.info("Mandate for merchant id {} and order id {} is already processed", autoPayUPI.getMerchantId(), request.getOrderId());
                 return "OK";
             }
@@ -170,8 +170,9 @@ public class AutoPayUPIService {
                     || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
                 log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
+                autoPayUPIDao.save(mandateApplication);
             }
-            autoPayUPIDao.save(mandateApplication);
+
         }
 
         return new MandateUPIStatusResponse(mandateApplication.getOrderId(), mandateApplication.getApplicationId(),
