@@ -117,7 +117,7 @@ public class AutoPayUPIService {
                 log.error("No order for order id {}", request.getOrderId());
                 return "OK";
             }
-            if (!"PENDING".equalsIgnoreCase(String.valueOf(autoPayUPI.getStatus()))) {
+            if ("PENDING".equalsIgnoreCase(String.valueOf(autoPayUPI.getStatus()))) {
                 log.info("Mandate for merchant id {} and order id {} is already processed", autoPayUPI.getMerchantId(), request.getOrderId());
                 return "OK";
             }
