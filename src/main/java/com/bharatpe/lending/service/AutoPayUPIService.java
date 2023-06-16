@@ -125,7 +125,7 @@ public class AutoPayUPIService {
                 if ("FAILURE".equalsIgnoreCase(request.getMandate().getStatus())) {
                     autoPayUPI.setStatus(AutoPayStatusEnum.FAILED);
                 } else {
-                    autoPayUPI.setStatus(AutoPayStatusEnum.valueOf(request.getPaymentStatus()));
+                    autoPayUPI.setStatus(AutoPayStatusEnum.valueOf(request.getMandate().getStatus()));
                 }
                 if (request.getMandate().getMandateId() != null) {
                     autoPayUPI.setMandateId(request.getMandate().getMandateId());
@@ -212,6 +212,8 @@ public class AutoPayUPIService {
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY);
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
                 autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
+
+                log.info("autoPayUPI Is {}", autoPayUPI);
 
                 AutoPayUPIRegisterPgRequestDto registerPgRequest = new AutoPayUPIRegisterPgRequestDto();
                 registerPgRequest.setLender(Lender.valueOf(activeLoan.get().getNbfc()));
