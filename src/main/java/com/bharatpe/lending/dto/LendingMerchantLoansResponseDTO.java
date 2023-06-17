@@ -139,6 +139,7 @@ public class LendingMerchantLoansResponseDTO {
         private String status;
         private Boolean autoPayEligibility;
         private String autoPayMandateStatus;
+        private String mandateRegisterId;
         private Double paidAmount;
         private Double lastEdiPaid;
         private Double repaymentAmount;

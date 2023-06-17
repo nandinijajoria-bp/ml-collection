@@ -383,6 +383,7 @@ public class MerchantLoansService {
                             }
                         }
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
+                        loan.setMandateRegisterId(autoPayUPI.get().getOrderId());
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
                     if (loanDpd.get().getDpd()<3)
