@@ -1872,8 +1872,12 @@ public class LoanDetailsServiceV2 {
                     }
                 }
             }
-            bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-            gst3bSessionDetailsDao.save(gst3bSessionDetails);
+            if(!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+            }
+            if(!ObjectUtils.isEmpty(gst3bSessionDetails)) {
+                gst3bSessionDetailsDao.save(gst3bSessionDetails);
+            }
             if (("INPROCESS").equalsIgnoreCase(underwritingDocEligibilityDTO.getActivityStatus())) {
                 underwritingDocEligibilityDTO = underWritingAnalysis(bankStatementSessionDetails, gst3bSessionDetails, underwritingDocEligibilityDTO, docType, merchantId, orderId);
             }
