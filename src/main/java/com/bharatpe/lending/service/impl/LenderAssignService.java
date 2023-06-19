@@ -2,8 +2,10 @@ package com.bharatpe.lending.service.impl;
 
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.BankStatementSessionDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
+import com.bharatpe.lending.common.entity.BankStatementSessionDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.*;
@@ -92,6 +94,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     DateTimeUtil dateTimeUtil;
 
+    @Autowired
+    BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -155,6 +160,17 @@ public class LenderAssignService implements ILenderAssignService {
             decidedLender =  Lender.ABFL.name();
         } else {
             decidedLender = lenderAssignmentHandler(application, ediModel);
+            if(Lender.ABFL.name().equals(decidedLender)) {
+                BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
+                Calendar calendar = Calendar.getInstance();
+                if(!ObjectUtils.isEmpty(bankStatementSessionDetails) && BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())) {
+                    calendar.setTime(bankStatementSessionDetails.getCreatedAt());
+                    calendar.add(Calendar.MONTH, 1);
+                    if(new Date().compareTo(calendar.getTime()) < 0) {
+                        decidedLender = assignFallackLender(application, ediModel);
+                    }
+                }
+            }
         }
         if(!ObjectUtils.isEmpty(decidedLender)){
             saveLenderChangeAudit(application, decidedLender);
@@ -163,6 +179,17 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
             // ModifyEdiModel
             decidedLender = lenderAssignmentHandler(application, modifiedEdiModel);
+            if(Lender.ABFL.name().equals(decidedLender)) {
+                BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
+                Calendar calendar = Calendar.getInstance();
+                if (!ObjectUtils.isEmpty(bankStatementSessionDetails) && BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())) {
+                    calendar.setTime(bankStatementSessionDetails.getCreatedAt());
+                    calendar.add(Calendar.MONTH, 1);
+                    if (new Date().compareTo(calendar.getTime()) < 0) {
+                        decidedLender = assignFallackLender(application, ediModel);
+                    }
+                }
+            }
             if(ObjectUtils.isEmpty(decidedLender)){
                 decidedLender = assignFallackLender(application, ediModel);
             } else{

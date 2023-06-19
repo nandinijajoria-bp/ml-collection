@@ -1425,13 +1425,13 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, null);
     }
 
     //    @Async
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                               String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
-                                              Boolean skipMaskedMobileException, LoanDetailsResponse loanDetailsResponse) throws BureauCallMaskedApiException  {
+                                              Boolean skipMaskedMobileException, String sessionId, String offerType, LoanDetailsResponse loanDetailsResponse) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1443,6 +1443,8 @@ public class APIGatewayService {
             put("stage_two_hit_id", stageTwoHitId);
             put("skipBureau", skipBureau);
             put("skipMaskedMobileException", skipMaskedMobileException);
+            put("sessionId", sessionId);
+            put("offerType", offerType);
         }};
         StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
         if (!ObjectUtils.isEmpty(source)) {
@@ -1469,6 +1471,12 @@ public class APIGatewayService {
         if (!ObjectUtils.isEmpty(skipMaskedMobileException)) {
             queryParams.append("&skipMaskedMobileException=").append(skipMaskedMobileException);
         }
+        if(!ObjectUtils.isEmpty(sessionId)) {
+            queryParams.append("&sessionId=").append(sessionId);
+        }
+        if(!ObjectUtils.isEmpty(offerType)) {
+            queryParams.append("&offerType=").append(offerType);
+        }
         String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
         String payload = lendingHmacCalculator.getObjectPayload(requestParams);
         String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
@@ -1484,7 +1492,7 @@ public class APIGatewayService {
         if (Objects.nonNull(responseEntity.getBody()) && Objects.nonNull(responseEntity.getBody().getData()) &&
             ExperianConstants.AUTHORIZED_TO_CALL_MASK_MOBILE_API.equalsIgnoreCase(responseEntity.getBody().getData().getErrorString())) {
             GlobalLimitResponse.Data globalLimitResponse = responseEntity.getBody().getData();
-            if(globalLimitResponse != null) {
+            if(!ObjectUtils.isEmpty(loanDetailsResponse) && globalLimitResponse != null) {
                 loanDetailsResponse.setErrorString(globalLimitResponse.getErrorString());
                 loanDetailsResponse.setStageOneHitId(globalLimitResponse.getStageOneId_());
                 loanDetailsResponse.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
@@ -1506,7 +1514,7 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null);
+        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, null);
     }
 
     public boolean globalLimitTxn(Long merchantId, String mode, Double amount) {
@@ -2736,5 +2744,10 @@ public class APIGatewayService {
             logger.error("Exception occurred while calling collection upload API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return null;
+    }
+
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, String orderId, String type) throws BureauCallMaskedApiException {
+        Boolean clubV2 = checkClubV2(merchantId);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, null);
     }
 }

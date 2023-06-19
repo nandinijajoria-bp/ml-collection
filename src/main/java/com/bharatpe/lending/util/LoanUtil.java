@@ -172,6 +172,8 @@ public class LoanUtil {
 
 	List<Long> derogMerchants = new ArrayList();
 
+	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -703,6 +705,8 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setDpd60Count(lendingRiskVariables.getDpd60Count());
 				lendingRiskVariablesSnapshot.setGstOffer(lendingRiskVariables.getGstOffer());
 				lendingRiskVariablesSnapshot.setGstAffectedOffer(lendingRiskVariables.getGstAffectedOffer());
+				lendingRiskVariablesSnapshot.setBankBasedOffer(lendingRiskVariables.getBankBasedOffer());
+				lendingRiskVariablesSnapshot.setGst3bBasedOffer(lendingRiskVariables.getGst3bBasedOffer());
 
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
@@ -1426,6 +1430,34 @@ public class LoanUtil {
 			sc.close();  //closes the scanner
 		} catch (Exception e) {
 			logger.info("exception while reading derog csv file: {} {}", e, e.getMessage());
+		}
+		return merchantList;
+	}
+
+	public List<Long> bankStatementEligibleMerchants() {
+		if (!ObjectUtils.isEmpty(bankStatementEligibleMerchants)) {
+			return bankStatementEligibleMerchants;
+		}
+		bankStatementEligibleMerchants = readBankStatementMerchantsCsvFile();
+		return bankStatementEligibleMerchants;
+	}
+
+	private List<Long> readBankStatementMerchantsCsvFile() {
+		List<Long> merchantList = new ArrayList<>();
+		try {
+
+			String filePath = "/MerchantList/bank_statement_merchants";
+			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+			Scanner sc = new Scanner(inputStream);
+			sc.useDelimiter(",");
+			while (sc.hasNext())
+			{
+				String value = sc.next();
+				merchantList.add(Long.parseLong(value));
+			}
+			sc.close();  //closes the scanner
+		} catch (Exception e) {
+			logger.info("exception while reading bankStatement csv file: {} {}", e, e.getMessage());
 		}
 		return merchantList;
 	}

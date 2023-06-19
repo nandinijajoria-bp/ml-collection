@@ -38,6 +38,7 @@ public class GlobalLimitResponse {
         Double limit;
         String loanType;
         Boolean isClubV2Member;
+        Boolean bankAffectedOffer;
     }
 
     @lombok.Data

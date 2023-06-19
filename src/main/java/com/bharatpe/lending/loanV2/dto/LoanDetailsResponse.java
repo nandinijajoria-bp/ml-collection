@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV2.dto;
 
+import com.bharatpe.lending.common.enums.BankStatementSessionStatus;
 import com.bharatpe.lending.enums.KycStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -47,4 +48,5 @@ public class LoanDetailsResponse {
     private Boolean showReferencePage = true;
     private Integer ediDaysModel;
     private Long merchantId;
+    private Boolean showLoanUpgradeOffer = Boolean.FALSE;
 }

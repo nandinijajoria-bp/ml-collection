@@ -183,4 +183,13 @@ public class LoanDetailsControllerV2 {
         log.info("posting iframe consumption event for merchantId: {}", merchant.getId());
         return ResponseEntity.ok(loanDetailsServiceV2.iframeBannerConsumption(merchant.getId(), requestDto));
     }
+
+    @GetMapping(value = "/get/underwriting-doc/eligibility")
+    public ResponseEntity<ApiResponse<?>> getUnderWritingDocEligibility(
+            @RequestParam(name = "type") String docType,
+            @RequestParam(name = "statusCheck", required = false) boolean statusCheck,
+            @RequestAttribute BasicDetailsDto merchant
+    ) {
+        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck));
+    }
 }
