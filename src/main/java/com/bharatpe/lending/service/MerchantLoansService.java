@@ -36,11 +36,15 @@ import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import static com.bharatpe.lending.constant.LendingConstants.*;
 
 @Service
 public class MerchantLoansService {
 
     private Logger logger = LoggerFactory.getLogger(MerchantLoansService.class);
+
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -767,6 +771,11 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setId(eligibleLoan.getId());
                 eligiblity.add(loanEligibilityDTO);
             }
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
+            String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+            pilotIdentifier = ObjectUtils.isEmpty(pilotIdentifier) ? TOPUP_PILOT_IDENTIFIER : pilotIdentifier + "," + TOPUP_PILOT_IDENTIFIER;
+            lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
+            lendingRiskVariablesDao.save(lendingRiskVariables);
         } catch (Exception e) {
             logger.info("Exception occurred in Additional Topup Rule Engine for merchantId: {}", lendingPaymentSchedule.getMerchantId());
         }
