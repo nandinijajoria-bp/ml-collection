@@ -652,8 +652,8 @@ public class MerchantLoansService {
                     logger.info("paid ratio is between 60 to 95 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
                 }
-                if (paidRatio >= 0.5D && paidRatio < 0.65D) {
-                    logger.info("paid ratio is between 50 to 65 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                if (paidRatio >= 0.5D && paidRatio < 0.60D) {
+                    logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
                 }
             }
