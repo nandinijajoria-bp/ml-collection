@@ -24,6 +24,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.mysql.cj.x.protobuf.MysqlxExpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -773,7 +774,12 @@ public class MerchantLoansService {
             }
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
             String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
-            pilotIdentifier = ObjectUtils.isEmpty(pilotIdentifier) ? TOPUP_PILOT_IDENTIFIER : pilotIdentifier + "," + TOPUP_PILOT_IDENTIFIER;
+            if(!ObjectUtils.isEmpty(pilotIdentifier) && !pilotIdentifier.contains(TOPUP_PILOT_IDENTIFIER)) {
+                pilotIdentifier = pilotIdentifier + "," + TOPUP_PILOT_IDENTIFIER;
+            }
+            if(ObjectUtils.isEmpty(pilotIdentifier)) {
+                pilotIdentifier = TOPUP_PILOT_IDENTIFIER;
+            }
             lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
             lendingRiskVariablesDao.save(lendingRiskVariables);
         } catch (Exception e) {
