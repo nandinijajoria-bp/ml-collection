@@ -24,14 +24,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+
 
 @Service
 @Slf4j
@@ -166,8 +160,8 @@ public class AutoPayUPIService {
                 log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
                 handleMandatePgCallback(response.getData());
-            } else if (Objects.nonNull(response.getData()) && (Status.TransactionStatus.FAILED.name().equalsIgnoreCase(response.getData().getPaymentStatus())
-                    || Status.TransactionStatus.CANCELLED.name().equalsIgnoreCase(response.getData().getPaymentStatus()))) {
+            } else if ("FAILURE".equalsIgnoreCase(response.getData().getPaymentStatus()) ||
+                    "FAILURE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
                 log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
                 autoPayUPIDao.save(mandateApplication);
@@ -175,8 +169,9 @@ public class AutoPayUPIService {
 
         }
 
-        return new MandateUPIStatusResponse(mandateApplication.getOrderId(), mandateApplication.getApplicationId(),
-                mandateApplication.getStatus());
+        MandateUPIStatusResponse.Data data = new MandateUPIStatusResponse.Data(mandateApplication.getOrderId()
+                , mandateApplication.getApplicationId(), mandateApplication.getStatus());
+        return new MandateUPIStatusResponse(data);
     }
 
 
