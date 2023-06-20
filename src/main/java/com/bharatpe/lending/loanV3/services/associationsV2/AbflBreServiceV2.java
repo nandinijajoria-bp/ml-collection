@@ -21,7 +21,7 @@ public class AbflBreServiceV2 {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Async
+//    @Async
     @Transactional
     public void invokeBreViaAsyncApi(Map<String,String> request) {
         try{
