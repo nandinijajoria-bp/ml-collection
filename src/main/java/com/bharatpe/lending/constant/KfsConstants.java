@@ -11,16 +11,19 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_LIQUILOANS = "Shweta Jain";
     String LENDER_CONTACT_EMAIL_LIQUILOANS = "grievances@liquiloans.com";
     String LENDER_CONTACT_NUMBER_LIQUILOANS = "";
+    String LENDER_GRIEVANCE_TIME_LIQUILOANS = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
     String LENDER_CORPORATE_NAME_LDC = "Innofin Solutions Pvt Ltd";
     String LENDER_BUSINESS_ADDRESS_LDC = "Unit 5 Mezannine Floor DLH Park SVRoad Goregaon West Mumbai-400062";
     String LENDER_CONTACT_NAME_LDC = "Mr. Pratik Kharel";
     String LENDER_CONTACT_EMAIL_LDC = "cs@lendenclub.com";
     String LENDER_CONTACT_NUMBER_LDC = "022 48913091";
-    String LENDER_CORPORATE_NAME_LL_NBFC = "NDX P2P Private Limited";
-    String LENDER_BUSINESS_ADDRESS_LL_NBFC = "B 104, The Qube, Hasan Pada Rd, Mittal Industrial Estate, Marol, Andheri East, Mumbai, Maharashtra 400059";
-    String LENDER_CONTACT_NAME_LL_NBFC = "Shweta Jain";
-    String LENDER_CONTACT_EMAIL_LL_NBFC = "grievances@liquiloans.com";
+    String LENDER_GRIEVANCE_TIME_LDC = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
+    String LENDER_CORPORATE_NAME_LL_NBFC = "Trillionloans Fintech Private Limited";
+    String LENDER_BUSINESS_ADDRESS_LL_NBFC = "1st Floor, B-104, The Qube having C.T.S. No. 1498, A/2, M.V. Road, Marol, Andheri (East) Mumbai MH 400059";
+    String LENDER_CONTACT_NAME_LL_NBFC = "Sabyasachi Senapati";
+    String LENDER_CONTACT_EMAIL_LL_NBFC = "grievances@trillionloans.com";
     String LENDER_CONTACT_NUMBER_LL_NBFC = "";
+    String LENDER_GRIEVANCE_TIME_LL_NBFC = "9:30am-6pm, Monday to Friday";
 
     String LENDER_CORPORATE_NAME_MAMTA = "Mamta Projects Private Limited";
     String LENDER_BUSINESS_ADDRESS_MAMTA = "The Nodal Officer, Mamta Projects Pvt. Ltd., \n" +
@@ -53,4 +56,5 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_ABFL = "Ms. Rachana Padval";
     String LENDER_CONTACT_EMAIL_ABFL = "grievance.finance@adityabirlacapital.com";
     String LENDER_CONTACT_NUMBER_ABFL = "080-45860196";
+    String LENDER_GRIEVANCE_TIME_ABFL = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
 }

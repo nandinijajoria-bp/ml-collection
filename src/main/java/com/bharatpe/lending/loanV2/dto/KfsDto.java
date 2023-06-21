@@ -29,6 +29,7 @@ public class KfsDto {
     private String lenderContactName;
     private String lenderContactEmail;
     private String lenderContactNumber;
+    private String lenderGrievanceTime;
     private String lspContactName;
     private String lspContactEmail;
     private String lspContactNumber;
