@@ -816,18 +816,19 @@ public class LoanDetailsServiceV2 {
             }
             log.info("Creating eligibility for merchant:{}", merchantId);
             return Eligibility.builder()
-              .loanAmount(eligibleLoan.getAmount())
-              .arrangerFee(eligibleLoan.getProcessingFee())
-              .interestRate(eligibleLoan.getRateOfInterest())
-              .repaymentAmount(eligibleLoan.getRepayment())
-              .ediCount(eligibleLoan.getEdiCount())
-              .ediAmount(eligibleLoan.getEdi())
-              .tenure(eligibleLoan.getTenure())
-              .category(eligibleLoan.getCategory())
-              .loanType(eligibleLoan.getLoanType())
-              .clubV2Amount(eligibleLoan.getClubV2Amount())
+                    .loanAmount(eligibleLoan.getAmount())
+                    .arrangerFee(eligibleLoan.getProcessingFee())
+                    .interestRate(eligibleLoan.getRateOfInterest())
+                    .initialRoi(eligibleLoan.getInitialRoi())
+                    .repaymentAmount(eligibleLoan.getRepayment())
+                    .ediCount(eligibleLoan.getEdiCount())
+                    .ediAmount(eligibleLoan.getEdi())
+                    .tenure(eligibleLoan.getTenure())
+                    .category(eligibleLoan.getCategory())
+                    .loanType(eligibleLoan.getLoanType())
+                    .clubV2Amount(eligibleLoan.getClubV2Amount())
                     .uniqueKey(eligibleLoan.getId())
-              .build();
+                    .build();
         } catch (Exception e) {
             log.error("Exception in createEligibility for merchant:{}", merchantId, e);
         }

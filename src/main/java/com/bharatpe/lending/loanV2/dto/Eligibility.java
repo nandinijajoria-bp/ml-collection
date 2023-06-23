@@ -13,6 +13,7 @@ public class Eligibility {
     private Double loanAmount;
     private Integer arrangerFee;
     private Double interestRate;
+    private Double initialRoi;
     private Integer repaymentAmount;
     private Integer ediCount;
     private Integer ediAmount;
