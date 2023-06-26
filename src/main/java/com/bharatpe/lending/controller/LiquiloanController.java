@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LiquiloansDirectDisbursalRawResponseDao;
 import com.bharatpe.lending.common.entity.LendingTlDetails;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -132,5 +133,10 @@ public class LiquiloanController {
 		}catch(Exception ex){
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage() + Arrays.asList(ex.getStackTrace()));
 		}
+	}
+
+	@RequestMapping(value="backdated/loan",method=RequestMethod.POST)
+	public ResponseEntity<?> backdateLoan(@RequestBody BackdatedLoanDTO backdatedLoanDTO) {
+		return ResponseEntity.ok(new ApiResponse<>(liquilaonService.createBackDatedLoan(backdatedLoanDTO)));
 	}
 }
