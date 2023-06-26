@@ -323,7 +323,7 @@ public class MerchantLoansService {
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                     }
                     Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
-                    if (loanDpd.get().getDpd()<3)
+                    if (loanDpd.isPresent() && loanDpd.get().getDpd()<3)
                         loan.setAutoPayEligibility(true);
                     else
                         loan.setAutoPayEligibility(Boolean.FALSE);
