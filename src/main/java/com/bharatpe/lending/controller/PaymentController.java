@@ -35,12 +35,14 @@ public class PaymentController {
     public ResponseEntity<InitiatePaymentResponseDTO> initiatePaymentV2(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {
         return new ResponseEntity<>(paymentService.initiatePaymentV2(merchant, requestDTO), HttpStatus.OK);
     }
-    
+
+    //for nach
     @RequestMapping(value="/callback", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
     public ResponseEntity<String> callback(@RequestBody PaymentCallbackRequestDTO requestDTO) {
     	return new ResponseEntity<>(paymentService.handleCallback(requestDTO), HttpStatus.OK);
     }
 
+    //normal txn
     @RequestMapping(value="/callback/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
     public ResponseEntity<String> callbackV2(@RequestBody PgPaymentCallbackDTO requestDTO) {
         return new ResponseEntity<>(paymentService.handlePgCallback(requestDTO), HttpStatus.OK);

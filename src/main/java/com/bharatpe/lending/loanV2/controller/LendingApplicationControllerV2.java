@@ -3,10 +3,12 @@ package com.bharatpe.lending.loanV2.controller;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.RequestCallbackDto;
 import com.bharatpe.lending.dto.Response;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.TncDto;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.ArcSoldLoanService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,10 +21,14 @@ import java.util.Objects;
 @RestController
 @RequestMapping("lending")
 @Slf4j
+//lendingapplication Creation
 public class LendingApplicationControllerV2 {
 
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    ArcSoldLoanService arcSoldLoanService;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -72,9 +78,9 @@ public class LendingApplicationControllerV2 {
     }
 
     @GetMapping(value = "/application/resubmitDone")
-    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestHeader("token") String token,@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant){
+    public ResponseEntity<ApiResponse<?>> resubmitDone(@RequestHeader("token") String token,@RequestParam Long applicationId, @RequestParam String resubmitReason, @RequestAttribute BasicDetailsDto merchant){
         log.info("Lending application resubmit done merchantId:{} for applicationId:{}",merchant.getId(),applicationId);
-        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId);
+        ApiResponse<?> response = lendingApplicationServiceV2.resubmitDone(merchant.getId(),applicationId, resubmitReason, merchant.getMid());
         log.info("Lending Resubmit done Application Response:{} for applicationId:{}",response,applicationId);
         return ResponseEntity.ok(response);
     }
@@ -126,5 +132,11 @@ public class LendingApplicationControllerV2 {
         log.info("Fetching Aadhaar Address for applicationId {} and merchantId {}", applicationId, merchant.getId());
         ApiResponse<?> response = lendingApplicationServiceV2.getAadhaarAddress(merchant, applicationId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping(value = "/getArcCommLetter", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseDTO getArcCommLetter(@RequestParam Long loanId, @RequestAttribute BasicDetailsDto merchant) {
+        log.info("Fetching getArcCommLetter for loanId {} and merchantId {}", loanId, merchant.getId());
+        return arcSoldLoanService.getArcCommunicationLetterUrl(loanId, merchant);
     }
 }

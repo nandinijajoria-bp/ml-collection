@@ -1,0 +1,15 @@
+package com.bharatpe.lending.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+public class ArcCommunicationRequestDTO {
+    Long lpsId;
+    String mobile;
+}

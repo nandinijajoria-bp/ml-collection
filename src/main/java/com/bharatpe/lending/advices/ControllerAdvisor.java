@@ -4,7 +4,6 @@ package com.bharatpe.lending.advices;
 import com.bharatpe.lending.controller.AutoPayUPIController;
 import com.bharatpe.lending.dto.Response;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
-import com.bharatpe.lending.exceptions.ResponseNotSuccessException;
 import com.bharatpe.lending.exceptions.UnauthorizedUserException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -59,12 +58,4 @@ public class ControllerAdvisor {
                 BAD_REQUEST);
     }
 
-    @ExceptionHandler(ResponseNotSuccessException.class)
-    public ResponseEntity<Map<String, String>> handleResponseNotFoundException(ResponseNotSuccessException exception) {
-        log.error("[RESPONSE NOT FOUND EXCEPTION] occurred", exception);
-        Map<String, String> response = new HashMap<>();
-        response.put("message", exception.getMessage());
-
-        return new ResponseEntity<>(response, NOT_FOUND);
-    }
 }

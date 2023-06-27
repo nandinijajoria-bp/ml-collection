@@ -5,6 +5,9 @@ public enum AutoPayStatusEnum {
     PENDING,
     SUCCESS,
     FAILED,
-    CANCELLED;
+    ACTIVE,
+    CANCELLED,
+    FAILURE
+
 
 }

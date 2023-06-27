@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.*;
 
@@ -65,8 +66,8 @@ public class LoanDetailsController {
 	MerchantService merchantService;
 
 //	 for testing - to be removed in future
-	@Value("${lending.edi.model:7}")
-	Integer lendingEdiModel;
+@Value("${lending.edi.model:7}")
+Integer lendingEdiModel;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestAttribute(required = false) String clientIp
@@ -201,7 +202,7 @@ public class LoanDetailsController {
 	@RequestMapping(value = "/eligible_offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<EligibleLendingOffersResponseDTO> getEligibleOfferDetails(@RequestAttribute BasicDetailsDto merchant,
 																					@RequestParam(name = "query_amount", required = true) Double queryAmount,
-																					@RequestParam(name = "edi_model", required = false) Integer ediModel) {
+																					@RequestParam(name = "edi_model", required = false) Integer ediModel) throws BureauCallMaskedApiException {
 		ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
 		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}", merchant.getId(), queryAmount, ediModel);
 		EligibleLendingOffersResponseDTO resp = loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount,ediModel);

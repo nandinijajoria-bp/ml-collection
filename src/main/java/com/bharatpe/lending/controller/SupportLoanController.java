@@ -5,10 +5,12 @@ import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.ArcCommunicationRequestDTO;
 import com.bharatpe.lending.dto.ComputeEligibilityRequestDto;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.dto.SupportResponseDTO;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.service.ArcSoldLoanService;
 import com.bharatpe.lending.service.FLDGReportService;
 import com.bharatpe.lending.service.SupportService;
 import org.slf4j.Logger;
@@ -37,6 +39,9 @@ public class SupportLoanController {
 
     @Autowired
     FLDGReportService fldgReportService;
+
+    @Autowired
+    ArcSoldLoanService arcSoldLoanService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -107,6 +112,12 @@ public class SupportLoanController {
     public ResponseDTO computeEligibility(@RequestBody ComputeEligibilityRequestDto request) {
         logger.info("Start computing eligibility");
         return supportService.computeEligibility(request);
+    }
+
+    @RequestMapping(value = "/sendArcCommunication", method = RequestMethod.POST)
+    public ResponseDTO sendArcCommunication(@RequestBody ArcCommunicationRequestDTO requestDTO)  {
+        logger.info("sendArcCommunication request : {}", requestDTO);
+        return arcSoldLoanService.sendArcCommunication(requestDTO.getLpsId(), requestDTO.getMobile(), null);
     }
 }
 

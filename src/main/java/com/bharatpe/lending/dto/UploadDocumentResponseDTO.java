@@ -15,6 +15,17 @@ public class UploadDocumentResponseDTO {
     @JsonProperty("selected_loan")
     Map<String, Object> selectedLoan;
 
+    private boolean isSidGreaterThanRequired = false;
+
+    @JsonProperty("is_sid_greater_than_required")
+    public boolean isSidGreaterThanRequired() {
+        return isSidGreaterThanRequired;
+    }
+
+    public void setSidGreaterThanRequired(boolean sidGreaterThanRequired) {
+        isSidGreaterThanRequired = sidGreaterThanRequired;
+    }
+
     public Boolean getSuccess() {
         return success;
     }

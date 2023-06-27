@@ -139,6 +139,7 @@ public class LendingMerchantLoansResponseDTO {
         private String status;
         private Boolean autoPayEligibility;
         private String autoPayMandateStatus;
+        private String mandateRegisterId;
         private Double paidAmount;
         private Double lastEdiPaid;
         private Double repaymentAmount;
@@ -156,7 +157,9 @@ public class LendingMerchantLoansResponseDTO {
 
         public Loan(Long applicationId,Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
-                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,Integer ediCount, String lender, String settlementStatus) {
+                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,
+                    Integer ediCount, String lender, String settlementStatus) {
+            this.applicationId = applicationId;
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -550,9 +553,9 @@ public class LendingMerchantLoansResponseDTO {
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         String lender = lendingPaymentSchedule.getNbfc();
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
-        Long applicationId=lendingPaymentSchedule.getApplicationId();
-        return new Loan(applicationId,lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount(),lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
+        Long applicationId = lendingPaymentSchedule.getApplicationId();
+        return new Loan(applicationId, lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
     }
 
     public boolean getSuccess() {

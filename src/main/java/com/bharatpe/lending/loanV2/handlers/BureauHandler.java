@@ -68,4 +68,42 @@ public class BureauHandler {
         }
         return null;
     }
+
+    public BureauResponseDTO getMaskedMobileNos(String pancard, Long merchantId, String mobile, String stageOneHitId, String stageTwoHitId) {
+        try {
+            log.info("Fetching Masked Mobile nos for merchant:{} with mobile: {}",merchantId, mobile);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("mobile",mobile);
+            log.info("mobile number fetched");
+            Map<String, String> merchantName = apiGatewayService.getFirstLastName(merchantId, pancard);
+            requestBody.put("first_name",merchantName.get("firstName"));
+            requestBody.put("last_name",merchantName.get("lastName"));
+            requestBody.put("stage_one_hit_id",stageOneHitId);
+            requestBody.put("stage_two_hit_id",stageTwoHitId);
+            if (!StringUtils.isEmpty(pancard)) {
+                requestBody.put("pancard", pancard);
+            }
+            log.info("Request body created");
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            final String url = BUREAU_BASE_URL+ "/bureau/fetchMaskedMobileNos";
+            log.info("Request: {} to fetch Masked mobile nos for phone: {} and pancard: {} using fetch bureau response", request, mobile, pancard);
+
+            ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+            BureauResponseDTO bureauResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(responseEntity.getBody().getData()), BureauResponseDTO.class);
+            log.info("bureauResponse:{}",bureauResponseDTO);
+            return bureauResponseDTO;
+        } catch (HttpServerErrorException
+                  | HttpClientErrorException
+                  | ResourceAccessException exception) {
+            log.info("exception while fetch bureau :{} {}", exception.getMessage(), exception);
+        } catch (IOException exception) {
+            log.error("Error occurred while parsing json: {} {}", exception.getMessage(), exception);
+        }
+        return null;
+    }
 }

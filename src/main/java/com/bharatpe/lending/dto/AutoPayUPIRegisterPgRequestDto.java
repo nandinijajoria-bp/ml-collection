@@ -22,7 +22,7 @@ public class AutoPayUPIRegisterPgRequestDto {
     private String orderType;
 	private Long customerId;
 	private Long customerSubId;
-	private LocalDate mandateStartDate;
+	private Long mandateStartDate;
 	private Long mandateEndDate;
 
 }

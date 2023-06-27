@@ -40,15 +40,17 @@ public interface KfsConstants {
 
     String LSP_CONTACT_NAME = "Mr. Ankit Parnami";
     String LSP_CONTACT_EMAIL = "nodalofficer@bharatpe.com";
-    String LSP_CONTACT_NUMBER = "8851681932";
+    String LSP_CONTACT_NUMBER = "+91-7289000552";
 
     Double PROCESSING_FEE_PERCENTAGE = 2.0;
 
     Integer COOLING_OFF_DAYS = 3;
 
+    Double GST_PERCENTAGE = 18D;
+
     String LENDER_CORPORATE_NAME_ABFL = "Aditya Birla Finance Limited";
     String LENDER_BUSINESS_ADDRESS_ABFL = "Aditya Birla Finance Ltd. (A Subsidiary of Aditya Birla Capital Ltd.), One World Centre, Tower 1-C, 18th Floor, 841 Jupiter Mill Compound, Senapati Bapat Marg, Elphinstone Road, Mumbai - 400013";
-    String LENDER_CONTACT_NAME_ABFL = "Ms. Smita Nadkarni";
+    String LENDER_CONTACT_NAME_ABFL = "Ms. Rachana Padval";
     String LENDER_CONTACT_EMAIL_ABFL = "grievance.finance@adityabirlacapital.com";
     String LENDER_CONTACT_NUMBER_ABFL = "080-45860196";
 }

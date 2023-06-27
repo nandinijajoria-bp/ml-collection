@@ -6,6 +6,9 @@ import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
@@ -30,6 +33,7 @@ import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -86,6 +90,8 @@ import static com.bharatpe.lending.constant.KfsConstants.*;
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
+    @Autowired
+    private LmsStageHistoryDao lmsStageHistoryDao;
 
     @Autowired
     KycHandler kycHandler;
@@ -204,6 +210,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LoanDowngradeConfigDao loanDowngradeConfigDao;
+
+    @Autowired
+    LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
 
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
@@ -445,8 +454,21 @@ public class LendingApplicationServiceV2 {
                         log.info("Application not found for id:{}", applicationRequest.getApplicationId());
                     }
                     lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    if (applicationRequest.getAddressDetails() != null) {
+                        AddressDetails addressDetails = applicationRequest.getAddressDetails();
+                        lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
+                        lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
+                        lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
+                        lendingApplication.setState(!StringUtils.isEmpty(addressDetails.getState()) ? addressDetails.getState() : lendingApplication.getState());
+                        lendingApplication.setShopNumber(!StringUtils.isEmpty(addressDetails.getAddress1()) ?
+                                addressDetails.getAddress1().substring(0, Math.min(addressDetails.getAddress1().length(), 98)) : lendingApplication.getShopNumber());
+                        lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
+                        lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
+                        log.info("shop address updated in lending_application: {}", applicationRequest.getApplicationId());
+                    }
+
                     lendingApplicationDao.save(lendingApplication);
-                    log.info("Application Resubmit With Business Name for application id:{}", applicationRequest.getApplicationId());
+                    log.info("Application Resubmit With Business Name, Shop Address for application id:{}", applicationRequest.getApplicationId());
                     return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
                 }
                 log.info("Draft application not found for id:{}", applicationRequest.getApplicationId());
@@ -577,7 +599,8 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+        lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
+                EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
 
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
@@ -676,7 +699,6 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
-
     public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
         try {
             return !(!ObjectUtils.isEmpty(applicationRequest.getAddressDetails()) &&
@@ -903,19 +925,28 @@ public class LendingApplicationServiceV2 {
                 applicationDTO2.setDateDTO(dateDTO);
                 applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchantBasicDetailsDto.getId())) {
-                applicationDTO2.setStatus("PENDING");
-                applicationDTO2.setText("e-NACH Pending");
-                applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
-                ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
-                buttonContextDTO.setAction("Enach");
-                buttonContextDTO.setText("Do eNACH");
-                if (BooleanUtils.isTrue(isIOS)) {
-                    buttonContextDTO.setDeeplink("bharatpe://enachtp");
-                } else {
-                    buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId()));
+                if("PENDING_VERIFICATION".equalsIgnoreCase(lendingApplication.getNachStatus())){
+                    applicationDTO2.setStatus("PENDING_VERIFICATION");
+                    applicationDTO2.setText("e-NACH Verification Pending");
+                    applicationDTO2.setButtonContextDTO(null);
+                    applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
+                    applicationDTO.add(applicationDTO2);
                 }
-                applicationDTO2.setButtonContextDTO(buttonContextDTO);
-                applicationDTO.add(applicationDTO2);
+                else{
+                    applicationDTO2.setStatus("PENDING");
+                    applicationDTO2.setText("e-NACH Pending");
+                    applicationDTO2.setComment("Register eNACH for Instant Loan Approval. Get Rs100 cashback");
+                    ApplicationDTO.ButtonContextDTO buttonContextDTO = new ApplicationDTO.ButtonContextDTO();
+                    buttonContextDTO.setAction("Enach");
+                    buttonContextDTO.setText("Do eNACH");
+                    if (BooleanUtils.isTrue(isIOS)) {
+                        buttonContextDTO.setDeeplink("bharatpe://enachtp");
+                    } else {
+                        buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId()));
+                    }
+                    applicationDTO2.setButtonContextDTO(buttonContextDTO);
+                    applicationDTO.add(applicationDTO2);
+                }
             }
             boolean enachMandatory = true; //TODO when enach skip is true then uncomment below code
             boolean enachSkipped = loanUtil.isNachSkipped(merchantBasicDetailsDto.getId(), lendingApplication.getId());
@@ -1067,8 +1098,14 @@ public class LendingApplicationServiceV2 {
             ApplicationStatusResponseDTO.HeaderDTO headerDTO = new ApplicationStatusResponseDTO.HeaderDTO();
             if (successEnach == null && ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 if(!"APPROVED".equals(lendingApplication.getNachStatus())) {
-                    headerDTO.setTitle("Bank A/c Linking Pending");
-                    headerDTO.setComment("Complete eNACH to process you loan");
+                    if("PENDING_VERIFICATION".equalsIgnoreCase(lendingApplication.getNachStatus())){
+                        headerDTO.setTitle("eNach Verification Pending");
+                        headerDTO.setComment("We are verifying your eNach application");
+                    }
+                    else{
+                        headerDTO.setTitle("Bank A/c Linking Pending");
+                        headerDTO.setComment("Complete eNACH to process you loan");
+                    }
                 }
             } else if (lendingApplication.getCkycStatus() != null && lendingApplication.getCkycStatus().equalsIgnoreCase(KycStatus.PENDING.name())) {
                 headerDTO.setTitle("KYC Verification Pending");
@@ -1426,6 +1463,16 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false,"Request is Invalid.");
             }
             LendingApplication lendingApplication = lendingApplicationDao.findById(resubmitApplicationDTO.getApplicationId()).get();
+            if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT)){
+                MerchantDetailsDto merchantDetailsDTO =  merchantService.fetchMerchantDetails(resubmitApplicationDTO.getMerchantId(), Collections.singletonList(Constants.MerchantUtil.Scope.MERCHANT_USER));
+                BasicDetailsDto basicDetailsDto = merchantDetailsDTO.getMerchantDetail();
+                if (!ObjectUtils.isEmpty(basicDetailsDto) && !ObjectUtils.isEmpty(basicDetailsDto.getMid())) {
+                    HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                        put("resubmitReason", resubmitApplicationDTO.getResubmitReason());
+                    }};
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_INITIATED.name(), cleverTapEvtData, basicDetailsDto.getMid()));
+                }
+            }
             if(resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT) && !"pending_verification".equalsIgnoreCase(lendingApplication.getStatus())){
                 return new ApiResponse<>(false,"application Not Eligible for resubmited");
             }
@@ -1602,7 +1649,7 @@ public class LendingApplicationServiceV2 {
         return (int)(limit/1000) * 1000;
     }
 
-    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId){
+    public ApiResponse<?> resubmitDone(Long merchantId,Long applicationId, String resubmitReasons, String mid){
         try{
             if(Objects.isNull(merchantId) || Objects.isNull(applicationId)){
                 return new ApiResponse<>(false,"Request is Invalid.");
@@ -1617,31 +1664,66 @@ public class LendingApplicationServiceV2 {
             if(Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone()){
                 return new ApiResponse<>(false,"Already Resubmit Done For ApplicationId");
             }
-            lendingResubmitTask.setResubmitDone(Boolean.TRUE);
-            lendingResubmitTask.setResubmittedAt(new Date());
-            lendingResubmitTaskDao.save(lendingResubmitTask);
 
-            lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
-            lendingApplicationDao.save(lendingApplication);
-
-            // update tat start time on resubmit
-            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
-            if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
-                lendingApplicationPriority.setTatStartTime(new Date());
-                lendingApplicationPriorityDao.save(lendingApplicationPriority);
+            List<LendingResubmitReasonCount> lendingResubmitReasonCountList = lendingResubmitReasonCountDao.findByApplicationIdAndMerchantId(applicationId, merchantId);
+            if(ObjectUtils.isEmpty(lendingResubmitReasonCountList)){
+                return new ApiResponse<>(false,"Unable to fetch resubmit reason entry.");
+            }
+            Boolean resubmitCompleted = true;
+            List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
+            Integer maxCount = -1;
+            for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                if(lendingResubmitReasonCount.getResubmitCount() > maxCount)maxCount = lendingResubmitReasonCount.getResubmitCount();
+            }
+            for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
+                if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
+                for(String resubmitReason : resubmitReasonList){
+                    if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
+                        lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
+                        lendingResubmitReasonCount.setResubmittedAt(new Date());
+                        lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
+                        funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
+                                FunnelEnums.StageEvent.COMPLETED, resubmitReason);
+                    }
+                }
+                resubmitCompleted = resubmitCompleted && lendingResubmitReasonCount.getResubmitDone();
             }
 
-            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-            lendingAuditTrial.setApplicationId(lendingApplication.getId());
-            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
-            lendingAuditTrial.setType("APP_STATUS");
-            lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
-            lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
-            lendingAuditTrial.setUserId(0L);
-            lendingAuditTrialDao.save(lendingAuditTrial);
-            loanUtil.publishDSData(lendingApplication);
+            if(resubmitCompleted){
+                lendingResubmitTask.setResubmitDone(Boolean.TRUE);
+                lendingResubmitTask.setResubmittedAt(new Date());
+                lendingResubmitTaskDao.save(lendingResubmitTask);
 
+                lendingApplication.setLmsStage("PENDING_KYC_ASSIGNMENT");
+                lendingApplicationDao.save(lendingApplication);
+
+                // update tat start time on resubmit
+                LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
+                if (!ObjectUtils.isEmpty(lendingApplicationPriority)) {
+                    lendingApplicationPriority.setTatStartTime(new Date());
+                    lendingApplicationPriorityDao.save(lendingApplicationPriority);
+                }
+
+                funnelService.submitEvent(merchantId, null, applicationId, FunnelEnums.StageId.RESUBMIT,
+                        FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                Integer finalMaxCount = maxCount;
+                HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                    put("resubmitReason", lendingResubmitTask.getResubmitReason());
+                    put("resubmitCount", finalMaxCount.toString());
+                }};
+                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_COMPLETED.name(), cleverTapEvtData, mid));
+                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+                lendingAuditTrial.setApplicationId(lendingApplication.getId());
+                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+                lendingAuditTrial.setType("APP_STATUS");
+                lendingAuditTrial.setNewStatus("RESUBMIT_DONE");
+                lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+                lendingAuditTrial.setUserId(0L);
+                lendingAuditTrialDao.save(lendingAuditTrial);
+                loanUtil.publishDSData(lendingApplication);
+            }
+            evictCache(merchantId);
             return new ApiResponse<>(true,"Resubmit Done Succesfully.");
         }catch (Exception e){
             log.error("Exception in resubmit Done for application:{}", applicationId, e);
@@ -1857,6 +1939,7 @@ public class LendingApplicationServiceV2 {
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
                     .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeePercentageWithoutGst(Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee()*100D/(100D + GST_PERCENTAGE))/(lendingApplication.getLoanAmount()) * 100)))
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
                     .repaymentAmount(lendingApplication.getRepayment())
@@ -2149,6 +2232,7 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
         data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
         data.put("processing_percentage", kfsDto.getProcessingFeePercentage());
+        data.put("processing_percentage_without_gst", kfsDto.getProcessingFeePercentageWithoutGst());
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
@@ -2178,7 +2262,7 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
-        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentage()+"% of the loan Amount i.e. ");
+        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = getRepaymentSchedule(applicationId, merchant);
         if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
@@ -2240,20 +2324,24 @@ public class LendingApplicationServiceV2 {
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding_1.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.WELCOME_LETTER_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-welcome.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString())){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead.png";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-compressed.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-compressed_1.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.KEY_FACTS_STATEMENT_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/Lenden.png";
+        } else if (lender.equalsIgnoreCase(Lender.HINDON.name()) && applicationDocType.equals(ApplicationDocType.HINDON_LETTERHEAD_HEADER)) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/hindon_letterhead-1681130033877.png";
+        } else if (lender.equalsIgnoreCase(Lender.HINDON.name()) && applicationDocType.equals(ApplicationDocType.HINDON_LETTERHEAD_FOOTER)) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/hindon_footer-1681129971473.png";
         }
         else if(lender.equalsIgnoreCase(Lender.MAMTA.toString())
           || lender.equalsIgnoreCase(Lender.MAMTA0.toString())

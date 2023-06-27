@@ -9,17 +9,27 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.RiskSegment;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,9 +74,33 @@ public class ImageURLService {
 	@Autowired
 	MerchantService merchantService;
 
+	@Autowired
+	DsHandler dsHandler;
+
+	@Autowired
+	LoanUtil loanUtil;
+
+	@Autowired
+	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+	@Autowired
+	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+	@Autowired
+	FunnelService funnelService;
+
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
+
 	@Value("${aws.s3.bucket}")
 	private String bucket;
-	
+
+	@Value("${sid.threshold}")
+	Double sidThreshold;
+
+	@Value("${sid.rollout.percent}")
+	Integer sidRolloutPercent;
+
 	public Map<String, Object> fetchAndWrapResult(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> result = new HashMap<String, Object>();
 		Map<String, String> panNameCheck = new HashMap<>();
@@ -177,11 +211,12 @@ public class ImageURLService {
 			return false;
 		}
 	}
-	
+
 	public List<Map<String, Object>> fetchImageUrl(BasicDetailsDto merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
 		List<Map<String, Object>> finalResponse = new ArrayList<>();
 		List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
 		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
 		String shopDocType = ObjectUtils.isEmpty(commonAPIRequest.getPayload().get("shop_doc_type")) ? null : commonAPIRequest.getPayload().get("shop_doc_type").toString();
 		for(DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
@@ -215,7 +250,37 @@ public class ImageURLService {
 			finalResponse.add(proof);
 		}
 
-		if(lendingShopDocumentsList != null){
+		if(!ObjectUtils.isEmpty(lendingShopDocumentsList)){
+
+			Boolean skipDistanceCheck = false;
+
+			LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+			if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+				lendingApplicationDetails = new LendingApplicationDetails();
+				lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+				lendingApplicationDetailsDao.save(lendingApplicationDetails);
+			}
+
+			if (!ObjectUtils.isEmpty(lendingApplicationDetails.getSkipDistanceCheck())) {
+				skipDistanceCheck = lendingApplicationDetails.getSkipDistanceCheck();
+			} else if (ObjectUtils.isEmpty(lendingApplicationDetails.getSkipDistanceCheck()) && !ObjectUtils.isEmpty(commonAPIRequest.getPayload().get("skip_distance_check"))) {
+				skipDistanceCheck = Boolean.valueOf(commonAPIRequest.getPayload().get("skip_distance_check").toString());
+				lendingApplicationDetails.setSkipDistanceCheck(skipDistanceCheck);
+				lendingApplicationDetailsDao.save(lendingApplicationDetails);
+
+				funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED, String.valueOf(skipDistanceCheck));
+			}
+
+			Double distanceBetweenShopAndInferredLocation = null;
+
+			skipDistanceCheck = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent) ? skipDistanceCheck : true;
+
+			if (!skipDistanceCheck) {
+				distanceBetweenShopAndInferredLocation = calculateDistanceBetweenInferredLocationAndShopDocumentLocation(lendingShopDocumentsList.get(0),
+						merchant.getId());
+			}
+
 			for(LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList){
 				Map<String, Object> moreDocument = new LinkedHashMap<>();
 				moreDocument.put("proof_type",lendingShopDocuments.getProofType());
@@ -226,6 +291,24 @@ public class ImageURLService {
 					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide()) || (!StringUtils.isEmpty(shopDocType) && !shopDocType.contains(lendingShopDocuments.getProofType()))) {
 						continue;
 					}
+
+					// if the distance between the inferred location and where the image is uploaded from is more than 2.5KM then don't return the images for repeat loans
+					if (!skipDistanceCheck) {
+						logger.info("Applying distance check for applicationId : {} where distance id : {}", lendingApplication.getId(), distanceBetweenShopAndInferredLocation);
+						if (!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
+							if (distanceBetweenShopAndInferredLocation != null && distanceBetweenShopAndInferredLocation > sidThreshold){
+								//removing old existing shop links.
+								lendingShopDocuments.setProofFrontSide(null);
+								lendingShopDocuments.setProofBackSide(null);
+								lendingShopDocumentsDao.save(lendingShopDocuments);
+
+								funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+										FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation));
+								continue;
+							}
+						}
+					}
+
 					String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);
 					imageURL.add(frontURL);
 
@@ -246,5 +329,33 @@ public class ImageURLService {
 
 		finalResponse.sort(Comparator.comparing(o -> ((Date) o.get("updated_at"))));
 		return finalResponse;
+	}
+
+	public Double calculateDistanceBetweenInferredLocationAndShopDocumentLocation(LendingShopDocuments lendingShopDocuments, Long merchantId){
+		logger.info("Calculating shop inferred distance for merchant:{}", merchantId);
+		try{
+			// send more than 2500 for internal merchant
+			if(loanUtil.isInternalMerchant(merchantId)){
+				return 3000D;
+			}
+			Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
+			if(ObjectUtils.isEmpty(lendingShopDocuments) || ObjectUtils.isEmpty(lendingShopDocuments.getLatitude()) || ObjectUtils.isEmpty(lendingShopDocuments.getLongitude()) || ObjectUtils.isEmpty(dsResponse)
+					|| !dsResponse.containsKey("latitude") || ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") || ObjectUtils.isEmpty(dsResponse.get("longitude"))){
+				return null;
+			}
+			Double lat1 = Double.valueOf(lendingShopDocuments.getLatitude());
+			Double lon1 = Double.valueOf(lendingShopDocuments.getLongitude());
+			Double lat2 = dsResponse.get("latitude");
+			Double lon2 = dsResponse.get("longitude");
+
+			Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
+			logger.info("SID:{} for merchantId : {}", inferredDistance, merchantId);
+
+			return (inferredDistance == -1D) ? null : inferredDistance;
+
+		}catch (Exception ex){
+			logger.error("Exception occurred while calculating inferred distance for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+		}
+		return null;
 	}
 }

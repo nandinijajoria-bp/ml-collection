@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.AutoPayUPI;
@@ -25,6 +26,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,12 +35,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class MerchantLoansService {
 
     private Logger logger = LoggerFactory.getLogger(MerchantLoansService.class);
@@ -110,6 +118,12 @@ public class MerchantLoansService {
     @Value("${due.amount.caching.window:60}")
     int dueAmountCachingWindow;
 
+    @Value("${cc.due.amount.caching.window:60}")
+    int ccDueAmountCachingWindow;
+
+    @Value("${gold.loan.due.amount.caching.window:60}")
+    int goldLoanDueAmountCachingWindow;
+
     @Autowired
     LoanDetailsServiceV2 loanDetailsServiceV2;
 
@@ -133,6 +147,9 @@ public class MerchantLoansService {
 
     @Value("${whitelisted.topup.lenders}")
     String topupLenders;
+
+    @Value(("${pilot.test.enabled:true}"))
+    Boolean pilotTestEnabled;
 
     @Autowired
     LmsFieldValuesDao lmsFieldValuesDao;
@@ -276,6 +293,38 @@ public class MerchantLoansService {
     }
 
 
+    public long calculateTimeDiff(Date createdMandateDate) {
+        log.info("createdMandateDate is {}", createdMandateDate);
+        SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
+        long diffMinutes=0l;
+        Date date = new Date();
+        log.info("date is {}", date);
+        format.format(date);
+        String currentDateTime = format.format(date);
+
+        Date d1 = null;
+        try {
+            d1 = format.parse((currentDateTime));
+
+            log.info("d1 {}", d1);
+            long diff;
+            diff = createdMandateDate.getTime() - d1.getTime();
+            if (diff<0)
+            {
+                diff = Math.abs(diff);
+            }
+            log.info("diff is {}", diff);
+            diffMinutes = diff / (60 * 1000);
+            log.info("diff minutes is {}", diffMinutes);
+            return diffMinutes;
+
+        }
+        catch (ParseException e) {
+            log.error("e is {}", e);
+        }
+        return diffMinutes;
+    }
+
     public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
@@ -318,11 +367,26 @@ public class MerchantLoansService {
                         loan.setPresentmentAmount(amount);
                     }
 
-                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findByMerchantIdAndApplicationId(merchantId,loan.getLoanId());
+                    log.info("loan application id is loan.getApplicationId{}", loan.getApplicationId());
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, loan.getApplicationId());
                     if (autoPayUPI.isPresent()) {
+                        if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING))
+                        {
+                            Date createdMandateDate = autoPayUPI.get().getCreatedAt();
+                            long diffMinutes = calculateTimeDiff(createdMandateDate);
+                            log.info("diffMinutes is {}", diffMinutes);
+                            if (diffMinutes >= 30L) {
+                                autoPayUPI.get().setStatus(AutoPayStatusEnum.FAILED);
+                                autoPayUPIDao.save(autoPayUPI.get());
+                                log.info("status for mandate register marked as failed for merchant id {} application id {}",
+                                        autoPayUPI.get().getMerchantId(), autoPayUPI.get().getApplicationId());
+                            }
+                        }
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
+                        loan.setMandateRegisterId(autoPayUPI.get().getOrderId());
                     }
-                    Optional<LoanDpd> loanDpd = loanDpdDao.findByLoanId(loan.getLoanId());
+
+                    Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
                     if (loanDpd.isPresent() && loanDpd.get().getDpd()<3)
                         loan.setAutoPayEligibility(true);
                     else
@@ -592,7 +656,17 @@ public class MerchantLoansService {
         return loanUtil.isInternalMerchant(merchantId);
     }
 
+    private boolean derogTopUpEnable(Long merchantId) {
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        logger.info("DEROG_EFFECTED_MERCHANT_FLOW: merchant_id: {} application_id: {} type: {}", merchantId, lendingApplication.getId(), lendingApplication.getLoanType());
+        return !LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
+    }
+
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
+        List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
+        if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
+            return derogTestEligibility(lendingPaymentSchedule);
+        }
 
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         LendingApplication lendingApplication =
@@ -643,8 +717,8 @@ public class MerchantLoansService {
                 }
 
                 BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
-                if (maxDpd.intValue() > 15) {
-                    logger.info("Merchant Dpd Greater than 15 merchant:{}", lendingPaymentSchedule.getMerchantId());
+                if (maxDpd.intValue() > 30) {
+                    logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
@@ -862,11 +936,16 @@ public class MerchantLoansService {
                 dueAmount += activeLoan.getDueAmount();
             }
         }
-        Double creditCardDueAmount = apiGatewayService.getCreditCardDueAmount(basicDetailsDto.getId());
-        Double goldLoanDueAmount = apiGatewayService.getGoldLoanDueAmount(basicDetailsDto.getId());
+
+        Double creditCardDueAmount = getCreditCardDueAmount(basicDetailsDto, merchantStoreId);
+
+        Double goldLoanDueAmount = getGoldLoanDueAmount(basicDetailsDto, merchantStoreId);
+
+        logger.info("dueAmount : {}, creditCardDueAmount : {}, goldLoanDueAmount : {} for merchantId : {}", dueAmount, creditCardDueAmount, goldLoanDueAmount, basicDetailsDto.getId());
+
         dueAmount += creditCardDueAmount + goldLoanDueAmount;
         responseMap.put("due_amount", dueAmount);
-        cacheDueAmtData(dueAmount,dueAmountCacheKey,dueAmountCachingWindow);
+        cacheDueAmtData(dueAmount,dueAmountCacheKey, dueAmountCachingWindow);
         return new CommonResponse(responseMap);
     }
 
@@ -880,6 +959,48 @@ public class MerchantLoansService {
         } catch (Exception e) {
             logger.error("exception occured while caching loan details for {} !!", key);
         }
+    }
+
+    private Double getCreditCardDueAmount(BasicDetailsDto basicDetailsDto, Long merchantStoreId) {
+        Double creditCardDueAmount = null;
+        String ccDueAmountCacheKey = "CC_DUE_AMT_" + basicDetailsDto.getId() + (ObjectUtils.isEmpty(merchantStoreId) ? "" : ("_" + merchantStoreId));
+        try {
+            Object ccDueAmountCached = lendingCache.get(ccDueAmountCacheKey);
+            if (!ObjectUtils.isEmpty(ccDueAmountCached)) {
+                creditCardDueAmount = (Double) ccDueAmountCached;
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while retrieving creditCardDueAmount from redis for: {} {}", basicDetailsDto.getId(), Arrays.asList(e.getStackTrace()));
+        }
+
+        if (ObjectUtils.isEmpty(creditCardDueAmount)) {
+            logger.info("fetching creditCardDueAmount from api for merchantId {} and merchantStoreId {}", basicDetailsDto.getId(),  merchantStoreId);
+            creditCardDueAmount = apiGatewayService.getCreditCardDueAmount(basicDetailsDto.getId());
+            logger.info("creditCardDueAmount from api for merchantId {} and merchantStoreId {} is {}", basicDetailsDto.getId(),  merchantStoreId, creditCardDueAmount);
+            cacheDueAmtData(creditCardDueAmount, ccDueAmountCacheKey, ccDueAmountCachingWindow);
+        }
+        return creditCardDueAmount;
+    }
+
+    private Double getGoldLoanDueAmount(BasicDetailsDto basicDetailsDto, Long merchantStoreId) {
+        Double goldLoanDueAmount = null;
+        String goldLoanDueAmountCacheKey = "GOLD_LOAN_DUE_AMT_" + basicDetailsDto.getId() + (ObjectUtils.isEmpty(merchantStoreId) ? "" : ("_" + merchantStoreId));
+        try {
+            Object goldLoanDueAmountCached = lendingCache.get(goldLoanDueAmountCacheKey);
+            if (!ObjectUtils.isEmpty(goldLoanDueAmountCached)) {
+                goldLoanDueAmount = (Double) goldLoanDueAmountCached;
+            }
+        } catch (Exception e) {
+            logger.error("exception occurred while retrieving goldLoanDueAmount from redis for: {} {}", basicDetailsDto.getId(), Arrays.asList(e.getStackTrace()));
+        }
+
+        if (ObjectUtils.isEmpty(goldLoanDueAmount)) {
+            logger.info("fetching goldLoanDueAmount from api for merchantId {} and merchantStoreId {}", basicDetailsDto.getId(),  merchantStoreId);
+            goldLoanDueAmount = apiGatewayService.getGoldLoanDueAmount(basicDetailsDto.getId());
+            logger.info("goldLoanDueAmount from api for merchantId {} and merchantStoreId {} is {}", basicDetailsDto.getId(),  merchantStoreId, goldLoanDueAmount);
+            cacheDueAmtData(goldLoanDueAmount, goldLoanDueAmountCacheKey, goldLoanDueAmountCachingWindow);
+        }
+        return goldLoanDueAmount;
     }
 
     public CommonResponse checkMerchant(String mobile, String pancard) {
@@ -932,5 +1053,82 @@ public class MerchantLoansService {
             logger.error("Exception while checking merchant", e);
         }
         return new CommonResponse(false, "merchant not found");
+    }
+
+    private List<LoanEligibilityDTO> derogTestEligibility(LendingPaymentSchedule lendingPaymentSchedule) {
+        List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
+
+        try {
+
+            if(!topupLenders.contains(lendingPaymentSchedule.getNbfc())){
+                logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
+                return eligiblity;
+            }
+
+            Long experianId = null;
+
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+
+            if (ObjectUtils.isEmpty(eligibleLoanList)) {
+                Double eligibleAmount = 0D;
+                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId());
+                if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+                    logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
+                    eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+                }
+                if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                    logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
+                int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+                if (eligibleAmount - posAmount < 10000) {
+                    logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
+                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+                Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
+                experian.setEligibleAmount(eligibleAmount);
+                experian.setLoanType("TOPUP");
+                experianDao.save(experian);
+                experianId = experian.getId();
+            }
+            double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
+            if (!eligibleLoanList.isEmpty()) {
+                Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
+                EligibleLoan eligibleLoan = eligibleLoanList.get(0);
+                logger.info("eligible loan: {}", eligibleLoan);
+                LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+                loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
+                loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
+                loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
+                loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
+                loanEligibilityDTO.setCategory(eligibleLoan.getCategory());
+                loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
+                loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
+                loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
+                loanEligibilityDTO.setConstruct(eligibleLoan.getLoanConstruct());
+                loanEligibilityDTO.setOptionEnable(true);
+                loanEligibilityDTO.setInterestAmount(eligibleLoan.getRepayment() - eligibleLoan.getAmount().intValue());
+                loanEligibilityDTO.setIoEdiCount(eligibleLoan.getIoEdiDays());
+                loanEligibilityDTO.setIoEdi(eligibleLoan.getIoEdi());
+                loanEligibilityDTO.setTenureInMonths(eligibleLoan.getTenureInMonths());
+//              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
+//              loanEligibilityDTO.setType();
+                loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
+                loanEligibilityDTO.setProcessingFee((int)Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
+                loanEligibilityDTO.setLoanType("TOPUP");
+                loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
+                loanEligibilityDTO.setId(eligibleLoan.getId());
+                eligiblity.add(loanEligibilityDTO);
+            }
+
+        } catch (Exception ex) {
+            logger.info("Exception Occured while checking derog test eligibilty for topup");
+        }
+        return eligiblity;
     }
 }
