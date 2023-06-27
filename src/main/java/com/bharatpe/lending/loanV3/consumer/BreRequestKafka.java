@@ -107,13 +107,18 @@ public class BreRequestKafka {
             }
             lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_PENDING.name());
             lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+            if (lendingApplicationLenderDetails.getAnnualRoi() > 50) {
+                log.info("pre rejecting, changing lender as roi > 50, for {}", request);
+                nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
+                return;
+            }
             INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(breRequest.getLender());
             BreApiResponseDto breApiResponseDto = apiGatewayV3.invokeBre(breRequest);
             if (ObjectUtils.isEmpty(breApiResponseDto) ||
                     !breApiResponseDto.getSuccess() ||
                     ObjectUtils.isEmpty(breApiResponseDto.getData()) ||
                     !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(breApiResponseDto.getData().getResponseStatus())
-                    || lendingApplicationLenderDetails.getAnnualRoi() > 50) {
+            ) {
                 log.info("request resulted in bre failure, modifying lender for {}", request);
                 nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
             }
