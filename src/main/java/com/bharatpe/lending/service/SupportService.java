@@ -2135,8 +2135,8 @@ public class SupportService {
                     // below does not generate new loan_agreement/kfs only fetchs from s3 and updates the shorturls in kfs table
                     logger.info("Fetched Loan Agreement from Lending KFS for application id: {}", applicationId);
 
-                    String kfsFileName= KFS_S3_KEY_PREFIX + applicationId;
-                    String sanctionAndLoanAgreementFileName= SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
+                    String kfsFileName= ObjectUtils.isEmpty(lendingKfs.getKfsDocFile()) ? KFS_S3_KEY_PREFIX + applicationId  : lendingKfs.getKfsDocFile();
+                    String sanctionAndLoanAgreementFileName= ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
                     String bucket = "loan-document";
 
                     if (s3BucketHandler.doesS3ObjectExist(kfsFileName, bucket)) {
