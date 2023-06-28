@@ -14,7 +14,6 @@ import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
-import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
@@ -1000,7 +999,7 @@ public class SupportService {
                     if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
                         lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(application.getId(), application.getLender());
                     }
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LenderOffDays.valueOf(lendingPaymentSchedule1.getNbfc()).getEdiModel().name(), refundDetails);
+                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LoanUtil.getEdiModal(application).name(), refundDetails);
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
                     loanDetailsDTO.setRepayment(application.getRepayment());

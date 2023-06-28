@@ -11,8 +11,10 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RiskSegment;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -1461,6 +1463,16 @@ public class LoanUtil {
 			logger.info("exception while reading bankStatement csv file: {} {}", e, e.getMessage());
 		}
 		return merchantList;
+	}
+
+	public static EdiModel getEdiModal(LendingApplication lendingApplication) {
+		return lendingApplication.getPayableDays() % 30 == 0 ?
+				EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL;
+	}
+
+	public static EdiModel getEdiModal(LendingApplicationSlave lendingApplication) {
+		return lendingApplication.getPayableDays() % 30 == 0 ?
+				EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL;
 	}
 
 }

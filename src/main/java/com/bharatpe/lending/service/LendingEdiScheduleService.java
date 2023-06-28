@@ -2,7 +2,7 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.CommonResponse;
@@ -141,10 +141,14 @@ public class LendingEdiScheduleService {
                     cal.setTime(lendingPaymentSchedule.getInterestOnlyStartDate());
                 }
                 while(ioInstallmentNo <= lendingApplication.getIoPayableDays()) {
-                    if(cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {
-                        cal.add(Calendar.DAY_OF_MONTH, 1);
-                        continue;
+                    // skip for sunday for six day modal
+                    if (lendingApplication.getPayableDays() % 30 != 0) {
+                        if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LendingConstants.SIX_DAY_MODEL_OFF_DAY)) {
+                            cal.add(Calendar.DAY_OF_MONTH, 1);
+                            continue;
+                        }
                     }
+
                     EdiScheduleV2DTO currentSchedule = new EdiScheduleV2DTO();
                     currentSchedule.setSerialNumber(installmentNo);
                     currentSchedule.setInterest(lendingApplication.getIoEdi());
@@ -166,9 +170,12 @@ public class LendingEdiScheduleService {
             double reducingInterestRateDaily = Finance.rate(ediCount, lendingApplication.getEdi().intValue(), lendingApplication.getLoanAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
-                if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {
-                    cal.add(Calendar.DAY_OF_MONTH, 1);
-                    continue;
+                // skip for sunday for six day modal
+                if (lendingApplication.getPayableDays() % 30 != 0) {
+                    if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LendingConstants.SIX_DAY_MODEL_OFF_DAY)) {
+                        cal.add(Calendar.DAY_OF_MONTH, 1);
+                        continue;
+                    }
                 }
                 Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
                 double interest = round(lendingApplication.getEdi().intValue() - principal);

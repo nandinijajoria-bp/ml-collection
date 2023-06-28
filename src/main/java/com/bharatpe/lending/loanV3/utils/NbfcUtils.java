@@ -54,7 +54,7 @@ public class NbfcUtils {
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             lendingApplicationDetails = new LendingApplicationDetails();
             lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-            lendingApplicationDetails.setEdiModel(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().name());
+            lendingApplicationDetails.setEdiModel(LoanUtil.getEdiModal(lendingApplication).name());
             lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
         }
         log.info("changing lender for the application {}", lendingApplication.getId());

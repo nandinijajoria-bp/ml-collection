@@ -26,6 +26,7 @@ import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
@@ -365,7 +366,8 @@ public class LiquiloansService {
             lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
             lendingPaymentSchedule.setCreatedAt(new Date());
             lendingPaymentSchedule.setUpdatedAt(new Date());
-            lendingPaymentSchedule.setOffDay(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay());
+            lendingPaymentSchedule.setOffDay(lendingApplication.getPayableDays() % 30 == 0 ?
+                     LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 //    		String construct=lendingApplication.getLoanConstruct();
 //    		lendingPaymentSchedule.setLoanConstruct(construct);
 
@@ -624,7 +626,8 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setTotalPayableAmount(lendingApplication.getRepayment());
                 lendingPaymentSchedule.setCreatedAt(new Date());
                 lendingPaymentSchedule.setUpdatedAt(new Date());
-                lendingPaymentSchedule.setOffDay(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay());
+                lendingPaymentSchedule.setOffDay(lendingApplication.getPayableDays() % 30 == 0 ?
+                        LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 
                 if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());

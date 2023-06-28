@@ -439,17 +439,17 @@ public class LenderAssignService implements ILenderAssignService {
                     application.get().getMerchantId(), "LENDER_SET");
             if(auditLenderList.size()>=2){
                 log.info("Lender already changed twice for application: {}", application.get().getId());
-                EdiModel ediModel = LenderOffDays.valueOf(Lender.LDC.name()).getEdiModel();
+                EdiModel ediModel = LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel();
 //                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 if (!ediDetails.getEdiModel().equals(ediModel.name())) {
                     modifyEdiModel(application.get(), ediModel);
                 }
                 String oldLender = application.get().getLender();
-                application.get().setLender(Lender.LDC.name());
+                application.get().setLender(Lender.LIQUILOANS_P2P.name());
                 updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 lendingApplicationDao.save(application.get());
-                return Lender.LDC;
+                return Lender.LIQUILOANS_P2P;
             }
             EdiModel ediModel = LenderOffDays.valueOf(application.get().getLender()).getEdiModel();
             assignLender(application.get(), ediModel, null);
@@ -491,8 +491,8 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Assigning fallback lender");
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(ObjectUtils.isEmpty(fallbackLender)){
-            modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LDC.name()).getEdiModel());
-            return Lender.LDC.name();
+            modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
+            return Lender.LIQUILOANS_P2P.name();
         }
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel());

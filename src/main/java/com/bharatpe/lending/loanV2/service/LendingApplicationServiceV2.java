@@ -7,15 +7,11 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
-import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.service.ILenderAssignService;
-import com.bharatpe.lending.common.service.LenderAssignmentRandom;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
@@ -33,7 +29,6 @@ import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -1633,7 +1628,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setTenure(loanDowngradeConfigEntity.getTenure().toString() + " months");
                 lendingApplication.setTenureInMonths(loanDowngradeConfigEntity.getTenure());
                 lendingApplication.setPayableDays(loanDowngradeConfigEntity.getTenure() == 0 ? 0
-                        : (long) easyLoanUtil.getEdiDays(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), loanDowngradeConfigEntity.getTenure()));
+                        : (long) easyLoanUtil.getEdiDays(LoanUtil.getEdiModal(lendingApplication), loanDowngradeConfigEntity.getTenure()));
                 lendingApplicationDao.save(lendingApplication);
             }
 
@@ -1974,7 +1969,7 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setApplicationId(lendingApplication.getId());
         lendingKfs.setMerchantId(merchant.getId());
         lendingKfs.setLender(lendingApplication.getLender());
-        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek());
+        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
