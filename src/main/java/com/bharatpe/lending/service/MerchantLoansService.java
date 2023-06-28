@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
@@ -696,7 +697,7 @@ public class MerchantLoansService {
 
             Long experianId = null;
 
-            Boolean sevenDayFlag = LoanUtil.getEdiModal(lendingApplication).equals(EdiModel.SEVEN_DAY_MODEL);
+            Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
 
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
@@ -844,7 +845,7 @@ public class MerchantLoansService {
 //            }
 
             Long experianId = null;
-            Boolean sevenDayFlag = LoanUtil.getEdiModal(lendingApplication).equals(EdiModel.SEVEN_DAY_MODEL);
+            Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
@@ -1128,7 +1129,7 @@ public class MerchantLoansService {
             }
 
             Long experianId = null;
-            Boolean sevenDayFlag = LoanUtil.getEdiModal(lendingPaymentSchedule.getLoanApplication()).equals(EdiModel.SEVEN_DAY_MODEL);
+            Boolean sevenDayFlag = LenderOffDays.valueOf(lendingPaymentSchedule.getLoanApplication().getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (ObjectUtils.isEmpty(eligibleLoanList)) {
