@@ -1463,6 +1463,7 @@ public class LendingApplicationServiceV2 {
                 if (!ObjectUtils.isEmpty(basicDetailsDto) && !ObjectUtils.isEmpty(basicDetailsDto.getMid())) {
                     HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
                         put("resubmitReason", resubmitApplicationDTO.getResubmitReason());
+                        put("loanAmount", lendingApplication.getLoanAmount().toString());
                     }};
                     executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_INITIATED.name(), cleverTapEvtData, basicDetailsDto.getMid()));
                 }
@@ -1704,6 +1705,7 @@ public class LendingApplicationServiceV2 {
                 HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
                     put("resubmitReason", lendingResubmitTask.getResubmitReason());
                     put("resubmitCount", finalMaxCount.toString());
+                    put("loanAmount", lendingApplication.getLoanAmount().toString());
                 }};
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_RESUBMIT_COMPLETED.name(), cleverTapEvtData, mid));
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
