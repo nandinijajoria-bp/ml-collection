@@ -7,6 +7,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.PhonebookHandler;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
@@ -695,7 +696,9 @@ public class MerchantLoansService {
 
             Long experianId = null;
 
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+            Boolean sevenDayFlag = LoanUtil.getEdiModal(lendingApplication).equals(EdiModel.SEVEN_DAY_MODEL);
+
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
@@ -736,7 +739,7 @@ public class MerchantLoansService {
                 }
 
                 loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
-                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);
                 experian.setLoanType("TOPUP");
@@ -841,8 +844,8 @@ public class MerchantLoansService {
 //            }
 
             Long experianId = null;
-
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+            Boolean sevenDayFlag = LoanUtil.getEdiModal(lendingApplication).equals(EdiModel.SEVEN_DAY_MODEL);
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
@@ -877,7 +880,7 @@ public class MerchantLoansService {
                 }
 
                 loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
-                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);
                 experian.setLoanType("TOPUP");
@@ -1125,8 +1128,8 @@ public class MerchantLoansService {
             }
 
             Long experianId = null;
-
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+            Boolean sevenDayFlag = LoanUtil.getEdiModal(lendingPaymentSchedule.getLoanApplication()).equals(EdiModel.SEVEN_DAY_MODEL);
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (ObjectUtils.isEmpty(eligibleLoanList)) {
                 Double eligibleAmount = 0D;
@@ -1147,7 +1150,7 @@ public class MerchantLoansService {
                 }
 
                 loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
-                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanType(lendingPaymentSchedule.getMerchantId(), "TOPUP");
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);
                 experian.setLoanType("TOPUP");
