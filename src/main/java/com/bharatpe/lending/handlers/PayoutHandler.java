@@ -70,6 +70,16 @@ public class PayoutHandler {
         kafkaService.send(producerRecord);
     }
 
+    public void initiatePayout(String topic, String orderId, BigDecimal amount, String payoutType, BeneficiaryInfoDTO beneficiaryInfo) throws IOException {
+        log.info("Creating payout for topic : {} orderId: {}, amount: {}, payoutType: {}, beneficiary: {}", topic, orderId, amount, payoutType, beneficiaryInfo);
+        Map<String, Object> internalPayout = getInternalPayoutRequest(orderId, amount, payoutType, beneficiaryInfo);
+        ProducerRecord producerRecord = new ProducerRecord(topic, orderId, internalPayout);
+        producerRecord.headers().add(new RecordHeader(ServiceConstants.PAYOUT.HEADER.CLIENT_NAME, ServiceConstants.PAYOUT.CLIENT_NAME.getBytes()));
+        producerRecord.headers().add(new RecordHeader(ServiceConstants.PAYOUT.HEADER.HASH_NAME,
+          hmacService.calculateHmac(getNestedPayload(internalPayout), getInternalSecret()).getBytes()));
+        kafkaService.send(producerRecord);
+    }
+
     public PayoutResponseDTO checkStatus(String orderId, String payoutType) {
         try {
             long startTime = System.currentTimeMillis();

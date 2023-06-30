@@ -33,6 +33,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -73,6 +74,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingPennydropDao lendingPennydropDao;
+
+	@Autowired
+	PennyDropService pennyDropService;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -565,6 +569,51 @@ public class LoanUtil {
 		}
 		return false;
 	}
+
+	public boolean checkPennyDropV2(Long merchantId) {
+		try {
+			logger.info("Checking penny drop for merchant:{}", merchantId);
+			Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+			if (ObjectUtils.isEmpty(basicDetailsDto)) {
+				return false;
+			}
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
+
+			if (ObjectUtils.isEmpty(merchantBankDetail)) {
+				return false;
+			}
+
+			final LendingPennydrop pennydropInLast15Days = lendingPennydropDao.findByMerchantIdAndAccountNumberInLast15Days(merchantId,
+			merchantBankDetail.getAccountNumber());
+
+			if (!ObjectUtils.isEmpty(pennydropInLast15Days)) {
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("SUCCESS")) {
+					logger.info("Penny drop success for merchant:{}", merchantId);
+					return true;
+				}
+
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("PENDING")) {
+					logger.info("Penny drop is pending for merchant:{} and pennydropId : {}", merchantId, pennydropInLast15Days.getId());
+					return false;
+				}
+
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("FAILED")) {
+					logger.info("Penny drop failed for merchant:{}", merchantId);
+					return false;
+				}
+			}
+
+			// if no entry in last 15 days then initiatePennyDrop
+			pennyDropService.initiateNewPennyDrop(merchantBankDetail, merchantId, null);
+		} catch (Exception e) {
+			logger.error("Exception in penny drop for merchant:{}", merchantId, e);
+		}
+		return false;
+	}
+
 
 	public static int calculateDPD(Double ediAmount, Double dueAmount) {
 		if (dueAmount < ediAmount) return 0;

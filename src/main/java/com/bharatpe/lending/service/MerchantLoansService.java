@@ -339,7 +339,7 @@ public class MerchantLoansService {
                     }
                     responseDTO.setRepaymentDetails(repaymentDetailsList);
                 }
-                boolean pennyDrop = loanUtil.checkPennyDrop(lendingPaymentSchedule.getMerchantId());
+                boolean pennyDrop = loanUtil.checkPennyDropV2(lendingPaymentSchedule.getMerchantId());
                 if (pennyDrop) {
                     try {
                         List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
