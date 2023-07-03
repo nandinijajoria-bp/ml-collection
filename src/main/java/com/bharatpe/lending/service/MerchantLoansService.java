@@ -365,6 +365,8 @@ public class MerchantLoansService {
                         logger.info("loan id is {}",id);
                         loan.setPresentmentStatus(status);
                         loan.setPresentmentAmount(amount);
+                        log.info("lending pull payment Updated Date is {}", pullPayment.getUpdatedAt());
+                        loan.setPresentmentDate(pullPayment.getUpdatedAt());
                     }
 
                     log.info("loan application id is loan.getApplicationId{}", loan.getApplicationId());
@@ -385,8 +387,6 @@ public class MerchantLoansService {
                         }
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                         loan.setMandateRegisterId(autoPayUPI.get().getOrderId());
-                        log.info("auto pay upi created at {}",autoPayUPI.get().getCreatedAt());
-                        loan.setPresentmentDate(autoPayUPI.get().getCreatedAt());
                     }
 
                     Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
