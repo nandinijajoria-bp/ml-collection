@@ -370,6 +370,7 @@ public class MerchantLoansService {
                     log.info("loan application id is loan.getApplicationId{}", loan.getApplicationId());
                     Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, loan.getApplicationId());
                     if (autoPayUPI.isPresent()) {
+                        log.info("autoPay UPI is present {}",autoPayUPI);
                         if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING))
                         {
                             Date createdMandateDate = autoPayUPI.get().getCreatedAt();
@@ -384,6 +385,8 @@ public class MerchantLoansService {
                         }
                         loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
                         loan.setMandateRegisterId(autoPayUPI.get().getOrderId());
+                        log.info("auto pay upi created at {}",autoPayUPI.get().getCreatedAt());
+                        loan.setPresentmentDate(autoPayUPI.get().getCreatedAt());
                     }
 
                     Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
